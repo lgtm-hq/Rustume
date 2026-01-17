@@ -1,0 +1,21 @@
+[package]
+name = "rustume-parser"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Import/export parsers for Rustume (JSON Resume, LinkedIn, etc.)"
+
+[dependencies]
+rustume-schema = { path = "../schema" }
+rustume-utils = { path = "../utils" }
+serde.workspace = true
+serde_json.workspace = true
+csv.workspace = true
+# zip without zstd/lzma for WASM compatibility (deflate only)
+zip = { version = "2.1", default-features = false, features = ["deflate"] }
+cuid2.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+rstest.workspace = true
+validator.workspace = true
