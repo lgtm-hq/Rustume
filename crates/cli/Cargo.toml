@@ -1,0 +1,36 @@
+[package]
+name = "rustume-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Command-line interface for Rustume resume builder"
+
+[[bin]]
+name = "rustume"
+path = "src/main.rs"
+
+[dependencies]
+rustume-schema = { path = "../schema" }
+rustume-parser = { path = "../parser" }
+rustume-render = { path = "../render" }
+rustume-utils = { path = "../utils" }
+
+# CLI
+clap = { version = "4.5", features = ["derive"] }
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# Validation
+validator.workspace = true
+
+# Error handling
+anyhow.workspace = true
+thiserror.workspace = true
+
+# File handling
+[dev-dependencies]
+assert_cmd = "2.0"
+predicates = "3.1"
+tempfile = "3.14"

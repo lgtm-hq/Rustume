@@ -1,0 +1,47 @@
+[package]
+name = "rustume-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "HTTP API server for Rustume resume builder"
+
+[[bin]]
+name = "rustume-server"
+path = "src/main.rs"
+
+[dependencies]
+rustume-schema = { path = "../schema" }
+rustume-parser = { path = "../parser" }
+rustume-render = { path = "../render" }
+rustume-utils = { path = "../utils" }
+
+# Web server
+axum.workspace = true
+tower.workspace = true
+tower-http.workspace = true
+tokio.workspace = true
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# Validation
+validator.workspace = true
+
+# Error handling
+anyhow.workspace = true
+thiserror.workspace = true
+
+# Logging
+tracing.workspace = true
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Base64 for binary data in JSON
+base64 = "0.22"
+
+# OpenAPI / Swagger
+utoipa = { version = "5", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "8", features = ["axum"] }
+
+[dev-dependencies]
+reqwest = { version = "0.12", features = ["json"] }
