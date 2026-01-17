@@ -1,0 +1,30 @@
+[package]
+name = "rustume-wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "WebAssembly bindings for Rustume"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+rustume-schema = { path = "../../crates/schema" }
+rustume-parser = { path = "../../crates/parser" }
+# rustume-render is excluded - Typst has native dependencies that don't compile to WASM
+# PDF rendering should be done server-side
+rustume-storage = { path = "../../crates/storage" }
+rustume-utils = { path = "../../crates/utils" }
+
+serde.workspace = true
+serde_json.workspace = true
+wasm-bindgen.workspace = true
+wasm-bindgen-futures.workspace = true
+js-sys.workspace = true
+web-sys.workspace = true
+thiserror.workspace = true
+serde-wasm-bindgen = "0.6"
+validator.workspace = true
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
