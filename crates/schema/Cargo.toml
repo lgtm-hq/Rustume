@@ -1,0 +1,19 @@
+[package]
+name = "rustume-schema"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Resume data types and validation for Rustume"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+validator.workspace = true
+cuid2.workspace = true
+regex.workspace = true
+once_cell.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+rstest.workspace = true
+proptest.workspace = true
