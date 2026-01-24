@@ -983,7 +983,52 @@ fn default_level() -> u8 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rustume_schema_macros::SectionItem;
     use validator::Validate;
+
+    // Test struct using the SectionItem derive macro
+    #[derive(Debug, Clone, Serialize, Deserialize, Validate, SectionItem)]
+    #[serde(rename_all = "camelCase")]
+    #[section_item(new(title))]
+    struct TestItem {
+        pub id: String,
+        #[serde(default = "default_true")]
+        pub visible: bool,
+        pub title: String,
+        #[serde(default)]
+        pub description: String,
+        #[validate(nested)]
+        #[serde(default)]
+        pub url: Url,
+    }
+
+    #[test]
+    fn test_section_item_macro_new() {
+        let item = TestItem::new("Test Title");
+        assert!(!item.id.is_empty());
+        assert!(item.visible);
+        assert_eq!(item.title, "Test Title");
+        assert!(item.description.is_empty());
+    }
+
+    #[test]
+    fn test_section_item_macro_builder() {
+        let item = TestItem::new("Test Title")
+            .with_description("A description")
+            .with_url("https://example.com");
+
+        assert_eq!(item.title, "Test Title");
+        assert_eq!(item.description, "A description");
+        assert_eq!(item.url.href, "https://example.com");
+    }
+
+    #[test]
+    fn test_section_item_macro_default() {
+        let item = TestItem::default();
+        assert!(item.id.is_empty());
+        assert!(item.visible);
+        assert!(item.title.is_empty());
+    }
 
     #[test]
     fn test_section_add_item() {
