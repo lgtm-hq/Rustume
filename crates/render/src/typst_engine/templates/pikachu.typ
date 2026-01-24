@@ -25,6 +25,7 @@
 }
 
 #let skill-dots(level) = {
+  let level = calc.min(calc.max(level, 0), 5)
   let filled = level
   let empty = 5 - level
   for i in range(filled) {
@@ -117,7 +118,7 @@
 #let render-profile(item) = {
   if item.visible == false { return }
 
-  if item.url.href != "" {
+  if "url" in item and item.url != none and item.url.href != "" {
     link(item.url.href)[
       #text(size: 9pt, fill: text-color)[#item.network]
     ]
@@ -137,7 +138,7 @@
     text(size: 10pt)[#item.description]
   }
 
-  if item.keywords.len() > 0 {
+  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
     v(4pt)
     text(size: 9pt, fill: muted-color)[#item.keywords.join(" · ")]
   }

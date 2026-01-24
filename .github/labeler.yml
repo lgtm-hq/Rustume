@@ -15,7 +15,7 @@ ci:
           - ".github/workflows/**"
           - ".github/actions/**"
           - "scripts/ci/**"
-          - "Dockerfile"
+          - "docker/Dockerfile"
           - "docker/**"
 
 documentation:

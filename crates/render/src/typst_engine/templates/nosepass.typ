@@ -91,12 +91,13 @@
     inset: (x: 8pt, y: 4pt),
     [
       #text(size: 9pt, weight: "medium")[#item.name]
-      #if item.level > 0 {
+      #let level = calc.min(calc.max(item.level, 0), 5)
+      #if level > 0 {
         h(4pt)
-        for i in range(item.level) {
+        for i in range(level) {
           text(fill: primary-color)[●]
         }
-        for i in range(5 - item.level) {
+        for i in range(5 - level) {
           text(fill: border-color)[●]
         }
       }
@@ -121,7 +122,7 @@
 #let render-profile(item) = {
   if item.visible == false { return }
 
-  if item.url.href != "" {
+  if "url" in item and item.url != none and item.url.href != "" {
     link(item.url.href)[#text(fill: primary-color)[#item.network: #item.username]]
   } else {
     text(size: 10pt)[#item.network: #item.username]
@@ -139,7 +140,7 @@
     text(size: 10pt)[#item.description]
   }
 
-  if item.keywords.len() > 0 {
+  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
     v(4pt)
     for keyword in item.keywords {
       box(
