@@ -1,11 +1,12 @@
 //! HTML sanitization utilities.
 
 use ammonia::Builder;
+use once_cell::sync::Lazy;
 use std::collections::{HashMap, HashSet};
 
-/// Sanitize HTML content (for resume summaries, etc.).
-pub fn sanitize_html(html: &str) -> String {
-    let allowed_tags: HashSet<&str> = [
+/// Allowed HTML tags for sanitization.
+static ALLOWED_TAGS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
+    [
         "a", "abbr", "acronym", "address", "article", "aside", "b", "bdi", "bdo", "big",
         "blockquote", "br", "caption", "center", "cite", "code", "col", "colgroup", "data", "dd",
         "del", "details", "dfn", "div", "dl", "dt", "em", "figcaption", "figure", "footer", "h1",
@@ -16,20 +17,27 @@ pub fn sanitize_html(html: &str) -> String {
     ]
     .iter()
     .copied()
-    .collect();
+    .collect()
+});
 
-    // Define allowed attributes per tag
-    let mut tag_attributes: HashMap<&str, HashSet<&str>> = HashMap::new();
-    tag_attributes.insert("a", ["href", "title", "target"].iter().copied().collect());
-    tag_attributes.insert("img", ["src", "alt", "title"].iter().copied().collect());
+/// Allowed attributes per tag.
+static TAG_ATTRIBUTES: Lazy<HashMap<&'static str, HashSet<&'static str>>> = Lazy::new(|| {
+    let mut map = HashMap::new();
+    map.insert("a", ["href", "title", "target"].iter().copied().collect());
+    map.insert("img", ["src", "alt", "title"].iter().copied().collect());
+    map
+});
 
-    // Safe global attributes
-    let generic_attributes: HashSet<&str> = ["class", "id"].iter().copied().collect();
+/// Safe global attributes.
+static GENERIC_ATTRIBUTES: Lazy<HashSet<&'static str>> =
+    Lazy::new(|| ["class", "id"].iter().copied().collect());
 
+/// Sanitize HTML content (for resume summaries, etc.).
+pub fn sanitize_html(html: &str) -> String {
     Builder::default()
-        .tags(allowed_tags)
-        .tag_attributes(tag_attributes)
-        .generic_attributes(generic_attributes)
+        .tags(ALLOWED_TAGS.clone())
+        .tag_attributes(TAG_ATTRIBUTES.clone())
+        .generic_attributes(GENERIC_ATTRIBUTES.clone())
         .link_rel(Some("noopener noreferrer"))
         .url_relative(ammonia::UrlRelative::PassThrough)
         .clean(html)
@@ -61,6 +69,8 @@ mod tests {
         assert!(output.contains("href"));
         assert!(output.contains("title"));
         assert!(output.contains("target"));
+        // Verify rel="noopener noreferrer" is added for security
+        assert!(output.contains(r#"rel="noopener noreferrer""#));
     }
 
     #[test]
