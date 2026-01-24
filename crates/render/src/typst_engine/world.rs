@@ -6,12 +6,13 @@
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
+use chrono::Datelike;
 use typst::diag::{FileError, FileResult};
 use typst::foundations::{Bytes, Datetime};
 use typst::syntax::{FileId, Source, VirtualPath};
 use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
-use typst::Library;
+use typst::{Library, LibraryExt};
 
 /// Embedded templates
 static TEMPLATES: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
@@ -76,7 +77,7 @@ impl RustumeWorld {
 
         // Load bundled fonts from typst-assets
         for entry in typst_assets::fonts() {
-            let buffer = Bytes::from_static(entry);
+            let buffer = Bytes::new(entry.to_vec());
             for font in Font::iter(buffer) {
                 book.push(font.info().clone());
                 fonts.push(font);
@@ -91,7 +92,7 @@ impl RustumeWorld {
                 if let Ok(entries) = std::fs::read_dir(path) {
                     for entry in entries.flatten() {
                         if let Ok(data) = std::fs::read(entry.path()) {
-                            let buffer = Bytes::from(data);
+                            let buffer = Bytes::new(data);
                             for font in Font::iter(buffer) {
                                 book.push(font.info().clone());
                                 fonts.push(font);
@@ -148,12 +149,14 @@ impl typst::World for RustumeWorld {
         fonts.get(index).cloned()
     }
 
-    fn today(&self, _offset: Option<i64>) -> Option<Datetime> {
-        let now = chrono::Local::now();
+    fn today(&self, offset: Option<i64>) -> Option<Datetime> {
+        let now = chrono::Utc::now();
+        let offset_hours = offset.unwrap_or(0);
+        let adjusted = now + chrono::Duration::hours(offset_hours);
         Datetime::from_ymd(
-            now.format("%Y").to_string().parse().ok()?,
-            now.format("%m").to_string().parse().ok()?,
-            now.format("%d").to_string().parse().ok()?,
+            adjusted.year(),
+            adjusted.month() as u8,
+            adjusted.day() as u8,
         )
     }
 }

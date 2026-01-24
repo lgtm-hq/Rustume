@@ -89,7 +89,7 @@ impl TypstRenderer {
     }
 
     /// Compile the Typst source to a document.
-    fn compile(&self, resume: &ResumeData) -> Result<typst::model::Document, RenderError> {
+    fn compile(&self, resume: &ResumeData) -> Result<typst::layout::PagedDocument, RenderError> {
         use typst::World;
 
         let source = self.generate_source(resume)?;
@@ -104,7 +104,8 @@ impl TypstRenderer {
                     let file_id = e.span.id().unwrap_or_else(|| world.main());
                     let location = if let Ok(src) = world.source(file_id) {
                         if let Some(range) = src.range(e.span) {
-                            let line = src.byte_to_line(range.start).unwrap_or(0);
+                            // Find line number by counting newlines before the error position
+                            let line = src.text()[..range.start].matches('\n').count();
                             let text = src.text().lines().nth(line).unwrap_or("");
                             format!("{:?}:{}: {}", src.id().vpath(), line + 1, text.trim())
                         } else {
