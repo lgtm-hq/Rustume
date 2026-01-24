@@ -1,0 +1,194 @@
+# SPDX-License-Identifier: MIT
+---
+name: Test - Rust Test Suite
+# Runs cargo test on PRs and pushes to main.
+
+"on":
+  push:
+    branches: [main]
+    paths:
+      - "**.rs"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/test-rust.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "**.rs"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/test-rust.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: 🧪 Run Tests
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: write
+    timeout-minutes: 30
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.draft == false
+    defaults:
+      run:
+        shell: bash
+    concurrency:
+      group: test-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: "block"
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            codeload.github.com:443
+            objects.githubusercontent.com:443
+            static.rust-lang.org:443
+            sh.rustup.rs:443
+            crates.io:443
+            static.crates.io:443
+            index.crates.io:443
+
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Check for Rust project
+        id: check-rust
+        run: |
+          if [ -f Cargo.toml ]; then
+            echo "has_rust=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_rust=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No Cargo.toml found, skipping Rust tests"
+          fi
+
+      - name: Setup Rust
+        if: steps.check-rust.outputs.has_rust == 'true'
+        uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7 # stable
+
+      - name: Cache cargo registry
+        if: steps.check-rust.outputs.has_rust == 'true'
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Run tests
+        if: steps.check-rust.outputs.has_rust == 'true'
+        id: test
+        run: ./scripts/ci/testing/ci-cargo-test.sh
+        continue-on-error: true
+
+      - name: Generate test PR comment
+        if: steps.check-rust.outputs.has_rust == 'true' && github.event_name == 'pull_request'
+        run: ./scripts/ci/testing/ci-test-pr-comment.sh
+
+      - name: Generate skipped PR comment
+        if: steps.check-rust.outputs.has_rust == 'false' && github.event_name == 'pull_request'
+        run: |
+          cat > test-pr-comment.txt <<'EOF'
+          <!-- test-report -->
+          ## 🧪 Rust Test Results
+
+          ℹ️ **No Rust Project Found**
+
+          No `Cargo.toml` detected in the repository root. Tests were skipped.
+
+          Once Rust source code is added, this workflow will automatically run `cargo test`.
+          EOF
+
+      - name: Comment PR with test results
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.fork == false
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MARKER: "<!-- test-report -->"
+        run: ./scripts/ci/github/ci-post-pr-comment.sh test-pr-comment.txt
+
+      - name: Fail if tests failed
+        if: steps.check-rust.outputs.has_rust == 'true' && env.TEST_EXIT_CODE != '0'
+        run: |
+          echo "❌ Tests failed"
+          exit 1
+
+  build:
+    name: 🔨 Build Check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.draft == false
+    defaults:
+      run:
+        shell: bash
+    concurrency:
+      group: build-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: "block"
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            codeload.github.com:443
+            objects.githubusercontent.com:443
+            static.rust-lang.org:443
+            sh.rustup.rs:443
+            crates.io:443
+            static.crates.io:443
+            index.crates.io:443
+
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Check for Rust project
+        id: check-rust
+        run: |
+          if [ -f Cargo.toml ]; then
+            echo "has_rust=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_rust=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No Cargo.toml found, skipping Rust build"
+          fi
+
+      - name: Setup Rust
+        if: steps.check-rust.outputs.has_rust == 'true'
+        uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7 # stable
+
+      - name: Cache cargo registry
+        if: steps.check-rust.outputs.has_rust == 'true'
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Build all crates
+        if: steps.check-rust.outputs.has_rust == 'true'
+        run: cargo build --workspace --all-features
+
+      - name: Build release
+        if: steps.check-rust.outputs.has_rust == 'true'
+        run: cargo build --workspace --release

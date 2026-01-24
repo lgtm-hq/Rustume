@@ -1,0 +1,91 @@
+---
+name: Bug report
+description: Create a report to help us improve Rustume
+labels: [bug, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please fill out all required fields to help us diagnose the issue.
+  - type: input
+    id: title
+    attributes:
+      label: Bug summary
+      description: Concise summary of the bug
+      placeholder: Example - Rustume crashes when parsing LinkedIn export
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Exact commands and outputs
+      placeholder: |
+        1. Run: rustume parse resume.json
+        2. See error ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - CLI (rustume-cli)
+        - Parser (rustume-parser)
+        - Render (rustume-render)
+        - Schema (rustume-schema)
+        - Server (rustume-server)
+        - WASM (rustume-wasm)
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: env-os
+    attributes:
+      label: OS version
+      placeholder: macOS 15 / Ubuntu 22.04
+    validations:
+      required: true
+  - type: input
+    id: env-rust
+    attributes:
+      label: Rust version
+      placeholder: 1.75.0
+    validations:
+      required: true
+  - type: input
+    id: env-rustume
+    attributes:
+      label: Rustume version
+      placeholder: 0.x.y
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error / logs
+      render: text
+  - type: textarea
+    id: minimal
+    attributes:
+      label: Minimal reproducible example (if applicable)
+      render: text
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues
+        - label: I can reproduce consistently

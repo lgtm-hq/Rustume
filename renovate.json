@@ -1,0 +1,66 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "packageRules": [
+    {
+      "matchCategories": ["rust"],
+      "enabled": true
+    },
+    {
+      "matchCategories": ["docker"],
+      "enabled": true,
+      "pinDigests": true
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "pinDigests": true,
+      "groupName": "github-actions",
+      "separateMinorPatch": false
+    },
+    {
+      "matchManagers": ["docker-compose", "dockerfile"],
+      "matchUpdateTypes": ["digest", "patch"],
+      "automerge": true,
+      "automergeType": "branch"
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["digest"],
+      "automerge": true,
+      "automergeType": "branch"
+    },
+    {
+      "matchUpdateTypes": ["major"],
+      "groupName": "all major dependencies",
+      "groupSlug": "all-major",
+      "matchPackageNames": ["**"]
+    },
+    {
+      "matchManagers": ["cargo"],
+      "matchUpdateTypes": ["patch"],
+      "automerge": true,
+      "automergeType": "branch"
+    },
+    {
+      "groupName": "linting tools",
+      "groupSlug": "linting-tools",
+      "matchPackageNames": ["ghcr.io/turbocoder13/py-lintro", "ghcr.io/turbocoder13/lintro-tools"],
+      "automerge": false
+    }
+  ],
+  "schedule": ["after 22:00", "before 06:00"],
+  "timezone": "UTC",
+  "labels": ["dependencies"],
+  "prHourlyLimit": 2,
+  "prConcurrentLimit": 5,
+  "rangeStrategy": "pin",
+  "semanticCommits": "enabled",
+  "semanticCommitType": "chore",
+  "semanticCommitScope": "deps",
+  "prTitle": "{{semanticCommitType}}({{semanticCommitScope}}): {{#if isMajor}}update {{depName}} to {{newVersion}} (major){{else if isMinor}}update {{depName}} to {{newVersion}} (minor){{else}}{{#if newVersion}}update {{depName}} to {{newVersion}}{{else}}update {{depName}} digest{{/if}}{{/if}}",
+  "dependencyDashboard": true,
+  "dependencyDashboardTitle": "Dependency Dashboard",
+  "commitMessagePrefix": "chore(deps):",
+  "assigneesFromCodeOwners": false,
+  "reviewersFromCodeOwners": false
+}
