@@ -4,12 +4,12 @@
 # =============================================================================
 # Stage 1: Builder
 # =============================================================================
-FROM rust:latest AS builder
+FROM rust:1.84-bookworm@sha256:738ae99a3d75623f41e6882566b4ef37e38a9840244a47efd4a0ca22e9628b88 AS builder
 
 WORKDIR /app
 
 # Install build dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -25,7 +25,7 @@ RUN cargo build --release -p rustume-server
 # =============================================================================
 # Stage 2: Runtime
 # =============================================================================
-FROM debian:bookworm-slim AS runtime
+FROM debian:bookworm-slim@sha256:56ff6d36d4eb3db13a741b342ec466f121480b5edded42e4b7ee850ce7a418ee AS runtime
 
 # Install runtime dependencies
 # - ca-certificates: for HTTPS
