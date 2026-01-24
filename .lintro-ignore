@@ -1,0 +1,16 @@
+# Lintro output directory
+.lintro/
+
+# Build artifacts
+target/
+
+# Dependencies
+node_modules/
+
+# Virtual environments
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/

@@ -1,0 +1,69 @@
+# Configuration for actions/labeler
+# Maps file paths to labels for automatic PR labeling
+---
+rust:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "crates/**/*.rs"
+          - "bindings/**/*.rs"
+          - "Cargo.toml"
+          - "Cargo.lock"
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/workflows/**"
+          - ".github/actions/**"
+          - "scripts/ci/**"
+          - "Dockerfile"
+          - "docker/**"
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docs/**"
+          - "README.md"
+          - "CHANGELOG.md"
+          - "**/*.md"
+          - "!.github/**/*.md"
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "Cargo.toml"
+          - "Cargo.lock"
+
+schema:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "crates/schema/**"
+
+parser:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "crates/parser/**"
+
+render:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "crates/render/**"
+
+cli:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "crates/cli/**"
+
+server:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "crates/server/**"
+
+wasm:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "bindings/wasm/**"
+
+templates:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "crates/render/src/typst_engine/templates/**"

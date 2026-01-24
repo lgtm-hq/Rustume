@@ -1,0 +1,83 @@
+---
+# Lintro Configuration for Rustume
+# https://github.com/TurboCoder13/py-lintro
+#
+# Lintro is the master configuration source for all tools.
+# Native tool configs are used when available.
+
+enforce:
+  line_length: 100
+
+execution:
+  enabled_tools: []
+  tool_order: "priority"
+  fail_fast: false
+  parallel: true
+  max_workers: 10
+
+# Fallback configurations for tools without native config files.
+# These are used when no native config is found.
+defaults:
+  markdownlint:
+    MD013:
+      line_length: 100
+      code_blocks: false
+      tables: false
+
+  yamllint:
+    extends: "default"
+    rules:
+      comments-indentation: "disable"
+      comments:
+        min-spaces-from-content: 1
+      truthy:
+        check-keys: true
+      line-length:
+        max: 100
+        allow-non-breakable-inline-mappings: true
+
+  hadolint:
+    ignored: []
+    trusted_registries:
+      - "docker.io"
+      - "gcr.io"
+      - "ghcr.io"
+
+# Tool enable/disable settings.
+# Let lintro auto-detect and run all applicable tools.
+tools:
+  # Rust linting via Clippy
+  clippy:
+    enabled: true
+
+  # Markdown linting
+  markdownlint:
+    enabled: true
+
+  # YAML linting
+  yamllint:
+    enabled: true
+
+  # Hadolint - Dockerfile linter
+  hadolint:
+    enabled: true
+
+  # Actionlint - GitHub Actions linter
+  actionlint:
+    enabled: true
+
+  # Taplo - TOML linter/formatter
+  taplo:
+    enabled: true
+
+  # ShellCheck - Shell script linter
+  shellcheck:
+    enabled: true
+
+  # shfmt - Shell script formatter
+  shfmt:
+    enabled: true
+
+  # Rustfmt - Rust code formatter (via cargo fmt)
+  rustfmt:
+    enabled: true
