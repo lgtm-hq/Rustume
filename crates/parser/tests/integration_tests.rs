@@ -554,6 +554,7 @@ mod cross_parser {
     use ::validator::Validate;
 
     #[test]
+    #[allow(clippy::type_complexity)]
     fn test_all_parsers_produce_valid_resume_data() {
         let parsers_and_fixtures: Vec<(&str, Box<dyn Fn(&[u8]) -> Result<rustume_schema::ResumeData, _>>)> = vec![
             ("json_resume/full.json", Box::new(|data| JsonResumeParser.parse(data))),

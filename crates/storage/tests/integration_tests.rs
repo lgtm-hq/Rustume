@@ -6,6 +6,7 @@ use rustume_schema::{Basics, Experience, ResumeData, Section};
 use rustume_storage::{MemoryStorage, StorageBackend, StorageError};
 
 /// Create a sample resume for testing.
+#[allow(clippy::field_reassign_with_default)]
 fn sample_resume(name: &str) -> ResumeData {
     let mut resume = ResumeData::default();
     resume.basics = Basics::new(name)

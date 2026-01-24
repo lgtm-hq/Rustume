@@ -29,7 +29,7 @@ pub fn find_item_in_layout(item: &str, layout: &[Vec<Vec<String>>]) -> Option<La
 /// Remove an item from the layout, returning its previous position.
 pub fn remove_item_in_layout(
     item: &str,
-    layout: &mut Vec<Vec<Vec<String>>>,
+    layout: &mut [Vec<Vec<String>>],
 ) -> Option<LayoutLocator> {
     if let Some(loc) = find_item_in_layout(item, layout) {
         layout[loc.page][loc.column].remove(loc.section);

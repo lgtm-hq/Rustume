@@ -63,7 +63,7 @@ struct JsonResumeLocation {
 }
 
 impl JsonResumeLocation {
-    fn to_string(&self) -> String {
+    fn format_location(&self) -> String {
         let parts: Vec<&str> = [
             self.city.as_deref(),
             self.region.as_deref(),
@@ -219,6 +219,7 @@ impl Parser for JsonResumeParser {
         serde_json::from_value(data).map_err(|e| ParseError::ValidationError(e.to_string()))
     }
 
+    #[allow(clippy::field_reassign_with_default)]
     fn convert(&self, data: Self::ValidatedData) -> Result<ResumeData, ParseError> {
         let mut resume = ResumeData::default();
 
@@ -232,7 +233,7 @@ impl Parser for JsonResumeParser {
             resume.basics.url = Url::new(basics.url.unwrap_or_default());
 
             if let Some(location) = basics.location {
-                resume.basics.location = location.to_string();
+                resume.basics.location = location.format_location();
             }
 
             // Summary goes to summary section

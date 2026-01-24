@@ -228,6 +228,7 @@ mod tests {
     use super::*;
     use rustume_schema::{Basics, Experience, Section};
 
+    #[allow(clippy::field_reassign_with_default)]
     fn sample_resume() -> ResumeData {
         let mut resume = ResumeData::default();
         resume.basics = Basics::new("John Doe")

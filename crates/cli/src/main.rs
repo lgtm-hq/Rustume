@@ -341,6 +341,7 @@ fn cmd_validate(input: &str) -> Result<()> {
 }
 
 /// Init command
+#[allow(clippy::field_reassign_with_default)]
 fn cmd_init(output: Option<PathBuf>, sample: bool) -> Result<()> {
     use rustume_schema::{Basics, Education, Experience, Section, Skill};
 
