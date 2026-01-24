@@ -1,0 +1,6 @@
+# Markdownlint configuration
+# Line length set to match project standard (100 characters)
+MD013:
+  line_length: 100
+  code_blocks: false
+  tables: false
