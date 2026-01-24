@@ -12,6 +12,7 @@
 //! - `POST /api/validate` - Validate resume data
 //! - `GET /swagger-ui` - Swagger UI documentation
 
+use anyhow::Context;
 use axum::{
     extract::DefaultBodyLimit,
     http::{header, Method, StatusCode},
@@ -93,7 +94,7 @@ struct ApiDoc;
 // ============================================================================
 
 /// API error response
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 struct ApiError {
     /// Error message
     #[schema(example = "Failed to parse JSON Resume")]
@@ -418,21 +419,41 @@ async fn validate(Json(resume): Json<ResumeData>) -> Json<ValidationResponse> {
     }
 }
 
-/// Extract validation errors as strings
+/// Extract validation errors as strings (including nested struct errors)
 fn validation_errors(errors: &validator::ValidationErrors) -> Vec<String> {
-    errors
-        .field_errors()
-        .iter()
-        .flat_map(|(field, errs)| {
-            errs.iter().map(move |e| {
-                format!(
+    fn collect_errors(errors: &validator::ValidationErrors, prefix: &str, result: &mut Vec<String>) {
+        // Collect field errors
+        for (field, errs) in errors.field_errors() {
+            let field_path = if prefix.is_empty() {
+                field.to_string()
+            } else {
+                format!("{}.{}", prefix, field)
+            };
+            for e in errs {
+                result.push(format!(
                     "{}: {}",
-                    field,
+                    field_path,
                     e.message.as_ref().map(|m| m.to_string()).unwrap_or_else(|| e.code.to_string())
-                )
-            })
-        })
-        .collect()
+                ));
+            }
+        }
+
+        // Recursively collect nested struct errors
+        for (field, nested) in errors.errors() {
+            let field_path = if prefix.is_empty() {
+                field.to_string()
+            } else {
+                format!("{}.{}", prefix, field)
+            };
+            if let validator::ValidationErrorsKind::Struct(nested_errors) = nested {
+                collect_errors(nested_errors.as_ref(), &field_path, result);
+            }
+        }
+    }
+
+    let mut result = Vec::new();
+    collect_errors(errors, "", &mut result);
+    result
 }
 
 // ============================================================================
@@ -492,7 +513,7 @@ async fn shutdown_signal() {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     // Initialize logging
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -513,14 +534,17 @@ async fn main() {
     info!("Starting Rustume API server on http://{}", addr);
     info!("Swagger UI available at http://{}:{}/swagger-ui", addr.ip(), port);
 
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
+        .context(format!("Failed to bind to {}", addr))?;
 
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await
-        .unwrap();
+        .context("Server error")?;
 
     info!("Server stopped");
+    Ok(())
 }
 
 // ============================================================================
@@ -774,5 +798,178 @@ mod tests {
         assert_eq!(spec["info"]["title"], "Rustume API");
         assert!(spec["paths"].as_object().unwrap().contains_key("/health"));
         assert!(spec["paths"].as_object().unwrap().contains_key("/api/templates"));
+    }
+
+    #[tokio::test]
+    async fn test_parse_rustume_format() {
+        let app = create_router();
+        let resume = ResumeData::default();
+
+        let request = ParseRequest {
+            format: ParseFormat::Rustume,
+            data: serde_json::to_string(&resume).unwrap(),
+            base64: false,
+        };
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/parse")
+                    .header("content-type", "application/json")
+                    .body(Body::from(serde_json::to_string(&request).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let parsed: ResumeData = serde_json::from_slice(&body).unwrap();
+
+        assert_eq!(parsed.basics.name, resume.basics.name);
+    }
+
+    #[tokio::test]
+    async fn test_parse_invalid_json() {
+        let app = create_router();
+
+        let request = ParseRequest {
+            format: ParseFormat::JsonResume,
+            data: "{ invalid json }".to_string(),
+            base64: false,
+        };
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/parse")
+                    .header("content-type", "application/json")
+                    .body(Body::from(serde_json::to_string(&request).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let error: ApiError = serde_json::from_slice(&body).unwrap();
+
+        assert!(error.error.contains("Failed to parse"));
+    }
+
+    #[tokio::test]
+    async fn test_validate_invalid_email() {
+        let app = create_router();
+        let mut resume = ResumeData::default();
+        resume.basics.email = "invalid-email".to_string();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/validate")
+                    .header("content-type", "application/json")
+                    .body(Body::from(serde_json::to_string(&resume).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let result: ValidationResponse = serde_json::from_slice(&body).unwrap();
+
+        assert!(!result.valid, "Expected validation to fail for invalid email");
+        assert!(result.errors.is_some(), "Expected errors to be present");
+        let errors = result.errors.unwrap();
+        // Just verify we got some validation errors - the exact format depends on validator internals
+        assert!(!errors.is_empty(), "Expected at least one error, got: {:?}", errors);
+    }
+
+    #[tokio::test]
+    async fn test_body_size_limit() {
+        let app = create_router();
+
+        // Create a payload larger than MAX_BODY_SIZE (10 MB)
+        let large_payload = vec![b'x'; 11 * 1024 * 1024];
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/validate")
+                    .header("content-type", "application/json")
+                    .body(Body::from(large_payload))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        // Should be rejected with 413 Payload Too Large
+        assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    }
+
+    #[tokio::test]
+    async fn test_templates_returns_expected_count() {
+        let app = create_router();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/templates")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let templates: Vec<TemplateInfo> = serde_json::from_slice(&body).unwrap();
+
+        // Should return 4 templates as per TEMPLATES constant
+        assert_eq!(templates.len(), 4);
+        assert!(templates.iter().any(|t| t.name == "rhyhorn"));
+        assert!(templates.iter().any(|t| t.name == "azurill"));
+        assert!(templates.iter().any(|t| t.name == "pikachu"));
+        assert!(templates.iter().any(|t| t.name == "nosepass"));
+    }
+
+    #[tokio::test]
+    async fn test_health_returns_json_compatible() {
+        let app = create_router();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let text = std::str::from_utf8(&body).unwrap();
+
+        assert_eq!(text, "ok");
     }
 }

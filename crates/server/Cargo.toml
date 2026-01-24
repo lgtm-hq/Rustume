@@ -45,3 +45,5 @@ utoipa-swagger-ui = { version = "8", features = ["axum"] }
 
 [dev-dependencies]
 reqwest = { version = "0.12", features = ["json"] }
+tower = { workspace = true, features = ["util"] }
+http-body-util = "0.1"
