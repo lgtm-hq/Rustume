@@ -69,7 +69,9 @@ jobs:
             -w /workspace \
             ghcr.io/turbocoder13/py-lintro:latest \
             check . 2>&1 | tee chk-output.txt
-          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+          EXIT_CODE=${PIPESTATUS[0]}
+          echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+          echo "CHK_EXIT_CODE=$EXIT_CODE" >> "$GITHUB_ENV"
 
       - name: Generate PR Comment
         if: github.event_name == 'pull_request'
