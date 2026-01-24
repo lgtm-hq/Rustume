@@ -42,8 +42,18 @@ COMMAND="${1:-}"
 case "$COMMAND" in
 read-version)
 	# Use cargo metadata for reliable version extraction in workspace scenarios
+	# Find the root package (manifest_path == workspace_root/Cargo.toml)
 	if command -v cargo &>/dev/null && command -v jq &>/dev/null; then
-		VERSION=$(cargo metadata --format-version=1 --no-deps 2>/dev/null | jq -r '.packages[0].version' || true)
+		VERSION=$(cargo metadata --format-version=1 --no-deps 2>/dev/null | jq -r '
+			.workspace_root as $root |
+			.packages[] |
+			select(.manifest_path == ($root + "/Cargo.toml")) |
+			.version
+		' || true)
+		# If no root package found (virtual workspace), try first package
+		if [[ -z "${VERSION:-}" ]]; then
+			VERSION=$(cargo metadata --format-version=1 --no-deps 2>/dev/null | jq -r '.packages[0].version // empty' || true)
+		fi
 	fi
 	# Fallback to grep if cargo metadata fails or isn't available
 	if [[ -z "${VERSION:-}" ]]; then

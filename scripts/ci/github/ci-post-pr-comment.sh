@@ -47,6 +47,12 @@ if [ -z "${GITHUB_REPOSITORY:-}" ]; then
 	exit 1
 fi
 
+# Validate GITHUB_TOKEN or GH_TOKEN is set (gh CLI uses either)
+if [ -z "${GITHUB_TOKEN:-}" ] && [ -z "${GH_TOKEN:-}" ]; then
+	log_error "GITHUB_TOKEN or GH_TOKEN environment variable is required"
+	exit 1
+fi
+
 # Get the comment file from argument
 COMMENT_FILE="${1:-pr-comment.txt}"
 

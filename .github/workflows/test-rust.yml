@@ -72,7 +72,7 @@ jobs:
 
       - name: Setup Rust
         if: steps.check-rust.outputs.has_rust == 'true'
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7 # stable
 
       - name: Cache cargo registry
         if: steps.check-rust.outputs.has_rust == 'true'
@@ -111,7 +111,9 @@ jobs:
           EOF
 
       - name: Comment PR with test results
-        if: github.event_name == 'pull_request'
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.fork == false
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -169,7 +171,7 @@ jobs:
 
       - name: Setup Rust
         if: steps.check-rust.outputs.has_rust == 'true'
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7 # stable
 
       - name: Cache cargo registry
         if: steps.check-rust.outputs.has_rust == 'true'

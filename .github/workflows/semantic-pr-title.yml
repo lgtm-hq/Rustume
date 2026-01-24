@@ -63,4 +63,6 @@ jobs:
 
       - name: Fail if invalid
         if: steps.semantic.outputs.ok != 'true'
-        run: ./scripts/ci/ci-log.sh "PR title validation failed"
+        run: |
+          ./scripts/ci/ci-log.sh "PR title validation failed"
+          exit 1

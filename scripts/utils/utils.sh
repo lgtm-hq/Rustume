@@ -64,6 +64,14 @@ generate_pr_comment() {
 	local output_file="$4"
 	local tool_name="${5:-lintro}"
 
+	# Build the comment with optional build link
+	local build_link=""
+	if [ -n "${GITHUB_REPOSITORY:-}" ] && [ -n "${GITHUB_RUN_ID:-}" ]; then
+		build_link="
+---
+🔗 **[View full build details]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)**"
+	fi
+
 	local comment="## $title
 
 This PR has been analyzed using **$tool_name**.
@@ -71,9 +79,7 @@ This PR has been analyzed using **$tool_name**.
 ### 📊 Status: $status
 
 $content
-
----
-🔗 **[View full build details]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)**
+$build_link
 
 *This analysis was performed automatically by the CI pipeline.*"
 
@@ -124,6 +130,9 @@ _cleanup_temp_dirs() {
 	done
 }
 
+# Register cleanup trap once when sourced
+trap _cleanup_temp_dirs EXIT
+
 # Create a temporary directory with automatic cleanup on exit
 # Usage: tmpdir=$(create_temp_dir)
 # Note: Multiple calls accumulate directories; all are cleaned up on exit
@@ -131,7 +140,6 @@ create_temp_dir() {
 	local tmpdir
 	tmpdir=$(mktemp -d)
 	_TEMP_DIRS+=("$tmpdir")
-	trap _cleanup_temp_dirs EXIT
 	echo "$tmpdir"
 }
 
