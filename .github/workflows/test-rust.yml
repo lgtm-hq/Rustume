@@ -10,14 +10,14 @@ name: Test - Rust Test Suite
       - "**.rs"
       - "Cargo.toml"
       - "Cargo.lock"
-      - ".github/workflows/test.yml"
+      - ".github/workflows/test-rust.yml"
   pull_request:
     branches: [main]
     paths:
       - "**.rs"
       - "Cargo.toml"
       - "Cargo.lock"
-      - ".github/workflows/test.yml"
+      - ".github/workflows/test-rust.yml"
   workflow_dispatch:
 
 permissions:

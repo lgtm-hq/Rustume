@@ -11,7 +11,7 @@ name: Quality - Lint & Format
       - "**.rs"
       - "Cargo.toml"
       - "Cargo.lock"
-      - ".github/workflows/quality-lint.yml"
+      - ".github/workflows/ci-lintro-analysis.yml"
       - "scripts/**"
       - ".lintro-config.yaml"
   pull_request:
@@ -107,7 +107,7 @@ jobs:
             -e GITHUB_STEP_SUMMARY=/dev/null \
             -e GITHUB_ENV=/dev/null \
             ghcr.io/turbocoder13/lintro-tools:latest \
-            lintro check . 2>&1 | tee chk-output.txt
+            bash -c "uv pip install lintro && lintro check ." 2>&1 | tee chk-output.txt
           CHK_EXIT_CODE=${PIPESTATUS[0]}
           echo "CHK_EXIT_CODE=$CHK_EXIT_CODE" >> "$GITHUB_ENV"
         continue-on-error: true
