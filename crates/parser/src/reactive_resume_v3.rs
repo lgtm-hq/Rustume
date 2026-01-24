@@ -12,10 +12,10 @@
 
 use crate::traits::{ParseError, Parser};
 use rustume_schema::{
-    Award, Basics, Certification, CustomCss, CustomField, Education, Experience, FontConfig,
-    Interest, Language, Metadata, PageConfig, PageFormat, PageOptions, Profile, Project,
-    Publication, Reference, ResumeData, Section, Skill, SummarySection, Theme, Typography, Url,
-    Volunteer,
+    Award, Basics, Certification, CustomCss, CustomField, CustomItem, Education, Experience,
+    FontConfig, Interest, Language, Metadata, PageConfig, PageFormat, PageOptions, Profile,
+    Project, Publication, Reference, ResumeData, Section, Skill, SummarySection, Theme, Typography,
+    Url, Volunteer,
 };
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -525,6 +525,7 @@ impl Parser for ReactiveResumeV3Parser {
         );
         convert_volunteer(&data.sections.volunteer, &mut resume.sections.volunteer);
         convert_references(&data.sections.references, &mut resume.sections.references);
+        convert_custom_sections(&data.sections.custom, &mut resume.sections.custom);
 
         // Convert metadata
         resume.metadata = convert_metadata(&data.metadata);
@@ -569,8 +570,12 @@ fn convert_basics(v3: &V3Basics) -> Basics {
         basics.picture.size = pic.size.unwrap_or(64);
         basics.picture.aspect_ratio = pic.aspect_ratio.unwrap_or(1.0);
         basics.picture.border_radius = pic.border_radius.unwrap_or(0);
+        // Handle picture visible field - visible: false means hidden: true
+        if let Some(visible) = pic.visible {
+            basics.picture.effects.hidden = !visible;
+        }
         if let Some(effects) = &pic.effects {
-            basics.picture.effects.hidden = effects.hidden.unwrap_or(false);
+            basics.picture.effects.hidden = effects.hidden.unwrap_or(basics.picture.effects.hidden);
             basics.picture.effects.grayscale = effects.grayscale.unwrap_or(false);
             basics.picture.effects.border = effects.border.unwrap_or(false);
         }
@@ -754,6 +759,12 @@ fn convert_awards(v3: &V3Section<V3Award>, section: &mut Section<Award>) {
             if let Some(date) = &a.date {
                 award = award.with_date(date);
             }
+            if let Some(summary) = &a.summary {
+                award = award.with_summary(summary);
+            }
+            if let Some(url) = &a.url {
+                award = award.with_url(url.to_href());
+            }
             award
         })
         .collect();
@@ -786,6 +797,9 @@ fn convert_certifications(v3: &V3Section<V3Certification>, section: &mut Section
             }
             if let Some(url) = &c.url {
                 cert = cert.with_url(url.to_href());
+            }
+            if let Some(summary) = &c.summary {
+                cert = cert.with_summary(summary);
             }
             cert
         })
@@ -939,6 +953,41 @@ fn convert_references(v3: &V3Section<V3Reference>, section: &mut Section<Referen
         .collect();
 }
 
+fn convert_custom_sections(
+    v3: &HashMap<String, V3Section<V3CustomItem>>,
+    custom: &mut HashMap<String, Section<CustomItem>>,
+) {
+    for (key, v3_section) in v3 {
+        let mut section = Section::new(
+            v3_section.id.clone().unwrap_or_else(|| key.clone()),
+            v3_section.name.clone().unwrap_or_else(|| key.clone()),
+        );
+        section.columns = v3_section.columns.unwrap_or(1);
+        section.visible = v3_section.visible.unwrap_or(true);
+
+        section.items = v3_section
+            .items
+            .iter()
+            .map(|item| {
+                let mut custom_item = CustomItem::new(item.title.clone().unwrap_or_default());
+                custom_item.id = item.id.clone().unwrap_or_else(cuid2::create_id);
+                custom_item.visible = item.visible.unwrap_or(true);
+                custom_item.description = item.subtitle.clone().unwrap_or_default();
+                custom_item.date = item.date.clone().unwrap_or_default();
+                custom_item.location = item.location.clone().unwrap_or_default();
+                custom_item.summary = item.summary.clone().unwrap_or_default();
+                custom_item.keywords = item.keywords.clone();
+                if let Some(url) = &item.url {
+                    custom_item.url = Url::new(url.to_href());
+                }
+                custom_item
+            })
+            .collect();
+
+        custom.insert(key.clone(), section);
+    }
+}
+
 fn convert_metadata(v3: &V3Metadata) -> Metadata {
     Metadata {
         template: v3.template.clone().unwrap_or_else(|| "rhyhorn".to_string()),
@@ -956,7 +1005,13 @@ fn convert_metadata(v3: &V3Metadata) -> Metadata {
                 .unwrap_or(false),
         },
         page: PageConfig {
-            format: match v3.page.format.as_deref() {
+            format: match v3
+                .page
+                .format
+                .as_deref()
+                .map(|s| s.to_ascii_lowercase())
+                .as_deref()
+            {
                 Some("letter") | Some("us-letter") => PageFormat::Letter,
                 _ => PageFormat::A4,
             },

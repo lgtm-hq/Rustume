@@ -62,6 +62,7 @@ pub struct Sections {
     pub references: Section<Reference>,
 
     /// Custom sections (dynamic keys).
+    #[validate(nested)]
     #[serde(default)]
     pub custom: HashMap<String, Section<CustomItem>>,
 }
@@ -204,7 +205,7 @@ impl SummarySection {
 // ============================================================================
 
 /// Work experience item.
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct Experience {
     pub id: String,
@@ -222,6 +223,21 @@ pub struct Experience {
     #[validate(nested)]
     #[serde(default)]
     pub url: Url,
+}
+
+impl Default for Experience {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            visible: true,
+            company: String::new(),
+            position: String::new(),
+            location: String::new(),
+            date: String::new(),
+            summary: String::new(),
+            url: Url::default(),
+        }
+    }
 }
 
 impl Experience {
@@ -262,7 +278,7 @@ impl Experience {
 }
 
 /// Education item.
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct Education {
     pub id: String,
@@ -282,6 +298,22 @@ pub struct Education {
     #[validate(nested)]
     #[serde(default)]
     pub url: Url,
+}
+
+impl Default for Education {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            visible: true,
+            institution: String::new(),
+            area: String::new(),
+            study_type: String::new(),
+            date: String::new(),
+            score: String::new(),
+            summary: String::new(),
+            url: Url::default(),
+        }
+    }
 }
 
 impl Education {
@@ -322,7 +354,7 @@ impl Education {
 }
 
 /// Skill item.
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct Skill {
     pub id: String,
@@ -337,6 +369,19 @@ pub struct Skill {
     pub level: u8,
     #[serde(default)]
     pub keywords: Vec<String>,
+}
+
+impl Default for Skill {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            visible: true,
+            name: String::new(),
+            description: String::new(),
+            level: 1,
+            keywords: Vec::new(),
+        }
+    }
 }
 
 impl Skill {
@@ -370,7 +415,7 @@ impl Skill {
 }
 
 /// Project item.
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct Project {
     pub id: String,
@@ -388,6 +433,21 @@ pub struct Project {
     #[validate(nested)]
     #[serde(default)]
     pub url: Url,
+}
+
+impl Default for Project {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            visible: true,
+            name: String::new(),
+            description: String::new(),
+            date: String::new(),
+            summary: String::new(),
+            keywords: Vec::new(),
+            url: Url::default(),
+        }
+    }
 }
 
 impl Project {
@@ -433,7 +493,7 @@ impl Project {
 }
 
 /// Social/professional profile.
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct Profile {
     pub id: String,
@@ -446,6 +506,19 @@ pub struct Profile {
     #[validate(nested)]
     #[serde(default)]
     pub url: Url,
+}
+
+impl Default for Profile {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            visible: true,
+            network: String::new(),
+            username: String::new(),
+            icon: String::new(),
+            url: Url::default(),
+        }
+    }
 }
 
 impl Profile {
@@ -477,7 +550,7 @@ impl Profile {
 }
 
 /// Award item.
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct Award {
     pub id: String,
@@ -493,6 +566,20 @@ pub struct Award {
     #[validate(nested)]
     #[serde(default)]
     pub url: Url,
+}
+
+impl Default for Award {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            visible: true,
+            title: String::new(),
+            awarder: String::new(),
+            date: String::new(),
+            summary: String::new(),
+            url: Url::default(),
+        }
+    }
 }
 
 impl Award {
@@ -517,10 +604,22 @@ impl Award {
         self.date = date.into();
         self
     }
+
+    /// Builder method to set summary.
+    pub fn with_summary(mut self, summary: impl Into<String>) -> Self {
+        self.summary = summary.into();
+        self
+    }
+
+    /// Builder method to set URL.
+    pub fn with_url(mut self, url: impl Into<String>) -> Self {
+        self.url = Url::new(url);
+        self
+    }
 }
 
 /// Certification item.
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct Certification {
     pub id: String,
@@ -536,6 +635,20 @@ pub struct Certification {
     #[validate(nested)]
     #[serde(default)]
     pub url: Url,
+}
+
+impl Default for Certification {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            visible: true,
+            name: String::new(),
+            issuer: String::new(),
+            date: String::new(),
+            summary: String::new(),
+            url: Url::default(),
+        }
+    }
 }
 
 impl Certification {
@@ -561,10 +674,16 @@ impl Certification {
         self.url = Url::new(url);
         self
     }
+
+    /// Builder method to set summary.
+    pub fn with_summary(mut self, summary: impl Into<String>) -> Self {
+        self.summary = summary.into();
+        self
+    }
 }
 
 /// Publication item.
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct Publication {
     pub id: String,
@@ -582,6 +701,20 @@ pub struct Publication {
     pub url: Url,
 }
 
+impl Default for Publication {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            visible: true,
+            name: String::new(),
+            publisher: String::new(),
+            date: String::new(),
+            summary: String::new(),
+            url: Url::default(),
+        }
+    }
+}
+
 impl Publication {
     /// Create a new publication item.
     pub fn new(name: impl Into<String>) -> Self {
@@ -595,7 +728,7 @@ impl Publication {
 }
 
 /// Language item.
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct Language {
     pub id: String,
@@ -607,6 +740,18 @@ pub struct Language {
     #[validate(range(min = 0, max = 5))]
     #[serde(default = "default_level")]
     pub level: u8,
+}
+
+impl Default for Language {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            visible: true,
+            name: String::new(),
+            description: String::new(),
+            level: 1,
+        }
+    }
 }
 
 impl Language {
@@ -634,7 +779,7 @@ impl Language {
 }
 
 /// Interest item.
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct Interest {
     pub id: String,
@@ -643,6 +788,17 @@ pub struct Interest {
     pub name: String,
     #[serde(default)]
     pub keywords: Vec<String>,
+}
+
+impl Default for Interest {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            visible: true,
+            name: String::new(),
+            keywords: Vec::new(),
+        }
+    }
 }
 
 impl Interest {
@@ -664,7 +820,7 @@ impl Interest {
 }
 
 /// Volunteer experience item.
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct Volunteer {
     pub id: String,
@@ -684,6 +840,21 @@ pub struct Volunteer {
     pub url: Url,
 }
 
+impl Default for Volunteer {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            visible: true,
+            organization: String::new(),
+            position: String::new(),
+            location: String::new(),
+            date: String::new(),
+            summary: String::new(),
+            url: Url::default(),
+        }
+    }
+}
+
 impl Volunteer {
     /// Create a new volunteer item.
     pub fn new(organization: impl Into<String>, position: impl Into<String>) -> Self {
@@ -698,7 +869,7 @@ impl Volunteer {
 }
 
 /// Reference item.
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct Reference {
     pub id: String,
@@ -714,6 +885,19 @@ pub struct Reference {
     pub url: Url,
 }
 
+impl Default for Reference {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            visible: true,
+            name: String::new(),
+            description: String::new(),
+            summary: String::new(),
+            url: Url::default(),
+        }
+    }
+}
+
 impl Reference {
     /// Create a new reference item.
     pub fn new(name: impl Into<String>) -> Self {
@@ -727,7 +911,7 @@ impl Reference {
 }
 
 /// Custom section item.
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct CustomItem {
     pub id: String,
@@ -748,6 +932,22 @@ pub struct CustomItem {
     #[validate(nested)]
     #[serde(default)]
     pub url: Url,
+}
+
+impl Default for CustomItem {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            visible: true,
+            name: String::new(),
+            description: String::new(),
+            date: String::new(),
+            location: String::new(),
+            summary: String::new(),
+            keywords: Vec::new(),
+            url: Url::default(),
+        }
+    }
 }
 
 impl CustomItem {
