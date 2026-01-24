@@ -1,0 +1,29 @@
+# CODEOWNERS - Rustume
+# Default owners for everything in the repo
+* @TurboCoder13
+
+# Core crates
+/crates/ @TurboCoder13
+
+# CI/CD and workflows
+/.github/workflows/ @TurboCoder13
+/.github/actions/ @TurboCoder13
+/scripts/ci/ @TurboCoder13
+
+# Documentation
+/docs/ @TurboCoder13
+/README.md @TurboCoder13
+
+# Configuration
+/Cargo.toml @TurboCoder13
+/.lintro-config.yaml @TurboCoder13
+
+# Tests
+/tests/ @TurboCoder13
+
+# Bindings
+/bindings/ @TurboCoder13
+
+# Docker
+/docker/ @TurboCoder13
+/Dockerfile @TurboCoder13

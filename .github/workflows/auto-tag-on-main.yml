@@ -1,0 +1,94 @@
+# SPDX-License-Identifier: MIT
+---
+name: Release - Auto Tag
+# Automatically creates version tags when Cargo.toml version changes on main.
+# Guards against duplicate tags and validates release commit format.
+
+"on":
+  push:
+    branches: [main]
+    paths:
+      - Cargo.toml
+
+permissions:
+  contents: read
+
+jobs:
+  auto-tag:
+    name: 🏷️ Create Release Tag
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: "block"
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            codeload.github.com:443
+            objects.githubusercontent.com:443
+
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Guard ensure last commit is a release bump
+        id: guard
+        run: ./scripts/ci/maintenance/guard-release-commit.sh
+
+      - name: Skip if not a release bump commit
+        if: steps.guard.outputs.ok != 'true'
+        run: ./scripts/ci/ci-log.sh "Not a release bump commit; skipping tag creation."
+
+      - name: Read version from Cargo.toml
+        if: steps.guard.outputs.ok == 'true'
+        id: version
+        run: ./scripts/ci/maintenance/auto-tag.sh read-version
+
+      - name: Detect previous version
+        if: steps.guard.outputs.ok == 'true'
+        id: prev
+        run: ./scripts/ci/maintenance/auto-tag.sh detect-previous
+
+      - name: Skip if version unchanged
+        if: >-
+          steps.guard.outputs.ok == 'true' &&
+          steps.prev.outputs.version == steps.version.outputs.version
+        run: ./scripts/ci/ci-log.sh "Version unchanged; skipping tag creation."
+
+      - name: Check if tag exists
+        if: >-
+          steps.guard.outputs.ok == 'true' &&
+          steps.prev.outputs.version != steps.version.outputs.version
+        id: check
+        env:
+          TAG: v${{ steps.version.outputs.version }}
+        run: ./scripts/ci/maintenance/auto-tag.sh check-exists
+
+      - name: Configure auth for push
+        if: >-
+          steps.guard.outputs.ok == 'true' &&
+          steps.prev.outputs.version != steps.version.outputs.version &&
+          steps.check.outputs.exists == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./scripts/ci/maintenance/auto-tag.sh configure-auth
+
+      - name: Create and push tag
+        if: >-
+          steps.guard.outputs.ok == 'true' &&
+          steps.prev.outputs.version != steps.version.outputs.version &&
+          steps.check.outputs.exists == 'false'
+        env:
+          TAG: v${{ steps.version.outputs.version }}
+        run: ./scripts/ci/maintenance/auto-tag.sh create-push
