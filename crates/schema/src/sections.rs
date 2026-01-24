@@ -70,7 +70,8 @@ pub struct Sections {
 /// Generic section wrapper.
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
-pub struct Section<T> {
+#[serde(bound(deserialize = "T: serde::de::DeserializeOwned"))]
+pub struct Section<T: Validate> {
     /// Section identifier.
     pub id: String,
 
@@ -92,11 +93,12 @@ pub struct Section<T> {
     pub visible: bool,
 
     /// Section items.
+    #[validate(nested)]
     #[serde(default)]
     pub items: Vec<T>,
 }
 
-impl<T> Section<T> {
+impl<T: Validate> Section<T> {
     /// Create a new section with the given ID and name.
     pub fn new(id: impl Into<String>, name: impl Into<String>) -> Self {
         Self {
@@ -135,7 +137,7 @@ impl<T> Section<T> {
     }
 }
 
-impl<T: Default> Default for Section<T> {
+impl<T: Default + Validate> Default for Section<T> {
     fn default() -> Self {
         Self {
             id: String::new(),
