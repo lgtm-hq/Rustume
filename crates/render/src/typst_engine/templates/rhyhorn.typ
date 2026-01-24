@@ -24,6 +24,8 @@
 }
 
 #let skill-bar(level) = {
+  // Clamp level to valid range [0, 5]
+  let level = calc.min(calc.max(level, 0), 5)
   let filled = level
   let empty = 5 - level
   h(4pt)
@@ -219,10 +221,10 @@
     #v(8pt)
 
     #let contact-items = ()
-    #if data.basics.email != "" { contact-items.push(data.basics.email) }
-    #if data.basics.phone != "" { contact-items.push(data.basics.phone) }
-    #if data.basics.location != "" { contact-items.push(data.basics.location) }
-    #if data.basics.url.href != "" { contact-items.push(link(data.basics.url.href)[#data.basics.url.href]) }
+    #if data.basics.email != "" { contact-items = contact-items + (data.basics.email,) }
+    #if data.basics.phone != "" { contact-items = contact-items + (data.basics.phone,) }
+    #if data.basics.location != "" { contact-items = contact-items + (data.basics.location,) }
+    #if "url" in data.basics and data.basics.url != none and data.basics.url.href != "" { contact-items = contact-items + (link(data.basics.url.href)[#data.basics.url.href],) }
 
     #text(size: 9pt)[#contact-items.join(" · ")]
   ]

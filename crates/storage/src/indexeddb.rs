@@ -5,11 +5,13 @@
 
 use crate::traits::{StorageBackend, StorageError};
 use async_trait::async_trait;
-use js_sys::{Array, Object, Reflect};
+use js_sys::Array;
 use rustume_schema::ResumeData;
+use std::cell::RefCell;
+use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
-use web_sys::{IdbDatabase, IdbObjectStore, IdbRequest, IdbTransaction};
+use web_sys::{console, IdbDatabase, IdbObjectStore, IdbRequest};
 
 const DB_VERSION: u32 = 1;
 const STORE_NAME: &str = "resumes";
@@ -51,22 +53,33 @@ impl IndexedDbStorage {
         // Set up database upgrade handler
         let store_name = STORE_NAME;
         let onupgradeneeded = Closure::once(move |event: web_sys::IdbVersionChangeEvent| {
-            let db: IdbDatabase = event
+            let db: IdbDatabase = match event
                 .target()
                 .and_then(|t| t.dyn_into::<IdbRequest>().ok())
                 .and_then(|r| r.result().ok())
                 .and_then(|r| r.dyn_into::<IdbDatabase>().ok())
-                .expect("Failed to get database from upgrade event");
+            {
+                Some(db) => db,
+                None => {
+                    console::error_1(&"Failed to get database from upgrade event".into());
+                    return;
+                }
+            };
 
             // Create object store if it doesn't exist
             if !db.object_store_names().contains(&store_name.into()) {
-                db.create_object_store(store_name)
-                    .expect("Failed to create object store");
+                if let Err(e) = db.create_object_store(store_name) {
+                    console::error_1(&format!("Failed to create object store: {:?}", e).into());
+                }
             }
         });
 
-        request.set_onupgradeneeded(Some(onupgradeneeded.as_ref().unchecked_ref()));
-        onupgradeneeded.forget();
+        // Store closure in Rc to prevent memory leak
+        let upgrade_closure: Rc<RefCell<Option<Closure<dyn FnMut(web_sys::IdbVersionChangeEvent)>>>> =
+            Rc::new(RefCell::new(Some(onupgradeneeded)));
+        let closure_ref = upgrade_closure.borrow();
+        request.set_onupgradeneeded(closure_ref.as_ref().map(|c| c.as_ref().unchecked_ref()));
+        drop(closure_ref);
 
         // Wait for the request to complete
         let result = JsFuture::from(idb_request_to_promise(&request)?).await;
@@ -204,36 +217,61 @@ impl StorageBackend for IndexedDbStorage {
 }
 
 /// Convert an IdbRequest to a Promise.
+///
+/// Uses Rc<RefCell<Option<Closure>>> pattern to manage closure lifetimes
+/// without memory leaks from forget().
 fn idb_request_to_promise(request: &IdbRequest) -> Result<js_sys::Promise, StorageError> {
+    // Create shared closures that can be cleared after use
+    let success_closure: Rc<RefCell<Option<Closure<dyn FnMut(web_sys::Event)>>>> =
+        Rc::new(RefCell::new(None));
+    let error_closure: Rc<RefCell<Option<Closure<dyn FnMut(web_sys::Event)>>>> =
+        Rc::new(RefCell::new(None));
+
+    let success_clone = success_closure.clone();
+    let error_clone = error_closure.clone();
+
     let promise = js_sys::Promise::new(&mut |resolve, reject| {
         let resolve_clone = resolve.clone();
         let reject_clone = reject.clone();
+        let success_cleanup = success_clone.clone();
+        let error_cleanup = error_clone.clone();
 
         let onsuccess = Closure::once(move |event: web_sys::Event| {
-            let target = event.target().unwrap();
-            let request: IdbRequest = target.dyn_into().unwrap();
-            let result = request.result().unwrap_or(JsValue::UNDEFINED);
-            resolve_clone.call1(&JsValue::UNDEFINED, &result).unwrap();
+            // Clear closures to prevent memory leak
+            success_cleanup.borrow_mut().take();
+            error_cleanup.borrow_mut().take();
+
+            let result = event
+                .target()
+                .and_then(|t| t.dyn_into::<IdbRequest>().ok())
+                .and_then(|r| r.result().ok())
+                .unwrap_or(JsValue::UNDEFINED);
+            let _ = resolve_clone.call1(&JsValue::UNDEFINED, &result);
         });
 
+        let success_cleanup2 = success_clone.clone();
+        let error_cleanup2 = error_clone.clone();
+
         let onerror = Closure::once(move |event: web_sys::Event| {
-            let target = event.target().unwrap();
-            let request: IdbRequest = target.dyn_into().unwrap();
-            let error = request.error().ok().flatten();
-            let error_msg = error
+            // Clear closures to prevent memory leak
+            success_cleanup2.borrow_mut().take();
+            error_cleanup2.borrow_mut().take();
+
+            let error_msg = event
+                .target()
+                .and_then(|t| t.dyn_into::<IdbRequest>().ok())
+                .and_then(|r| r.error().ok().flatten())
                 .map(|e| e.message())
                 .unwrap_or_else(|| "Unknown error".to_string());
-            reject_clone
-                .call1(&JsValue::UNDEFINED, &JsValue::from_str(&error_msg))
-                .unwrap();
+            let _ = reject_clone.call1(&JsValue::UNDEFINED, &JsValue::from_str(&error_msg));
         });
 
         request.set_onsuccess(Some(onsuccess.as_ref().unchecked_ref()));
         request.set_onerror(Some(onerror.as_ref().unchecked_ref()));
 
-        // Leak the closures to prevent them from being dropped
-        onsuccess.forget();
-        onerror.forget();
+        // Store closures to keep them alive until callback completes
+        *success_clone.borrow_mut() = Some(onsuccess);
+        *error_clone.borrow_mut() = Some(onerror);
     });
 
     Ok(promise)

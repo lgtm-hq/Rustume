@@ -100,7 +100,7 @@
 #let render-profile(item) = {
   if item.visible == false { return }
 
-  if item.url.href != "" {
+  if "url" in item and item.url != none and item.url.href != "" {
     link(item.url.href)[#text(fill: primary-color)[#item.network]]
   } else {
     text(size: 10pt)[#item.network: #item.username]
@@ -118,7 +118,7 @@
     text(size: 10pt)[#item.description]
   }
 
-  if item.keywords.len() > 0 {
+  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
     v(4pt)
     for keyword in item.keywords {
       box(
@@ -211,10 +211,10 @@
 
     // Contact as horizontal list
     #let contact-items = ()
-    #if data.basics.email != "" { contact-items.push(link("mailto:" + data.basics.email)[#data.basics.email]) }
-    #if data.basics.phone != "" { contact-items.push(data.basics.phone) }
-    #if data.basics.location != "" { contact-items.push(data.basics.location) }
-    #if data.basics.url.href != "" { contact-items.push(link(data.basics.url.href)[#data.basics.url.href]) }
+    #if data.basics.email != "" { contact-items = contact-items + (link("mailto:" + data.basics.email)[#data.basics.email],) }
+    #if data.basics.phone != "" { contact-items = contact-items + (data.basics.phone,) }
+    #if data.basics.location != "" { contact-items = contact-items + (data.basics.location,) }
+    #if "url" in data.basics and data.basics.url != none and data.basics.url.href != "" { contact-items = contact-items + (link(data.basics.url.href)[#data.basics.url.href],) }
 
     #text(size: 9pt, fill: muted-color)[#contact-items.join("  ·  ")]
   ]
