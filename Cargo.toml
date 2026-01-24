@@ -49,9 +49,6 @@ axum = "0.7"
 tower = "0.5"
 tower-http = { version = "0.6", features = ["cors", "limit", "compression-gzip", "trace"] }
 
-# CRDT
-yrs = "0.21"
-
 # WASM
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
@@ -65,9 +62,6 @@ web-sys = { version = "0.3", features = [
     "IdbRequest",
     "IdbTransaction",
 ] }
-
-# FFI
-uniffi = "0.28"
 
 # Error handling
 thiserror = "1.0"
