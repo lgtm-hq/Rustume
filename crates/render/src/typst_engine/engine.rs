@@ -187,15 +187,15 @@ pub fn get_page_size(format: PageFormat) -> (f64, f64) {
 /// Get the default theme colors for a template.
 pub fn get_template_theme(template: &str) -> TemplateTheme {
     match template {
+        "rhyhorn" => TemplateTheme {
+            background: "#ffffff".into(),
+            text: "#000000".into(),
+            primary: "#dc2626".into(),
+        },
         "azurill" => TemplateTheme {
             background: "#ffffff".into(),
             text: "#000000".into(),
             primary: "#d97706".into(),
-        },
-        "chikorita" => TemplateTheme {
-            background: "#ffffff".into(),
-            text: "#000000".into(),
-            primary: "#16a34a".into(),
         },
         "pikachu" => TemplateTheme {
             background: "#ffffff".into(),
@@ -207,6 +207,7 @@ pub fn get_template_theme(template: &str) -> TemplateTheme {
             text: "#000000".into(),
             primary: "#3b82f6".into(),
         },
+        // Default to rhyhorn theme for unknown templates
         _ => TemplateTheme {
             background: "#ffffff".into(),
             text: "#000000".into(),

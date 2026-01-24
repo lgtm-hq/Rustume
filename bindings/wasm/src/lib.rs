@@ -156,7 +156,7 @@ pub fn resume_to_json(resume: JsValue) -> Result<String, JsError> {
 #[wasm_bindgen]
 pub fn list_templates() -> Result<JsValue, JsError> {
     // Hardcoded list since we can't import rustume_render in WASM
-    let templates = vec!["rhyhorn"];
+    let templates = vec!["rhyhorn", "azurill", "pikachu", "nosepass"];
     serde_wasm_bindgen::to_value(&templates).map_err(|e| JsError::new(&e.to_string()))
 }
 
@@ -177,11 +177,12 @@ pub fn list_templates() -> Result<JsValue, JsError> {
 pub fn get_template_theme_js(template: &str) -> Result<JsValue, JsError> {
     // Hardcoded themes since we can't import rustume_render in WASM
     let (background, text, primary) = match template {
+        "rhyhorn" => ("#ffffff", "#000000", "#dc2626"),
         "azurill" => ("#ffffff", "#000000", "#d97706"),
-        "chikorita" => ("#ffffff", "#000000", "#16a34a"),
         "pikachu" => ("#ffffff", "#000000", "#ca8a04"),
         "nosepass" => ("#ffffff", "#000000", "#3b82f6"),
-        _ => ("#ffffff", "#000000", "#dc2626"), // rhyhorn default
+        // Default to rhyhorn theme for unknown templates
+        _ => ("#ffffff", "#000000", "#dc2626"),
     };
 
     serde_wasm_bindgen::to_value(&serde_json::json!({
