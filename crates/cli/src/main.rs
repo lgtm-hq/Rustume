@@ -67,9 +67,9 @@ enum Commands {
         /// Input resume JSON file (use '-' for stdin)
         input: String,
 
-        /// Template to use
-        #[arg(short, long, default_value = "rhyhorn")]
-        template: String,
+        /// Template to use (overrides metadata.template if specified)
+        #[arg(short, long)]
+        template: Option<String>,
 
         /// Output PDF file path
         #[arg(short, long)]
@@ -85,9 +85,9 @@ enum Commands {
         #[arg(short, long, default_value = "0")]
         page: usize,
 
-        /// Template to use
-        #[arg(short, long, default_value = "rhyhorn")]
-        template: String,
+        /// Template to use (overrides metadata.template if specified)
+        #[arg(short, long)]
+        template: Option<String>,
 
         /// Output PNG file path
         #[arg(short, long)]
@@ -146,10 +146,10 @@ fn run() -> Result<()> {
             cmd_parse(&input, format, output, pretty)
         }
         Commands::Render { input, template, output } => {
-            cmd_render(&input, &template, output)
+            cmd_render(&input, template.as_deref(), output)
         }
         Commands::Preview { input, page, template, output } => {
-            cmd_preview(&input, page, &template, output)
+            cmd_preview(&input, page, template.as_deref(), output)
         }
         Commands::Templates { verbose } => {
             cmd_templates(verbose)
@@ -259,12 +259,14 @@ fn cmd_parse(input: &str, format: Option<InputFormat>, output: Option<PathBuf>, 
 }
 
 /// Render command
-fn cmd_render(input: &str, template: &str, output: Option<PathBuf>) -> Result<()> {
+fn cmd_render(input: &str, template: Option<&str>, output: Option<PathBuf>) -> Result<()> {
     let data = read_input(input)?;
     let mut resume: ResumeData = serde_json::from_slice(&data).context("Failed to parse resume JSON")?;
 
-    // Set template in metadata
-    resume.metadata.template = template.to_string();
+    // Override template only if explicitly specified
+    if let Some(t) = template {
+        resume.metadata.template = t.to_string();
+    }
 
     // Validate before rendering
     resume.validate().context("Resume validation failed")?;
@@ -279,12 +281,14 @@ fn cmd_render(input: &str, template: &str, output: Option<PathBuf>) -> Result<()
 }
 
 /// Preview command
-fn cmd_preview(input: &str, page: usize, template: &str, output: Option<PathBuf>) -> Result<()> {
+fn cmd_preview(input: &str, page: usize, template: Option<&str>, output: Option<PathBuf>) -> Result<()> {
     let data = read_input(input)?;
     let mut resume: ResumeData = serde_json::from_slice(&data).context("Failed to parse resume JSON")?;
 
-    // Set template in metadata
-    resume.metadata.template = template.to_string();
+    // Override template only if explicitly specified
+    if let Some(t) = template {
+        resume.metadata.template = t.to_string();
+    }
 
     // Validate before rendering
     resume.validate().context("Resume validation failed")?;
