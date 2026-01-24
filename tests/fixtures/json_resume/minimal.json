@@ -1,0 +1,24 @@
+{
+  "basics": {
+    "name": "John Doe",
+    "label": "Software Engineer",
+    "email": "john@example.com",
+    "phone": "+1-555-123-4567",
+    "url": "https://johndoe.dev",
+    "summary": "A passionate software engineer with experience in building web applications.",
+    "location": {
+      "address": "123 Main St",
+      "postalCode": "94105",
+      "city": "San Francisco",
+      "countryCode": "US",
+      "region": "California"
+    },
+    "profiles": [
+      {
+        "network": "GitHub",
+        "username": "johndoe",
+        "url": "https://github.com/johndoe"
+      }
+    ]
+  }
+}

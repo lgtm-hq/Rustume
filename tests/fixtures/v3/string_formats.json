@@ -1,0 +1,97 @@
+{
+  "id": "v3-string-formats",
+  "name": "String Formats Resume",
+  "basics": {
+    "name": "Carol Davis",
+    "headline": "Software Engineer",
+    "email": "carol@example.com",
+    "phone": "+1-555-345-6789",
+    "location": "Austin, TX",
+    "summary": "Experienced engineer with a focus on backend systems.",
+    "url": "https://caroldavis.io"
+  },
+  "sections": {
+    "experience": {
+      "id": "experience",
+      "name": "Experience",
+      "visible": true,
+      "items": [
+        {
+          "id": "exp-1",
+          "visible": true,
+          "company": "Backend Systems Co",
+          "position": "Backend Engineer",
+          "date": "2019 - Present",
+          "summary": "Building scalable APIs.",
+          "url": "https://backendsystems.co"
+        }
+      ]
+    },
+    "education": { "items": [] },
+    "skills": {
+      "items": [
+        {
+          "id": "skill-1",
+          "visible": true,
+          "name": "Go",
+          "level": 5
+        }
+      ]
+    },
+    "profiles": {
+      "items": [
+        {
+          "id": "profile-1",
+          "visible": true,
+          "network": "GitHub",
+          "username": "caroldavis",
+          "url": "https://github.com/caroldavis"
+        }
+      ]
+    },
+    "languages": { "items": [] },
+    "awards": { "items": [] },
+    "certifications": {
+      "items": [
+        {
+          "id": "cert-1",
+          "visible": true,
+          "name": "Certified Kubernetes Administrator",
+          "issuer": "CNCF",
+          "date": "2021",
+          "url": "https://cncf.io/certification"
+        }
+      ]
+    },
+    "interests": { "items": [] },
+    "projects": {
+      "items": [
+        {
+          "id": "proj-1",
+          "visible": true,
+          "name": "API Gateway",
+          "description": "High-performance API gateway",
+          "url": "https://github.com/caroldavis/api-gateway"
+        }
+      ]
+    },
+    "publications": {
+      "items": [
+        {
+          "id": "pub-1",
+          "visible": true,
+          "name": "Building Resilient APIs",
+          "publisher": "Dev.to",
+          "date": "2022",
+          "url": "https://dev.to/carol/resilient-apis"
+        }
+      ]
+    },
+    "volunteer": { "items": [] },
+    "references": { "items": [] },
+    "custom": {}
+  },
+  "metadata": {
+    "template": "gengar"
+  }
+}
