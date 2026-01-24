@@ -16,10 +16,10 @@ target/
 docker-compose.yml
 .dockerignore
 
-# Documentation
-*.md
+# Documentation (keep README.md and LICENSE for compliance)
+CONTRIBUTING.md
+CHANGELOG.md
 docs/
-LICENSE
 
 # Tests (keep fixtures for integration tests if needed)
 **/test_*.rs

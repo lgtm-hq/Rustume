@@ -20,5 +20,7 @@ mod tests {
         assert_eq!(format_date_range(Some("2020"), None), "2020 - Present");
         assert_eq!(format_date_range(Some("2020"), Some("")), "2020 - Present");
         assert_eq!(format_date_range(None, None), "");
+        // Test end date only (no start date)
+        assert_eq!(format_date_range(None, Some("2021")), " - 2021");
     }
 }

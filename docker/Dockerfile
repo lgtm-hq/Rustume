@@ -31,10 +31,12 @@ FROM debian:bookworm-slim AS runtime
 # - ca-certificates: for HTTPS
 # - fonts-liberation: standard fonts for PDF rendering
 # - fonts-dejavu: fallback fonts
+# - wget: for healthcheck (smaller than curl)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     fonts-liberation \
     fonts-dejavu-core \
+    wget \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
@@ -62,7 +64,7 @@ EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:3000/health || exit 1
+    CMD wget --spider -q http://localhost:3000/health || exit 1
 
 # Run server
 CMD ["/app/rustume-server"]
