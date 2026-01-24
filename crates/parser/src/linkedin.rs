@@ -13,8 +13,8 @@
 use crate::traits::{ParseError, Parser};
 use csv::ReaderBuilder;
 use rustume_schema::{
-    Basics, Certification, Education, Experience, Language, Profile, Project, ResumeData, Section,
-    Skill, Url,
+    Basics, Certification, Education, Experience, Language, Project, ResumeData, Section, Skill,
+    Url,
 };
 use std::collections::HashMap;
 use std::io::{Cursor, Read};
@@ -564,11 +564,8 @@ impl Parser for LinkedInParser {
             resume.basics = resume.basics.with_email(email);
         }
 
-        // Add LinkedIn profile
+        // Initialize profiles section (LinkedIn profile URL is not available in export data)
         resume.sections.profiles = Section::new("profiles", "Profiles");
-        resume.sections.profiles.add_item(
-            Profile::new("LinkedIn", "").with_url("https://linkedin.com/in/"),
-        );
 
         // Convert positions to experience
         if !data.positions.is_empty() {
