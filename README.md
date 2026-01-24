@@ -13,7 +13,7 @@ Rustume is a cross-platform resume builder that prioritizes:
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                    Rust Core (rustume-*)                     │
 │  ┌────────┐  ┌────────┐  ┌────────┐                         │

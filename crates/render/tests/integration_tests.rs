@@ -74,6 +74,7 @@ fn test_generate_source_minimal() {
 }
 
 #[test]
+#[allow(clippy::field_reassign_with_default)]
 fn test_generate_source_with_data() {
     let mut resume = ResumeData::default();
     resume.basics = Basics::new("Test User")
@@ -104,6 +105,7 @@ fn test_generate_source_page_settings() {
 // PDF Rendering Tests
 // ============================================================================
 
+#[allow(clippy::field_reassign_with_default)]
 fn sample_resume() -> ResumeData {
     let mut resume = ResumeData::default();
 
@@ -247,6 +249,7 @@ fn test_render_preview_invalid_page() {
 // ============================================================================
 
 #[test]
+#[allow(clippy::field_reassign_with_default)]
 fn test_render_special_characters() {
     let mut resume = ResumeData::default();
     resume.basics = Basics::new("José García-López")
@@ -263,6 +266,7 @@ fn test_render_special_characters() {
 }
 
 #[test]
+#[allow(clippy::field_reassign_with_default)]
 fn test_render_long_content() {
     let mut resume = ResumeData::default();
     resume.basics = Basics::new("Long Content Test").with_headline("Test");

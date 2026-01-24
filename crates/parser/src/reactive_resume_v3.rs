@@ -489,6 +489,7 @@ impl Parser for ReactiveResumeV3Parser {
             .map_err(|e| ParseError::ValidationError(format!("Invalid V3 format: {}", e)))
     }
 
+    #[allow(clippy::field_reassign_with_default)]
     fn convert(&self, data: Self::ValidatedData) -> Result<ResumeData, ParseError> {
         let mut resume = ResumeData::default();
 
