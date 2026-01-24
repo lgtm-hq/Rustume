@@ -3,6 +3,7 @@
 use crate::traits::{RenderError, Renderer};
 use crate::typst_engine::world::RustumeWorld;
 use rustume_schema::{PageFormat, ResumeData};
+use tracing::{debug, instrument};
 
 /// Available templates.
 pub const TEMPLATES: &[&str] = &[
@@ -34,7 +35,9 @@ impl TypstRenderer {
     }
 
     /// Generate the Typst source code for a resume.
+    #[instrument(skip(self, resume), fields(template = %resume.metadata.template))]
     pub fn generate_source(&self, resume: &ResumeData) -> Result<String, RenderError> {
+        debug!("Generating Typst source");
         let template = &resume.metadata.template;
         let template_name = if TEMPLATES.contains(&template.as_str()) {
             template.as_str()
@@ -89,12 +92,15 @@ impl TypstRenderer {
     }
 
     /// Compile the Typst source to a document.
+    #[instrument(skip(self, resume))]
     fn compile(&self, resume: &ResumeData) -> Result<typst::layout::PagedDocument, RenderError> {
         use typst::World;
 
+        debug!("Starting Typst compilation");
         let source = self.generate_source(resume)?;
         let world = RustumeWorld::new(source);
 
+        debug!("Compiling Typst document");
         let result = typst::compile(&world);
         result.output.map_err(|errors| {
             let messages: Vec<String> = errors
@@ -132,9 +138,12 @@ impl Default for TypstRenderer {
 }
 
 impl Renderer for TypstRenderer {
+    #[instrument(skip(self, resume))]
     fn render_pdf(&self, resume: &ResumeData) -> Result<Vec<u8>, RenderError> {
+        debug!("Rendering PDF");
         let document = self.compile(resume)?;
 
+        debug!("Converting to PDF format");
         // Convert to PDF with default options
         let options = typst_pdf::PdfOptions::default();
         let pdf_result = typst_pdf::pdf(&document, &options);
@@ -156,7 +165,9 @@ impl Renderer for TypstRenderer {
         ))
     }
 
+    #[instrument(skip(self, resume), fields(page))]
     fn render_preview(&self, resume: &ResumeData, page: usize) -> Result<Vec<u8>, RenderError> {
+        debug!("Rendering preview for page {}", page);
         let document = self.compile(resume)?;
 
         // Get the requested page
@@ -165,9 +176,11 @@ impl Renderer for TypstRenderer {
             .get(page)
             .ok_or_else(|| RenderError::RenderFailed(format!("Page {} not found", page)))?;
 
+        debug!("Rendering page to PNG");
         // Render to PNG at 2x scale for high quality
         let pixmap = typst_render::render(page_content, 2.0);
 
+        debug!("Encoding PNG");
         // Encode as PNG
         let png_bytes = pixmap
             .encode_png()
