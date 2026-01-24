@@ -77,3 +77,7 @@ tools:
   # shfmt - Shell script formatter
   shfmt:
     enabled: true
+
+  # Rustfmt - Rust code formatter (via cargo fmt)
+  rustfmt:
+    enabled: true
