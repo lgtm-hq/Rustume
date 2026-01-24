@@ -80,6 +80,93 @@ rustume init my-resume.json
 - PDF and PNG export
 - REST API with OpenAPI/Swagger documentation
 
+## Server Deployment
+
+### Environment Variables
+
+| Variable   | Description           | Default                 |
+| ---------- | --------------------- | ----------------------- |
+| `PORT`     | Server listening port | `3000`                  |
+| `RUST_LOG` | Log level filter      | `info,tower_http=debug` |
+
+### Docker
+
+Build and run the server container:
+
+```bash
+# Build
+docker build -t rustume-server -f docker/Dockerfile.server .
+
+# Run
+docker run -p 3000:3000 rustume-server
+```
+
+### Health Check
+
+The server exposes a health endpoint for load balancer integration:
+
+```bash
+curl http://localhost:3000/health
+# Returns: "ok"
+```
+
+### Reverse Proxy (nginx)
+
+Example nginx configuration with rate limiting:
+
+```nginx
+upstream rustume {
+    server 127.0.0.1:3000;
+}
+
+limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
+
+server {
+    listen 80;
+    server_name api.example.com;
+
+    location / {
+        limit_req zone=api burst=20 nodelay;
+        proxy_pass http://rustume;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Increase timeout for PDF rendering
+        proxy_read_timeout 60s;
+    }
+
+    # Health check bypass rate limiting
+    location /health {
+        proxy_pass http://rustume;
+    }
+}
+```
+
+### Reverse Proxy (Caddy)
+
+Example Caddyfile:
+
+```caddyfile
+api.example.com {
+    reverse_proxy localhost:3000
+
+    @api path /api/*
+    rate_limit @api {
+        zone api {
+            key {remote_host}
+            events 10
+            window 1s
+        }
+    }
+}
+```
+
+### API Documentation
+
+Swagger UI is available at `/swagger-ui/` and OpenAPI spec at `/api-docs/openapi.json`.
+
 ## License
 
 MIT
