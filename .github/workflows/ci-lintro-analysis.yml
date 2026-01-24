@@ -62,22 +62,21 @@ jobs:
       - name: Run Lintro Analysis in Docker
         id: lintro
         run: |
-          set +e
+          # Disable exit-on-error to capture exit code
+          set +eo pipefail
           docker run --rm \
             -v "${{ github.workspace }}:/workspace" \
             -w /workspace \
             ghcr.io/turbocoder13/py-lintro:latest \
             check . 2>&1 | tee chk-output.txt
-          CHK_EXIT_CODE=${PIPESTATUS[0]}
-          echo "CHK_EXIT_CODE=$CHK_EXIT_CODE" >> "$GITHUB_ENV"
-          echo "exit_code=$CHK_EXIT_CODE" >> "$GITHUB_OUTPUT"
+          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
 
       - name: Generate PR Comment
-        if: always() && github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request'
         run: ./scripts/ci/ci-pr-comment.sh
 
       - name: Comment PR with Lintro Results
-        if: always() && github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request'
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -85,5 +84,7 @@ jobs:
         run: ./scripts/ci/github/ci-post-pr-comment.sh pr-comment.txt
 
       - name: Fail on Linting Issues
-        if: always() && steps.lintro.outputs.exit_code != '0'
-        run: ./scripts/ci/fail-on-lint.sh
+        if: (success() || failure()) && steps.lintro.outputs.exit_code != '0'
+        run: |
+          echo "::error::Linting checks failed (exit code: ${{ steps.lintro.outputs.exit_code }})"
+          exit 1
