@@ -25,10 +25,11 @@ cuid2 = "0.1"
 # Date/Time
 chrono = { version = "0.4", features = ["serde"] }
 
-# PDF Generation
-typst = "0.12"
-typst-pdf = "0.12"
-typst-render = "0.12"
+# PDF Generation / Typst ecosystem
+typst = "0.14.2"
+typst-pdf = "0.14.2"
+typst-render = "0.14.0"
+typst-assets = { version = "0.14", features = ["fonts"] }
 
 # HTML
 ammonia = "4"

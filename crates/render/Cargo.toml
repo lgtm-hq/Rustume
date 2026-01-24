@@ -14,10 +14,10 @@ serde.workspace = true
 serde_json.workspace = true
 
 # Typst ecosystem
-typst = "0.12"
-typst-pdf = "0.12"
-typst-render = "0.12"
-typst-assets = { version = "0.12", features = ["fonts"] }
+typst.workspace = true
+typst-pdf.workspace = true
+typst-render.workspace = true
+typst-assets.workspace = true
 
 # Date/time for Typst World
 chrono.workspace = true
