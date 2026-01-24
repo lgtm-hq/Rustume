@@ -13,6 +13,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Common exclude directories for lintro
+# shellcheck disable=SC2034  # Variable used by scripts that source this file
 EXCLUDE_DIRS=".git,target,node_modules,.venv,venv"
 
 # Common environment variables
