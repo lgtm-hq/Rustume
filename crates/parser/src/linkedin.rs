@@ -197,7 +197,7 @@ impl LinkedInParser {
             .map(|s| s.to_lowercase().replace(' ', "_"))
             .collect();
 
-        for result in reader.records() {
+        if let Some(result) = reader.records().next() {
             let record = result
                 .map_err(|e| ParseError::ReadError(format!("Failed to read CSV record: {}", e)))?;
 
@@ -660,7 +660,7 @@ impl Parser for LinkedInParser {
 
                 // Use started_on as the date
                 if let Some(date) = cert.started_on {
-                    certification = certification.with_date(&format_linkedin_date(Some(&date)));
+                    certification = certification.with_date(format_linkedin_date(Some(&date)));
                 }
 
                 resume.sections.certifications.add_item(certification);

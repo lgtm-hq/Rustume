@@ -610,7 +610,7 @@ fn convert_profiles(v3: &V3Section<V3Profile>, section: &mut Section<Profile>) {
                 profile = profile.with_icon(icon);
             }
             if let Some(url) = &p.url {
-                profile = profile.with_url(&url.to_href());
+                profile = profile.with_url(url.to_href());
             }
             profile
         })
@@ -643,7 +643,7 @@ fn convert_experience(v3: &V3Section<V3Experience>, section: &mut Section<Experi
                 exp = exp.with_summary(summary);
             }
             if let Some(url) = &e.url {
-                exp = exp.with_url(&url.to_href());
+                exp = exp.with_url(url.to_href());
             }
             exp
         })
@@ -784,7 +784,7 @@ fn convert_certifications(v3: &V3Section<V3Certification>, section: &mut Section
                 cert = cert.with_date(date);
             }
             if let Some(url) = &c.url {
-                cert = cert.with_url(&url.to_href());
+                cert = cert.with_url(url.to_href());
             }
             cert
         })
@@ -838,7 +838,7 @@ fn convert_projects(v3: &V3Section<V3Project>, section: &mut Section<Project>) {
                 project = project.with_keywords(p.keywords.clone());
             }
             if let Some(url) = &p.url {
-                project = project.with_url(&url.to_href());
+                project = project.with_url(url.to_href());
             }
             project
         })
@@ -871,7 +871,7 @@ fn convert_publications(v3: &V3Section<V3Publication>, section: &mut Section<Pub
                 pub_item.summary = summary.clone();
             }
             if let Some(url) = &p.url {
-                pub_item.url = Url::new(&url.to_href());
+                pub_item.url = Url::new(url.to_href());
             }
             pub_item
         })
@@ -904,7 +904,7 @@ fn convert_volunteer(v3: &V3Section<V3Volunteer>, section: &mut Section<Voluntee
                 vol.summary = summary.clone();
             }
             if let Some(url) = &v.url {
-                vol.url = Url::new(&url.to_href());
+                vol.url = Url::new(url.to_href());
             }
             vol
         })
@@ -931,7 +931,7 @@ fn convert_references(v3: &V3Section<V3Reference>, section: &mut Section<Referen
                 reference.summary = summary.clone();
             }
             if let Some(url) = &r.url {
-                reference.url = Url::new(&url.to_href());
+                reference.url = Url::new(url.to_href());
             }
             reference
         })
