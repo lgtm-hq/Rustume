@@ -152,7 +152,7 @@ mod tests {
             "c".to_string(),
         ]]];
 
-        // Move "a" to after "c" (index 2 after removal becomes 1)
+        // Move "a" to index 2; after removal adjustment it lands at index 1 (between "b" and "c")
         let current = LayoutLocator { page: 0, column: 0, section: 0 };
         let target = LayoutLocator { page: 0, column: 0, section: 2 };
         let new_layout = move_item_in_layout(current, target, &layout);

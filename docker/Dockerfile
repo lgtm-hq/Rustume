@@ -9,6 +9,7 @@ FROM rust:1.84-bookworm@sha256:738ae99a3d75623f41e6882566b4ef37e38a9840244a47efd
 WORKDIR /app
 
 # Install build dependencies
+# hadolint ignore=DL3008 -- apt version pinning impractical; Renovate updates base image
 RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     libssl-dev \
@@ -32,6 +33,7 @@ FROM debian:bookworm-slim@sha256:56ff6d36d4eb3db13a741b342ec466f121480b5edded42e
 # - fonts-liberation: standard fonts for PDF rendering
 # - fonts-dejavu: fallback fonts
 # - wget: for healthcheck (smaller than curl)
+# hadolint ignore=DL3008 -- apt version pinning impractical; Renovate updates base image
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     fonts-liberation \
