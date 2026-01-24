@@ -38,6 +38,10 @@ use validator::Validate;
 #[command(name = "rustume")]
 #[command(author, version, about, long_about = None)]
 struct Cli {
+    /// Enable debug logging
+    #[arg(short, long, global = true)]
+    debug: bool,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -140,6 +144,17 @@ fn main() {
 
 fn run() -> Result<()> {
     let cli = Cli::parse();
+
+    // Initialize tracing if debug mode is enabled
+    if cli.debug {
+        tracing_subscriber::fmt()
+            .with_env_filter(
+                tracing_subscriber::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| "rustume=debug".into()),
+            )
+            .init();
+        tracing::debug!("Debug logging enabled");
+    }
 
     match cli.command {
         Commands::Parse { input, format, output, pretty } => {
