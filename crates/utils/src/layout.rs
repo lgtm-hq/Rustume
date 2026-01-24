@@ -65,7 +65,18 @@ pub fn move_item_in_layout(
         new_layout[target.page].push(Vec::new());
     }
 
-    let insert_idx = target.section.min(new_layout[target.page][target.column].len());
+    // Adjust target section index if moving within same page/column and
+    // the current position was before the target position
+    let adjusted_target_section = if current.page == target.page
+        && current.column == target.column
+        && current.section < target.section
+    {
+        target.section.saturating_sub(1)
+    } else {
+        target.section
+    };
+
+    let insert_idx = adjusted_target_section.min(new_layout[target.page][target.column].len());
     new_layout[target.page][target.column].insert(insert_idx, item);
 
     new_layout
