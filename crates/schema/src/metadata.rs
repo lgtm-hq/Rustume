@@ -117,12 +117,15 @@ impl Default for PageOptions {
 /// Color theme.
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 pub struct Theme {
+    #[validate(custom(function = "crate::validation::validate_hex_color"))]
     #[serde(default = "default_background")]
     pub background: String,
 
+    #[validate(custom(function = "crate::validation::validate_hex_color"))]
     #[serde(default = "default_text")]
     pub text: String,
 
+    #[validate(custom(function = "crate::validation::validate_hex_color"))]
     #[serde(default = "default_primary")]
     pub primary: String,
 }
