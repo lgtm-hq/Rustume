@@ -23,6 +23,13 @@ fn sample_resume(name: &str) -> ResumeData {
     resume
 }
 
+/// Create a sample resume with an index for concurrent testing.
+#[allow(clippy::field_reassign_with_default)]
+fn sample_resume_indexed(index: usize) -> ResumeData {
+    let name = format!("User {}", index);
+    sample_resume(&name)
+}
+
 // ============================================================================
 // MemoryStorage Tests
 // ============================================================================
@@ -177,4 +184,111 @@ async fn test_memory_storage_preserves_full_resume_data() {
         loaded.sections.experience.items.len(),
         resume.sections.experience.items.len()
     );
+}
+
+// ============================================================================
+// Concurrency Tests
+// ============================================================================
+//
+// Note: These tests verify concurrent access patterns work correctly.
+// Since the storage trait returns non-Send futures (due to async_trait),
+// we test concurrency by rapidly interleaving operations rather than
+// using tokio::spawn across threads.
+
+#[tokio::test]
+async fn test_rapid_sequential_save_operations() {
+    let storage = MemoryStorage::new();
+
+    // Rapidly save many items
+    for i in 0..100 {
+        storage
+            .save(&format!("id-{}", i), &sample_resume_indexed(i))
+            .await
+            .unwrap();
+    }
+
+    let list = storage.list().await.unwrap();
+    assert_eq!(list.len(), 100);
+
+    // Verify all items are accessible
+    for i in 0..100 {
+        let loaded = storage.get(&format!("id-{}", i)).await.unwrap();
+        assert_eq!(loaded.basics.name, format!("User {}", i));
+    }
+}
+
+#[tokio::test]
+async fn test_interleaved_read_write() {
+    let storage = MemoryStorage::new();
+
+    // Pre-populate with some data
+    for i in 0..10 {
+        storage
+            .save(&format!("resume-{}", i), &sample_resume_indexed(i))
+            .await
+            .unwrap();
+    }
+
+    // Interleave reads and writes
+    for i in 10..50 {
+        // Write
+        storage
+            .save(&format!("resume-{}", i), &sample_resume_indexed(i))
+            .await
+            .unwrap();
+
+        // Read an earlier item
+        let read_idx = i % 10;
+        let loaded = storage.get(&format!("resume-{}", read_idx)).await.unwrap();
+        assert_eq!(loaded.basics.name, format!("User {}", read_idx));
+    }
+
+    // Verify final state
+    let list = storage.list().await.unwrap();
+    assert_eq!(list.len(), 50);
+}
+
+#[tokio::test]
+async fn test_rapid_update_same_key() {
+    let storage = MemoryStorage::new();
+
+    // Initial save
+    storage
+        .save("shared-key", &sample_resume_indexed(0))
+        .await
+        .unwrap();
+
+    // Rapidly update the same key many times
+    for i in 1..=100 {
+        storage
+            .save("shared-key", &sample_resume_indexed(i))
+            .await
+            .unwrap();
+    }
+
+    // Key should exist and have the final value
+    let loaded = storage.get("shared-key").await.unwrap();
+    assert_eq!(loaded.basics.name, "User 100");
+}
+
+#[tokio::test]
+async fn test_interleaved_save_delete() {
+    let storage = MemoryStorage::new();
+
+    // Create and delete items interleaved
+    for i in 0..50 {
+        storage
+            .save(&format!("item-{}", i), &sample_resume_indexed(i))
+            .await
+            .unwrap();
+
+        // Delete every other item
+        if i > 0 && i % 2 == 0 {
+            storage.delete(&format!("item-{}", i - 1)).await.unwrap();
+        }
+    }
+
+    // Should have roughly half the items (the even ones minus deletions)
+    let list = storage.list().await.unwrap();
+    assert!(list.len() > 20 && list.len() < 50);
 }

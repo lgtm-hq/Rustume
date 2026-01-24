@@ -90,4 +90,32 @@ mod tests {
         assert!(is_empty_string("<p></p>"));
         assert!(!is_empty_string("hello"));
     }
+
+    #[test]
+    fn test_is_valid_email_valid() {
+        assert!(is_valid_email("test@example.com"));
+        assert!(is_valid_email("user.name+tag@domain.co.uk"));
+        assert!(is_valid_email("user_name@example.org"));
+        assert!(is_valid_email("name123@company.io"));
+    }
+
+    #[test]
+    fn test_is_valid_email_invalid() {
+        assert!(!is_valid_email(""));
+        assert!(!is_valid_email("not-an-email"));
+        assert!(!is_valid_email("@example.com"));
+        assert!(!is_valid_email("test@"));
+        assert!(!is_valid_email("test@.com"));
+        assert!(!is_valid_email("test @example.com"));
+    }
+
+    #[test]
+    fn test_process_username() {
+        assert_eq!(process_username("John Doe"), "johndoe");
+        assert_eq!(process_username("user.name"), "user.name");
+        assert_eq!(process_username("User-Name"), "user-name");
+        assert_eq!(process_username("Über"), "über"); // Unicode letters are preserved (is_alphanumeric)
+        assert_eq!(process_username("test_user"), "testuser"); // underscore stripped
+        assert_eq!(process_username("  spaces  "), "spaces");
+    }
 }
