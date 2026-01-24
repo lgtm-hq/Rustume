@@ -16,6 +16,9 @@ use typst::Library;
 /// Embedded templates
 static TEMPLATES: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
 
+/// Shared font cache to avoid duplicate font loading
+static FONTS_CACHE: OnceLock<(FontBook, Vec<Font>)> = OnceLock::new();
+
 fn get_templates() -> &'static HashMap<&'static str, &'static str> {
     TEMPLATES.get_or_init(|| {
         let mut map = HashMap::new();
@@ -35,8 +38,6 @@ pub struct RustumeWorld {
     library: OnceLock<LazyHash<Library>>,
     /// The font book.
     book: OnceLock<LazyHash<FontBook>>,
-    /// Loaded fonts.
-    fonts: OnceLock<Vec<Font>>,
     /// Additional source files (templates).
     sources: HashMap<FileId, Source>,
 }
@@ -59,7 +60,6 @@ impl RustumeWorld {
             main,
             library: OnceLock::new(),
             book: OnceLock::new(),
-            fonts: OnceLock::new(),
             sources,
         }
     }
@@ -106,6 +106,11 @@ impl RustumeWorld {
     }
 }
 
+/// Get the shared font cache, loading fonts only once.
+fn get_fonts_cache() -> &'static (FontBook, Vec<Font>) {
+    FONTS_CACHE.get_or_init(RustumeWorld::load_fonts)
+}
+
 impl typst::World for RustumeWorld {
     fn library(&self) -> &LazyHash<Library> {
         self.library
@@ -114,8 +119,8 @@ impl typst::World for RustumeWorld {
 
     fn book(&self) -> &LazyHash<FontBook> {
         self.book.get_or_init(|| {
-            let (book, _) = Self::load_fonts();
-            LazyHash::new(book)
+            let (book, _) = get_fonts_cache();
+            LazyHash::new(book.clone())
         })
     }
 
@@ -139,10 +144,7 @@ impl typst::World for RustumeWorld {
     }
 
     fn font(&self, index: usize) -> Option<Font> {
-        let fonts = self.fonts.get_or_init(|| {
-            let (_, fonts) = Self::load_fonts();
-            fonts
-        });
+        let (_, fonts) = get_fonts_cache();
         fonts.get(index).cloned()
     }
 
