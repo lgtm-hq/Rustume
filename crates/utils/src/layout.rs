@@ -53,7 +53,7 @@ pub fn move_item_in_layout(
         .and_then(|c| c.get(current.section))
     {
         Some(item) => item.clone(),
-        None => return layout.to_vec(),
+        None => return new_layout,
     };
 
     new_layout[current.page][current.column].remove(current.section);
@@ -104,5 +104,72 @@ mod tests {
         );
 
         assert_eq!(find_item_in_layout("nonexistent", &layout), None);
+    }
+
+    #[test]
+    fn test_remove_item_in_layout() {
+        let mut layout = vec![vec![
+            vec!["summary".to_string(), "experience".to_string()],
+            vec!["skills".to_string()],
+        ]];
+
+        let loc = remove_item_in_layout("experience", &mut layout);
+        assert_eq!(
+            loc,
+            Some(LayoutLocator {
+                page: 0,
+                column: 0,
+                section: 1
+            })
+        );
+        assert_eq!(layout[0][0], vec!["summary".to_string()]);
+
+        // Removing non-existent item returns None
+        assert_eq!(remove_item_in_layout("nonexistent", &mut layout), None);
+    }
+
+    #[test]
+    fn test_move_item_in_layout() {
+        let layout = vec![vec![
+            vec!["summary".to_string(), "experience".to_string(), "education".to_string()],
+            vec!["skills".to_string()],
+        ]];
+
+        // Move experience to second column
+        let current = LayoutLocator { page: 0, column: 0, section: 1 };
+        let target = LayoutLocator { page: 0, column: 1, section: 0 };
+        let new_layout = move_item_in_layout(current, target, &layout);
+
+        assert_eq!(new_layout[0][0], vec!["summary".to_string(), "education".to_string()]);
+        assert_eq!(new_layout[0][1], vec!["experience".to_string(), "skills".to_string()]);
+    }
+
+    #[test]
+    fn test_move_item_within_same_column() {
+        let layout = vec![vec![vec![
+            "a".to_string(),
+            "b".to_string(),
+            "c".to_string(),
+        ]]];
+
+        // Move "a" to after "c" (index 2 after removal becomes 1)
+        let current = LayoutLocator { page: 0, column: 0, section: 0 };
+        let target = LayoutLocator { page: 0, column: 0, section: 2 };
+        let new_layout = move_item_in_layout(current, target, &layout);
+
+        assert_eq!(new_layout[0][0], vec!["b".to_string(), "a".to_string(), "c".to_string()]);
+    }
+
+    #[test]
+    fn test_move_item_to_new_page() {
+        let layout = vec![vec![vec!["summary".to_string()]]];
+
+        let current = LayoutLocator { page: 0, column: 0, section: 0 };
+        let target = LayoutLocator { page: 1, column: 0, section: 0 };
+        let new_layout = move_item_in_layout(current, target, &layout);
+
+        assert_eq!(new_layout.len(), 2);
+        assert!(new_layout[0][0].is_empty());
+        assert_eq!(new_layout[1][0], vec!["summary".to_string()]);
     }
 }

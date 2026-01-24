@@ -34,18 +34,20 @@ pub fn extract_url(s: &str) -> Option<&str> {
 }
 
 /// Check if string is empty or whitespace-only.
-/// Also treats "<p></p>" as empty (TipTap editor artifact).
+/// Also treats common empty HTML patterns as empty (TipTap/editor artifacts).
 pub fn is_empty_string(s: &str) -> bool {
     let trimmed = s.trim();
-    trimmed.is_empty() || trimmed == "<p></p>"
+    trimmed.is_empty()
+        || matches!(trimmed, "<p></p>" | "<p><br></p>" | "<p>&nbsp;</p>")
 }
 
 /// Sanitize username: lowercase, alphanumeric + dots + hyphens only.
+/// Lowercases first to ensure combining marks from case-folding are filtered.
 pub fn process_username(s: &str) -> String {
-    s.chars()
+    s.to_lowercase()
+        .chars()
         .filter(|c| c.is_alphanumeric() || *c == '.' || *c == '-')
-        .collect::<String>()
-        .to_lowercase()
+        .collect()
 }
 
 /// Validate email format.

@@ -4,6 +4,11 @@
 pub fn hex_to_rgb(hex: &str) -> Option<(u8, u8, u8)> {
     let hex = hex.trim_start_matches('#');
 
+    // Guard against non-ASCII input to prevent UTF-8 slicing panic
+    if !hex.is_ascii() {
+        return None;
+    }
+
     if hex.len() != 6 {
         return None;
     }
@@ -54,5 +59,17 @@ mod tests {
             hex_to_rgb_string("#000000", Some(0.5)),
             "rgba(0, 0, 0, 0.5)"
         );
+    }
+
+    #[test]
+    fn test_hex_to_rgb_non_ascii() {
+        assert_eq!(hex_to_rgb("🔴abcde"), None);
+        assert_eq!(hex_to_rgb("café12"), None);
+    }
+
+    #[test]
+    fn test_linear_transform() {
+        assert!((linear_transform(5.0, 0.0, 10.0, 0.0, 100.0) - 50.0).abs() < f64::EPSILON);
+        assert!(linear_transform(5.0, 10.0, 10.0, 0.0, 100.0).is_nan());
     }
 }
