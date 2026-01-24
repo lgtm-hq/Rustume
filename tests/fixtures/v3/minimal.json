@@ -1,0 +1,25 @@
+{
+  "id": "v3-minimal",
+  "name": "Minimal Resume",
+  "basics": {
+    "name": "Bob Wilson",
+    "headline": "Developer",
+    "email": "bob@example.com"
+  },
+  "sections": {
+    "experience": { "items": [] },
+    "education": { "items": [] },
+    "skills": { "items": [] },
+    "profiles": { "items": [] },
+    "languages": { "items": [] },
+    "awards": { "items": [] },
+    "certifications": { "items": [] },
+    "interests": { "items": [] },
+    "projects": { "items": [] },
+    "publications": { "items": [] },
+    "volunteer": { "items": [] },
+    "references": { "items": [] },
+    "custom": {}
+  },
+  "metadata": {}
+}

@@ -1,0 +1,286 @@
+{
+  "id": "v3-test-resume",
+  "name": "Complete Resume",
+  "public": true,
+  "basics": {
+    "name": "Alice Johnson",
+    "headline": "Full Stack Developer",
+    "email": "alice@example.com",
+    "phone": "+1-555-234-5678",
+    "location": "Seattle, WA",
+    "summary": {
+      "body": "Passionate full-stack developer with 8 years of experience building scalable web applications.",
+      "visible": true
+    },
+    "url": {
+      "href": "https://alicejohnson.dev",
+      "label": "Portfolio"
+    },
+    "photo": {
+      "url": "https://example.com/alice.jpg",
+      "visible": true
+    }
+  },
+  "sections": {
+    "experience": {
+      "id": "experience",
+      "name": "Work Experience",
+      "visible": true,
+      "columns": 1,
+      "items": [
+        {
+          "id": "exp-1",
+          "visible": true,
+          "company": "Cloud Solutions Inc",
+          "position": "Senior Full Stack Developer",
+          "location": "Seattle, WA",
+          "date": "2021 - Present",
+          "summary": "Leading development of cloud-native applications.\n- Architected microservices handling 1M+ daily requests\n- Reduced infrastructure costs by 35%",
+          "url": {
+            "href": "https://cloudsolutions.com",
+            "label": "Company Website"
+          }
+        },
+        {
+          "id": "exp-2",
+          "visible": true,
+          "company": "WebTech Startup",
+          "position": "Full Stack Developer",
+          "location": "Portland, OR",
+          "date": "2018 - 2021",
+          "summary": "Built and maintained e-commerce platform serving 500k users."
+        }
+      ]
+    },
+    "education": {
+      "id": "education",
+      "name": "Education",
+      "visible": true,
+      "columns": 1,
+      "items": [
+        {
+          "id": "edu-1",
+          "visible": true,
+          "institution": "University of Washington",
+          "area": "Computer Science",
+          "studyType": "Bachelor of Science",
+          "date": "2014 - 2018",
+          "score": "3.8 GPA",
+          "summary": "Focus on distributed systems and web technologies."
+        }
+      ]
+    },
+    "skills": {
+      "id": "skills",
+      "name": "Skills",
+      "visible": true,
+      "columns": 3,
+      "items": [
+        {
+          "id": "skill-1",
+          "visible": true,
+          "name": "TypeScript",
+          "level": 5,
+          "keywords": ["React", "Node.js", "Next.js"]
+        },
+        {
+          "id": "skill-2",
+          "visible": true,
+          "name": "Rust",
+          "level": 4,
+          "keywords": ["WebAssembly", "Systems Programming"]
+        },
+        {
+          "id": "skill-3",
+          "visible": true,
+          "name": "Cloud & DevOps",
+          "level": 4,
+          "keywords": ["AWS", "Docker", "Kubernetes"]
+        }
+      ]
+    },
+    "profiles": {
+      "id": "profiles",
+      "name": "Profiles",
+      "visible": true,
+      "items": [
+        {
+          "id": "profile-1",
+          "visible": true,
+          "network": "GitHub",
+          "username": "alicejohnson",
+          "url": {
+            "href": "https://github.com/alicejohnson"
+          }
+        },
+        {
+          "id": "profile-2",
+          "visible": true,
+          "network": "LinkedIn",
+          "username": "alicejohnson",
+          "url": "https://linkedin.com/in/alicejohnson"
+        }
+      ]
+    },
+    "languages": {
+      "id": "languages",
+      "name": "Languages",
+      "visible": true,
+      "items": [
+        {
+          "id": "lang-1",
+          "visible": true,
+          "name": "English",
+          "level": 5,
+          "description": "Native"
+        },
+        {
+          "id": "lang-2",
+          "visible": true,
+          "name": "Japanese",
+          "level": 3,
+          "description": "Conversational"
+        }
+      ]
+    },
+    "awards": {
+      "id": "awards",
+      "name": "Awards",
+      "visible": true,
+      "items": [
+        {
+          "id": "award-1",
+          "visible": true,
+          "title": "Best Innovation Award",
+          "awarder": "Tech Conference 2023",
+          "date": "2023",
+          "summary": "Recognized for innovative approach to serverless architecture."
+        }
+      ]
+    },
+    "certifications": {
+      "id": "certifications",
+      "name": "Certifications",
+      "visible": true,
+      "items": [
+        {
+          "id": "cert-1",
+          "visible": true,
+          "name": "AWS Solutions Architect Professional",
+          "issuer": "Amazon Web Services",
+          "date": "2022",
+          "summary": "Advanced cloud architecture certification.",
+          "url": {
+            "href": "https://aws.amazon.com/certification/"
+          }
+        }
+      ]
+    },
+    "interests": {
+      "id": "interests",
+      "name": "Interests",
+      "visible": true,
+      "items": [
+        {
+          "id": "interest-1",
+          "visible": true,
+          "name": "Open Source",
+          "keywords": ["Contributing", "Maintaining"]
+        }
+      ]
+    },
+    "projects": {
+      "id": "projects",
+      "name": "Projects",
+      "visible": true,
+      "items": [
+        {
+          "id": "project-1",
+          "visible": true,
+          "name": "DevTools CLI",
+          "description": "A command-line toolkit for developers",
+          "date": "2022",
+          "summary": "Built a CLI tool with 5k+ weekly downloads.",
+          "keywords": ["Rust", "CLI", "Developer Tools"],
+          "url": {
+            "href": "https://github.com/alicejohnson/devtools-cli"
+          }
+        }
+      ]
+    },
+    "publications": {
+      "id": "publications",
+      "name": "Publications",
+      "visible": true,
+      "items": [
+        {
+          "id": "pub-1",
+          "visible": true,
+          "name": "Scaling Microservices in the Cloud",
+          "publisher": "Tech Blog",
+          "date": "2023",
+          "summary": "Deep dive into microservices scaling patterns.",
+          "url": {
+            "href": "https://techblog.com/scaling-microservices"
+          }
+        }
+      ]
+    },
+    "volunteer": {
+      "id": "volunteer",
+      "name": "Volunteer",
+      "visible": true,
+      "items": [
+        {
+          "id": "vol-1",
+          "visible": true,
+          "organization": "Code for Seattle",
+          "position": "Mentor",
+          "location": "Seattle, WA",
+          "date": "2020 - Present",
+          "summary": "Mentoring aspiring developers in web technologies."
+        }
+      ]
+    },
+    "references": {
+      "id": "references",
+      "name": "References",
+      "visible": false,
+      "items": [
+        {
+          "id": "ref-1",
+          "visible": true,
+          "name": "John Smith",
+          "description": "Former Manager at Cloud Solutions Inc",
+          "summary": "Available upon request."
+        }
+      ]
+    },
+    "custom": {}
+  },
+  "metadata": {
+    "template": "rhyhorn",
+    "layout": [[["experience", "education"]], [["skills", "languages"]]],
+    "theme": {
+      "primary": "#3b82f6",
+      "background": "#ffffff",
+      "text": "#1f2937"
+    },
+    "typography": {
+      "font": {
+        "family": "Inter",
+        "size": 14
+      },
+      "lineHeight": 1.5,
+      "hideIcons": false
+    },
+    "page": {
+      "format": "letter",
+      "margin": 18
+    },
+    "css": {
+      "value": "",
+      "visible": false
+    }
+  }
+}
