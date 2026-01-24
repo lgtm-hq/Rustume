@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: MIT
 ---
 name: Quality - Lint & Format
-# Runs lintro quality analysis on PRs and pushes.
-# Lintro handles all linting tools (Clippy, shellcheck, yamllint, etc.)
+# Runs lintro quality analysis on PRs and pushes using Docker.
+# Uses pre-built lintro-tools image with all linting tools installed.
 
 "on":
   push:
@@ -55,6 +55,8 @@ jobs:
             index.crates.io:443
             pypi.org:443
             files.pythonhosted.org:443
+            ghcr.io:443
+            pkg-containers.githubusercontent.com:443
 
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -68,7 +70,7 @@ jobs:
             echo "has_rust=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_rust=false" >> "$GITHUB_OUTPUT"
-            echo "No Cargo.toml found, skipping Rust-specific steps"
+            echo "::notice::No Cargo.toml found, skipping Rust-specific steps"
           fi
 
       - name: Setup Rust
@@ -89,21 +91,25 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      - name: Setup Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        with:
-          python-version: "3.13"
-
-      - name: Install lintro
-        run: pip install --user lintro && echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
       - name: Run cargo fmt check
         if: steps.check-rust.outputs.has_rust == 'true'
         run: cargo fmt --all -- --check
 
-      - name: Run Lintro Analysis
+      - name: Pull lintro-tools image
+        run: docker pull ghcr.io/turbocoder13/lintro-tools:latest
+
+      - name: Run Lintro Analysis in Docker
         id: lintro
-        run: ./scripts/ci/testing/ci-lintro.sh
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/workspace" \
+            -w /workspace \
+            -e GITHUB_STEP_SUMMARY=/dev/null \
+            -e GITHUB_ENV=/dev/null \
+            ghcr.io/turbocoder13/lintro-tools:latest \
+            lintro check . 2>&1 | tee chk-output.txt
+          CHK_EXIT_CODE=${PIPESTATUS[0]}
+          echo "CHK_EXIT_CODE=$CHK_EXIT_CODE" >> "$GITHUB_ENV"
         continue-on-error: true
 
       - name: Generate PR Comment
@@ -119,5 +125,5 @@ jobs:
         run: ./scripts/ci/github/ci-post-pr-comment.sh pr-comment.txt
 
       - name: Fail on Linting Issues
-        if: ${{ env.CHK_EXIT_CODE != '0' }}
+        if: env.CHK_EXIT_CODE != '0'
         run: ./scripts/ci/fail-on-lint.sh
