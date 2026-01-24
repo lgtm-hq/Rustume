@@ -61,16 +61,13 @@ pub struct CustomCss {
 /// Page format.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum PageFormat {
+    #[default]
     A4,
     Letter,
 }
 
-impl Default for PageFormat {
-    fn default() -> Self {
-        Self::A4
-    }
-}
 
 /// Page configuration.
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
