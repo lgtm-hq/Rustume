@@ -96,8 +96,22 @@ jobs:
         if: steps.check-rust.outputs.has_rust == 'true' && github.event_name == 'pull_request'
         run: ./scripts/ci/testing/ci-test-pr-comment.sh
 
+      - name: Generate skipped PR comment
+        if: steps.check-rust.outputs.has_rust == 'false' && github.event_name == 'pull_request'
+        run: |
+          cat > test-pr-comment.txt <<'EOF'
+          <!-- test-report -->
+          ## 🧪 Rust Test Results
+
+          ℹ️ **No Rust Project Found**
+
+          No `Cargo.toml` detected in the repository root. Tests were skipped.
+
+          Once Rust source code is added, this workflow will automatically run `cargo test`.
+          EOF
+
       - name: Comment PR with test results
-        if: steps.check-rust.outputs.has_rust == 'true' && github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request'
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
