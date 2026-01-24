@@ -47,7 +47,8 @@ pub fn validate_hex_color(color: &str) -> Result<(), ValidationError> {
         return Ok(());
     }
 
-    let color = color.trim_start_matches('#');
+    // Only strip a single leading # (reject ##RRGGBB)
+    let color = color.strip_prefix('#').unwrap_or(color);
     if color.len() == 6 && color.chars().all(|c| c.is_ascii_hexdigit()) {
         Ok(())
     } else {
@@ -107,5 +108,6 @@ mod tests {
         assert!(validate_hex_color("#fff").is_err()); // Too short
         assert!(validate_hex_color("#gggggg").is_err()); // Invalid chars
         assert!(validate_hex_color("red").is_err()); // Named color
+        assert!(validate_hex_color("##ffffff").is_err()); // Double hash
     }
 }
