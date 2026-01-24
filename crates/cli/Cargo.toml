@@ -29,7 +29,6 @@ validator.workspace = true
 anyhow.workspace = true
 thiserror.workspace = true
 
-# File handling
 [dev-dependencies]
 assert_cmd = "2.0"
 predicates = "3.1"

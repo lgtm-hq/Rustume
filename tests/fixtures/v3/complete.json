@@ -118,7 +118,9 @@
           "visible": true,
           "network": "LinkedIn",
           "username": "alicejohnson",
-          "url": "https://linkedin.com/in/alicejohnson"
+          "url": {
+            "href": "https://linkedin.com/in/alicejohnson"
+          }
         }
       ]
     },

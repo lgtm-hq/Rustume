@@ -480,8 +480,12 @@ mod reactive_resume_v3 {
     fn test_v3_missing_basics() {
         let parser = ReactiveResumeV3Parser;
         let result = parser.parse(br#"{"id": "test", "sections": {}}"#);
-        // Should handle missing basics gracefully
-        assert!(result.is_ok() || result.is_err());
+        // Should handle missing basics gracefully and return a valid resume with defaults
+        assert!(result.is_ok());
+        if let Ok(resume) = result {
+            // Verify defaults are applied when basics is missing
+            assert!(resume.basics.name.is_empty());
+        }
     }
 
     #[test]

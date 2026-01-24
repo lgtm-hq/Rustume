@@ -332,7 +332,12 @@ fn cmd_validate(input: &str) -> Result<()> {
             eprintln!("Validation errors:");
             for (field, errs) in errors.field_errors() {
                 for err in errs {
-                    eprintln!("  {}: {:?}", field, err.message);
+                    let message = err
+                        .message
+                        .as_ref()
+                        .map(|s| s.as_ref())
+                        .unwrap_or("validation failed");
+                    eprintln!("  {}: {}", field, message);
                 }
             }
             Err(anyhow!("Resume validation failed"))
