@@ -1,0 +1,16 @@
+[package]
+name = "rustume-utils"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Shared utilities for Rustume"
+
+[dependencies]
+cuid2.workspace = true
+regex.workspace = true
+once_cell.workspace = true
+ammonia.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+rstest.workspace = true
