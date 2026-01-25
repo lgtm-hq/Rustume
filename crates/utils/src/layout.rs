@@ -27,10 +27,7 @@ pub fn find_item_in_layout(item: &str, layout: &[Vec<Vec<String>>]) -> Option<La
 }
 
 /// Remove an item from the layout, returning its previous position.
-pub fn remove_item_in_layout(
-    item: &str,
-    layout: &mut [Vec<Vec<String>>],
-) -> Option<LayoutLocator> {
+pub fn remove_item_in_layout(item: &str, layout: &mut [Vec<Vec<String>>]) -> Option<LayoutLocator> {
     if let Some(loc) = find_item_in_layout(item, layout) {
         layout[loc.page][loc.column].remove(loc.section);
         Some(loc)
@@ -131,17 +128,35 @@ mod tests {
     #[test]
     fn test_move_item_in_layout() {
         let layout = vec![vec![
-            vec!["summary".to_string(), "experience".to_string(), "education".to_string()],
+            vec![
+                "summary".to_string(),
+                "experience".to_string(),
+                "education".to_string(),
+            ],
             vec!["skills".to_string()],
         ]];
 
         // Move experience to second column
-        let current = LayoutLocator { page: 0, column: 0, section: 1 };
-        let target = LayoutLocator { page: 0, column: 1, section: 0 };
+        let current = LayoutLocator {
+            page: 0,
+            column: 0,
+            section: 1,
+        };
+        let target = LayoutLocator {
+            page: 0,
+            column: 1,
+            section: 0,
+        };
         let new_layout = move_item_in_layout(current, target, &layout);
 
-        assert_eq!(new_layout[0][0], vec!["summary".to_string(), "education".to_string()]);
-        assert_eq!(new_layout[0][1], vec!["experience".to_string(), "skills".to_string()]);
+        assert_eq!(
+            new_layout[0][0],
+            vec!["summary".to_string(), "education".to_string()]
+        );
+        assert_eq!(
+            new_layout[0][1],
+            vec!["experience".to_string(), "skills".to_string()]
+        );
     }
 
     #[test]
@@ -153,19 +168,38 @@ mod tests {
         ]]];
 
         // Move "a" to index 2; after removal adjustment it lands at index 1 (between "b" and "c")
-        let current = LayoutLocator { page: 0, column: 0, section: 0 };
-        let target = LayoutLocator { page: 0, column: 0, section: 2 };
+        let current = LayoutLocator {
+            page: 0,
+            column: 0,
+            section: 0,
+        };
+        let target = LayoutLocator {
+            page: 0,
+            column: 0,
+            section: 2,
+        };
         let new_layout = move_item_in_layout(current, target, &layout);
 
-        assert_eq!(new_layout[0][0], vec!["b".to_string(), "a".to_string(), "c".to_string()]);
+        assert_eq!(
+            new_layout[0][0],
+            vec!["b".to_string(), "a".to_string(), "c".to_string()]
+        );
     }
 
     #[test]
     fn test_move_item_to_new_page() {
         let layout = vec![vec![vec!["summary".to_string()]]];
 
-        let current = LayoutLocator { page: 0, column: 0, section: 0 };
-        let target = LayoutLocator { page: 1, column: 0, section: 0 };
+        let current = LayoutLocator {
+            page: 0,
+            column: 0,
+            section: 0,
+        };
+        let target = LayoutLocator {
+            page: 1,
+            column: 0,
+            section: 0,
+        };
         let new_layout = move_item_in_layout(current, target, &layout);
 
         assert_eq!(new_layout.len(), 2);

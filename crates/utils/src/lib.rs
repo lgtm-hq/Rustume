@@ -8,16 +8,16 @@
 //! - Layout utilities
 //! - HTML sanitization
 
-mod id;
-mod string;
-mod date;
 mod color;
+mod date;
+mod id;
 mod layout;
 mod sanitize;
+mod string;
 
-pub use id::*;
-pub use string::*;
-pub use date::*;
 pub use color::*;
+pub use date::*;
+pub use id::*;
 pub use layout::*;
 pub use sanitize::*;
+pub use string::*;

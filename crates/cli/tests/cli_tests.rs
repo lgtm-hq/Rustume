@@ -130,7 +130,12 @@ fn test_parse_json_resume() {
 #[test]
 fn test_parse_rrv3() {
     rustume_cmd()
-        .args(["parse", "tests/fixtures/v3/complete.json", "--format", "rrv3"])
+        .args([
+            "parse",
+            "tests/fixtures/v3/complete.json",
+            "--format",
+            "rrv3",
+        ])
         .assert()
         .success()
         .stdout(predicate::str::contains("\"name\""));

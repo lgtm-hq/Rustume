@@ -246,10 +246,7 @@ impl Parser for JsonResumeParser {
                 resume.sections.profiles = Section::new("profiles", "Profiles");
                 for p in profiles {
                     let network = p.network.clone().unwrap_or_default();
-                    let mut profile = Profile::new(
-                        network.clone(),
-                        p.username.unwrap_or_default(),
-                    );
+                    let mut profile = Profile::new(network.clone(), p.username.unwrap_or_default());
                     if let Some(url) = p.url {
                         profile = profile.with_url(url);
                     }
@@ -262,10 +259,8 @@ impl Parser for JsonResumeParser {
         if let Some(work) = data.work {
             resume.sections.experience = Section::new("experience", "Experience");
             for w in work {
-                let mut exp = Experience::new(
-                    w.name.unwrap_or_default(),
-                    w.position.unwrap_or_default(),
-                );
+                let mut exp =
+                    Experience::new(w.name.unwrap_or_default(), w.position.unwrap_or_default());
 
                 if let Some(location) = w.location {
                     exp = exp.with_location(location);
@@ -399,10 +394,8 @@ impl Parser for JsonResumeParser {
         if let Some(certificates) = data.certificates {
             resume.sections.certifications = Section::new("certifications", "Certifications");
             for c in certificates {
-                let mut cert = Certification::new(
-                    c.name.unwrap_or_default(),
-                    c.issuer.unwrap_or_default(),
-                );
+                let mut cert =
+                    Certification::new(c.name.unwrap_or_default(), c.issuer.unwrap_or_default());
                 if let Some(date) = c.date {
                     cert = cert.with_date(date);
                 }

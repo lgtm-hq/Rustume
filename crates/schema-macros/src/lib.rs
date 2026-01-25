@@ -28,8 +28,9 @@ use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use syn::{
     parse::{Parse, ParseStream},
-    parse_macro_input, punctuated::Punctuated, Attribute, DeriveInput, Field, Fields, Ident,
-    Result, Token,
+    parse_macro_input,
+    punctuated::Punctuated,
+    Attribute, DeriveInput, Field, Fields, Ident, Result, Token,
 };
 
 /// Arguments for the section_item attribute.
@@ -80,8 +81,8 @@ fn has_serde_default(field: &Field) -> bool {
             // Parse the attribute as a list: #[serde(...)]
             if let syn::Meta::List(meta_list) = &attr.meta {
                 // Parse the nested tokens
-                let nested = meta_list
-                    .parse_args_with(Punctuated::<syn::Meta, Token![,]>::parse_terminated);
+                let nested =
+                    meta_list.parse_args_with(Punctuated::<syn::Meta, Token![,]>::parse_terminated);
                 if let Ok(nested) = nested {
                     for meta in nested {
                         match &meta {

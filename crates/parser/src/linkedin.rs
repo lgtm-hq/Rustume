@@ -536,7 +536,9 @@ impl Parser for LinkedInParser {
 
         // Convert profile/basics
         if let Some(profile) = data.profile {
-            let full_name = format!("{} {}", profile.first_name, profile.last_name).trim().to_string();
+            let full_name = format!("{} {}", profile.first_name, profile.last_name)
+                .trim()
+                .to_string();
 
             resume.basics = Basics::new(&full_name);
 
@@ -574,7 +576,10 @@ impl Parser for LinkedInParser {
                 let mut exp = Experience::new(&pos.company_name, &pos.title);
 
                 // Format date range
-                let date = format_linkedin_date_range(pos.started_on.as_deref(), pos.finished_on.as_deref());
+                let date = format_linkedin_date_range(
+                    pos.started_on.as_deref(),
+                    pos.finished_on.as_deref(),
+                );
                 if !date.is_empty() {
                     exp = exp.with_date(&date);
                 }
@@ -604,7 +609,10 @@ impl Parser for LinkedInParser {
                 }
 
                 // Format date range
-                let date = format_linkedin_date_range(edu.started_on.as_deref(), edu.finished_on.as_deref());
+                let date = format_linkedin_date_range(
+                    edu.started_on.as_deref(),
+                    edu.finished_on.as_deref(),
+                );
                 if !date.is_empty() {
                     education = education.with_date(&date);
                 }
@@ -622,8 +630,12 @@ impl Parser for LinkedInParser {
             let chunks: Vec<&[String]> = skill_names.chunks(10).collect();
 
             for (i, chunk) in chunks.iter().enumerate() {
-                let skill = Skill::new(if i == 0 { "Technical Skills" } else { "Additional Skills" })
-                    .with_keywords(chunk.to_vec());
+                let skill = Skill::new(if i == 0 {
+                    "Technical Skills"
+                } else {
+                    "Additional Skills"
+                })
+                .with_keywords(chunk.to_vec());
                 resume.sections.skills.add_item(skill);
             }
         }
@@ -679,7 +691,10 @@ impl Parser for LinkedInParser {
                 }
 
                 // Format date range
-                let date = format_linkedin_date_range(proj.started_on.as_deref(), proj.finished_on.as_deref());
+                let date = format_linkedin_date_range(
+                    proj.started_on.as_deref(),
+                    proj.finished_on.as_deref(),
+                );
                 if !date.is_empty() {
                     project = project.with_date(&date);
                 }
@@ -717,7 +732,10 @@ fn format_linkedin_date_range(start: Option<&str>, end: Option<&str>) -> String 
 /// Convert LinkedIn proficiency to skill level (1-5)
 fn proficiency_to_level(proficiency: &str) -> u8 {
     let lower = proficiency.to_lowercase();
-    if lower.contains("native") || lower.contains("bilingual") || lower.contains("full professional") {
+    if lower.contains("native")
+        || lower.contains("bilingual")
+        || lower.contains("full professional")
+    {
         5
     } else if lower.contains("professional working") || lower.contains("fluent") {
         4
@@ -749,19 +767,23 @@ mod tests {
 
             // Profile.csv
             zip.start_file("Profile.csv", options).unwrap();
-            zip.write_all(b"First Name,Last Name,Headline,Summary,Geo Location\n").unwrap();
+            zip.write_all(b"First Name,Last Name,Headline,Summary,Geo Location\n")
+                .unwrap();
             zip.write_all(b"John,Doe,Senior Software Engineer,Passionate developer with 10 years of experience.,San Francisco Bay Area\n").unwrap();
 
             // Positions.csv
             zip.start_file("Positions.csv", options).unwrap();
-            zip.write_all(b"Company Name,Title,Description,Location,Started On,Finished On\n").unwrap();
+            zip.write_all(b"Company Name,Title,Description,Location,Started On,Finished On\n")
+                .unwrap();
             zip.write_all(b"Acme Corp,Senior Engineer,Led development of core platform,San Francisco,Jan 2020,\n").unwrap();
             zip.write_all(b"StartupXYZ,Software Developer,Full stack development,New York,Jun 2017,Dec 2019\n").unwrap();
 
             // Education.csv
             zip.start_file("Education.csv", options).unwrap();
-            zip.write_all(b"School Name,Degree Name,Field of Study,Start Date,End Date\n").unwrap();
-            zip.write_all(b"Stanford University,Bachelor of Science,Computer Science,2013,2017\n").unwrap();
+            zip.write_all(b"School Name,Degree Name,Field of Study,Start Date,End Date\n")
+                .unwrap();
+            zip.write_all(b"Stanford University,Bachelor of Science,Computer Science,2013,2017\n")
+                .unwrap();
 
             // Skills.csv
             zip.start_file("Skills.csv", options).unwrap();
@@ -773,8 +795,10 @@ mod tests {
             // Languages.csv
             zip.start_file("Languages.csv", options).unwrap();
             zip.write_all(b"Name,Proficiency\n").unwrap();
-            zip.write_all(b"English,Native or Bilingual Proficiency\n").unwrap();
-            zip.write_all(b"Spanish,Professional Working Proficiency\n").unwrap();
+            zip.write_all(b"English,Native or Bilingual Proficiency\n")
+                .unwrap();
+            zip.write_all(b"Spanish,Professional Working Proficiency\n")
+                .unwrap();
 
             // Email Addresses.csv
             zip.start_file("Email Addresses.csv", options).unwrap();
@@ -803,7 +827,11 @@ mod tests {
         assert_eq!(resume.basics.location, "San Francisco Bay Area");
 
         // Check summary
-        assert!(resume.sections.summary.content.contains("Passionate developer"));
+        assert!(resume
+            .sections
+            .summary
+            .content
+            .contains("Passionate developer"));
 
         // Check experience
         assert_eq!(resume.sections.experience.items.len(), 2);
@@ -829,9 +857,18 @@ mod tests {
 
     #[test]
     fn test_format_linkedin_date_range() {
-        assert_eq!(format_linkedin_date_range(Some("Jan 2020"), Some("Dec 2022")), "Jan 2020 - Dec 2022");
-        assert_eq!(format_linkedin_date_range(Some("Jan 2020"), None), "Jan 2020 - Present");
-        assert_eq!(format_linkedin_date_range(None, Some("Dec 2022")), "Dec 2022");
+        assert_eq!(
+            format_linkedin_date_range(Some("Jan 2020"), Some("Dec 2022")),
+            "Jan 2020 - Dec 2022"
+        );
+        assert_eq!(
+            format_linkedin_date_range(Some("Jan 2020"), None),
+            "Jan 2020 - Present"
+        );
+        assert_eq!(
+            format_linkedin_date_range(None, Some("Dec 2022")),
+            "Dec 2022"
+        );
         assert_eq!(format_linkedin_date_range(None, None), "");
     }
 }
