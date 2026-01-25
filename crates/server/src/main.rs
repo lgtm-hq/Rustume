@@ -419,9 +419,13 @@ async fn validate(Json(resume): Json<ResumeData>) -> Json<ValidationResponse> {
     }
 }
 
-/// Extract validation errors as strings (including nested struct errors)
+/// Extract validation errors as strings (including nested struct and list errors)
 fn validation_errors(errors: &validator::ValidationErrors) -> Vec<String> {
-    fn collect_errors(errors: &validator::ValidationErrors, prefix: &str, result: &mut Vec<String>) {
+    fn collect_errors(
+        errors: &validator::ValidationErrors,
+        prefix: &str,
+        result: &mut Vec<String>,
+    ) {
         // Collect field errors
         for (field, errs) in errors.field_errors() {
             let field_path = if prefix.is_empty() {
@@ -433,20 +437,34 @@ fn validation_errors(errors: &validator::ValidationErrors) -> Vec<String> {
                 result.push(format!(
                     "{}: {}",
                     field_path,
-                    e.message.as_ref().map(|m| m.to_string()).unwrap_or_else(|| e.code.to_string())
+                    e.message
+                        .as_ref()
+                        .map(|m| m.to_string())
+                        .unwrap_or_else(|| e.code.to_string())
                 ));
             }
         }
 
-        // Recursively collect nested struct errors
+        // Recursively collect nested struct and list errors
         for (field, nested) in errors.errors() {
             let field_path = if prefix.is_empty() {
                 field.to_string()
             } else {
                 format!("{}.{}", prefix, field)
             };
-            if let validator::ValidationErrorsKind::Struct(nested_errors) = nested {
-                collect_errors(nested_errors.as_ref(), &field_path, result);
+            match nested {
+                validator::ValidationErrorsKind::Struct(nested_errors) => {
+                    collect_errors(nested_errors.as_ref(), &field_path, result);
+                }
+                validator::ValidationErrorsKind::List(list_errors) => {
+                    for (idx, nested_errors) in list_errors.iter() {
+                        let indexed_path = format!("{}[{}]", field_path, idx);
+                        collect_errors(nested_errors.as_ref(), &indexed_path, result);
+                    }
+                }
+                validator::ValidationErrorsKind::Field(_) => {
+                    // Already handled by field_errors() above
+                }
             }
         }
     }
@@ -532,7 +550,11 @@ async fn main() -> anyhow::Result<()> {
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     info!("Starting Rustume API server on http://{}", addr);
-    info!("Swagger UI available at http://{}:{}/swagger-ui", addr.ip(), port);
+    info!(
+        "Swagger UI available at http://{}:{}/swagger-ui",
+        addr.ip(),
+        port
+    );
 
     let listener = tokio::net::TcpListener::bind(addr)
         .await
@@ -565,7 +587,12 @@ mod tests {
         let app = create_router();
 
         let response = app
-            .oneshot(Request::builder().uri("/health").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
 
@@ -724,10 +751,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(
-            response.headers().get("content-type").unwrap(),
-            "image/png"
-        );
+        assert_eq!(response.headers().get("content-type").unwrap(), "image/png");
 
         let body = axum::body::to_bytes(response.into_body(), usize::MAX)
             .await
@@ -754,7 +778,9 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(response.headers().contains_key("access-control-allow-origin"));
+        assert!(response
+            .headers()
+            .contains_key("access-control-allow-origin"));
     }
 
     #[tokio::test]
@@ -797,7 +823,10 @@ mod tests {
 
         assert_eq!(spec["info"]["title"], "Rustume API");
         assert!(spec["paths"].as_object().unwrap().contains_key("/health"));
-        assert!(spec["paths"].as_object().unwrap().contains_key("/api/templates"));
+        assert!(spec["paths"]
+            .as_object()
+            .unwrap()
+            .contains_key("/api/templates"));
     }
 
     #[tokio::test]
@@ -890,11 +919,18 @@ mod tests {
             .unwrap();
         let result: ValidationResponse = serde_json::from_slice(&body).unwrap();
 
-        assert!(!result.valid, "Expected validation to fail for invalid email");
+        assert!(
+            !result.valid,
+            "Expected validation to fail for invalid email"
+        );
         assert!(result.errors.is_some(), "Expected errors to be present");
         let errors = result.errors.unwrap();
         // Just verify we got some validation errors - the exact format depends on validator internals
-        assert!(!errors.is_empty(), "Expected at least one error, got: {:?}", errors);
+        assert!(
+            !errors.is_empty(),
+            "Expected at least one error, got: {:?}",
+            errors
+        );
     }
 
     #[tokio::test]

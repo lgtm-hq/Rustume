@@ -3,8 +3,8 @@
 /// Format a date range string.
 /// Normalizes empty/whitespace strings and handles end-only ranges cleanly.
 pub fn format_date_range(start: Option<&str>, end: Option<&str>) -> String {
-    let start = start.filter(|s| !s.trim().is_empty());
-    let end = end.filter(|e| !e.trim().is_empty());
+    let start = start.map(str::trim).filter(|s| !s.is_empty());
+    let end = end.map(str::trim).filter(|e| !e.is_empty());
 
     match (start, end) {
         (Some(s), Some(e)) => format!("{} - {}", s, e),
@@ -28,6 +28,9 @@ mod tests {
         assert_eq!(format_date_range(None, Some("2021")), "2021");
         // Whitespace-only strings treated as empty
         assert_eq!(format_date_range(Some("  "), Some("2023")), "2023");
-        assert_eq!(format_date_range(Some("2020"), Some("   ")), "2020 - Present");
+        assert_eq!(
+            format_date_range(Some("2020"), Some("   ")),
+            "2020 - Present"
+        );
     }
 }

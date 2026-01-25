@@ -11,7 +11,10 @@ fn sample_resume(name: &str) -> ResumeData {
     let mut resume = ResumeData::default();
     resume.basics = Basics::new(name)
         .with_headline("Software Engineer")
-        .with_email(format!("{}@example.com", name.to_lowercase().replace(' ', ".")));
+        .with_email(format!(
+            "{}@example.com",
+            name.to_lowercase().replace(' ', ".")
+        ));
 
     resume.sections.experience = Section::new("experience", "Experience");
     resume.sections.experience.add_item(
@@ -34,14 +37,14 @@ fn sample_resume_indexed(index: usize) -> ResumeData {
 // MemoryStorage Tests
 // ============================================================================
 
-#[tokio::test]
+#[tokio::test(flavor = "current_thread")]
 async fn test_memory_storage_new() {
     let storage = MemoryStorage::new();
     let list = storage.list().await.unwrap();
     assert!(list.is_empty());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "current_thread")]
 async fn test_memory_storage_save_and_get() {
     let storage = MemoryStorage::new();
     let resume = sample_resume("John Doe");
@@ -55,13 +58,22 @@ async fn test_memory_storage_save_and_get() {
     assert_eq!(loaded.basics.email, "john.doe@example.com");
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "current_thread")]
 async fn test_memory_storage_list() {
     let storage = MemoryStorage::new();
 
-    storage.save("id-1", &sample_resume("User 1")).await.unwrap();
-    storage.save("id-2", &sample_resume("User 2")).await.unwrap();
-    storage.save("id-3", &sample_resume("User 3")).await.unwrap();
+    storage
+        .save("id-1", &sample_resume("User 1"))
+        .await
+        .unwrap();
+    storage
+        .save("id-2", &sample_resume("User 2"))
+        .await
+        .unwrap();
+    storage
+        .save("id-3", &sample_resume("User 3"))
+        .await
+        .unwrap();
 
     let list = storage.list().await.unwrap();
     assert_eq!(list.len(), 3);
@@ -70,33 +82,42 @@ async fn test_memory_storage_list() {
     assert!(list.contains(&"id-3".to_string()));
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "current_thread")]
 async fn test_memory_storage_update() {
     let storage = MemoryStorage::new();
 
     // Save initial
-    storage.save("test-id", &sample_resume("Initial")).await.unwrap();
+    storage
+        .save("test-id", &sample_resume("Initial"))
+        .await
+        .unwrap();
 
     // Update (save again with same ID)
-    storage.save("test-id", &sample_resume("Updated")).await.unwrap();
+    storage
+        .save("test-id", &sample_resume("Updated"))
+        .await
+        .unwrap();
 
     // Verify update
     let loaded = storage.get("test-id").await.unwrap();
     assert_eq!(loaded.basics.name, "Updated");
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "current_thread")]
 async fn test_memory_storage_delete() {
     let storage = MemoryStorage::new();
 
-    storage.save("to-delete", &sample_resume("Delete Me")).await.unwrap();
+    storage
+        .save("to-delete", &sample_resume("Delete Me"))
+        .await
+        .unwrap();
     assert!(storage.exists("to-delete").await.unwrap());
 
     storage.delete("to-delete").await.unwrap();
     assert!(!storage.exists("to-delete").await.unwrap());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "current_thread")]
 async fn test_memory_storage_delete_not_found() {
     let storage = MemoryStorage::new();
 
@@ -104,7 +125,7 @@ async fn test_memory_storage_delete_not_found() {
     assert!(matches!(result, Err(StorageError::NotFound(_))));
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "current_thread")]
 async fn test_memory_storage_get_not_found() {
     let storage = MemoryStorage::new();
 
@@ -112,24 +133,30 @@ async fn test_memory_storage_get_not_found() {
     assert!(matches!(result, Err(StorageError::NotFound(_))));
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "current_thread")]
 async fn test_memory_storage_exists() {
     let storage = MemoryStorage::new();
 
     assert!(!storage.exists("test-id").await.unwrap());
 
-    storage.save("test-id", &sample_resume("Test")).await.unwrap();
+    storage
+        .save("test-id", &sample_resume("Test"))
+        .await
+        .unwrap();
     assert!(storage.exists("test-id").await.unwrap());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "current_thread")]
 async fn test_memory_storage_multiple_operations() {
     let storage = MemoryStorage::new();
 
     // Create multiple resumes
     for i in 0..5 {
         storage
-            .save(&format!("resume-{}", i), &sample_resume(&format!("User {}", i)))
+            .save(
+                &format!("resume-{}", i),
+                &sample_resume(&format!("User {}", i)),
+            )
             .await
             .unwrap();
     }
@@ -162,7 +189,7 @@ async fn test_memory_storage_multiple_operations() {
     assert_eq!(list.len(), 3);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "current_thread")]
 async fn test_memory_storage_preserves_full_resume_data() {
     let storage = MemoryStorage::new();
 
@@ -178,7 +205,10 @@ async fn test_memory_storage_preserves_full_resume_data() {
     assert_eq!(loaded.basics.name, resume.basics.name);
     assert_eq!(loaded.basics.headline, resume.basics.headline);
     assert_eq!(loaded.basics.email, resume.basics.email);
-    assert_eq!(loaded.sections.summary.content, resume.sections.summary.content);
+    assert_eq!(
+        loaded.sections.summary.content,
+        resume.sections.summary.content
+    );
     assert_eq!(loaded.metadata.template, resume.metadata.template);
     assert_eq!(
         loaded.sections.experience.items.len(),
@@ -195,7 +225,7 @@ async fn test_memory_storage_preserves_full_resume_data() {
 // we test concurrency by rapidly interleaving operations rather than
 // using tokio::spawn across threads.
 
-#[tokio::test]
+#[tokio::test(flavor = "current_thread")]
 async fn test_rapid_sequential_save_operations() {
     let storage = MemoryStorage::new();
 
@@ -217,7 +247,7 @@ async fn test_rapid_sequential_save_operations() {
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "current_thread")]
 async fn test_interleaved_read_write() {
     let storage = MemoryStorage::new();
 
@@ -248,7 +278,7 @@ async fn test_interleaved_read_write() {
     assert_eq!(list.len(), 50);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "current_thread")]
 async fn test_rapid_update_same_key() {
     let storage = MemoryStorage::new();
 
@@ -271,7 +301,7 @@ async fn test_rapid_update_same_key() {
     assert_eq!(loaded.basics.name, "User 100");
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "current_thread")]
 async fn test_interleaved_save_delete() {
     let storage = MemoryStorage::new();
 
@@ -288,7 +318,12 @@ async fn test_interleaved_save_delete() {
         }
     }
 
-    // Should have roughly half the items (the even ones minus deletions)
+    // After interleaved saves and deletes, we should have exactly 26 items:
+    // Saved 0-49, deleted odd indices 1,3,5,...,49 = 25 deletions, leaving 25 items
+    // Wait, let's trace: save(0), save(1), del(0)?, save(2), del(1), ...
+    // Actually: i=0 save, i=1 save (no del), i=2 save + del(1), i=3 save (no del), i=4 save + del(3), ...
+    // Deletions happen at i=2,4,6,...,48 deleting items 1,3,5,...,47 = 24 deletions
+    // 50 saves - 24 deletions = 26 remaining
     let list = storage.list().await.unwrap();
-    assert!(list.len() > 20 && list.len() < 50);
+    assert_eq!(list.len(), 26);
 }

@@ -25,7 +25,9 @@
 
 use anyhow::{anyhow, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
-use rustume_parser::{JsonResumeParser, LinkedInParser, Parser as ResumeParser, ReactiveResumeV3Parser};
+use rustume_parser::{
+    JsonResumeParser, LinkedInParser, Parser as ResumeParser, ReactiveResumeV3Parser,
+};
 use rustume_render::{get_template_theme, Renderer, TypstRenderer, TEMPLATES};
 use rustume_schema::ResumeData;
 use std::fs;
@@ -157,24 +159,26 @@ fn run() -> Result<()> {
     }
 
     match cli.command {
-        Commands::Parse { input, format, output, pretty } => {
-            cmd_parse(&input, format, output, pretty)
-        }
-        Commands::Render { input, template, output } => {
-            cmd_render(&input, template.as_deref(), output)
-        }
-        Commands::Preview { input, page, template, output } => {
-            cmd_preview(&input, page, template.as_deref(), output)
-        }
-        Commands::Templates { verbose } => {
-            cmd_templates(verbose)
-        }
-        Commands::Validate { input } => {
-            cmd_validate(&input)
-        }
-        Commands::Init { output, sample } => {
-            cmd_init(output, sample)
-        }
+        Commands::Parse {
+            input,
+            format,
+            output,
+            pretty,
+        } => cmd_parse(&input, format, output, pretty),
+        Commands::Render {
+            input,
+            template,
+            output,
+        } => cmd_render(&input, template.as_deref(), output),
+        Commands::Preview {
+            input,
+            page,
+            template,
+            output,
+        } => cmd_preview(&input, page, template.as_deref(), output),
+        Commands::Templates { verbose } => cmd_templates(verbose),
+        Commands::Validate { input } => cmd_validate(&input),
+        Commands::Init { output, sample } => cmd_init(output, sample),
     }
 }
 
@@ -217,30 +221,42 @@ fn detect_format(path: &str, data: &[u8]) -> Result<InputFormat> {
     // Try to parse as JSON and detect format
     if let Ok(text) = std::str::from_utf8(data) {
         if let Ok(json) = serde_json::from_str::<serde_json::Value>(text) {
-            // Reactive Resume v3 has specific structure
-            if json.get("sections").is_some() && json.get("metadata").is_some() {
-                return Ok(InputFormat::Rrv3);
-            }
-            // JSON Resume has "basics" with "label" (not "headline")
+            // Check basics first to distinguish between formats
             if let Some(basics) = json.get("basics") {
-                if basics.get("label").is_some() {
-                    return Ok(InputFormat::JsonResume);
-                }
                 // Native Rustume has "headline" instead of "label"
                 if basics.get("headline").is_some() {
                     return Ok(InputFormat::Rustume);
                 }
+                // JSON Resume has "basics" with "label" (not "headline")
+                if basics.get("label").is_some() {
+                    return Ok(InputFormat::JsonResume);
+                }
+            }
+            // Reactive Resume v3 has sections, metadata, AND a "public" field
+            // (Rustume also has sections/metadata, so we need a stricter check)
+            if json.get("sections").is_some()
+                && json.get("metadata").is_some()
+                && json.get("public").is_some()
+            {
+                return Ok(InputFormat::Rrv3);
             }
             // Default to JSON Resume for other JSON
             return Ok(InputFormat::JsonResume);
         }
     }
 
-    Err(anyhow!("Could not detect input format. Please specify --format"))
+    Err(anyhow!(
+        "Could not detect input format. Please specify --format"
+    ))
 }
 
 /// Parse command
-fn cmd_parse(input: &str, format: Option<InputFormat>, output: Option<PathBuf>, pretty: bool) -> Result<()> {
+fn cmd_parse(
+    input: &str,
+    format: Option<InputFormat>,
+    output: Option<PathBuf>,
+    pretty: bool,
+) -> Result<()> {
     let data = read_input(input)?;
 
     let format = match format {
@@ -249,15 +265,15 @@ fn cmd_parse(input: &str, format: Option<InputFormat>, output: Option<PathBuf>, 
     };
 
     let resume = match format {
-        InputFormat::JsonResume => {
-            JsonResumeParser.parse(&data).context("Failed to parse JSON Resume")?
-        }
-        InputFormat::LinkedIn => {
-            LinkedInParser.parse(&data).context("Failed to parse LinkedIn export")?
-        }
-        InputFormat::Rrv3 => {
-            ReactiveResumeV3Parser.parse(&data).context("Failed to parse Reactive Resume v3")?
-        }
+        InputFormat::JsonResume => JsonResumeParser
+            .parse(&data)
+            .context("Failed to parse JSON Resume")?,
+        InputFormat::LinkedIn => LinkedInParser
+            .parse(&data)
+            .context("Failed to parse LinkedIn export")?,
+        InputFormat::Rrv3 => ReactiveResumeV3Parser
+            .parse(&data)
+            .context("Failed to parse Reactive Resume v3")?,
         InputFormat::Rustume => {
             serde_json::from_slice(&data).context("Failed to parse Rustume JSON")?
         }
@@ -276,7 +292,8 @@ fn cmd_parse(input: &str, format: Option<InputFormat>, output: Option<PathBuf>, 
 /// Render command
 fn cmd_render(input: &str, template: Option<&str>, output: Option<PathBuf>) -> Result<()> {
     let data = read_input(input)?;
-    let mut resume: ResumeData = serde_json::from_slice(&data).context("Failed to parse resume JSON")?;
+    let mut resume: ResumeData =
+        serde_json::from_slice(&data).context("Failed to parse resume JSON")?;
 
     // Override template only if explicitly specified
     if let Some(t) = template {
@@ -287,7 +304,9 @@ fn cmd_render(input: &str, template: Option<&str>, output: Option<PathBuf>) -> R
     resume.validate().context("Resume validation failed")?;
 
     let renderer = TypstRenderer::new();
-    let pdf = renderer.render_pdf(&resume).context("Failed to render PDF")?;
+    let pdf = renderer
+        .render_pdf(&resume)
+        .context("Failed to render PDF")?;
 
     let output = output.unwrap_or_else(|| PathBuf::from("resume.pdf"));
     write_output(&pdf, Some(output))?;
@@ -296,9 +315,15 @@ fn cmd_render(input: &str, template: Option<&str>, output: Option<PathBuf>) -> R
 }
 
 /// Preview command
-fn cmd_preview(input: &str, page: usize, template: Option<&str>, output: Option<PathBuf>) -> Result<()> {
+fn cmd_preview(
+    input: &str,
+    page: usize,
+    template: Option<&str>,
+    output: Option<PathBuf>,
+) -> Result<()> {
     let data = read_input(input)?;
-    let mut resume: ResumeData = serde_json::from_slice(&data).context("Failed to parse resume JSON")?;
+    let mut resume: ResumeData =
+        serde_json::from_slice(&data).context("Failed to parse resume JSON")?;
 
     // Override template only if explicitly specified
     if let Some(t) = template {
@@ -309,7 +334,9 @@ fn cmd_preview(input: &str, page: usize, template: Option<&str>, output: Option<
     resume.validate().context("Resume validation failed")?;
 
     let renderer = TypstRenderer::new();
-    let png = renderer.render_preview(&resume, page).context("Failed to render preview")?;
+    let png = renderer
+        .render_preview(&resume, page)
+        .context("Failed to render preview")?;
 
     let output = output.unwrap_or_else(|| PathBuf::from("preview.png"));
     write_output(&png, Some(output))?;
@@ -340,7 +367,8 @@ fn cmd_templates(verbose: bool) -> Result<()> {
 /// Validate command
 fn cmd_validate(input: &str) -> Result<()> {
     let data = read_input(input)?;
-    let resume: ResumeData = serde_json::from_slice(&data).context("Failed to parse resume JSON")?;
+    let resume: ResumeData =
+        serde_json::from_slice(&data).context("Failed to parse resume JSON")?;
 
     match resume.validate() {
         Ok(_) => {
@@ -398,9 +426,18 @@ fn cmd_init(output: Option<PathBuf>, sample: bool) -> Result<()> {
         );
 
         resume.sections.skills = Section::new("skills", "Skills");
-        resume.sections.skills.add_item(Skill::new("Rust").with_level(4));
-        resume.sections.skills.add_item(Skill::new("TypeScript").with_level(5));
-        resume.sections.skills.add_item(Skill::new("Python").with_level(4));
+        resume
+            .sections
+            .skills
+            .add_item(Skill::new("Rust").with_level(4));
+        resume
+            .sections
+            .skills
+            .add_item(Skill::new("TypeScript").with_level(5));
+        resume
+            .sections
+            .skills
+            .add_item(Skill::new("Python").with_level(4));
 
         resume
     } else {
@@ -408,8 +445,12 @@ fn cmd_init(output: Option<PathBuf>, sample: bool) -> Result<()> {
     };
 
     let json = serde_json::to_string_pretty(&resume)?;
-    let output = output.unwrap_or_else(|| PathBuf::from("resume.json"));
-    write_output(json.as_bytes(), Some(output))?;
+    // Support stdout when no output specified (consistent with parse command)
+    if output.is_none() {
+        write_output(json.as_bytes(), None)?;
+    } else {
+        write_output(json.as_bytes(), output)?;
+    }
 
     Ok(())
 }

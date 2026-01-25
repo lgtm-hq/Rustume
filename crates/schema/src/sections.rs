@@ -62,9 +62,21 @@ pub struct Sections {
     pub references: Section<Reference>,
 
     /// Custom sections (dynamic keys).
-    #[validate(nested)]
+    #[validate(custom(function = "validate_custom_sections"))]
     #[serde(default)]
     pub custom: HashMap<String, Section<CustomItem>>,
+}
+
+/// Validate custom sections HashMap by iterating over values.
+fn validate_custom_sections(
+    custom: &HashMap<String, Section<CustomItem>>,
+) -> Result<(), validator::ValidationError> {
+    for section in custom.values() {
+        section
+            .validate()
+            .map_err(|_| validator::ValidationError::new("invalid_custom_section"))?;
+    }
+    Ok(())
 }
 
 /// Generic section wrapper.

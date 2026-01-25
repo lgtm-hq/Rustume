@@ -41,10 +41,10 @@ Rustume is a cross-platform resume builder that prioritizes:
 
 ```bash
 # Build all crates
-cargo build
+cargo build --workspace --all-features
 
 # Run tests
-cargo test
+cargo test --workspace
 
 # Build CLI
 cargo build -p rustume-cli --release
@@ -146,7 +146,14 @@ server {
 
 ### Reverse Proxy (Caddy)
 
-Example Caddyfile:
+Example Caddyfile using the [caddy-ratelimit](https://github.com/mholt/caddy-ratelimit) module:
+
+> **Note**: The `rate_limit` directive requires the third-party module
+> [github.com/mholt/caddy-ratelimit](https://github.com/mholt/caddy-ratelimit).
+> Build Caddy with this module using xcaddy:
+> ```bash
+> xcaddy build --with github.com/mholt/caddy-ratelimit
+> ```
 
 ```caddyfile
 api.example.com {
