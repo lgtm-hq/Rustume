@@ -135,6 +135,12 @@ pub struct LinkedInProject {
 /// Maximum ZIP file size (50 MB)
 const MAX_ZIP_SIZE: usize = 50 * 1024 * 1024;
 
+/// Maximum uncompressed size for a single ZIP entry (10 MB)
+const MAX_UNCOMPRESSED_ENTRY_SIZE: u64 = 10 * 1024 * 1024;
+
+/// Maximum total uncompressed size across all entries (100 MB)
+const MAX_TOTAL_UNCOMPRESSED: u64 = 100 * 1024 * 1024;
+
 impl LinkedInParser {
     /// Extract and parse CSV files from LinkedIn ZIP export.
     fn parse_zip(&self, data: &[u8]) -> Result<LinkedInData, ParseError> {
@@ -152,6 +158,7 @@ impl LinkedInParser {
             .map_err(|e| ParseError::ReadError(format!("Failed to open ZIP archive: {}", e)))?;
 
         let mut linkedin_data = LinkedInData::default();
+        let mut cumulative_uncompressed: u64 = 0;
 
         // Iterate through files in the archive
         for i in 0..archive.len() {
@@ -166,11 +173,30 @@ impl LinkedInParser {
                 continue;
             }
 
+            // ZIP bomb protection: check uncompressed size of this entry
+            let uncompressed_size = file.size();
+            if uncompressed_size > MAX_UNCOMPRESSED_ENTRY_SIZE {
+                return Err(ParseError::ReadError(format!(
+                    "ZIP entry '{}' uncompressed size ({} bytes) exceeds {} byte limit",
+                    file_name, uncompressed_size, MAX_UNCOMPRESSED_ENTRY_SIZE
+                )));
+            }
+
+            // ZIP bomb protection: check cumulative uncompressed size
+            if cumulative_uncompressed + uncompressed_size > MAX_TOTAL_UNCOMPRESSED {
+                return Err(ParseError::ReadError(format!(
+                    "ZIP total uncompressed size would exceed {} byte limit",
+                    MAX_TOTAL_UNCOMPRESSED
+                )));
+            }
+
             // Read file contents
             let mut contents = String::new();
             file.read_to_string(&mut contents).map_err(|e| {
                 ParseError::ReadError(format!("Failed to read file {}: {}", file_name, e))
             })?;
+
+            cumulative_uncompressed += uncompressed_size;
 
             // Extract base filename (strip directory path)
             let base_name = file_name

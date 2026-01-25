@@ -22,12 +22,6 @@ impl From<std::io::Error> for ParseError {
     }
 }
 
-impl From<serde_json::Error> for ParseError {
-    fn from(err: serde_json::Error) -> Self {
-        ParseError::ReadError(err.to_string())
-    }
-}
-
 /// Three-stage parser pipeline.
 pub trait Parser {
     type RawData;

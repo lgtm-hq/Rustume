@@ -194,6 +194,9 @@ impl StorageBackend for IndexedDbStorage {
             .delete(&JsValue::from_str(id))
             .map_err(|e| StorageError::Internal(format!("Failed to delete: {:?}", e)))?;
 
+        // Create delete future immediately to attach handlers before yielding to event loop
+        let delete_future = JsFuture::from(idb_request_to_promise(&delete_request)?);
+
         // Now await the get to check existence
         let get_result = JsFuture::from(idb_request_to_promise(&get_request)?)
             .await
@@ -204,8 +207,8 @@ impl StorageBackend for IndexedDbStorage {
             return Err(StorageError::NotFound(id.to_string()));
         }
 
-        // Await the delete to ensure it completes
-        JsFuture::from(idb_request_to_promise(&delete_request)?)
+        // Await the delete future to ensure it completes
+        delete_future
             .await
             .map_err(|e| StorageError::Internal(format!("Delete failed: {:?}", e)))?;
 

@@ -56,15 +56,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Pull lintro image
-        run: docker pull ghcr.io/turbocoder13/py-lintro:latest
-
       - name: Run Lintro Analysis in Docker
         id: lintro
         run: |
           # Disable exit-on-error to capture exit code
           set +eo pipefail
-          docker run --rm \
+          docker run --rm --pull=always \
             -v "${{ github.workspace }}:/workspace" \
             -w /workspace \
             ghcr.io/turbocoder13/py-lintro:latest \

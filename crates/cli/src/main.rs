@@ -249,6 +249,10 @@ fn detect_format(path: &str, data: &[u8]) -> Result<InputFormat> {
             {
                 return Ok(InputFormat::Rrv3);
             }
+            // Rustume has sections+metadata but no "public" field
+            if json.get("sections").is_some() && json.get("metadata").is_some() {
+                return Ok(InputFormat::Rustume);
+            }
             // Default to JSON Resume for other JSON
             return Ok(InputFormat::JsonResume);
         }

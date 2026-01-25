@@ -63,9 +63,9 @@ ENV PORT=3000
 # Expose port
 EXPOSE 3000
 
-# Health check
+# Health check (uses PORT env var with fallback to 3000)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --spider -q http://localhost:3000/health || exit 1
+    CMD wget --spider -q http://localhost:${PORT:-3000}/health || exit 1
 
 # Run server
 CMD ["/app/rustume-server"]

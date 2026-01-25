@@ -25,7 +25,7 @@ pub fn get_initials(name: &str) -> String {
 
 /// Check if string is a valid HTTP(S) URL (entire string must be a URL).
 pub fn is_url(s: &str) -> bool {
-    !s.is_empty() && URL_REGEX_ANCHORED.is_match(s)
+    URL_REGEX_ANCHORED.is_match(s)
 }
 
 /// Extract first URL from a string (can be embedded in text).

@@ -25,5 +25,6 @@ pub trait Renderer {
     fn render_html(&self, resume: &ResumeData) -> Result<String, RenderError>;
 
     /// Render resume preview image (PNG).
+    /// `page` is zero-based (0 = first page).
     fn render_preview(&self, resume: &ResumeData, page: usize) -> Result<Vec<u8>, RenderError>;
 }

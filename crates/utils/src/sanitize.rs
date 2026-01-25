@@ -172,4 +172,12 @@ mod tests {
         assert!(!output.contains("onclick"));
         assert!(output.contains("src"));
     }
+
+    #[test]
+    fn test_sanitize_html_blocks_script_urls() {
+        let input = r#"<a href="javascript:alert(1)">X</a><img src="data:image/svg+xml,<svg onload=alert(1)></svg>">"#;
+        let output = sanitize_html(input);
+        assert!(!output.contains("javascript:"));
+        assert!(!output.contains("data:image/svg"));
+    }
 }
