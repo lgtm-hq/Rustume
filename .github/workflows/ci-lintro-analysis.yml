@@ -64,7 +64,7 @@ jobs:
           docker run --rm --pull=always \
             -v "${{ github.workspace }}:/workspace" \
             -w /workspace \
-            ghcr.io/turbocoder13/py-lintro:latest \
+            ghcr.io/turbocoder13/py-lintro@sha256:9a1a209798f895193843a435817407693fc4a2a194b8b4bbaa2eea834ca11044 \
             check . 2>&1 | tee chk-output.txt
           EXIT_CODE=${PIPESTATUS[0]}
           echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
