@@ -141,6 +141,11 @@ const MAX_UNCOMPRESSED_ENTRY_SIZE: u64 = 10 * 1024 * 1024;
 /// Maximum total uncompressed size across all entries (100 MB)
 const MAX_TOTAL_UNCOMPRESSED: u64 = 100 * 1024 * 1024;
 
+/// Maximum number of entries to process in a LinkedIn ZIP export.
+/// LinkedIn exports typically contain ~10-20 CSV files; this cap prevents
+/// expensive iteration over malicious archives with many tiny files.
+const MAX_LINKEDIN_ENTRIES: usize = 100;
+
 /// Parse CSV records into an iterator of HashMaps.
 ///
 /// Creates a CSV reader with normalized headers (lowercase, underscores for spaces)
@@ -157,7 +162,16 @@ fn parse_csv_records(
         .headers()
         .map_err(|e| ParseError::ReadError(format!("Failed to read CSV headers: {}", e)))?
         .iter()
-        .map(|s| s.to_lowercase().replace(' ', "_"))
+        .enumerate()
+        .map(|(idx, s)| {
+            // Strip UTF-8 BOM from first header if present (some CSV exports include it)
+            let s = if idx == 0 {
+                s.trim_start_matches('\u{feff}')
+            } else {
+                s
+            };
+            s.to_lowercase().replace(' ', "_")
+        })
         .collect();
 
     Ok((headers, reader.into_records()))
@@ -187,6 +201,15 @@ impl LinkedInParser {
         let cursor = Cursor::new(data);
         let mut archive = ZipArchive::new(cursor)
             .map_err(|e| ParseError::ReadError(format!("Failed to open ZIP archive: {}", e)))?;
+
+        // Check entry count upfront to prevent expensive iteration over malicious archives
+        if archive.len() > MAX_LINKEDIN_ENTRIES {
+            return Err(ParseError::ReadError(format!(
+                "ZIP archive has too many entries: {} exceeds {} entry limit",
+                archive.len(),
+                MAX_LINKEDIN_ENTRIES
+            )));
+        }
 
         let mut linkedin_data = LinkedInData::default();
         let mut cumulative_uncompressed: u64 = 0;
@@ -855,6 +878,62 @@ mod tests {
             "Expected 'too large' error, got: {}",
             err
         );
+    }
+
+    #[test]
+    fn test_zip_entry_count_limit_rejection() {
+        // Create a ZIP with too many entries (exceeds MAX_LINKEDIN_ENTRIES)
+        let mut buffer = Vec::new();
+        {
+            let mut zip = zip::ZipWriter::new(Cursor::new(&mut buffer));
+            let options = zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Stored);
+
+            // Create MAX_LINKEDIN_ENTRIES + 1 empty files
+            for i in 0..=MAX_LINKEDIN_ENTRIES {
+                zip.start_file(format!("file_{}.txt", i), options).unwrap();
+            }
+
+            zip.finish().unwrap();
+        }
+
+        let parser = LinkedInParser;
+        let result = parser.parse(&buffer);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.to_string().contains("too many entries"),
+            "Expected 'too many entries' error, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_csv_with_utf8_bom() {
+        // Create a ZIP with CSV files that have UTF-8 BOM
+        let mut buffer = Vec::new();
+        {
+            let mut zip = zip::ZipWriter::new(Cursor::new(&mut buffer));
+            let options = zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Stored);
+
+            // Profile.csv with UTF-8 BOM prefix
+            zip.start_file("Profile.csv", options).unwrap();
+            // UTF-8 BOM is EF BB BF, which is \u{feff} in Rust
+            zip.write_all("\u{feff}First Name,Last Name,Headline\n".as_bytes())
+                .unwrap();
+            zip.write_all(b"John,Doe,Engineer\n").unwrap();
+
+            zip.finish().unwrap();
+        }
+
+        let parser = LinkedInParser;
+        let result = parser.parse(&buffer);
+        assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+        let resume = result.unwrap();
+        // BOM should be stripped, so first_name should be recognized correctly
+        assert_eq!(resume.basics.name, "John Doe");
     }
 
     #[test]

@@ -112,16 +112,23 @@ static TAG_ATTRIBUTES: Lazy<HashMap<&'static str, HashSet<&'static str>>> = Lazy
 static GENERIC_ATTRIBUTES: Lazy<HashSet<&'static str>> =
     Lazy::new(|| ["class", "id"].iter().copied().collect());
 
-/// Sanitize HTML content (for resume summaries, etc.).
-pub fn sanitize_html(html: &str) -> String {
-    Builder::default()
+/// Pre-configured HTML sanitizer builder.
+/// Reused across calls to avoid per-call allocation and cloning.
+/// Note: `ammonia::Builder` is `Sync + Send`, making this safe for concurrent use.
+static SANITIZER: Lazy<Builder<'static>> = Lazy::new(|| {
+    let mut builder = Builder::default();
+    builder
         .tags(ALLOWED_TAGS.clone())
         .tag_attributes(TAG_ATTRIBUTES.clone())
         .generic_attributes(GENERIC_ATTRIBUTES.clone())
         .link_rel(Some("noopener noreferrer"))
-        .url_relative(ammonia::UrlRelative::PassThrough)
-        .clean(html)
-        .to_string()
+        .url_relative(ammonia::UrlRelative::PassThrough);
+    builder
+});
+
+/// Sanitize HTML content (for resume summaries, etc.).
+pub fn sanitize_html(html: &str) -> String {
+    SANITIZER.clean(html).to_string()
 }
 
 #[cfg(test)]
