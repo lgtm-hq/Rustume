@@ -36,15 +36,13 @@ impl IndexedDbStorage {
 
     /// Open the IndexedDB database.
     async fn open_db(&self) -> Result<IdbDatabase, StorageError> {
-        let window = web_sys::window().ok_or_else(|| {
-            StorageError::Internal("No window object available".to_string())
-        })?;
+        let window = web_sys::window()
+            .ok_or_else(|| StorageError::Internal("No window object available".to_string()))?;
 
-        let idb_factory = window.indexed_db().map_err(|e| {
-            StorageError::Internal(format!("Failed to get IndexedDB: {:?}", e))
-        })?.ok_or_else(|| {
-            StorageError::Internal("IndexedDB not supported".to_string())
-        })?;
+        let idb_factory = window
+            .indexed_db()
+            .map_err(|e| StorageError::Internal(format!("Failed to get IndexedDB: {:?}", e)))?
+            .ok_or_else(|| StorageError::Internal("IndexedDB not supported".to_string()))?;
 
         let request = idb_factory
             .open_with_u32(&self.db_name, DB_VERSION)
@@ -75,8 +73,9 @@ impl IndexedDbStorage {
         });
 
         // Store closure in Rc to prevent memory leak
-        let upgrade_closure: Rc<RefCell<Option<Closure<dyn FnMut(web_sys::IdbVersionChangeEvent)>>>> =
-            Rc::new(RefCell::new(Some(onupgradeneeded)));
+        let upgrade_closure: Rc<
+            RefCell<Option<Closure<dyn FnMut(web_sys::IdbVersionChangeEvent)>>>,
+        > = Rc::new(RefCell::new(Some(onupgradeneeded)));
         let closure_ref = upgrade_closure.borrow();
         request.set_onupgradeneeded(closure_ref.as_ref().map(|c| c.as_ref().unchecked_ref()));
         drop(closure_ref);

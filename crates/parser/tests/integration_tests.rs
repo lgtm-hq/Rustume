@@ -33,7 +33,11 @@ mod json_resume {
         let parser = JsonResumeParser;
         let result = parser.parse(&data);
 
-        assert!(result.is_ok(), "Failed to parse minimal.json: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to parse minimal.json: {:?}",
+            result.err()
+        );
 
         let resume = result.unwrap();
 
@@ -48,7 +52,11 @@ mod json_resume {
         assert!(resume.basics.location.contains("San Francisco"));
 
         // Verify summary
-        assert!(resume.sections.summary.content.contains("passionate software engineer"));
+        assert!(resume
+            .sections
+            .summary
+            .content
+            .contains("passionate software engineer"));
 
         // Verify profiles
         assert_eq!(resume.sections.profiles.items.len(), 1);
@@ -64,7 +72,11 @@ mod json_resume {
         let parser = JsonResumeParser;
         let result = parser.parse(&data);
 
-        assert!(result.is_ok(), "Failed to parse full.json: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to parse full.json: {:?}",
+            result.err()
+        );
 
         let resume = result.unwrap();
 
@@ -76,8 +88,13 @@ mod json_resume {
         // Verify work experience
         assert_eq!(resume.sections.experience.items.len(), 2);
         assert_eq!(resume.sections.experience.items[0].company, "Tech Corp");
-        assert_eq!(resume.sections.experience.items[0].position, "Senior Software Engineer");
-        assert!(resume.sections.experience.items[0].summary.contains("microservices"));
+        assert_eq!(
+            resume.sections.experience.items[0].position,
+            "Senior Software Engineer"
+        );
+        assert!(resume.sections.experience.items[0]
+            .summary
+            .contains("microservices"));
 
         // Verify education
         assert_eq!(resume.sections.education.items.len(), 1);
@@ -89,7 +106,9 @@ mod json_resume {
         assert_eq!(resume.sections.skills.items.len(), 2);
         assert_eq!(resume.sections.skills.items[0].name, "Backend Development");
         // JSON Resume uses string levels like "Expert" which are stored in description
-        assert!(resume.sections.skills.items[0].keywords.contains(&"Rust".to_string()));
+        assert!(resume.sections.skills.items[0]
+            .keywords
+            .contains(&"Rust".to_string()));
 
         // Verify languages
         assert_eq!(resume.sections.languages.items.len(), 2);
@@ -98,7 +117,10 @@ mod json_resume {
 
         // Verify projects
         assert_eq!(resume.sections.projects.items.len(), 1);
-        assert_eq!(resume.sections.projects.items[0].name, "Open Source CLI Tool");
+        assert_eq!(
+            resume.sections.projects.items[0].name,
+            "Open Source CLI Tool"
+        );
 
         // Verify profiles
         assert_eq!(resume.sections.profiles.items.len(), 2);
@@ -200,7 +222,11 @@ mod linkedin {
         let parser = LinkedInParser;
         let result = parser.parse(&data);
 
-        assert!(result.is_ok(), "Failed to parse LinkedIn export: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to parse LinkedIn export: {:?}",
+            result.err()
+        );
 
         let resume = result.unwrap();
 
@@ -208,7 +234,11 @@ mod linkedin {
         assert_eq!(resume.basics.name, "David Chen");
         assert_eq!(resume.basics.headline, "Senior Backend Engineer");
         assert!(resume.basics.location.contains("San Francisco"));
-        assert!(resume.sections.summary.content.contains("distributed systems"));
+        assert!(resume
+            .sections
+            .summary
+            .content
+            .contains("distributed systems"));
 
         // Verify email
         assert_eq!(resume.basics.email, "david@example.com");
@@ -216,27 +246,50 @@ mod linkedin {
         // Verify experience from Positions.csv
         assert_eq!(resume.sections.experience.items.len(), 3);
         assert_eq!(resume.sections.experience.items[0].company, "Scale AI");
-        assert_eq!(resume.sections.experience.items[0].position, "Senior Backend Engineer");
-        assert!(resume.sections.experience.items[0].summary.contains("data processing"));
+        assert_eq!(
+            resume.sections.experience.items[0].position,
+            "Senior Backend Engineer"
+        );
+        assert!(resume.sections.experience.items[0]
+            .summary
+            .contains("data processing"));
 
         // Verify education from Education.csv
         assert_eq!(resume.sections.education.items.len(), 2);
-        assert_eq!(resume.sections.education.items[0].institution, "Stanford University");
-        assert_eq!(resume.sections.education.items[0].study_type, "Master of Science");
+        assert_eq!(
+            resume.sections.education.items[0].institution,
+            "Stanford University"
+        );
+        assert_eq!(
+            resume.sections.education.items[0].study_type,
+            "Master of Science"
+        );
         assert_eq!(resume.sections.education.items[0].area, "Computer Science");
 
         // Verify skills from Skills.csv - LinkedIn groups skills into a single entry
         assert!(!resume.sections.skills.items.is_empty());
         // Skills may be grouped or stored individually depending on parser implementation
-        let all_keywords: Vec<&str> = resume.sections.skills.items
+        let all_keywords: Vec<&str> = resume
+            .sections
+            .skills
+            .items
             .iter()
             .flat_map(|s| s.keywords.iter().map(|k| k.as_str()))
             .collect();
-        let skill_names: Vec<&str> = resume.sections.skills.items.iter().map(|s| s.name.as_str()).collect();
+        let skill_names: Vec<&str> = resume
+            .sections
+            .skills
+            .items
+            .iter()
+            .map(|s| s.name.as_str())
+            .collect();
         // Check if skills are in either the name or keywords
         let has_python = skill_names.contains(&"Python") || all_keywords.contains(&"Python");
         let has_rust = skill_names.contains(&"Rust") || all_keywords.contains(&"Rust");
-        assert!(has_python || has_rust, "Expected to find Python or Rust in skills");
+        assert!(
+            has_python || has_rust,
+            "Expected to find Python or Rust in skills"
+        );
 
         // Verify languages from Languages.csv
         assert_eq!(resume.sections.languages.items.len(), 3);
@@ -245,12 +298,18 @@ mod linkedin {
 
         // Verify certifications from Certifications.csv
         assert_eq!(resume.sections.certifications.items.len(), 2);
-        assert_eq!(resume.sections.certifications.items[0].name, "Certified Kubernetes Administrator");
+        assert_eq!(
+            resume.sections.certifications.items[0].name,
+            "Certified Kubernetes Administrator"
+        );
         assert_eq!(resume.sections.certifications.items[0].issuer, "CNCF");
 
         // Verify projects from Projects.csv
         assert_eq!(resume.sections.projects.items.len(), 2);
-        assert_eq!(resume.sections.projects.items[0].name, "Distributed Cache Library");
+        assert_eq!(
+            resume.sections.projects.items[0].name,
+            "Distributed Cache Library"
+        );
     }
 
     #[test]
@@ -314,7 +373,8 @@ mod linkedin {
             assert_eq!(resume.sections.languages.items.len(), 1);
             assert_eq!(
                 resume.sections.languages.items[0].level, expected_level,
-                "Wrong level for proficiency: {}", proficiency
+                "Wrong level for proficiency: {}",
+                proficiency
             );
         }
     }
@@ -335,7 +395,11 @@ mod reactive_resume_v3 {
         let parser = ReactiveResumeV3Parser;
         let result = parser.parse(&data);
 
-        assert!(result.is_ok(), "Failed to parse complete.json: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to parse complete.json: {:?}",
+            result.err()
+        );
 
         let resume = result.unwrap();
 
@@ -348,33 +412,57 @@ mod reactive_resume_v3 {
         assert_eq!(resume.basics.url.href, "https://alicejohnson.dev");
 
         // Verify summary (object format)
-        assert!(resume.sections.summary.content.contains("full-stack developer"));
+        assert!(resume
+            .sections
+            .summary
+            .content
+            .contains("full-stack developer"));
         assert!(resume.sections.summary.visible);
 
         // Verify experience
         assert_eq!(resume.sections.experience.items.len(), 2);
-        assert_eq!(resume.sections.experience.items[0].company, "Cloud Solutions Inc");
-        assert_eq!(resume.sections.experience.items[0].position, "Senior Full Stack Developer");
+        assert_eq!(
+            resume.sections.experience.items[0].company,
+            "Cloud Solutions Inc"
+        );
+        assert_eq!(
+            resume.sections.experience.items[0].position,
+            "Senior Full Stack Developer"
+        );
         assert_eq!(resume.sections.experience.items[0].date, "2021 - Present");
 
         // Verify education
         assert_eq!(resume.sections.education.items.len(), 1);
-        assert_eq!(resume.sections.education.items[0].institution, "University of Washington");
+        assert_eq!(
+            resume.sections.education.items[0].institution,
+            "University of Washington"
+        );
         assert_eq!(resume.sections.education.items[0].area, "Computer Science");
-        assert_eq!(resume.sections.education.items[0].study_type, "Bachelor of Science");
+        assert_eq!(
+            resume.sections.education.items[0].study_type,
+            "Bachelor of Science"
+        );
 
         // Verify skills
         assert_eq!(resume.sections.skills.items.len(), 3);
         assert_eq!(resume.sections.skills.items[0].name, "TypeScript");
         assert_eq!(resume.sections.skills.items[0].level, 5);
-        assert!(resume.sections.skills.items[0].keywords.contains(&"React".to_string()));
+        assert!(resume.sections.skills.items[0]
+            .keywords
+            .contains(&"React".to_string()));
 
         // Verify profiles (mixed URL formats)
         assert_eq!(resume.sections.profiles.items.len(), 2);
         assert_eq!(resume.sections.profiles.items[0].network, "GitHub");
-        assert_eq!(resume.sections.profiles.items[0].url.href, "https://github.com/alicejohnson");
+        assert_eq!(
+            resume.sections.profiles.items[0].url.href,
+            "https://github.com/alicejohnson"
+        );
         // Second profile uses string URL format
-        assert_eq!(resume.sections.profiles.items[1].url.href, "https://linkedin.com/in/alicejohnson");
+        assert_eq!(
+            resume.sections.profiles.items[1].url.href,
+            "https://linkedin.com/in/alicejohnson"
+        );
 
         // Verify languages
         assert_eq!(resume.sections.languages.items.len(), 2);
@@ -383,11 +471,17 @@ mod reactive_resume_v3 {
 
         // Verify awards
         assert_eq!(resume.sections.awards.items.len(), 1);
-        assert_eq!(resume.sections.awards.items[0].title, "Best Innovation Award");
+        assert_eq!(
+            resume.sections.awards.items[0].title,
+            "Best Innovation Award"
+        );
 
         // Verify certifications
         assert_eq!(resume.sections.certifications.items.len(), 1);
-        assert_eq!(resume.sections.certifications.items[0].name, "AWS Solutions Architect Professional");
+        assert_eq!(
+            resume.sections.certifications.items[0].name,
+            "AWS Solutions Architect Professional"
+        );
 
         // Verify projects
         assert_eq!(resume.sections.projects.items.len(), 1);
@@ -395,11 +489,17 @@ mod reactive_resume_v3 {
 
         // Verify publications
         assert_eq!(resume.sections.publications.items.len(), 1);
-        assert_eq!(resume.sections.publications.items[0].name, "Scaling Microservices in the Cloud");
+        assert_eq!(
+            resume.sections.publications.items[0].name,
+            "Scaling Microservices in the Cloud"
+        );
 
         // Verify volunteer
         assert_eq!(resume.sections.volunteer.items.len(), 1);
-        assert_eq!(resume.sections.volunteer.items[0].organization, "Code for Seattle");
+        assert_eq!(
+            resume.sections.volunteer.items[0].organization,
+            "Code for Seattle"
+        );
 
         // Verify references (marked as not visible)
         assert_eq!(resume.sections.references.items.len(), 1);
@@ -417,7 +517,11 @@ mod reactive_resume_v3 {
         let parser = ReactiveResumeV3Parser;
         let result = parser.parse(&data);
 
-        assert!(result.is_ok(), "Failed to parse minimal.json: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to parse minimal.json: {:?}",
+            result.err()
+        );
 
         let resume = result.unwrap();
 
@@ -440,7 +544,11 @@ mod reactive_resume_v3 {
         let parser = ReactiveResumeV3Parser;
         let result = parser.parse(&data);
 
-        assert!(result.is_ok(), "Failed to parse string_formats.json: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to parse string_formats.json: {:?}",
+            result.err()
+        );
 
         let resume = result.unwrap();
 
@@ -451,19 +559,34 @@ mod reactive_resume_v3 {
 
         // Verify experience with string URL
         assert_eq!(resume.sections.experience.items.len(), 1);
-        assert_eq!(resume.sections.experience.items[0].url.href, "https://backendsystems.co");
+        assert_eq!(
+            resume.sections.experience.items[0].url.href,
+            "https://backendsystems.co"
+        );
 
         // Verify certifications with string URL
-        assert_eq!(resume.sections.certifications.items[0].url.href, "https://cncf.io/certification");
+        assert_eq!(
+            resume.sections.certifications.items[0].url.href,
+            "https://cncf.io/certification"
+        );
 
         // Verify projects with string URL
-        assert_eq!(resume.sections.projects.items[0].url.href, "https://github.com/caroldavis/api-gateway");
+        assert_eq!(
+            resume.sections.projects.items[0].url.href,
+            "https://github.com/caroldavis/api-gateway"
+        );
 
         // Verify publications with string URL
-        assert_eq!(resume.sections.publications.items[0].url.href, "https://dev.to/carol/resilient-apis");
+        assert_eq!(
+            resume.sections.publications.items[0].url.href,
+            "https://dev.to/carol/resilient-apis"
+        );
 
         // Verify profiles with string URL
-        assert_eq!(resume.sections.profiles.items[0].url.href, "https://github.com/caroldavis");
+        assert_eq!(
+            resume.sections.profiles.items[0].url.href,
+            "https://github.com/caroldavis"
+        );
 
         // Verify metadata
         assert_eq!(resume.metadata.template, "gengar");
@@ -560,18 +683,36 @@ mod cross_parser {
     #[test]
     #[allow(clippy::type_complexity)]
     fn test_all_parsers_produce_valid_resume_data() {
-        let parsers_and_fixtures: Vec<(&str, Box<dyn Fn(&[u8]) -> Result<rustume_schema::ResumeData, _>>)> = vec![
-            ("json_resume/full.json", Box::new(|data| JsonResumeParser.parse(data))),
-            ("linkedin/complete_export.zip", Box::new(|data| LinkedInParser.parse(data))),
-            ("v3/complete.json", Box::new(|data| ReactiveResumeV3Parser.parse(data))),
+        let parsers_and_fixtures: Vec<(
+            &str,
+            Box<dyn Fn(&[u8]) -> Result<rustume_schema::ResumeData, _>>,
+        )> = vec![
+            (
+                "json_resume/full.json",
+                Box::new(|data| JsonResumeParser.parse(data)),
+            ),
+            (
+                "linkedin/complete_export.zip",
+                Box::new(|data| LinkedInParser.parse(data)),
+            ),
+            (
+                "v3/complete.json",
+                Box::new(|data| ReactiveResumeV3Parser.parse(data)),
+            ),
         ];
 
         for (fixture, parser_fn) in parsers_and_fixtures {
             let fixture_path = fixtures_path().join(fixture);
-            let data = fs::read(&fixture_path).unwrap_or_else(|_| panic!("Failed to read fixture: {}", fixture));
+            let data = fs::read(&fixture_path)
+                .unwrap_or_else(|_| panic!("Failed to read fixture: {}", fixture));
 
             let result = parser_fn(&data);
-            assert!(result.is_ok(), "Parser failed for {}: {:?}", fixture, result.err());
+            assert!(
+                result.is_ok(),
+                "Parser failed for {}: {:?}",
+                fixture,
+                result.err()
+            );
 
             let resume = result.unwrap();
 
@@ -596,10 +737,11 @@ mod cross_parser {
         let resume2 = parser.parse(&data).unwrap();
 
         // IDs should be unique between parses
-        if !resume1.sections.experience.items.is_empty() && !resume2.sections.experience.items.is_empty() {
+        if !resume1.sections.experience.items.is_empty()
+            && !resume2.sections.experience.items.is_empty()
+        {
             assert_ne!(
-                resume1.sections.experience.items[0].id,
-                resume2.sections.experience.items[0].id,
+                resume1.sections.experience.items[0].id, resume2.sections.experience.items[0].id,
                 "Parser should generate unique IDs for each parse"
             );
         }

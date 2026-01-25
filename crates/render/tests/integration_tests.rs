@@ -141,11 +141,13 @@ fn sample_resume() -> ResumeData {
     );
 
     resume.sections.skills = Section::new("skills", "Skills");
-    resume.sections.skills.add_item(
-        Skill::new("Rust")
-            .with_level(5)
-            .with_keywords(vec!["Systems Programming".to_string(), "WebAssembly".to_string()]),
-    );
+    resume
+        .sections
+        .skills
+        .add_item(Skill::new("Rust").with_level(5).with_keywords(vec![
+            "Systems Programming".to_string(),
+            "WebAssembly".to_string(),
+        ]));
     resume.sections.skills.add_item(
         Skill::new("TypeScript")
             .with_level(4)
@@ -227,11 +229,18 @@ fn test_render_preview_page_0() {
     let renderer = TypstRenderer::new();
 
     let result = renderer.render_preview(&resume, 0);
-    assert!(result.is_ok(), "Preview rendering failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Preview rendering failed: {:?}",
+        result.err()
+    );
 
     let png = result.unwrap();
     // PNG files start with the PNG signature
-    assert!(png.starts_with(&[0x89, 0x50, 0x4E, 0x47]), "Output is not a valid PNG");
+    assert!(
+        png.starts_with(&[0x89, 0x50, 0x4E, 0x47]),
+        "Output is not a valid PNG"
+    );
 }
 
 #[test]
@@ -262,7 +271,11 @@ fn test_render_special_characters() {
     let renderer = TypstRenderer::new();
     let result = renderer.render_pdf(&resume);
 
-    assert!(result.is_ok(), "PDF rendering failed with special chars: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "PDF rendering failed with special chars: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -283,7 +296,11 @@ fn test_render_long_content() {
     let renderer = TypstRenderer::new();
     let result = renderer.render_pdf(&resume);
 
-    assert!(result.is_ok(), "PDF rendering failed with long content: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "PDF rendering failed with long content: {:?}",
+        result.err()
+    );
 }
 
 #[test]

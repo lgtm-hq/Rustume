@@ -90,9 +90,9 @@ impl V3Url {
         match self {
             V3Url::Empty => String::new(),
             V3Url::String(s) => s.clone(),
-            V3Url::Object { label, href } => {
-                label.clone().unwrap_or_else(|| href.clone().unwrap_or_default())
-            }
+            V3Url::Object { label, href } => label
+                .clone()
+                .unwrap_or_else(|| href.clone().unwrap_or_default()),
         }
     }
 }
@@ -998,11 +998,7 @@ fn convert_metadata(v3: &V3Metadata) -> Metadata {
                 .as_ref()
                 .and_then(|c| c.value.clone())
                 .unwrap_or_default(),
-            visible: v3
-                .css
-                .as_ref()
-                .and_then(|c| c.visible)
-                .unwrap_or(false),
+            visible: v3.css.as_ref().and_then(|c| c.visible).unwrap_or(false),
         },
         page: PageConfig {
             format: match v3

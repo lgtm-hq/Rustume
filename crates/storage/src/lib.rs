@@ -5,11 +5,11 @@
 //! - SQLite (Mobile/Desktop)
 //! - In-memory (Testing)
 
-mod traits;
 mod memory;
+mod traits;
 
-pub use traits::*;
 pub use memory::MemoryStorage;
+pub use traits::*;
 
 #[cfg(target_arch = "wasm32")]
 mod indexeddb;
