@@ -37,7 +37,7 @@ pub struct Metadata {
 impl Default for Metadata {
     fn default() -> Self {
         Self {
-            template: "rhyhorn".to_string(),
+            template: default_template(),
             layout: default_layout(),
             css: CustomCss::default(),
             page: PageConfig::default(),
@@ -67,7 +67,6 @@ pub enum PageFormat {
     A4,
     Letter,
 }
-
 
 /// Page configuration.
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]

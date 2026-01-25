@@ -29,16 +29,20 @@ pub fn is_url(s: &str) -> bool {
 }
 
 /// Extract first URL from a string (can be embedded in text).
+/// Strips trailing punctuation that commonly follows URLs in prose.
 pub fn extract_url(s: &str) -> Option<&str> {
-    URL_REGEX_EXTRACT.find(s).map(|m| m.as_str())
+    URL_REGEX_EXTRACT.find(s).map(|m| {
+        let url = m.as_str();
+        // Strip common trailing punctuation that gets captured
+        url.trim_end_matches(['.', ',', ';', ':', ')', ']', '>', '!', '?'])
+    })
 }
 
 /// Check if string is empty or whitespace-only.
 /// Also treats common empty HTML patterns as empty (TipTap/editor artifacts).
 pub fn is_empty_string(s: &str) -> bool {
     let trimmed = s.trim();
-    trimmed.is_empty()
-        || matches!(trimmed, "<p></p>" | "<p><br></p>" | "<p>&nbsp;</p>")
+    trimmed.is_empty() || matches!(trimmed, "<p></p>" | "<p><br></p>" | "<p>&nbsp;</p>")
 }
 
 /// Sanitize username: lowercase, alphanumeric + dots + hyphens only.
@@ -79,7 +83,10 @@ mod tests {
 
     #[test]
     fn test_extract_url() {
-        assert_eq!(extract_url("check out https://example.com for more"), Some("https://example.com"));
+        assert_eq!(
+            extract_url("check out https://example.com for more"),
+            Some("https://example.com")
+        );
         assert_eq!(extract_url("no url here"), None);
     }
 

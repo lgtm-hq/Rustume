@@ -89,21 +89,57 @@ impl RustumeWorld {
         {
             let font_paths = ["/System/Library/Fonts", "/Library/Fonts"];
             for path in font_paths {
-                if let Ok(entries) = std::fs::read_dir(path) {
-                    for entry in entries.flatten() {
-                        if let Ok(data) = std::fs::read(entry.path()) {
-                            let buffer = Bytes::new(data);
-                            for font in Font::iter(buffer) {
-                                book.push(font.info().clone());
-                                fonts.push(font);
-                            }
-                        }
-                    }
+                Self::load_fonts_from_dir(path, &mut book, &mut fonts);
+            }
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            let font_paths = ["/usr/share/fonts", "/usr/local/share/fonts"];
+            for path in font_paths {
+                Self::load_fonts_from_dir(path, &mut book, &mut fonts);
+            }
+            // Also check user fonts directory
+            if let Some(home) = std::env::var_os("HOME") {
+                let user_fonts = std::path::Path::new(&home).join(".fonts");
+                if let Some(path) = user_fonts.to_str() {
+                    Self::load_fonts_from_dir(path, &mut book, &mut fonts);
+                }
+            }
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            if let Some(windir) = std::env::var_os("WINDIR") {
+                let font_path = std::path::Path::new(&windir).join("Fonts");
+                if let Some(path) = font_path.to_str() {
+                    Self::load_fonts_from_dir(path, &mut book, &mut fonts);
                 }
             }
         }
 
         (book, fonts)
+    }
+
+    /// Load fonts from a directory (recursively).
+    fn load_fonts_from_dir(path: &str, book: &mut FontBook, fonts: &mut Vec<Font>) {
+        if let Ok(entries) = std::fs::read_dir(path) {
+            for entry in entries.flatten() {
+                let entry_path = entry.path();
+                if entry_path.is_dir() {
+                    // Recursively load fonts from subdirectories
+                    if let Some(subpath) = entry_path.to_str() {
+                        Self::load_fonts_from_dir(subpath, book, fonts);
+                    }
+                } else if let Ok(data) = std::fs::read(&entry_path) {
+                    let buffer = Bytes::new(data);
+                    for font in Font::iter(buffer) {
+                        book.push(font.info().clone());
+                        fonts.push(font);
+                    }
+                }
+            }
+        }
     }
 }
 

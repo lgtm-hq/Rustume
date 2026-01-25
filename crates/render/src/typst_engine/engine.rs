@@ -7,10 +7,10 @@ use tracing::{debug, instrument};
 
 /// Available templates.
 pub const TEMPLATES: &[&str] = &[
-    "rhyhorn",   // Clean, two-column with red accent
-    "azurill",   // Minimal, single column with amber accent
-    "pikachu",   // Modern, sidebar layout with yellow accent
-    "nosepass",  // Professional, classic with blue accent
+    "rhyhorn",  // Clean, two-column with red accent
+    "azurill",  // Minimal, single column with amber accent
+    "pikachu",  // Modern, sidebar layout with yellow accent
+    "nosepass", // Professional, classic with blue accent
 ];
 
 /// Typst-based PDF renderer.
@@ -51,7 +51,14 @@ impl TypstRenderer {
 
         // Escape the JSON for embedding in Typst string
         // We need to escape backslashes first, then quotes
-        let escaped_json = resume_json
+        let escaped_json = resume_json.replace('\\', "\\\\").replace('"', "\\\"");
+
+        // Escape font family for embedding in Typst string (same escaping as JSON)
+        let escaped_font_family = resume
+            .metadata
+            .typography
+            .font
+            .family
             .replace('\\', "\\\\")
             .replace('"', "\\\"");
 
@@ -83,7 +90,7 @@ impl TypstRenderer {
                 PageFormat::Letter => "us-letter",
             },
             margin = resume.metadata.page.margin,
-            font_family = resume.metadata.typography.font.family,
+            font_family = escaped_font_family,
             font_size = resume.metadata.typography.font.size,
             resume_json = escaped_json,
         );
@@ -193,8 +200,8 @@ impl Renderer for TypstRenderer {
 /// Get page dimensions in points for a page format.
 pub fn get_page_size(format: PageFormat) -> (f64, f64) {
     match format {
-        PageFormat::A4 => (595.28, 841.89),     // 210mm x 297mm
-        PageFormat::Letter => (612.0, 792.0),   // 8.5in x 11in
+        PageFormat::A4 => (595.28, 841.89),   // 210mm x 297mm
+        PageFormat::Letter => (612.0, 792.0), // 8.5in x 11in
     }
 }
 
@@ -252,13 +259,14 @@ mod tests {
             .with_phone("+1-555-123-4567")
             .with_location("San Francisco, CA");
 
-        resume.sections.summary.content = "Experienced software engineer with a passion for building great products.".to_string();
+        resume.sections.summary.content =
+            "Experienced software engineer with a passion for building great products.".to_string();
 
         resume.sections.experience = Section::new("experience", "Experience");
         resume.sections.experience.add_item(
             Experience::new("Acme Corp", "Senior Developer")
                 .with_date("2020 - Present")
-                .with_summary("Led development of core platform features.")
+                .with_summary("Led development of core platform features."),
         );
 
         resume
