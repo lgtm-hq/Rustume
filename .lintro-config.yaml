@@ -37,10 +37,6 @@ defaults:
         allow-non-breakable-inline-mappings: true
 
   hadolint:
-    ignored:
-      # DL3008: Pin versions in apt get install - disabled because pinned versions
-      # can become unavailable, breaking builds. We use latest for base packages.
-      - DL3008
     trusted_registries:
       - "docker.io"
       - "gcr.io"

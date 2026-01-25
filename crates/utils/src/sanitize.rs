@@ -100,6 +100,11 @@ static TAG_ATTRIBUTES: Lazy<HashMap<&'static str, HashSet<&'static str>>> = Lazy
             .copied()
             .collect(),
     );
+    map.insert("td", ["colspan", "rowspan"].iter().copied().collect());
+    map.insert(
+        "th",
+        ["colspan", "rowspan", "scope"].iter().copied().collect(),
+    );
     map
 });
 
@@ -179,5 +184,14 @@ mod tests {
         let output = sanitize_html(input);
         assert!(!output.contains("javascript:"));
         assert!(!output.contains("data:image/svg"));
+    }
+
+    #[test]
+    fn test_sanitize_html_allows_table_attributes() {
+        let input = r#"<table><tr><th colspan="2" rowspan="1" scope="col">Header</th></tr><tr><td colspan="2" rowspan="1">Data</td></tr></table>"#;
+        let output = sanitize_html(input);
+        assert!(output.contains("colspan"));
+        assert!(output.contains("rowspan"));
+        assert!(output.contains("scope"));
     }
 }

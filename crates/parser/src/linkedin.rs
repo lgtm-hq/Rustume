@@ -141,6 +141,37 @@ const MAX_UNCOMPRESSED_ENTRY_SIZE: u64 = 10 * 1024 * 1024;
 /// Maximum total uncompressed size across all entries (100 MB)
 const MAX_TOTAL_UNCOMPRESSED: u64 = 100 * 1024 * 1024;
 
+/// Parse CSV records into an iterator of HashMaps.
+///
+/// Creates a CSV reader with normalized headers (lowercase, underscores for spaces)
+/// and returns an iterator that yields each record as a HashMap.
+fn parse_csv_records(
+    contents: &str,
+) -> Result<(Vec<String>, csv::StringRecordsIntoIter<&[u8]>), ParseError> {
+    let mut reader = ReaderBuilder::new()
+        .has_headers(true)
+        .flexible(true)
+        .from_reader(contents.as_bytes());
+
+    let headers: Vec<String> = reader
+        .headers()
+        .map_err(|e| ParseError::ReadError(format!("Failed to read CSV headers: {}", e)))?
+        .iter()
+        .map(|s| s.to_lowercase().replace(' ', "_"))
+        .collect();
+
+    Ok((headers, reader.into_records()))
+}
+
+/// Convert a CSV record to a HashMap using the provided headers.
+fn record_to_map(headers: &[String], record: &csv::StringRecord) -> HashMap<String, String> {
+    headers
+        .iter()
+        .zip(record.iter())
+        .map(|(h, v)| (h.clone(), v.to_string()))
+        .collect()
+}
+
 impl LinkedInParser {
     /// Extract and parse CSV files from LinkedIn ZIP export.
     fn parse_zip(&self, data: &[u8]) -> Result<LinkedInData, ParseError> {
@@ -242,27 +273,13 @@ impl LinkedInParser {
 
     /// Parse Profile.csv
     fn parse_profile_csv(&self, contents: &str) -> Result<Option<LinkedInProfile>, ParseError> {
-        let mut reader = ReaderBuilder::new()
-            .has_headers(true)
-            .flexible(true)
-            .from_reader(contents.as_bytes());
+        let (headers, mut records) = parse_csv_records(contents)?;
 
-        let headers: Vec<String> = reader
-            .headers()
-            .map_err(|e| ParseError::ReadError(format!("Failed to read CSV headers: {}", e)))?
-            .iter()
-            .map(|s| s.to_lowercase().replace(' ', "_"))
-            .collect();
-
-        if let Some(result) = reader.records().next() {
+        if let Some(result) = records.next() {
             let record = result
                 .map_err(|e| ParseError::ReadError(format!("Failed to read CSV record: {}", e)))?;
 
-            let row: HashMap<String, String> = headers
-                .iter()
-                .zip(record.iter())
-                .map(|(h, v)| (h.clone(), v.to_string()))
-                .collect();
+            let row = record_to_map(&headers, &record);
 
             return Ok(Some(LinkedInProfile {
                 first_name: row.get("first_name").cloned().unwrap_or_default(),
@@ -295,28 +312,13 @@ impl LinkedInParser {
     /// Parse Positions.csv
     fn parse_positions_csv(&self, contents: &str) -> Result<Vec<LinkedInPosition>, ParseError> {
         let mut positions = Vec::new();
+        let (headers, records) = parse_csv_records(contents)?;
 
-        let mut reader = ReaderBuilder::new()
-            .has_headers(true)
-            .flexible(true)
-            .from_reader(contents.as_bytes());
-
-        let headers: Vec<String> = reader
-            .headers()
-            .map_err(|e| ParseError::ReadError(format!("Failed to read CSV headers: {}", e)))?
-            .iter()
-            .map(|s| s.to_lowercase().replace(' ', "_"))
-            .collect();
-
-        for result in reader.records() {
+        for result in records {
             let record = result
                 .map_err(|e| ParseError::ReadError(format!("Failed to read CSV record: {}", e)))?;
 
-            let row: HashMap<String, String> = headers
-                .iter()
-                .zip(record.iter())
-                .map(|(h, v)| (h.clone(), v.to_string()))
-                .collect();
+            let row = record_to_map(&headers, &record);
 
             positions.push(LinkedInPosition {
                 company_name: row.get("company_name").cloned().unwrap_or_default(),
@@ -334,28 +336,13 @@ impl LinkedInParser {
     /// Parse Education.csv
     fn parse_education_csv(&self, contents: &str) -> Result<Vec<LinkedInEducation>, ParseError> {
         let mut education = Vec::new();
+        let (headers, records) = parse_csv_records(contents)?;
 
-        let mut reader = ReaderBuilder::new()
-            .has_headers(true)
-            .flexible(true)
-            .from_reader(contents.as_bytes());
-
-        let headers: Vec<String> = reader
-            .headers()
-            .map_err(|e| ParseError::ReadError(format!("Failed to read CSV headers: {}", e)))?
-            .iter()
-            .map(|s| s.to_lowercase().replace(' ', "_"))
-            .collect();
-
-        for result in reader.records() {
+        for result in records {
             let record = result
                 .map_err(|e| ParseError::ReadError(format!("Failed to read CSV record: {}", e)))?;
 
-            let row: HashMap<String, String> = headers
-                .iter()
-                .zip(record.iter())
-                .map(|(h, v)| (h.clone(), v.to_string()))
-                .collect();
+            let row = record_to_map(&headers, &record);
 
             education.push(LinkedInEducation {
                 school_name: row.get("school_name").cloned().unwrap_or_default(),
@@ -377,28 +364,13 @@ impl LinkedInParser {
     /// Parse Skills.csv
     fn parse_skills_csv(&self, contents: &str) -> Result<Vec<LinkedInSkill>, ParseError> {
         let mut skills = Vec::new();
+        let (headers, records) = parse_csv_records(contents)?;
 
-        let mut reader = ReaderBuilder::new()
-            .has_headers(true)
-            .flexible(true)
-            .from_reader(contents.as_bytes());
-
-        let headers: Vec<String> = reader
-            .headers()
-            .map_err(|e| ParseError::ReadError(format!("Failed to read CSV headers: {}", e)))?
-            .iter()
-            .map(|s| s.to_lowercase().replace(' ', "_"))
-            .collect();
-
-        for result in reader.records() {
+        for result in records {
             let record = result
                 .map_err(|e| ParseError::ReadError(format!("Failed to read CSV record: {}", e)))?;
 
-            let row: HashMap<String, String> = headers
-                .iter()
-                .zip(record.iter())
-                .map(|(h, v)| (h.clone(), v.to_string()))
-                .collect();
+            let row = record_to_map(&headers, &record);
 
             let name = row.get("name").cloned().unwrap_or_default();
             if !name.is_empty() {
@@ -412,28 +384,13 @@ impl LinkedInParser {
     /// Parse Languages.csv
     fn parse_languages_csv(&self, contents: &str) -> Result<Vec<LinkedInLanguage>, ParseError> {
         let mut languages = Vec::new();
+        let (headers, records) = parse_csv_records(contents)?;
 
-        let mut reader = ReaderBuilder::new()
-            .has_headers(true)
-            .flexible(true)
-            .from_reader(contents.as_bytes());
-
-        let headers: Vec<String> = reader
-            .headers()
-            .map_err(|e| ParseError::ReadError(format!("Failed to read CSV headers: {}", e)))?
-            .iter()
-            .map(|s| s.to_lowercase().replace(' ', "_"))
-            .collect();
-
-        for result in reader.records() {
+        for result in records {
             let record = result
                 .map_err(|e| ParseError::ReadError(format!("Failed to read CSV record: {}", e)))?;
 
-            let row: HashMap<String, String> = headers
-                .iter()
-                .zip(record.iter())
-                .map(|(h, v)| (h.clone(), v.to_string()))
-                .collect();
+            let row = record_to_map(&headers, &record);
 
             let name = row.get("name").cloned().unwrap_or_default();
             if !name.is_empty() {
@@ -453,28 +410,13 @@ impl LinkedInParser {
         contents: &str,
     ) -> Result<Vec<LinkedInCertification>, ParseError> {
         let mut certifications = Vec::new();
+        let (headers, records) = parse_csv_records(contents)?;
 
-        let mut reader = ReaderBuilder::new()
-            .has_headers(true)
-            .flexible(true)
-            .from_reader(contents.as_bytes());
-
-        let headers: Vec<String> = reader
-            .headers()
-            .map_err(|e| ParseError::ReadError(format!("Failed to read CSV headers: {}", e)))?
-            .iter()
-            .map(|s| s.to_lowercase().replace(' ', "_"))
-            .collect();
-
-        for result in reader.records() {
+        for result in records {
             let record = result
                 .map_err(|e| ParseError::ReadError(format!("Failed to read CSV record: {}", e)))?;
 
-            let row: HashMap<String, String> = headers
-                .iter()
-                .zip(record.iter())
-                .map(|(h, v)| (h.clone(), v.to_string()))
-                .collect();
+            let row = record_to_map(&headers, &record);
 
             let name = row.get("name").cloned().unwrap_or_default();
             if !name.is_empty() {
@@ -495,28 +437,13 @@ impl LinkedInParser {
     /// Parse Projects.csv
     fn parse_projects_csv(&self, contents: &str) -> Result<Vec<LinkedInProject>, ParseError> {
         let mut projects = Vec::new();
+        let (headers, records) = parse_csv_records(contents)?;
 
-        let mut reader = ReaderBuilder::new()
-            .has_headers(true)
-            .flexible(true)
-            .from_reader(contents.as_bytes());
-
-        let headers: Vec<String> = reader
-            .headers()
-            .map_err(|e| ParseError::ReadError(format!("Failed to read CSV headers: {}", e)))?
-            .iter()
-            .map(|s| s.to_lowercase().replace(' ', "_"))
-            .collect();
-
-        for result in reader.records() {
+        for result in records {
             let record = result
                 .map_err(|e| ParseError::ReadError(format!("Failed to read CSV record: {}", e)))?;
 
-            let row: HashMap<String, String> = headers
-                .iter()
-                .zip(record.iter())
-                .map(|(h, v)| (h.clone(), v.to_string()))
-                .collect();
+            let row = record_to_map(&headers, &record);
 
             let title = row.get("title").cloned().unwrap_or_default();
             if !title.is_empty() {
@@ -536,28 +463,13 @@ impl LinkedInParser {
     /// Parse Email Addresses.csv
     fn parse_emails_csv(&self, contents: &str) -> Result<Vec<String>, ParseError> {
         let mut emails = Vec::new();
+        let (headers, records) = parse_csv_records(contents)?;
 
-        let mut reader = ReaderBuilder::new()
-            .has_headers(true)
-            .flexible(true)
-            .from_reader(contents.as_bytes());
-
-        let headers: Vec<String> = reader
-            .headers()
-            .map_err(|e| ParseError::ReadError(format!("Failed to read CSV headers: {}", e)))?
-            .iter()
-            .map(|s| s.to_lowercase().replace(' ', "_"))
-            .collect();
-
-        for result in reader.records() {
+        for result in records {
             let record = result
                 .map_err(|e| ParseError::ReadError(format!("Failed to read CSV record: {}", e)))?;
 
-            let row: HashMap<String, String> = headers
-                .iter()
-                .zip(record.iter())
-                .map(|(h, v)| (h.clone(), v.to_string()))
-                .collect();
+            let row = record_to_map(&headers, &record);
 
             if let Some(email) = row
                 .get("email_address")
@@ -927,5 +839,131 @@ mod tests {
             "Dec 2022"
         );
         assert_eq!(format_linkedin_date_range(None, None), "");
+    }
+
+    #[test]
+    fn test_zip_size_limit_rejection() {
+        // Create a ZIP that's too large (exceeds MAX_ZIP_SIZE)
+        let parser = LinkedInParser;
+        let oversized_data = vec![0u8; MAX_ZIP_SIZE + 1];
+
+        let result = parser.parse(&oversized_data);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.to_string().contains("too large"),
+            "Expected 'too large' error, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_malformed_csv_content() {
+        // Create a ZIP with malformed CSV (unbalanced quotes)
+        let mut buffer = Vec::new();
+        {
+            let mut zip = zip::ZipWriter::new(Cursor::new(&mut buffer));
+            let options = zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Stored);
+
+            // Profile.csv with malformed content (unbalanced quotes)
+            zip.start_file("Profile.csv", options).unwrap();
+            zip.write_all(b"First Name,Last Name,Headline\n").unwrap();
+            zip.write_all(b"John,\"Doe with unclosed quote,Engineer\n")
+                .unwrap();
+
+            zip.finish().unwrap();
+        }
+
+        let parser = LinkedInParser;
+        // The CSV parser is flexible, so it may still parse but with unexpected values
+        // The important thing is that it doesn't panic
+        let result = parser.parse(&buffer);
+        // Should either succeed with partial data or fail gracefully
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[test]
+    fn test_empty_csv_files() {
+        // Create a ZIP with empty CSV files
+        let mut buffer = Vec::new();
+        {
+            let mut zip = zip::ZipWriter::new(Cursor::new(&mut buffer));
+            let options = zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Stored);
+
+            // Empty Profile.csv (just headers, no data)
+            zip.start_file("Profile.csv", options).unwrap();
+            zip.write_all(b"First Name,Last Name,Headline\n").unwrap();
+
+            // Empty Positions.csv
+            zip.start_file("Positions.csv", options).unwrap();
+            zip.write_all(b"Company Name,Title,Description\n").unwrap();
+
+            // Empty Skills.csv
+            zip.start_file("Skills.csv", options).unwrap();
+            zip.write_all(b"Name\n").unwrap();
+
+            zip.finish().unwrap();
+        }
+
+        let parser = LinkedInParser;
+        let result = parser.parse(&buffer);
+        assert!(
+            result.is_ok(),
+            "Failed to parse empty CSVs: {:?}",
+            result.err()
+        );
+
+        let resume = result.unwrap();
+        // Should have empty name since profile has no data rows
+        assert_eq!(resume.basics.name, "");
+        assert!(resume.sections.experience.items.is_empty());
+        assert!(resume.sections.skills.items.is_empty());
+    }
+
+    #[test]
+    fn test_missing_csv_files() {
+        // Create a ZIP with only some CSV files
+        let mut buffer = Vec::new();
+        {
+            let mut zip = zip::ZipWriter::new(Cursor::new(&mut buffer));
+            let options = zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Stored);
+
+            // Only include Profile.csv
+            zip.start_file("Profile.csv", options).unwrap();
+            zip.write_all(b"First Name,Last Name,Headline\n").unwrap();
+            zip.write_all(b"Jane,Smith,Product Manager\n").unwrap();
+
+            zip.finish().unwrap();
+        }
+
+        let parser = LinkedInParser;
+        let result = parser.parse(&buffer);
+        assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+        let resume = result.unwrap();
+        assert_eq!(resume.basics.name, "Jane Smith");
+        // Other sections should be empty but not cause errors
+        assert!(resume.sections.experience.items.is_empty());
+        assert!(resume.sections.education.items.is_empty());
+        assert!(resume.sections.skills.items.is_empty());
+    }
+
+    #[test]
+    fn test_invalid_zip_archive() {
+        // Test with data that's not a valid ZIP archive
+        let parser = LinkedInParser;
+        let invalid_data = b"This is not a ZIP file";
+
+        let result = parser.parse(invalid_data);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.to_string().contains("ZIP") || err.to_string().contains("archive"),
+            "Expected ZIP-related error, got: {}",
+            err
+        );
     }
 }

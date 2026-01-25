@@ -48,9 +48,18 @@ impl IndexedDbStorage {
             .open_with_u32(&self.db_name, DB_VERSION)
             .map_err(|e| StorageError::Internal(format!("Failed to open database: {:?}", e)))?;
 
+        // Store closure in Rc to prevent memory leak and enable self-clearing
+        let upgrade_closure: Rc<
+            RefCell<Option<Closure<dyn FnMut(web_sys::IdbVersionChangeEvent)>>>,
+        > = Rc::new(RefCell::new(None));
+        let upgrade_closure_clone = upgrade_closure.clone();
+
         // Set up database upgrade handler
         let store_name = STORE_NAME;
         let onupgradeneeded = Closure::once(move |event: web_sys::IdbVersionChangeEvent| {
+            // Self-clear the closure to prevent memory leak (consistent with idb_request_to_promise)
+            upgrade_closure_clone.borrow_mut().take();
+
             let db: IdbDatabase = match event
                 .target()
                 .and_then(|t| t.dyn_into::<IdbRequest>().ok())
@@ -72,10 +81,8 @@ impl IndexedDbStorage {
             }
         });
 
-        // Store closure in Rc to prevent memory leak
-        let upgrade_closure: Rc<
-            RefCell<Option<Closure<dyn FnMut(web_sys::IdbVersionChangeEvent)>>>,
-        > = Rc::new(RefCell::new(Some(onupgradeneeded)));
+        // Store the closure and set it on the request
+        *upgrade_closure.borrow_mut() = Some(onupgradeneeded);
         let closure_ref = upgrade_closure.borrow();
         request.set_onupgradeneeded(closure_ref.as_ref().map(|c| c.as_ref().unchecked_ref()));
         drop(closure_ref);
