@@ -1,8 +1,13 @@
+# Lintro ignore patterns for Rustume
+
 # Lintro output directory
 .lintro/
 
 # Build artifacts
 target/
+*.rlib
+*.rmeta
+*.d
 
 # Dependencies
 node_modules/
@@ -11,6 +16,23 @@ node_modules/
 .venv/
 venv/
 
+# Lock files
+Cargo.lock
+*.lock
+
+# Git
+.git/
+
 # IDE
 .idea/
 .vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Generated files
+*.generated.*
