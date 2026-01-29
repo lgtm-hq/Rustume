@@ -16,7 +16,7 @@ fn workspace_root() -> PathBuf {
 }
 
 fn rustume_cmd() -> Command {
-    let mut cmd = Command::cargo_bin("rustume").unwrap();
+    let mut cmd = assert_cmd::cargo_bin_cmd!("rustume");
     cmd.current_dir(workspace_root());
     cmd
 }
