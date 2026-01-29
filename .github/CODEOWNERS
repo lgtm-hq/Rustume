@@ -1,29 +1,29 @@
 # CODEOWNERS - Rustume
 # Default owners for everything in the repo
-* @TurboCoder13
+* @lgtm-hq/maintainers
 
 # Core crates
-/crates/ @TurboCoder13
+/crates/ @lgtm-hq/maintainers
 
 # CI/CD and workflows
-/.github/workflows/ @TurboCoder13
-/.github/actions/ @TurboCoder13
-/scripts/ci/ @TurboCoder13
+/.github/workflows/ @lgtm-hq/maintainers
+/.github/actions/ @lgtm-hq/maintainers
+/scripts/ci/ @lgtm-hq/maintainers
 
 # Documentation
-/docs/ @TurboCoder13
-/README.md @TurboCoder13
+/docs/ @lgtm-hq/maintainers
+/README.md @lgtm-hq/maintainers
 
 # Configuration
-/Cargo.toml @TurboCoder13
-/.lintro-config.yaml @TurboCoder13
+/Cargo.toml @lgtm-hq/maintainers
+/.lintro-config.yaml @lgtm-hq/maintainers
 
 # Tests
-/tests/ @TurboCoder13
+/tests/ @lgtm-hq/maintainers
 
 # Bindings
-/bindings/ @TurboCoder13
+/bindings/ @lgtm-hq/maintainers
 
 # Docker
-/docker/ @TurboCoder13
-/Dockerfile @TurboCoder13
+/docker/ @lgtm-hq/maintainers
+/Dockerfile @lgtm-hq/maintainers

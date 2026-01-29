@@ -54,7 +54,7 @@ const DEFAULT_PORT: u16 = 3000;
         version = "0.1.0",
         description = "REST API for resume parsing, rendering, and validation.\n\n## Features\n\n- **Parse**: Import resumes from JSON Resume, LinkedIn exports, or Reactive Resume v3\n- **Render**: Generate PDF or PNG previews of resumes\n- **Validate**: Check resume data against the schema\n- **Templates**: List available resume templates with theme colors",
         license(name = "MIT", url = "https://opensource.org/licenses/MIT"),
-        contact(name = "Rustume", url = "https://github.com/TurboCoder13/Rustume")
+        contact(name = "Rustume", url = "https://github.com/lgtm-hq/Rustume")
     ),
     servers(
         (url = "/", description = "Local server")
