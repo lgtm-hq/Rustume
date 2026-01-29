@@ -1,0 +1,14 @@
+# Gitleaks configuration for Rustume
+# https://github.com/gitleaks/gitleaks
+
+title = "Rustume Gitleaks Config"
+
+# Global allowlists for false positives
+[[allowlists]]
+description = "Ignore LinkedInParser references (false positive for linkedin-client-id)"
+paths = [
+  '''crates/cli/src/main\.rs$''',
+  '''crates/server/src/main\.rs$''',
+  '''crates/parser/src/linkedin\.rs$''',
+]
+stopwords = ["LinkedInParser", "LinkedIn"]

@@ -37,7 +37,6 @@ defaults:
         allow-non-breakable-inline-mappings: true
 
   hadolint:
-    ignored: []
     trusted_registries:
       - "docker.io"
       - "gcr.io"
@@ -46,9 +45,14 @@ defaults:
 # Tool enable/disable settings.
 # Let lintro auto-detect and run all applicable tools.
 tools:
-  # Rust linting via Clippy
+  # Rust linting via Clippy - disabled as py-lintro image lacks Rust toolchain
+  # Rust checks run via dedicated test-rust.yml workflow instead
   clippy:
-    enabled: true
+    enabled: false
+
+  # Rust formatting - disabled for same reason as clippy
+  rustfmt:
+    enabled: false
 
   # Markdown linting
   markdownlint:
@@ -76,8 +80,4 @@ tools:
 
   # shfmt - Shell script formatter
   shfmt:
-    enabled: true
-
-  # Rustfmt - Rust code formatter (via cargo fmt)
-  rustfmt:
     enabled: true

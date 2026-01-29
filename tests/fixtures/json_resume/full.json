@@ -1,0 +1,89 @@
+{
+  "basics": {
+    "name": "Jane Smith",
+    "label": "Senior Software Engineer",
+    "email": "jane@example.com",
+    "phone": "+1-555-987-6543",
+    "url": "https://janesmith.io",
+    "summary": "Experienced software engineer specializing in distributed systems and cloud architecture.",
+    "location": {
+      "address": "456 Tech Blvd",
+      "postalCode": "10001",
+      "city": "New York",
+      "countryCode": "US",
+      "region": "New York"
+    },
+    "profiles": [
+      {
+        "network": "GitHub",
+        "username": "janesmith",
+        "url": "https://github.com/janesmith"
+      },
+      {
+        "network": "LinkedIn",
+        "username": "janesmith",
+        "url": "https://linkedin.com/in/janesmith"
+      }
+    ]
+  },
+  "work": [
+    {
+      "name": "Tech Corp",
+      "position": "Senior Software Engineer",
+      "url": "https://techcorp.com",
+      "startDate": "2020-01-01",
+      "endDate": "2024-01-01",
+      "summary": "Led development of microservices architecture serving millions of users.",
+      "highlights": ["Reduced API latency by 40%", "Mentored team of 5 junior developers"]
+    },
+    {
+      "name": "Startup Inc",
+      "position": "Software Engineer",
+      "url": "https://startup.io",
+      "startDate": "2017-06-01",
+      "endDate": "2019-12-31",
+      "summary": "Full-stack development for e-commerce platform."
+    }
+  ],
+  "education": [
+    {
+      "institution": "MIT",
+      "area": "Computer Science",
+      "studyType": "Bachelor",
+      "startDate": "2013-09-01",
+      "endDate": "2017-05-31",
+      "score": "3.9 GPA"
+    }
+  ],
+  "skills": [
+    {
+      "name": "Backend Development",
+      "level": "Expert",
+      "keywords": ["Rust", "Go", "Python", "Node.js"]
+    },
+    {
+      "name": "Cloud & DevOps",
+      "level": "Advanced",
+      "keywords": ["AWS", "Kubernetes", "Docker", "Terraform"]
+    }
+  ],
+  "languages": [
+    {
+      "language": "English",
+      "fluency": "Native"
+    },
+    {
+      "language": "Spanish",
+      "fluency": "Intermediate"
+    }
+  ],
+  "projects": [
+    {
+      "name": "Open Source CLI Tool",
+      "description": "A popular command-line tool for developers",
+      "highlights": ["10k+ GitHub stars"],
+      "keywords": ["Rust", "CLI"],
+      "url": "https://github.com/janesmith/cli-tool"
+    }
+  ]
+}

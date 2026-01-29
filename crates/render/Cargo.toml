@@ -1,0 +1,33 @@
+[package]
+name = "rustume-render"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Template engine and PDF generation for Rustume"
+
+[dependencies]
+rustume-schema = { path = "../schema" }
+rustume-utils = { path = "../utils" }
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# Typst ecosystem
+typst.workspace = true
+typst-pdf.workspace = true
+typst-render.workspace = true
+typst-assets.workspace = true
+
+# Date/time for Typst World
+chrono.workspace = true
+
+# Error handling
+thiserror.workspace = true
+
+# Logging
+tracing.workspace = true
+
+[dev-dependencies]
+rstest.workspace = true
+rustume-parser = { path = "../parser" }

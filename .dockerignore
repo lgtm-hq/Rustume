@@ -1,0 +1,40 @@
+# Build artifacts
+target/
+*.rs.bk
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Docker (keep Dockerfile for build)
+docker-compose.yml
+.dockerignore
+
+# Documentation (keep README.md and LICENSE for compliance)
+CONTRIBUTING.md
+CHANGELOG.md
+docs/
+
+# Tests (keep fixtures for integration tests if needed)
+**/test_*.rs
+**/*_test.rs
+
+# Development files
+.env
+.env.*
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp

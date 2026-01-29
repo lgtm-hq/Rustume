@@ -1,0 +1,1048 @@
+//! LinkedIn data export parser.
+//!
+//! Parses the ZIP file export from LinkedIn containing CSV files for:
+//! - Profile.csv - Basic information
+//! - Positions.csv - Work experience
+//! - Education.csv - Education history
+//! - Skills.csv - Skills
+//! - Languages.csv - Languages
+//! - Certifications.csv - Certifications
+//! - Projects.csv - Projects
+//! - Email Addresses.csv - Email addresses
+
+use crate::traits::{ParseError, Parser};
+use csv::ReaderBuilder;
+use rustume_schema::{
+    Basics, Certification, Education, Experience, Language, Project, ResumeData, Section, Skill,
+    Url,
+};
+use std::collections::HashMap;
+use std::io::{Cursor, Read};
+use zip::ZipArchive;
+
+/// LinkedIn data export parser.
+///
+/// Parses the ZIP file export that users can download from LinkedIn's
+/// "Get a copy of your data" feature.
+pub struct LinkedInParser;
+
+// ============================================================================
+// LinkedIn CSV Data Structures
+// ============================================================================
+
+/// Parsed LinkedIn data from ZIP export.
+#[derive(Debug, Default)]
+pub struct LinkedInData {
+    /// Profile information (name, headline, etc.)
+    pub profile: Option<LinkedInProfile>,
+    /// Work positions/experience
+    pub positions: Vec<LinkedInPosition>,
+    /// Education entries
+    pub education: Vec<LinkedInEducation>,
+    /// Skills
+    pub skills: Vec<LinkedInSkill>,
+    /// Languages
+    pub languages: Vec<LinkedInLanguage>,
+    /// Certifications
+    pub certifications: Vec<LinkedInCertification>,
+    /// Projects
+    pub projects: Vec<LinkedInProject>,
+    /// Email addresses
+    pub emails: Vec<String>,
+}
+
+/// LinkedIn profile data from Profile.csv
+#[derive(Debug, Default, Clone)]
+#[allow(dead_code)]
+pub struct LinkedInProfile {
+    pub first_name: String,
+    pub last_name: String,
+    pub maiden_name: Option<String>,
+    pub headline: Option<String>,
+    pub summary: Option<String>,
+    pub industry: Option<String>,
+    pub location: Option<String>,
+    pub geo_location: Option<String>,
+    pub websites: Vec<String>,
+}
+
+/// LinkedIn position data from Positions.csv
+#[derive(Debug, Default, Clone)]
+#[allow(dead_code)]
+pub struct LinkedInPosition {
+    pub company_name: String,
+    pub title: String,
+    pub description: Option<String>,
+    pub location: Option<String>,
+    pub started_on: Option<String>,
+    pub finished_on: Option<String>,
+}
+
+/// LinkedIn education data from Education.csv
+#[derive(Debug, Default, Clone)]
+#[allow(dead_code)]
+pub struct LinkedInEducation {
+    pub school_name: String,
+    pub degree_name: Option<String>,
+    pub field_of_study: Option<String>,
+    pub started_on: Option<String>,
+    pub finished_on: Option<String>,
+    pub notes: Option<String>,
+    pub activities: Option<String>,
+}
+
+/// LinkedIn skill data from Skills.csv
+#[derive(Debug, Default, Clone)]
+pub struct LinkedInSkill {
+    pub name: String,
+}
+
+/// LinkedIn language data from Languages.csv
+#[derive(Debug, Default, Clone)]
+#[allow(dead_code)]
+pub struct LinkedInLanguage {
+    pub name: String,
+    pub proficiency: Option<String>,
+}
+
+/// LinkedIn certification data from Certifications.csv
+#[derive(Debug, Default, Clone)]
+#[allow(dead_code)]
+pub struct LinkedInCertification {
+    pub name: String,
+    pub authority: Option<String>,
+    pub license_number: Option<String>,
+    pub url: Option<String>,
+    pub started_on: Option<String>,
+    pub finished_on: Option<String>,
+}
+
+/// LinkedIn project data from Projects.csv
+#[derive(Debug, Default, Clone)]
+#[allow(dead_code)]
+pub struct LinkedInProject {
+    pub title: String,
+    pub description: Option<String>,
+    pub url: Option<String>,
+    pub started_on: Option<String>,
+    pub finished_on: Option<String>,
+}
+
+// ============================================================================
+// Parser Implementation
+// ============================================================================
+
+/// Maximum ZIP file size (50 MB)
+const MAX_ZIP_SIZE: usize = 50 * 1024 * 1024;
+
+/// Maximum uncompressed size for a single ZIP entry (10 MB)
+const MAX_UNCOMPRESSED_ENTRY_SIZE: u64 = 10 * 1024 * 1024;
+
+/// Maximum total uncompressed size across all entries (100 MB)
+const MAX_TOTAL_UNCOMPRESSED: u64 = 100 * 1024 * 1024;
+
+/// Maximum number of entries to process in a LinkedIn ZIP export.
+/// LinkedIn exports typically contain ~10-20 CSV files; this cap prevents
+/// expensive iteration over malicious archives with many tiny files.
+const MAX_LINKEDIN_ENTRIES: usize = 100;
+
+/// Parse CSV records into an iterator of HashMaps.
+///
+/// Creates a CSV reader with normalized headers (lowercase, underscores for spaces)
+/// and returns an iterator that yields each record as a HashMap.
+fn parse_csv_records(
+    contents: &str,
+) -> Result<(Vec<String>, csv::StringRecordsIntoIter<&[u8]>), ParseError> {
+    let mut reader = ReaderBuilder::new()
+        .has_headers(true)
+        .flexible(true)
+        .from_reader(contents.as_bytes());
+
+    let headers: Vec<String> = reader
+        .headers()
+        .map_err(|e| ParseError::ReadError(format!("Failed to read CSV headers: {}", e)))?
+        .iter()
+        .enumerate()
+        .map(|(idx, s)| {
+            // Strip UTF-8 BOM from first header if present (some CSV exports include it)
+            let s = if idx == 0 {
+                s.trim_start_matches('\u{feff}')
+            } else {
+                s
+            };
+            s.to_lowercase().replace(' ', "_")
+        })
+        .collect();
+
+    Ok((headers, reader.into_records()))
+}
+
+/// Convert a CSV record to a HashMap using the provided headers.
+fn record_to_map(headers: &[String], record: &csv::StringRecord) -> HashMap<String, String> {
+    headers
+        .iter()
+        .zip(record.iter())
+        .map(|(h, v)| (h.clone(), v.to_string()))
+        .collect()
+}
+
+impl LinkedInParser {
+    /// Extract and parse CSV files from LinkedIn ZIP export.
+    fn parse_zip(&self, data: &[u8]) -> Result<LinkedInData, ParseError> {
+        // Validate ZIP size to prevent DoS attacks
+        if data.len() > MAX_ZIP_SIZE {
+            return Err(ParseError::ReadError(format!(
+                "ZIP file too large: {} bytes exceeds {} byte limit",
+                data.len(),
+                MAX_ZIP_SIZE
+            )));
+        }
+
+        let cursor = Cursor::new(data);
+        let mut archive = ZipArchive::new(cursor)
+            .map_err(|e| ParseError::ReadError(format!("Failed to open ZIP archive: {}", e)))?;
+
+        // Check entry count upfront to prevent expensive iteration over malicious archives
+        if archive.len() > MAX_LINKEDIN_ENTRIES {
+            return Err(ParseError::ReadError(format!(
+                "ZIP archive has too many entries: {} exceeds {} entry limit",
+                archive.len(),
+                MAX_LINKEDIN_ENTRIES
+            )));
+        }
+
+        let mut linkedin_data = LinkedInData::default();
+        let mut cumulative_uncompressed: u64 = 0;
+
+        // Iterate through files in the archive
+        for i in 0..archive.len() {
+            let mut file = archive.by_index(i).map_err(|e| {
+                ParseError::ReadError(format!("Failed to read ZIP entry {}: {}", i, e))
+            })?;
+
+            let file_name = file.name().to_lowercase();
+
+            // Skip directories and non-CSV files
+            if file.is_dir() || !file_name.ends_with(".csv") {
+                continue;
+            }
+
+            // ZIP bomb protection: check uncompressed size of this entry
+            let uncompressed_size = file.size();
+            if uncompressed_size > MAX_UNCOMPRESSED_ENTRY_SIZE {
+                return Err(ParseError::ReadError(format!(
+                    "ZIP entry '{}' uncompressed size ({} bytes) exceeds {} byte limit",
+                    file_name, uncompressed_size, MAX_UNCOMPRESSED_ENTRY_SIZE
+                )));
+            }
+
+            // ZIP bomb protection: check cumulative uncompressed size
+            if cumulative_uncompressed + uncompressed_size > MAX_TOTAL_UNCOMPRESSED {
+                return Err(ParseError::ReadError(format!(
+                    "ZIP total uncompressed size would exceed {} byte limit",
+                    MAX_TOTAL_UNCOMPRESSED
+                )));
+            }
+
+            // Read file contents
+            let mut contents = String::new();
+            file.read_to_string(&mut contents).map_err(|e| {
+                ParseError::ReadError(format!("Failed to read file {}: {}", file_name, e))
+            })?;
+
+            cumulative_uncompressed += uncompressed_size;
+
+            // Extract base filename (strip directory path)
+            let base_name = file_name
+                .rsplit('/')
+                .next()
+                .unwrap_or(&file_name)
+                .to_lowercase();
+
+            // Parse based on exact filename match for security
+            match base_name.as_str() {
+                "profile.csv" => {
+                    linkedin_data.profile = self.parse_profile_csv(&contents)?;
+                }
+                "positions.csv" => {
+                    linkedin_data.positions = self.parse_positions_csv(&contents)?;
+                }
+                "education.csv" => {
+                    linkedin_data.education = self.parse_education_csv(&contents)?;
+                }
+                "skills.csv" => {
+                    linkedin_data.skills = self.parse_skills_csv(&contents)?;
+                }
+                "languages.csv" => {
+                    linkedin_data.languages = self.parse_languages_csv(&contents)?;
+                }
+                "certifications.csv" => {
+                    linkedin_data.certifications = self.parse_certifications_csv(&contents)?;
+                }
+                "projects.csv" => {
+                    linkedin_data.projects = self.parse_projects_csv(&contents)?;
+                }
+                "email addresses.csv" => {
+                    linkedin_data.emails = self.parse_emails_csv(&contents)?;
+                }
+                _ => {
+                    // Skip unrecognized files
+                }
+            }
+        }
+
+        Ok(linkedin_data)
+    }
+
+    /// Parse Profile.csv
+    fn parse_profile_csv(&self, contents: &str) -> Result<Option<LinkedInProfile>, ParseError> {
+        let (headers, mut records) = parse_csv_records(contents)?;
+
+        if let Some(result) = records.next() {
+            let record = result
+                .map_err(|e| ParseError::ReadError(format!("Failed to read CSV record: {}", e)))?;
+
+            let row = record_to_map(&headers, &record);
+
+            return Ok(Some(LinkedInProfile {
+                first_name: row.get("first_name").cloned().unwrap_or_default(),
+                last_name: row.get("last_name").cloned().unwrap_or_default(),
+                maiden_name: row.get("maiden_name").cloned().filter(|s| !s.is_empty()),
+                headline: row.get("headline").cloned().filter(|s| !s.is_empty()),
+                summary: row.get("summary").cloned().filter(|s| !s.is_empty()),
+                industry: row.get("industry").cloned().filter(|s| !s.is_empty()),
+                location: row
+                    .get("geo_location")
+                    .or_else(|| row.get("location"))
+                    .cloned()
+                    .filter(|s| !s.is_empty()),
+                geo_location: row.get("geo_location").cloned().filter(|s| !s.is_empty()),
+                websites: row
+                    .get("websites")
+                    .map(|s| {
+                        s.split('\n')
+                            .map(|s| s.trim().to_string())
+                            .filter(|s| !s.is_empty())
+                            .collect()
+                    })
+                    .unwrap_or_default(),
+            }));
+        }
+
+        Ok(None)
+    }
+
+    /// Parse Positions.csv
+    fn parse_positions_csv(&self, contents: &str) -> Result<Vec<LinkedInPosition>, ParseError> {
+        let mut positions = Vec::new();
+        let (headers, records) = parse_csv_records(contents)?;
+
+        for result in records {
+            let record = result
+                .map_err(|e| ParseError::ReadError(format!("Failed to read CSV record: {}", e)))?;
+
+            let row = record_to_map(&headers, &record);
+
+            positions.push(LinkedInPosition {
+                company_name: row.get("company_name").cloned().unwrap_or_default(),
+                title: row.get("title").cloned().unwrap_or_default(),
+                description: row.get("description").cloned().filter(|s| !s.is_empty()),
+                location: row.get("location").cloned().filter(|s| !s.is_empty()),
+                started_on: row.get("started_on").cloned().filter(|s| !s.is_empty()),
+                finished_on: row.get("finished_on").cloned().filter(|s| !s.is_empty()),
+            });
+        }
+
+        Ok(positions)
+    }
+
+    /// Parse Education.csv
+    fn parse_education_csv(&self, contents: &str) -> Result<Vec<LinkedInEducation>, ParseError> {
+        let mut education = Vec::new();
+        let (headers, records) = parse_csv_records(contents)?;
+
+        for result in records {
+            let record = result
+                .map_err(|e| ParseError::ReadError(format!("Failed to read CSV record: {}", e)))?;
+
+            let row = record_to_map(&headers, &record);
+
+            education.push(LinkedInEducation {
+                school_name: row.get("school_name").cloned().unwrap_or_default(),
+                degree_name: row.get("degree_name").cloned().filter(|s| !s.is_empty()),
+                field_of_study: row.get("field_of_study").cloned().filter(|s| !s.is_empty()),
+                started_on: row.get("start_date").cloned().filter(|s| !s.is_empty()),
+                finished_on: row.get("end_date").cloned().filter(|s| !s.is_empty()),
+                notes: row.get("notes").cloned().filter(|s| !s.is_empty()),
+                activities: row
+                    .get("activities_and_societies")
+                    .cloned()
+                    .filter(|s| !s.is_empty()),
+            });
+        }
+
+        Ok(education)
+    }
+
+    /// Parse Skills.csv
+    fn parse_skills_csv(&self, contents: &str) -> Result<Vec<LinkedInSkill>, ParseError> {
+        let mut skills = Vec::new();
+        let (headers, records) = parse_csv_records(contents)?;
+
+        for result in records {
+            let record = result
+                .map_err(|e| ParseError::ReadError(format!("Failed to read CSV record: {}", e)))?;
+
+            let row = record_to_map(&headers, &record);
+
+            let name = row.get("name").cloned().unwrap_or_default();
+            if !name.is_empty() {
+                skills.push(LinkedInSkill { name });
+            }
+        }
+
+        Ok(skills)
+    }
+
+    /// Parse Languages.csv
+    fn parse_languages_csv(&self, contents: &str) -> Result<Vec<LinkedInLanguage>, ParseError> {
+        let mut languages = Vec::new();
+        let (headers, records) = parse_csv_records(contents)?;
+
+        for result in records {
+            let record = result
+                .map_err(|e| ParseError::ReadError(format!("Failed to read CSV record: {}", e)))?;
+
+            let row = record_to_map(&headers, &record);
+
+            let name = row.get("name").cloned().unwrap_or_default();
+            if !name.is_empty() {
+                languages.push(LinkedInLanguage {
+                    name,
+                    proficiency: row.get("proficiency").cloned().filter(|s| !s.is_empty()),
+                });
+            }
+        }
+
+        Ok(languages)
+    }
+
+    /// Parse Certifications.csv
+    fn parse_certifications_csv(
+        &self,
+        contents: &str,
+    ) -> Result<Vec<LinkedInCertification>, ParseError> {
+        let mut certifications = Vec::new();
+        let (headers, records) = parse_csv_records(contents)?;
+
+        for result in records {
+            let record = result
+                .map_err(|e| ParseError::ReadError(format!("Failed to read CSV record: {}", e)))?;
+
+            let row = record_to_map(&headers, &record);
+
+            let name = row.get("name").cloned().unwrap_or_default();
+            if !name.is_empty() {
+                certifications.push(LinkedInCertification {
+                    name,
+                    authority: row.get("authority").cloned().filter(|s| !s.is_empty()),
+                    license_number: row.get("license_number").cloned().filter(|s| !s.is_empty()),
+                    url: row.get("url").cloned().filter(|s| !s.is_empty()),
+                    started_on: row.get("started_on").cloned().filter(|s| !s.is_empty()),
+                    finished_on: row.get("finished_on").cloned().filter(|s| !s.is_empty()),
+                });
+            }
+        }
+
+        Ok(certifications)
+    }
+
+    /// Parse Projects.csv
+    fn parse_projects_csv(&self, contents: &str) -> Result<Vec<LinkedInProject>, ParseError> {
+        let mut projects = Vec::new();
+        let (headers, records) = parse_csv_records(contents)?;
+
+        for result in records {
+            let record = result
+                .map_err(|e| ParseError::ReadError(format!("Failed to read CSV record: {}", e)))?;
+
+            let row = record_to_map(&headers, &record);
+
+            let title = row.get("title").cloned().unwrap_or_default();
+            if !title.is_empty() {
+                projects.push(LinkedInProject {
+                    title,
+                    description: row.get("description").cloned().filter(|s| !s.is_empty()),
+                    url: row.get("url").cloned().filter(|s| !s.is_empty()),
+                    started_on: row.get("started_on").cloned().filter(|s| !s.is_empty()),
+                    finished_on: row.get("finished_on").cloned().filter(|s| !s.is_empty()),
+                });
+            }
+        }
+
+        Ok(projects)
+    }
+
+    /// Parse Email Addresses.csv
+    fn parse_emails_csv(&self, contents: &str) -> Result<Vec<String>, ParseError> {
+        let mut emails = Vec::new();
+        let (headers, records) = parse_csv_records(contents)?;
+
+        for result in records {
+            let record = result
+                .map_err(|e| ParseError::ReadError(format!("Failed to read CSV record: {}", e)))?;
+
+            let row = record_to_map(&headers, &record);
+
+            if let Some(email) = row
+                .get("email_address")
+                .or_else(|| row.get("email"))
+                .cloned()
+            {
+                if !email.is_empty() {
+                    emails.push(email);
+                }
+            }
+        }
+
+        Ok(emails)
+    }
+}
+
+impl Parser for LinkedInParser {
+    type RawData = Vec<u8>;
+    type ValidatedData = LinkedInData;
+
+    fn read(&self, input: &[u8]) -> Result<Self::RawData, ParseError> {
+        // Just pass through the bytes - we'll parse in validate
+        Ok(input.to_vec())
+    }
+
+    fn validate(&self, data: Self::RawData) -> Result<Self::ValidatedData, ParseError> {
+        // Parse the ZIP file and extract CSV data
+        self.parse_zip(&data)
+    }
+
+    fn convert(&self, data: Self::ValidatedData) -> Result<ResumeData, ParseError> {
+        let mut resume = ResumeData::default();
+
+        // Convert profile/basics
+        if let Some(profile) = data.profile {
+            let full_name = format!("{} {}", profile.first_name, profile.last_name)
+                .trim()
+                .to_string();
+
+            resume.basics = Basics::new(&full_name);
+
+            if let Some(headline) = profile.headline {
+                resume.basics = resume.basics.with_headline(&headline);
+            }
+
+            if let Some(location) = profile.location {
+                resume.basics = resume.basics.with_location(&location);
+            }
+
+            // Use first website as URL
+            if let Some(website) = profile.websites.first() {
+                resume.basics.url = Url::new(website);
+            }
+
+            // Add summary
+            if let Some(summary) = profile.summary {
+                resume.sections.summary.content = summary;
+            }
+        }
+
+        // Add email from parsed emails
+        if let Some(email) = data.emails.first() {
+            resume.basics = resume.basics.with_email(email);
+        }
+
+        // Initialize profiles section (LinkedIn profile URL is not available in export data)
+        resume.sections.profiles = Section::new("profiles", "Profiles");
+
+        // Convert positions to experience
+        if !data.positions.is_empty() {
+            resume.sections.experience = Section::new("experience", "Experience");
+            for pos in data.positions {
+                let mut exp = Experience::new(&pos.company_name, &pos.title);
+
+                // Format date range
+                let date = format_linkedin_date_range(
+                    pos.started_on.as_deref(),
+                    pos.finished_on.as_deref(),
+                );
+                if !date.is_empty() {
+                    exp = exp.with_date(&date);
+                }
+
+                if let Some(location) = pos.location {
+                    exp = exp.with_location(&location);
+                }
+
+                if let Some(description) = pos.description {
+                    exp = exp.with_summary(&description);
+                }
+
+                resume.sections.experience.add_item(exp);
+            }
+        }
+
+        // Convert education
+        if !data.education.is_empty() {
+            resume.sections.education = Section::new("education", "Education");
+            for edu in data.education {
+                // Education requires institution and area
+                let area = edu.field_of_study.clone().unwrap_or_default();
+                let mut education = Education::new(&edu.school_name, &area);
+
+                if let Some(degree) = edu.degree_name {
+                    education = education.with_study_type(&degree);
+                }
+
+                // Format date range
+                let date = format_linkedin_date_range(
+                    edu.started_on.as_deref(),
+                    edu.finished_on.as_deref(),
+                );
+                if !date.is_empty() {
+                    education = education.with_date(&date);
+                }
+
+                resume.sections.education.add_item(education);
+            }
+        }
+
+        // Convert skills - group them into a single skill entry with keywords
+        if !data.skills.is_empty() {
+            resume.sections.skills = Section::new("skills", "Skills");
+
+            // Group skills into categories of ~10 for better display
+            let skill_names: Vec<String> = data.skills.into_iter().map(|s| s.name).collect();
+            let chunks: Vec<&[String]> = skill_names.chunks(10).collect();
+
+            for (i, chunk) in chunks.iter().enumerate() {
+                let label = match i {
+                    0 => "Skills",
+                    1 => "Additional Skills",
+                    _ => "More Skills",
+                };
+                let skill = Skill::new(label).with_keywords(chunk.to_vec());
+                resume.sections.skills.add_item(skill);
+            }
+        }
+
+        // Convert languages
+        if !data.languages.is_empty() {
+            resume.sections.languages = Section::new("languages", "Languages");
+            for lang in data.languages {
+                let mut language = Language::new(&lang.name);
+
+                if let Some(proficiency) = lang.proficiency {
+                    let level = proficiency_to_level(&proficiency);
+                    language = language.with_description(&proficiency).with_level(level);
+                }
+
+                resume.sections.languages.add_item(language);
+            }
+        }
+
+        // Convert certifications
+        if !data.certifications.is_empty() {
+            resume.sections.certifications = Section::new("certifications", "Certifications");
+            for cert in data.certifications {
+                // Certification requires name and issuer
+                let issuer = cert.authority.clone().unwrap_or_default();
+                let mut certification = Certification::new(&cert.name, &issuer);
+
+                if let Some(url) = cert.url {
+                    certification = certification.with_url(&url);
+                }
+
+                // Use started_on as the date
+                if let Some(date) = cert.started_on {
+                    certification = certification.with_date(format_linkedin_date(Some(&date)));
+                }
+
+                resume.sections.certifications.add_item(certification);
+            }
+        }
+
+        // Convert projects
+        if !data.projects.is_empty() {
+            resume.sections.projects = Section::new("projects", "Projects");
+            for proj in data.projects {
+                let mut project = Project::new(&proj.title);
+
+                if let Some(description) = proj.description {
+                    project = project.with_description(&description);
+                }
+
+                if let Some(url) = proj.url {
+                    project = project.with_url(&url);
+                }
+
+                // Format date range
+                let date = format_linkedin_date_range(
+                    proj.started_on.as_deref(),
+                    proj.finished_on.as_deref(),
+                );
+                if !date.is_empty() {
+                    project = project.with_date(&date);
+                }
+
+                resume.sections.projects.add_item(project);
+            }
+        }
+
+        Ok(resume)
+    }
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/// Format LinkedIn date (typically "Mon YYYY" or "YYYY")
+fn format_linkedin_date(date: Option<&str>) -> String {
+    date.map(|d| d.trim().to_string()).unwrap_or_default()
+}
+
+/// Format LinkedIn date range
+fn format_linkedin_date_range(start: Option<&str>, end: Option<&str>) -> String {
+    let start_str = start.map(|s| s.trim()).filter(|s| !s.is_empty());
+    let end_str = end.map(|s| s.trim()).filter(|s| !s.is_empty());
+
+    match (start_str, end_str) {
+        (Some(s), Some(e)) => format!("{} - {}", s, e),
+        (Some(s), None) => format!("{} - Present", s),
+        (None, Some(e)) => e.to_string(),
+        (None, None) => String::new(),
+    }
+}
+
+/// Convert LinkedIn proficiency to skill level (1-5)
+fn proficiency_to_level(proficiency: &str) -> u8 {
+    let lower = proficiency.to_lowercase();
+    if lower.contains("native")
+        || lower.contains("bilingual")
+        || lower.contains("full professional")
+    {
+        5
+    } else if lower.contains("professional working") || lower.contains("fluent") {
+        4
+    } else if lower.contains("limited working") || lower.contains("intermediate") {
+        3
+    } else if lower.contains("elementary") || lower.contains("basic") {
+        2
+    } else {
+        3 // Default to intermediate
+    }
+}
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    /// Create a test ZIP file with sample LinkedIn data
+    fn create_test_zip() -> Vec<u8> {
+        let mut buffer = Vec::new();
+        {
+            let mut zip = zip::ZipWriter::new(Cursor::new(&mut buffer));
+            let options = zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Stored);
+
+            // Profile.csv
+            zip.start_file("Profile.csv", options).unwrap();
+            zip.write_all(b"First Name,Last Name,Headline,Summary,Geo Location\n")
+                .unwrap();
+            zip.write_all(b"John,Doe,Senior Software Engineer,Passionate developer with 10 years of experience.,San Francisco Bay Area\n").unwrap();
+
+            // Positions.csv
+            zip.start_file("Positions.csv", options).unwrap();
+            zip.write_all(b"Company Name,Title,Description,Location,Started On,Finished On\n")
+                .unwrap();
+            zip.write_all(b"Acme Corp,Senior Engineer,Led development of core platform,San Francisco,Jan 2020,\n").unwrap();
+            zip.write_all(b"StartupXYZ,Software Developer,Full stack development,New York,Jun 2017,Dec 2019\n").unwrap();
+
+            // Education.csv
+            zip.start_file("Education.csv", options).unwrap();
+            zip.write_all(b"School Name,Degree Name,Field of Study,Start Date,End Date\n")
+                .unwrap();
+            zip.write_all(b"Stanford University,Bachelor of Science,Computer Science,2013,2017\n")
+                .unwrap();
+
+            // Skills.csv
+            zip.start_file("Skills.csv", options).unwrap();
+            zip.write_all(b"Name\n").unwrap();
+            zip.write_all(b"Rust\n").unwrap();
+            zip.write_all(b"TypeScript\n").unwrap();
+            zip.write_all(b"Python\n").unwrap();
+
+            // Languages.csv
+            zip.start_file("Languages.csv", options).unwrap();
+            zip.write_all(b"Name,Proficiency\n").unwrap();
+            zip.write_all(b"English,Native or Bilingual Proficiency\n")
+                .unwrap();
+            zip.write_all(b"Spanish,Professional Working Proficiency\n")
+                .unwrap();
+
+            // Email Addresses.csv
+            zip.start_file("Email Addresses.csv", options).unwrap();
+            zip.write_all(b"Email Address\n").unwrap();
+            zip.write_all(b"john.doe@example.com\n").unwrap();
+
+            zip.finish().unwrap();
+        }
+        buffer
+    }
+
+    #[test]
+    fn test_parse_linkedin_zip() {
+        let zip_data = create_test_zip();
+        let parser = LinkedInParser;
+
+        let result = parser.parse(&zip_data);
+        assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+        let resume = result.unwrap();
+
+        // Check basics
+        assert_eq!(resume.basics.name, "John Doe");
+        assert_eq!(resume.basics.headline, "Senior Software Engineer");
+        assert_eq!(resume.basics.email, "john.doe@example.com");
+        assert_eq!(resume.basics.location, "San Francisco Bay Area");
+
+        // Check summary
+        assert!(resume
+            .sections
+            .summary
+            .content
+            .contains("Passionate developer"));
+
+        // Check experience
+        assert_eq!(resume.sections.experience.items.len(), 2);
+
+        // Check education
+        assert_eq!(resume.sections.education.items.len(), 1);
+
+        // Check skills
+        assert!(!resume.sections.skills.items.is_empty());
+
+        // Check languages
+        assert_eq!(resume.sections.languages.items.len(), 2);
+    }
+
+    #[test]
+    fn test_proficiency_to_level() {
+        assert_eq!(proficiency_to_level("Native or Bilingual Proficiency"), 5);
+        assert_eq!(proficiency_to_level("Professional Working Proficiency"), 4);
+        assert_eq!(proficiency_to_level("Limited Working Proficiency"), 3);
+        assert_eq!(proficiency_to_level("Elementary Proficiency"), 2);
+        assert_eq!(proficiency_to_level("Unknown"), 3);
+    }
+
+    #[test]
+    fn test_format_linkedin_date_range() {
+        assert_eq!(
+            format_linkedin_date_range(Some("Jan 2020"), Some("Dec 2022")),
+            "Jan 2020 - Dec 2022"
+        );
+        assert_eq!(
+            format_linkedin_date_range(Some("Jan 2020"), None),
+            "Jan 2020 - Present"
+        );
+        assert_eq!(
+            format_linkedin_date_range(None, Some("Dec 2022")),
+            "Dec 2022"
+        );
+        assert_eq!(format_linkedin_date_range(None, None), "");
+    }
+
+    #[test]
+    fn test_zip_size_limit_rejection() {
+        // Create a ZIP that's too large (exceeds MAX_ZIP_SIZE)
+        let parser = LinkedInParser;
+        let oversized_data = vec![0u8; MAX_ZIP_SIZE + 1];
+
+        let result = parser.parse(&oversized_data);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.to_string().contains("too large"),
+            "Expected 'too large' error, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_zip_entry_count_limit_rejection() {
+        // Create a ZIP with too many entries (exceeds MAX_LINKEDIN_ENTRIES)
+        let mut buffer = Vec::new();
+        {
+            let mut zip = zip::ZipWriter::new(Cursor::new(&mut buffer));
+            let options = zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Stored);
+
+            // Create MAX_LINKEDIN_ENTRIES + 1 empty files
+            for i in 0..=MAX_LINKEDIN_ENTRIES {
+                zip.start_file(format!("file_{}.txt", i), options).unwrap();
+            }
+
+            zip.finish().unwrap();
+        }
+
+        let parser = LinkedInParser;
+        let result = parser.parse(&buffer);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.to_string().contains("too many entries"),
+            "Expected 'too many entries' error, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_csv_with_utf8_bom() {
+        // Create a ZIP with CSV files that have UTF-8 BOM
+        let mut buffer = Vec::new();
+        {
+            let mut zip = zip::ZipWriter::new(Cursor::new(&mut buffer));
+            let options = zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Stored);
+
+            // Profile.csv with UTF-8 BOM prefix
+            zip.start_file("Profile.csv", options).unwrap();
+            // UTF-8 BOM is EF BB BF, which is \u{feff} in Rust
+            zip.write_all("\u{feff}First Name,Last Name,Headline\n".as_bytes())
+                .unwrap();
+            zip.write_all(b"John,Doe,Engineer\n").unwrap();
+
+            zip.finish().unwrap();
+        }
+
+        let parser = LinkedInParser;
+        let result = parser.parse(&buffer);
+        assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+        let resume = result.unwrap();
+        // BOM should be stripped, so first_name should be recognized correctly
+        assert_eq!(resume.basics.name, "John Doe");
+    }
+
+    #[test]
+    fn test_malformed_csv_content() {
+        // Create a ZIP with malformed CSV (unbalanced quotes)
+        let mut buffer = Vec::new();
+        {
+            let mut zip = zip::ZipWriter::new(Cursor::new(&mut buffer));
+            let options = zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Stored);
+
+            // Profile.csv with malformed content (unbalanced quotes)
+            zip.start_file("Profile.csv", options).unwrap();
+            zip.write_all(b"First Name,Last Name,Headline\n").unwrap();
+            zip.write_all(b"John,\"Doe with unclosed quote,Engineer\n")
+                .unwrap();
+
+            zip.finish().unwrap();
+        }
+
+        let parser = LinkedInParser;
+        // The CSV parser is flexible, so it may still parse but with unexpected values
+        // The important thing is that it doesn't panic
+        let result = parser.parse(&buffer);
+        // Should either succeed with partial data or fail gracefully
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[test]
+    fn test_empty_csv_files() {
+        // Create a ZIP with empty CSV files
+        let mut buffer = Vec::new();
+        {
+            let mut zip = zip::ZipWriter::new(Cursor::new(&mut buffer));
+            let options = zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Stored);
+
+            // Empty Profile.csv (just headers, no data)
+            zip.start_file("Profile.csv", options).unwrap();
+            zip.write_all(b"First Name,Last Name,Headline\n").unwrap();
+
+            // Empty Positions.csv
+            zip.start_file("Positions.csv", options).unwrap();
+            zip.write_all(b"Company Name,Title,Description\n").unwrap();
+
+            // Empty Skills.csv
+            zip.start_file("Skills.csv", options).unwrap();
+            zip.write_all(b"Name\n").unwrap();
+
+            zip.finish().unwrap();
+        }
+
+        let parser = LinkedInParser;
+        let result = parser.parse(&buffer);
+        assert!(
+            result.is_ok(),
+            "Failed to parse empty CSVs: {:?}",
+            result.err()
+        );
+
+        let resume = result.unwrap();
+        // Should have empty name since profile has no data rows
+        assert_eq!(resume.basics.name, "");
+        assert!(resume.sections.experience.items.is_empty());
+        assert!(resume.sections.skills.items.is_empty());
+    }
+
+    #[test]
+    fn test_missing_csv_files() {
+        // Create a ZIP with only some CSV files
+        let mut buffer = Vec::new();
+        {
+            let mut zip = zip::ZipWriter::new(Cursor::new(&mut buffer));
+            let options = zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Stored);
+
+            // Only include Profile.csv
+            zip.start_file("Profile.csv", options).unwrap();
+            zip.write_all(b"First Name,Last Name,Headline\n").unwrap();
+            zip.write_all(b"Jane,Smith,Product Manager\n").unwrap();
+
+            zip.finish().unwrap();
+        }
+
+        let parser = LinkedInParser;
+        let result = parser.parse(&buffer);
+        assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+        let resume = result.unwrap();
+        assert_eq!(resume.basics.name, "Jane Smith");
+        // Other sections should be empty but not cause errors
+        assert!(resume.sections.experience.items.is_empty());
+        assert!(resume.sections.education.items.is_empty());
+        assert!(resume.sections.skills.items.is_empty());
+    }
+
+    #[test]
+    fn test_invalid_zip_archive() {
+        // Test with data that's not a valid ZIP archive
+        let parser = LinkedInParser;
+        let invalid_data = b"This is not a ZIP file";
+
+        let result = parser.parse(invalid_data);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.to_string().contains("ZIP") || err.to_string().contains("archive"),
+            "Expected ZIP-related error, got: {}",
+            err
+        );
+    }
+}

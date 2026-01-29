@@ -20,6 +20,10 @@ name: Quality - Lint & Format
 permissions:
   contents: read
 
+env:
+  # yamllint disable-line rule:line-length
+  LINTRO_IMAGE: ghcr.io/turbocoder13/py-lintro@sha256:9a1a209798f895193843a435817407693fc4a2a194b8b4bbaa2eea834ca11044
+
 jobs:
   lintro-analysis:
     name: 🛠️ Lintro Code Quality & Analysis
@@ -50,24 +54,25 @@ jobs:
             objects.githubusercontent.com:443
             ghcr.io:443
             pkg-containers.githubusercontent.com:443
+            index.crates.io:443
+            static.crates.io:443
+            crates.io:443
+            semgrep.dev:443
 
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
 
-      - name: Pull lintro image
-        run: docker pull ghcr.io/turbocoder13/py-lintro:latest
-
       - name: Run Lintro Analysis in Docker
         id: lintro
         run: |
           # Disable exit-on-error to capture exit code
           set +eo pipefail
-          docker run --rm \
+          docker run --rm --pull=always \
             -v "${{ github.workspace }}:/workspace" \
             -w /workspace \
-            ghcr.io/turbocoder13/py-lintro:latest \
+            "$LINTRO_IMAGE" \
             check . 2>&1 | tee chk-output.txt
           EXIT_CODE=${PIPESTATUS[0]}
           echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
