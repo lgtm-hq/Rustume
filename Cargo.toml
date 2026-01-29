@@ -6,7 +6,7 @@ members = ["crates/*", "bindings/*"]
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-repository = "https://github.com/TurboCoder13/Rustume"
+repository = "https://github.com/lgtm-hq/Rustume"
 
 [workspace.dependencies]
 # Serialization

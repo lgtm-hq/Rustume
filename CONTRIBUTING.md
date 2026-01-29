@@ -24,7 +24,7 @@ guidelines and information for contributors.
 
 ```bash
 # Clone the repository
-git clone https://github.com/TurboCoder13/Rustume.git
+git clone https://github.com/lgtm-hq/Rustume.git
 cd Rustume
 
 # Build all crates
