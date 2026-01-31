@@ -1,0 +1,249 @@
+@import "tailwindcss";
+
+/* Design Tokens - Editorial Precision */
+/* turbo-themes CSS variables (set by JS) */
+:root {
+  --turbo-bg-base: #1e1e2e;
+  --turbo-bg-surface: #181825;
+  --turbo-bg-overlay: #11111b;
+  --turbo-text-primary: #cdd6f4;
+  --turbo-text-secondary: #a6adc8;
+  --turbo-text-inverse: #1e1e2e;
+  --turbo-brand-primary: #89b4fa;
+  --turbo-accent-link: #89b4fa;
+  --turbo-state-info: #89dceb;
+  --turbo-state-success: #a6e3a1;
+  --turbo-state-warning: #f9e2af;
+  --turbo-state-danger: #f38ba8;
+  --turbo-border-default: #6c7086;
+  --turbo-selection-bg: #7f849c;
+}
+
+@theme {
+  /* Colors - mapped from turbo-themes */
+  --color-ink: var(--turbo-text-primary);
+  --color-paper: var(--turbo-bg-base);
+  --color-stone: var(--turbo-text-secondary);
+  --color-accent: var(--turbo-brand-primary);
+  --color-accent-light: var(--turbo-bg-overlay);
+  --color-surface: var(--turbo-bg-surface);
+  --color-border: var(--turbo-border-default);
+  --color-shadow: rgba(0, 0, 0, 0.15);
+  --color-offline: var(--turbo-state-warning);
+
+  /* Typography */
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "Source Serif 4", Georgia, serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  /* Spacing */
+  --spacing-section: 2rem;
+
+  /* Shadows */
+  --shadow-soft: 0 2px 8px var(--color-shadow);
+  --shadow-card: 0 4px 24px var(--color-shadow), 0 1px 4px var(--color-shadow);
+  --shadow-paper: 0 8px 40px rgba(26, 26, 26, 0.12),
+    0 2px 8px rgba(26, 26, 26, 0.08);
+  --shadow-elevated: 0 12px 48px rgba(26, 26, 26, 0.16),
+    0 4px 12px rgba(26, 26, 26, 0.1);
+
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Animations */
+  --animate-fade-in: fade-in 0.4s ease-out;
+  --animate-slide-up: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-ink-drop: ink-drop 0.6s ease-out;
+  --animate-pulse-subtle: pulse-subtle 2s ease-in-out infinite;
+}
+
+/* Keyframes */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ink-drop {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes pulse-subtle {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes stagger-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Base Styles */
+html {
+  font-family: var(--font-body);
+  color: var(--color-ink);
+  background: var(--color-paper);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Focus States */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Selection */
+::selection {
+  background: var(--color-accent-light);
+  color: var(--color-ink);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-surface);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-stone);
+}
+
+/* Paper texture overlay for preview */
+.paper-texture {
+  position: relative;
+}
+
+.paper-texture::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+}
+
+/* Staggered animation helper */
+.stagger-children > * {
+  animation: stagger-in 0.4s ease-out backwards;
+}
+
+.stagger-children > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.stagger-children > *:nth-child(2) {
+  animation-delay: 50ms;
+}
+.stagger-children > *:nth-child(3) {
+  animation-delay: 100ms;
+}
+.stagger-children > *:nth-child(4) {
+  animation-delay: 150ms;
+}
+.stagger-children > *:nth-child(5) {
+  animation-delay: 200ms;
+}
+.stagger-children > *:nth-child(6) {
+  animation-delay: 250ms;
+}
+.stagger-children > *:nth-child(7) {
+  animation-delay: 300ms;
+}
+.stagger-children > *:nth-child(8) {
+  animation-delay: 350ms;
+}
+
+/* Typography utilities */
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-body {
+  font-family: var(--font-body);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* Kobalte overrides */
+[data-kb-popper-content-wrapper] {
+  z-index: 50 !important;
+}
+
+/* Kobalte Tooltip */
+[data-kb-tooltip-content] {
+  animation: tooltip-in 0.15s ease-out;
+}
+
+@keyframes tooltip-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Tooltip arrow */
+[data-kb-tooltip-arrow] {
+  fill: var(--color-ink);
+}
