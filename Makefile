@@ -15,9 +15,8 @@ check-deps:
 	@rustup target list --installed 2>/dev/null | grep -q wasm32-unknown-unknown || \
 		(rustc --print sysroot | xargs -I{} test -d "{}/lib/rustlib/wasm32-unknown-unknown" 2>/dev/null) || \
 		{ echo "Error: wasm32-unknown-unknown target not installed."; \
-		  echo "  If using rustup: rustup target add wasm32-unknown-unknown"; \
-		  echo "  If using Homebrew: brew install rust --with-target-wasm32-unknown-unknown"; \
-		  echo "  Or switch to rustup: https://rustup.rs"; \
+		  echo "  Run: rustup target add wasm32-unknown-unknown"; \
+		  echo "  (If you don't have rustup, install from: https://rustup.rs)"; \
 		  exit 1; }
 	@echo "All dependencies OK!"
 
@@ -80,21 +79,33 @@ test:
 	@echo "Running Rust tests..."
 	cargo test --workspace
 	@echo "Running web tests..."
-	cd apps/web && bun test || echo "No web tests configured"
+	@if grep -q '"test"' apps/web/package.json 2>/dev/null; then \
+		cd apps/web && bun test; \
+	else \
+		echo "Skipping web tests (no test script configured)"; \
+	fi
 
 # Lint everything
 lint:
 	@echo "Linting Rust..."
 	cargo clippy --workspace -- -D warnings
 	@echo "Linting web..."
-	cd apps/web && bun run lint || echo "No lint script configured"
+	@if grep -q '"lint"' apps/web/package.json 2>/dev/null; then \
+		cd apps/web && bun run lint; \
+	else \
+		echo "Skipping web lint (no lint script configured)"; \
+	fi
 
 # Format everything
 fmt:
 	@echo "Formatting Rust..."
 	cargo fmt --all
 	@echo "Formatting web..."
-	cd apps/web && bun run fmt || echo "No fmt script configured"
+	@if grep -q '"fmt"' apps/web/package.json 2>/dev/null; then \
+		cd apps/web && bun run fmt; \
+	else \
+		echo "Skipping web fmt (no fmt script configured)"; \
+	fi
 
 # Clean build artifacts
 clean:

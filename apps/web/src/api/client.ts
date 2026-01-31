@@ -12,12 +12,19 @@ export class ApiError extends Error {
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
+
+  // Only set Content-Type for methods that send a body
+  const headers: HeadersInit = { ...options.headers };
+  const method = options.method?.toUpperCase() || "GET";
+  const hasBody = options.body !== undefined && options.body !== null;
+
+  if (hasBody || ["POST", "PUT", "PATCH"].includes(method)) {
+    (headers as Record<string, string>)["Content-Type"] = "application/json";
+  }
+
   const response = await fetch(url, {
     ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
+    headers,
   });
 
   if (!response.ok) {

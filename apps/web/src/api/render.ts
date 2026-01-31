@@ -32,11 +32,25 @@ function getCacheKey(resume: ResumeData, template: string, page: number): string
   return hash.toString(36);
 }
 
+// Clean up expired cache entries to prevent memory leaks
+function cleanupExpiredCache(): void {
+  const now = Date.now();
+  for (const [key, entry] of previewCache.entries()) {
+    if (now - entry.timestamp >= CACHE_TTL) {
+      URL.revokeObjectURL(entry.url);
+      previewCache.delete(key);
+    }
+  }
+}
+
 export async function renderPreview(
   resume: ResumeData,
   page: number = 0,
   template?: string,
 ): Promise<string> {
+  // Clean up expired entries before processing
+  cleanupExpiredCache();
+
   const templateName = template || resume.metadata.template;
   const cacheKey = getCacheKey(resume, templateName, page);
 
