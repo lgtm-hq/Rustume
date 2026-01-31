@@ -29,8 +29,8 @@ permissions:
   contents: read
 
 env:
-  # Use the lgtm-hq py-lintro image (pinned to v0.41.0)
-  LINTRO_IMAGE: ghcr.io/lgtm-hq/py-lintro:v0.41.0
+  # yamllint disable-line rule:line-length
+  LINTRO_IMAGE: ghcr.io/lgtm-hq/py-lintro@sha256:d35f3637c5ee7eabb7f81572bb202cad6ded44c73bdc5cafa1e2ac8a660a2669
 
 jobs:
   lintro-analysis:
