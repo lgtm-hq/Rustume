@@ -17,18 +17,21 @@ wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true
 js-sys.workspace = true
 web-sys = { workspace = true, features = [
-  "Window",
-  "IdbFactory",
+  "console",
+  "DomStringList",
+  "Event",
+  "EventTarget",
+  "DomException",
   "IdbDatabase",
+  "IdbFactory",
   "IdbObjectStore",
   "IdbObjectStoreParameters",
+  "IdbOpenDbRequest",
   "IdbRequest",
   "IdbTransaction",
   "IdbTransactionMode",
   "IdbVersionChangeEvent",
-  "DomException",
-  "Event",
-  "EventTarget",
+  "Window",
 ] }
 
 [dev-dependencies]
