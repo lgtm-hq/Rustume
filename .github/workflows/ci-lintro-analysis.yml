@@ -67,12 +67,16 @@ jobs:
 
       - name: Run Lintro Analysis
         id: lintro
+        env:
+          # Pin to specific image digest for reproducibility
+          # yamllint disable-line rule:line-length
+          LINTRO_IMAGE: ghcr.io/lgtm-hq/py-lintro@sha256:db35d507b7106db73f4c51b789143d59d8294bb6c347afd038cd609dcad4ee95
         run: |
           # Disable exit-on-error to capture exit code
           set +eo pipefail
           docker run --rm \
             -v "${{ github.workspace }}:/code" \
-            ghcr.io/lgtm-hq/py-lintro:latest \
+            "$LINTRO_IMAGE" \
             check --output-format grid 2>&1 | tee chk-output.txt
           EXIT_CODE=${PIPESTATUS[0]}
           echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
