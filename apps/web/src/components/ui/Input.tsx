@@ -17,7 +17,7 @@ export interface InputProps {
 }
 
 export function Input(props: InputProps) {
-  const [local, _others] = splitProps(props, [
+  const [local, others] = splitProps(props, [
     "label",
     "description",
     "error",
@@ -58,6 +58,7 @@ export function Input(props: InputProps) {
           transition-colors duration-150
           ${local.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
           ${local.inputClass || ""}`}
+        {...others}
       />
 
       <Show when={local.description && !local.error}>

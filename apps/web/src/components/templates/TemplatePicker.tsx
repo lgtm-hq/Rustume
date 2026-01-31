@@ -50,23 +50,26 @@ export function TemplatePicker() {
           </div>
         }
       >
-        <Show when={templates.error}>
-          <div class="text-center py-8 text-red-600">
-            Failed to load templates. Please try again.
+        <Show
+          when={!templates.error}
+          fallback={
+            <div class="text-center py-8 text-red-600">
+              Failed to load templates. Please try again.
+            </div>
+          }
+        >
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-[70vh] overflow-y-auto p-1">
+            <For each={templates()}>
+              {(template) => (
+                <TemplateCard
+                  template={template}
+                  isSelected={store.resume?.metadata.template === template.id}
+                  onSelect={handleSelect}
+                />
+              )}
+            </For>
           </div>
         </Show>
-
-        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-[70vh] overflow-y-auto p-1">
-          <For each={templates()}>
-            {(template) => (
-              <TemplateCard
-                template={template}
-                isSelected={store.resume?.metadata.template === template.id}
-                onSelect={handleSelect}
-              />
-            )}
-          </For>
-        </div>
       </Show>
 
       <div class="mt-6 pt-4 border-t border-border flex justify-end">

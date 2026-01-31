@@ -59,11 +59,11 @@ export function useUiStore() {
     },
 
     zoomIn() {
-      setUiState("previewZoom", Math.min(2, uiState.previewZoom + 0.1));
+      setUiState("previewZoom", Math.min(2, Math.round((uiState.previewZoom + 0.1) * 10) / 10));
     },
 
     zoomOut() {
-      setUiState("previewZoom", Math.max(0.5, uiState.previewZoom - 0.1));
+      setUiState("previewZoom", Math.max(0.5, Math.round((uiState.previewZoom - 0.1) * 10) / 10));
     },
   };
 }

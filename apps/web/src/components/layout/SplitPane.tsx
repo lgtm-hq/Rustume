@@ -13,6 +13,7 @@ export interface SplitPaneProps {
 export const SplitPane: ParentComponent<SplitPaneProps> = (props) => {
   const [ratio, setRatio] = createSignal(props.defaultRatio ?? 0.5);
   const [isDragging, setIsDragging] = createSignal(false);
+  let containerRef: HTMLDivElement | undefined;
 
   const showLeft = () => props.showLeft ?? true;
   const showRight = () => props.showRight ?? true;
@@ -24,10 +25,9 @@ export const SplitPane: ParentComponent<SplitPaneProps> = (props) => {
     setIsDragging(true);
 
     const handleMouseMove = (e: MouseEvent) => {
-      const container = document.getElementById("split-container");
-      if (!container) return;
+      if (!containerRef) return;
 
-      const rect = container.getBoundingClientRect();
+      const rect = containerRef.getBoundingClientRect();
       const x = e.clientX - rect.left;
       let newRatio = x / rect.width;
 
@@ -51,7 +51,11 @@ export const SplitPane: ParentComponent<SplitPaneProps> = (props) => {
   };
 
   return (
-    <div id="split-container" class="flex h-full" classList={{ "select-none": isDragging() }}>
+    <div
+      ref={(el) => (containerRef = el)}
+      class="flex h-full"
+      classList={{ "select-none": isDragging() }}
+    >
       {/* Left Pane */}
       <Show when={showLeft()}>
         <div
@@ -67,6 +71,8 @@ export const SplitPane: ParentComponent<SplitPaneProps> = (props) => {
       {/* Divider */}
       <Show when={showLeft() && showRight()}>
         <div
+          role="separator"
+          aria-orientation="vertical"
           class="w-1 bg-border hover:bg-accent cursor-col-resize
             transition-colors duration-150 flex-shrink-0 relative group"
           classList={{ "bg-accent": isDragging() }}

@@ -17,7 +17,13 @@ const STORAGE_KEY_PREFIX = "rustume:";
 
 function listLocalResumes(): string[] {
   const ids = localStorage.getItem(STORAGE_KEY_PREFIX + "_ids");
-  return ids ? JSON.parse(ids) : [];
+  if (!ids) return [];
+  try {
+    return JSON.parse(ids) as string[];
+  } catch {
+    console.error("Failed to parse resume IDs from localStorage");
+    return [];
+  }
 }
 
 function deleteLocalResume(id: string): void {

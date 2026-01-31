@@ -93,8 +93,11 @@ export async function fetchTemplates(): Promise<TemplateInfo[]> {
 }
 
 export function getTemplateThumbnailUrl(templateId: string): string {
-  // Use the API URL for template thumbnails
-  const baseUrl = import.meta.env.VITE_API_URL || "";
+  // Use the API URL for template thumbnails, normalizing to avoid double /api
+  let baseUrl = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
+  if (baseUrl.endsWith("/api")) {
+    baseUrl = baseUrl.slice(0, -4);
+  }
   return `${baseUrl}/api/templates/${templateId}/thumbnail`;
 }
 

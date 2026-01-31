@@ -8,9 +8,21 @@ import {
   parseLinkedInExport,
   isWasmReady,
 } from "../../wasm";
+import type { ResumeData } from "../../wasm/types";
 import { parseResume } from "../../api/render";
 
 type ImportFormat = "json-resume" | "rrv3" | "linkedin" | "rustume";
+
+// Safe base64 encoding for large arrays (avoids call stack overflow)
+function uint8ArrayToBase64(data: Uint8Array): string {
+  const CHUNK_SIZE = 0x8000; // 32KB chunks
+  const chunks: string[] = [];
+  for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+    const chunk = data.subarray(i, i + CHUNK_SIZE);
+    chunks.push(String.fromCharCode.apply(null, chunk as unknown as number[]));
+  }
+  return btoa(chunks.join(""));
+}
 
 export function ImportModal() {
   const { store: ui, closeModal } = uiStore;
@@ -43,8 +55,8 @@ export function ImportModal() {
           const resume = parseLinkedInExport(data);
           importResume(resume);
         } else {
-          // Use server API
-          const base64 = btoa(String.fromCharCode(...data));
+          // Use server API with safe chunked base64 encoding
+          const base64 = uint8ArrayToBase64(data);
           const resume = await parseResume({
             format: "linkedin",
             data: base64,
@@ -55,7 +67,7 @@ export function ImportModal() {
       } else {
         // JSON formats
         const text = await file.text();
-        let parsed: ReturnType<typeof parseJsonResume>;
+        let parsed: ResumeData;
 
         // Try to detect format from content
         const json = JSON.parse(text);
@@ -67,9 +79,9 @@ export function ImportModal() {
           } else if (json.basics) {
             // JSON Resume format
             parsed = parseJsonResume(text);
-          } else if (json.sections) {
-            // Native Rustume format
-            parsed = json;
+          } else if (json.sections && json.metadata) {
+            // Native Rustume format - validate basic structure
+            parsed = json as ResumeData;
           } else {
             throw new Error("Unrecognized resume format");
           }

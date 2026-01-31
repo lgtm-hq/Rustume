@@ -9,14 +9,14 @@ export interface ModalProps {
   size?: "sm" | "md" | "lg" | "xl";
 }
 
-export const Modal: ParentComponent<ModalProps> = (props) => {
-  const sizeClasses = {
-    sm: "max-w-sm",
-    md: "max-w-md",
-    lg: "max-w-lg",
-    xl: "max-w-xl",
-  };
+const SIZE_CLASSES = {
+  sm: "max-w-sm",
+  md: "max-w-md",
+  lg: "max-w-lg",
+  xl: "max-w-xl",
+} as const;
 
+export const Modal: ParentComponent<ModalProps> = (props) => {
   const size = () => props.size || "md";
 
   return (
@@ -25,7 +25,7 @@ export const Modal: ParentComponent<ModalProps> = (props) => {
         <Dialog.Overlay class="fixed inset-0 bg-ink/40 backdrop-blur-sm z-40 animate-fade-in" />
         <div class="fixed inset-0 flex items-center justify-center z-50 p-4">
           <Dialog.Content
-            class={`bg-paper rounded-xl shadow-elevated w-full ${sizeClasses[size()]}
+            class={`bg-paper rounded-xl shadow-elevated w-full ${SIZE_CLASSES[size()]}
               animate-slide-up overflow-hidden`}
           >
             <div class="px-6 py-5 border-b border-border">

@@ -80,21 +80,21 @@ test:
 	@echo "Running Rust tests..."
 	cargo test --workspace
 	@echo "Running web tests..."
-	cd apps/web && bun test 2>/dev/null || echo "No web tests configured"
+	cd apps/web && bun test || echo "No web tests configured"
 
 # Lint everything
 lint:
 	@echo "Linting Rust..."
 	cargo clippy --workspace -- -D warnings
 	@echo "Linting web..."
-	cd apps/web && bun run lint 2>/dev/null || echo "No lint script configured"
+	cd apps/web && bun run lint || echo "No lint script configured"
 
 # Format everything
 fmt:
 	@echo "Formatting Rust..."
 	cargo fmt --all
 	@echo "Formatting web..."
-	cd apps/web && bun run fmt 2>/dev/null || echo "No fmt script configured"
+	cd apps/web && bun run fmt || echo "No fmt script configured"
 
 # Clean build artifacts
 clean:
@@ -105,6 +105,9 @@ clean:
 
 # Deep clean - also clears cargo cache (frees significant disk space)
 clean-all: clean
+	@echo "WARNING: This will clear your global cargo cache (~/.cargo/registry/cache and ~/.cargo/git/checkouts)"
+	@echo "This affects ALL Rust projects on your system, not just this one."
+	@read -p "Are you sure? [y/N] " confirm && [ "$$confirm" = "y" ] || { echo "Aborted."; exit 1; }
 	@echo "Cleaning cargo registry cache..."
 	rm -rf ~/.cargo/registry/cache/*
 	@echo "Cleaning cargo git cache..."

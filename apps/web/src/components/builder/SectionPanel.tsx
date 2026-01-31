@@ -84,23 +84,9 @@ export function SectionPanel() {
 
   const visibleCount = () => {
     if (!store.resume) return 0;
-    let count = store.resume.sections.summary.visible ? 1 : 0;
-    const sectionKeys: SectionKey[] = [
-      "experience",
-      "education",
-      "skills",
-      "projects",
-      "profiles",
-      "certifications",
-      "awards",
-      "publications",
-      "languages",
-      "interests",
-      "volunteer",
-      "references",
-    ];
-    for (const key of sectionKeys) {
-      if (store.resume.sections[key].visible) count++;
+    let count = 0;
+    for (const section of SECTIONS) {
+      if (isVisible(section.key)) count++;
     }
     return count;
   };

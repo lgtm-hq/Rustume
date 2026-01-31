@@ -89,7 +89,7 @@ export default defineConfig({
     target: "esnext",
     rollupOptions: {
       // Handle dynamic WASM import - will fail gracefully at runtime if not present
-      external: (id) => id.includes("rustume_wasm"),
+      external: (id) => /\/wasm\/rustume_wasm/.test(id),
     },
   },
   optimizeDeps: {

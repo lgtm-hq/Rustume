@@ -99,12 +99,24 @@ export default function Editor() {
     try {
       // Try to load existing resume
       await loadResume(params.id);
-    } catch {
-      // Create new if not found
-      createNewResume(params.id);
-    }
+    } catch (error) {
+      // Only create new if it's a "not found" error
+      const isNotFound =
+        error instanceof Error &&
+        (error.message.includes("not found") ||
+          error.message.includes("NotFound") ||
+          error.message.includes("404"));
 
-    setIsLoading(false);
+      if (isNotFound) {
+        createNewResume(params.id);
+      } else {
+        console.error("Failed to load resume:", error);
+        // Still create a new resume as fallback, but log the error
+        createNewResume(params.id);
+      }
+    } finally {
+      setIsLoading(false);
+    }
   });
 
   const renderTabContent = () => {

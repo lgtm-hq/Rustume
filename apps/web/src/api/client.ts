@@ -31,7 +31,8 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     return response.json();
   }
 
-  return response as unknown as T;
+  // Return text body for non-JSON responses
+  return (await response.text()) as unknown as T;
 }
 
 export async function get<T>(endpoint: string): Promise<T> {

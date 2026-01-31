@@ -236,11 +236,24 @@ interface ColorInputProps {
   onChange: (value: string) => void;
 }
 
+const HEX_COLOR_REGEX = /^#[0-9A-Fa-f]{6}$/;
+
+function isValidHexColor(value: string): boolean {
+  return HEX_COLOR_REGEX.test(value);
+}
+
 function ColorInput(props: ColorInputProps) {
   let colorInputRef: HTMLInputElement | undefined;
 
   const openColorPicker = () => {
     colorInputRef?.click();
+  };
+
+  const handleTextInput = (value: string) => {
+    // Only update if it's a valid hex color
+    if (isValidHexColor(value)) {
+      props.onChange(value);
+    }
   };
 
   return (
@@ -273,11 +286,12 @@ function ColorInput(props: ColorInputProps) {
       <input
         type="text"
         value={props.value}
-        onInput={(e) => props.onChange(e.currentTarget.value)}
+        onInput={(e) => handleTextInput(e.currentTarget.value)}
         class="w-full px-2 py-1.5 text-xs font-mono text-center bg-surface border border-border
           rounded-lg focus:outline-none focus:border-accent uppercase"
         maxLength={7}
         placeholder="#000000"
+        pattern="^#[0-9A-Fa-f]{6}$"
       />
     </div>
   );

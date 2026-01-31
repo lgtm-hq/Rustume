@@ -16,7 +16,15 @@ export function ExportModal() {
 
   const getFileName = () => {
     const name = store.resume?.basics.name || "resume";
-    return name.toLowerCase().replace(/\s+/g, "-");
+    // Remove characters that are problematic in filenames
+    return (
+      name
+        .toLowerCase()
+        .replace(/[<>:"/\\|?*]/g, "")
+        .replace(/\s+/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "") || "resume"
+    );
   };
 
   const handleExportPdf = async () => {

@@ -15,6 +15,10 @@ export function Preview() {
   const [error, setError] = createSignal<string | null>(null);
   const [lastCachedUrl, setLastCachedUrl] = createSignal<string | null>(null);
 
+  // Request ID to guard against race conditions
+  let resumeRequestId = 0;
+  let pageRequestId = 0;
+
   // Debounce the resume data to avoid too many preview requests
   const debouncedResume = useDebounce(
     () => (store.resume ? JSON.stringify(store.resume) : null),
@@ -32,16 +36,19 @@ export function Preview() {
       return;
     }
 
+    const currentRequestId = ++resumeRequestId;
     setIsLoading(true);
     setError(null);
 
     renderPreview(store.resume, ui.previewPage)
       .then((url) => {
+        if (currentRequestId !== resumeRequestId) return;
         setPreviewUrl(url);
         setLastCachedUrl(url);
         setError(null);
       })
       .catch((e) => {
+        if (currentRequestId !== resumeRequestId) return;
         console.error("Preview error:", e);
         setError(e.message || "Failed to load preview");
         // Keep showing last cached preview
@@ -50,7 +57,9 @@ export function Preview() {
         }
       })
       .finally(() => {
-        setIsLoading(false);
+        if (currentRequestId === resumeRequestId) {
+          setIsLoading(false);
+        }
       });
   });
 
@@ -59,18 +68,25 @@ export function Preview() {
     const page = ui.previewPage;
     if (!store.resume || !isOnline()) return;
 
+    const currentRequestId = ++pageRequestId;
     setIsLoading(true);
+    setError(null);
+
     renderPreview(store.resume, page)
       .then((url) => {
+        if (currentRequestId !== pageRequestId) return;
         setPreviewUrl(url);
         setLastCachedUrl(url);
         setError(null);
       })
       .catch((e) => {
+        if (currentRequestId !== pageRequestId) return;
         setError(e.message);
       })
       .finally(() => {
-        setIsLoading(false);
+        if (currentRequestId === pageRequestId) {
+          setIsLoading(false);
+        }
       });
   });
 

@@ -16,9 +16,13 @@ export interface EditorThemeState {
 // Get initial theme from localStorage or default to catppuccin-mocha
 function getInitialTheme(): string {
   if (typeof window === "undefined") return "catppuccin-mocha";
-  const saved = localStorage.getItem(STORAGE_KEY);
-  if (saved && flavors.some((f) => f.id === saved)) {
-    return saved;
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved && flavors.some((f) => f.id === saved)) {
+      return saved;
+    }
+  } catch {
+    console.error("Failed to read theme from localStorage");
   }
   return "catppuccin-mocha";
 }
@@ -75,7 +79,11 @@ export function useEditorTheme() {
       if (!theme) return;
 
       setState("themeId", themeId);
-      localStorage.setItem(STORAGE_KEY, themeId);
+      try {
+        localStorage.setItem(STORAGE_KEY, themeId);
+      } catch {
+        console.error("Failed to save theme to localStorage");
+      }
       applyTheme(theme);
     },
 

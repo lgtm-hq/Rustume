@@ -57,7 +57,13 @@ const STORAGE_KEY_PREFIX = "rustume:";
 function saveToLocalStorage(id: string, data: ResumeData): void {
   localStorage.setItem(STORAGE_KEY_PREFIX + id, JSON.stringify(data));
   // Also update the list of resume IDs
-  const ids = JSON.parse(localStorage.getItem(STORAGE_KEY_PREFIX + "_ids") || "[]") as string[];
+  let ids: string[] = [];
+  try {
+    ids = JSON.parse(localStorage.getItem(STORAGE_KEY_PREFIX + "_ids") || "[]") as string[];
+  } catch {
+    console.error("Failed to parse resume IDs from localStorage, resetting list");
+    ids = [];
+  }
   if (!ids.includes(id)) {
     ids.push(id);
     localStorage.setItem(STORAGE_KEY_PREFIX + "_ids", JSON.stringify(ids));
@@ -67,7 +73,12 @@ function saveToLocalStorage(id: string, data: ResumeData): void {
 function getFromLocalStorage(id: string): ResumeData | null {
   const data = localStorage.getItem(STORAGE_KEY_PREFIX + id);
   if (!data) return null;
-  return JSON.parse(data) as ResumeData;
+  try {
+    return JSON.parse(data) as ResumeData;
+  } catch {
+    console.error("Failed to parse resume data from localStorage:", id);
+    return null;
+  }
 }
 
 async function saveResume(id: string, data: ResumeData): Promise<void> {

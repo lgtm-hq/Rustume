@@ -138,10 +138,23 @@ export function SectionList() {
               </div>
 
               <div
-                class={`w-8 h-5 rounded-full transition-colors relative ${
+                role="switch"
+                aria-checked={isVisible(section.key)}
+                tabIndex={0}
+                class={`w-8 h-5 rounded-full transition-colors relative cursor-pointer ${
                   isVisible(section.key) ? "bg-accent" : "bg-border"
                 }`}
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleSectionVisibility(section.key);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleSectionVisibility(section.key);
+                  }
+                }}
               >
                 <div
                   class={`absolute top-0.5 w-4 h-4 bg-paper rounded-full shadow-sm

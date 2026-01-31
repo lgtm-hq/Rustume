@@ -36,6 +36,7 @@ export function TextArea(props: TextAreaProps) {
       value={local.value}
       onChange={local.onChange}
       disabled={local.disabled}
+      required={local.required}
       validationState={local.error ? "invalid" : "valid"}
     >
       <Show when={local.label}>
@@ -48,6 +49,7 @@ export function TextArea(props: TextAreaProps) {
       <TextField.TextArea
         placeholder={local.placeholder}
         rows={local.rows || 4}
+        required={local.required}
         onInput={(e) => local.onInput?.(e.currentTarget.value)}
         class={`w-full px-3 py-2 bg-paper border border-border rounded-lg font-body text-ink resize-y
           placeholder:text-stone/50

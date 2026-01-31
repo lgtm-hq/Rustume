@@ -77,22 +77,28 @@ export const Accordion: ParentComponent<AccordionProps> = (props) => {
   );
 };
 
-// Add accordion animation to CSS
-const style = document.createElement("style");
-style.textContent = `
-  @keyframes accordion-down {
-    from { height: 0; opacity: 0; }
-    to { height: var(--kb-accordion-content-height); opacity: 1; }
+// Add accordion animation to CSS (SSR-safe)
+if (typeof document !== "undefined") {
+  const styleId = "accordion-animations";
+  if (!document.getElementById(styleId)) {
+    const style = document.createElement("style");
+    style.id = styleId;
+    style.textContent = `
+      @keyframes accordion-down {
+        from { height: 0; opacity: 0; }
+        to { height: var(--kb-accordion-content-height); opacity: 1; }
+      }
+      @keyframes accordion-up {
+        from { height: var(--kb-accordion-content-height); opacity: 1; }
+        to { height: 0; opacity: 0; }
+      }
+      [data-kb-accordion-content][data-expanded] {
+        animation: accordion-down 200ms ease-out;
+      }
+      [data-kb-accordion-content][data-closed] {
+        animation: accordion-up 200ms ease-out;
+      }
+    `;
+    document.head.appendChild(style);
   }
-  @keyframes accordion-up {
-    from { height: var(--kb-accordion-content-height); opacity: 1; }
-    to { height: 0; opacity: 0; }
-  }
-  [data-kb-accordion-content][data-expanded] {
-    animation: accordion-down 200ms ease-out;
-  }
-  [data-kb-accordion-content][data-closed] {
-    animation: accordion-up 200ms ease-out;
-  }
-`;
-document.head.appendChild(style);
+}

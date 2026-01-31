@@ -169,8 +169,10 @@ export default function Home() {
 
                     <div class="flex items-center gap-2">
                       <button
-                        class="p-2 text-stone hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        class="p-2 text-stone hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors
+                          disabled:opacity-50 disabled:cursor-not-allowed"
                         onClick={(e) => handleDelete(resume.id, e)}
+                        disabled={deletingId() !== null}
                         title="Delete"
                       >
                         <Show

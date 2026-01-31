@@ -4,6 +4,26 @@ import { resumeStore, type SectionKey } from "../../stores/resume";
 import { generateId, createEmptyUrl } from "../../wasm/types";
 import type { Experience, Education, Skill, Project } from "../../wasm/types";
 
+// Singularize section titles for better UX
+const SINGULAR_MAP: Record<string, string> = {
+  Experience: "experience",
+  Education: "education",
+  Skills: "skill",
+  Projects: "project",
+  Profiles: "profile",
+  Certifications: "certification",
+  Awards: "award",
+  Publications: "publication",
+  Languages: "language",
+  Interests: "interest",
+  Volunteer: "volunteer",
+  References: "reference",
+};
+
+function singularize(title: string): string {
+  return SINGULAR_MAP[title] || title.toLowerCase().replace(/s$/, "");
+}
+
 interface SectionEditorProps<T> {
   sectionKey: SectionKey;
   title: string;
@@ -220,7 +240,7 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
           <div class="py-8 text-center">
             <p class="text-stone text-sm mb-3">No items yet</p>
             <Button variant="secondary" size="sm" onClick={handleAdd}>
-              Add your first {props.title.toLowerCase().slice(0, -1)}
+              Add your first {singularize(props.title)}
             </Button>
           </div>
         </Show>

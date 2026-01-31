@@ -52,10 +52,13 @@ export function Sidebar(props: SidebarProps) {
       {/* Pin Button */}
       <div class="px-2 mb-2">
         <button
+          type="button"
           class={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors
             ${isPinned() ? "bg-accent/10 text-accent" : "text-stone hover:text-ink hover:bg-paper"}`}
           onClick={() => setIsPinned(!isPinned())}
           title={isPinned() ? "Unpin sidebar" : "Pin sidebar"}
+          aria-label={isPinned() ? "Unpin sidebar" : "Pin sidebar"}
+          aria-pressed={isPinned()}
         >
           <svg
             class={`w-4 h-4 flex-shrink-0 transition-transform ${isPinned() ? "" : "rotate-45"}`}
@@ -89,6 +92,8 @@ export function Sidebar(props: SidebarProps) {
                 <Tooltip placement="right" openDelay={100} closeDelay={0}>
                   <Tooltip.Trigger
                     as="button"
+                    type="button"
+                    aria-label={item.label}
                     class={`w-full p-2.5 flex items-center justify-center rounded-lg transition-colors
                       ${
                         props.activeId === item.id
@@ -116,6 +121,8 @@ export function Sidebar(props: SidebarProps) {
               }
             >
               <button
+                type="button"
+                aria-label={item.label}
                 class={`w-full px-2.5 py-2 flex items-center gap-3 rounded-lg transition-colors
                   ${
                     props.activeId === item.id
