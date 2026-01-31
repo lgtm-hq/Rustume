@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: MIT
 ---
 name: Quality - Lint & Format
-# Runs lintro quality analysis on PRs and pushes using Docker.
-# Uses py-lintro image with lintro CLI and all linting tools.
+# Runs lintro quality analysis on PRs and pushes.
+# Uses uv to install lintro and run checks.
 
 "on":
   push:
@@ -27,10 +27,6 @@ name: Quality - Lint & Format
 
 permissions:
   contents: read
-
-env:
-  # yamllint disable-line rule:line-length
-  LINTRO_IMAGE: ghcr.io/lgtm-hq/py-lintro@sha256:d35f3637c5ee7eabb7f81572bb202cad6ded44c73bdc5cafa1e2ac8a660a2669
 
 jobs:
   lintro-analysis:
@@ -60,11 +56,11 @@ jobs:
             api.github.com:443
             codeload.github.com:443
             objects.githubusercontent.com:443
-            ghcr.io:443
-            pkg-containers.githubusercontent.com:443
-            index.crates.io:443
-            static.crates.io:443
-            crates.io:443
+            pypi.org:443
+            files.pythonhosted.org:443
+            astral.sh:443
+            bun.sh:443
+            registry.npmjs.org:443
             semgrep.dev:443
 
       - name: Checkout
@@ -72,16 +68,25 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Run Lintro Analysis in Docker
+      - name: Setup uv
+        uses: astral-sh/setup-uv@6b9c6063abd6010835644d4c2e1bef4cf5cd0fca # v6.0.1
+        with:
+          enable-cache: true
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@735343c667f435a7a0eba3a4b5d829a610e33435 # v2.0.2
+        with:
+          bun-version: latest
+
+      - name: Install lintro
+        run: uv sync --group lint
+
+      - name: Run Lintro Analysis
         id: lintro
         run: |
           # Disable exit-on-error to capture exit code
           set +eo pipefail
-          docker run --rm --pull=always \
-            -v "${{ github.workspace }}:/workspace" \
-            -w /workspace \
-            "$LINTRO_IMAGE" \
-            check . 2>&1 | tee chk-output.txt
+          uv run lintro chk . 2>&1 | tee chk-output.txt
           EXIT_CODE=${PIPESTATUS[0]}
           echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
           echo "CHK_EXIT_CODE=$EXIT_CODE" >> "$GITHUB_ENV"
