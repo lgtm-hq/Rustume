@@ -14,7 +14,7 @@ function LoadingFallback() {
 }
 
 const App: ParentComponent = (props) => {
-  const [wasmReady, setWasmReady] = createSignal(false);
+  const [_wasmReady, setWasmReady] = createSignal(false);
   const [wasmError, setWasmError] = createSignal<string | null>(null);
 
   onMount(async () => {

@@ -16,7 +16,7 @@ export interface TextAreaProps {
 }
 
 export function TextArea(props: TextAreaProps) {
-  const [local, others] = splitProps(props, [
+  const [local, _others] = splitProps(props, [
     "label",
     "description",
     "error",

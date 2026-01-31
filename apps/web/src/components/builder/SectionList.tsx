@@ -1,5 +1,4 @@
-import { For, Show, createSignal } from "solid-js";
-import { Switch } from "../ui";
+import { For, Show } from "solid-js";
 import { resumeStore, type SectionKey } from "../../stores/resume";
 
 interface SectionInfo {

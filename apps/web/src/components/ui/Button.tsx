@@ -1,5 +1,5 @@
 import { Button as KobalteButton } from "@kobalte/core/button";
-import { splitProps, type JSX, type ParentComponent } from "solid-js";
+import { splitProps, type ParentComponent } from "solid-js";
 
 export interface ButtonProps {
   variant?: "primary" | "secondary" | "ghost" | "danger";

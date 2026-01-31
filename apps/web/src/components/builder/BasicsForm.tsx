@@ -1,5 +1,5 @@
 import { Show } from "solid-js";
-import { Input, TextArea } from "../ui";
+import { Input } from "../ui";
 import { resumeStore } from "../../stores/resume";
 
 export function BasicsForm() {

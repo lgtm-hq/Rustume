@@ -2,20 +2,7 @@ import { For, Show, createSignal, type JSX } from "solid-js";
 import { Button, Input, TextArea } from "../ui";
 import { resumeStore, type SectionKey } from "../../stores/resume";
 import { generateId, createEmptyUrl } from "../../wasm/types";
-import type {
-  Experience,
-  Education,
-  Skill,
-  Project,
-  Certification,
-  Award,
-  Publication,
-  Language,
-  Profile,
-  Interest,
-  Volunteer,
-  Reference,
-} from "../../wasm/types";
+import type { Experience, Education, Skill, Project } from "../../wasm/types";
 
 interface SectionEditorProps<T> {
   sectionKey: SectionKey;
@@ -36,7 +23,7 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
 
   const items = () => {
     if (!store.resume) return [];
-    return store.resume.sections[props.sectionKey].items as T[];
+    return store.resume.sections[props.sectionKey].items as unknown as T[];
   };
 
   const handleAdd = () => {
@@ -261,7 +248,7 @@ export function ExperienceEditor() {
         url: createEmptyUrl(),
       })}
       getItemTitle={(item) => item.position || item.company}
-      getItemSubtitle={(item) => (item.company && item.position ? item.company : undefined)}
+      getItemSubtitle={(item) => (item.company && item.position ? item.company : "")}
       renderItem={(item, _index, update) => (
         <div class="space-y-4">
           <div class="grid grid-cols-2 gap-4">

@@ -261,7 +261,7 @@ function ColorInput(props: ColorInputProps) {
       >
         {/* Hidden native color input */}
         <input
-          ref={colorInputRef}
+          ref={(el) => (colorInputRef = el)}
           type="color"
           value={props.value}
           onInput={(e) => props.onChange(e.currentTarget.value)}

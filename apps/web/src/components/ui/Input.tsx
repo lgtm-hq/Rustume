@@ -1,5 +1,5 @@
 import { TextField } from "@kobalte/core/text-field";
-import { splitProps, type JSX, Show } from "solid-js";
+import { splitProps, Show } from "solid-js";
 
 export interface InputProps {
   label?: string;
@@ -17,7 +17,7 @@ export interface InputProps {
 }
 
 export function Input(props: InputProps) {
-  const [local, others] = splitProps(props, [
+  const [local, _others] = splitProps(props, [
     "label",
     "description",
     "error",

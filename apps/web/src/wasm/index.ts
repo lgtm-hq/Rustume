@@ -36,7 +36,7 @@ export async function initWasm(): Promise<void> {
 
   try {
     // Dynamic import - will fail gracefully if WASM not built
-    const wasm = (await import("../../wasm/rustume_wasm")) as WasmModule;
+    const wasm = (await import("../../wasm/rustume_wasm")) as unknown as WasmModule;
     await wasm.default();
     wasmModule = wasm;
   } catch (e) {

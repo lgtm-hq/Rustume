@@ -1,4 +1,4 @@
-import { type ParentComponent, Show, createSignal } from "solid-js";
+import { type ParentComponent, Show } from "solid-js";
 import { A, useLocation } from "@solidjs/router";
 import { useOnline } from "../../hooks/useOnline";
 import { resumeStore } from "../../stores/resume";

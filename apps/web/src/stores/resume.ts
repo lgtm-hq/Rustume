@@ -1,25 +1,6 @@
-import { createStore, produce, type SetStoreFunction } from "solid-js/store";
-import { createSignal, createEffect, batch } from "solid-js";
-import type {
-  ResumeData,
-  Basics,
-  Sections,
-  Metadata,
-  Experience,
-  Education,
-  Skill,
-  Project,
-  Profile,
-  Award,
-  Certification,
-  Publication,
-  Language,
-  Interest,
-  Volunteer,
-  Reference,
-  CustomItem,
-  Section,
-} from "../wasm/types";
+import { createStore, produce } from "solid-js/store";
+import { batch } from "solid-js";
+import type { ResumeData, Basics, Sections, Metadata, Section } from "../wasm/types";
 import {
   createEmptyResume,
   saveResume as saveToWasmStorage,
@@ -252,7 +233,9 @@ export function useResumeStore() {
       setStore(
         produce((s) => {
           if (s.resume) {
-            const section = s.resume.sections[sectionKey] as Section<Record<string, unknown>>;
+            const section = s.resume.sections[sectionKey] as unknown as Section<
+              Record<string, unknown>
+            >;
             if (section.items[index]) {
               Object.assign(section.items[index], updates);
             }
