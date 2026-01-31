@@ -78,6 +78,7 @@ export function SectionPanel() {
                   class="w-full flex items-center justify-between px-3 py-2
                     hover:bg-surface transition-colors text-left"
                   onClick={() => toggleSectionVisibility(section.key)}
+                  aria-pressed={isVisible(section.key)}
                 >
                   <div class="flex items-center gap-2 min-w-0">
                     <svg

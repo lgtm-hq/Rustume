@@ -15,9 +15,9 @@ export default function Home() {
     navigate(`/edit/${id}`);
   };
 
-  const handleDelete = async (id: string, e: Event) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleDelete = async (id: string, event: Event) => {
+    event.preventDefault();
+    event.stopPropagation();
 
     if (!confirm("Are you sure you want to delete this resume?")) return;
 
@@ -25,9 +25,9 @@ export default function Home() {
     setDeleteError(null);
     try {
       await deleteResume(id);
-    } catch (e) {
-      console.error("Failed to delete:", e);
-      setDeleteError(e instanceof Error ? e.message : "Failed to delete resume");
+    } catch (err) {
+      console.error("Failed to delete:", err);
+      setDeleteError(err instanceof Error ? err.message : "Failed to delete resume");
     } finally {
       setDeletingId(null);
     }
@@ -73,7 +73,11 @@ export default function Home() {
         <div class="max-w-4xl mx-auto px-4 mb-4">
           <div class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-center justify-between">
             <span>{deleteError()}</span>
-            <button class="text-red-500 hover:text-red-700" onClick={() => setDeleteError(null)}>
+            <button
+              class="text-red-500 hover:text-red-700"
+              onClick={() => setDeleteError(null)}
+              aria-label="Dismiss error"
+            >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   stroke-linecap="round"
@@ -95,6 +99,7 @@ export default function Home() {
             class="p-2 text-stone hover:text-ink hover:bg-surface rounded-lg transition-colors"
             onClick={refresh}
             title="Refresh"
+            aria-label="Refresh resume list"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path

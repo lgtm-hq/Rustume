@@ -69,7 +69,7 @@ dev:
 # Development with auto-reload (requires cargo-watch)
 dev-watch:
 	@echo "Starting development servers with auto-reload..."
-	@echo "(Requires: cargo install cargo-watch)"
+	@command -v cargo-watch >/dev/null 2>&1 || { echo "Error: cargo-watch not found. Install with: cargo install cargo-watch"; exit 1; }
 	@trap 'kill 0' INT; \
 		cargo watch -x 'run --bin rustume-server' & \
 		sleep 2 && cd apps/web && bun run dev
