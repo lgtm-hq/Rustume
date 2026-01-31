@@ -8,6 +8,7 @@ name: Quality - Lint & Format
   push:
     branches: [main]
     paths:
+      - "**.rs"
       - "**.md"
       - "**.yml"
       - "**.yaml"
@@ -17,6 +18,8 @@ name: Quality - Lint & Format
       - "**.tsx"
       - "**.js"
       - "**.json"
+      - "Cargo.toml"
+      - "Cargo.lock"
       - "Dockerfile*"
       - ".github/workflows/**"
       - "scripts/**"
