@@ -1,10 +1,18 @@
 export interface SpinnerProps {
   class?: string;
+  ariaLabel?: string;
 }
 
 export function Spinner(props: SpinnerProps) {
   return (
-    <svg class={`animate-spin ${props.class ?? "w-6 h-6"}`} viewBox="0 0 24 24">
+    <svg
+      class={`animate-spin ${props.class ?? "w-6 h-6"}`}
+      viewBox="0 0 24 24"
+      role={props.ariaLabel ? "status" : undefined}
+      aria-live={props.ariaLabel ? "polite" : undefined}
+      aria-label={props.ariaLabel}
+      aria-hidden={props.ariaLabel ? undefined : "true"}
+    >
       <circle
         class="opacity-25"
         cx="12"

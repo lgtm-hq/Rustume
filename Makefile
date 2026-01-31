@@ -120,7 +120,7 @@ clean:
 clean-all: clean
 	@echo "WARNING: This will clear your global cargo cache (~/.cargo/registry/cache and ~/.cargo/git/checkouts)"
 	@echo "This affects ALL Rust projects on your system, not just this one."
-	@read -p "Are you sure? [y/N] " confirm && [ "$$confirm" = "y" ] || { echo "Aborted."; exit 1; }
+	@printf "Are you sure? [y/N] " && read confirm && [ "$$confirm" = "y" ] || { echo "Aborted."; exit 1; }
 	@echo "Cleaning cargo registry cache..."
 	rm -rf ~/.cargo/registry/cache/*
 	@echo "Cleaning cargo git cache..."

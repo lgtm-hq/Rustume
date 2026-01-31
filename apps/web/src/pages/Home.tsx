@@ -71,7 +71,10 @@ export default function Home() {
       {/* Delete Error */}
       <Show when={deleteError()}>
         <div class="max-w-4xl mx-auto px-4 mb-4">
-          <div class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-center justify-between">
+          <div
+            role="alert"
+            class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-center justify-between"
+          >
             <span>{deleteError()}</span>
             <button
               class="text-red-500 hover:text-red-700"
@@ -150,18 +153,21 @@ export default function Home() {
             <div class="grid gap-4 stagger-children">
               <For each={resumes()}>
                 {(resume) => (
-                  <A
-                    href={`/edit/${resume.id}`}
+                  <div
                     class="group flex items-center justify-between p-4 border border-border
                       rounded-xl hover:border-accent hover:shadow-card transition-all bg-paper"
                   >
-                    <div class="flex items-center gap-4">
-                      <div class="w-12 h-12 bg-surface rounded-lg flex items-center justify-center">
+                    <A
+                      href={`/edit/${resume.id}`}
+                      class="flex items-center gap-4 flex-1 min-w-0"
+                    >
+                      <div class="w-12 h-12 bg-surface rounded-lg flex items-center justify-center flex-shrink-0">
                         <svg
                           class="w-6 h-6 text-stone group-hover:text-accent transition-colors"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
+                          aria-hidden="true"
                         >
                           <path
                             stroke-linecap="round"
@@ -171,15 +177,15 @@ export default function Home() {
                           />
                         </svg>
                       </div>
-                      <div>
-                        <h3 class="font-body font-medium text-ink group-hover:text-accent transition-colors">
+                      <div class="min-w-0">
+                        <h3 class="font-body font-medium text-ink group-hover:text-accent transition-colors truncate">
                           {resume.name}
                         </h3>
                         <p class="text-sm text-stone font-mono">{resume.id.slice(0, 8)}...</p>
                       </div>
-                    </div>
+                    </A>
 
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2 flex-shrink-0">
                       <button
                         class="p-2 text-stone hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors
                           disabled:opacity-50 disabled:cursor-not-allowed"
@@ -209,21 +215,28 @@ export default function Home() {
                         </Show>
                       </button>
 
-                      <svg
-                        class="w-5 h-5 text-stone group-hover:text-accent transition-colors"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+                      <A
+                        href={`/edit/${resume.id}`}
+                        class="p-1"
+                        aria-label={`Edit ${resume.name}`}
                       >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M9 5l7 7-7 7"
-                        />
-                      </svg>
+                        <svg
+                          class="w-5 h-5 text-stone group-hover:text-accent transition-colors"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M9 5l7 7-7 7"
+                          />
+                        </svg>
+                      </A>
                     </div>
-                  </A>
+                  </div>
                 )}
               </For>
             </div>
