@@ -13,7 +13,7 @@ interface WasmModule {
   resume_to_json: (resume: ResumeData) => string;
   list_templates: () => string[];
   get_template_theme_js: (
-    template: string
+    template: string,
   ) => { background: string; text: string; primary: string } | null;
 }
 
@@ -75,10 +75,7 @@ export async function getResume(id: string): Promise<ResumeData> {
   return storage.get(id);
 }
 
-export async function saveResume(
-  id: string,
-  data: ResumeData
-): Promise<void> {
+export async function saveResume(id: string, data: ResumeData): Promise<void> {
   const storage = await getStorage();
   return storage.save(id, data);
 }
@@ -149,16 +146,13 @@ export function listTemplates(): string[] {
 }
 
 export function getTemplateTheme(
-  template: string
+  template: string,
 ): { background: string; text: string; primary: string } | null {
   if (wasmModule) {
     return wasmModule.get_template_theme_js(template);
   }
   // Fallback themes
-  const themes: Record<
-    string,
-    { background: string; text: string; primary: string }
-  > = {
+  const themes: Record<string, { background: string; text: string; primary: string }> = {
     rhyhorn: { background: "#ffffff", text: "#000000", primary: "#0284c7" },
     azurill: { background: "#ffffff", text: "#1e293b", primary: "#2563eb" },
     pikachu: { background: "#fffbeb", text: "#1c1917", primary: "#ca8a04" },

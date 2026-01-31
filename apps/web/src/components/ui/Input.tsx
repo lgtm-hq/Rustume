@@ -67,9 +67,7 @@ export function Input(props: InputProps) {
       </Show>
 
       <Show when={local.error}>
-        <TextField.ErrorMessage class="text-xs text-red-600">
-          {local.error}
-        </TextField.ErrorMessage>
+        <TextField.ErrorMessage class="text-xs text-red-600">{local.error}</TextField.ErrorMessage>
       </Show>
     </TextField>
   );

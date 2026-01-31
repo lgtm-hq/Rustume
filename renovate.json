@@ -44,10 +44,7 @@
     {
       "groupName": "linting tools",
       "groupSlug": "linting-tools",
-      "matchPackageNames": [
-        "ghcr.io/turbocoder13/py-lintro",
-        "ghcr.io/turbocoder13/lintro-tools"
-      ],
+      "matchPackageNames": ["ghcr.io/turbocoder13/py-lintro", "ghcr.io/turbocoder13/lintro-tools"],
       "automerge": false
     }
   ],

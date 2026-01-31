@@ -2,7 +2,7 @@ import { createSignal, onMount, onCleanup } from "solid-js";
 
 export function useOnline() {
   const [isOnline, setIsOnline] = createSignal(
-    typeof navigator !== "undefined" ? navigator.onLine : true
+    typeof navigator !== "undefined" ? navigator.onLine : true,
   );
 
   onMount(() => {

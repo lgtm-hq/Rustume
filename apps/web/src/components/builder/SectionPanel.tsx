@@ -196,9 +196,7 @@ export function SectionPanel() {
                     <div
                       class={`absolute top-0.5 w-3 h-3 bg-paper rounded-full shadow-sm
                         transition-transform ${
-                          isVisible(section.key)
-                            ? "translate-x-3.5"
-                            : "translate-x-0.5"
+                          isVisible(section.key) ? "translate-x-3.5" : "translate-x-0.5"
                         }`}
                     />
                   </div>

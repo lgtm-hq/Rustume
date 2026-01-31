@@ -35,9 +35,7 @@ export function isResumeEmpty(resume: ResumeData): boolean {
   // Check if basics has any meaningful content
   const basics = resume.basics;
   const hasBasics =
-    basics.name.trim() !== "" ||
-    basics.email.trim() !== "" ||
-    basics.headline.trim() !== "";
+    basics.name.trim() !== "" || basics.email.trim() !== "" || basics.headline.trim() !== "";
 
   if (hasBasics) return false;
 
@@ -201,7 +199,7 @@ export function useResumeStore() {
           if (s.resume) {
             s.resume.basics[field] = value;
           }
-        })
+        }),
       );
       markDirty();
     },
@@ -213,7 +211,7 @@ export function useResumeStore() {
           if (s.resume) {
             s.resume.sections.summary.content = content;
           }
-        })
+        }),
       );
       markDirty();
     },
@@ -224,31 +222,24 @@ export function useResumeStore() {
         produce((s) => {
           if (s.resume) {
             if (sectionKey === "summary") {
-              s.resume.sections.summary.visible =
-                !s.resume.sections.summary.visible;
+              s.resume.sections.summary.visible = !s.resume.sections.summary.visible;
             } else {
-              s.resume.sections[sectionKey].visible =
-                !s.resume.sections[sectionKey].visible;
+              s.resume.sections[sectionKey].visible = !s.resume.sections[sectionKey].visible;
             }
           }
-        })
+        }),
       );
       markDirty();
     },
 
     // Generic section item operations
-    addSectionItem<K extends SectionKey>(
-      sectionKey: K,
-      item: Sections[K]["items"][number]
-    ) {
+    addSectionItem<K extends SectionKey>(sectionKey: K, item: Sections[K]["items"][number]) {
       setStore(
         produce((s) => {
           if (s.resume) {
-            (s.resume.sections[sectionKey] as Section<unknown>).items.push(
-              item
-            );
+            (s.resume.sections[sectionKey] as Section<unknown>).items.push(item);
           }
-        })
+        }),
       );
       markDirty();
     },
@@ -256,7 +247,7 @@ export function useResumeStore() {
     updateSectionItem<K extends SectionKey>(
       sectionKey: K,
       index: number,
-      updates: Partial<Sections[K]["items"][number]>
+      updates: Partial<Sections[K]["items"][number]>,
     ) {
       setStore(
         produce((s) => {
@@ -266,7 +257,7 @@ export function useResumeStore() {
               Object.assign(section.items[index], updates);
             }
           }
-        })
+        }),
       );
       markDirty();
     },
@@ -275,21 +266,14 @@ export function useResumeStore() {
       setStore(
         produce((s) => {
           if (s.resume) {
-            (s.resume.sections[sectionKey] as Section<unknown>).items.splice(
-              index,
-              1
-            );
+            (s.resume.sections[sectionKey] as Section<unknown>).items.splice(index, 1);
           }
-        })
+        }),
       );
       markDirty();
     },
 
-    reorderSectionItem<K extends SectionKey>(
-      sectionKey: K,
-      fromIndex: number,
-      toIndex: number
-    ) {
+    reorderSectionItem<K extends SectionKey>(sectionKey: K, fromIndex: number, toIndex: number) {
       setStore(
         produce((s) => {
           if (s.resume) {
@@ -297,7 +281,7 @@ export function useResumeStore() {
             const [item] = section.items.splice(fromIndex, 1);
             section.items.splice(toIndex, 0, item);
           }
-        })
+        }),
       );
       markDirty();
     },
@@ -309,7 +293,7 @@ export function useResumeStore() {
           if (s.resume) {
             s.resume.metadata[field] = value;
           }
-        })
+        }),
       );
       markDirty();
     },
@@ -320,7 +304,7 @@ export function useResumeStore() {
           if (s.resume) {
             s.resume.metadata.template = template;
           }
-        })
+        }),
       );
       markDirty();
     },
@@ -331,7 +315,7 @@ export function useResumeStore() {
           if (s.resume) {
             Object.assign(s.resume.metadata.theme, theme);
           }
-        })
+        }),
       );
       markDirty();
     },

@@ -17,7 +17,7 @@ export function useDebounce<T>(value: Accessor<T>, delay: number): Accessor<T> {
 
 export function useDebouncedCallback<T extends (...args: unknown[]) => void>(
   callback: T,
-  delay: number
+  delay: number,
 ): T {
   let timer: ReturnType<typeof setTimeout> | null = null;
 

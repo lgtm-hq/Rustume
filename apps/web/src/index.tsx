@@ -20,5 +20,5 @@ render(
       <Route path="/edit/:id" component={Editor} />
     </Router>
   ),
-  root
+  root,
 );

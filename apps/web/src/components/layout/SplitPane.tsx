@@ -51,11 +51,7 @@ export const SplitPane: ParentComponent<SplitPaneProps> = (props) => {
   };
 
   return (
-    <div
-      id="split-container"
-      class="flex h-full"
-      classList={{ "select-none": isDragging() }}
-    >
+    <div id="split-container" class="flex h-full" classList={{ "select-none": isDragging() }}>
       {/* Left Pane */}
       <Show when={showLeft()}>
         <div

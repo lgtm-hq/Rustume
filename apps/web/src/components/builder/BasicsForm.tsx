@@ -11,8 +11,12 @@ export function BasicsForm() {
       <div class="flex items-center gap-3 pb-4 border-b border-border">
         <div class="w-10 h-10 bg-accent/10 rounded-lg flex items-center justify-center">
           <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+            />
           </svg>
         </div>
         <div>
@@ -71,26 +75,20 @@ export function BasicsForm() {
 
             {/* Website */}
             <div class="space-y-4 pt-4 border-t border-border">
-              <h3 class="font-mono text-xs uppercase tracking-wider text-stone">
-                Website
-              </h3>
+              <h3 class="font-mono text-xs uppercase tracking-wider text-stone">Website</h3>
               <div class="grid grid-cols-2 gap-4">
                 <Input
                   label="Label"
                   placeholder="Portfolio"
                   value={resume().basics.url.label}
-                  onInput={(value) =>
-                    updateBasics("url", { ...resume().basics.url, label: value })
-                  }
+                  onInput={(value) => updateBasics("url", { ...resume().basics.url, label: value })}
                 />
                 <Input
                   label="URL"
                   type="url"
                   placeholder="https://johndoe.com"
                   value={resume().basics.url.href}
-                  onInput={(value) =>
-                    updateBasics("url", { ...resume().basics.url, href: value })
-                  }
+                  onInput={(value) => updateBasics("url", { ...resume().basics.url, href: value })}
                 />
               </div>
             </div>

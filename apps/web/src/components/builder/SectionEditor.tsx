@@ -28,7 +28,7 @@ interface SectionEditorProps<T> {
 }
 
 export function SectionEditor<T extends { id: string; visible: boolean }>(
-  props: SectionEditorProps<T>
+  props: SectionEditorProps<T>,
 ) {
   const { store, addSectionItem, updateSectionItem, removeSectionItem, reorderSectionItem } =
     resumeStore;
@@ -75,7 +75,12 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 bg-accent/10 rounded-lg flex items-center justify-center">
             <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={props.icon} />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d={props.icon}
+              />
             </svg>
           </div>
           <div>
@@ -86,7 +91,12 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
 
         <Button variant="secondary" size="sm" onClick={handleAdd}>
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 4v16m8-8H4"
+            />
           </svg>
           Add
         </Button>
@@ -127,7 +137,12 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 9l-7 7-7-7"
+                  />
                 </svg>
               </button>
 
@@ -145,7 +160,12 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
                         title="Move up"
                       >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M5 15l7-7 7 7"
+                          />
                         </svg>
                       </button>
                       <button
@@ -156,7 +176,12 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
                         title="Move down"
                       >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M19 9l-7 7-7-7"
+                          />
                         </svg>
                       </button>
                     </div>
@@ -168,7 +193,9 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
                           class={`w-8 h-5 rounded-full transition-colors relative ${
                             item.visible ? "bg-accent" : "bg-border"
                           }`}
-                          onClick={() => handleUpdate(index())({ visible: !item.visible } as Partial<T>)}
+                          onClick={() =>
+                            handleUpdate(index())({ visible: !item.visible } as Partial<T>)
+                          }
                         >
                           <div
                             class={`absolute top-0.5 w-4 h-4 bg-paper rounded-full shadow-sm
@@ -183,7 +210,12 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
                         title="Remove"
                       >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
                         </svg>
                       </button>
                     </div>
@@ -229,7 +261,7 @@ export function ExperienceEditor() {
         url: createEmptyUrl(),
       })}
       getItemTitle={(item) => item.position || item.company}
-      getItemSubtitle={(item) => item.company && item.position ? item.company : undefined}
+      getItemSubtitle={(item) => (item.company && item.position ? item.company : undefined)}
       renderItem={(item, _index, update) => (
         <div class="space-y-4">
           <div class="grid grid-cols-2 gap-4">
@@ -403,7 +435,14 @@ export function SkillsEditor() {
             label="Keywords"
             placeholder="React, TypeScript, Node.js (comma separated)"
             value={item.keywords.join(", ")}
-            onInput={(v) => update({ keywords: v.split(",").map((k) => k.trim()).filter(Boolean) })}
+            onInput={(v) =>
+              update({
+                keywords: v
+                  .split(",")
+                  .map((k) => k.trim())
+                  .filter(Boolean),
+              })
+            }
           />
         </div>
       )}
@@ -460,7 +499,14 @@ export function ProjectsEditor() {
             label="Technologies"
             placeholder="React, Rust, PostgreSQL (comma separated)"
             value={item.keywords.join(", ")}
-            onInput={(v) => update({ keywords: v.split(",").map((k) => k.trim()).filter(Boolean) })}
+            onInput={(v) =>
+              update({
+                keywords: v
+                  .split(",")
+                  .map((k) => k.trim())
+                  .filter(Boolean),
+              })
+            }
           />
           <div class="grid grid-cols-2 gap-4">
             <Input

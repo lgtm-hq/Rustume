@@ -3,17 +3,14 @@ const API_BASE = "/api";
 export class ApiError extends Error {
   constructor(
     public status: number,
-    message: string
+    message: string,
   ) {
     super(message);
     this.name = "ApiError";
   }
 }
 
-async function request<T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> {
+async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
   const response = await fetch(url, {
     ...options,
@@ -48,10 +45,7 @@ export async function post<T>(endpoint: string, body?: unknown): Promise<T> {
   });
 }
 
-export async function fetchBlob(
-  endpoint: string,
-  body?: unknown
-): Promise<Blob> {
+export async function fetchBlob(endpoint: string, body?: unknown): Promise<Blob> {
   const url = `${API_BASE}${endpoint}`;
   const response = await fetch(url, {
     method: "POST",

@@ -1,11 +1,6 @@
 import { createStore } from "solid-js/store";
 
-export type ModalType =
-  | "import"
-  | "export"
-  | "template"
-  | "settings"
-  | null;
+export type ModalType = "import" | "export" | "template" | "settings" | null;
 
 export type Panel = "editor" | "preview" | "both";
 

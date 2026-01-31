@@ -1,9 +1,5 @@
 import { createStore } from "solid-js/store";
-import {
-  flavors as turboFlavors,
-  type ThemeFlavor,
-  type ThemeTokens,
-} from "@lgtm-hq/turbo-themes";
+import { flavors as turboFlavors, type ThemeFlavor, type ThemeTokens } from "@lgtm-hq/turbo-themes";
 
 const STORAGE_KEY = "rustume-editor-theme";
 

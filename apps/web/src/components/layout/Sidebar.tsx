@@ -69,17 +69,10 @@ export function Sidebar(props: SidebarProps) {
               stroke-width="2"
               d="M5 5a2 2 0 012-2h10a2 2 0 012 2v3a1 1 0 01-1 1h-2l-1 8h-6l-1-8H6a1 1 0 01-1-1V5z"
             />
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 17v4"
-            />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 17v4" />
           </svg>
           <Show when={isExpanded()}>
-            <span class="text-xs font-mono truncate">
-              {isPinned() ? "Pinned" : "Pin"}
-            </span>
+            <span class="text-xs font-mono truncate">{isPinned() ? "Pinned" : "Pin"}</span>
           </Show>
         </button>
       </div>
@@ -104,12 +97,7 @@ export function Sidebar(props: SidebarProps) {
                       }`}
                     onClick={() => props.onSelect(item.id)}
                   >
-                    <svg
-                      class="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
                         stroke-linecap="round"
                         stroke-linejoin="round"

@@ -35,7 +35,7 @@ function getCacheKey(resume: ResumeData, template: string, page: number): string
 export async function renderPreview(
   resume: ResumeData,
   page: number = 0,
-  template?: string
+  template?: string,
 ): Promise<string> {
   const templateName = template || resume.metadata.template;
   const cacheKey = getCacheKey(resume, templateName, page);
@@ -63,10 +63,7 @@ export async function renderPreview(
   return url;
 }
 
-export async function renderPdf(
-  resume: ResumeData,
-  template?: string
-): Promise<Blob> {
+export async function renderPdf(resume: ResumeData, template?: string): Promise<Blob> {
   return fetchBlob("/render/pdf", {
     resume,
     template: template || resume.metadata.template,
@@ -76,7 +73,7 @@ export async function renderPdf(
 export async function downloadPdf(
   resume: ResumeData,
   filename: string = "resume.pdf",
-  template?: string
+  template?: string,
 ): Promise<void> {
   const blob = await renderPdf(resume, template);
   const url = URL.createObjectURL(blob);
@@ -101,9 +98,7 @@ export function getTemplateThumbnailUrl(templateId: string): string {
   return `${baseUrl}/api/templates/${templateId}/thumbnail`;
 }
 
-export async function validateResumeServer(
-  resume: ResumeData
-): Promise<ValidationResult> {
+export async function validateResumeServer(resume: ResumeData): Promise<ValidationResult> {
   return post<ValidationResult>("/validate", resume);
 }
 

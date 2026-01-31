@@ -6,9 +6,7 @@ function LoadingFallback() {
   return (
     <div class="flex h-screen items-center justify-center bg-paper">
       <div class="text-center">
-        <div class="font-display text-2xl text-ink animate-pulse-subtle">
-          Rustume
-        </div>
+        <div class="font-display text-2xl text-ink animate-pulse-subtle">Rustume</div>
         <div class="mt-2 text-sm text-stone">Loading...</div>
       </div>
     </div>

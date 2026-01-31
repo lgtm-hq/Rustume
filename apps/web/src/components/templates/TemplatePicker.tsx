@@ -58,7 +58,13 @@ export function TemplatePicker() {
 
         <div class="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-[70vh] overflow-y-auto p-1">
           <For each={templates()}>
-            {(template) => <TemplateCard template={template} isSelected={store.resume?.metadata.template === template.id} onSelect={handleSelect} />}
+            {(template) => (
+              <TemplateCard
+                template={template}
+                isSelected={store.resume?.metadata.template === template.id}
+                onSelect={handleSelect}
+              />
+            )}
           </For>
         </div>
       </Show>
@@ -181,12 +187,7 @@ function TemplateCard(props: {
           {/* Selected Indicator */}
           <Show when={props.isSelected}>
             <div class="w-6 h-6 rounded-full bg-accent flex items-center justify-center">
-              <svg
-                class="w-4 h-4 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"

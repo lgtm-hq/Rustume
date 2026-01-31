@@ -28,13 +28,10 @@ export const Button: ParentComponent<ButtonProps> = (props) => {
     "inline-flex items-center justify-center font-body font-medium transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed";
 
   const variantClasses = {
-    primary:
-      "bg-ink text-paper hover:bg-ink/90 active:bg-ink/80 shadow-soft",
-    secondary:
-      "bg-surface text-ink border border-border hover:bg-border/50 active:bg-border",
+    primary: "bg-ink text-paper hover:bg-ink/90 active:bg-ink/80 shadow-soft",
+    secondary: "bg-surface text-ink border border-border hover:bg-border/50 active:bg-border",
     ghost: "text-ink hover:bg-surface active:bg-border",
-    danger:
-      "bg-red-600 text-white hover:bg-red-700 active:bg-red-800 shadow-soft",
+    danger: "bg-red-600 text-white hover:bg-red-700 active:bg-red-800 shadow-soft",
   };
 
   const sizeClasses = {

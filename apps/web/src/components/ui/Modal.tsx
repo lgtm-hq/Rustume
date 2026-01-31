@@ -45,12 +45,7 @@ export const Modal: ParentComponent<ModalProps> = (props) => {
               class="absolute top-4 right-4 p-2 text-stone hover:text-ink
                 hover:bg-surface rounded-lg transition-colors"
             >
-              <svg
-                class="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"

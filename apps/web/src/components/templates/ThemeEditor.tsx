@@ -17,8 +17,8 @@ export function ThemeEditor() {
     }
   });
 
-  const lightPresets = () => presets()?.filter(p => !p.isDark) ?? [];
-  const darkPresets = () => presets()?.filter(p => p.isDark) ?? [];
+  const lightPresets = () => presets()?.filter((p) => !p.isDark) ?? [];
+  const darkPresets = () => presets()?.filter((p) => p.isDark) ?? [];
 
   const applyPreset = (preset: ThemePresetInfo) => {
     updateTheme({
@@ -37,8 +37,12 @@ export function ThemeEditor() {
       <div class="flex items-center gap-3 pb-4 border-b border-border">
         <div class="w-10 h-10 bg-accent/10 rounded-lg flex items-center justify-center">
           <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"
+            />
           </svg>
         </div>
         <div>
@@ -52,9 +56,7 @@ export function ThemeEditor() {
         <button
           onClick={() => setActiveTab("presets")}
           class={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-            activeTab() === "presets"
-              ? "bg-white text-ink shadow-sm"
-              : "text-stone hover:text-ink"
+            activeTab() === "presets" ? "bg-white text-ink shadow-sm" : "text-stone hover:text-ink"
           }`}
         >
           Presets
@@ -62,9 +64,7 @@ export function ThemeEditor() {
         <button
           onClick={() => setActiveTab("custom")}
           class={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-            activeTab() === "custom"
-              ? "bg-white text-ink shadow-sm"
-              : "text-stone hover:text-ink"
+            activeTab() === "custom" ? "bg-white text-ink shadow-sm" : "text-stone hover:text-ink"
           }`}
         >
           Custom
@@ -157,10 +157,7 @@ export function ThemeEditor() {
                 >
                   Preview
                 </h3>
-                <p
-                  class="text-sm mb-2"
-                  style={{ color: resume().metadata.theme.text }}
-                >
+                <p class="text-sm mb-2" style={{ color: resume().metadata.theme.text }}>
                   This is how your resume colors will look.
                 </p>
                 <span
@@ -192,9 +189,7 @@ function PresetCard(props: PresetCardProps) {
     <button
       onClick={props.onSelect}
       class={`relative p-2 rounded-lg border-2 transition-all hover:scale-105 ${
-        props.isSelected
-          ? "border-accent shadow-md"
-          : "border-border hover:border-accent/50"
+        props.isSelected ? "border-accent shadow-md" : "border-border hover:border-accent/50"
       }`}
       title={props.preset.name}
     >
@@ -217,14 +212,17 @@ function PresetCard(props: PresetCardProps) {
         </div>
       </div>
       {/* Name */}
-      <p class="text-[10px] mt-1 text-center text-stone truncate">
-        {props.preset.name}
-      </p>
+      <p class="text-[10px] mt-1 text-center text-stone truncate">{props.preset.name}</p>
       {/* Selected indicator */}
       <Show when={props.isSelected}>
         <div class="absolute -top-1 -right-1 w-4 h-4 bg-accent rounded-full flex items-center justify-center">
           <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="3"
+              d="M5 13l4 4L19 7"
+            />
           </svg>
         </div>
       </Show>

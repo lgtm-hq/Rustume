@@ -139,9 +139,7 @@ export function ImportModal() {
         <div
           class={`relative border-2 border-dashed rounded-xl p-8 text-center
             transition-colors ${
-              isDragging()
-                ? "border-accent bg-accent/5"
-                : "border-border hover:border-stone"
+              isDragging() ? "border-accent bg-accent/5" : "border-border hover:border-stone"
             }`}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
@@ -156,12 +154,7 @@ export function ImportModal() {
 
           <div class="space-y-3">
             <div class="w-12 h-12 mx-auto bg-surface rounded-xl flex items-center justify-center">
-              <svg
-                class="w-6 h-6 text-stone"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg class="w-6 h-6 text-stone" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -173,8 +166,7 @@ export function ImportModal() {
 
             <div>
               <p class="font-body text-ink">
-                Drop your file here, or{" "}
-                <span class="text-accent font-medium">browse</span>
+                Drop your file here, or <span class="text-accent font-medium">browse</span>
               </p>
               <p class="text-sm text-stone mt-1">
                 Supports JSON Resume, Reactive Resume V3, LinkedIn ZIP

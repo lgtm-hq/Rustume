@@ -44,20 +44,14 @@ export default function Home() {
             class="text-lg text-stone max-w-xl mx-auto mb-8 animate-slide-up"
             style={{ "animation-delay": "50ms" }}
           >
-            Privacy-first, offline-capable resume builder. Your data stays on
-            your device.
+            Privacy-first, offline-capable resume builder. Your data stays on your device.
           </p>
           <div
             class="flex items-center justify-center gap-4 animate-slide-up"
             style={{ "animation-delay": "100ms" }}
           >
             <Button size="lg" onClick={handleNew}>
-              <svg
-                class="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -74,20 +68,13 @@ export default function Home() {
       {/* Resume List */}
       <div class="max-w-4xl mx-auto px-4 pb-16">
         <div class="flex items-center justify-between mb-6">
-          <h2 class="font-display text-xl font-semibold text-ink">
-            Your Resumes
-          </h2>
+          <h2 class="font-display text-xl font-semibold text-ink">Your Resumes</h2>
           <button
             class="p-2 text-stone hover:text-ink hover:bg-surface rounded-lg transition-colors"
             onClick={refresh}
             title="Refresh"
           >
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -102,10 +89,7 @@ export default function Home() {
           when={!loading()}
           fallback={
             <div class="flex items-center justify-center py-12">
-              <svg
-                class="w-6 h-6 animate-spin text-accent"
-                viewBox="0 0 24 24"
-              >
+              <svg class="w-6 h-6 animate-spin text-accent" viewBox="0 0 24 24">
                 <circle
                   class="opacity-25"
                   cx="12"
@@ -143,12 +127,8 @@ export default function Home() {
                     />
                   </svg>
                 </div>
-                <h3 class="font-display text-lg font-semibold text-ink mb-2">
-                  No resumes yet
-                </h3>
-                <p class="text-stone text-sm mb-6">
-                  Create your first resume to get started
-                </p>
+                <h3 class="font-display text-lg font-semibold text-ink mb-2">No resumes yet</h3>
+                <p class="text-stone text-sm mb-6">Create your first resume to get started</p>
                 <Button variant="secondary" onClick={handleNew}>
                   Create Resume
                 </Button>
@@ -183,9 +163,7 @@ export default function Home() {
                         <h3 class="font-body font-medium text-ink group-hover:text-accent transition-colors">
                           {resume.name}
                         </h3>
-                        <p class="text-sm text-stone font-mono">
-                          {resume.id.slice(0, 8)}...
-                        </p>
+                        <p class="text-sm text-stone font-mono">{resume.id.slice(0, 8)}...</p>
                       </div>
                     </div>
 
@@ -198,10 +176,7 @@ export default function Home() {
                         <Show
                           when={deletingId() !== resume.id}
                           fallback={
-                            <svg
-                              class="w-5 h-5 animate-spin"
-                              viewBox="0 0 24 24"
-                            >
+                            <svg class="w-5 h-5 animate-spin" viewBox="0 0 24 24">
                               <circle
                                 class="opacity-25"
                                 cx="12"
@@ -281,9 +256,7 @@ export default function Home() {
                   />
                 </svg>
               </div>
-              <h3 class="font-display font-semibold text-ink mb-2">
-                Privacy First
-              </h3>
+              <h3 class="font-display font-semibold text-ink mb-2">Privacy First</h3>
               <p class="text-sm text-stone">
                 Your data stays on your device. No accounts, no tracking.
               </p>
@@ -305,9 +278,7 @@ export default function Home() {
                   />
                 </svg>
               </div>
-              <h3 class="font-display font-semibold text-ink mb-2">
-                Works Offline
-              </h3>
+              <h3 class="font-display font-semibold text-ink mb-2">Works Offline</h3>
               <p class="text-sm text-stone">
                 Edit anywhere. Install as a PWA for the best experience.
               </p>
@@ -329,9 +300,7 @@ export default function Home() {
                   />
                 </svg>
               </div>
-              <h3 class="font-display font-semibold text-ink mb-2">
-                Lightning Fast
-              </h3>
+              <h3 class="font-display font-semibold text-ink mb-2">Lightning Fast</h3>
               <p class="text-sm text-stone">
                 Built with Rust and WebAssembly for native performance.
               </p>

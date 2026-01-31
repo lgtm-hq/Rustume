@@ -163,12 +163,7 @@ export default function Editor() {
 
         <div class="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={() => openModal("import")}>
-            <svg
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -180,18 +175,8 @@ export default function Editor() {
           </Button>
 
           {/* Template Button with Current Selection Indicator */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => openModal("template")}
-            class="gap-2"
-          >
-            <svg
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+          <Button variant="ghost" size="sm" onClick={() => openModal("template")} class="gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -216,18 +201,11 @@ export default function Editor() {
                 </span>
               )}
             </Show>
-            <Show when={!store.resume}>
-              Template
-            </Show>
+            <Show when={!store.resume}>Template</Show>
           </Button>
 
           <Button size="sm" onClick={() => openModal("export")}>
-            <svg
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -247,10 +225,7 @@ export default function Editor() {
           fallback={
             <div class="h-full flex items-center justify-center">
               <div class="text-center">
-                <svg
-                  class="w-8 h-8 animate-spin text-accent mx-auto mb-4"
-                  viewBox="0 0 24 24"
-                >
+                <svg class="w-8 h-8 animate-spin text-accent mx-auto mb-4" viewBox="0 0 24 24">
                   <circle
                     class="opacity-25"
                     cx="12"

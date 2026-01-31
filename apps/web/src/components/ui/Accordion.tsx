@@ -36,9 +36,7 @@ export const Accordion: ParentComponent<AccordionProps> = (props) => {
                   focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 <div class="flex items-center gap-3">
-                  <span class="font-body font-medium text-ink">
-                    {item.title}
-                  </span>
+                  <span class="font-body font-medium text-ink">{item.title}</span>
                   <Show when={item.subtitle}>
                     <span class="text-sm text-stone">{item.subtitle}</span>
                   </Show>

@@ -36,14 +36,17 @@ export function EditorThemeSelector() {
           {currentTheme()?.label ?? "Theme"}
         </span>
         <svg class="w-3 h-3 text-stone" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M19 9l-7 7-7-7"
+          />
         </svg>
       </DropdownMenu.Trigger>
 
       <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          class="min-w-[200px] max-h-[400px] overflow-y-auto bg-paper border border-border rounded-lg shadow-card p-1 z-50"
-        >
+        <DropdownMenu.Content class="min-w-[200px] max-h-[400px] overflow-y-auto bg-paper border border-border rounded-lg shadow-card p-1 z-50">
           <For each={groupedThemes()}>
             {(group) => (
               <>
@@ -73,8 +76,18 @@ export function EditorThemeSelector() {
                         </div>
                         <span class="flex-1 text-sm text-ink">{theme.label}</span>
                         <Show when={editorThemeStore.state.themeId === theme.id}>
-                          <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                          <svg
+                            class="w-4 h-4 text-accent"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M5 13l4 4L19 7"
+                            />
                           </svg>
                         </Show>
                       </DropdownMenu.Item>

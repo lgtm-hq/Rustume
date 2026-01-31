@@ -43,6 +43,7 @@ Thumbs.db
 
 # WASM bindings (generated)
 bindings/wasm/pkg/
+apps/web/wasm/
 
 # Test fixtures and samples
 test_samples/
