@@ -1,6 +1,6 @@
 import { For, Show, createSignal } from "solid-js";
 import { A, useNavigate } from "@solidjs/router";
-import { Button } from "../components/ui";
+import { Button, Spinner } from "../components/ui";
 import { useResumeList } from "../stores/persistence";
 import { generateId } from "../wasm/types";
 
@@ -116,22 +116,7 @@ export default function Home() {
           when={!loading()}
           fallback={
             <div class="flex items-center justify-center py-12">
-              <svg class="w-6 h-6 animate-spin text-accent" viewBox="0 0 24 24">
-                <circle
-                  class="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  stroke-width="4"
-                  fill="none"
-                />
-                <path
-                  class="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                />
-              </svg>
+              <Spinner class="w-6 h-6 text-accent" />
             </div>
           }
         >
@@ -201,33 +186,18 @@ export default function Home() {
                         onClick={(e) => handleDelete(resume.id, e)}
                         disabled={deletingId() !== null}
                         title="Delete"
+                        aria-label="Delete resume"
                       >
                         <Show
                           when={deletingId() !== resume.id}
-                          fallback={
-                            <svg class="w-5 h-5 animate-spin" viewBox="0 0 24 24">
-                              <circle
-                                class="opacity-25"
-                                cx="12"
-                                cy="12"
-                                r="10"
-                                stroke="currentColor"
-                                stroke-width="4"
-                                fill="none"
-                              />
-                              <path
-                                class="opacity-75"
-                                fill="currentColor"
-                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                              />
-                            </svg>
-                          }
+                          fallback={<Spinner class="w-5 h-5" />}
                         >
                           <svg
                             class="w-5 h-5"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
+                            aria-hidden="true"
                           >
                             <path
                               stroke-linecap="round"

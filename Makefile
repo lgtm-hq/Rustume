@@ -1,4 +1,4 @@
-.PHONY: all build dev clean clean-all install wasm server web test lint fmt help check-deps
+.PHONY: all build dev dev-watch clean clean-all install wasm server server-build web web-build test lint fmt help check-deps preview setup
 
 # Ensure rustup's toolchain is used (prioritize over Homebrew)
 export PATH := $(HOME)/.cargo/bin:$(PATH)
@@ -27,10 +27,10 @@ install:
 	@echo "Installing web dependencies..."
 	cd apps/web && bun install
 
-# Build WASM module
+# Build WASM module (release mode for production)
 wasm:
 	@echo "Building WASM..."
-	cd bindings/wasm && wasm-pack build --target web --out-dir ../../apps/web/wasm
+	cd bindings/wasm && wasm-pack build --release --target web --out-dir ../../apps/web/wasm
 
 # Build the Rust server
 server-build:
@@ -62,7 +62,8 @@ dev:
 	@echo ""
 	@echo "Press Ctrl+C to stop both servers"
 	@echo ""
-	@trap 'kill 0' INT; \
+	@set -e; \
+		trap 'kill 0 2>/dev/null; exit' EXIT INT TERM; \
 		cargo run --bin rustume-server & \
 		sleep 2 && cd apps/web && bun run dev
 
@@ -70,7 +71,8 @@ dev:
 dev-watch:
 	@echo "Starting development servers with auto-reload..."
 	@command -v cargo-watch >/dev/null 2>&1 || { echo "Error: cargo-watch not found. Install with: cargo install cargo-watch"; exit 1; }
-	@trap 'kill 0' INT; \
+	@set -e; \
+		trap 'kill 0 2>/dev/null; exit' EXIT INT TERM; \
 		cargo watch -x 'run --bin rustume-server' & \
 		sleep 2 && cd apps/web && bun run dev
 
@@ -131,7 +133,8 @@ preview: build
 	@echo "Starting production preview..."
 	@echo "Server: http://localhost:3000"
 	@echo "Web:    http://localhost:4173"
-	@trap 'kill 0' INT; \
+	@set -e; \
+		trap 'kill 0 2>/dev/null; exit' EXIT INT TERM; \
 		cargo run --release --bin rustume-server & \
 		sleep 2 && cd apps/web && bun run preview
 

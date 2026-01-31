@@ -22,6 +22,9 @@ export function SectionPanel() {
     return count;
   };
 
+  const PANEL_ID = "section-visibility-panel";
+  const PANEL_HEADER_ID = "section-visibility-header";
+
   return (
     <div class="absolute right-0 top-0 bottom-0 z-10 flex">
       {/* Toggle Button */}
@@ -30,6 +33,9 @@ export function SectionPanel() {
         class="flex items-center gap-1 px-2 py-3 bg-paper border-l border-y border-border
           rounded-l-lg shadow-sm hover:bg-surface transition-colors self-start mt-4"
         title={ui.sectionPanelOpen ? "Hide section controls" : "Show section controls"}
+        aria-expanded={ui.sectionPanelOpen}
+        aria-controls={PANEL_ID}
+        aria-label="Section visibility controls"
       >
         <svg
           class={`w-4 h-4 text-stone transition-transform duration-200 ${
@@ -38,6 +44,7 @@ export function SectionPanel() {
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
+          aria-hidden="true"
         >
           <path
             stroke-linecap="round"
@@ -59,14 +66,21 @@ export function SectionPanel() {
 
       {/* Panel Content */}
       <div
+        id={PANEL_ID}
+        role="region"
+        aria-labelledby={PANEL_HEADER_ID}
+        aria-hidden={!ui.sectionPanelOpen}
         class={`bg-paper border-l border-border shadow-lg overflow-hidden transition-all duration-200 ease-out ${
           ui.sectionPanelOpen ? "w-56 opacity-100" : "w-0 opacity-0"
         }`}
+        inert={!ui.sectionPanelOpen ? true : undefined}
       >
         <div class="w-56 h-full flex flex-col">
           {/* Header */}
           <div class="px-3 py-2 border-b border-border bg-surface/50">
-            <h3 class="text-sm font-semibold text-ink">Section Visibility</h3>
+            <h3 id={PANEL_HEADER_ID} class="text-sm font-semibold text-ink">
+              Section Visibility
+            </h3>
             <p class="text-xs text-stone">Toggle sections on/off</p>
           </div>
 
@@ -79,6 +93,7 @@ export function SectionPanel() {
                     hover:bg-surface transition-colors text-left"
                   onClick={() => toggleSectionVisibility(section.key)}
                   aria-pressed={isVisible(section.key)}
+                  tabIndex={ui.sectionPanelOpen ? 0 : -1}
                 >
                   <div class="flex items-center gap-2 min-w-0">
                     <svg
@@ -88,6 +103,7 @@ export function SectionPanel() {
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
+                      aria-hidden="true"
                     >
                       <path
                         stroke-linecap="round"
@@ -110,6 +126,7 @@ export function SectionPanel() {
                     class={`w-7 h-4 rounded-full transition-colors relative flex-shrink-0 ${
                       isVisible(section.key) ? "bg-accent" : "bg-border"
                     }`}
+                    aria-hidden="true"
                   >
                     <div
                       class={`absolute top-0.5 w-3 h-3 bg-paper rounded-full shadow-sm
