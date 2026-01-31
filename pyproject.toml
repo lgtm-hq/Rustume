@@ -1,0 +1,24 @@
+# Rustume Python Configuration
+# This file exists primarily to enable lintro for cross-language linting.
+# The main project is Rust + TypeScript.
+
+[project]
+name = "rustume-lint"
+version = "0.1.0"
+description = "Linting configuration for Rustume"
+requires-python = ">=3.11"
+readme = "README.md"
+license = { text = "MIT" }
+
+# No Python dependencies - this is just for lintro tooling
+dependencies = []
+
+[dependency-groups]
+lint = ["lintro>=0.41.0"]
+
+[tool.lintro]
+line_length = 100
+tool_order = "priority"
+
+[tool.lintro.post_checks]
+enabled = false

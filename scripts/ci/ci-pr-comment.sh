@@ -53,9 +53,7 @@ fi
 # Create the comment content with marker
 CONTENT="<!-- lintro-report -->
 
-**Workflow:**
-1. 🔍 Performed code quality checks with \`lintro check\`
-2. ✅ Verified Rust formatting with \`cargo fmt\`
+**Workflow:** 🔍 Performed code quality checks with \`lintro check\`
 
 ### 📋 Results:
 \`\`\`

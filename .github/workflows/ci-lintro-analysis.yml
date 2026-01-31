@@ -9,20 +9,27 @@ name: Quality - Lint & Format
     branches: [main]
     paths:
       - "**.rs"
+      - "**.md"
+      - "**.yml"
+      - "**.yaml"
+      - "**.toml"
+      - "**.sh"
+      - "**.ts"
+      - "**.tsx"
+      - "**.js"
+      - "**.json"
       - "Cargo.toml"
       - "Cargo.lock"
-      - ".github/workflows/ci-lintro-analysis.yml"
+      - "Dockerfile*"
+      - ".github/workflows/**"
       - "scripts/**"
       - ".lintro-config.yaml"
+      - ".lintro-ignore"
   pull_request:
     branches: [main]
 
 permissions:
   contents: read
-
-env:
-  # yamllint disable-line rule:line-length
-  LINTRO_IMAGE: ghcr.io/turbocoder13/py-lintro@sha256:9a1a209798f895193843a435817407693fc4a2a194b8b4bbaa2eea834ca11044
 
 jobs:
   lintro-analysis:
@@ -54,9 +61,6 @@ jobs:
             objects.githubusercontent.com:443
             ghcr.io:443
             pkg-containers.githubusercontent.com:443
-            index.crates.io:443
-            static.crates.io:443
-            crates.io:443
             semgrep.dev:443
 
       - name: Checkout
@@ -64,16 +68,19 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Run Lintro Analysis in Docker
+      - name: Run Lintro Analysis
         id: lintro
+        env:
+          # Pin to specific image digest for reproducibility
+          # yamllint disable-line rule:line-length
+          LINTRO_IMAGE: ghcr.io/lgtm-hq/py-lintro@sha256:db35d507b7106db73f4c51b789143d59d8294bb6c347afd038cd609dcad4ee95
         run: |
           # Disable exit-on-error to capture exit code
           set +eo pipefail
-          docker run --rm --pull=always \
-            -v "${{ github.workspace }}:/workspace" \
-            -w /workspace \
+          docker run --rm \
+            -v "${{ github.workspace }}:/code" \
             "$LINTRO_IMAGE" \
-            check . 2>&1 | tee chk-output.txt
+            check --output-format grid 2>&1 | tee chk-output.txt
           EXIT_CODE=${PIPESTATUS[0]}
           echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
           echo "CHK_EXIT_CODE=$EXIT_CODE" >> "$GITHUB_ENV"

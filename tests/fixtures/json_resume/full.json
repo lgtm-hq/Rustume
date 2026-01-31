@@ -34,7 +34,10 @@
       "startDate": "2020-01-01",
       "endDate": "2024-01-01",
       "summary": "Led development of microservices architecture serving millions of users.",
-      "highlights": ["Reduced API latency by 40%", "Mentored team of 5 junior developers"]
+      "highlights": [
+        "Reduced API latency by 40%",
+        "Mentored team of 5 junior developers"
+      ]
     },
     {
       "name": "Startup Inc",
