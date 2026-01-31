@@ -73,3 +73,15 @@ build/
 *.log
 *.tmp
 *.bak
+
+# -------------------- Python (for lintro) --------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+*.egg
+
+# -------------------- Tool Caches --------------------
+.ruff_cache/
+.mypy_cache/

@@ -8,12 +8,20 @@ name: Quality - Lint & Format
   push:
     branches: [main]
     paths:
-      - "**.rs"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - ".github/workflows/ci-lintro-analysis.yml"
+      - "**.md"
+      - "**.yml"
+      - "**.yaml"
+      - "**.toml"
+      - "**.sh"
+      - "**.ts"
+      - "**.tsx"
+      - "**.js"
+      - "**.json"
+      - "Dockerfile*"
+      - ".github/workflows/**"
       - "scripts/**"
       - ".lintro-config.yaml"
+      - ".lintro-ignore"
   pull_request:
     branches: [main]
 
