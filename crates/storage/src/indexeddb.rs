@@ -74,7 +74,7 @@ impl IndexedDbStorage {
             };
 
             // Create object store if it doesn't exist
-            if !db.object_store_names().contains(&store_name.into()) {
+            if !db.object_store_names().contains(store_name) {
                 if let Err(e) = db.create_object_store(store_name) {
                     console::error_1(&format!("Failed to create object store: {:?}", e).into());
                 }

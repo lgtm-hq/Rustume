@@ -82,10 +82,6 @@ tools:
   shfmt:
     enabled: true
 
-  # Biome - JavaScript/TypeScript linter and formatter
-  biome:
-    enabled: true
-
   # Gitleaks - Secret scanning
   gitleaks:
     enabled: true

@@ -61,6 +61,7 @@ jobs:
             objects.githubusercontent.com:443
             ghcr.io:443
             pkg-containers.githubusercontent.com:443
+            registry.npmjs.org:443
             semgrep.dev:443
 
       - name: Checkout
@@ -73,14 +74,15 @@ jobs:
         env:
           # Pin to specific image digest for reproducibility
           # yamllint disable-line rule:line-length
-          LINTRO_IMAGE: ghcr.io/lgtm-hq/py-lintro@sha256:db35d507b7106db73f4c51b789143d59d8294bb6c347afd038cd609dcad4ee95
+          LINTRO_IMAGE: ghcr.io/lgtm-hq/py-lintro@sha256:051e7f94c8eb73b2e6aeabe6a1f4609be086956b13662bea4d2aa1a5fcbe5e1b
         run: |
           # Disable exit-on-error to capture exit code
           set +eo pipefail
           docker run --rm \
             -v "${{ github.workspace }}:/code" \
+            --user "$(id -u):$(id -g)" \
             "$LINTRO_IMAGE" \
-            check --output-format grid 2>&1 | tee chk-output.txt
+            check --auto-install --output-format grid 2>&1 | tee chk-output.txt
           EXIT_CODE=${PIPESTATUS[0]}
           echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
           echo "CHK_EXIT_CODE=$EXIT_CODE" >> "$GITHUB_ENV"
