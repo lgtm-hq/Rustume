@@ -36,6 +36,7 @@ export async function initWasm(): Promise<void> {
 
   try {
     // Dynamic import - will fail gracefully if WASM not built
+    // @ts-ignore TS2307 - WASM build output is gitignored; module may not exist
     const wasm = (await import("../../wasm/rustume_wasm")) as unknown as WasmModule;
     await wasm.default();
     wasmModule = wasm;
