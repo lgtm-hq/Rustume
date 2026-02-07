@@ -19,7 +19,7 @@
       "~/*": ["./src/*"]
     },
     "baseUrl": ".",
-    "types": ["vite/client"]
+    "types": []
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"]
 }

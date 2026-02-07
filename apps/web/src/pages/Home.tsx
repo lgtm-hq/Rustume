@@ -157,10 +157,7 @@ export default function Home() {
                     class="group flex items-center justify-between p-4 border border-border
                       rounded-xl hover:border-accent hover:shadow-card transition-all bg-paper"
                   >
-                    <A
-                      href={`/edit/${resume.id}`}
-                      class="flex items-center gap-4 flex-1 min-w-0"
-                    >
+                    <A href={`/edit/${resume.id}`} class="flex items-center gap-4 flex-1 min-w-0">
                       <div class="w-12 h-12 bg-surface rounded-lg flex items-center justify-center flex-shrink-0">
                         <svg
                           class="w-6 h-6 text-stone group-hover:text-accent transition-colors"
@@ -215,11 +212,7 @@ export default function Home() {
                         </Show>
                       </button>
 
-                      <A
-                        href={`/edit/${resume.id}`}
-                        class="p-1"
-                        aria-label={`Edit ${resume.name}`}
-                      >
+                      <A href={`/edit/${resume.id}`} class="p-1" aria-label={`Edit ${resume.name}`}>
                         <svg
                           class="w-5 h-5 text-stone group-hover:text-accent transition-colors"
                           fill="none"
