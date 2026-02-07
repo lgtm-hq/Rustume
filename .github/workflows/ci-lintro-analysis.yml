@@ -69,12 +69,9 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3 # v2.1.2
-
       - name: Install web dependencies
         working-directory: apps/web
-        run: bun install --ignore-scripts
+        run: npm install --no-package-lock --ignore-scripts
 
       - name: Run Lintro Analysis
         id: lintro

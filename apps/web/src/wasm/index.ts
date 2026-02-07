@@ -29,22 +29,30 @@ interface WasmStorage {
 let wasmModule: WasmModule | null = null;
 let storageInstance: WasmStorage | null = null;
 let wasmLoadError: Error | null = null;
+let wasmInitPromise: Promise<void> | null = null;
 
 export async function initWasm(): Promise<void> {
   if (wasmModule) return;
   if (wasmLoadError) throw wasmLoadError;
+  if (wasmInitPromise) return wasmInitPromise;
 
-  try {
+  wasmInitPromise = (async () => {
     // Dynamic import - will fail gracefully if WASM not built
     // @ts-ignore TS2307 - WASM build output is gitignored; module may not exist
     const wasm = (await import("../../wasm/rustume_wasm")) as unknown as WasmModule;
     await wasm.default();
     wasmModule = wasm;
-  } catch (e) {
-    wasmLoadError = e instanceof Error ? e : new Error(String(e));
-    console.warn("WASM not available:", e);
-    throw wasmLoadError;
-  }
+  })()
+    .catch((e) => {
+      wasmLoadError = e instanceof Error ? e : new Error(String(e));
+      console.warn("WASM not available:", e);
+      throw wasmLoadError;
+    })
+    .finally(() => {
+      wasmInitPromise = null;
+    });
+
+  return wasmInitPromise;
 }
 
 export function isWasmReady(): boolean {
@@ -138,12 +146,24 @@ export function resumeToJson(resume: ResumeData): string {
 }
 
 // Template operations
+//
+// Fallback defaults below mirror the WASM module (crates/render).
+// Keep these in sync when adding or modifying templates.
+
+const FALLBACK_TEMPLATES = ["rhyhorn", "azurill", "pikachu", "nosepass"] as const;
+
+const FALLBACK_THEMES: Record<string, { background: string; text: string; primary: string }> = {
+  rhyhorn: { background: "#ffffff", text: "#000000", primary: "#0284c7" },
+  azurill: { background: "#ffffff", text: "#1e293b", primary: "#2563eb" },
+  pikachu: { background: "#fffbeb", text: "#1c1917", primary: "#ca8a04" },
+  nosepass: { background: "#f8fafc", text: "#0f172a", primary: "#4f46e5" },
+};
+
 export function listTemplates(): string[] {
   if (wasmModule) {
     return wasmModule.list_templates();
   }
-  // Fallback
-  return ["rhyhorn", "azurill", "pikachu", "nosepass"];
+  return [...FALLBACK_TEMPLATES];
 }
 
 export function getTemplateTheme(
@@ -152,14 +172,7 @@ export function getTemplateTheme(
   if (wasmModule) {
     return wasmModule.get_template_theme_js(template);
   }
-  // Fallback themes
-  const themes: Record<string, { background: string; text: string; primary: string }> = {
-    rhyhorn: { background: "#ffffff", text: "#000000", primary: "#0284c7" },
-    azurill: { background: "#ffffff", text: "#1e293b", primary: "#2563eb" },
-    pikachu: { background: "#fffbeb", text: "#1c1917", primary: "#ca8a04" },
-    nosepass: { background: "#f8fafc", text: "#0f172a", primary: "#4f46e5" },
-  };
-  return themes[template] || null;
+  return FALLBACK_THEMES[template] || null;
 }
 
 // Re-export types
