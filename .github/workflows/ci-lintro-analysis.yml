@@ -80,6 +80,7 @@ jobs:
           set +eo pipefail
           docker run --rm \
             -v "${{ github.workspace }}:/code" \
+            --user "$(id -u):$(id -g)" \
             "$LINTRO_IMAGE" \
             check --auto-install --output-format grid 2>&1 | tee chk-output.txt
           EXIT_CODE=${PIPESTATUS[0]}
