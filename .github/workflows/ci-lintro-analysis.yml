@@ -81,7 +81,7 @@ jobs:
           docker run --rm \
             -v "${{ github.workspace }}:/code" \
             "$LINTRO_IMAGE" \
-            check --auto-install --output-format grid 2>&1 | tee chk-output.txt
+            check --output-format grid 2>&1 | tee chk-output.txt
           EXIT_CODE=${PIPESTATUS[0]}
           echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
           echo "CHK_EXIT_CODE=$EXIT_CODE" >> "$GITHUB_ENV"
