@@ -74,14 +74,14 @@ jobs:
         env:
           # Pin to specific image digest for reproducibility
           # yamllint disable-line rule:line-length
-          LINTRO_IMAGE: ghcr.io/lgtm-hq/py-lintro@sha256:7821a77038f1d10332a5bec3bab9a6a6019df9829de9eeddc25fae58de7624ac
+          LINTRO_IMAGE: ghcr.io/lgtm-hq/py-lintro@sha256:051e7f94c8eb73b2e6aeabe6a1f4609be086956b13662bea4d2aa1a5fcbe5e1b
         run: |
           # Disable exit-on-error to capture exit code
           set +eo pipefail
           docker run --rm \
             -v "${{ github.workspace }}:/code" \
             "$LINTRO_IMAGE" \
-            check --output-format grid 2>&1 | tee chk-output.txt
+            check --auto-install --output-format grid 2>&1 | tee chk-output.txt
           EXIT_CODE=${PIPESTATUS[0]}
           echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
           echo "CHK_EXIT_CODE=$EXIT_CODE" >> "$GITHUB_ENV"

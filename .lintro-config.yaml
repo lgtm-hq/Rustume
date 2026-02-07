@@ -54,11 +54,6 @@ tools:
   rustfmt:
     enabled: false
 
-  # TypeScript type checking - disabled as py-lintro image lacks node_modules
-  # Type checks run via the web app's build step instead
-  tsc:
-    enabled: false
-
   # Markdown linting
   markdownlint:
     enabled: true
