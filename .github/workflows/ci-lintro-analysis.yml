@@ -61,12 +61,17 @@ jobs:
             objects.githubusercontent.com:443
             ghcr.io:443
             pkg-containers.githubusercontent.com:443
+            registry.npmjs.org:443
             semgrep.dev:443
 
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
+
+      - name: Install web dependencies
+        working-directory: apps/web
+        run: npm install --ignore-scripts
 
       - name: Run Lintro Analysis
         id: lintro
