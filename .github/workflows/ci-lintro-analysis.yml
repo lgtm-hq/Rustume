@@ -61,6 +61,8 @@ jobs:
             objects.githubusercontent.com:443
             ghcr.io:443
             pkg-containers.githubusercontent.com:443
+            index.crates.io:443
+            static.crates.io:443
             registry.npmjs.org:443
             semgrep.dev:443
 
