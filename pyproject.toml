@@ -14,7 +14,7 @@ license = { text = "MIT" }
 dependencies = []
 
 [dependency-groups]
-lint = ["lintro>=0.46.0"]
+lint = ["lintro>=0.51.0"]
 
 [tool.lintro]
 line_length = 100

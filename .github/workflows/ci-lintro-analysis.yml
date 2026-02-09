@@ -74,7 +74,7 @@ jobs:
         env:
           # Pin to specific image digest for reproducibility
           # yamllint disable-line rule:line-length
-          LINTRO_IMAGE: ghcr.io/lgtm-hq/py-lintro@sha256:051e7f94c8eb73b2e6aeabe6a1f4609be086956b13662bea4d2aa1a5fcbe5e1b
+          LINTRO_IMAGE: ghcr.io/lgtm-hq/py-lintro@sha256:6c4531e17eb10e6bc0f6584aab21a55dd74cfa223cf6eccd82238d81a2980538
         run: |
           # Disable exit-on-error to capture exit code
           set +eo pipefail
