@@ -61,6 +61,9 @@ jobs:
             objects.githubusercontent.com:443
             ghcr.io:443
             pkg-containers.githubusercontent.com:443
+            index.crates.io:443
+            static.crates.io:443
+            registry.npmjs.org:443
             semgrep.dev:443
 
       - name: Checkout
@@ -73,7 +76,7 @@ jobs:
         env:
           # Pin to specific image digest for reproducibility
           # yamllint disable-line rule:line-length
-          LINTRO_IMAGE: ghcr.io/lgtm-hq/py-lintro@sha256:db35d507b7106db73f4c51b789143d59d8294bb6c347afd038cd609dcad4ee95
+          LINTRO_IMAGE: ghcr.io/lgtm-hq/py-lintro@sha256:e714dfce0564c57fde82bcc6496697d14a3e9e533ef153d45630e58fd31f9ea8
         run: |
           # Disable exit-on-error to capture exit code
           set +eo pipefail
