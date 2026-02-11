@@ -338,14 +338,14 @@ export function EducationEditor() {
         visible: true,
         institution: "",
         area: "",
-        study_type: "",
+        studyType: "",
         date: "",
         score: "",
         summary: "",
         url: createEmptyUrl(),
       })}
       getItemTitle={(item) => item.institution}
-      getItemSubtitle={(item) => item.area || item.study_type}
+      getItemSubtitle={(item) => item.area || item.studyType}
       renderItem={(item, _index, update) => (
         <div class="space-y-4">
           <Input
@@ -364,8 +364,8 @@ export function EducationEditor() {
             <Input
               label="Degree"
               placeholder="Bachelor of Science"
-              value={item.study_type}
-              onInput={(v) => update({ study_type: v })}
+              value={item.studyType}
+              onInput={(v) => update({ studyType: v })}
             />
           </div>
           <div class="grid grid-cols-2 gap-4">
