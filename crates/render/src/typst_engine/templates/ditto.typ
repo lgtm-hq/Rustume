@@ -102,7 +102,7 @@
     text(size: 7pt, fill: muted-color)[#item.description]
   }
 
-  let level = calc.min(calc.max(item.level, 0), 5)
+  let level = int(calc.min(calc.max(item.level, 0), 5))
   if level > 0 {
     v(2pt)
     for i in range(level) {
@@ -132,7 +132,7 @@
     text(size: 7pt, fill: muted-color)[ -- #item.description]
   }
 
-  let level = calc.min(calc.max(item.level, 0), 5)
+  let level = int(calc.min(calc.max(item.level, 0), 5))
   if level > 0 {
     v(2pt)
     for i in range(level) {

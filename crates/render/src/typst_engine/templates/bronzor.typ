@@ -26,7 +26,7 @@
 }
 
 #let skill-bar(level) = {
-  let level = calc.min(calc.max(level, 0), 5)
+  let level = int(calc.min(calc.max(level, 0), 5))
   h(4pt)
   for i in range(level) {
     box(width: 8pt, height: 8pt, fill: primary-color, radius: 2pt)
@@ -139,7 +139,8 @@
   if item.visible == false { return }
 
   if "url" in item and item.url != none and item.url.href != "" {
-    link(item.url.href)[#text(fill: primary-color)[#item.username]]
+    let label = if item.username != "" { item.username } else { item.url.href }
+    link(item.url.href)[#text(fill: primary-color)[#label]]
   } else {
     [#item.network: #item.username]
   }

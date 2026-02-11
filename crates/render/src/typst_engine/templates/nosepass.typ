@@ -91,7 +91,7 @@
     inset: (x: 8pt, y: 4pt),
     [
       #text(size: 9pt, weight: "medium")[#item.name]
-      #let level = calc.min(calc.max(item.level, 0), 5)
+      #let level = int(calc.min(calc.max(item.level, 0), 5))
       #if level > 0 {
         h(4pt)
         for i in range(level) {

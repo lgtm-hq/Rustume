@@ -20,12 +20,13 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use lru::LruCache;
 use rustume_parser::{JsonResumeParser, LinkedInParser, Parser, ReactiveResumeV3Parser};
 use rustume_render::{get_template_theme, Renderer, TypstRenderer, TEMPLATES};
 use rustume_schema::ResumeData;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::num::NonZeroUsize;
 use std::sync::OnceLock;
 use tokio::signal;
 use tokio::sync::Mutex;
@@ -104,6 +105,8 @@ enum ApiErrorKind {
     /// Bad request (400) - malformed input, invalid format
     #[default]
     BadRequest,
+    /// Not found (404) - resource does not exist
+    NotFound,
     /// Unprocessable entity (422) - validation errors
     UnprocessableEntity,
     /// Internal server error (500) - rendering failures, etc.
@@ -114,6 +117,7 @@ impl ApiErrorKind {
     fn status_code(self) -> StatusCode {
         match self {
             ApiErrorKind::BadRequest => StatusCode::BAD_REQUEST,
+            ApiErrorKind::NotFound => StatusCode::NOT_FOUND,
             ApiErrorKind::UnprocessableEntity => StatusCode::UNPROCESSABLE_ENTITY,
             ApiErrorKind::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
         }
@@ -149,6 +153,14 @@ impl ApiError {
             error: error.into(),
             details: Some(details),
             kind: ApiErrorKind::UnprocessableEntity,
+        }
+    }
+
+    fn not_found(error: impl Into<String>) -> Self {
+        Self {
+            error: error.into(),
+            details: None,
+            kind: ApiErrorKind::NotFound,
         }
     }
 
@@ -323,10 +335,17 @@ async fn list_templates() -> Json<Vec<TemplateInfo>> {
     Json(templates)
 }
 
-/// Cache for rendered template thumbnails (keyed by template name)
-fn thumbnail_cache() -> &'static Mutex<HashMap<String, Vec<u8>>> {
-    static CACHE: OnceLock<Mutex<HashMap<String, Vec<u8>>>> = OnceLock::new();
-    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+/// Maximum number of template thumbnails to cache
+const THUMBNAIL_CACHE_CAPACITY: usize = 32;
+
+/// Cache for rendered template thumbnails (keyed by template name, bounded LRU)
+fn thumbnail_cache() -> &'static Mutex<LruCache<String, Vec<u8>>> {
+    static CACHE: OnceLock<Mutex<LruCache<String, Vec<u8>>>> = OnceLock::new();
+    CACHE.get_or_init(|| {
+        Mutex::new(LruCache::new(
+            NonZeroUsize::new(THUMBNAIL_CACHE_CAPACITY).unwrap(),
+        ))
+    })
 }
 
 /// Create a sample resume with realistic placeholder data for thumbnails.
@@ -419,12 +438,12 @@ fn create_sample_resume() -> ResumeData {
 async fn template_thumbnail(Path(id): Path<String>) -> Result<Response, ApiError> {
     // Verify template exists
     if !TEMPLATES.contains(&id.as_str()) {
-        return Err(ApiError::new(format!("Template '{}' not found", id)));
+        return Err(ApiError::not_found(format!("Template '{}' not found", id)));
     }
 
     // Check cache
     {
-        let cache = thumbnail_cache().lock().await;
+        let mut cache = thumbnail_cache().lock().await;
         if let Some(png) = cache.get(&id) {
             return Ok((
                 StatusCode::OK,
@@ -454,7 +473,7 @@ async fn template_thumbnail(Path(id): Path<String>) -> Result<Response, ApiError
     // Cache the result
     {
         let mut cache = thumbnail_cache().lock().await;
-        cache.insert(id, png.clone());
+        cache.put(id, png.clone());
     }
 
     Ok((

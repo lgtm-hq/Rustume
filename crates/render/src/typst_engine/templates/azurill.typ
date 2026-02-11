@@ -28,7 +28,7 @@
 
 // Rating bars helper (0-5 scale)
 #let rating-bars(level) = {
-  let level = calc.min(calc.max(level, 0), 5)
+  let level = int(calc.min(calc.max(level, 0), 5))
   for i in range(level) {
     box(width: 14pt, height: 4pt, fill: primary-color, radius: 2pt)
     h(2pt)

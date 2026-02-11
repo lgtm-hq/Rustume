@@ -28,7 +28,7 @@
 }
 
 #let rating-squares(level) = {
-  let level = calc.min(calc.max(level, 0), 5)
+  let level = int(calc.min(calc.max(level, 0), 5))
   for i in range(level) {
     box(width: 8pt, height: 8pt, fill: primary-color)
     h(2pt)

@@ -25,7 +25,7 @@
 }
 
 #let skill-dots(level) = {
-  let level = calc.min(calc.max(level, 0), 5)
+  let level = int(calc.min(calc.max(level, 0), 5))
   let filled = level
   let empty = 5 - level
   for i in range(filled) {

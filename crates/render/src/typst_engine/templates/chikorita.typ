@@ -28,7 +28,7 @@
 }
 
 #let rating-dots(level) = {
-  let level = calc.min(calc.max(level, 0), 5)
+  let level = int(calc.min(calc.max(level, 0), 5))
   for i in range(level) {
     box(width: 6pt, height: 6pt, fill: primary-color, radius: 50%)
     h(3pt)
