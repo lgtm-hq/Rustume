@@ -1235,4 +1235,35 @@ mod tests {
 
         assert_eq!(text, "ok");
     }
+
+    #[tokio::test]
+    async fn test_template_thumbnail() {
+        let app = create_router();
+
+        let ok = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/templates/rhyhorn/thumbnail")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(ok.status(), StatusCode::OK);
+        assert_eq!(ok.headers().get("content-type").unwrap(), "image/png");
+
+        let missing = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/templates/not-a-template/thumbnail")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(missing.status(), StatusCode::NOT_FOUND);
+    }
 }
