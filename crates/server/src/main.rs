@@ -441,20 +441,21 @@ async fn template_thumbnail(Path(id): Path<String>) -> Result<Response, ApiError
         return Err(ApiError::not_found(format!("Template '{}' not found", id)));
     }
 
-    // Check cache
-    {
+    // Check cache (clone inside lock, respond outside)
+    let cached = {
         let mut cache = thumbnail_cache().lock().await;
-        if let Some(png) = cache.get(&id) {
-            return Ok((
-                StatusCode::OK,
-                [
-                    (header::CONTENT_TYPE, "image/png"),
-                    (header::CACHE_CONTROL, "public, max-age=86400"),
-                ],
-                png.clone(),
-            )
-                .into_response());
-        }
+        cache.get(&id).cloned()
+    };
+    if let Some(png) = cached {
+        return Ok((
+            StatusCode::OK,
+            [
+                (header::CONTENT_TYPE, "image/png"),
+                (header::CACHE_CONTROL, "public, max-age=86400"),
+            ],
+            png,
+        )
+            .into_response());
     }
 
     // Render thumbnail with sample data
