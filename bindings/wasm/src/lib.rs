@@ -159,8 +159,18 @@ pub fn resume_to_json(resume: JsValue) -> Result<String, JsError> {
 pub fn list_templates() -> Result<JsValue, JsError> {
     // Hardcoded list since we can't import rustume_render in WASM
     let templates = vec![
-        "rhyhorn", "azurill", "pikachu", "nosepass", "bronzor", "chikorita",
-        "ditto", "gengar", "glalie", "kakuna", "leafish", "onyx",
+        "rhyhorn",
+        "azurill",
+        "pikachu",
+        "nosepass",
+        "bronzor",
+        "chikorita",
+        "ditto",
+        "gengar",
+        "glalie",
+        "kakuna",
+        "leafish",
+        "onyx",
     ];
     serde_wasm_bindgen::to_value(&templates).map_err(|e| JsError::new(&e.to_string()))
 }
