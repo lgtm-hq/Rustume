@@ -30,9 +30,11 @@ export function Preview() {
     const resumeJson = debouncedResume();
     if (!resumeJson || !store.resume) return;
 
-    // Skip if offline
+    // Skip if offline — keep showing cached preview if available
     if (!isOnline()) {
-      setError("Preview unavailable offline");
+      if (!lastCachedUrl()) {
+        setError("Preview unavailable offline");
+      }
       return;
     }
 
@@ -66,7 +68,13 @@ export function Preview() {
   // Also refresh when page changes
   createEffect(() => {
     const page = ui.previewPage;
-    if (!store.resume || !isOnline()) return;
+    if (!store.resume) return;
+    if (!isOnline()) {
+      if (!lastCachedUrl()) {
+        setError("Preview unavailable offline");
+      }
+      return;
+    }
 
     const currentRequestId = ++pageRequestId;
     setIsLoading(true);
