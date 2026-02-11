@@ -109,18 +109,29 @@ export function TemplatePicker() {
 
           {/* Template grid */}
           <Show when={!previewing()}>
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-[70vh] overflow-y-auto p-1">
-              <For each={templates()}>
-                {(template) => (
-                  <TemplateCard
-                    template={template}
-                    isSelected={store.resume?.metadata.template === template.id}
-                    onSelect={handleSelect}
-                    onPreview={setPreviewing}
-                  />
-                )}
-              </For>
-            </div>
+            <Show
+              when={templates()?.length}
+              fallback={
+                <div class="text-center py-12">
+                  <p class="text-stone text-sm">
+                    No templates available. Check that the server is running and try again.
+                  </p>
+                </div>
+              }
+            >
+              <div class="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-[70vh] overflow-y-auto p-1">
+                <For each={templates()}>
+                  {(template) => (
+                    <TemplateCard
+                      template={template}
+                      isSelected={store.resume?.metadata.template === template.id}
+                      onSelect={handleSelect}
+                      onPreview={setPreviewing}
+                    />
+                  )}
+                </For>
+              </div>
+            </Show>
           </Show>
         </Show>
       </Show>
