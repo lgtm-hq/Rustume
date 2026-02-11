@@ -15,7 +15,8 @@
 use anyhow::Context;
 use axum::{
     extract::{DefaultBodyLimit, Path},
-    http::{header, Method, StatusCode},
+    http::{header, HeaderValue, Method, StatusCode},
+    middleware,
     response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
@@ -695,12 +696,43 @@ fn validation_errors(errors: &validator::ValidationErrors) -> Vec<String> {
 // Server Setup
 // ============================================================================
 
+/// Middleware that adds security headers to every response.
+async fn security_headers(req: axum::extract::Request, next: middleware::Next) -> Response {
+    let mut response = next.run(req).await;
+    let headers = response.headers_mut();
+    headers
+        .entry("x-content-type-options")
+        .or_insert(HeaderValue::from_static("nosniff"));
+    headers
+        .entry("x-frame-options")
+        .or_insert(HeaderValue::from_static("DENY"));
+    headers
+        .entry("x-xss-protection")
+        .or_insert(HeaderValue::from_static("0"));
+    headers
+        .entry("referrer-policy")
+        .or_insert(HeaderValue::from_static("strict-origin-when-cross-origin"));
+    response
+}
+
 fn create_router() -> Router {
-    // CORS configuration
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
-        .allow_headers([header::CONTENT_TYPE, header::ACCEPT]);
+    // CORS configuration: restrict origins via CORS_ORIGIN env var, default to "*"
+    let cors = {
+        let base = CorsLayer::new()
+            .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+            .allow_headers([header::CONTENT_TYPE, header::ACCEPT]);
+
+        match std::env::var("CORS_ORIGIN").ok() {
+            Some(origin) if !origin.is_empty() && origin != "*" => {
+                let origins: Vec<HeaderValue> = origin
+                    .split(',')
+                    .filter_map(|o| o.trim().parse().ok())
+                    .collect();
+                base.allow_origin(origins)
+            }
+            _ => base.allow_origin(Any),
+        }
+    };
 
     Router::new()
         // Swagger UI
@@ -715,6 +747,7 @@ fn create_router() -> Router {
         .route("/api/render/preview", post(render_preview))
         .route("/api/validate", post(validate))
         // Middleware
+        .layer(middleware::from_fn(security_headers))
         .layer(CompressionLayer::new())
         .layer(cors)
         .layer(TraceLayer::new_for_http())
@@ -774,6 +807,10 @@ async fn main() -> anyhow::Result<()> {
         port
     );
     info!("Web UI available at http://localhost:5173 (run 'make web' or 'make dev')");
+    info!(
+        "CORS origin: {}",
+        std::env::var("CORS_ORIGIN").unwrap_or_else(|_| "*".to_string())
+    );
 
     let listener = tokio::net::TcpListener::bind(addr)
         .await
@@ -1265,5 +1302,31 @@ mod tests {
             .unwrap();
 
         assert_eq!(missing.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_security_headers() {
+        let app = create_router();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(
+            response.headers().get("x-content-type-options").unwrap(),
+            "nosniff"
+        );
+        assert_eq!(response.headers().get("x-frame-options").unwrap(), "DENY");
+        assert_eq!(response.headers().get("x-xss-protection").unwrap(), "0");
+        assert_eq!(
+            response.headers().get("referrer-policy").unwrap(),
+            "strict-origin-when-cross-origin"
+        );
     }
 }
