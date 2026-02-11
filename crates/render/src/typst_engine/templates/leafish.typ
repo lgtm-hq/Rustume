@@ -452,13 +452,13 @@
     // ---- LEFT COLUMN ----
     [
       // Summary
-      #if data.sections.summary.visible and data.sections.summary.content != "" {
+      #if data.sections.summary.visible {
         section-heading(data.sections.summary.name)
         text(size: 9.5pt)[#data.sections.summary.content]
       }
 
       // Experience
-      #if data.sections.experience.visible and data.sections.experience.items.len() > 0 {
+      #if data.sections.experience.visible {
         section-heading(data.sections.experience.name)
         for item in data.sections.experience.items {
           render-experience(item)
@@ -466,7 +466,7 @@
       }
 
       // Education
-      #if data.sections.education.visible and data.sections.education.items.len() > 0 {
+      #if data.sections.education.visible {
         section-heading(data.sections.education.name)
         for item in data.sections.education.items {
           render-education(item)
@@ -474,7 +474,7 @@
       }
 
       // Awards
-      #if data.sections.awards.visible and data.sections.awards.items.len() > 0 {
+      #if data.sections.awards.visible {
         section-heading(data.sections.awards.name)
         for item in data.sections.awards.items {
           render-award(item)
@@ -482,7 +482,7 @@
       }
 
       // Certifications
-      #if data.sections.certifications.visible and data.sections.certifications.items.len() > 0 {
+      #if data.sections.certifications.visible {
         section-heading(data.sections.certifications.name)
         for item in data.sections.certifications.items {
           render-certification(item)
@@ -490,7 +490,7 @@
       }
 
       // Publications
-      #if data.sections.publications.visible and data.sections.publications.items.len() > 0 {
+      #if data.sections.publications.visible {
         section-heading(data.sections.publications.name)
         for item in data.sections.publications.items {
           render-publication(item)
@@ -501,7 +501,7 @@
     // ---- RIGHT COLUMN ----
     [
       // Profiles
-      #if data.sections.profiles.visible and data.sections.profiles.items.len() > 0 {
+      #if data.sections.profiles.visible {
         section-heading(data.sections.profiles.name)
         for item in data.sections.profiles.items {
           render-profile(item)
@@ -509,7 +509,7 @@
       }
 
       // Skills
-      #if data.sections.skills.visible and data.sections.skills.items.len() > 0 {
+      #if data.sections.skills.visible {
         section-heading(data.sections.skills.name)
         for item in data.sections.skills.items {
           render-skill(item)
@@ -517,7 +517,7 @@
       }
 
       // Languages
-      #if data.sections.languages.visible and data.sections.languages.items.len() > 0 {
+      #if data.sections.languages.visible {
         section-heading(data.sections.languages.name)
         for item in data.sections.languages.items {
           render-language(item)
@@ -525,7 +525,7 @@
       }
 
       // Interests
-      #if data.sections.interests.visible and data.sections.interests.items.len() > 0 {
+      #if data.sections.interests.visible {
         section-heading(data.sections.interests.name)
         for item in data.sections.interests.items {
           render-interest(item)
@@ -533,7 +533,7 @@
       }
 
       // Volunteer
-      #if data.sections.volunteer.visible and data.sections.volunteer.items.len() > 0 {
+      #if data.sections.volunteer.visible {
         section-heading(data.sections.volunteer.name)
         for item in data.sections.volunteer.items {
           render-volunteer(item)
@@ -541,7 +541,7 @@
       }
 
       // Projects
-      #if data.sections.projects.visible and data.sections.projects.items.len() > 0 {
+      #if data.sections.projects.visible {
         section-heading(data.sections.projects.name)
         for item in data.sections.projects.items {
           render-project(item)
@@ -549,7 +549,7 @@
       }
 
       // References
-      #if data.sections.references.visible and data.sections.references.items.len() > 0 {
+      #if data.sections.references.visible {
         section-heading(data.sections.references.name)
         for item in data.sections.references.items {
           render-reference(item)
@@ -561,7 +561,7 @@
   // === CUSTOM SECTIONS (after grid) ===
   if "custom" in data.sections {
     for (key, section) in data.sections.custom {
-      if section.visible and section.items.len() > 0 {
+      if section.visible {
         section-heading(section.name)
         for item in section.items {
           render-custom(item)

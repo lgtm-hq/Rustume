@@ -14,7 +14,7 @@
 
 use anyhow::Context;
 use axum::{
-    extract::DefaultBodyLimit,
+    extract::{DefaultBodyLimit, Path},
     http::{header, Method, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, post},
@@ -24,7 +24,9 @@ use rustume_parser::{JsonResumeParser, LinkedInParser, Parser, ReactiveResumeV3P
 use rustume_render::{get_template_theme, Renderer, TypstRenderer, TEMPLATES};
 use rustume_schema::ResumeData;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::sync::{Mutex, OnceLock};
 use tokio::signal;
 use tower_http::{
     compression::CompressionLayer,
@@ -225,8 +227,11 @@ struct RenderPreviewRequest {
 /// Template information
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 struct TemplateInfo {
-    /// Template name/identifier
+    /// Template identifier (slug)
     #[schema(example = "rhyhorn")]
+    id: String,
+    /// Display name
+    #[schema(example = "Rhyhorn")]
     name: String,
     /// Theme colors for this template
     theme: ThemeInfo,
@@ -293,8 +298,17 @@ async fn list_templates() -> Json<Vec<TemplateInfo>> {
         .iter()
         .map(|name| {
             let theme = get_template_theme(name);
+            // Capitalize first letter for display name
+            let display_name = {
+                let mut chars = name.chars();
+                match chars.next() {
+                    None => String::new(),
+                    Some(c) => c.to_uppercase().to_string() + chars.as_str(),
+                }
+            };
             TemplateInfo {
-                name: name.to_string(),
+                id: name.to_string(),
+                name: display_name,
                 theme: ThemeInfo {
                     background: theme.background.clone(),
                     text: theme.text.clone(),
@@ -305,6 +319,151 @@ async fn list_templates() -> Json<Vec<TemplateInfo>> {
         .collect();
 
     Json(templates)
+}
+
+/// Cache for rendered template thumbnails (keyed by template name)
+fn thumbnail_cache() -> &'static Mutex<HashMap<String, Vec<u8>>> {
+    static CACHE: OnceLock<Mutex<HashMap<String, Vec<u8>>>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// Create a sample resume with realistic placeholder data for thumbnails.
+fn create_sample_resume() -> ResumeData {
+    use rustume_schema::*;
+
+    let mut resume = ResumeData::default();
+    resume.basics.name = "John Doe".to_string();
+    resume.basics.headline = "Senior Software Engineer".to_string();
+    resume.basics.email = "john@example.com".to_string();
+    resume.basics.phone = "+1 (555) 123-4567".to_string();
+    resume.basics.location = "San Francisco, CA".to_string();
+    resume.basics.url = Url::with_label("Portfolio", "https://johndoe.dev");
+
+    resume.sections.summary = SummarySection::new(
+        "Experienced software engineer with 8+ years building scalable web applications. \
+         Expert in React, TypeScript, and cloud architecture. Led teams of 5-10 engineers.",
+    );
+
+    resume.sections.experience.add_item(
+        Experience::new("TechCorp Inc.", "Senior Software Engineer")
+            .with_location("San Francisco, CA")
+            .with_date("2020 - Present")
+            .with_summary(
+                "Lead development of core platform serving 2M+ daily active users. \
+                 Architected microservices reducing latency by 40%.",
+            ),
+    );
+    resume.sections.experience.add_item(
+        Experience::new("StartupXYZ", "Software Engineer")
+            .with_location("Remote")
+            .with_date("2017 - 2020")
+            .with_summary(
+                "Built real-time collaboration features from scratch. \
+                 Implemented CI/CD pipelines reducing deployment time by 70%.",
+            ),
+    );
+
+    resume.sections.education.add_item(
+        Education::new("Stanford University", "Computer Science")
+            .with_study_type("Bachelor of Science")
+            .with_date("2013 - 2017")
+            .with_score("GPA: 3.9/4.0"),
+    );
+
+    resume
+        .sections
+        .skills
+        .add_item(Skill::new("TypeScript / JavaScript").with_level(5));
+    resume
+        .sections
+        .skills
+        .add_item(Skill::new("React / Next.js").with_level(5));
+    resume
+        .sections
+        .skills
+        .add_item(Skill::new("Node.js / Python").with_level(4));
+    resume
+        .sections
+        .skills
+        .add_item(Skill::new("PostgreSQL / Redis").with_level(4));
+
+    resume
+        .sections
+        .profiles
+        .add_item(Profile::new("GitHub", "johndoe").with_url("https://github.com/johndoe"));
+    resume
+        .sections
+        .profiles
+        .add_item(Profile::new("LinkedIn", "johndoe").with_url("https://linkedin.com/in/johndoe"));
+
+    resume
+}
+
+/// Get template thumbnail
+///
+/// Returns a pre-rendered PNG thumbnail of the template with sample data.
+#[utoipa::path(
+    get,
+    path = "/api/templates/{id}/thumbnail",
+    tag = "Templates",
+    params(
+        ("id" = String, Path, description = "Template ID")
+    ),
+    responses(
+        (status = 200, description = "PNG thumbnail image", content_type = "image/png"),
+        (status = 404, description = "Template not found", body = ApiError)
+    )
+)]
+async fn template_thumbnail(Path(id): Path<String>) -> Result<Response, ApiError> {
+    // Verify template exists
+    if !TEMPLATES.contains(&id.as_str()) {
+        return Err(ApiError::new(format!("Template '{}' not found", id)));
+    }
+
+    // Check cache
+    {
+        let cache = thumbnail_cache().lock().unwrap();
+        if let Some(png) = cache.get(&id) {
+            return Ok((
+                StatusCode::OK,
+                [
+                    (header::CONTENT_TYPE, "image/png"),
+                    (header::CACHE_CONTROL, "public, max-age=86400"),
+                ],
+                png.clone(),
+            )
+                .into_response());
+        }
+    }
+
+    // Render thumbnail with sample data
+    let mut resume = create_sample_resume();
+    resume.metadata.template = id.clone();
+    let theme = get_template_theme(&id);
+    resume.metadata.theme.primary = theme.primary.clone();
+    resume.metadata.theme.text = theme.text.clone();
+    resume.metadata.theme.background = theme.background.clone();
+
+    let renderer = TypstRenderer::new();
+    let png = renderer
+        .render_preview(&resume, 0)
+        .map_err(|e| ApiError::internal(format!("Failed to render thumbnail: {}", e)))?;
+
+    // Cache the result
+    {
+        let mut cache = thumbnail_cache().lock().unwrap();
+        cache.insert(id, png.clone());
+    }
+
+    Ok((
+        StatusCode::OK,
+        [
+            (header::CONTENT_TYPE, "image/png"),
+            (header::CACHE_CONTROL, "public, max-age=86400"),
+        ],
+        png,
+    )
+        .into_response())
 }
 
 /// Parse resume from various formats
@@ -528,6 +687,7 @@ fn create_router() -> Router {
         .route("/health", get(health))
         // API routes
         .route("/api/templates", get(list_templates))
+        .route("/api/templates/:id/thumbnail", get(template_thumbnail))
         .route("/api/parse", post(parse))
         .route("/api/render/pdf", post(render_pdf))
         .route("/api/render/preview", post(render_preview))
@@ -658,7 +818,7 @@ mod tests {
         let templates: Vec<TemplateInfo> = serde_json::from_slice(&body).unwrap();
 
         assert!(!templates.is_empty());
-        assert!(templates.iter().any(|t| t.name == "rhyhorn"));
+        assert!(templates.iter().any(|t| t.id == "rhyhorn"));
     }
 
     #[tokio::test]
@@ -1016,18 +1176,18 @@ mod tests {
 
         // Should return all 12 templates
         assert_eq!(templates.len(), 12);
-        assert!(templates.iter().any(|t| t.name == "rhyhorn"));
-        assert!(templates.iter().any(|t| t.name == "azurill"));
-        assert!(templates.iter().any(|t| t.name == "pikachu"));
-        assert!(templates.iter().any(|t| t.name == "nosepass"));
-        assert!(templates.iter().any(|t| t.name == "bronzor"));
-        assert!(templates.iter().any(|t| t.name == "chikorita"));
-        assert!(templates.iter().any(|t| t.name == "ditto"));
-        assert!(templates.iter().any(|t| t.name == "gengar"));
-        assert!(templates.iter().any(|t| t.name == "glalie"));
-        assert!(templates.iter().any(|t| t.name == "kakuna"));
-        assert!(templates.iter().any(|t| t.name == "leafish"));
-        assert!(templates.iter().any(|t| t.name == "onyx"));
+        assert!(templates.iter().any(|t| t.id == "rhyhorn"));
+        assert!(templates.iter().any(|t| t.id == "azurill"));
+        assert!(templates.iter().any(|t| t.id == "pikachu"));
+        assert!(templates.iter().any(|t| t.id == "nosepass"));
+        assert!(templates.iter().any(|t| t.id == "bronzor"));
+        assert!(templates.iter().any(|t| t.id == "chikorita"));
+        assert!(templates.iter().any(|t| t.id == "ditto"));
+        assert!(templates.iter().any(|t| t.id == "gengar"));
+        assert!(templates.iter().any(|t| t.id == "glalie"));
+        assert!(templates.iter().any(|t| t.id == "kakuna"));
+        assert!(templates.iter().any(|t| t.id == "leafish"));
+        assert!(templates.iter().any(|t| t.id == "onyx"));
     }
 
     #[tokio::test]

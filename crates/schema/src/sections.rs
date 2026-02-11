@@ -8,7 +8,7 @@ use validator::Validate;
 use crate::shared::Url;
 
 /// All resume sections.
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, Default, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
 pub struct Sections {
     #[validate(nested)]
     #[serde(default)]
@@ -82,6 +82,27 @@ fn validate_custom_sections(
     Ok(())
 }
 
+impl Default for Sections {
+    fn default() -> Self {
+        Self {
+            summary: SummarySection::default(),
+            experience: Section::new("experience", "Experience"),
+            education: Section::new("education", "Education"),
+            skills: Section::new_with_columns("skills", "Skills", 2),
+            projects: Section::new("projects", "Projects"),
+            profiles: Section::new_with_columns("profiles", "Profiles", 2),
+            awards: Section::new_hidden("awards", "Awards"),
+            certifications: Section::new_hidden("certifications", "Certifications"),
+            publications: Section::new_hidden("publications", "Publications"),
+            languages: Section::new_hidden_with_columns("languages", "Languages", 2),
+            interests: Section::new_hidden_with_columns("interests", "Interests", 2),
+            volunteer: Section::new_hidden("volunteer", "Volunteer"),
+            references: Section::new_hidden("references", "References"),
+            custom: HashMap::new(),
+        }
+    }
+}
+
 /// Generic section wrapper.
 #[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -123,6 +144,35 @@ impl<T: Validate> Section<T> {
             separate_links: true,
             visible: true,
             items: Vec::new(),
+        }
+    }
+
+    /// Create a new hidden section with the given ID and name.
+    pub fn new_hidden(id: impl Into<String>, name: impl Into<String>) -> Self {
+        Self {
+            visible: false,
+            ..Self::new(id, name)
+        }
+    }
+
+    /// Create a new section with the given ID, name, and column count.
+    pub fn new_with_columns(id: impl Into<String>, name: impl Into<String>, columns: u8) -> Self {
+        Self {
+            columns,
+            ..Self::new(id, name)
+        }
+    }
+
+    /// Create a new hidden section with the given ID, name, and column count.
+    pub fn new_hidden_with_columns(
+        id: impl Into<String>,
+        name: impl Into<String>,
+        columns: u8,
+    ) -> Self {
+        Self {
+            visible: false,
+            columns,
+            ..Self::new(id, name)
         }
     }
 
