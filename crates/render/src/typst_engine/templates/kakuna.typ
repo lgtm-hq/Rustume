@@ -2,6 +2,8 @@
 // Single-column linear layout, centered header in bordered box
 // Original: turbo-resume/apps/artboard/src/templates/kakuna.tsx
 
+#import "_common.typ": *
+
 #let primary-color = rgb("#78716c")
 #let text-color = rgb("#422006")
 #let muted-color = rgb("#a8a29e")
@@ -20,16 +22,8 @@
 }
 
 #let skill-bar(level) = {
-  let level = int(calc.min(calc.max(level, 0), 5))
   h(4pt)
-  for i in range(level) {
-    box(width: 8pt, height: 8pt, fill: primary-color, radius: 50%)
-    h(2pt)
-  }
-  for i in range(5 - level) {
-    box(width: 8pt, height: 8pt, fill: border-color, radius: 50%)
-    h(2pt)
-  }
+  rating-indicators(level, 8pt, 8pt, primary-color, border-color, 50%, 2pt)
 }
 
 #let entry-header(left-content, right-content) = {
@@ -75,13 +69,7 @@
       #text(weight: "semibold", size: 10pt)[#item.institution]
       #if item.studyType != "" or item.area != "" {
         v(2pt)
-        let degree = if item.studyType != "" and item.area != "" {
-          [#item.studyType in #item.area]
-        } else if item.area != "" {
-          item.area
-        } else {
-          item.studyType
-        }
+        let degree = format-degree(item.studyType, item.area)
         text(size: 10pt)[#degree]
       }
     ],
@@ -116,7 +104,7 @@
     skill-bar(item.level)
   )
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     v(2pt)
     text(size: 9pt, fill: muted-color)[#item.keywords.join(", ")]
   }
@@ -148,7 +136,7 @@
   let network = if "network" in item and item.network != none { item.network } else { "" }
   let username = if "username" in item and item.username != none { item.username } else { "" }
 
-  if "url" in item and item.url != none and item.url.href != "" {
+  if has-url(item) {
     let label = if username != "" { [#network: #username] } else { item.url.href }
     link(item.url.href)[#text(fill: primary-color)[#label]]
   } else if network != "" or username != "" {
@@ -175,7 +163,7 @@
     text(size: 10pt)[#item.summary]
   }
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     v(4pt)
     for keyword in item.keywords {
       box(
@@ -238,7 +226,7 @@
 
   text(size: 10pt, weight: "medium")[#item.name]
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     text(size: 9pt, fill: muted-color)[ — #item.keywords.join(", ")]
   }
 
@@ -335,7 +323,7 @@
     text(size: 9pt)[#item.summary]
   }
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     v(2pt)
     text(size: 9pt, fill: muted-color)[#item.keywords.join(", ")]
   }
@@ -376,11 +364,8 @@
 
         #v(10pt)
 
-        #let contact-items = ()
-        #if data.basics.email != "" { contact-items = contact-items + (data.basics.email,) }
-        #if data.basics.phone != "" { contact-items = contact-items + (data.basics.phone,) }
-        #if data.basics.location != "" { contact-items = contact-items + (data.basics.location,) }
-        #if "url" in data.basics and data.basics.url != none and data.basics.url.href != "" { contact-items = contact-items + (link(data.basics.url.href)[#data.basics.url.href],) }
+        #let contact-items = build-contact-items(data.basics)
+        #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#data.basics.url.href],) }
 
         #text(size: 9pt, fill: muted-color)[#contact-items.join("  ·  ")]
       ]

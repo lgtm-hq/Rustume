@@ -2,6 +2,8 @@
 // Two-column layout: tinted sidebar (left) + main content (right)
 // Teal accents, IBM Plex Serif, traditional/formal feel
 
+#import "_common.typ": *
+
 #let primary-color = rgb("#14b8a6")
 #let text-color = rgb("#0f172a")
 #let muted-color = rgb("#64748b")
@@ -27,15 +29,7 @@
 }
 
 #let skill-dots(level) = {
-  let level = int(calc.min(calc.max(level, 0), 5))
-  for i in range(level) {
-    box(width: 6pt, height: 6pt, fill: primary-color, radius: 50%)
-    h(2pt)
-  }
-  for i in range(5 - level) {
-    box(width: 6pt, height: 6pt, fill: rgb("#b2dfdb"), radius: 50%)
-    h(2pt)
-  }
+  rating-indicators(level, 6pt, 6pt, primary-color, rgb("#b2dfdb"), 50%, 2pt)
 }
 
 #let render-experience(item) = {
@@ -78,13 +72,7 @@
       #text(weight: "bold", size: 10pt)[#item.institution]
       #if item.studyType != "" or item.area != "" {
         v(1pt)
-        let degree = if item.studyType != "" and item.area != "" {
-          [#item.studyType in #item.area]
-        } else if item.area != "" {
-          item.area
-        } else {
-          item.studyType
-        }
+        let degree = format-degree(item.studyType, item.area)
         text(size: 10pt)[#degree]
       }
     ],
@@ -117,7 +105,7 @@
     skill-dots(level)
   }
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     v(2pt)
     text(size: 8pt, fill: muted-color)[#item.keywords.join(", ")]
   }
@@ -144,12 +132,14 @@
   v(6pt)
 }
 
+
+
 #let render-profile(item) = {
   if item.visible == false { return }
 
   text(size: 9pt, weight: "bold")[#item.network]
 
-  if "url" in item and item.url != none and item.url.href != "" {
+  if has-url(item) {
     v(1pt)
     link(item.url.href)[#text(size: 8pt, fill: primary-color)[#item.username]]
   } else {
@@ -180,7 +170,7 @@
     text(size: 10pt)[#item.summary]
   }
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     v(4pt)
     text(size: 9pt, fill: muted-color)[#item.keywords.join(", ")]
   }
@@ -239,7 +229,7 @@
 
   text(size: 9pt, weight: "bold")[#item.name]
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     v(1pt)
     text(size: 8pt, fill: muted-color)[#item.keywords.join(", ")]
   }
@@ -343,7 +333,7 @@
     text(size: 9pt)[#item.summary]
   }
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     v(2pt)
     text(size: 9pt, fill: muted-color)[#item.keywords.join(", ")]
   }
@@ -403,7 +393,7 @@
           text(size: 8pt, fill: text-color)[#data.basics.location]
           v(3pt)
         }
-        #if "url" in data.basics and data.basics.url != none and data.basics.url.href != "" {
+        #if has-url(data.basics) {
           link(data.basics.url.href)[#text(size: 8pt, fill: primary-color)[#data.basics.url.href]]
           v(3pt)
         }

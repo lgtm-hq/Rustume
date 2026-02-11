@@ -1,6 +1,8 @@
 // Nosepass Template - Professional, classic design
 // Traditional layout with blue accents, suitable for corporate environments
 
+#import "_common.typ": *
+
 #let primary-color = rgb("#3b82f6")
 #let dark-blue = rgb("#1e3a5f")
 #let text-color = rgb("#1f2937")
@@ -63,13 +65,7 @@
       #text(weight: "bold", size: 11pt, fill: dark-blue)[#item.institution]
       #v(2pt)
       #if item.studyType != "" or item.area != "" {
-        let degree = if item.studyType != "" and item.area != "" {
-          [#item.studyType in #item.area]
-        } else if item.area != "" {
-          item.area
-        } else {
-          item.studyType
-        }
+        let degree = format-degree(item.studyType, item.area)
         text(size: 10pt)[#degree]
       }
       #if item.score != "" {
@@ -91,7 +87,7 @@
     inset: (x: 8pt, y: 4pt),
     [
       #text(size: 9pt, weight: "medium")[#item.name]
-      #let level = int(calc.min(calc.max(item.level, 0), 5))
+      #let level = clamp-level(item.level)
       #if level > 0 {
         h(4pt)
         for i in range(level) {
@@ -122,7 +118,7 @@
 #let render-profile(item) = {
   if item.visible == false { return }
 
-  if "url" in item and item.url != none and item.url.href != "" {
+  if has-url(item) {
     link(item.url.href)[#text(fill: primary-color)[#item.network: #item.username]]
   } else {
     text(size: 10pt)[#item.network: #item.username]
@@ -140,7 +136,7 @@
     text(size: 10pt)[#item.description]
   }
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     v(4pt)
     for keyword in item.keywords {
       box(
@@ -303,7 +299,7 @@
     text(size: 10pt)[#item.summary]
   }
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     v(4pt)
     for keyword in item.keywords {
       box(
@@ -363,7 +359,7 @@
       #if data.basics.location != "" {
         contact-parts.push([📍 #data.basics.location])
       }
-      #if "url" in data.basics and data.basics.url != none and data.basics.url.href != "" {
+      #if has-url(data.basics) {
         contact-parts.push([🔗 #link(data.basics.url.href)[Portfolio]])
       }
 

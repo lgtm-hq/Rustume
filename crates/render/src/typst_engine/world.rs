@@ -35,6 +35,7 @@ fn get_templates() -> &'static HashMap<&'static str, &'static str> {
         map.insert("kakuna", include_str!("templates/kakuna.typ"));
         map.insert("leafish", include_str!("templates/leafish.typ"));
         map.insert("onyx", include_str!("templates/onyx.typ"));
+        map.insert("_common", include_str!("templates/_common.typ"));
         map
     })
 }

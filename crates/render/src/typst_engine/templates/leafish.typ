@@ -1,6 +1,8 @@
 // Leafish Template - Rose/crimson accented two-column layout
 // Full-width header above equal two-column grid, two-tier header design
 
+#import "_common.typ": *
+
 #let primary-color = rgb("#9f1239")
 #let text-color = rgb("#1f2937")
 #let muted-color = rgb("#6b7280")
@@ -20,15 +22,7 @@
 }
 
 #let rating-dots(level) = {
-  let level = int(calc.min(calc.max(level, 0), 5))
-  for i in range(level) {
-    box(width: 6pt, height: 6pt, fill: primary-color, radius: 50%)
-    h(2pt)
-  }
-  for i in range(5 - level) {
-    box(width: 6pt, height: 6pt, fill: rgb("#e5e7eb"), radius: 50%)
-    h(2pt)
-  }
+  rating-indicators(level, 6pt, 6pt, primary-color, rgb("#e5e7eb"), 50%, 2pt)
 }
 
 #let render-experience(item) = {
@@ -38,7 +32,7 @@
     columns: (1fr, auto),
     column-gutter: 8pt,
     [
-      #if "url" in item and item.url != none and item.url.href != "" {
+      #if has-url(item) {
         link(item.url.href)[#text(weight: "bold", size: 10pt, fill: primary-color)[#item.company]]
       } else {
         text(weight: "bold", size: 10pt)[#item.company]
@@ -75,13 +69,7 @@
       #text(weight: "bold", size: 10pt)[#item.institution]
       #if item.area != "" or item.studyType != "" {
         v(2pt)
-        let degree = if item.studyType != "" and item.area != "" {
-          [#item.studyType in #item.area]
-        } else if item.area != "" {
-          item.area
-        } else {
-          item.studyType
-        }
+        let degree = format-degree(item.studyType, item.area)
         text(size: 9.5pt)[#degree]
       }
     ],
@@ -119,7 +107,7 @@
     rating-dots(item.level)
   )
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     v(3pt)
     for keyword in item.keywords {
       box(
@@ -159,7 +147,7 @@
 
   text(size: 9pt, weight: "medium", fill: muted-color)[#item.network]
   h(4pt)
-  if "url" in item and item.url != none and item.url.href != "" {
+  if has-url(item) {
     link(item.url.href)[#text(size: 9pt, fill: primary-color)[#item.username]]
   } else {
     text(size: 9pt)[#item.username]
@@ -188,7 +176,7 @@
     text(size: 9pt)[#item.summary]
   }
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     v(3pt)
     for keyword in item.keywords {
       box(
@@ -256,7 +244,7 @@
 
   text(size: 9.5pt, weight: "medium")[#item.name]
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     v(2pt)
     for keyword in item.keywords {
       box(
@@ -367,7 +355,7 @@
     text(size: 9pt)[#item.summary]
   }
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     v(3pt)
     for keyword in item.keywords {
       box(
@@ -418,7 +406,7 @@
         }
       ],
       align(right + horizon)[
-        #if "url" in data.basics and data.basics.url != none and data.basics.url.href != "" {
+        #if has-url(data.basics) {
           link(data.basics.url.href)[#text(size: 9pt, fill: primary-color)[#data.basics.url.href]]
         }
       ]
@@ -432,10 +420,7 @@
     radius: (bottom: 6pt),
     inset: (x: 20pt, y: 8pt),
     {
-      let contact-items = ()
-      if data.basics.email != "" { contact-items = contact-items + (data.basics.email,) }
-      if data.basics.phone != "" { contact-items = contact-items + (data.basics.phone,) }
-      if data.basics.location != "" { contact-items = contact-items + (data.basics.location,) }
+      let contact-items = build-contact-items(data.basics)
 
       text(size: 9pt, fill: white)[#contact-items.join([#h(8pt)#text(fill: rgb("#f9a8c9"))[|]#h(8pt)])]
     }

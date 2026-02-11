@@ -2,6 +2,8 @@
 // Centered header with picture area, teal accents, contact icons
 // Original: turbo-resume/apps/artboard/src/templates/bronzor.tsx
 
+#import "_common.typ": *
+
 #let primary-color = rgb("#0891b2")
 #let text-color = rgb("#1f2937")
 #let muted-color = rgb("#6b7280")
@@ -26,16 +28,8 @@
 }
 
 #let skill-bar(level) = {
-  let level = int(calc.min(calc.max(level, 0), 5))
   h(4pt)
-  for i in range(level) {
-    box(width: 8pt, height: 8pt, fill: primary-color, radius: 2pt)
-    h(2pt)
-  }
-  for i in range(5 - level) {
-    box(width: 8pt, height: 8pt, fill: rgb("#e5e5e5"), radius: 2pt)
-    h(2pt)
-  }
+  rating-indicators(level, 8pt, 8pt, primary-color, rgb("#e5e5e5"), 2pt, 2pt)
 }
 
 #let render-experience(item) = {
@@ -71,13 +65,7 @@
   )
 
   if item.area != "" or item.studyType != "" {
-    let degree-text = if item.studyType != "" and item.area != "" {
-      [#item.studyType in #item.area]
-    } else if item.area != "" {
-      item.area
-    } else {
-      item.studyType
-    }
+    let degree-text = format-degree(item.studyType, item.area)
     text(size: 10pt)[#degree-text]
     v(2pt)
   }
@@ -109,7 +97,7 @@
     skill-bar(item.level)
   )
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     v(2pt)
     text(size: 9pt, fill: muted-color)[#item.keywords.join(", ")]
   }
@@ -138,7 +126,7 @@
 #let render-profile(item) = {
   if item.visible == false { return }
 
-  if "url" in item and item.url != none and item.url.href != "" {
+  if has-url(item) {
     let label = if item.username != "" { item.username } else { item.url.href }
     link(item.url.href)[#text(fill: primary-color)[#label]]
   } else {
@@ -165,7 +153,7 @@
     text(size: 10pt)[#item.summary]
   }
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     v(2pt)
     text(size: 9pt, fill: muted-color)[#item.keywords.join(", ")]
   }
@@ -220,7 +208,7 @@
 
   text(size: 10pt, weight: "bold")[#item.name]
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     text(size: 9pt, fill: muted-color)[ — #item.keywords.join(", ")]
   }
 
@@ -314,7 +302,7 @@
     text(size: 9pt)[#item.summary]
   }
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     v(2pt)
     text(size: 9pt, fill: muted-color)[#item.keywords.join(", ")]
   }
@@ -366,17 +354,8 @@
     #v(8pt)
 
     // Contact items - wrapped horizontally
-    #let contact-items = ()
-    #if data.basics.email != "" {
-      contact-items = contact-items + (data.basics.email,)
-    }
-    #if data.basics.phone != "" {
-      contact-items = contact-items + (data.basics.phone,)
-    }
-    #if data.basics.location != "" {
-      contact-items = contact-items + (data.basics.location,)
-    }
-    #if "url" in data.basics and data.basics.url != none and data.basics.url.href != "" {
+    #let contact-items = build-contact-items(data.basics)
+    #if has-url(data.basics) {
       contact-items = contact-items + (link(data.basics.url.href)[#text(fill: primary-color)[#data.basics.url.href]],)
     }
 

@@ -2,6 +2,8 @@
 // Light teal sidebar (left) with header inside, main content (right)
 // Primary teal accents, clean professional typography
 
+#import "_common.typ": *
+
 #let primary-color = rgb("#67b8c8")
 #let text-color = rgb("#1f2937")
 #let muted-color = rgb("#6b7280")
@@ -36,15 +38,7 @@
 }
 
 #let rating-boxes(level) = {
-  let level = int(calc.min(calc.max(level, 0), 5))
-  for i in range(level) {
-    box(width: 8pt, height: 8pt, fill: primary-color, radius: 1pt)
-    h(2pt)
-  }
-  for i in range(5 - level) {
-    box(width: 8pt, height: 8pt, fill: rgb("#d1d5db"), radius: 1pt)
-    h(2pt)
-  }
+  rating-indicators(level, 8pt, 8pt, primary-color, rgb("#d1d5db"), 1pt, 2pt)
 }
 
 #let render-experience(item) = {
@@ -52,7 +46,7 @@
 
   entry-header(
     [
-      #if "url" in item and item.url != none and item.url.href != "" {
+      #if has-url(item) {
         link(item.url.href)[#text(weight: "bold", size: 10pt)[#item.company]]
       } else {
         text(weight: "bold", size: 10pt)[#item.company]
@@ -85,13 +79,7 @@
       #text(weight: "bold", size: 10pt)[#item.institution]
       #if item.area != "" or item.studyType != "" {
         v(2pt)
-        let degree = if item.studyType != "" and item.area != "" {
-          [#item.studyType in #item.area]
-        } else if item.area != "" {
-          item.area
-        } else {
-          item.studyType
-        }
+        let degree = format-degree(item.studyType, item.area)
         text(size: 9.5pt)[#degree]
       }
     ],
@@ -128,7 +116,7 @@
     rating-boxes(item.level)
   )
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     v(2pt)
     text(size: 8pt, fill: muted-color)[#item.keywords.join(", ")]
   }
@@ -160,7 +148,7 @@
 
   text(size: 9pt, weight: "medium", fill: text-color)[#item.network]
   v(1pt)
-  if "url" in item and item.url != none and item.url.href != "" {
+  if has-url(item) {
     link(item.url.href)[#text(size: 8pt, fill: primary-color)[#item.username]]
   } else {
     text(size: 8pt, fill: muted-color)[#item.username]
@@ -173,7 +161,7 @@
 
   entry-header(
     [
-      #if "url" in item and item.url != none and item.url.href != "" {
+      #if has-url(item) {
         link(item.url.href)[#text(weight: "bold", size: 10pt)[#item.name]]
       } else {
         text(weight: "bold", size: 10pt)[#item.name]
@@ -191,7 +179,7 @@
     text(size: 9.5pt)[#item.summary]
   }
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     v(4pt)
     for keyword in item.keywords {
       box(
@@ -254,7 +242,7 @@
 
   text(size: 9pt, weight: "bold")[#item.name]
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     v(2pt)
     text(size: 8pt, fill: muted-color)[#item.keywords.join(", ")]
   }
@@ -354,7 +342,7 @@
     text(size: 9.5pt)[#item.summary]
   }
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     v(2pt)
     text(size: 8pt, fill: muted-color)[#item.keywords.join(", ")]
   }
@@ -414,7 +402,7 @@
           text(size: 8pt, fill: text-color)[#data.basics.location]
           v(4pt)
         }
-        #if "url" in data.basics and data.basics.url != none and data.basics.url.href != "" {
+        #if has-url(data.basics) {
           link(data.basics.url.href)[#text(size: 8pt, fill: primary-color)[#data.basics.url.href]]
           v(4pt)
         }

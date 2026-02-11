@@ -1,6 +1,8 @@
 // Ditto Template - Two-column sidebar layout
 // Teal/cyan accents, sidebar on left, compact modern design
 
+#import "_common.typ": *
+
 #let primary-color = rgb("#0891b2")
 #let text-color = rgb("#1f2937")
 #let muted-color = rgb("#6b7280")
@@ -34,7 +36,7 @@
     columns: (1fr, auto),
     column-gutter: 8pt,
     [
-      #if "url" in item and item.url != none and item.url.href != "" {
+      #if has-url(item) {
         link(item.url.href)[#text(weight: "bold", size: 9pt, fill: primary-color)[#item.company]]
       } else {
         text(weight: "bold", size: 9pt)[#item.company]
@@ -69,13 +71,7 @@
       #text(weight: "bold", size: 9pt)[#item.institution]
       #if item.studyType != "" or item.area != "" {
         v(1pt)
-        let degree = if item.studyType != "" and item.area != "" {
-          [#item.studyType in #item.area]
-        } else if item.area != "" {
-          item.area
-        } else {
-          item.studyType
-        }
+        let degree = format-degree(item.studyType, item.area)
         text(size: 9pt)[#degree]
       }
     ],
@@ -102,20 +98,13 @@
     text(size: 7pt, fill: muted-color)[#item.description]
   }
 
-  let level = int(calc.min(calc.max(item.level, 0), 5))
+  let level = clamp-level(item.level)
   if level > 0 {
     v(2pt)
-    for i in range(level) {
-      box(width: 6pt, height: 6pt, fill: primary-color, radius: 50%)
-      h(2pt)
-    }
-    for i in range(5 - level) {
-      box(width: 6pt, height: 6pt, fill: rgb("#d1d5db"), radius: 50%)
-      h(2pt)
-    }
+    rating-indicators(level, 6pt, 6pt, primary-color, rgb("#d1d5db"), 50%, 2pt)
   }
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     v(2pt)
     text(size: 7pt, fill: muted-color)[#item.keywords.join(", ")]
   }
@@ -132,17 +121,10 @@
     text(size: 7pt, fill: muted-color)[ -- #item.description]
   }
 
-  let level = int(calc.min(calc.max(item.level, 0), 5))
+  let level = clamp-level(item.level)
   if level > 0 {
     v(2pt)
-    for i in range(level) {
-      box(width: 6pt, height: 6pt, fill: primary-color, radius: 50%)
-      h(2pt)
-    }
-    for i in range(5 - level) {
-      box(width: 6pt, height: 6pt, fill: rgb("#d1d5db"), radius: 50%)
-      h(2pt)
-    }
+    rating-indicators(level, 6pt, 6pt, primary-color, rgb("#d1d5db"), 50%, 2pt)
   }
 
   v(6pt)
@@ -153,7 +135,7 @@
 
   text(size: 8pt, weight: "medium")[#item.network]
 
-  if "url" in item and item.url != none and item.url.href != "" {
+  if has-url(item) {
     v(1pt)
     link(item.url.href)[#text(size: 7pt, fill: primary-color)[#item.username]]
   } else {
@@ -184,7 +166,7 @@
     text(size: 9pt)[#item.summary]
   }
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     v(3pt)
     for keyword in item.keywords {
       box(
@@ -251,7 +233,7 @@
 
   text(size: 8pt, weight: "medium")[#item.name]
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     v(2pt)
     for keyword in item.keywords {
       box(
@@ -363,7 +345,7 @@
     text(size: 9pt)[#item.summary]
   }
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     v(3pt)
     for keyword in item.keywords {
       box(
@@ -411,11 +393,8 @@
 
       #v(8pt)
 
-      #let contact-items = ()
-      #if data.basics.email != "" { contact-items = contact-items + (data.basics.email,) }
-      #if data.basics.phone != "" { contact-items = contact-items + (data.basics.phone,) }
-      #if data.basics.location != "" { contact-items = contact-items + (data.basics.location,) }
-      #if "url" in data.basics and data.basics.url != none and data.basics.url.href != "" { contact-items = contact-items + (link(data.basics.url.href)[#text(fill: white)[#data.basics.url.href]],) }
+      #let contact-items = build-contact-items(data.basics)
+      #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#text(fill: white)[#data.basics.url.href]],) }
 
       #text(size: 8pt, fill: rgb("#e0f2fe"))[#contact-items.join("  |  ")]
     ]
