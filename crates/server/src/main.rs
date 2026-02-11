@@ -591,6 +591,7 @@ async fn main() -> anyhow::Result<()> {
         addr.ip(),
         port
     );
+    info!("Web UI available at http://localhost:5173 (run 'make web' or 'make dev')");
 
     let listener = tokio::net::TcpListener::bind(addr)
         .await
@@ -1013,12 +1014,20 @@ mod tests {
             .unwrap();
         let templates: Vec<TemplateInfo> = serde_json::from_slice(&body).unwrap();
 
-        // Should return 4 templates as per TEMPLATES constant
-        assert_eq!(templates.len(), 4);
+        // Should return all 12 templates
+        assert_eq!(templates.len(), 12);
         assert!(templates.iter().any(|t| t.name == "rhyhorn"));
         assert!(templates.iter().any(|t| t.name == "azurill"));
         assert!(templates.iter().any(|t| t.name == "pikachu"));
         assert!(templates.iter().any(|t| t.name == "nosepass"));
+        assert!(templates.iter().any(|t| t.name == "bronzor"));
+        assert!(templates.iter().any(|t| t.name == "chikorita"));
+        assert!(templates.iter().any(|t| t.name == "ditto"));
+        assert!(templates.iter().any(|t| t.name == "gengar"));
+        assert!(templates.iter().any(|t| t.name == "glalie"));
+        assert!(templates.iter().any(|t| t.name == "kakuna"));
+        assert!(templates.iter().any(|t| t.name == "leafish"));
+        assert!(templates.iter().any(|t| t.name == "onyx"));
     }
 
     #[tokio::test]
