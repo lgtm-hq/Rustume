@@ -3,6 +3,7 @@
 //! These tests verify that the Typst renderer can compile and render
 //! resumes to PDF and PNG output.
 
+use rstest::rstest;
 use rustume_parser::{JsonResumeParser, Parser, ReactiveResumeV3Parser};
 use rustume_render::{get_page_size, get_template_theme, Renderer, TypstRenderer, TEMPLATES};
 use rustume_schema::{Basics, Education, Experience, PageFormat, ResumeData, Section, Skill};
@@ -31,19 +32,43 @@ fn test_templates_list() {
     assert!(TEMPLATES.contains(&"rhyhorn"));
 }
 
+#[rstest]
+#[case("rhyhorn", "#65a30d", "#ffffff", "#000000")]
+#[case("azurill", "#d97706", "#ffffff", "#1f2937")]
+#[case("pikachu", "#ca8a04", "#ffffff", "#1c1917")]
+#[case("nosepass", "#3b82f6", "#ffffff", "#1f2937")]
+#[case("bronzor", "#0891b2", "#ffffff", "#1f2937")]
+#[case("chikorita", "#16a34a", "#ffffff", "#166534")]
+#[case("ditto", "#0891b2", "#ffffff", "#1f2937")]
+#[case("gengar", "#67b8c8", "#ffffff", "#1f2937")]
+#[case("glalie", "#14b8a6", "#ffffff", "#0f172a")]
+#[case("kakuna", "#78716c", "#ffffff", "#422006")]
+#[case("leafish", "#9f1239", "#ffffff", "#1f2937")]
+#[case("onyx", "#dc2626", "#ffffff", "#111827")]
+fn test_template_theme(
+    #[case] template: &str,
+    #[case] primary: &str,
+    #[case] background: &str,
+    #[case] text: &str,
+) {
+    let theme = get_template_theme(template);
+    assert_eq!(
+        theme.primary, primary,
+        "primary color mismatch for '{template}'"
+    );
+    assert_eq!(
+        theme.background, background,
+        "background color mismatch for '{template}'"
+    );
+    assert_eq!(theme.text, text, "text color mismatch for '{template}'");
+}
+
 #[test]
-fn test_template_theme() {
-    let rhyhorn = get_template_theme("rhyhorn");
-    assert_eq!(rhyhorn.primary, "#65a30d");
-    assert_eq!(rhyhorn.background, "#ffffff");
-    assert_eq!(rhyhorn.text, "#000000");
-
-    let pikachu = get_template_theme("pikachu");
-    assert_eq!(pikachu.primary, "#ca8a04");
-
-    // Unknown template returns default
+fn test_unknown_template_theme_falls_back() {
     let unknown = get_template_theme("unknown");
     assert_eq!(unknown.primary, "#65a30d");
+    assert_eq!(unknown.background, "#ffffff");
+    assert_eq!(unknown.text, "#000000");
 }
 
 #[test]
@@ -347,27 +372,36 @@ fn test_renderer_falls_back_to_default() {
 // Per-Template PDF Rendering Tests
 // ============================================================================
 
-#[test]
-fn test_render_all_templates_with_content() {
+#[rstest]
+#[case("rhyhorn")]
+#[case("azurill")]
+#[case("pikachu")]
+#[case("nosepass")]
+#[case("bronzor")]
+#[case("chikorita")]
+#[case("ditto")]
+#[case("gengar")]
+#[case("glalie")]
+#[case("kakuna")]
+#[case("leafish")]
+#[case("onyx")]
+fn test_render_template_with_content(#[case] template_name: &str) {
     let renderer = TypstRenderer::new();
+    let mut resume = sample_resume();
+    resume.metadata.template = template_name.to_string();
 
-    for template_name in TEMPLATES {
-        let mut resume = sample_resume();
-        resume.metadata.template = template_name.to_string();
+    let result = renderer.render_pdf(&resume);
+    assert!(
+        result.is_ok(),
+        "PDF rendering failed for template '{}': {:?}",
+        template_name,
+        result.err()
+    );
 
-        let result = renderer.render_pdf(&resume);
-        assert!(
-            result.is_ok(),
-            "PDF rendering failed for template '{}': {:?}",
-            template_name,
-            result.err()
-        );
-
-        let pdf = result.unwrap();
-        assert!(
-            pdf.starts_with(b"%PDF-"),
-            "Output for '{}' is not a valid PDF",
-            template_name
-        );
-    }
+    let pdf = result.unwrap();
+    assert!(
+        pdf.starts_with(b"%PDF-"),
+        "Output for '{}' is not a valid PDF",
+        template_name
+    );
 }
