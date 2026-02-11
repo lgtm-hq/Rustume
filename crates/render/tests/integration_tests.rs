@@ -34,7 +34,7 @@ fn test_templates_list() {
 #[test]
 fn test_template_theme() {
     let rhyhorn = get_template_theme("rhyhorn");
-    assert_eq!(rhyhorn.primary, "#dc2626");
+    assert_eq!(rhyhorn.primary, "#65a30d");
     assert_eq!(rhyhorn.background, "#ffffff");
     assert_eq!(rhyhorn.text, "#000000");
 
@@ -43,7 +43,7 @@ fn test_template_theme() {
 
     // Unknown template returns default
     let unknown = get_template_theme("unknown");
-    assert_eq!(unknown.primary, "#dc2626");
+    assert_eq!(unknown.primary, "#65a30d");
 }
 
 #[test]
@@ -341,4 +341,33 @@ fn test_renderer_falls_back_to_default() {
 
     // Should fall back to default (rhyhorn)
     assert!(source.contains("rhyhorn"));
+}
+
+// ============================================================================
+// Per-Template PDF Rendering Tests
+// ============================================================================
+
+#[test]
+fn test_render_all_templates_with_content() {
+    let renderer = TypstRenderer::new();
+
+    for template_name in TEMPLATES {
+        let mut resume = sample_resume();
+        resume.metadata.template = template_name.to_string();
+
+        let result = renderer.render_pdf(&resume);
+        assert!(
+            result.is_ok(),
+            "PDF rendering failed for template '{}': {:?}",
+            template_name,
+            result.err()
+        );
+
+        let pdf = result.unwrap();
+        assert!(
+            pdf.starts_with(b"%PDF-"),
+            "Output for '{}' is not a valid PDF",
+            template_name
+        );
+    }
 }

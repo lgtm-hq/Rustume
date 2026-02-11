@@ -1,9 +1,9 @@
-// Rhyhorn Template - Single-column linear layout
-// Horizontal header with picture area, olive green accents
-// Original: turbo-resume/apps/artboard/src/templates/rhyhorn.tsx
+// Bronzor Template - Single-column linear layout
+// Centered header with picture area, teal accents, contact icons
+// Original: turbo-resume/apps/artboard/src/templates/bronzor.tsx
 
-#let primary-color = rgb("#65a30d")
-#let text-color = rgb("#000000")
+#let primary-color = rgb("#0891b2")
+#let text-color = rgb("#1f2937")
 #let muted-color = rgb("#6b7280")
 
 #let section-heading(title) = {
@@ -86,6 +86,11 @@
     text(size: 9pt, fill: muted-color)[#item.score]
   }
 
+  if item.summary != "" {
+    v(2pt)
+    text(size: 9pt)[#item.summary]
+  }
+
   v(10pt)
 }
 
@@ -134,7 +139,7 @@
   if item.visible == false { return }
 
   if "url" in item and item.url != none and item.url.href != "" {
-    link(item.url.href)[#item.username]
+    link(item.url.href)[#text(fill: primary-color)[#item.username]]
   } else {
     [#item.network: #item.username]
   }
@@ -333,31 +338,49 @@
     justify: true,
   )
 
-  // Header - horizontal layout
-  grid(
-    columns: (1fr, auto),
-    column-gutter: 16pt,
-    [
-      #text(size: 24pt, weight: "bold")[#data.basics.name]
+  // Header - centered with picture area
+  align(center)[
+    // Picture area
+    #if "picture" in data.basics and data.basics.picture != none and "url" in data.basics.picture and data.basics.picture.url != "" {
+      box(
+        width: 64pt,
+        height: 64pt,
+        radius: 50%,
+        clip: true,
+        stroke: 1.5pt + primary-color,
+        image(data.basics.picture.url, width: 64pt, height: 64pt, fit: "cover")
+      )
+      v(8pt)
+    }
 
-      #if data.basics.headline != "" {
-        v(4pt)
-        text(size: 12pt)[#data.basics.headline]
-      }
-    ],
-    align(right)[
-      #let contact-items = ()
-      #if data.basics.location != "" { contact-items = contact-items + (data.basics.location,) }
-      #if data.basics.phone != "" { contact-items = contact-items + (data.basics.phone,) }
-      #if data.basics.email != "" { contact-items = contact-items + (data.basics.email,) }
-      #if "url" in data.basics and data.basics.url != none and data.basics.url.href != "" { contact-items = contact-items + (link(data.basics.url.href)[#data.basics.url.href],) }
+    // Name
+    #text(size: 24pt, weight: "bold", fill: text-color)[#data.basics.name]
 
-      #for item in contact-items {
-        text(size: 9pt)[#item]
-        v(2pt)
-      }
-    ]
-  )
+    // Headline
+    #if data.basics.headline != "" {
+      v(4pt)
+      text(size: 12pt, fill: muted-color)[#data.basics.headline]
+    }
+
+    #v(8pt)
+
+    // Contact items - wrapped horizontally
+    #let contact-items = ()
+    #if data.basics.email != "" {
+      contact-items = contact-items + (data.basics.email,)
+    }
+    #if data.basics.phone != "" {
+      contact-items = contact-items + (data.basics.phone,)
+    }
+    #if data.basics.location != "" {
+      contact-items = contact-items + (data.basics.location,)
+    }
+    #if "url" in data.basics and data.basics.url != none and data.basics.url.href != "" {
+      contact-items = contact-items + (link(data.basics.url.href)[#text(fill: primary-color)[#data.basics.url.href]],)
+    }
+
+    #text(size: 9pt)[#contact-items.join([#h(10pt)#text(fill: muted-color)[|]#h(10pt)])]
+  ]
 
   v(8pt)
   line(length: 100%, stroke: 0.5pt + primary-color)

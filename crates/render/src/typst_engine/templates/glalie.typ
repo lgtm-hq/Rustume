@@ -1,0 +1,540 @@
+// Glalie Template - Classic traditional design with sidebar
+// Two-column layout: tinted sidebar (left) + main content (right)
+// Teal accents, IBM Plex Serif, traditional/formal feel
+
+#let primary-color = rgb("#14b8a6")
+#let text-color = rgb("#0f172a")
+#let muted-color = rgb("#64748b")
+#let sidebar-bg = rgb("#e6f7f5")
+#let white = rgb("#ffffff")
+
+// Section heading for main column: title with horizontal rule after, primary color
+#let section-heading(title) = {
+  v(14pt)
+  text(weight: "bold", size: 11pt, fill: primary-color)[#title]
+  v(3pt)
+  line(length: 100%, stroke: 1pt + primary-color)
+  v(8pt)
+}
+
+// Section heading for sidebar: smaller, fits narrow column
+#let sidebar-heading(title) = {
+  v(12pt)
+  text(weight: "bold", size: 10pt, fill: primary-color)[#title]
+  v(2pt)
+  line(length: 100%, stroke: 0.75pt + primary-color)
+  v(6pt)
+}
+
+#let skill-dots(level) = {
+  let level = calc.min(calc.max(level, 0), 5)
+  for i in range(level) {
+    box(width: 6pt, height: 6pt, fill: primary-color, radius: 50%)
+    h(2pt)
+  }
+  for i in range(5 - level) {
+    box(width: 6pt, height: 6pt, fill: rgb("#b2dfdb"), radius: 50%)
+    h(2pt)
+  }
+}
+
+#let render-experience(item) = {
+  if item.visible == false { return }
+
+  grid(
+    columns: (1fr, auto),
+    column-gutter: 8pt,
+    [
+      #text(weight: "bold", size: 10pt)[#item.company]
+      #if item.position != "" {
+        v(1pt)
+        text(size: 10pt)[#item.position]
+      }
+    ],
+    align(right)[
+      #text(size: 9pt, fill: muted-color)[#item.date]
+      #if item.location != "" {
+        v(1pt)
+        text(size: 9pt, fill: muted-color)[#item.location]
+      }
+    ]
+  )
+
+  if item.summary != "" {
+    v(6pt)
+    text(size: 10pt)[#item.summary]
+  }
+
+  v(12pt)
+}
+
+#let render-education(item) = {
+  if item.visible == false { return }
+
+  grid(
+    columns: (1fr, auto),
+    column-gutter: 8pt,
+    [
+      #text(weight: "bold", size: 10pt)[#item.institution]
+      #if item.studyType != "" or item.area != "" {
+        v(1pt)
+        let degree = if item.studyType != "" and item.area != "" {
+          [#item.studyType in #item.area]
+        } else if item.area != "" {
+          item.area
+        } else {
+          item.studyType
+        }
+        text(size: 10pt)[#degree]
+      }
+    ],
+    align(right)[
+      #text(size: 9pt, fill: muted-color)[#item.date]
+    ]
+  )
+
+  if item.score != "" {
+    v(2pt)
+    text(size: 9pt, fill: muted-color)[Score: #item.score]
+  }
+
+  v(12pt)
+}
+
+#let render-skill(item) = {
+  if item.visible == false { return }
+
+  text(size: 9pt, weight: "bold")[#item.name]
+
+  if item.description != "" {
+    v(1pt)
+    text(size: 8pt, fill: muted-color)[#item.description]
+  }
+
+  let level = calc.min(calc.max(item.level, 0), 5)
+  if level > 0 {
+    v(2pt)
+    skill-dots(level)
+  }
+
+  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+    v(2pt)
+    text(size: 8pt, fill: muted-color)[#item.keywords.join(", ")]
+  }
+
+  v(8pt)
+}
+
+#let render-language(item) = {
+  if item.visible == false { return }
+
+  text(size: 9pt, weight: "bold")[#item.name]
+
+  if item.description != "" {
+    h(4pt)
+    text(size: 8pt, fill: muted-color)[#item.description]
+  }
+
+  let level = calc.min(calc.max(item.level, 0), 5)
+  if level > 0 {
+    v(2pt)
+    skill-dots(level)
+  }
+
+  v(6pt)
+}
+
+#let render-profile(item) = {
+  if item.visible == false { return }
+
+  text(size: 9pt, weight: "bold")[#item.network]
+
+  if "url" in item and item.url != none and item.url.href != "" {
+    v(1pt)
+    link(item.url.href)[#text(size: 8pt, fill: primary-color)[#item.username]]
+  } else {
+    v(1pt)
+    text(size: 8pt)[#item.username]
+  }
+
+  v(6pt)
+}
+
+#let render-project(item) = {
+  if item.visible == false { return }
+
+  grid(
+    columns: (1fr, auto),
+    column-gutter: 8pt,
+    [#text(weight: "bold", size: 10pt)[#item.name]],
+    text(size: 9pt, fill: muted-color)[#item.date]
+  )
+
+  if item.description != "" {
+    v(4pt)
+    text(size: 10pt)[#item.description]
+  }
+
+  if item.summary != "" {
+    v(4pt)
+    text(size: 10pt)[#item.summary]
+  }
+
+  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+    v(4pt)
+    text(size: 9pt, fill: muted-color)[#item.keywords.join(", ")]
+  }
+
+  v(12pt)
+}
+
+#let render-certification(item) = {
+  if item.visible == false { return }
+
+  grid(
+    columns: (1fr, auto),
+    column-gutter: 8pt,
+    [
+      #text(weight: "bold", size: 10pt)[#item.name]
+      #if item.issuer != "" {
+        text(size: 9pt, fill: muted-color)[ — #item.issuer]
+      }
+    ],
+    text(size: 9pt, fill: muted-color)[#item.date]
+  )
+
+  if item.summary != "" {
+    v(2pt)
+    text(size: 9pt)[#item.summary]
+  }
+
+  v(8pt)
+}
+
+#let render-award(item) = {
+  if item.visible == false { return }
+
+  grid(
+    columns: (1fr, auto),
+    column-gutter: 8pt,
+    [
+      #text(weight: "bold", size: 10pt)[#item.title]
+      #if item.awarder != "" {
+        text(size: 9pt, fill: muted-color)[ — #item.awarder]
+      }
+    ],
+    text(size: 9pt, fill: muted-color)[#item.date]
+  )
+
+  if item.summary != "" {
+    v(2pt)
+    text(size: 9pt)[#item.summary]
+  }
+
+  v(8pt)
+}
+
+#let render-interest(item) = {
+  if item.visible == false { return }
+
+  text(size: 9pt, weight: "bold")[#item.name]
+
+  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+    v(1pt)
+    text(size: 8pt, fill: muted-color)[#item.keywords.join(", ")]
+  }
+
+  v(6pt)
+}
+
+#let render-publication(item) = {
+  if item.visible == false { return }
+
+  grid(
+    columns: (1fr, auto),
+    column-gutter: 8pt,
+    [
+      #text(weight: "bold", size: 10pt)[#item.name]
+      #if item.publisher != "" {
+        v(1pt)
+        text(size: 9pt, fill: muted-color)[#item.publisher]
+      }
+    ],
+    text(size: 9pt, fill: muted-color)[#item.date]
+  )
+
+  if item.summary != "" {
+    v(4pt)
+    text(size: 9pt)[#item.summary]
+  }
+
+  v(8pt)
+}
+
+#let render-volunteer(item) = {
+  if item.visible == false { return }
+
+  grid(
+    columns: (1fr, auto),
+    column-gutter: 8pt,
+    [
+      #text(weight: "bold", size: 10pt)[#item.organization]
+      #if item.position != "" {
+        text(size: 10pt)[ — #item.position]
+      }
+    ],
+    text(size: 9pt, fill: muted-color)[#item.date]
+  )
+
+  if item.location != "" {
+    v(2pt)
+    text(size: 9pt, fill: muted-color)[#item.location]
+  }
+
+  if item.summary != "" {
+    v(4pt)
+    text(size: 10pt)[#item.summary]
+  }
+
+  v(12pt)
+}
+
+#let render-reference(item) = {
+  if item.visible == false { return }
+
+  text(weight: "bold", size: 10pt)[#item.name]
+
+  if item.description != "" {
+    v(2pt)
+    text(size: 9pt, fill: muted-color)[#item.description]
+  }
+
+  if item.summary != "" {
+    v(2pt)
+    text(size: 9pt)[#item.summary]
+  }
+
+  v(8pt)
+}
+
+#let render-custom(item) = {
+  if item.visible == false { return }
+
+  grid(
+    columns: (1fr, auto),
+    column-gutter: 8pt,
+    [
+      #text(weight: "bold", size: 10pt)[#item.name]
+      #if item.description != "" {
+        v(1pt)
+        text(size: 9pt, fill: muted-color)[#item.description]
+      }
+    ],
+    text(size: 9pt, fill: muted-color)[#item.date]
+  )
+
+  if item.location != "" {
+    v(2pt)
+    text(size: 9pt, fill: muted-color)[#item.location]
+  }
+
+  if item.summary != "" {
+    v(2pt)
+    text(size: 9pt)[#item.summary]
+  }
+
+  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+    v(2pt)
+    text(size: 9pt, fill: muted-color)[#item.keywords.join(", ")]
+  }
+
+  v(8pt)
+}
+
+#let template(data) = {
+  set page(
+    paper: "a4",
+    margin: 0pt,
+  )
+
+  set text(
+    font: "IBM Plex Serif",
+    size: 10pt,
+    fill: text-color,
+  )
+
+  set par(
+    leading: 0.65em,
+    justify: true,
+  )
+
+  // Two-column grid: sidebar (left, 170pt) + main (right, 1fr)
+  grid(
+    columns: (170pt, 1fr),
+    column-gutter: 0pt,
+
+    // ===== LEFT SIDEBAR =====
+    box(
+      width: 100%,
+      fill: sidebar-bg,
+      height: 100%,
+      inset: (x: 16pt, y: 24pt),
+      [
+        // Header: Name, headline, contact info
+        #text(size: 18pt, weight: "bold", fill: text-color)[#data.basics.name]
+
+        #if data.basics.headline != "" {
+          v(6pt)
+          text(size: 9pt, style: "italic", fill: muted-color)[#data.basics.headline]
+        }
+
+        #v(12pt)
+
+        // Contact info stacked vertically
+        #if data.basics.email != "" {
+          text(size: 8pt, fill: text-color)[#data.basics.email]
+          v(3pt)
+        }
+        #if data.basics.phone != "" {
+          text(size: 8pt, fill: text-color)[#data.basics.phone]
+          v(3pt)
+        }
+        #if data.basics.location != "" {
+          text(size: 8pt, fill: text-color)[#data.basics.location]
+          v(3pt)
+        }
+        #if "url" in data.basics and data.basics.url != none and data.basics.url.href != "" {
+          link(data.basics.url.href)[#text(size: 8pt, fill: primary-color)[#data.basics.url.href]]
+          v(3pt)
+        }
+
+        // Profiles
+        #if data.sections.profiles.visible and data.sections.profiles.items.len() > 0 {
+          sidebar-heading(data.sections.profiles.name)
+          for item in data.sections.profiles.items {
+            render-profile(item)
+          }
+        }
+
+        // Skills
+        #if data.sections.skills.visible and data.sections.skills.items.len() > 0 {
+          sidebar-heading(data.sections.skills.name)
+          for item in data.sections.skills.items {
+            render-skill(item)
+          }
+        }
+
+        // Languages
+        #if data.sections.languages.visible and data.sections.languages.items.len() > 0 {
+          sidebar-heading(data.sections.languages.name)
+          for item in data.sections.languages.items {
+            render-language(item)
+          }
+        }
+
+        // Interests
+        #if data.sections.interests.visible and data.sections.interests.items.len() > 0 {
+          sidebar-heading(data.sections.interests.name)
+          for item in data.sections.interests.items {
+            render-interest(item)
+          }
+        }
+      ]
+    ),
+
+    // ===== RIGHT MAIN CONTENT =====
+    box(
+      width: 100%,
+      inset: (x: 24pt, y: 24pt),
+      [
+        // Summary
+        #if data.sections.summary.visible and data.sections.summary.content != "" {
+          section-heading(data.sections.summary.name)
+          text(size: 10pt)[#data.sections.summary.content]
+        }
+
+        // Experience
+        #if data.sections.experience.visible and data.sections.experience.items.len() > 0 {
+          section-heading(data.sections.experience.name)
+          for item in data.sections.experience.items {
+            render-experience(item)
+          }
+        }
+
+        // Education
+        #if data.sections.education.visible and data.sections.education.items.len() > 0 {
+          section-heading(data.sections.education.name)
+          for item in data.sections.education.items {
+            render-education(item)
+          }
+        }
+
+        // Awards
+        #if data.sections.awards.visible and data.sections.awards.items.len() > 0 {
+          section-heading(data.sections.awards.name)
+          for item in data.sections.awards.items {
+            render-award(item)
+          }
+        }
+
+        // Certifications
+        #if data.sections.certifications.visible and data.sections.certifications.items.len() > 0 {
+          section-heading(data.sections.certifications.name)
+          for item in data.sections.certifications.items {
+            render-certification(item)
+          }
+        }
+
+        // Publications
+        #if data.sections.publications.visible and data.sections.publications.items.len() > 0 {
+          section-heading(data.sections.publications.name)
+          for item in data.sections.publications.items {
+            render-publication(item)
+          }
+        }
+
+        // Volunteer
+        #if data.sections.volunteer.visible and data.sections.volunteer.items.len() > 0 {
+          section-heading(data.sections.volunteer.name)
+          for item in data.sections.volunteer.items {
+            render-volunteer(item)
+          }
+        }
+
+        // Projects
+        #if data.sections.projects.visible and data.sections.projects.items.len() > 0 {
+          section-heading(data.sections.projects.name)
+          for item in data.sections.projects.items {
+            render-project(item)
+          }
+        }
+
+        // References
+        #if data.sections.references.visible and data.sections.references.items.len() > 0 {
+          section-heading(data.sections.references.name)
+          for item in data.sections.references.items {
+            render-reference(item)
+          }
+        }
+      ]
+    )
+  )
+
+  // Custom sections after grid (full width)
+  if "custom" in data.sections {
+    for (key, section) in data.sections.custom {
+      if section.visible and section.items.len() > 0 {
+        box(
+          width: 100%,
+          inset: (x: 24pt, y: 0pt),
+          [
+            #section-heading(section.name)
+            #for item in section.items {
+              render-custom(item)
+            }
+          ]
+        )
+      }
+    }
+  }
+}

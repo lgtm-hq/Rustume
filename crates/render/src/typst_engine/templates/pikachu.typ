@@ -177,6 +177,104 @@
   v(4pt)
 }
 
+#let render-publication(item) = {
+  if item.visible == false { return }
+
+  text(weight: "medium", size: 10pt)[#item.name]
+  if item.publisher != "" {
+    text(size: 9pt, fill: muted-color)[ — #item.publisher]
+  }
+  h(8pt)
+  text(size: 9pt, fill: muted-color)[#item.date]
+
+  if item.summary != "" {
+    v(6pt)
+    text(size: 10pt)[#item.summary]
+  }
+
+  v(12pt)
+}
+
+#let render-volunteer(item) = {
+  if item.visible == false { return }
+
+  text(weight: "bold", size: 11pt)[#item.position]
+  v(2pt)
+  text(size: 10pt, fill: primary-color)[#item.organization]
+  h(8pt)
+  text(size: 9pt, fill: muted-color)[#item.date]
+
+  if item.location != "" {
+    v(2pt)
+    text(size: 9pt, fill: muted-color)[📍 #item.location]
+  }
+
+  if item.summary != "" {
+    v(6pt)
+    text(size: 10pt)[#item.summary]
+  }
+
+  v(14pt)
+}
+
+#let render-reference(item) = {
+  if item.visible == false { return }
+
+  text(weight: "medium", size: 10pt)[#item.name]
+
+  if item.description != "" {
+    v(4pt)
+    text(size: 10pt)[#item.description]
+  }
+
+  if item.summary != "" {
+    v(6pt)
+    box(
+      stroke: (left: 2pt + primary-color),
+      inset: (left: 10pt, y: 2pt),
+      text(size: 9pt, style: "italic", fill: muted-color)[#item.summary]
+    )
+  }
+
+  v(12pt)
+}
+
+#let render-custom(item) = {
+  if item.visible == false { return }
+
+  text(weight: "bold", size: 10pt)[#item.name]
+
+  if item.description != "" {
+    v(4pt)
+    text(size: 10pt)[#item.description]
+  }
+
+  if item.date != "" or item.location != "" {
+    v(2pt)
+    if item.date != "" {
+      text(size: 9pt, fill: muted-color)[#item.date]
+    }
+    if item.date != "" and item.location != "" {
+      h(8pt)
+    }
+    if item.location != "" {
+      text(size: 9pt, fill: muted-color)[📍 #item.location]
+    }
+  }
+
+  if item.summary != "" {
+    v(6pt)
+    text(size: 10pt)[#item.summary]
+  }
+
+  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+    v(4pt)
+    text(size: 9pt, fill: muted-color)[#item.keywords.join(" · ")]
+  }
+
+  v(12pt)
+}
+
 #let template(data) = {
   // Page setup - no margin, we'll handle it in the grid
   set page(
@@ -324,14 +422,6 @@
           }
         }
 
-        // Projects
-        #if data.sections.projects.visible and data.sections.projects.items.len() > 0 {
-          main-section(data.sections.projects.name)
-          for item in data.sections.projects.items {
-            render-project(item)
-          }
-        }
-
         // Certifications
         #if data.sections.certifications.visible and data.sections.certifications.items.len() > 0 {
           main-section(data.sections.certifications.name)
@@ -347,7 +437,51 @@
             render-award(item)
           }
         }
+
+        // Publications
+        #if data.sections.publications.visible and data.sections.publications.items.len() > 0 {
+          main-section(data.sections.publications.name)
+          for item in data.sections.publications.items {
+            render-publication(item)
+          }
+        }
+
+        // Volunteer
+        #if data.sections.volunteer.visible and data.sections.volunteer.items.len() > 0 {
+          main-section(data.sections.volunteer.name)
+          for item in data.sections.volunteer.items {
+            render-volunteer(item)
+          }
+        }
+
+        // Projects
+        #if data.sections.projects.visible and data.sections.projects.items.len() > 0 {
+          main-section(data.sections.projects.name)
+          for item in data.sections.projects.items {
+            render-project(item)
+          }
+        }
+
+        // References
+        #if data.sections.references.visible and data.sections.references.items.len() > 0 {
+          main-section(data.sections.references.name)
+          for item in data.sections.references.items {
+            render-reference(item)
+          }
+        }
       ]
     )
   )
+
+  // Custom sections
+  if "custom" in data.sections {
+    for (key, section) in data.sections.custom {
+      if section.visible and section.items.len() > 0 {
+        main-section(section.name)
+        for item in section.items {
+          render-custom(item)
+        }
+      }
+    }
+  }
 }

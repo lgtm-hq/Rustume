@@ -3,7 +3,7 @@
 
 #let primary-color = rgb("#3b82f6")
 #let dark-blue = rgb("#1e3a5f")
-#let text-color = rgb("#111827")
+#let text-color = rgb("#1f2937")
 #let muted-color = rgb("#4b5563")
 #let light-gray = rgb("#f3f4f6")
 #let border-color = rgb("#d1d5db")
@@ -208,6 +208,117 @@
   h(6pt)
 }
 
+#let render-publication(item) = {
+  if item.visible == false { return }
+
+  grid(
+    columns: (1fr, auto),
+    column-gutter: 12pt,
+    [
+      #text(weight: "bold", size: 10pt, fill: dark-blue)[#item.name]
+      #if item.publisher != "" {
+        v(2pt)
+        text(size: 9pt, fill: muted-color)[#item.publisher]
+      }
+    ],
+    date-badge(item.date)
+  )
+
+  if item.summary != "" {
+    v(4pt)
+    text(size: 10pt)[#item.summary]
+  }
+
+  v(10pt)
+}
+
+#let render-volunteer(item) = {
+  if item.visible == false { return }
+
+  grid(
+    columns: (1fr, auto),
+    column-gutter: 12pt,
+    [
+      #text(weight: "bold", size: 11pt, fill: dark-blue)[#item.organization]
+      #if item.position != "" {
+        v(2pt)
+        text(size: 10pt)[#item.position]
+      }
+      #if item.location != "" {
+        text(size: 9pt, fill: muted-color)[ · #item.location]
+      }
+    ],
+    date-badge(item.date)
+  )
+
+  if item.summary != "" {
+    v(6pt)
+    text(size: 10pt)[#item.summary]
+  }
+
+  v(12pt)
+}
+
+#let render-reference(item) = {
+  if item.visible == false { return }
+
+  text(weight: "bold", size: 10pt, fill: dark-blue)[#item.name]
+
+  if item.description != "" {
+    v(4pt)
+    text(size: 10pt)[#item.description]
+  }
+
+  if item.summary != "" {
+    v(4pt)
+    text(size: 9pt)[#item.summary]
+  }
+
+  v(10pt)
+}
+
+#let render-custom(item) = {
+  if item.visible == false { return }
+
+  grid(
+    columns: (1fr, auto),
+    column-gutter: 12pt,
+    [
+      #text(weight: "bold", size: 10pt, fill: dark-blue)[#item.name]
+      #if item.description != "" {
+        v(2pt)
+        text(size: 10pt)[#item.description]
+      }
+    ],
+    date-badge(item.date)
+  )
+
+  if item.location != "" {
+    v(2pt)
+    text(size: 9pt, fill: muted-color)[#item.location]
+  }
+
+  if item.summary != "" {
+    v(4pt)
+    text(size: 10pt)[#item.summary]
+  }
+
+  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+    v(4pt)
+    for keyword in item.keywords {
+      box(
+        fill: light-gray,
+        radius: 2pt,
+        inset: (x: 5pt, y: 2pt),
+        text(size: 8pt)[#keyword]
+      )
+      h(4pt)
+    }
+  }
+
+  v(10pt)
+}
+
 #let template(data) = {
   // Page setup
   set page(
@@ -356,6 +467,34 @@
     section-heading(data.sections.interests.name)
     for item in data.sections.interests.items {
       render-interest(item)
+    }
+  }
+
+  // Publications
+  if data.sections.publications.visible and data.sections.publications.items.len() > 0 {
+    section-heading(data.sections.publications.name)
+    for item in data.sections.publications.items { render-publication(item) }
+  }
+
+  // Volunteer
+  if data.sections.volunteer.visible and data.sections.volunteer.items.len() > 0 {
+    section-heading(data.sections.volunteer.name)
+    for item in data.sections.volunteer.items { render-volunteer(item) }
+  }
+
+  // References
+  if data.sections.references.visible and data.sections.references.items.len() > 0 {
+    section-heading(data.sections.references.name)
+    for item in data.sections.references.items { render-reference(item) }
+  }
+
+  // Custom sections
+  if "custom" in data.sections {
+    for (key, section) in data.sections.custom {
+      if section.visible and section.items.len() > 0 {
+        section-heading(section.name)
+        for item in section.items { render-custom(item) }
+      }
     }
   }
 }
