@@ -38,7 +38,7 @@ export function TemplatePicker() {
         when={!templates.loading}
         fallback={
           <div class="flex items-center justify-center py-12">
-            <svg class="w-6 h-6 animate-spin text-accent" viewBox="0 0 24 24">
+            <svg class="w-6 h-6 animate-spin text-accent" aria-hidden="true" viewBox="0 0 24 24">
               <circle
                 class="opacity-25"
                 cx="12"
@@ -71,10 +71,17 @@ export function TemplatePicker() {
               <div class="flex flex-col items-center gap-4 py-2">
                 <div class="flex items-center justify-between w-full px-1">
                   <button
+                    type="button"
                     class="flex items-center gap-1.5 text-sm text-stone hover:text-ink transition-colors"
                     onClick={() => setPreviewing(null)}
                   >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg
+                      class="w-4 h-4"
+                      aria-hidden="true"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
                       <path
                         stroke-linecap="round"
                         stroke-linejoin="round"
@@ -182,7 +189,7 @@ function TemplateCard(props: {
                 </div>
               }
             >
-              <svg class="w-5 h-5 animate-spin text-muted" viewBox="0 0 24 24">
+              <svg class="w-5 h-5 animate-spin text-muted" aria-hidden="true" viewBox="0 0 24 24">
                 <circle
                   class="opacity-25"
                   cx="12"
@@ -209,6 +216,7 @@ function TemplateCard(props: {
           transition-all duration-150"
         >
           <button
+            type="button"
             class="w-8 h-8 flex items-center justify-center rounded-full
               bg-white/90 hover:bg-white text-gray-700 shadow-md
               backdrop-blur-sm transition-colors"
@@ -217,8 +225,15 @@ function TemplateCard(props: {
               props.onPreview(props.template);
             }}
             title="Preview"
+            aria-label={`Preview ${props.template.name} template`}
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              class="w-4 h-4"
+              aria-hidden="true"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -234,6 +249,7 @@ function TemplateCard(props: {
             </svg>
           </button>
           <button
+            type="button"
             class="w-8 h-8 flex items-center justify-center rounded-full
               bg-accent hover:bg-accent/90 text-white shadow-md
               backdrop-blur-sm transition-colors"
@@ -242,8 +258,15 @@ function TemplateCard(props: {
               props.onSelect(props.template);
             }}
             title="Use template"
+            aria-label={`Use ${props.template.name} template`}
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              class="w-4 h-4"
+              aria-hidden="true"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -284,7 +307,13 @@ function TemplateCard(props: {
           {/* Selected Indicator */}
           <Show when={props.isSelected}>
             <div class="w-6 h-6 rounded-full bg-accent flex items-center justify-center">
-              <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                class="w-4 h-4 text-white"
+                aria-hidden="true"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"

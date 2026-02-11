@@ -121,7 +121,7 @@
     rating-bars(level)
   }
 
-  if item.keywords.len() > 0 {
+  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
     v(2pt)
     text(size: 8pt, fill: muted-color)[#item.keywords.join(", ")]
   }
@@ -250,7 +250,7 @@
 
   text(size: 9pt, weight: "bold")[#item.name]
 
-  if item.keywords.len() > 0 {
+  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
     v(2pt)
     for keyword in item.keywords {
       box(

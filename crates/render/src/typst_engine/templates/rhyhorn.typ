@@ -26,7 +26,7 @@
 }
 
 #let skill-bar(level) = {
-  let level = calc.min(calc.max(level, 0), 5)
+  let level = int(calc.min(calc.max(level, 0), 5))
   h(4pt)
   for i in range(level) {
     box(width: 8pt, height: 8pt, fill: primary-color, radius: 2pt)
@@ -104,7 +104,7 @@
     skill-bar(item.level)
   )
 
-  if item.keywords.len() > 0 {
+  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
     v(2pt)
     text(size: 9pt, fill: muted-color)[#item.keywords.join(", ")]
   }
@@ -134,7 +134,8 @@
   if item.visible == false { return }
 
   if "url" in item and item.url != none and item.url.href != "" {
-    link(item.url.href)[#item.username]
+    let label = if item.username != "" { item.username } else { item.url.href }
+    link(item.url.href)[#label]
   } else {
     [#item.network: #item.username]
   }
@@ -214,7 +215,7 @@
 
   text(size: 10pt, weight: "bold")[#item.name]
 
-  if item.keywords.len() > 0 {
+  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
     text(size: 9pt, fill: muted-color)[ — #item.keywords.join(", ")]
   }
 

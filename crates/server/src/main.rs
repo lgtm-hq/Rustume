@@ -26,8 +26,9 @@ use rustume_schema::ResumeData;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::sync::{Mutex, OnceLock};
+use std::sync::OnceLock;
 use tokio::signal;
+use tokio::sync::Mutex;
 use tower_http::{
     compression::CompressionLayer,
     cors::{Any, CorsLayer},
@@ -64,6 +65,7 @@ const DEFAULT_PORT: u16 = 3000;
     paths(
         health,
         list_templates,
+        template_thumbnail,
         parse,
         render_pdf,
         render_preview,
@@ -422,7 +424,7 @@ async fn template_thumbnail(Path(id): Path<String>) -> Result<Response, ApiError
 
     // Check cache
     {
-        let cache = thumbnail_cache().lock().unwrap();
+        let cache = thumbnail_cache().lock().await;
         if let Some(png) = cache.get(&id) {
             return Ok((
                 StatusCode::OK,
@@ -451,7 +453,7 @@ async fn template_thumbnail(Path(id): Path<String>) -> Result<Response, ApiError
 
     // Cache the result
     {
-        let mut cache = thumbnail_cache().lock().unwrap();
+        let mut cache = thumbnail_cache().lock().await;
         cache.insert(id, png.clone());
     }
 

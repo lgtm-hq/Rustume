@@ -469,19 +469,19 @@
             render-reference(item)
           }
         }
+
+        // Custom sections
+        #if "custom" in data.sections {
+          for (key, section) in data.sections.custom {
+            if section.visible {
+              main-section(section.name)
+              for item in section.items {
+                render-custom(item)
+              }
+            }
+          }
+        }
       ]
     )
   )
-
-  // Custom sections
-  if "custom" in data.sections {
-    for (key, section) in data.sections.custom {
-      if section.visible {
-        main-section(section.name)
-        for item in section.items {
-          render-custom(item)
-        }
-      }
-    }
-  }
 }

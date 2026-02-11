@@ -116,7 +116,7 @@
     skill-bar(item.level)
   )
 
-  if item.keywords.len() > 0 {
+  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
     v(2pt)
     text(size: 9pt, fill: muted-color)[#item.keywords.join(", ")]
   }
@@ -234,7 +234,7 @@
 
   text(size: 10pt, weight: "medium")[#item.name]
 
-  if item.keywords.len() > 0 {
+  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
     text(size: 9pt, fill: muted-color)[ — #item.keywords.join(", ")]
   }
 
