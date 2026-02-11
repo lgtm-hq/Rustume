@@ -49,7 +49,7 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
   const handleAdd = () => {
     const newItem = props.createItem();
     addSectionItem(props.sectionKey, newItem as never);
-    setExpandedIndex(items().length); // Will be the new item's index
+    setExpandedIndex(items().length - 1); // New item is at the last index
   };
 
   const handleUpdate = (index: number) => (updates: Partial<T>) => {
