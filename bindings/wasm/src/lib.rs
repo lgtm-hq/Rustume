@@ -158,7 +158,10 @@ pub fn resume_to_json(resume: JsValue) -> Result<String, JsError> {
 #[wasm_bindgen]
 pub fn list_templates() -> Result<JsValue, JsError> {
     // Hardcoded list since we can't import rustume_render in WASM
-    let templates = vec!["rhyhorn", "azurill", "pikachu", "nosepass"];
+    let templates = vec![
+        "rhyhorn", "azurill", "pikachu", "nosepass", "bronzor", "chikorita",
+        "ditto", "gengar", "glalie", "kakuna", "leafish", "onyx",
+    ];
     serde_wasm_bindgen::to_value(&templates).map_err(|e| JsError::new(&e.to_string()))
 }
 
@@ -173,18 +176,25 @@ pub fn list_templates() -> Result<JsValue, JsError> {
 /// # Example (JavaScript)
 /// ```js
 /// const theme = get_template_theme("rhyhorn");
-/// // { background: "#ffffff", text: "#000000", primary: "#dc2626" }
+/// // { background: "#ffffff", text: "#000000", primary: "#65a30d" }
 /// ```
 #[wasm_bindgen]
 pub fn get_template_theme_js(template: &str) -> Result<JsValue, JsError> {
     // Hardcoded themes since we can't import rustume_render in WASM
     let (background, text, primary) = match template {
-        "rhyhorn" => ("#ffffff", "#000000", "#dc2626"),
-        "azurill" => ("#ffffff", "#000000", "#d97706"),
-        "pikachu" => ("#ffffff", "#000000", "#ca8a04"),
-        "nosepass" => ("#ffffff", "#000000", "#3b82f6"),
-        // Default to rhyhorn theme for unknown templates
-        _ => ("#ffffff", "#000000", "#dc2626"),
+        "rhyhorn" => ("#ffffff", "#000000", "#65a30d"),
+        "azurill" => ("#ffffff", "#1f2937", "#d97706"),
+        "pikachu" => ("#ffffff", "#1c1917", "#ca8a04"),
+        "nosepass" => ("#ffffff", "#1f2937", "#3b82f6"),
+        "bronzor" => ("#ffffff", "#1f2937", "#0891b2"),
+        "chikorita" => ("#ffffff", "#166534", "#16a34a"),
+        "ditto" => ("#ffffff", "#1f2937", "#0891b2"),
+        "gengar" => ("#ffffff", "#1f2937", "#67b8c8"),
+        "glalie" => ("#ffffff", "#0f172a", "#14b8a6"),
+        "kakuna" => ("#ffffff", "#422006", "#78716c"),
+        "leafish" => ("#ffffff", "#1f2937", "#9f1239"),
+        "onyx" => ("#ffffff", "#111827", "#dc2626"),
+        _ => ("#ffffff", "#000000", "#65a30d"),
     };
 
     serde_wasm_bindgen::to_value(&serde_json::json!({

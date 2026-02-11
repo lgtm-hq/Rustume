@@ -74,7 +74,7 @@ rustume init my-resume.json
 
 ## Features
 
-- 4 professionally designed templates (rhyhorn, azurill, pikachu, nosepass)
+- 12 professionally designed templates
 - Import from JSON Resume, LinkedIn export, and Reactive Resume V3
 - Theme customization (colors, fonts, spacing)
 - PDF and PNG export
