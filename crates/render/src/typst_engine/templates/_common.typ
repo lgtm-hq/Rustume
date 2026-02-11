@@ -31,13 +31,10 @@
 /// - `spacing`: horizontal gap between indicators
 #let rating-indicators(level, width, height, filled-color, empty-color, radius, spacing) = {
   let level = clamp-level(level)
-  for i in range(level) {
-    box(width: width, height: height, fill: filled-color, radius: radius)
-    h(spacing)
-  }
-  for i in range(5 - level) {
-    box(width: width, height: height, fill: empty-color, radius: radius)
-    h(spacing)
+  for i in range(5) {
+    if i > 0 { h(spacing) }
+    let color = if i < level { filled-color } else { empty-color }
+    box(width: width, height: height, fill: color, radius: radius)
   }
 }
 

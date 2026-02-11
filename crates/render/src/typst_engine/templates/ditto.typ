@@ -363,7 +363,6 @@
 
 #let template(data) = {
   set page(
-    paper: "a4",
     margin: 0pt,
   )
 

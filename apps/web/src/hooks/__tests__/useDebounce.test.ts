@@ -71,7 +71,7 @@ describe("useDebounce", () => {
 
     // Each createEffect re-run clears the previous timer via onCleanup.
     // Only "d"'s timer is active, needing 200 more ms from when it was set.
-    expect(debounced()).not.toBe("d");
+    expect(debounced()).toBe("a");
 
     vi.advanceTimersByTime(200);
 

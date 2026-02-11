@@ -264,7 +264,6 @@
 #let template(data) = {
   // Page setup - no margin, we'll handle it in the grid
   set page(
-    paper: "a4",
     margin: 0pt,
   )
 

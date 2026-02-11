@@ -99,7 +99,7 @@
     text(size: 8pt, fill: muted-color)[#item.description]
   }
 
-  let level = calc.min(calc.max(item.level, 0), 5)
+  let level = clamp-level(item.level)
   if level > 0 {
     v(2pt)
     skill-dots(level)
@@ -123,7 +123,7 @@
     text(size: 8pt, fill: muted-color)[#item.description]
   }
 
-  let level = calc.min(calc.max(item.level, 0), 5)
+  let level = clamp-level(item.level)
   if level > 0 {
     v(2pt)
     skill-dots(level)
@@ -343,7 +343,6 @@
 
 #let template(data) = {
   set page(
-    paper: "a4",
     margin: 0pt,
   )
 

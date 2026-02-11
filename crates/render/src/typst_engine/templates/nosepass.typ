@@ -318,7 +318,6 @@
 #let template(data) = {
   // Page setup
   set page(
-    paper: "a4",
     margin: (x: 54pt, y: 48pt),
   )
 

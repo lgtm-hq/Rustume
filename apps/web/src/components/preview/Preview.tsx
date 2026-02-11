@@ -32,7 +32,9 @@ export function Preview() {
 
     // Skip if offline — keep showing cached preview if available
     if (!isOnline()) {
-      if (!lastCachedUrl()) {
+      if (lastCachedUrl()) {
+        setError(null);
+      } else {
         setError("Preview unavailable offline");
       }
       return;
@@ -70,7 +72,9 @@ export function Preview() {
     const page = ui.previewPage;
     if (!store.resume) return;
     if (!isOnline()) {
-      if (!lastCachedUrl()) {
+      if (lastCachedUrl()) {
+        setError(null);
+      } else {
         setError("Preview unavailable offline");
       }
       return;

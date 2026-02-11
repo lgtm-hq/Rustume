@@ -32,6 +32,30 @@ fn test_templates_list() {
     assert!(TEMPLATES.contains(&"rhyhorn"));
 }
 
+/// Verify that the hardcoded template list in the WASM binding stays in sync
+/// with the canonical TEMPLATES constant. The WASM crate cannot depend on
+/// rustume_render (native Typst deps), so the list is duplicated there.
+#[test]
+fn test_wasm_template_list_in_sync() {
+    let wasm_src = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("bindings/wasm/src/lib.rs");
+
+    let contents = fs::read_to_string(&wasm_src)
+        .unwrap_or_else(|e| panic!("Failed to read {}: {e}", wasm_src.display()));
+
+    for template in TEMPLATES {
+        assert!(
+            contents.contains(&format!("\"{template}\"")),
+            "Template '{template}' is in TEMPLATES but missing from bindings/wasm/src/lib.rs. \
+             Keep the hardcoded list in list_templates() in sync with engine.rs::TEMPLATES."
+        );
+    }
+}
+
 #[rstest]
 #[case("rhyhorn", "#65a30d", "#ffffff", "#000000")]
 #[case("azurill", "#d97706", "#ffffff", "#1f2937")]

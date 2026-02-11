@@ -363,7 +363,6 @@
 #let template(data) = {
   // Page setup
   set page(
-    paper: "a4",
     margin: 48pt,
   )
 
@@ -514,18 +513,18 @@
           render-reference(item)
         }
       }
-    ]
-  )
 
-  // ── Custom sections (after the grid) ──
-  if "custom" in data.sections {
-    for (key, section) in data.sections.custom {
-      if section.visible {
-        main-section-heading(section.name)
-        for item in section.items {
-          render-custom(item)
+      // Custom sections
+      #if "custom" in data.sections {
+        for (key, section) in data.sections.custom {
+          if section.visible {
+            main-section-heading(section.name)
+            for item in section.items {
+              render-custom(item)
+            }
+          }
         }
       }
-    }
-  }
+    ]
+  )
 }
