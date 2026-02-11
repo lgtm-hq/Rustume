@@ -46,6 +46,23 @@ impl TypstRenderer {
     #[instrument(skip(self, resume), fields(template = %resume.metadata.template))]
     pub fn generate_source(&self, resume: &ResumeData) -> Result<String, RenderError> {
         debug!("Generating Typst source");
+
+        // Validate metadata bounds before embedding in Typst source
+        let margin = resume.metadata.page.margin;
+        if margin > 100 {
+            return Err(RenderError::InvalidConfig(format!(
+                "Margin {}pt exceeds maximum of 100pt",
+                margin
+            )));
+        }
+        let font_size = resume.metadata.typography.font.size;
+        if !(6..=72).contains(&font_size) {
+            return Err(RenderError::InvalidConfig(format!(
+                "Font size {}pt is outside the allowed range of 6–72pt",
+                font_size
+            )));
+        }
+
         let template = &resume.metadata.template;
         let template_name = if TEMPLATES.contains(&template.as_str()) {
             template.as_str()
@@ -349,4 +366,29 @@ mod tests {
 
     // Note: PDF rendering tests require fonts to be available
     // These are better as integration tests
+
+    #[test]
+    fn test_rejects_excessive_margin() {
+        let mut resume = ResumeData::default();
+        resume.metadata.page.margin = 150;
+        let renderer = TypstRenderer::new();
+        let result = renderer.generate_source(&resume);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("Margin"), "Expected margin error, got: {err}");
+    }
+
+    #[test]
+    fn test_rejects_extreme_font_size() {
+        let mut resume = ResumeData::default();
+        resume.metadata.typography.font.size = 2;
+        let renderer = TypstRenderer::new();
+        let result = renderer.generate_source(&resume);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("Font size"),
+            "Expected font size error, got: {err}"
+        );
+    }
 }
