@@ -1,6 +1,8 @@
 // Pikachu Template - Modern design with colored sidebar
 // Features a bold yellow sidebar with contact info and skills
 
+#import "_common.typ": *
+
 #let primary-color = rgb("#ca8a04")
 #let sidebar-bg = rgb("#fef9c3")
 #let text-color = rgb("#1c1917")
@@ -25,17 +27,7 @@
 }
 
 #let skill-dots(level) = {
-  let level = int(calc.min(calc.max(level, 0), 5))
-  let filled = level
-  let empty = 5 - level
-  for i in range(filled) {
-    box(width: 6pt, height: 6pt, fill: primary-color, radius: 50%)
-    h(3pt)
-  }
-  for i in range(empty) {
-    box(width: 6pt, height: 6pt, fill: rgb("#d6d3d1"), radius: 50%)
-    h(3pt)
-  }
+  rating-indicators(level, 6pt, 6pt, primary-color, rgb("#d6d3d1"), 50%, 3pt)
 }
 
 #let render-experience(item) = {
@@ -67,13 +59,7 @@
   v(2pt)
 
   if item.studyType != "" or item.area != "" {
-    let degree = if item.studyType != "" and item.area != "" {
-      [#item.studyType in #item.area]
-    } else if item.area != "" {
-      item.area
-    } else {
-      item.studyType
-    }
+    let degree = format-degree(item.studyType, item.area)
     text(size: 10pt)[#degree]
     h(8pt)
   }
@@ -118,7 +104,7 @@
 #let render-profile(item) = {
   if item.visible == false { return }
 
-  if "url" in item and item.url != none and item.url.href != "" {
+  if has-url(item) {
     link(item.url.href)[
       #text(size: 9pt, fill: text-color)[#item.network]
     ]
@@ -138,7 +124,7 @@
     text(size: 10pt)[#item.description]
   }
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     v(4pt)
     text(size: 9pt, fill: muted-color)[#item.keywords.join(" · ")]
   }
@@ -267,7 +253,7 @@
     text(size: 10pt)[#item.summary]
   }
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     v(4pt)
     text(size: 9pt, fill: muted-color)[#item.keywords.join(" · ")]
   }
@@ -344,7 +330,7 @@
           v(4pt)
         }
 
-        #if data.basics.url.href != "" {
+        #if has-url(data.basics) {
           text(size: 9pt)[🔗 #link(data.basics.url.href)[Website]]
           v(4pt)
         }
