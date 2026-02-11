@@ -145,10 +145,14 @@
 #let render-profile(item) = {
   if item.visible == false { return }
 
+  let network = if "network" in item and item.network != none { item.network } else { "" }
+  let username = if "username" in item and item.username != none { item.username } else { "" }
+
   if "url" in item and item.url != none and item.url.href != "" {
-    link(item.url.href)[#text(fill: primary-color)[#item.network: #item.username]]
-  } else {
-    text(size: 10pt)[#item.network: #item.username]
+    let label = if username != "" { [#network: #username] } else { item.url.href }
+    link(item.url.href)[#text(fill: primary-color)[#label]]
+  } else if network != "" or username != "" {
+    text(size: 10pt)[#network: #username]
   }
   h(14pt)
 }

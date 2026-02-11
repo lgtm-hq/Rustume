@@ -97,17 +97,12 @@
     ],
     [
       #item.date
-      #if item.studyType != "" {
+      #if item.score != "" {
         v(2pt)
-        text(size: 9pt, fill: muted-color)[#item.studyType]
+        text(size: 9pt, fill: muted-color)[#item.score]
       }
     ]
   )
-
-  if item.score != "" {
-    v(2pt)
-    text(size: 9pt, fill: muted-color)[Score: #item.score]
-  }
 
   if item.summary != "" {
     v(4pt)
