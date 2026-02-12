@@ -88,9 +88,7 @@ jobs:
 
       - name: Fail if tests failed
         if: env.TEST_EXIT_CODE != '0'
-        run: |
-          echo "Tests failed"
-          exit 1
+        run: ./scripts/ci/testing/fail-on-test.sh
 
   build:
     name: 🔨 Build Check

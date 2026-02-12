@@ -56,21 +56,14 @@ jobs:
 
       - name: Read current version from Cargo.toml
         id: current
-        run: |
-          VERSION=$(grep -m1 '^version = ' Cargo.toml \
-            | sed 's/version = "\(.*\)"/\1/')
-          echo "current_version=$VERSION" >> "$GITHUB_OUTPUT"
+        run: ./scripts/ci/maintenance/auto-tag.sh read-version
 
       - name: Check if version bump needed
         id: needs_bump
-        run: |
-          NEXT="${{ steps.semrel.outputs.next-version }}"
-          CURR="${{ steps.current.outputs.current_version }}"
-          if [[ -n "$NEXT" && "$NEXT" != "$CURR" ]]; then
-            echo "required=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "required=false" >> "$GITHUB_OUTPUT"
-          fi
+        env:
+          NEXT_VERSION: ${{ steps.semrel.outputs.next-version }}
+          CURRENT_VERSION: ${{ steps.current.outputs.version }}
+        run: ./scripts/ci/release/check-bump-needed.sh
 
       - name: Update Cargo.toml version
         if: steps.needs_bump.outputs.required == 'true'
@@ -104,8 +97,5 @@ jobs:
         if: steps.cpr.outputs.pull-request-number != ''
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          PR="${{ steps.cpr.outputs.pull-request-number }}"
-          gh pr merge "$PR" --auto --squash || {
-            echo "Auto-merge not available; requires manual merge."
-          }
+          PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
+        run: ./scripts/ci/release/enable-auto-merge.sh

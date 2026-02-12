@@ -78,15 +78,8 @@ jobs:
         env:
           # yamllint disable-line rule:line-length
           LINTRO_IMAGE: ghcr.io/lgtm-hq/py-lintro@sha256:e714dfce0564c57fde82bcc6496697d14a3e9e533ef153d45630e58fd31f9ea8
-        run: |
-          set +eo pipefail
-          docker run --rm \
-            -v "${{ github.workspace }}:/code" \
-            "$LINTRO_IMAGE" \
-            check --output-format grid 2>&1 | tee chk-output.txt
-          EXIT_CODE=${PIPESTATUS[0]}
-          echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
-          echo "CHK_EXIT_CODE=$EXIT_CODE" >> "$GITHUB_ENV"
+          WORKSPACE: ${{ github.workspace }}
+        run: ./scripts/ci/lintro/run-lintro-docker.sh
 
       - name: Generate PR Comment
         if: >-
@@ -107,7 +100,5 @@ jobs:
       - name: Fail on Linting Issues
         if: >-
           (success() || failure()) &&
-          steps.lintro.outputs.exit_code != '0'
-        run: |
-          echo "::error::Linting failed (exit ${{ steps.lintro.outputs.exit_code }})"
-          exit 1
+          env.CHK_EXIT_CODE != '0'
+        run: ./scripts/ci/fail-on-lint.sh

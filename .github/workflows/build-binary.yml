@@ -62,50 +62,29 @@ jobs:
         run: cargo install cross --locked
 
       - name: Build release binaries
-        run: |
-          BUILD_CMD="cargo"
-          if [[ "${{ matrix.cross }}" == "true" ]]; then
-            BUILD_CMD="cross"
-          fi
-          $BUILD_CMD build --release --target ${{ matrix.target }} -p rustume-cli
-          $BUILD_CMD build --release --target ${{ matrix.target }} -p rustume-server
+        env:
+          TARGET: ${{ matrix.target }}
+          USE_CROSS: ${{ matrix.cross }}
+        run: ./scripts/ci/release/build-binaries.sh
 
       - name: Read version from Cargo.toml
         id: version
-        run: |
-          VERSION=$(grep -m1 '^version = ' Cargo.toml \
-            | sed 's/version = "\(.*\)"/\1/')
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        run: ./scripts/ci/maintenance/auto-tag.sh read-version
 
       - name: Package binaries (unix)
         if: matrix.archive == 'tar.gz'
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          TARGET="${{ matrix.target }}"
-          STAGING="rustume-${VERSION}-${TARGET}"
-          mkdir -p "$STAGING"
-          cp "target/${TARGET}/release/rustume" "$STAGING/" 2>/dev/null || true
-          cp "target/${TARGET}/release/rustume-server" "$STAGING/" 2>/dev/null || true
-          cp README.md LICENSE "$STAGING/" 2>/dev/null || true
-          tar czf "${STAGING}.tar.gz" "$STAGING"
-          shasum -a 256 "${STAGING}.tar.gz" > "${STAGING}.tar.gz.sha256"
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          TARGET: ${{ matrix.target }}
+        run: ./scripts/ci/release/package-unix.sh
 
       - name: Package binaries (windows)
         if: matrix.archive == 'zip'
         shell: pwsh
-        run: |
-          $VERSION = "${{ steps.version.outputs.version }}"
-          $TARGET = "${{ matrix.target }}"
-          $STAGING = "rustume-${VERSION}-${TARGET}"
-          New-Item -ItemType Directory -Path $STAGING -Force
-          $CLI = "target/${TARGET}/release/rustume.exe"
-          $SRV = "target/${TARGET}/release/rustume-server.exe"
-          Copy-Item $CLI "$STAGING/" -ErrorAction SilentlyContinue
-          Copy-Item $SRV "$STAGING/" -ErrorAction SilentlyContinue
-          Copy-Item "README.md","LICENSE" "$STAGING/" -ErrorAction SilentlyContinue
-          Compress-Archive -Path "$STAGING" -DestinationPath "${STAGING}.zip"
-          $hash = Get-FileHash "${STAGING}.zip" -Algorithm SHA256
-          $hash | Format-List | Out-File "${STAGING}.zip.sha256"
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          TARGET: ${{ matrix.target }}
+        run: ./scripts/ci/release/package-windows.ps1
 
       - name: Upload artifacts
         # yamllint disable-line rule:line-length

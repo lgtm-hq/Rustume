@@ -50,13 +50,10 @@ jobs:
         run: ./scripts/ci/maintenance/auto-tag.sh read-version
 
       - name: Verify tag matches Cargo.toml version
-        run: |
-          CARGO_VERSION="v${{ steps.version.outputs.version }}"
-          TAG="${{ github.ref_name }}"
-          if [[ "$TAG" != "$CARGO_VERSION" ]]; then
-            echo "Tag $TAG != Cargo.toml $CARGO_VERSION" >&2
-            exit 1
-          fi
+        env:
+          TAG: ${{ github.ref_name }}
+          CARGO_VERSION: ${{ steps.version.outputs.version }}
+        run: ./scripts/ci/release/verify-tag-version.sh
 
   build-binaries:
     name: 🔨 Build Binaries
