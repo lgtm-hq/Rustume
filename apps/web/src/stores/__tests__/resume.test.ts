@@ -94,11 +94,8 @@ describe("useResumeStore", () => {
     vi.useRealTimers();
   });
 
-  it("has correct initial state: resume null, id null, isDirty false", () => {
+  it("has resume, id, and isDirty properties", () => {
     createRoot((dispose) => {
-      // On first import the singleton starts with null resume
-      // However, previous tests in this file may have mutated the singleton.
-      // We can still verify the shape of the store object.
       const { store } = useResumeStore();
       expect(store).toHaveProperty("resume");
       expect(store).toHaveProperty("id");
