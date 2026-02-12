@@ -3,6 +3,7 @@ set -euo pipefail
 
 # package-unix.sh
 # Package built binaries into a tarball with checksums.
+# Fails if required binaries are missing.
 #
 # Usage:
 #   VERSION=<ver> TARGET=<target> scripts/ci/release/package-unix.sh
@@ -29,10 +30,26 @@ if [[ -z "$VERSION" || -z "$TARGET" ]]; then
 	exit 1
 fi
 
+CLI_BIN="target/${TARGET}/release/rustume"
+SRV_BIN="target/${TARGET}/release/rustume-server"
+
+# Verify required binaries exist
+missing=0
+for bin in "$CLI_BIN" "$SRV_BIN"; do
+	if [[ ! -f "$bin" ]]; then
+		echo "Required binary not found: $bin" >&2
+		missing=$((missing + 1))
+	fi
+done
+if [[ "$missing" -gt 0 ]]; then
+	echo "Aborting: $missing required binary/binaries missing" >&2
+	exit 1
+fi
+
 STAGING="rustume-${VERSION}-${TARGET}"
 mkdir -p "$STAGING"
-cp "target/${TARGET}/release/rustume" "$STAGING/" 2>/dev/null || true
-cp "target/${TARGET}/release/rustume-server" "$STAGING/" 2>/dev/null || true
+cp "$CLI_BIN" "$STAGING/"
+cp "$SRV_BIN" "$STAGING/"
 cp README.md LICENSE "$STAGING/" 2>/dev/null || true
 tar czf "${STAGING}.tar.gz" "$STAGING"
 shasum -a 256 "${STAGING}.tar.gz" >"${STAGING}.tar.gz.sha256"

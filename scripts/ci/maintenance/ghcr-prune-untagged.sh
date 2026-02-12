@@ -61,11 +61,19 @@ else
 	fi
 fi
 
-# List all versions of the package
-API_PATH="/orgs/${OWNER}/packages/container/${PACKAGE_NAME}/versions"
+# Detect whether OWNER is an org or user and set API path accordingly.
+# The org endpoint and user endpoint have different paths for package versions.
+if gh api "/orgs/${OWNER}" --silent 2>/dev/null; then
+	API_PATH="/orgs/${OWNER}/packages/container/${PACKAGE_NAME}/versions"
+else
+	API_PATH="/users/${OWNER}/packages/container/${PACKAGE_NAME}/versions"
+fi
+
+# List all untagged versions of the package.
+# Use top-level .created_at (not .metadata.created_at) per GitHub API spec.
 VERSIONS=$(gh api "$API_PATH" --paginate --jq '
 	.[] | select(.metadata.container.tags | length == 0) |
-	{id: .id, created_at: .metadata.created_at, name: .name}
+	{id: .id, created_at: .created_at, name: .name}
 ' 2>/dev/null || echo "")
 
 if [[ -z "$VERSIONS" ]]; then
@@ -82,7 +90,9 @@ while IFS= read -r version_json; do
 	CREATED_AT=$(echo "$version_json" | jq -r '.created_at')
 	VERSION_NAME=$(echo "$version_json" | jq -r '.name')
 
-	# Skip versions newer than cutoff
+	# ISO 8601 timestamps (YYYY-MM-DDTHH:MM:SSZ) are lexicographically sortable,
+	# so string comparison with > correctly determines chronological order as long
+	# as both timestamps use the same UTC format (which the GitHub API guarantees).
 	if [[ "$CREATED_AT" > "$CUTOFF_DATE" ]]; then
 		skipped=$((skipped + 1))
 		continue
@@ -93,10 +103,11 @@ while IFS= read -r version_json; do
 		deleted=$((deleted + 1))
 	else
 		echo "Deleting version $VERSION_ID ($VERSION_NAME, created $CREATED_AT)"
-		gh api --method DELETE "$API_PATH/$VERSION_ID" 2>/dev/null || {
+		if gh api --method DELETE "$API_PATH/$VERSION_ID" 2>/dev/null; then
+			deleted=$((deleted + 1))
+		else
 			echo "Failed to delete version $VERSION_ID" >&2
-		}
-		deleted=$((deleted + 1))
+		fi
 	fi
 done <<<"$VERSIONS"
 

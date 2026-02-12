@@ -3,6 +3,7 @@ set -euo pipefail
 
 # update-cargo-version.sh
 # Update the workspace version in root Cargo.toml.
+# Only modifies the version under [workspace.package], not other sections.
 #
 # Usage:
 #   scripts/ci/maintenance/update-cargo-version.sh <version> [--dry-run]
@@ -48,10 +49,16 @@ if [[ ! -f "$CARGO_TOML" ]]; then
 	exit 1
 fi
 
-# Read current version
-CURRENT=$(grep -m1 '^version = ' "$CARGO_TOML" | sed 's/version = "\(.*\)"/\1/')
+# Read current version from [workspace.package] section only.
+# Uses awk to extract the version line between [workspace.package] and the next section header.
+CURRENT=$(awk -F'"' '
+	/^\[workspace.package\]/ { in_section=1; next }
+	/^\[/                    { in_section=0 }
+	in_section && /^version[[:space:]]*=/ { print $2; exit }
+' "$CARGO_TOML")
+
 if [[ -z "$CURRENT" ]]; then
-	echo "Could not read current version from $CARGO_TOML" >&2
+	echo "Could not read version from [workspace.package] in $CARGO_TOML" >&2
 	exit 1
 fi
 
@@ -67,12 +74,27 @@ if $DRY_RUN; then
 	exit 0
 fi
 
-# Update the version line (first occurrence only, under [workspace.package])
-sed -i.bak "0,/^version = \"${CURRENT}\"/s//version = \"${VERSION}\"/" "$CARGO_TOML"
-rm -f "${CARGO_TOML}.bak"
+# Update the version line only within the [workspace.package] section.
+# awk scans from [workspace.package] to the next [section] and replaces
+# the version line within that range.
+awk -v old="$CURRENT" -v new="$VERSION" '
+	/^\[workspace.package\]/ { in_section=1 }
+	/^\[/ && !/^\[workspace.package\]/ { in_section=0 }
+	in_section && /^version[[:space:]]*=/ && !done {
+		sub("\"" old "\"", "\"" new "\"")
+		done=1
+	}
+	{ print }
+' "$CARGO_TOML" >"${CARGO_TOML}.tmp"
+mv "${CARGO_TOML}.tmp" "$CARGO_TOML"
 
-# Verify the update
-UPDATED=$(grep -m1 '^version = ' "$CARGO_TOML" | sed 's/version = "\(.*\)"/\1/')
+# Verify the update by reading from [workspace.package] again
+UPDATED=$(awk -F'"' '
+	/^\[workspace.package\]/ { in_section=1; next }
+	/^\[/                    { in_section=0 }
+	in_section && /^version[[:space:]]*=/ { print $2; exit }
+' "$CARGO_TOML")
+
 if [[ "$UPDATED" != "$VERSION" ]]; then
 	echo "Verification failed: expected $VERSION but got $UPDATED" >&2
 	exit 1

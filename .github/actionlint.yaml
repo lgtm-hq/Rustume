@@ -1,0 +1,6 @@
+# actionlint configuration
+# See https://github.com/rhysd/actionlint/blob/main/docs/config.md
+---
+self-hosted-runner:
+  labels:
+    - macos-15-intel
