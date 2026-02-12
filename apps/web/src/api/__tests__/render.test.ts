@@ -10,8 +10,16 @@ vi.mock("../client", () => ({
 
 const mockCreateObjectURL = vi.fn(() => "blob:mock-url");
 const mockRevokeObjectURL = vi.fn();
+
+const originalCreateObjectURL = globalThis.URL.createObjectURL;
+const originalRevokeObjectURL = globalThis.URL.revokeObjectURL;
 globalThis.URL.createObjectURL = mockCreateObjectURL;
 globalThis.URL.revokeObjectURL = mockRevokeObjectURL;
+
+afterAll(() => {
+  globalThis.URL.createObjectURL = originalCreateObjectURL;
+  globalThis.URL.revokeObjectURL = originalRevokeObjectURL;
+});
 
 const mockResume: ResumeData = {
   basics: {

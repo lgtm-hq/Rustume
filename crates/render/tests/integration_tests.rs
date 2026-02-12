@@ -35,6 +35,8 @@ fn test_templates_list() {
 /// Verify that the hardcoded template list in the WASM binding stays in sync
 /// with the canonical TEMPLATES constant. The WASM crate cannot depend on
 /// rustume_render (native Typst deps), so the list is duplicated there.
+/// Checks both directions: every TEMPLATES entry exists in WASM, and every
+/// WASM entry exists in TEMPLATES.
 #[test]
 fn test_wasm_template_list_in_sync() {
     let wasm_src = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -47,6 +49,7 @@ fn test_wasm_template_list_in_sync() {
     let contents = fs::read_to_string(&wasm_src)
         .unwrap_or_else(|e| panic!("Failed to read {}: {e}", wasm_src.display()));
 
+    // Forward check: every canonical template appears in the WASM source
     for template in TEMPLATES {
         assert!(
             contents.contains(&format!("\"{template}\"")),
@@ -54,6 +57,43 @@ fn test_wasm_template_list_in_sync() {
              Keep the hardcoded list in list_templates() in sync with engine.rs::TEMPLATES."
         );
     }
+
+    // Reverse check: extract template names from the WASM list_templates() vec
+    // and verify each one exists in the canonical TEMPLATES constant.
+    // The vec entries look like:  "template_name",
+    let wasm_templates: Vec<&str> = contents
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            // Match lines like `"rhyhorn",` inside the list_templates vec
+            if trimmed.starts_with('"') && trimmed.ends_with("\",") {
+                Some(&trimmed[1..trimmed.len() - 2])
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    assert!(
+        !wasm_templates.is_empty(),
+        "Failed to parse any template names from bindings/wasm/src/lib.rs"
+    );
+
+    for wasm_template in &wasm_templates {
+        assert!(
+            TEMPLATES.contains(wasm_template),
+            "Template '{wasm_template}' is in bindings/wasm/src/lib.rs but missing from \
+             TEMPLATES. Keep the lists in sync."
+        );
+    }
+
+    assert_eq!(
+        TEMPLATES.len(),
+        wasm_templates.len(),
+        "Template count mismatch: TEMPLATES has {} but WASM has {}",
+        TEMPLATES.len(),
+        wasm_templates.len()
+    );
 }
 
 #[rstest]

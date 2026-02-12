@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 import solid from "vite-plugin-solid";
 
@@ -15,7 +16,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "~": new URL("./src", import.meta.url).pathname,
+      "~": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
 });
