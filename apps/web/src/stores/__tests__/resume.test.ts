@@ -181,20 +181,35 @@ describe("useResumeStore", () => {
 
   it("removeSectionItem removes by index", () => {
     createRoot((dispose) => {
-      const { store, createNewResume, removeSectionItem } = useResumeStore();
+      const { store, createNewResume, addSectionItem, removeSectionItem } = useResumeStore();
       createNewResume("test-id-6");
 
-      const initialLength = store.resume!.sections.skills.items.length;
-      const secondItemName =
-        initialLength > 1 ? store.resume!.sections.skills.items[1].name : undefined;
+      // Seed two known items so the test is deterministic
+      addSectionItem("skills", {
+        id: "skill-alpha",
+        visible: true,
+        name: "Alpha",
+        description: "",
+        level: 3,
+        keywords: [],
+      });
+      addSectionItem("skills", {
+        id: "skill-beta",
+        visible: true,
+        name: "Beta",
+        description: "",
+        level: 4,
+        keywords: [],
+      });
 
-      removeSectionItem("skills", 0);
-      expect(store.resume!.sections.skills.items.length).toBe(initialLength - 1);
+      const lengthBefore = store.resume!.sections.skills.items.length;
+      const alphaIndex = lengthBefore - 2;
 
-      // The previously second item is now first
-      if (secondItemName !== undefined) {
-        expect(store.resume!.sections.skills.items[0].name).toBe(secondItemName);
-      }
+      removeSectionItem("skills", alphaIndex);
+
+      expect(store.resume!.sections.skills.items.length).toBe(lengthBefore - 1);
+      // "Beta" should now occupy the slot where "Alpha" was
+      expect(store.resume!.sections.skills.items[alphaIndex].name).toBe("Beta");
       dispose();
     });
   });

@@ -34,11 +34,22 @@ function createMockStorage(): Storage {
 
 const mockStorage = createMockStorage();
 
+// Stash original so we can restore after all tests.
+const _origLocalStorage = globalThis.localStorage;
+
 // Install mock before any module-level code in the SUT runs.
 Object.defineProperty(globalThis, "localStorage", {
   value: mockStorage,
   writable: true,
   configurable: true,
+});
+
+afterAll(() => {
+  Object.defineProperty(globalThis, "localStorage", {
+    value: _origLocalStorage,
+    writable: true,
+    configurable: true,
+  });
 });
 
 // Mock the WASM module so every code-path falls back to localStorage.
