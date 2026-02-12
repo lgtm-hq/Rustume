@@ -21,19 +21,18 @@ function createEmptyResumeData(): ResumeData {
   base.basics.email = "";
   base.basics.headline = "";
   base.sections.summary.content = "";
-  // Clear all item-based sections
-  base.sections.experience.items = [];
-  base.sections.education.items = [];
-  base.sections.skills.items = [];
-  base.sections.projects.items = [];
-  base.sections.profiles.items = [];
-  base.sections.awards.items = [];
-  base.sections.certifications.items = [];
-  base.sections.publications.items = [];
-  base.sections.languages.items = [];
-  base.sections.interests.items = [];
-  base.sections.volunteer.items = [];
-  base.sections.references.items = [];
+  // Clear all item-based sections programmatically
+  for (const key of Object.keys(base.sections)) {
+    const section = base.sections[key as keyof typeof base.sections];
+    if (
+      section &&
+      typeof section === "object" &&
+      "items" in section &&
+      Array.isArray(section.items)
+    ) {
+      section.items = [];
+    }
+  }
   return base;
 }
 
