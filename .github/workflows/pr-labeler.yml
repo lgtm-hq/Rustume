@@ -2,7 +2,7 @@
 ---
 name: PR - Auto Label
 # Automatically applies labels to pull requests based on changed files.
-# Uses path patterns defined in .github/labeler.yml
+# Uses lgtm-ci harden-runner action.
 
 "on":
   pull_request_target:
@@ -17,16 +17,19 @@ jobs:
     name: 🏷️ Auto Label PR
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        # yamllint disable-line rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@v0
         with:
-          egress-policy: "block"
+          egress-policy: block
           allowed-endpoints: >
             github.com:443
             api.github.com:443
 
       - name: Apply labels based on changed files
+        # yamllint disable-line rule:line-length
         uses: actions/labeler@8558fd74291d67161a8a78ce36a881fa63b766a9 # v5.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}

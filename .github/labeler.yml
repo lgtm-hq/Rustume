@@ -70,3 +70,17 @@ templates:
   - changed-files:
       - any-glob-to-any-file:
           - "crates/render/src/typst_engine/templates/**"
+
+security:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/workflows/dependency-review.yml"
+          - ".github/workflows/scorecards.yml"
+          - ".github/workflows/validate-action-pinning.yml"
+
+docker:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docker/**"
+          - ".github/workflows/docker-build-publish.yml"
+          - ".github/workflows/ghcr-cleanup.yml"

@@ -1,0 +1,111 @@
+# SPDX-License-Identifier: MIT
+---
+name: Release - Automated PR Creation
+# Computes next semantic version using conventional commits and opens release PR.
+# Uses lgtm-ci calculate-version action for version computation.
+
+"on":
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  open-release-pr:
+    name: Compute next version and open Release PR
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+    timeout-minutes: 20
+    concurrency:
+      group: release-pr-${{ github.ref }}
+      cancel-in-progress: true
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Harden Runner
+        # yamllint disable-line rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@v0
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            codeload.github.com:443
+            objects.githubusercontent.com:443
+
+      - name: Checkout
+        # yamllint disable-line rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@v0
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: true
+
+      - name: Calculate next version
+        id: semrel
+        # yamllint disable-line rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/calculate-version@v0
+        with:
+          max-bump: minor
+
+      - name: Read current version from Cargo.toml
+        id: current
+        run: |
+          VERSION=$(grep -m1 '^version = ' Cargo.toml \
+            | sed 's/version = "\(.*\)"/\1/')
+          echo "current_version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check if version bump needed
+        id: needs_bump
+        run: |
+          NEXT="${{ steps.semrel.outputs.next-version }}"
+          CURR="${{ steps.current.outputs.current_version }}"
+          if [[ -n "$NEXT" && "$NEXT" != "$CURR" ]]; then
+            echo "required=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "required=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update Cargo.toml version
+        if: steps.needs_bump.outputs.required == 'true'
+        run: >
+          ./scripts/ci/maintenance/update-cargo-version.sh
+          "${{ steps.semrel.outputs.next-version }}"
+
+      - name: Create Release PR
+        if: steps.needs_bump.outputs.required == 'true'
+        id: cpr
+        # yamllint disable-line rule:line-length
+        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: >-
+            chore(release): cut ${{ steps.semrel.outputs.next-version }}
+          title: >-
+            chore(release): prepare ${{ steps.semrel.outputs.next-version }}
+          body: |
+            Automated version bump to `${{ steps.semrel.outputs.next-version }}`.
+
+            - Updates `Cargo.toml` workspace version
+            - Respects branch protection (no direct push to `main`)
+            - Upon merge, tag and publish workflows run automatically
+          branch: release/${{ steps.semrel.outputs.next-version }}
+          base: main
+          labels: |
+            release-bump
+
+      - name: Enable auto-merge for Release PR
+        if: steps.cpr.outputs.pull-request-number != ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR="${{ steps.cpr.outputs.pull-request-number }}"
+          gh pr merge "$PR" --auto --squash || {
+            echo "Auto-merge not available; requires manual merge."
+          }

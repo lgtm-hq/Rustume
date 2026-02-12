@@ -2,7 +2,7 @@
 ---
 name: PR - Auto Assign
 # Automatically assigns the PR author as the assignee.
-# Uses pull_request_target for write permissions on forked PRs.
+# Uses lgtm-ci harden-runner action.
 
 "on":
   pull_request_target:
@@ -16,17 +16,19 @@ jobs:
     name: 👤 Auto Assign PR Author
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        # yamllint disable-line rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@v0
         with:
-          egress-policy: "block"
+          egress-policy: block
           allowed-endpoints: >
             github.com:443
             api.github.com:443
 
-      # Note: No checkout needed - we only use context.payload data
       - name: Assign PR author
+        # yamllint disable-line rule:line-length
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
@@ -37,4 +39,3 @@ jobs:
               issue_number: context.payload.pull_request.number,
               assignees: [author]
             });
-            console.log(`Assigned ${author} to PR #${context.payload.pull_request.number}`);

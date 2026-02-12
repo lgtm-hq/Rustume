@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: MIT
+---
+name: Security - OpenSSF Scorecard Analysis
+# Weekly OpenSSF Scorecard security analysis.
+
+"on":
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analysis:
+    name: 🛡️ Scorecard Analysis
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      security-events: write
+      id-token: write
+    timeout-minutes: 10
+
+    steps:
+      - name: Harden Runner
+        # yamllint disable-line rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@v0
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            codeload.github.com:443
+            objects.githubusercontent.com:443
+            sigstore.dev:443
+            fulcio.sigstore.dev:443
+            rekor.sigstore.dev:443
+            tuf-repo-cdn.sigstore.dev:443
+            ossf.github.io:443
+            www.bestpractices.dev:443
+            api.osv.dev:443
+            api.scorecard.dev:443
+            oss-fuzz-build-logs.storage.googleapis.com:443
+
+      - name: Checkout
+        # yamllint disable-line rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@v0
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Run Scorecards analysis
+        # yamllint disable-line rule:line-length
+        uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          results_file: results.sarif
+          results_format: sarif
+          # yamllint disable-line rule:line-length
+          publish_results: >-
+            ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+
+      - name: Upload SARIF to code scanning
+        # yamllint disable-line rule:line-length
+        uses: github/codeql-action/upload-sarif@b20883b0cd1f46c72ae0ba6d1090936928f9fa30 # v4
+        with:
+          sarif_file: results.sarif
