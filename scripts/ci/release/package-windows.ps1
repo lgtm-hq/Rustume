@@ -34,6 +34,9 @@ if ($Missing -gt 0) {
 }
 
 $Staging = "rustume-${Version}-${Target}"
+if (Test-Path $Staging) {
+    Remove-Item -Recurse -Force $Staging
+}
 New-Item -ItemType Directory -Path $Staging -Force | Out-Null
 
 Copy-Item $Cli "$Staging/"

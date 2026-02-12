@@ -27,6 +27,12 @@ NEXT="${NEXT_VERSION:-}"
 CURR="${CURRENT_VERSION:-}"
 OUTPUT="${GITHUB_OUTPUT:-/dev/stdout}"
 
+if [[ -z "$CURR" ]]; then
+	echo "CURRENT_VERSION is required" >&2
+	echo "error=missing_current_version" >>"$OUTPUT"
+	exit 1
+fi
+
 if [[ -n "$NEXT" && "$NEXT" != "$CURR" ]]; then
 	echo "required=true" >>"$OUTPUT"
 	echo "Version bump required: $CURR -> $NEXT"

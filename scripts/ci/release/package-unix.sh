@@ -47,6 +47,9 @@ if [[ "$missing" -gt 0 ]]; then
 fi
 
 STAGING="rustume-${VERSION}-${TARGET}"
+if [[ -n "$STAGING" ]]; then
+	rm -rf "$STAGING"
+fi
 mkdir -p "$STAGING"
 cp "$CLI_BIN" "$STAGING/"
 cp "$SRV_BIN" "$STAGING/"
