@@ -1,9 +1,5 @@
 import { fetchBlob } from "../client";
-import {
-  renderPreview,
-  getTemplateThumbnailUrl,
-  clearPreviewCache,
-} from "../render";
+import { renderPreview, getTemplateThumbnailUrl, clearPreviewCache } from "../render";
 import type { ResumeData } from "../../wasm/types";
 
 vi.mock("../client", () => ({
@@ -258,9 +254,7 @@ describe("getTemplateThumbnailUrl", () => {
 
     const url = getTemplateThumbnailUrl("pikachu");
 
-    expect(url).toBe(
-      "https://api.example.com/api/templates/pikachu/thumbnail",
-    );
+    expect(url).toBe("https://api.example.com/api/templates/pikachu/thumbnail");
   });
 });
 

@@ -143,12 +143,8 @@ describe("fetchBlob", () => {
       text: () => Promise.resolve("Invalid resume data"),
     });
 
-    await expect(fetchBlob("/render/preview", { resume: {} })).rejects.toThrow(
-      ApiError,
-    );
-    await expect(
-      fetchBlob("/render/preview", { resume: {} }),
-    ).rejects.toMatchObject({
+    await expect(fetchBlob("/render/preview", { resume: {} })).rejects.toThrow(ApiError);
+    await expect(fetchBlob("/render/preview", { resume: {} })).rejects.toMatchObject({
       status: 422,
       message: "Invalid resume data",
     });

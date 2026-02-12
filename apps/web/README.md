@@ -51,7 +51,7 @@ bun run test:coverage
 
 ## Architecture
 
-```
+```text
 src/
   api/          # HTTP client + render/parse API
   components/
@@ -70,12 +70,18 @@ src/
 
 ## Key Design Decisions
 
-- **Offline-first**: WASM parsers run client-side. All data persisted to IndexedDB (via WASM) or localStorage (fallback). PWA service worker caches static assets.
-- **Server optional**: The app works for editing, importing, and JSON export without the server. PDF rendering and preview require the server API (Typst has native dependencies incompatible with WASM).
-- **Graceful degradation**: If WASM fails to load, the app falls back to server API for parsing and localStorage for persistence. A warning banner is shown but the app remains fully functional.
+- **Offline-first**: WASM parsers run client-side. All data persisted
+  to IndexedDB (via WASM) or localStorage (fallback). PWA service
+  worker caches static assets.
+- **Server optional**: The app works for editing, importing, and JSON
+  export without the server. PDF rendering and preview require the
+  server API (Typst has native dependencies incompatible with WASM).
+- **Graceful degradation**: If WASM fails to load, the app falls back
+  to server API for parsing and localStorage for persistence. A warning
+  banner is shown but the app remains fully functional.
 
 ## Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `VITE_API_URL` | Override API base URL | (none — uses Vite proxy) |
+| Variable       | Description           | Default                  |
+| -------------- | --------------------- | ------------------------ |
+| `VITE_API_URL` | Override API base URL | (none - uses Vite proxy) |

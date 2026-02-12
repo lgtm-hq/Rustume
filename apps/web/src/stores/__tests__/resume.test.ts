@@ -85,20 +85,6 @@ describe("isResumeEmpty", () => {
 // ---------------------------------------------------------------------------
 
 describe("useResumeStore", () => {
-  /**
-   * Reset the module-level singleton between tests so they are independent.
-   * We reach directly into the store's public API to clear state.
-   */
-  function resetStore() {
-    const { importResume } = useResumeStore();
-    // Overwrite any existing resume data; importResume also resets isDirty.
-    // We rely on setting store fields back to defaults via importResume +
-    // a subsequent manual reset of internal fields through the public API.
-    // The simplest path is to use the produce-based API if the resume is set,
-    // but since we cannot null it out through public API alone, we reach for
-    // importResume with a fresh default and then verify our assumptions.
-  }
-
   beforeEach(() => {
     vi.useFakeTimers();
     localStorage.clear();

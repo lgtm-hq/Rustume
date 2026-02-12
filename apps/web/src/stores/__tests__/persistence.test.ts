@@ -82,10 +82,7 @@ describe("persistence store - localStorage fallback path", () => {
 
   it("returns stored IDs after setting localStorage", async () => {
     // Pre-populate localStorage with resume IDs
-    mockStorage.setItem(
-      STORAGE_KEY_PREFIX + "_ids",
-      JSON.stringify(["abc-123", "def-456"]),
-    );
+    mockStorage.setItem(STORAGE_KEY_PREFIX + "_ids", JSON.stringify(["abc-123", "def-456"]));
 
     await createRoot(async (dispose) => {
       try {
@@ -110,10 +107,7 @@ describe("persistence store - localStorage fallback path", () => {
 
   it("deleteResume removes the resume and updates the ID list", async () => {
     // Seed localStorage with two resume entries
-    mockStorage.setItem(
-      STORAGE_KEY_PREFIX + "_ids",
-      JSON.stringify(["abc-123", "def-456"]),
-    );
+    mockStorage.setItem(STORAGE_KEY_PREFIX + "_ids", JSON.stringify(["abc-123", "def-456"]));
     mockStorage.setItem(STORAGE_KEY_PREFIX + "abc-123", JSON.stringify({ dummy: true }));
     mockStorage.setItem(STORAGE_KEY_PREFIX + "def-456", JSON.stringify({ dummy: true }));
 
@@ -150,10 +144,7 @@ describe("persistence store - localStorage fallback path", () => {
   // -------------------------------------------------------------------
 
   it("checkExists returns true for existing resume in localStorage", async () => {
-    mockStorage.setItem(
-      STORAGE_KEY_PREFIX + "_ids",
-      JSON.stringify(["abc-123"]),
-    );
+    mockStorage.setItem(STORAGE_KEY_PREFIX + "_ids", JSON.stringify(["abc-123"]));
     mockStorage.setItem(STORAGE_KEY_PREFIX + "abc-123", JSON.stringify({ dummy: true }));
 
     await createRoot(async (dispose) => {

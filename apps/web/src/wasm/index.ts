@@ -151,8 +151,18 @@ export function resumeToJson(resume: ResumeData): string {
 // Keep these in sync when adding or modifying templates.
 
 const FALLBACK_TEMPLATES = [
-  "rhyhorn", "azurill", "pikachu", "nosepass", "bronzor", "chikorita",
-  "ditto", "gengar", "glalie", "kakuna", "leafish", "onyx",
+  "rhyhorn",
+  "azurill",
+  "pikachu",
+  "nosepass",
+  "bronzor",
+  "chikorita",
+  "ditto",
+  "gengar",
+  "glalie",
+  "kakuna",
+  "leafish",
+  "onyx",
 ] as const;
 
 const FALLBACK_THEMES: Record<string, { background: string; text: string; primary: string }> = {
