@@ -32,6 +32,11 @@ if [[ -z "$LINTRO_IMAGE" || -z "$WORKSPACE" ]]; then
 	exit 1
 fi
 
+if [[ ! -d "$WORKSPACE" ]]; then
+	echo "WORKSPACE directory does not exist: $WORKSPACE" >&2
+	exit 1
+fi
+
 set +eo pipefail
 docker run --rm \
 	-v "${WORKSPACE}:/code" \
@@ -40,5 +45,9 @@ docker run --rm \
 EXIT_CODE=${PIPESTATUS[0]}
 set -eo pipefail
 
-echo "exit_code=$EXIT_CODE" >>"$GITHUB_OUTPUT"
-echo "CHK_EXIT_CODE=$EXIT_CODE" >>"$GITHUB_ENV"
+if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
+	echo "exit_code=$EXIT_CODE" >>"$GITHUB_OUTPUT"
+fi
+if [[ -n "${GITHUB_ENV:-}" ]]; then
+	echo "CHK_EXIT_CODE=$EXIT_CODE" >>"$GITHUB_ENV"
+fi

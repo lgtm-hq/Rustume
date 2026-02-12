@@ -27,6 +27,9 @@ if [[ -z "$PR" ]]; then
 	exit 1
 fi
 
+# Auto-merge may not be available (e.g., branch protection not configured).
+# This is non-blocking: the PR can still be merged manually.
 gh pr merge "$PR" --auto --squash || {
 	echo "Auto-merge not available; requires manual merge."
+	true
 }

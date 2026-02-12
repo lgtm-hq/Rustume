@@ -40,8 +40,9 @@ Copy-Item $Cli "$Staging/"
 Copy-Item $Srv "$Staging/"
 Copy-Item "README.md", "LICENSE" "$Staging/" -ErrorAction SilentlyContinue
 
-Compress-Archive -Path "$Staging" -DestinationPath "${Staging}.zip"
-$Hash = Get-FileHash "${Staging}.zip" -Algorithm SHA256
-$Hash | Format-List | Out-File "${Staging}.zip.sha256"
+Compress-Archive -Path "$Staging" -DestinationPath "${Staging}.zip" -Force
+$Hash = (Get-FileHash "${Staging}.zip" -Algorithm SHA256).Hash.ToLower()
+"${Hash}  ${Staging}.zip" | Out-File "${Staging}.zip.sha256" -Encoding ascii
+Remove-Item -Recurse -Force $Staging
 
 Write-Output "Packaged ${Staging}.zip"

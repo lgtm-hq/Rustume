@@ -53,4 +53,5 @@ cp "$SRV_BIN" "$STAGING/"
 cp README.md LICENSE "$STAGING/" 2>/dev/null || true
 tar czf "${STAGING}.tar.gz" "$STAGING"
 shasum -a 256 "${STAGING}.tar.gz" >"${STAGING}.tar.gz.sha256"
+rm -rf "$STAGING"
 echo "Packaged ${STAGING}.tar.gz"

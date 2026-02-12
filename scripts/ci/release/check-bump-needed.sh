@@ -25,11 +25,12 @@ fi
 
 NEXT="${NEXT_VERSION:-}"
 CURR="${CURRENT_VERSION:-}"
+OUTPUT="${GITHUB_OUTPUT:-/dev/stdout}"
 
 if [[ -n "$NEXT" && "$NEXT" != "$CURR" ]]; then
-	echo "required=true" >>"$GITHUB_OUTPUT"
+	echo "required=true" >>"$OUTPUT"
 	echo "Version bump required: $CURR -> $NEXT"
 else
-	echo "required=false" >>"$GITHUB_OUTPUT"
+	echo "required=false" >>"$OUTPUT"
 	echo "No version bump required (next=$NEXT, current=$CURR)"
 fi
