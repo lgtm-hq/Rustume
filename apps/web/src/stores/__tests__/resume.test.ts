@@ -78,6 +78,25 @@ describe("isResumeEmpty", () => {
     resume.sections.summary.content = "Hidden summary text.";
     expect(isResumeEmpty(resume)).toBe(true);
   });
+
+  it("returns false when a visible section has items", () => {
+    const resume = createEmptyResumeData();
+    resume.sections.education.visible = true;
+    resume.sections.education.items = [
+      {
+        id: "edu-1",
+        visible: true,
+        institution: "MIT",
+        studyType: "B.S.",
+        area: "Computer Science",
+        score: "",
+        date: "2020",
+        summary: "",
+        url: { label: "", href: "" },
+      },
+    ];
+    expect(isResumeEmpty(resume)).toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------
