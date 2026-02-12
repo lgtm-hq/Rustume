@@ -1,0 +1,100 @@
+# SPDX-License-Identifier: MIT
+---
+name: Build - Cross-Platform Binaries
+# Builds Rustume CLI and server binaries for multiple platforms.
+# Uses lgtm-ci actions for setup. Called by release workflow.
+
+"on":
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: 🔨 Build (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-24.04
+            archive: tar.gz
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04
+            archive: tar.gz
+            cross: true
+          - target: x86_64-apple-darwin
+            os: macos-15-intel
+            archive: tar.gz
+          - target: aarch64-apple-darwin
+            os: macos-14
+            archive: tar.gz
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            archive: zip
+
+    steps:
+      - name: Harden Runner
+        # yamllint disable-line rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@v0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        # yamllint disable-line rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@v0
+
+      - name: Setup Rust
+        # yamllint disable-line rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/setup-rust@v0
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross (for cross-compilation)
+        if: matrix.cross
+        run: cargo install cross --locked
+
+      - name: Build release binaries
+        env:
+          TARGET: ${{ matrix.target }}
+          USE_CROSS: ${{ matrix.cross }}
+        run: ./scripts/ci/release/build-binaries.sh
+
+      - name: Read version from Cargo.toml
+        id: version
+        run: ./scripts/ci/maintenance/auto-tag.sh read-version
+
+      - name: Package binaries (unix)
+        if: matrix.archive == 'tar.gz'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          TARGET: ${{ matrix.target }}
+        run: ./scripts/ci/release/package-unix.sh
+
+      - name: Package binaries (windows)
+        if: matrix.archive == 'zip'
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          TARGET: ${{ matrix.target }}
+        run: ./scripts/ci/release/package-windows.ps1
+
+      - name: Upload artifacts
+        # yamllint disable-line rule:line-length
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rustume-${{ matrix.target }}
+          path: |
+            rustume-*.tar.gz
+            rustume-*.tar.gz.sha256
+            rustume-*.zip
+            rustume-*.zip.sha256
+          if-no-files-found: error
+          retention-days: 7

@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: MIT
+---
+name: Maintenance - GHCR Registry Cleanup
+# Weekly cleanup of untagged container images from GHCR.
+
+"on":
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (log only, no deletions)"
+        required: false
+        default: false
+        type: boolean
+      min_age_days:
+        description: "Minimum age in days before deletion"
+        required: false
+        default: 7
+        type: number
+
+permissions:
+  contents: read
+
+jobs:
+  prune-untagged:
+    name: 🧹 Prune Untagged Images
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Harden Runner
+        # yamllint disable-line rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@v0
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            codeload.github.com:443
+            objects.githubusercontent.com:443
+
+      - name: Checkout
+        # yamllint disable-line rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@v0
+
+      - name: Prune untagged GHCR versions
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_PRUNE_MIN_AGE_DAYS: >-
+            ${{ format('{0}', inputs.min_age_days) || '7' }}
+          GHCR_PRUNE_DRY_RUN: >-
+            ${{ inputs.dry_run == true && '1' || '0' }}
+        run: ./scripts/ci/maintenance/ghcr-prune-untagged.sh

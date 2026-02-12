@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: MIT
+---
+name: Publish - GitHub Release
+# Creates GitHub Release when version tags are pushed.
+# Validates tag matches Cargo.toml, builds cross-platform binaries,
+# and uses lgtm-ci actions for release creation.
+
+"on":
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-tag:
+    name: ✅ Verify Tag
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Harden Runner
+        # yamllint disable-line rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@v0
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            codeload.github.com:443
+            objects.githubusercontent.com:443
+
+      - name: Checkout
+        # yamllint disable-line rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@v0
+        with:
+          fetch-depth: 0
+
+      - name: Read version from Cargo.toml
+        id: version
+        run: ./scripts/ci/maintenance/auto-tag.sh read-version
+
+      - name: Verify tag matches Cargo.toml version
+        env:
+          TAG: ${{ github.ref_name }}
+          CARGO_VERSION: ${{ steps.version.outputs.version }}
+        run: ./scripts/ci/release/verify-tag-version.sh
+
+  build-binaries:
+    name: 🔨 Build Binaries
+    needs: verify-tag
+    uses: ./.github/workflows/build-binary.yml
+    permissions:
+      contents: read
+
+  release:
+    name: 📦 Create GitHub Release
+    needs: [verify-tag, build-binaries]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    timeout-minutes: 15
+
+    steps:
+      - name: Harden Runner
+        # yamllint disable-line rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@v0
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            uploads.github.com:443
+            codeload.github.com:443
+            objects.githubusercontent.com:443
+
+      - name: Checkout
+        # yamllint disable-line rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@v0
+
+      - name: Download all artifacts
+        # yamllint disable-line rule:line-length
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        # yamllint disable-line rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/create-github-release@v0
+        with:
+          tag: ${{ github.ref_name }}
+          generate-notes: "true"
+          files: artifacts/*
