@@ -93,3 +93,6 @@ async-trait = "0.1"
 
 # OpenAPI
 utoipa = { version = "5", features = ["axum_extras"] }
+
+# Caching
+lru = "0.12"

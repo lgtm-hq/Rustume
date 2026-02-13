@@ -1,9 +1,11 @@
 // Nosepass Template - Professional, classic design
 // Traditional layout with blue accents, suitable for corporate environments
 
+#import "_common.typ": *
+
 #let primary-color = rgb("#3b82f6")
 #let dark-blue = rgb("#1e3a5f")
-#let text-color = rgb("#111827")
+#let text-color = rgb("#1f2937")
 #let muted-color = rgb("#4b5563")
 #let light-gray = rgb("#f3f4f6")
 #let border-color = rgb("#d1d5db")
@@ -63,13 +65,7 @@
       #text(weight: "bold", size: 11pt, fill: dark-blue)[#item.institution]
       #v(2pt)
       #if item.studyType != "" or item.area != "" {
-        let degree = if item.studyType != "" and item.area != "" {
-          [#item.studyType in #item.area]
-        } else if item.area != "" {
-          item.area
-        } else {
-          item.studyType
-        }
+        let degree = format-degree(item.studyType, item.area)
         text(size: 10pt)[#degree]
       }
       #if item.score != "" {
@@ -91,7 +87,7 @@
     inset: (x: 8pt, y: 4pt),
     [
       #text(size: 9pt, weight: "medium")[#item.name]
-      #let level = calc.min(calc.max(item.level, 0), 5)
+      #let level = clamp-level(item.level)
       #if level > 0 {
         h(4pt)
         for i in range(level) {
@@ -122,7 +118,7 @@
 #let render-profile(item) = {
   if item.visible == false { return }
 
-  if "url" in item and item.url != none and item.url.href != "" {
+  if has-url(item) {
     link(item.url.href)[#text(fill: primary-color)[#item.network: #item.username]]
   } else {
     text(size: 10pt)[#item.network: #item.username]
@@ -140,7 +136,7 @@
     text(size: 10pt)[#item.description]
   }
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     v(4pt)
     for keyword in item.keywords {
       box(
@@ -208,10 +204,120 @@
   h(6pt)
 }
 
+#let render-publication(item) = {
+  if item.visible == false { return }
+
+  grid(
+    columns: (1fr, auto),
+    column-gutter: 12pt,
+    [
+      #text(weight: "bold", size: 10pt, fill: dark-blue)[#item.name]
+      #if item.publisher != "" {
+        v(2pt)
+        text(size: 9pt, fill: muted-color)[#item.publisher]
+      }
+    ],
+    date-badge(item.date)
+  )
+
+  if item.summary != "" {
+    v(4pt)
+    text(size: 10pt)[#item.summary]
+  }
+
+  v(10pt)
+}
+
+#let render-volunteer(item) = {
+  if item.visible == false { return }
+
+  grid(
+    columns: (1fr, auto),
+    column-gutter: 12pt,
+    [
+      #text(weight: "bold", size: 11pt, fill: dark-blue)[#item.organization]
+      #if item.position != "" {
+        v(2pt)
+        text(size: 10pt)[#item.position]
+      }
+      #if item.location != "" {
+        text(size: 9pt, fill: muted-color)[ · #item.location]
+      }
+    ],
+    date-badge(item.date)
+  )
+
+  if item.summary != "" {
+    v(6pt)
+    text(size: 10pt)[#item.summary]
+  }
+
+  v(12pt)
+}
+
+#let render-reference(item) = {
+  if item.visible == false { return }
+
+  text(weight: "bold", size: 10pt, fill: dark-blue)[#item.name]
+
+  if item.description != "" {
+    v(4pt)
+    text(size: 10pt)[#item.description]
+  }
+
+  if item.summary != "" {
+    v(4pt)
+    text(size: 9pt)[#item.summary]
+  }
+
+  v(10pt)
+}
+
+#let render-custom(item) = {
+  if item.visible == false { return }
+
+  grid(
+    columns: (1fr, auto),
+    column-gutter: 12pt,
+    [
+      #text(weight: "bold", size: 10pt, fill: dark-blue)[#item.name]
+      #if item.description != "" {
+        v(2pt)
+        text(size: 10pt)[#item.description]
+      }
+    ],
+    date-badge(item.date)
+  )
+
+  if item.location != "" {
+    v(2pt)
+    text(size: 9pt, fill: muted-color)[#item.location]
+  }
+
+  if item.summary != "" {
+    v(4pt)
+    text(size: 10pt)[#item.summary]
+  }
+
+  if has-keywords(item) {
+    v(4pt)
+    for keyword in item.keywords {
+      box(
+        fill: light-gray,
+        radius: 2pt,
+        inset: (x: 5pt, y: 2pt),
+        text(size: 8pt)[#keyword]
+      )
+      h(4pt)
+    }
+  }
+
+  v(10pt)
+}
+
 #let template(data) = {
   // Page setup
   set page(
-    paper: "a4",
     margin: (x: 54pt, y: 48pt),
   )
 
@@ -252,7 +358,7 @@
       #if data.basics.location != "" {
         contact-parts.push([📍 #data.basics.location])
       }
-      #if "url" in data.basics and data.basics.url != none and data.basics.url.href != "" {
+      #if has-url(data.basics) {
         contact-parts.push([🔗 #link(data.basics.url.href)[Portfolio]])
       }
 
@@ -263,7 +369,7 @@
   v(8pt)
 
   // Summary in a highlighted box
-  if data.sections.summary.visible and data.sections.summary.content != "" {
+  if data.sections.summary.visible {
     v(8pt)
     box(
       width: 100%,
@@ -279,7 +385,7 @@
   }
 
   // Profiles
-  if data.sections.profiles.visible and data.sections.profiles.items.len() > 0 {
+  if data.sections.profiles.visible {
     section-heading(data.sections.profiles.name)
     for item in data.sections.profiles.items {
       render-profile(item)
@@ -287,7 +393,7 @@
   }
 
   // Experience
-  if data.sections.experience.visible and data.sections.experience.items.len() > 0 {
+  if data.sections.experience.visible {
     section-heading(data.sections.experience.name)
     for item in data.sections.experience.items {
       render-experience(item)
@@ -295,7 +401,7 @@
   }
 
   // Education
-  if data.sections.education.visible and data.sections.education.items.len() > 0 {
+  if data.sections.education.visible {
     section-heading(data.sections.education.name)
     for item in data.sections.education.items {
       render-education(item)
@@ -303,13 +409,13 @@
   }
 
   // Two-column layout for skills and languages
-  if (data.sections.skills.visible and data.sections.skills.items.len() > 0) or (data.sections.languages.visible and data.sections.languages.items.len() > 0) {
+  if (data.sections.skills.visible) or (data.sections.languages.visible) {
     v(6pt)
     grid(
       columns: (1fr, 1fr),
       column-gutter: 24pt,
       [
-        #if data.sections.skills.visible and data.sections.skills.items.len() > 0 {
+        #if data.sections.skills.visible {
           section-heading(data.sections.skills.name)
           for item in data.sections.skills.items {
             render-skill(item)
@@ -317,7 +423,7 @@
         }
       ],
       [
-        #if data.sections.languages.visible and data.sections.languages.items.len() > 0 {
+        #if data.sections.languages.visible {
           section-heading(data.sections.languages.name)
           for item in data.sections.languages.items {
             render-language(item)
@@ -328,7 +434,7 @@
   }
 
   // Projects
-  if data.sections.projects.visible and data.sections.projects.items.len() > 0 {
+  if data.sections.projects.visible {
     section-heading(data.sections.projects.name)
     for item in data.sections.projects.items {
       render-project(item)
@@ -336,7 +442,7 @@
   }
 
   // Certifications
-  if data.sections.certifications.visible and data.sections.certifications.items.len() > 0 {
+  if data.sections.certifications.visible {
     section-heading(data.sections.certifications.name)
     for item in data.sections.certifications.items {
       render-certification(item)
@@ -344,7 +450,7 @@
   }
 
   // Awards
-  if data.sections.awards.visible and data.sections.awards.items.len() > 0 {
+  if data.sections.awards.visible {
     section-heading(data.sections.awards.name)
     for item in data.sections.awards.items {
       render-award(item)
@@ -352,10 +458,38 @@
   }
 
   // Interests
-  if data.sections.interests.visible and data.sections.interests.items.len() > 0 {
+  if data.sections.interests.visible {
     section-heading(data.sections.interests.name)
     for item in data.sections.interests.items {
       render-interest(item)
+    }
+  }
+
+  // Publications
+  if data.sections.publications.visible {
+    section-heading(data.sections.publications.name)
+    for item in data.sections.publications.items { render-publication(item) }
+  }
+
+  // Volunteer
+  if data.sections.volunteer.visible {
+    section-heading(data.sections.volunteer.name)
+    for item in data.sections.volunteer.items { render-volunteer(item) }
+  }
+
+  // References
+  if data.sections.references.visible {
+    section-heading(data.sections.references.name)
+    for item in data.sections.references.items { render-reference(item) }
+  }
+
+  // Custom sections
+  if "custom" in data.sections {
+    for (key, section) in data.sections.custom {
+      if section.visible {
+        section-heading(section.name)
+        for item in section.items { render-custom(item) }
+      }
     }
   }
 }

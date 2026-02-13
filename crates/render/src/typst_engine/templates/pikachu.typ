@@ -1,6 +1,8 @@
 // Pikachu Template - Modern design with colored sidebar
 // Features a bold yellow sidebar with contact info and skills
 
+#import "_common.typ": *
+
 #let primary-color = rgb("#ca8a04")
 #let sidebar-bg = rgb("#fef9c3")
 #let text-color = rgb("#1c1917")
@@ -25,17 +27,7 @@
 }
 
 #let skill-dots(level) = {
-  let level = calc.min(calc.max(level, 0), 5)
-  let filled = level
-  let empty = 5 - level
-  for i in range(filled) {
-    box(width: 6pt, height: 6pt, fill: primary-color, radius: 50%)
-    h(3pt)
-  }
-  for i in range(empty) {
-    box(width: 6pt, height: 6pt, fill: rgb("#d6d3d1"), radius: 50%)
-    h(3pt)
-  }
+  rating-indicators(level, 6pt, 6pt, primary-color, rgb("#d6d3d1"), 50%, 3pt)
 }
 
 #let render-experience(item) = {
@@ -67,13 +59,7 @@
   v(2pt)
 
   if item.studyType != "" or item.area != "" {
-    let degree = if item.studyType != "" and item.area != "" {
-      [#item.studyType in #item.area]
-    } else if item.area != "" {
-      item.area
-    } else {
-      item.studyType
-    }
+    let degree = format-degree(item.studyType, item.area)
     text(size: 10pt)[#degree]
     h(8pt)
   }
@@ -118,7 +104,7 @@
 #let render-profile(item) = {
   if item.visible == false { return }
 
-  if "url" in item and item.url != none and item.url.href != "" {
+  if has-url(item) {
     link(item.url.href)[
       #text(size: 9pt, fill: text-color)[#item.network]
     ]
@@ -138,7 +124,7 @@
     text(size: 10pt)[#item.description]
   }
 
-  if "keywords" in item and item.keywords != none and item.keywords.len() > 0 {
+  if has-keywords(item) {
     v(4pt)
     text(size: 9pt, fill: muted-color)[#item.keywords.join(" · ")]
   }
@@ -177,10 +163,107 @@
   v(4pt)
 }
 
+#let render-publication(item) = {
+  if item.visible == false { return }
+
+  text(weight: "medium", size: 10pt)[#item.name]
+  if item.publisher != "" {
+    text(size: 9pt, fill: muted-color)[ — #item.publisher]
+  }
+  h(8pt)
+  text(size: 9pt, fill: muted-color)[#item.date]
+
+  if item.summary != "" {
+    v(6pt)
+    text(size: 10pt)[#item.summary]
+  }
+
+  v(12pt)
+}
+
+#let render-volunteer(item) = {
+  if item.visible == false { return }
+
+  text(weight: "bold", size: 11pt)[#item.position]
+  v(2pt)
+  text(size: 10pt, fill: primary-color)[#item.organization]
+  h(8pt)
+  text(size: 9pt, fill: muted-color)[#item.date]
+
+  if item.location != "" {
+    v(2pt)
+    text(size: 9pt, fill: muted-color)[📍 #item.location]
+  }
+
+  if item.summary != "" {
+    v(6pt)
+    text(size: 10pt)[#item.summary]
+  }
+
+  v(14pt)
+}
+
+#let render-reference(item) = {
+  if item.visible == false { return }
+
+  text(weight: "medium", size: 10pt)[#item.name]
+
+  if item.description != "" {
+    v(4pt)
+    text(size: 10pt)[#item.description]
+  }
+
+  if item.summary != "" {
+    v(6pt)
+    box(
+      stroke: (left: 2pt + primary-color),
+      inset: (left: 10pt, y: 2pt),
+      text(size: 9pt, style: "italic", fill: muted-color)[#item.summary]
+    )
+  }
+
+  v(12pt)
+}
+
+#let render-custom(item) = {
+  if item.visible == false { return }
+
+  text(weight: "bold", size: 10pt)[#item.name]
+
+  if item.description != "" {
+    v(4pt)
+    text(size: 10pt)[#item.description]
+  }
+
+  if item.date != "" or item.location != "" {
+    v(2pt)
+    if item.date != "" {
+      text(size: 9pt, fill: muted-color)[#item.date]
+    }
+    if item.date != "" and item.location != "" {
+      h(8pt)
+    }
+    if item.location != "" {
+      text(size: 9pt, fill: muted-color)[📍 #item.location]
+    }
+  }
+
+  if item.summary != "" {
+    v(6pt)
+    text(size: 10pt)[#item.summary]
+  }
+
+  if has-keywords(item) {
+    v(4pt)
+    text(size: 9pt, fill: muted-color)[#item.keywords.join(" · ")]
+  }
+
+  v(12pt)
+}
+
 #let template(data) = {
   // Page setup - no margin, we'll handle it in the grid
   set page(
-    paper: "a4",
     margin: 0pt,
   )
 
@@ -246,13 +329,13 @@
           v(4pt)
         }
 
-        #if data.basics.url.href != "" {
+        #if has-url(data.basics) {
           text(size: 9pt)[🔗 #link(data.basics.url.href)[Website]]
           v(4pt)
         }
 
         // Profiles
-        #if data.sections.profiles.visible and data.sections.profiles.items.len() > 0 {
+        #if data.sections.profiles.visible {
           sidebar-section(data.sections.profiles.name)
           for item in data.sections.profiles.items {
             render-profile(item)
@@ -260,7 +343,7 @@
         }
 
         // Skills
-        #if data.sections.skills.visible and data.sections.skills.items.len() > 0 {
+        #if data.sections.skills.visible {
           sidebar-section(data.sections.skills.name)
           for item in data.sections.skills.items {
             render-skill(item)
@@ -268,7 +351,7 @@
         }
 
         // Languages
-        #if data.sections.languages.visible and data.sections.languages.items.len() > 0 {
+        #if data.sections.languages.visible {
           sidebar-section(data.sections.languages.name)
           for item in data.sections.languages.items {
             render-language(item)
@@ -276,7 +359,7 @@
         }
 
         // Interests
-        #if data.sections.interests.visible and data.sections.interests.items.len() > 0 {
+        #if data.sections.interests.visible {
           sidebar-section(data.sections.interests.name)
           for item in data.sections.interests.items {
             render-interest(item)
@@ -299,7 +382,7 @@
         }
 
         // Summary
-        #if data.sections.summary.visible and data.sections.summary.content != "" {
+        #if data.sections.summary.visible {
           v(12pt)
           box(
             stroke: (left: 3pt + primary-color),
@@ -309,7 +392,7 @@
         }
 
         // Experience
-        #if data.sections.experience.visible and data.sections.experience.items.len() > 0 {
+        #if data.sections.experience.visible {
           main-section(data.sections.experience.name)
           for item in data.sections.experience.items {
             render-experience(item)
@@ -317,23 +400,15 @@
         }
 
         // Education
-        #if data.sections.education.visible and data.sections.education.items.len() > 0 {
+        #if data.sections.education.visible {
           main-section(data.sections.education.name)
           for item in data.sections.education.items {
             render-education(item)
           }
         }
 
-        // Projects
-        #if data.sections.projects.visible and data.sections.projects.items.len() > 0 {
-          main-section(data.sections.projects.name)
-          for item in data.sections.projects.items {
-            render-project(item)
-          }
-        }
-
         // Certifications
-        #if data.sections.certifications.visible and data.sections.certifications.items.len() > 0 {
+        #if data.sections.certifications.visible {
           main-section(data.sections.certifications.name)
           for item in data.sections.certifications.items {
             render-certification(item)
@@ -341,10 +416,54 @@
         }
 
         // Awards
-        #if data.sections.awards.visible and data.sections.awards.items.len() > 0 {
+        #if data.sections.awards.visible {
           main-section(data.sections.awards.name)
           for item in data.sections.awards.items {
             render-award(item)
+          }
+        }
+
+        // Publications
+        #if data.sections.publications.visible {
+          main-section(data.sections.publications.name)
+          for item in data.sections.publications.items {
+            render-publication(item)
+          }
+        }
+
+        // Volunteer
+        #if data.sections.volunteer.visible {
+          main-section(data.sections.volunteer.name)
+          for item in data.sections.volunteer.items {
+            render-volunteer(item)
+          }
+        }
+
+        // Projects
+        #if data.sections.projects.visible {
+          main-section(data.sections.projects.name)
+          for item in data.sections.projects.items {
+            render-project(item)
+          }
+        }
+
+        // References
+        #if data.sections.references.visible {
+          main-section(data.sections.references.name)
+          for item in data.sections.references.items {
+            render-reference(item)
+          }
+        }
+
+        // Custom sections
+        #if "custom" in data.sections {
+          for (key, section) in data.sections.custom {
+            if section.visible {
+              main-section(section.name)
+              for item in section.items {
+                render-custom(item)
+              }
+            }
           }
         }
       ]

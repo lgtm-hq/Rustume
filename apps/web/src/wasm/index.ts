@@ -150,13 +150,34 @@ export function resumeToJson(resume: ResumeData): string {
 // Fallback defaults below mirror the WASM module (crates/render).
 // Keep these in sync when adding or modifying templates.
 
-const FALLBACK_TEMPLATES = ["rhyhorn", "azurill", "pikachu", "nosepass"] as const;
+const FALLBACK_TEMPLATES = [
+  "rhyhorn",
+  "azurill",
+  "pikachu",
+  "nosepass",
+  "bronzor",
+  "chikorita",
+  "ditto",
+  "gengar",
+  "glalie",
+  "kakuna",
+  "leafish",
+  "onyx",
+] as const;
 
 const FALLBACK_THEMES: Record<string, { background: string; text: string; primary: string }> = {
-  rhyhorn: { background: "#ffffff", text: "#000000", primary: "#0284c7" },
-  azurill: { background: "#ffffff", text: "#1e293b", primary: "#2563eb" },
-  pikachu: { background: "#fffbeb", text: "#1c1917", primary: "#ca8a04" },
-  nosepass: { background: "#f8fafc", text: "#0f172a", primary: "#4f46e5" },
+  rhyhorn: { background: "#ffffff", text: "#000000", primary: "#65a30d" },
+  azurill: { background: "#ffffff", text: "#1f2937", primary: "#d97706" },
+  pikachu: { background: "#ffffff", text: "#1c1917", primary: "#ca8a04" },
+  nosepass: { background: "#ffffff", text: "#1f2937", primary: "#3b82f6" },
+  bronzor: { background: "#ffffff", text: "#1f2937", primary: "#0891b2" },
+  chikorita: { background: "#ffffff", text: "#166534", primary: "#16a34a" },
+  ditto: { background: "#ffffff", text: "#1f2937", primary: "#0891b2" },
+  gengar: { background: "#ffffff", text: "#1f2937", primary: "#67b8c8" },
+  glalie: { background: "#ffffff", text: "#0f172a", primary: "#14b8a6" },
+  kakuna: { background: "#ffffff", text: "#422006", primary: "#78716c" },
+  leafish: { background: "#ffffff", text: "#1f2937", primary: "#9f1239" },
+  onyx: { background: "#ffffff", text: "#111827", primary: "#dc2626" },
 };
 
 export function listTemplates(): string[] {

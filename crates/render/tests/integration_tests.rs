@@ -3,6 +3,7 @@
 //! These tests verify that the Typst renderer can compile and render
 //! resumes to PDF and PNG output.
 
+use rstest::rstest;
 use rustume_parser::{JsonResumeParser, Parser, ReactiveResumeV3Parser};
 use rustume_render::{get_page_size, get_template_theme, Renderer, TypstRenderer, TEMPLATES};
 use rustume_schema::{Basics, Education, Experience, PageFormat, ResumeData, Section, Skill};
@@ -31,19 +32,107 @@ fn test_templates_list() {
     assert!(TEMPLATES.contains(&"rhyhorn"));
 }
 
+/// Verify that the hardcoded template list in the WASM binding stays in sync
+/// with the canonical TEMPLATES constant. The WASM crate cannot depend on
+/// rustume_render (native Typst deps), so the list is duplicated there.
+/// Checks both directions: every TEMPLATES entry exists in WASM, and every
+/// WASM entry exists in TEMPLATES.
 #[test]
-fn test_template_theme() {
-    let rhyhorn = get_template_theme("rhyhorn");
-    assert_eq!(rhyhorn.primary, "#dc2626");
-    assert_eq!(rhyhorn.background, "#ffffff");
-    assert_eq!(rhyhorn.text, "#000000");
+fn test_wasm_template_list_in_sync() {
+    let wasm_src = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("bindings/wasm/src/lib.rs");
 
-    let pikachu = get_template_theme("pikachu");
-    assert_eq!(pikachu.primary, "#ca8a04");
+    let contents = fs::read_to_string(&wasm_src)
+        .unwrap_or_else(|e| panic!("Failed to read {}: {e}", wasm_src.display()));
 
-    // Unknown template returns default
+    // Forward check: every canonical template appears in the WASM source
+    for template in TEMPLATES {
+        assert!(
+            contents.contains(&format!("\"{template}\"")),
+            "Template '{template}' is in TEMPLATES but missing from bindings/wasm/src/lib.rs. \
+             Keep the hardcoded list in list_templates() in sync with engine.rs::TEMPLATES."
+        );
+    }
+
+    // Reverse check: extract template names from the WASM list_templates() vec
+    // and verify each one exists in the canonical TEMPLATES constant.
+    // The vec entries look like:  "template_name",
+    let wasm_templates: Vec<&str> = contents
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            // Match lines like `"rhyhorn",` inside the list_templates vec
+            if trimmed.starts_with('"') && trimmed.ends_with("\",") {
+                Some(&trimmed[1..trimmed.len() - 2])
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    assert!(
+        !wasm_templates.is_empty(),
+        "Failed to parse any template names from bindings/wasm/src/lib.rs"
+    );
+
+    for wasm_template in &wasm_templates {
+        assert!(
+            TEMPLATES.contains(wasm_template),
+            "Template '{wasm_template}' is in bindings/wasm/src/lib.rs but missing from \
+             TEMPLATES. Keep the lists in sync."
+        );
+    }
+
+    assert_eq!(
+        TEMPLATES.len(),
+        wasm_templates.len(),
+        "Template count mismatch: TEMPLATES has {} but WASM has {}",
+        TEMPLATES.len(),
+        wasm_templates.len()
+    );
+}
+
+#[rstest]
+#[case("rhyhorn", "#65a30d", "#ffffff", "#000000")]
+#[case("azurill", "#d97706", "#ffffff", "#1f2937")]
+#[case("pikachu", "#ca8a04", "#ffffff", "#1c1917")]
+#[case("nosepass", "#3b82f6", "#ffffff", "#1f2937")]
+#[case("bronzor", "#0891b2", "#ffffff", "#1f2937")]
+#[case("chikorita", "#16a34a", "#ffffff", "#166534")]
+#[case("ditto", "#0891b2", "#ffffff", "#1f2937")]
+#[case("gengar", "#67b8c8", "#ffffff", "#1f2937")]
+#[case("glalie", "#14b8a6", "#ffffff", "#0f172a")]
+#[case("kakuna", "#78716c", "#ffffff", "#422006")]
+#[case("leafish", "#9f1239", "#ffffff", "#1f2937")]
+#[case("onyx", "#dc2626", "#ffffff", "#111827")]
+fn test_template_theme(
+    #[case] template: &str,
+    #[case] primary: &str,
+    #[case] background: &str,
+    #[case] text: &str,
+) {
+    let theme = get_template_theme(template);
+    assert_eq!(
+        theme.primary, primary,
+        "primary color mismatch for '{template}'"
+    );
+    assert_eq!(
+        theme.background, background,
+        "background color mismatch for '{template}'"
+    );
+    assert_eq!(theme.text, text, "text color mismatch for '{template}'");
+}
+
+#[test]
+fn test_unknown_template_theme_falls_back() {
     let unknown = get_template_theme("unknown");
-    assert_eq!(unknown.primary, "#dc2626");
+    assert_eq!(unknown.primary, "#65a30d");
+    assert_eq!(unknown.background, "#ffffff");
+    assert_eq!(unknown.text, "#000000");
 }
 
 #[test]
@@ -341,4 +430,42 @@ fn test_renderer_falls_back_to_default() {
 
     // Should fall back to default (rhyhorn)
     assert!(source.contains("rhyhorn"));
+}
+
+// ============================================================================
+// Per-Template PDF Rendering Tests
+// ============================================================================
+
+#[rstest]
+#[case("rhyhorn")]
+#[case("azurill")]
+#[case("pikachu")]
+#[case("nosepass")]
+#[case("bronzor")]
+#[case("chikorita")]
+#[case("ditto")]
+#[case("gengar")]
+#[case("glalie")]
+#[case("kakuna")]
+#[case("leafish")]
+#[case("onyx")]
+fn test_render_template_with_content(#[case] template_name: &str) {
+    let renderer = TypstRenderer::new();
+    let mut resume = sample_resume();
+    resume.metadata.template = template_name.to_string();
+
+    let result = renderer.render_pdf(&resume);
+    assert!(
+        result.is_ok(),
+        "PDF rendering failed for template '{}': {:?}",
+        template_name,
+        result.err()
+    );
+
+    let pdf = result.unwrap();
+    assert!(
+        pdf.starts_with(b"%PDF-"),
+        "Output for '{}' is not a valid PDF",
+        template_name
+    );
 }

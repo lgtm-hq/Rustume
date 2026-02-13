@@ -39,6 +39,9 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Base64 for binary data in JSON
 base64 = "0.22"
 
+# Caching
+lru.workspace = true
+
 # OpenAPI / Swagger
 utoipa.workspace = true
 utoipa-swagger-ui = { version = "8", features = ["axum"] }

@@ -1,19 +1,21 @@
-// Rhyhorn Template - Single-column linear layout
-// Horizontal header with picture area, olive green accents
-// Original: turbo-resume/apps/artboard/src/templates/rhyhorn.tsx
+// Onyx Template - Clean professional design
+// White background, red accents, horizontal header, single-column linear layout
 
 #import "_common.typ": *
 
-#let primary-color = rgb("#65a30d")
-#let text-color = rgb("#000000")
+#let primary-color = rgb("#dc2626")
+#let text-color = rgb("#111827")
 #let muted-color = rgb("#6b7280")
 
 #let section-heading(title) = {
-  v(12pt)
-  text(weight: "bold", size: 11pt, fill: primary-color)[#upper(title)]
-  v(2pt)
-  line(length: 100%, stroke: 0.5pt + primary-color)
-  v(6pt)
+  v(14pt)
+  box(
+    width: 100%,
+    stroke: (bottom: 1.5pt + primary-color),
+    inset: (bottom: 4pt),
+    text(weight: "bold", size: 10pt, fill: primary-color, tracking: 0.06em)[#upper(title)]
+  )
+  v(10pt)
 }
 
 #let entry-header(left-content, right-content) = {
@@ -27,9 +29,8 @@
   )
 }
 
-#let skill-bar(level) = {
-  h(4pt)
-  rating-indicators(level, 8pt, 8pt, primary-color, rgb("#e5e5e5"), 2pt, 2pt)
+#let rating-squares(level) = {
+  rating-indicators(level, 8pt, 8pt, primary-color, rgb("#e5e7eb"), 0pt, 2pt)
 }
 
 #let render-experience(item) = {
@@ -37,44 +38,50 @@
 
   entry-header(
     [
-      #text(weight: "bold")[#item.company]
-      #if item.position != "" [ — #item.position]
+      #text(weight: "bold", size: 11pt, fill: text-color)[#item.position]
+      #v(2pt)
+      #text(size: 10pt, fill: primary-color)[#item.company]
+      #if item.location != "" {
+        text(size: 9pt, fill: muted-color)[ · #item.location]
+      }
     ],
     item.date
   )
 
-  if item.location != "" {
-    text(size: 9pt, fill: muted-color)[#item.location]
-    v(2pt)
-  }
-
   if item.summary != "" {
-    v(4pt)
-    text(size: 10pt)[#item.summary]
+    v(6pt)
+    text(size: 10pt, fill: text-color)[#item.summary]
   }
 
-  v(10pt)
+  v(12pt)
 }
 
 #let render-education(item) = {
   if item.visible == false { return }
 
   entry-header(
-    [#text(weight: "bold")[#item.institution]],
+    [
+      #text(weight: "bold", size: 11pt, fill: text-color)[#item.institution]
+      #if item.studyType != "" or item.area != "" {
+        v(2pt)
+        let degree = format-degree(item.studyType, item.area)
+        text(size: 10pt, fill: text-color)[#degree]
+      }
+    ],
     item.date
   )
 
-  if item.area != "" or item.studyType != "" {
-    let degree-text = format-degree(item.studyType, item.area)
-    text(size: 10pt)[#degree-text]
-    v(2pt)
-  }
-
   if item.score != "" {
+    v(2pt)
     text(size: 9pt, fill: muted-color)[#item.score]
   }
 
-  v(10pt)
+  if item.summary != "" {
+    v(4pt)
+    text(size: 10pt, fill: text-color)[#item.summary]
+  }
+
+  v(12pt)
 }
 
 #let render-skill(item) = {
@@ -82,19 +89,28 @@
 
   grid(
     columns: (1fr, auto),
+    column-gutter: 8pt,
     [
-      #text(size: 10pt, weight: "bold")[#item.name]
+      #text(size: 10pt, weight: "medium", fill: text-color)[#item.name]
       #if item.description != "" {
         v(1pt)
-        text(size: 9pt)[#item.description]
+        text(size: 9pt, fill: muted-color)[#item.description]
       }
     ],
-    skill-bar(item.level)
+    rating-squares(item.level)
   )
 
   if has-keywords(item) {
     v(2pt)
-    text(size: 9pt, fill: muted-color)[#item.keywords.join(", ")]
+    for keyword in item.keywords {
+      box(
+        fill: rgb("#fef2f2"),
+        radius: 3pt,
+        inset: (x: 6pt, y: 2pt),
+        text(size: 8pt, fill: primary-color)[#keyword]
+      )
+      h(4pt)
+    }
   }
 
   v(8pt)
@@ -105,14 +121,15 @@
 
   grid(
     columns: (1fr, auto),
+    column-gutter: 8pt,
     [
-      #text(size: 10pt, weight: "bold")[#item.name]
+      #text(size: 10pt, weight: "medium", fill: text-color)[#item.name]
       #if item.description != "" {
-        v(1pt)
-        text(size: 9pt)[#item.description]
+        h(6pt)
+        text(size: 9pt, fill: muted-color)[#item.description]
       }
     ],
-    skill-bar(item.level)
+    rating-squares(item.level)
   )
 
   v(6pt)
@@ -122,38 +139,45 @@
   if item.visible == false { return }
 
   if has-url(item) {
-    let label = if item.username != "" { item.username } else { item.url.href }
-    link(item.url.href)[#label]
+    link(item.url.href)[#text(fill: primary-color)[#item.network]]
   } else {
-    [#item.network: #item.username]
+    text(size: 10pt, fill: text-color)[#item.network: #item.username]
   }
-  v(4pt)
+  h(14pt)
 }
 
 #let render-project(item) = {
   if item.visible == false { return }
 
   entry-header(
-    [#text(weight: "bold", size: 10pt)[#item.name]],
+    [#text(weight: "bold", size: 10pt, fill: text-color)[#item.name]],
     item.date
   )
 
   if item.description != "" {
-    v(2pt)
-    text(size: 10pt)[#item.description]
+    v(4pt)
+    text(size: 10pt, fill: text-color)[#item.description]
   }
 
   if item.summary != "" {
-    v(2pt)
-    text(size: 10pt)[#item.summary]
+    v(4pt)
+    text(size: 10pt, fill: text-color)[#item.summary]
   }
 
   if has-keywords(item) {
-    v(2pt)
-    text(size: 9pt, fill: muted-color)[#item.keywords.join(", ")]
+    v(4pt)
+    for keyword in item.keywords {
+      box(
+        fill: rgb("#fef2f2"),
+        radius: 3pt,
+        inset: (x: 6pt, y: 2pt),
+        text(size: 8pt, fill: primary-color)[#keyword]
+      )
+      h(4pt)
+    }
   }
 
-  v(8pt)
+  v(12pt)
 }
 
 #let render-certification(item) = {
@@ -161,9 +185,9 @@
 
   entry-header(
     [
-      #text(weight: "bold")[#item.name]
+      #text(weight: "medium", size: 10pt, fill: text-color)[#item.name]
       #if item.issuer != "" {
-        text(fill: muted-color)[ — #item.issuer]
+        text(size: 9pt, fill: muted-color)[ — #item.issuer]
       }
     ],
     item.date
@@ -171,7 +195,7 @@
 
   if item.summary != "" {
     v(2pt)
-    text(size: 9pt)[#item.summary]
+    text(size: 9pt, fill: text-color)[#item.summary]
   }
 
   v(8pt)
@@ -182,9 +206,9 @@
 
   entry-header(
     [
-      #text(weight: "bold")[#item.title]
+      #text(weight: "medium", size: 10pt, fill: text-color)[#item.title]
       #if item.awarder != "" {
-        text(fill: muted-color)[ — #item.awarder]
+        text(size: 9pt, fill: muted-color)[ — #item.awarder]
       }
     ],
     item.date
@@ -192,7 +216,7 @@
 
   if item.summary != "" {
     v(2pt)
-    text(size: 9pt)[#item.summary]
+    text(size: 9pt, fill: text-color)[#item.summary]
   }
 
   v(8pt)
@@ -201,13 +225,13 @@
 #let render-interest(item) = {
   if item.visible == false { return }
 
-  text(size: 10pt, weight: "bold")[#item.name]
+  text(size: 10pt, weight: "medium", fill: text-color)[#item.name]
 
   if has-keywords(item) {
     text(size: 9pt, fill: muted-color)[ — #item.keywords.join(", ")]
   }
 
-  v(4pt)
+  v(6pt)
 }
 
 #let render-publication(item) = {
@@ -215,18 +239,18 @@
 
   entry-header(
     [
-      #text(weight: "bold")[#item.name]
+      #text(weight: "bold", size: 10pt, fill: text-color)[#item.name]
       #if item.publisher != "" {
         v(1pt)
-        text(size: 9pt)[#item.publisher]
+        text(size: 9pt, fill: muted-color)[#item.publisher]
       }
     ],
     item.date
   )
 
   if item.summary != "" {
-    v(2pt)
-    text(size: 9pt)[#item.summary]
+    v(4pt)
+    text(size: 9pt, fill: text-color)[#item.summary]
   }
 
   v(8pt)
@@ -237,38 +261,40 @@
 
   entry-header(
     [
-      #text(weight: "bold")[#item.organization]
-      #if item.position != "" [ — #item.position]
+      #text(weight: "bold", size: 11pt, fill: text-color)[#item.organization]
+      #if item.position != "" {
+        text(size: 10pt, fill: text-color)[ — #item.position]
+      }
     ],
     item.date
   )
 
   if item.location != "" {
-    text(size: 9pt, fill: muted-color)[#item.location]
     v(2pt)
+    text(size: 9pt, fill: muted-color)[#item.location]
   }
 
   if item.summary != "" {
     v(4pt)
-    text(size: 10pt)[#item.summary]
+    text(size: 10pt, fill: text-color)[#item.summary]
   }
 
-  v(10pt)
+  v(12pt)
 }
 
 #let render-reference(item) = {
   if item.visible == false { return }
 
-  text(weight: "bold")[#item.name]
+  text(weight: "bold", size: 10pt, fill: text-color)[#item.name]
 
   if item.description != "" {
     v(2pt)
-    text(size: 9pt)[#item.description]
+    text(size: 9pt, fill: muted-color)[#item.description]
   }
 
   if item.summary != "" {
     v(2pt)
-    text(size: 9pt)[#item.summary]
+    text(size: 9pt, fill: text-color)[#item.summary]
   }
 
   v(8pt)
@@ -279,27 +305,36 @@
 
   entry-header(
     [
-      #text(weight: "bold")[#item.name]
+      #text(weight: "bold", size: 10pt, fill: text-color)[#item.name]
       #if item.description != "" {
         v(1pt)
-        text(size: 9pt)[#item.description]
+        text(size: 9pt, fill: muted-color)[#item.description]
       }
     ],
     item.date
   )
 
   if item.location != "" {
+    v(2pt)
     text(size: 9pt, fill: muted-color)[#item.location]
   }
 
   if item.summary != "" {
     v(2pt)
-    text(size: 9pt)[#item.summary]
+    text(size: 9pt, fill: text-color)[#item.summary]
   }
 
   if has-keywords(item) {
     v(2pt)
-    text(size: 9pt, fill: muted-color)[#item.keywords.join(", ")]
+    for keyword in item.keywords {
+      box(
+        fill: rgb("#fef2f2"),
+        radius: 3pt,
+        inset: (x: 6pt, y: 2pt),
+        text(size: 8pt, fill: primary-color)[#keyword]
+      )
+      h(4pt)
+    }
   }
 
   v(8pt)
@@ -318,44 +353,40 @@
 
   set par(
     leading: 0.65em,
-    justify: true,
+    justify: false,
   )
 
-  // Header - horizontal layout
+  // Header - horizontal flex: name/headline left, contact info stacked right
   grid(
     columns: (1fr, auto),
     column-gutter: 16pt,
     [
-      #text(size: 24pt, weight: "bold")[#data.basics.name]
+      #text(size: 26pt, weight: "bold", fill: text-color)[#data.basics.name]
 
       #if data.basics.headline != "" {
         v(4pt)
-        text(size: 12pt)[#data.basics.headline]
+        text(size: 12pt, fill: primary-color)[#data.basics.headline]
       }
     ],
     align(right)[
-      #let contact-items = ()
-      #if data.basics.location != "" { contact-items = contact-items + (data.basics.location,) }
-      #if data.basics.phone != "" { contact-items = contact-items + (data.basics.phone,) }
-      #if data.basics.email != "" { contact-items = contact-items + (data.basics.email,) }
-      #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#data.basics.url.href],) }
+      #let contact-items = build-contact-items(data.basics)
+      #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#text(fill: primary-color)[#data.basics.url.href]],) }
 
       #for item in contact-items {
-        text(size: 9pt)[#item]
+        text(size: 9pt, fill: muted-color)[#item]
         v(2pt)
       }
     ]
   )
 
   v(8pt)
-  line(length: 100%, stroke: 0.5pt + primary-color)
+  line(length: 100%, stroke: 1.5pt + primary-color)
   v(8pt)
 
-  // All sections flow linearly
   // Summary
   if data.sections.summary.visible {
     section-heading(data.sections.summary.name)
-    text(size: 10pt)[#data.sections.summary.content]
+    text(size: 10pt, fill: text-color)[#data.sections.summary.content]
   }
 
   // Profiles

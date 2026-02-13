@@ -7,10 +7,18 @@ use tracing::{debug, instrument, warn};
 
 /// Available templates.
 pub const TEMPLATES: &[&str] = &[
-    "rhyhorn",  // Clean, two-column with red accent
-    "azurill",  // Minimal, single column with amber accent
-    "pikachu",  // Modern, sidebar layout with yellow accent
-    "nosepass", // Professional, classic with blue accent
+    "rhyhorn",   // Single-column linear, olive green accent (#65a30d)
+    "azurill",   // Sidebar left + main right, amber accent (#d97706)
+    "pikachu",   // Sidebar left + main right, gold accent (#ca8a04)
+    "nosepass",  // Single-column linear, blue accent (#3b82f6)
+    "bronzor",   // Single-column centered header, teal accent (#0891b2)
+    "chikorita", // Main left + sidebar right, green accent (#16a34a)
+    "ditto",     // Sidebar left + main right, teal accent (#0891b2)
+    "gengar",    // Header-in-sidebar left + main right, light teal accent (#67b8c8)
+    "glalie",    // Header-in-sidebar left + main right, teal accent (#14b8a6)
+    "kakuna",    // Single-column linear, tan/brown accent (#78716c)
+    "leafish",   // Full-width header + equal two columns, rose accent (#9f1239)
+    "onyx",      // Single-column linear, red accent (#dc2626)
 ];
 
 /// Typst-based PDF renderer.
@@ -38,6 +46,23 @@ impl TypstRenderer {
     #[instrument(skip(self, resume), fields(template = %resume.metadata.template))]
     pub fn generate_source(&self, resume: &ResumeData) -> Result<String, RenderError> {
         debug!("Generating Typst source");
+
+        // Validate metadata bounds before embedding in Typst source
+        let margin = resume.metadata.page.margin;
+        if margin > 100 {
+            return Err(RenderError::InvalidConfig(format!(
+                "Margin {}pt exceeds maximum of 100pt",
+                margin
+            )));
+        }
+        let font_size = resume.metadata.typography.font.size;
+        if !(6..=72).contains(&font_size) {
+            return Err(RenderError::InvalidConfig(format!(
+                "Font size {}pt is outside the allowed range of 6–72pt",
+                font_size
+            )));
+        }
+
         let template = &resume.metadata.template;
         let template_name = if TEMPLATES.contains(&template.as_str()) {
             template.as_str()
@@ -211,33 +236,74 @@ pub fn get_page_size(format: PageFormat) -> (f64, f64) {
 }
 
 /// Get the default theme colors for a template.
+/// Colors sourced from turbo-resume/libs/utils/src/namespaces/template.ts
 pub fn get_template_theme(template: &str) -> TemplateTheme {
     match template {
         "rhyhorn" => TemplateTheme {
             background: "#ffffff".into(),
             text: "#000000".into(),
-            primary: "#dc2626".into(),
+            primary: "#65a30d".into(),
         },
         "azurill" => TemplateTheme {
             background: "#ffffff".into(),
-            text: "#000000".into(),
+            text: "#1f2937".into(),
             primary: "#d97706".into(),
         },
         "pikachu" => TemplateTheme {
             background: "#ffffff".into(),
-            text: "#000000".into(),
+            text: "#1c1917".into(),
             primary: "#ca8a04".into(),
         },
         "nosepass" => TemplateTheme {
             background: "#ffffff".into(),
-            text: "#000000".into(),
+            text: "#1f2937".into(),
             primary: "#3b82f6".into(),
+        },
+        "bronzor" => TemplateTheme {
+            background: "#ffffff".into(),
+            text: "#1f2937".into(),
+            primary: "#0891b2".into(),
+        },
+        "chikorita" => TemplateTheme {
+            background: "#ffffff".into(),
+            text: "#166534".into(),
+            primary: "#16a34a".into(),
+        },
+        "ditto" => TemplateTheme {
+            background: "#ffffff".into(),
+            text: "#1f2937".into(),
+            primary: "#0891b2".into(),
+        },
+        "gengar" => TemplateTheme {
+            background: "#ffffff".into(),
+            text: "#1f2937".into(),
+            primary: "#67b8c8".into(),
+        },
+        "glalie" => TemplateTheme {
+            background: "#ffffff".into(),
+            text: "#0f172a".into(),
+            primary: "#14b8a6".into(),
+        },
+        "kakuna" => TemplateTheme {
+            background: "#ffffff".into(),
+            text: "#422006".into(),
+            primary: "#78716c".into(),
+        },
+        "leafish" => TemplateTheme {
+            background: "#ffffff".into(),
+            text: "#1f2937".into(),
+            primary: "#9f1239".into(),
+        },
+        "onyx" => TemplateTheme {
+            background: "#ffffff".into(),
+            text: "#111827".into(),
+            primary: "#dc2626".into(),
         },
         // Default to rhyhorn theme for unknown templates
         _ => TemplateTheme {
             background: "#ffffff".into(),
             text: "#000000".into(),
-            primary: "#dc2626".into(),
+            primary: "#65a30d".into(),
         },
     }
 }
@@ -292,7 +358,7 @@ mod tests {
     #[test]
     fn test_template_theme() {
         let rhyhorn = get_template_theme("rhyhorn");
-        assert_eq!(rhyhorn.primary, "#dc2626");
+        assert_eq!(rhyhorn.primary, "#65a30d");
 
         let pikachu = get_template_theme("pikachu");
         assert_eq!(pikachu.primary, "#ca8a04");
@@ -300,4 +366,29 @@ mod tests {
 
     // Note: PDF rendering tests require fonts to be available
     // These are better as integration tests
+
+    #[test]
+    fn test_rejects_excessive_margin() {
+        let mut resume = ResumeData::default();
+        resume.metadata.page.margin = 150;
+        let renderer = TypstRenderer::new();
+        let result = renderer.generate_source(&resume);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("Margin"), "Expected margin error, got: {err}");
+    }
+
+    #[test]
+    fn test_rejects_extreme_font_size() {
+        let mut resume = ResumeData::default();
+        resume.metadata.typography.font.size = 2;
+        let renderer = TypstRenderer::new();
+        let result = renderer.generate_source(&resume);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("Font size"),
+            "Expected font size error, got: {err}"
+        );
+    }
 }

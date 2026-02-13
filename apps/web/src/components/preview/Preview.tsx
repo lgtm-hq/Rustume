@@ -30,9 +30,16 @@ export function Preview() {
     const resumeJson = debouncedResume();
     if (!resumeJson || !store.resume) return;
 
-    // Skip if offline
+    // Skip if offline — invalidate in-flight requests, keep cached preview
     if (!isOnline()) {
-      setError("Preview unavailable offline");
+      ++resumeRequestId;
+      setIsLoading(false);
+      if (lastCachedUrl()) {
+        setPreviewUrl(lastCachedUrl());
+        setError(null);
+      } else {
+        setError("Preview unavailable offline");
+      }
       return;
     }
 
@@ -66,7 +73,20 @@ export function Preview() {
   // Also refresh when page changes
   createEffect(() => {
     const page = ui.previewPage;
-    if (!store.resume || !isOnline()) return;
+    if (!store.resume) return;
+
+    // Skip if offline — invalidate in-flight requests, keep cached preview
+    if (!isOnline()) {
+      ++pageRequestId;
+      setIsLoading(false);
+      if (lastCachedUrl()) {
+        setPreviewUrl(lastCachedUrl());
+        setError(null);
+      } else {
+        setError("Preview unavailable offline");
+      }
+      return;
+    }
 
     const currentRequestId = ++pageRequestId;
     setIsLoading(true);

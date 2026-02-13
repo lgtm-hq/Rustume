@@ -14,18 +14,23 @@
 
 use anyhow::Context;
 use axum::{
-    extract::DefaultBodyLimit,
-    http::{header, Method, StatusCode},
+    extract::{DefaultBodyLimit, Path},
+    http::{header, HeaderValue, Method, StatusCode},
+    middleware,
     response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
 };
+use lru::LruCache;
 use rustume_parser::{JsonResumeParser, LinkedInParser, Parser, ReactiveResumeV3Parser};
 use rustume_render::{get_template_theme, Renderer, TypstRenderer, TEMPLATES};
 use rustume_schema::ResumeData;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
+use std::num::NonZeroUsize;
+use std::sync::OnceLock;
 use tokio::signal;
+use tokio::sync::Mutex;
 use tower_http::{
     compression::CompressionLayer,
     cors::{Any, CorsLayer},
@@ -62,6 +67,7 @@ const DEFAULT_PORT: u16 = 3000;
     paths(
         health,
         list_templates,
+        template_thumbnail,
         parse,
         render_pdf,
         render_preview,
@@ -100,6 +106,8 @@ enum ApiErrorKind {
     /// Bad request (400) - malformed input, invalid format
     #[default]
     BadRequest,
+    /// Not found (404) - resource does not exist
+    NotFound,
     /// Unprocessable entity (422) - validation errors
     UnprocessableEntity,
     /// Internal server error (500) - rendering failures, etc.
@@ -110,6 +118,7 @@ impl ApiErrorKind {
     fn status_code(self) -> StatusCode {
         match self {
             ApiErrorKind::BadRequest => StatusCode::BAD_REQUEST,
+            ApiErrorKind::NotFound => StatusCode::NOT_FOUND,
             ApiErrorKind::UnprocessableEntity => StatusCode::UNPROCESSABLE_ENTITY,
             ApiErrorKind::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
         }
@@ -145,6 +154,14 @@ impl ApiError {
             error: error.into(),
             details: Some(details),
             kind: ApiErrorKind::UnprocessableEntity,
+        }
+    }
+
+    fn not_found(error: impl Into<String>) -> Self {
+        Self {
+            error: error.into(),
+            details: None,
+            kind: ApiErrorKind::NotFound,
         }
     }
 
@@ -225,8 +242,11 @@ struct RenderPreviewRequest {
 /// Template information
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 struct TemplateInfo {
-    /// Template name/identifier
+    /// Template identifier (slug)
     #[schema(example = "rhyhorn")]
+    id: String,
+    /// Display name
+    #[schema(example = "Rhyhorn")]
     name: String,
     /// Theme colors for this template
     theme: ThemeInfo,
@@ -293,8 +313,17 @@ async fn list_templates() -> Json<Vec<TemplateInfo>> {
         .iter()
         .map(|name| {
             let theme = get_template_theme(name);
+            // Capitalize first letter for display name
+            let display_name = {
+                let mut chars = name.chars();
+                match chars.next() {
+                    None => String::new(),
+                    Some(c) => c.to_uppercase().to_string() + chars.as_str(),
+                }
+            };
             TemplateInfo {
-                name: name.to_string(),
+                id: name.to_string(),
+                name: display_name,
                 theme: ThemeInfo {
                     background: theme.background.clone(),
                     text: theme.text.clone(),
@@ -305,6 +334,159 @@ async fn list_templates() -> Json<Vec<TemplateInfo>> {
         .collect();
 
     Json(templates)
+}
+
+/// Maximum number of template thumbnails to cache
+const THUMBNAIL_CACHE_CAPACITY: usize = 32;
+
+/// Cache for rendered template thumbnails (keyed by template name, bounded LRU)
+fn thumbnail_cache() -> &'static Mutex<LruCache<String, Vec<u8>>> {
+    static CACHE: OnceLock<Mutex<LruCache<String, Vec<u8>>>> = OnceLock::new();
+    CACHE.get_or_init(|| {
+        Mutex::new(LruCache::new(
+            NonZeroUsize::new(THUMBNAIL_CACHE_CAPACITY).unwrap(),
+        ))
+    })
+}
+
+/// Create a sample resume with realistic placeholder data for thumbnails.
+fn create_sample_resume() -> ResumeData {
+    use rustume_schema::*;
+
+    let mut resume = ResumeData::default();
+    resume.basics.name = "John Doe".to_string();
+    resume.basics.headline = "Senior Software Engineer".to_string();
+    resume.basics.email = "john@example.com".to_string();
+    resume.basics.phone = "+1 (555) 123-4567".to_string();
+    resume.basics.location = "San Francisco, CA".to_string();
+    resume.basics.url = Url::with_label("Portfolio", "https://johndoe.dev");
+
+    resume.sections.summary = SummarySection::new(
+        "Experienced software engineer with 8+ years building scalable web applications. \
+         Expert in React, TypeScript, and cloud architecture. Led teams of 5-10 engineers.",
+    );
+
+    resume.sections.experience.add_item(
+        Experience::new("TechCorp Inc.", "Senior Software Engineer")
+            .with_location("San Francisco, CA")
+            .with_date("2020 - Present")
+            .with_summary(
+                "Lead development of core platform serving 2M+ daily active users. \
+                 Architected microservices reducing latency by 40%.",
+            ),
+    );
+    resume.sections.experience.add_item(
+        Experience::new("StartupXYZ", "Software Engineer")
+            .with_location("Remote")
+            .with_date("2017 - 2020")
+            .with_summary(
+                "Built real-time collaboration features from scratch. \
+                 Implemented CI/CD pipelines reducing deployment time by 70%.",
+            ),
+    );
+
+    resume.sections.education.add_item(
+        Education::new("Stanford University", "Computer Science")
+            .with_study_type("Bachelor of Science")
+            .with_date("2013 - 2017")
+            .with_score("GPA: 3.9/4.0"),
+    );
+
+    resume
+        .sections
+        .skills
+        .add_item(Skill::new("TypeScript / JavaScript").with_level(5));
+    resume
+        .sections
+        .skills
+        .add_item(Skill::new("React / Next.js").with_level(5));
+    resume
+        .sections
+        .skills
+        .add_item(Skill::new("Node.js / Python").with_level(4));
+    resume
+        .sections
+        .skills
+        .add_item(Skill::new("PostgreSQL / Redis").with_level(4));
+
+    resume
+        .sections
+        .profiles
+        .add_item(Profile::new("GitHub", "johndoe").with_url("https://github.com/johndoe"));
+    resume
+        .sections
+        .profiles
+        .add_item(Profile::new("LinkedIn", "johndoe").with_url("https://linkedin.com/in/johndoe"));
+
+    resume
+}
+
+/// Get template thumbnail
+///
+/// Returns a pre-rendered PNG thumbnail of the template with sample data.
+#[utoipa::path(
+    get,
+    path = "/api/templates/{id}/thumbnail",
+    tag = "Templates",
+    params(
+        ("id" = String, Path, description = "Template ID")
+    ),
+    responses(
+        (status = 200, description = "PNG thumbnail image", content_type = "image/png"),
+        (status = 404, description = "Template not found", body = ApiError)
+    )
+)]
+async fn template_thumbnail(Path(id): Path<String>) -> Result<Response, ApiError> {
+    // Verify template exists
+    if !TEMPLATES.contains(&id.as_str()) {
+        return Err(ApiError::not_found(format!("Template '{}' not found", id)));
+    }
+
+    // Check cache (clone inside lock, respond outside)
+    let cached = {
+        let mut cache = thumbnail_cache().lock().await;
+        cache.get(&id).cloned()
+    };
+    if let Some(png) = cached {
+        return Ok((
+            StatusCode::OK,
+            [
+                (header::CONTENT_TYPE, "image/png"),
+                (header::CACHE_CONTROL, "public, max-age=86400"),
+            ],
+            png,
+        )
+            .into_response());
+    }
+
+    // Render thumbnail with sample data
+    let mut resume = create_sample_resume();
+    resume.metadata.template = id.clone();
+    let theme = get_template_theme(&id);
+    resume.metadata.theme.primary = theme.primary.clone();
+    resume.metadata.theme.text = theme.text.clone();
+    resume.metadata.theme.background = theme.background.clone();
+
+    let renderer = TypstRenderer::new();
+    let png = renderer
+        .render_preview(&resume, 0)
+        .map_err(|e| ApiError::internal(format!("Failed to render thumbnail: {}", e)))?;
+
+    // Cache the result
+    {
+        let mut cache = thumbnail_cache().lock().await;
+        cache.put(id, png.clone());
+    }
+
+    Ok((
+        StatusCode::OK,
+        [
+            (header::CONTENT_TYPE, "image/png"),
+            (header::CACHE_CONTROL, "public, max-age=86400"),
+        ],
+        png,
+    )
+        .into_response())
 }
 
 /// Parse resume from various formats
@@ -514,12 +696,43 @@ fn validation_errors(errors: &validator::ValidationErrors) -> Vec<String> {
 // Server Setup
 // ============================================================================
 
+/// Middleware that adds security headers to every response.
+async fn security_headers(req: axum::extract::Request, next: middleware::Next) -> Response {
+    let mut response = next.run(req).await;
+    let headers = response.headers_mut();
+    headers
+        .entry("x-content-type-options")
+        .or_insert(HeaderValue::from_static("nosniff"));
+    headers
+        .entry("x-frame-options")
+        .or_insert(HeaderValue::from_static("DENY"));
+    headers
+        .entry("x-xss-protection")
+        .or_insert(HeaderValue::from_static("0"));
+    headers
+        .entry("referrer-policy")
+        .or_insert(HeaderValue::from_static("strict-origin-when-cross-origin"));
+    response
+}
+
 fn create_router() -> Router {
-    // CORS configuration
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
-        .allow_headers([header::CONTENT_TYPE, header::ACCEPT]);
+    // CORS configuration: restrict origins via CORS_ORIGIN env var, default to "*"
+    let cors = {
+        let base = CorsLayer::new()
+            .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+            .allow_headers([header::CONTENT_TYPE, header::ACCEPT]);
+
+        match std::env::var("CORS_ORIGIN").ok() {
+            Some(origin) if !origin.is_empty() && origin != "*" => {
+                let origins: Vec<HeaderValue> = origin
+                    .split(',')
+                    .filter_map(|o| o.trim().parse().ok())
+                    .collect();
+                base.allow_origin(origins)
+            }
+            _ => base.allow_origin(Any),
+        }
+    };
 
     Router::new()
         // Swagger UI
@@ -528,11 +741,13 @@ fn create_router() -> Router {
         .route("/health", get(health))
         // API routes
         .route("/api/templates", get(list_templates))
+        .route("/api/templates/:id/thumbnail", get(template_thumbnail))
         .route("/api/parse", post(parse))
         .route("/api/render/pdf", post(render_pdf))
         .route("/api/render/preview", post(render_preview))
         .route("/api/validate", post(validate))
         // Middleware
+        .layer(middleware::from_fn(security_headers))
         .layer(CompressionLayer::new())
         .layer(cors)
         .layer(TraceLayer::new_for_http())
@@ -590,6 +805,11 @@ async fn main() -> anyhow::Result<()> {
         "Swagger UI available at http://{}:{}/swagger-ui",
         addr.ip(),
         port
+    );
+    info!("Web UI available at http://localhost:5173 (run 'make web' or 'make dev')");
+    info!(
+        "CORS origin: {}",
+        std::env::var("CORS_ORIGIN").unwrap_or_else(|_| "*".to_string())
     );
 
     let listener = tokio::net::TcpListener::bind(addr)
@@ -657,7 +877,7 @@ mod tests {
         let templates: Vec<TemplateInfo> = serde_json::from_slice(&body).unwrap();
 
         assert!(!templates.is_empty());
-        assert!(templates.iter().any(|t| t.name == "rhyhorn"));
+        assert!(templates.iter().any(|t| t.id == "rhyhorn"));
     }
 
     #[tokio::test]
@@ -1013,12 +1233,20 @@ mod tests {
             .unwrap();
         let templates: Vec<TemplateInfo> = serde_json::from_slice(&body).unwrap();
 
-        // Should return 4 templates as per TEMPLATES constant
-        assert_eq!(templates.len(), 4);
-        assert!(templates.iter().any(|t| t.name == "rhyhorn"));
-        assert!(templates.iter().any(|t| t.name == "azurill"));
-        assert!(templates.iter().any(|t| t.name == "pikachu"));
-        assert!(templates.iter().any(|t| t.name == "nosepass"));
+        // Should return all 12 templates
+        assert_eq!(templates.len(), 12);
+        assert!(templates.iter().any(|t| t.id == "rhyhorn"));
+        assert!(templates.iter().any(|t| t.id == "azurill"));
+        assert!(templates.iter().any(|t| t.id == "pikachu"));
+        assert!(templates.iter().any(|t| t.id == "nosepass"));
+        assert!(templates.iter().any(|t| t.id == "bronzor"));
+        assert!(templates.iter().any(|t| t.id == "chikorita"));
+        assert!(templates.iter().any(|t| t.id == "ditto"));
+        assert!(templates.iter().any(|t| t.id == "gengar"));
+        assert!(templates.iter().any(|t| t.id == "glalie"));
+        assert!(templates.iter().any(|t| t.id == "kakuna"));
+        assert!(templates.iter().any(|t| t.id == "leafish"));
+        assert!(templates.iter().any(|t| t.id == "onyx"));
     }
 
     #[tokio::test]
@@ -1043,5 +1271,62 @@ mod tests {
         let text = std::str::from_utf8(&body).unwrap();
 
         assert_eq!(text, "ok");
+    }
+
+    #[tokio::test]
+    async fn test_template_thumbnail() {
+        let app = create_router();
+
+        let ok = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/templates/rhyhorn/thumbnail")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(ok.status(), StatusCode::OK);
+        assert_eq!(ok.headers().get("content-type").unwrap(), "image/png");
+
+        let missing = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/templates/not-a-template/thumbnail")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(missing.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_security_headers() {
+        let app = create_router();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(
+            response.headers().get("x-content-type-options").unwrap(),
+            "nosniff"
+        );
+        assert_eq!(response.headers().get("x-frame-options").unwrap(), "DENY");
+        assert_eq!(response.headers().get("x-xss-protection").unwrap(), "0");
+        assert_eq!(
+            response.headers().get("referrer-policy").unwrap(),
+            "strict-origin-when-cross-origin"
+        );
     }
 }

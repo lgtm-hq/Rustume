@@ -15,8 +15,8 @@ export interface CustomField {
 export interface Picture {
   url: string;
   size: number;
-  aspect_ratio: number;
-  border_radius: number;
+  aspectRatio: number;
+  borderRadius: number;
   effects: {
     hidden: boolean;
     border: boolean;
@@ -31,7 +31,7 @@ export interface Basics {
   phone: string;
   location: string;
   url: Url;
-  custom_fields: CustomField[];
+  customFields: CustomField[];
   picture: Picture;
 }
 
@@ -39,7 +39,7 @@ export interface SummarySection {
   id: string;
   name: string;
   columns: number;
-  separate_links: boolean;
+  separateLinks: boolean;
   visible: boolean;
   content: string;
 }
@@ -48,7 +48,7 @@ export interface Section<T> {
   id: string;
   name: string;
   columns: number;
-  separate_links: boolean;
+  separateLinks: boolean;
   visible: boolean;
   items: T[];
 }
@@ -69,7 +69,7 @@ export interface Education {
   visible: boolean;
   institution: string;
   area: string;
-  study_type: string;
+  studyType: string;
   date: string;
   score: string;
   summary: string;
@@ -207,8 +207,8 @@ export interface CustomCss {
 export interface PageConfig {
   margin: number;
   format: "a4" | "letter";
-  break_line: boolean;
-  page_numbers: boolean;
+  breakLine: boolean;
+  pageNumbers: boolean;
 }
 
 export interface Theme {
@@ -236,9 +236,9 @@ export interface Typography {
     variants: string[];
     size: number;
   };
-  line_height: number;
-  hide_icons: boolean;
-  underline_links: boolean;
+  lineHeight: number;
+  hideIcons: boolean;
+  underlineLinks: boolean;
 }
 
 export interface Metadata {
@@ -277,8 +277,8 @@ export function createEmptyPicture(): Picture {
   return {
     url: "",
     size: 64,
-    aspect_ratio: 1,
-    border_radius: 0,
+    aspectRatio: 1,
+    borderRadius: 0,
     effects: {
       hidden: true,
       border: false,

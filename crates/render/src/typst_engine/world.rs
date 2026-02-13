@@ -27,6 +27,15 @@ fn get_templates() -> &'static HashMap<&'static str, &'static str> {
         map.insert("azurill", include_str!("templates/azurill.typ"));
         map.insert("pikachu", include_str!("templates/pikachu.typ"));
         map.insert("nosepass", include_str!("templates/nosepass.typ"));
+        map.insert("bronzor", include_str!("templates/bronzor.typ"));
+        map.insert("chikorita", include_str!("templates/chikorita.typ"));
+        map.insert("ditto", include_str!("templates/ditto.typ"));
+        map.insert("gengar", include_str!("templates/gengar.typ"));
+        map.insert("glalie", include_str!("templates/glalie.typ"));
+        map.insert("kakuna", include_str!("templates/kakuna.typ"));
+        map.insert("leafish", include_str!("templates/leafish.typ"));
+        map.insert("onyx", include_str!("templates/onyx.typ"));
+        map.insert("_common", include_str!("templates/_common.typ"));
         map
     })
 }
