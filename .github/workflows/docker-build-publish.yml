@@ -30,6 +30,8 @@ jobs:
       contents: read
       packages: write
       id-token: write
+      attestations: write
+      security-events: write
     with:
       file: docker/Dockerfile
       image-name: lgtm-hq/rustume
