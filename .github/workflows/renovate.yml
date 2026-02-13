@@ -37,6 +37,11 @@ jobs:
             pkg-containers.githubusercontent.com:443
             release-assets.githubusercontent.com:443
             objects.githubusercontent.com:443
+            crates.io:443
+            index.crates.io:443
+            static.crates.io:443
+            registry-1.docker.io:443
+            auth.docker.io:443
 
       - name: Checkout
         # yamllint disable-line rule:line-length
@@ -54,4 +59,4 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           configurationFile: renovate.json
         env:
-          LOG_LEVEL: debug
+          LOG_LEVEL: ${{ github.event_name == 'workflow_dispatch' && 'debug' || 'info' }}
