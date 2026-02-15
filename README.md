@@ -1,59 +1,60 @@
 # Rustume
 
+<!-- markdownlint-disable MD033 MD013 -->
+<p align="center">
+<img src="docs/rustume.png" alt="Rustume" width="200">
+</p>
+
+<p align="center">
 A privacy-first, offline-first resume builder powered by Rust.
+</p>
 
-## Overview
+<!-- Badges: Build & Quality -->
+<p align="center">
+<a href="https://github.com/lgtm-hq/Rustume/actions/workflows/test-rust.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/lgtm-hq/Rustume/test-rust.yml?label=tests&branch=main&logo=githubactions&logoColor=white" alt="Tests"></a>
+<a href="https://github.com/lgtm-hq/Rustume/actions/workflows/ci-lintro-analysis.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/lgtm-hq/Rustume/ci-lintro-analysis.yml?label=lint&branch=main&logo=githubactions&logoColor=white" alt="Lint"></a>
+<a href="https://github.com/lgtm-hq/Rustume/actions/workflows/docker-build-publish.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/lgtm-hq/Rustume/docker-build-publish.yml?label=docker&logo=docker&branch=main" alt="Docker"></a>
+</p>
 
-Rustume is a cross-platform resume builder that prioritizes:
+<!-- Badges: Security & License -->
+<p align="center">
+<a href="https://github.com/lgtm-hq/Rustume/actions/workflows/scorecards.yml?query=branch%3Amain"><img src="https://github.com/lgtm-hq/Rustume/actions/workflows/scorecards.yml/badge.svg?branch=main" alt="OpenSSF Scorecard"></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
+</p>
 
-- **Privacy**: Your data stays on your device by default
-- **Offline-first**: Works 100% without internet
-- **Native performance**: Rust core with native UI shells
-- **Modern PDF generation**: Typst-based, no browser dependencies
+<!-- Badges: Tech Stack -->
+<p align="center">
+<a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/Rust-2021_edition-000000?logo=rust&logoColor=white" alt="Rust"></a>
+<a href="https://typst.app/"><img src="https://img.shields.io/badge/Typst-0.14.2-239dad" alt="Typst"></a>
+<a href="https://www.docker.com/"><img src="https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white" alt="Docker"></a>
+</p>
+<!-- markdownlint-enable MD033 MD013 -->
 
-## Architecture
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                    Rust Core (rustume-*)                     │
-│  ┌────────┐  ┌────────┐  ┌────────┐                         │
-│  │  WASM  │  │  CLI   │  │ Server │                         │
-│  └────────┘  └────────┘  └────────┘                         │
-│                                                              │
-│  Crates: schema | parser | render | storage | utils          │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## Crates
-
-| Crate             | Description                                                |
-| ----------------- | ---------------------------------------------------------- |
-| `rustume-schema`  | Resume data types and validation                           |
-| `rustume-parser`  | Import formats (JSON Resume, LinkedIn, Reactive Resume V3) |
-| `rustume-render`  | Typst-based PDF and PNG generation                         |
-| `rustume-storage` | Platform storage abstraction                               |
-| `rustume-utils`   | Shared utilities (ID generation, string, date, color)      |
-| `rustume-cli`     | Command-line interface                                     |
-| `rustume-server`  | REST API server with OpenAPI docs                          |
-| `rustume-wasm`    | WebAssembly bindings for parser                            |
-
-## Building
+## 🚀 Quick Start
 
 ```bash
 # Build all crates
 cargo build --workspace --all-features
 
+# Run the CLI
+cargo run -p rustume-cli -- parse resume.json -o rustume.json
+cargo run -p rustume-cli -- render rustume.json -o resume.pdf
+
 # Run tests
 cargo test --workspace
-
-# Build CLI
-cargo build -p rustume-cli --release
-
-# Build WASM bindings
-cd bindings/wasm && wasm-pack build
 ```
 
-## CLI Usage
+## ✨ Why Rustume?
+
+- **🔒 Privacy-First** - Your data stays on your device by default
+- **📡 Offline-First** - Works 100% without internet
+- **⚡ Native Performance** - Rust core with native UI shells
+- **📄 Modern PDF** - Typst-based generation, no browser dependencies
+- **🎨 12 Templates** - Professionally designed, customizable themes
+- **📥 Import Support** - JSON Resume, LinkedIn export, Reactive Resume V3
+- **🐳 Docker Ready** - Containerized server with OpenAPI docs
+
+## 💻 CLI Usage
 
 ```bash
 # Parse a JSON Resume file
@@ -69,112 +70,79 @@ rustume preview rustume.json -o preview.png
 rustume templates
 
 # Create a new resume
-rustume init my-resume.json
+rustume init -o my-resume.json
 ```
 
-## Features
-
-- 12 professionally designed templates
-- Import from JSON Resume, LinkedIn export, and Reactive Resume V3
-- Theme customization (colors, fonts, spacing)
-- PDF and PNG export
-- REST API with OpenAPI/Swagger documentation
-
-## Server Deployment
-
-### Environment Variables
-
-| Variable   | Description           | Default                 |
-| ---------- | --------------------- | ----------------------- |
-| `PORT`     | Server listening port | `3000`                  |
-| `RUST_LOG` | Log level filter      | `info,tower_http=debug` |
-
-### Docker
-
-Build and run the server container:
+## 🐳 Docker
 
 ```bash
 # Build
-docker build -t rustume-server -f docker/Dockerfile.server .
+docker build -t rustume-server -f docker/Dockerfile .
 
 # Run
 docker run -p 3000:3000 rustume-server
+
+# Health check
+curl http://localhost:3000/health
 ```
 
-### Health Check
+Swagger UI is available at `/swagger-ui/` and the OpenAPI spec at
+`/api-docs/openapi.json`.
 
-The server exposes a health endpoint for load balancer integration:
+## 🔨 Development
+
+### Prerequisites
+
+- **Rust** (stable) - [Install via rustup](https://rustup.rs/)
+- **Python** 3.11+ with uv (for lintro)
+
+### Setup
 
 ```bash
-curl http://localhost:3000/health
-# Returns: "ok"
+git clone https://github.com/lgtm-hq/Rustume.git
+cd Rustume
+
+# Build all crates
+cargo build --workspace
+
+# Run tests
+cargo test --workspace
+
+# Build CLI in release mode
+cargo build -p rustume-cli --release
+
+# Build WASM bindings
+cd bindings/wasm && wasm-pack build
 ```
 
-### Reverse Proxy (nginx)
+### Linting
 
-Example nginx configuration with rate limiting:
-
-```nginx
-upstream rustume {
-    server 127.0.0.1:3000;
-}
-
-limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
-
-server {
-    listen 80;
-    server_name api.example.com;
-
-    location / {
-        limit_req zone=api burst=20 nodelay;
-        proxy_pass http://rustume;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-
-        # Increase timeout for PDF rendering
-        proxy_read_timeout 60s;
-    }
-
-    # Health check bypass rate limiting
-    location /health {
-        proxy_pass http://rustume;
-    }
-}
+```bash
+uv run lintro chk        # Check for issues
+uv run lintro fmt        # Auto-fix formatting
+cargo clippy --workspace # Rust-specific lints
 ```
 
-### Reverse Proxy (Caddy)
+## 🙏 Acknowledgements
 
-Example Caddyfile using the [caddy-ratelimit](https://github.com/mholt/caddy-ratelimit) module:
+<!-- markdownlint-disable MD033 MD013 -->
 
-> **Note**: The `rate_limit` directive requires the third-party module
-> [github.com/mholt/caddy-ratelimit](https://github.com/mholt/caddy-ratelimit).
-> Build Caddy with this module using xcaddy:
->
-> ```bash
-> xcaddy build --with github.com/mholt/caddy-ratelimit
-> ```
+Rustume is heavily inspired by and builds upon the work of Reactive Resume by
+Amruth Pillai. The template designs in particular are adapted from Reactive
+Resume's originals.
 
-```caddyfile
-api.example.com {
-    reverse_proxy localhost:3000
+<p>
+<a href="https://rxresu.me/"><img src="https://img.shields.io/badge/Inspired_by-Reactive_Resume-6c47ff?logo=github&logoColor=white" alt="Reactive Resume"></a>
+</p>
 
-    @api path /api/*
-    rate_limit @api {
-        zone api {
-            key {remote_host}
-            events 10
-            window 1s
-        }
-    }
-}
-```
+<!-- markdownlint-enable MD033 MD013 -->
 
-### API Documentation
+## 🤝 Community
 
-Swagger UI is available at `/swagger-ui/` and OpenAPI spec at `/api-docs/openapi.json`.
+- 🐛 [Bug Reports](https://github.com/lgtm-hq/Rustume/issues/new)
+- 💡 [Feature Requests](https://github.com/lgtm-hq/Rustume/issues/new)
+- 📖 [Contributing Guide](CONTRIBUTING.md)
 
-## License
+## 📄 License
 
-MIT
+MIT License - see [LICENSE](LICENSE) for details.
