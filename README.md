@@ -54,33 +54,6 @@ cargo test --workspace
 - **📥 Import Support** - JSON Resume, LinkedIn export, Reactive Resume V3
 - **🐳 Docker Ready** - Containerized server with OpenAPI docs
 
-## 🏗️ Architecture
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                    Rust Core (rustume-*)                     │
-│  ┌────────┐  ┌────────┐  ┌────────┐                         │
-│  │  WASM  │  │  CLI   │  │ Server │                         │
-│  └────────┘  └────────┘  └────────┘                         │
-│                                                              │
-│  Crates: schema | parser | render | storage | utils          │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## 📦 Crates
-
-| Crate                   | Description                                                |
-| ----------------------- | ---------------------------------------------------------- |
-| `rustume-schema`        | Resume data types and validation                           |
-| `rustume-parser`        | Import formats (JSON Resume, LinkedIn, Reactive Resume V3) |
-| `rustume-render`        | Typst-based PDF and PNG generation                         |
-| `rustume-storage`       | Platform storage abstraction                               |
-| `rustume-utils`         | Shared utilities (ID generation, string, date, color)      |
-| `rustume-schema-macros` | Procedural macros for schema types and derive helpers      |
-| `rustume-cli`           | Command-line interface                                     |
-| `rustume-server`        | REST API server with OpenAPI docs                          |
-| `rustume-wasm`          | WebAssembly bindings for parser                            |
-
 ## 💻 CLI Usage
 
 ```bash
