@@ -2,6 +2,10 @@
 
 <!-- markdownlint-disable MD033 MD013 -->
 <p align="center">
+<img src="docs/rustume.png" alt="Rustume" width="200">
+</p>
+
+<p align="center">
 A privacy-first, offline-first resume builder powered by Rust.
 </p>
 
@@ -21,7 +25,7 @@ A privacy-first, offline-first resume builder powered by Rust.
 <!-- Badges: Tech Stack -->
 <p align="center">
 <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/Rust-2021_edition-000000?logo=rust&logoColor=white" alt="Rust"></a>
-<a href="https://typst.app/"><img src="https://img.shields.io/badge/Typst-0.14-239dad" alt="Typst"></a>
+<a href="https://typst.app/"><img src="https://img.shields.io/badge/Typst-0.14.2-239dad" alt="Typst"></a>
 <a href="https://www.docker.com/"><img src="https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white" alt="Docker"></a>
 </p>
 <!-- markdownlint-enable MD033 MD013 -->
@@ -65,16 +69,17 @@ cargo test --workspace
 
 ## 📦 Crates
 
-| Crate | Description |
-| ----- | ----------- |
-| `rustume-schema` | Resume data types and validation |
-| `rustume-parser` | Import formats (JSON Resume, LinkedIn, Reactive Resume V3) |
-| `rustume-render` | Typst-based PDF and PNG generation |
-| `rustume-storage` | Platform storage abstraction |
-| `rustume-utils` | Shared utilities (ID generation, string, date, color) |
-| `rustume-cli` | Command-line interface |
-| `rustume-server` | REST API server with OpenAPI docs |
-| `rustume-wasm` | WebAssembly bindings for parser |
+| Crate                   | Description                                                |
+| ----------------------- | ---------------------------------------------------------- |
+| `rustume-schema`        | Resume data types and validation                           |
+| `rustume-parser`        | Import formats (JSON Resume, LinkedIn, Reactive Resume V3) |
+| `rustume-render`        | Typst-based PDF and PNG generation                         |
+| `rustume-storage`       | Platform storage abstraction                               |
+| `rustume-utils`         | Shared utilities (ID generation, string, date, color)      |
+| `rustume-schema-macros` | Procedural macros for schema types and derive helpers      |
+| `rustume-cli`           | Command-line interface                                     |
+| `rustume-server`        | REST API server with OpenAPI docs                          |
+| `rustume-wasm`          | WebAssembly bindings for parser                            |
 
 ## 💻 CLI Usage
 
@@ -92,7 +97,7 @@ rustume preview rustume.json -o preview.png
 rustume templates
 
 # Create a new resume
-rustume init my-resume.json
+rustume init -o my-resume.json
 ```
 
 ## 🐳 Docker
