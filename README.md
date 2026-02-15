@@ -125,10 +125,17 @@ cargo clippy --workspace # Rust-specific lints
 
 ## 🙏 Acknowledgements
 
-Rustume is heavily inspired by and builds upon the work of
-[Reactive Resume](https://github.com/AmruthPillworked/Reactive-Resume) by
+<!-- markdownlint-disable MD033 MD013 -->
+
+Rustume is heavily inspired by and builds upon the work of Reactive Resume by
 Amruth Pillai. The template designs in particular are adapted from Reactive
 Resume's originals.
+
+<p>
+<a href="https://github.com/AmruthPillworked/Reactive-Resume"><img src="https://img.shields.io/badge/Inspired_by-Reactive_Resume-6c47ff?logo=github&logoColor=white" alt="Reactive Resume"></a>
+</p>
+
+<!-- markdownlint-enable MD033 MD013 -->
 
 ## 🤝 Community
 
