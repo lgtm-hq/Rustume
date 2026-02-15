@@ -123,6 +123,13 @@ uv run lintro fmt        # Auto-fix formatting
 cargo clippy --workspace # Rust-specific lints
 ```
 
+## 🙏 Acknowledgements
+
+Rustume is heavily inspired by and builds upon the work of
+[Reactive Resume](https://github.com/AmruthPillworked/Reactive-Resume) by
+Amruth Pillai. The template designs in particular are adapted from Reactive
+Resume's originals.
+
 ## 🤝 Community
 
 - 🐛 [Bug Reports](https://github.com/lgtm-hq/Rustume/issues/new)
