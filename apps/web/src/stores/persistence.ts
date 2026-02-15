@@ -1,4 +1,5 @@
 import { createResource } from "solid-js";
+import { toast } from "../components/ui";
 import {
   listResumes as listWasmResumes,
   deleteResume as deleteFromWasmStorage,
@@ -22,6 +23,7 @@ function listLocalResumes(): string[] {
     return JSON.parse(ids) as string[];
   } catch {
     console.error("Failed to parse resume IDs from localStorage");
+    toast.warning("Resume list data was corrupted — it has been reset");
     return [];
   }
 }
@@ -69,6 +71,7 @@ async function fetchResumeList(): Promise<ResumeListItem[]> {
     }));
   } catch (e) {
     console.error("Failed to list resumes:", e);
+    toast.error("Failed to load resume list");
     return [];
   }
 }
@@ -91,6 +94,7 @@ export function useResumeList() {
         await refetch();
       } catch (e) {
         console.error("Failed to delete resume:", e);
+        toast.error("Failed to delete resume");
         throw e;
       }
     },
