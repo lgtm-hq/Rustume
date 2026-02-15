@@ -247,3 +247,58 @@ body {
 [data-kb-tooltip-arrow] {
   fill: var(--color-ink);
 }
+
+/* Kobalte Toast */
+[data-kb-toast-root] {
+  animation: toast-slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-kb-toast-root][data-closed] {
+  animation: toast-slide-out 0.2s ease-in forwards;
+}
+
+[data-kb-toast-root][data-swipe="move"] {
+  transform: translateX(var(--kb-toast-swipe-move-x));
+}
+
+[data-kb-toast-root][data-swipe="cancel"] {
+  transform: translateX(0);
+  transition: transform 200ms ease;
+}
+
+[data-kb-toast-root][data-swipe="end"] {
+  animation: toast-swipe-out 0.15s ease-out forwards;
+}
+
+@keyframes toast-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes toast-slide-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+@keyframes toast-swipe-out {
+  from {
+    opacity: 1;
+    transform: translateX(var(--kb-toast-swipe-end-x));
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
