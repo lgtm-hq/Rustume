@@ -1,4 +1,5 @@
 import { Show, For, createResource, createSignal } from "solid-js";
+import { toast } from "../ui";
 import { resumeStore } from "../../stores/resume";
 import { get } from "../../api/client";
 import type { ThemePresetInfo } from "../../wasm/types";
@@ -13,6 +14,7 @@ export function ThemeEditor() {
       return await get<ThemePresetInfo[]>("/themes");
     } catch (e) {
       console.error("Failed to fetch themes:", e);
+      toast.error("Failed to load theme presets");
       return [];
     }
   });

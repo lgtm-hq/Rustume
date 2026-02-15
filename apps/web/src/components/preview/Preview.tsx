@@ -1,4 +1,5 @@
 import { createSignal, createEffect, Show } from "solid-js";
+import { toast } from "../ui";
 import { resumeStore } from "../../stores/resume";
 import { uiStore } from "../../stores/ui";
 import { renderPreview } from "../../api/render";
@@ -18,6 +19,9 @@ export function Preview() {
   // Request ID to guard against race conditions
   let resumeRequestId = 0;
   let pageRequestId = 0;
+
+  // Dedup guard to prevent toast spam on repeated preview errors
+  let lastToastedError = "";
 
   // Debounce the resume data to avoid too many preview requests
   const debouncedResume = useDebounce(
@@ -53,11 +57,17 @@ export function Preview() {
         setPreviewUrl(url);
         setLastCachedUrl(url);
         setError(null);
+        lastToastedError = "";
       })
       .catch((e) => {
         if (currentRequestId !== resumeRequestId) return;
         console.error("Preview error:", e);
-        setError(e.message || "Failed to load preview");
+        const msg = e.message || "Failed to load preview";
+        setError(msg);
+        if (msg !== lastToastedError) {
+          lastToastedError = msg;
+          toast.error("Preview rendering failed");
+        }
         // Keep showing last cached preview
         if (lastCachedUrl()) {
           setPreviewUrl(lastCachedUrl());
