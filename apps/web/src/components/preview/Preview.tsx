@@ -62,7 +62,7 @@ export function Preview() {
       .catch((e) => {
         if (currentRequestId !== resumeRequestId) return;
         console.error("Preview error:", e);
-        const msg = e.message || "Failed to load preview";
+        const msg = e instanceof Error ? e.message : String(e) || "Failed to load preview";
         setError(msg);
         if (msg !== lastToastedError) {
           lastToastedError = msg;
@@ -108,10 +108,11 @@ export function Preview() {
         setPreviewUrl(url);
         setLastCachedUrl(url);
         setError(null);
+        lastToastedError = "";
       })
       .catch((e) => {
         if (currentRequestId !== pageRequestId) return;
-        const msg = e.message || "Failed to load preview";
+        const msg = e instanceof Error ? e.message : String(e) || "Failed to load preview";
         setError(msg);
         if (msg !== lastToastedError) {
           lastToastedError = msg;

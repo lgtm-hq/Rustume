@@ -1,4 +1,4 @@
-import { Toast, toaster } from "@kobalte/core/toast";
+import * as ToastPrimitive from "@kobalte/core/toast";
 import type { Component } from "solid-js";
 
 type ToastVariant = "success" | "error" | "warning" | "info";
@@ -27,7 +27,8 @@ const VARIANT_PROGRESS_CLASSES: Record<ToastVariant, string> = {
 const VARIANT_ICONS: Record<ToastVariant, string> = {
   success: "M5 13l4 4L19 7",
   error: "M6 18L18 6M6 6l12 12",
-  warning: "M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z",
+  warning:
+    "M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z",
   info: "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
 };
 
@@ -48,7 +49,7 @@ interface ToastContentProps {
 
 const ToastContent: Component<ToastContentProps> = (props) => {
   return (
-    <Toast.Root
+    <ToastPrimitive.Root
       toastId={props.toastId}
       duration={props.duration}
       class={`bg-surface border-l-4 ${VARIANT_CLASSES[props.variant]}
@@ -72,20 +73,26 @@ const ToastContent: Component<ToastContentProps> = (props) => {
 
         <div class="flex-1 min-w-0">
           {props.title && (
-            <Toast.Title class="text-sm font-semibold text-ink">
+            <ToastPrimitive.Title class="text-sm font-semibold text-ink">
               {props.title}
-            </Toast.Title>
+            </ToastPrimitive.Title>
           )}
-          <Toast.Description class="text-sm text-stone">
+          <ToastPrimitive.Description class="text-sm text-stone">
             {props.description}
-          </Toast.Description>
+          </ToastPrimitive.Description>
         </div>
 
-        <Toast.CloseButton
+        <ToastPrimitive.CloseButton
           class="p-1 text-stone hover:text-ink hover:bg-paper rounded transition-colors flex-shrink-0"
           aria-label="Dismiss"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <svg
+            class="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -93,24 +100,24 @@ const ToastContent: Component<ToastContentProps> = (props) => {
               d="M6 18L18 6M6 6l12 12"
             />
           </svg>
-        </Toast.CloseButton>
+        </ToastPrimitive.CloseButton>
       </div>
 
-      <Toast.ProgressTrack class="absolute bottom-0 left-0 right-0 h-0.5 bg-border/30">
-        <Toast.ProgressFill
+      <ToastPrimitive.ProgressTrack class="absolute bottom-0 left-0 right-0 h-0.5 bg-border/30">
+        <ToastPrimitive.ProgressFill
           class={`h-full ${VARIANT_PROGRESS_CLASSES[props.variant]} opacity-40`}
           style={{ width: "var(--kb-toast-progress-fill-width)" }}
         />
-      </Toast.ProgressTrack>
-    </Toast.Root>
+      </ToastPrimitive.ProgressTrack>
+    </ToastPrimitive.Root>
   );
 };
 
 export const ToastRegion: Component = () => {
   return (
-    <Toast.Region swipeDirection="right" limit={5}>
-      <Toast.List class="fixed bottom-4 right-4 flex flex-col gap-2 z-50 outline-none" />
-    </Toast.Region>
+    <ToastPrimitive.Region swipeDirection="right" limit={5}>
+      <ToastPrimitive.List class="fixed bottom-4 right-4 flex flex-col gap-2 z-50 outline-none" />
+    </ToastPrimitive.Region>
   );
 };
 
@@ -123,7 +130,7 @@ interface ShowOptions {
 
 function show(options: ShowOptions) {
   const duration = options.duration ?? DEFAULT_DURATION[options.variant];
-  toaster.show((props) => (
+  ToastPrimitive.toaster.show((props) => (
     <ToastContent
       toastId={props.toastId}
       variant={options.variant}
@@ -137,10 +144,8 @@ function show(options: ShowOptions) {
 export const toast = {
   success: (description: string, title?: string) =>
     show({ variant: "success", description, title }),
-  error: (description: string, title?: string) =>
-    show({ variant: "error", description, title }),
+  error: (description: string, title?: string) => show({ variant: "error", description, title }),
   warning: (description: string, title?: string) =>
     show({ variant: "warning", description, title }),
-  info: (description: string, title?: string) =>
-    show({ variant: "info", description, title }),
+  info: (description: string, title?: string) => show({ variant: "info", description, title }),
 };
