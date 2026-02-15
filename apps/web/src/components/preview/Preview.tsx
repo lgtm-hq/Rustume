@@ -111,7 +111,15 @@ export function Preview() {
       })
       .catch((e) => {
         if (currentRequestId !== pageRequestId) return;
-        setError(e.message);
+        const msg = e.message || "Failed to load preview";
+        setError(msg);
+        if (msg !== lastToastedError) {
+          lastToastedError = msg;
+          toast.error("Preview rendering failed");
+        }
+        if (lastCachedUrl()) {
+          setPreviewUrl(lastCachedUrl());
+        }
       })
       .finally(() => {
         if (currentRequestId === pageRequestId) {

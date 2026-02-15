@@ -85,7 +85,7 @@ const ToastContent: Component<ToastContentProps> = (props) => {
           class="p-1 text-stone hover:text-ink hover:bg-paper rounded transition-colors flex-shrink-0"
           aria-label="Dismiss"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path
               stroke-linecap="round"
               stroke-linejoin="round"

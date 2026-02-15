@@ -1,6 +1,6 @@
 import { onMount, createSignal, Show, type ParentComponent } from "solid-js";
 import { AppShell } from "./components/layout/AppShell";
-import { ToastRegion, toast } from "./components/ui";
+import { ToastRegion } from "./components/ui";
 import { initWasm } from "./wasm";
 
 const App: ParentComponent = (props) => {
@@ -12,7 +12,6 @@ const App: ParentComponent = (props) => {
     } catch (e) {
       console.error("Failed to initialize WASM:", e);
       setWasmError(e instanceof Error ? e.message : "Failed to load");
-      toast.warning("Some features may be limited", "WASM initialization failed");
       // Continue anyway - server API can still work
     }
   });
