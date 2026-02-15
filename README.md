@@ -132,7 +132,7 @@ Amruth Pillai. The template designs in particular are adapted from Reactive
 Resume's originals.
 
 <p>
-<a href="https://github.com/AmruthPillworked/Reactive-Resume"><img src="https://img.shields.io/badge/Inspired_by-Reactive_Resume-6c47ff?logo=github&logoColor=white" alt="Reactive Resume"></a>
+<a href="https://rxresu.me/"><img src="https://img.shields.io/badge/Inspired_by-Reactive_Resume-6c47ff?logo=github&logoColor=white" alt="Reactive Resume"></a>
 </p>
 
 <!-- markdownlint-enable MD033 MD013 -->
