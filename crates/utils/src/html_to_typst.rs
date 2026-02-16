@@ -137,7 +137,8 @@ fn process_node(node: &ego_tree::NodeRef<'_, Node>, output: &mut String, in_list
                         let lower = href.trim().to_lowercase();
                         let safe = lower.starts_with("http://")
                             || lower.starts_with("https://")
-                            || lower.starts_with("mailto:");
+                            || lower.starts_with("mailto:")
+                            || lower.starts_with("tel:");
                         if safe {
                             output.push_str("#link(\"");
                             // Escape quotes in the URL for Typst string literal.
@@ -302,6 +303,14 @@ mod tests {
         assert_eq!(
             html_to_typst(r#"<p><a href="https://example.com">Example</a></p>"#),
             "#link(\"https://example.com\")[Example]"
+        );
+    }
+
+    #[test]
+    fn link_unsafe_scheme_stripped() {
+        assert_eq!(
+            html_to_typst(r#"<a href="javascript:alert(1)">Click</a>"#),
+            "Click"
         );
     }
 
