@@ -58,7 +58,8 @@ function saveLocalResume(id: string, data: ResumeData): void {
   localStorage.setItem(STORAGE_KEY_PREFIX + id, JSON.stringify(data));
   let ids: string[] = [];
   try {
-    ids = JSON.parse(localStorage.getItem(STORAGE_KEY_PREFIX + "_ids") || "[]") as string[];
+    const parsed: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY_PREFIX + "_ids") || "[]");
+    ids = Array.isArray(parsed) ? (parsed as string[]) : [];
   } catch {
     ids = [];
   }
