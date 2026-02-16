@@ -6,8 +6,9 @@ import { generateId } from "../wasm/types";
 
 export default function Home() {
   const navigate = useNavigate();
-  const { resumes, loading, deleteResume, refresh } = useResumeList();
+  const { resumes, loading, deleteResume, duplicateResume, refresh } = useResumeList();
   const [deletingId, setDeletingId] = createSignal<string | null>(null);
+  const [duplicatingId, setDuplicatingId] = createSignal<string | null>(null);
 
   const handleNew = () => {
     const id = generateId();
@@ -29,6 +30,22 @@ export default function Home() {
       toast.error(err instanceof Error ? err.message : "Failed to delete resume");
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleDuplicate = async (id: string, event: Event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    setDuplicatingId(id);
+    try {
+      await duplicateResume(id);
+      toast.success("Resume duplicated");
+    } catch (err) {
+      console.error("Failed to duplicate:", err);
+      toast.error(err instanceof Error ? err.message : "Failed to duplicate resume");
+    } finally {
+      setDuplicatingId(null);
     }
   };
 
@@ -175,7 +192,7 @@ export default function Home() {
                         class="p-2 text-stone hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors
                           disabled:opacity-50 disabled:cursor-not-allowed"
                         onClick={(e) => handleDelete(resume.id, e)}
-                        disabled={deletingId() !== null}
+                        disabled={deletingId() !== null || duplicatingId() !== null}
                         title="Delete"
                         aria-label="Delete resume"
                       >
@@ -195,6 +212,36 @@ export default function Home() {
                               stroke-linejoin="round"
                               stroke-width="2"
                               d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
+                          </svg>
+                        </Show>
+                      </button>
+
+                      <button
+                        type="button"
+                        class="p-2 text-stone hover:text-accent hover:bg-accent/10 rounded-lg transition-colors
+                          disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={(e) => handleDuplicate(resume.id, e)}
+                        disabled={duplicatingId() !== null || deletingId() !== null}
+                        title="Duplicate"
+                        aria-label="Duplicate resume"
+                      >
+                        <Show
+                          when={duplicatingId() !== resume.id}
+                          fallback={<Spinner class="w-5 h-5" />}
+                        >
+                          <svg
+                            class="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
                             />
                           </svg>
                         </Show>
