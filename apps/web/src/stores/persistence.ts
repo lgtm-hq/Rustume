@@ -46,9 +46,25 @@ function getLocalResume(id: string): ResumeData | null {
   const data = localStorage.getItem(STORAGE_KEY_PREFIX + id);
   if (!data) return null;
   try {
-    return JSON.parse(data) as ResumeData;
+    const parsed: unknown = JSON.parse(data);
+    const record = parsed as Record<string, unknown>;
+    if (
+      typeof parsed !== "object" ||
+      parsed === null ||
+      typeof record.basics !== "object" ||
+      record.basics === null ||
+      typeof record.sections !== "object" ||
+      record.sections === null ||
+      typeof record.metadata !== "object" ||
+      record.metadata === null
+    ) {
+      console.error("Malformed resume data in localStorage:", STORAGE_KEY_PREFIX + id);
+      toast.error("Resume data is corrupted and could not be loaded");
+      return null;
+    }
+    return parsed as ResumeData;
   } catch {
-    console.error("Failed to parse resume data from localStorage:", id);
+    console.error("Failed to parse resume data from localStorage:", STORAGE_KEY_PREFIX + id);
     toast.error("Resume data is corrupted and could not be loaded");
     return null;
   }
