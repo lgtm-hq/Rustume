@@ -222,6 +222,48 @@ body {
   font-family: var(--font-mono);
 }
 
+/* TipTap Rich Text Editor */
+.rich-text-editor .tiptap {
+  outline: none;
+}
+
+.rich-text-editor .tiptap p {
+  margin: 0.25em 0;
+}
+
+.rich-text-editor .tiptap p:first-child {
+  margin-top: 0;
+}
+
+.rich-text-editor .tiptap p:last-child {
+  margin-bottom: 0;
+}
+
+.rich-text-editor .tiptap ul,
+.rich-text-editor .tiptap ol {
+  padding-left: 1.5em;
+  margin: 0.25em 0;
+}
+
+.rich-text-editor .tiptap li {
+  margin: 0.125em 0;
+}
+
+.rich-text-editor .tiptap a {
+  color: var(--color-accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.rich-text-editor .tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--color-stone);
+  opacity: 0.5;
+  pointer-events: none;
+  height: 0;
+}
+
 /* Kobalte overrides */
 [data-kb-popper-content-wrapper] {
   z-index: 50 !important;
