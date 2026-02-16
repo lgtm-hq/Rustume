@@ -49,7 +49,7 @@
 
   if item.summary != "" {
     v(6pt)
-    text(size: 10pt)[#item.summary]
+    text(size: 10pt)[#render-rich-text(item.summary)]
   }
 
   v(12pt)
@@ -110,7 +110,7 @@
     column-gutter: 8pt,
     text(size: 10pt, weight: "medium")[#item.name],
     line(start: (0pt, 5pt), length: 100%, stroke: (dash: "dotted") + border-color),
-    text(size: 9pt, fill: muted-color)[#item.description]
+    text(size: 9pt, fill: muted-color)[#render-rich-text(item.description)]
   )
   v(6pt)
 }
@@ -133,7 +133,7 @@
 
   if item.description != "" {
     v(4pt)
-    text(size: 10pt)[#item.description]
+    text(size: 10pt)[#render-rich-text(item.description)]
   }
 
   if has-keywords(item) {
@@ -186,7 +186,7 @@
 
   if item.summary != "" {
     v(2pt)
-    text(size: 9pt)[#item.summary]
+    text(size: 9pt)[#render-rich-text(item.summary)]
   }
 
   v(8pt)
@@ -222,7 +222,7 @@
 
   if item.summary != "" {
     v(4pt)
-    text(size: 10pt)[#item.summary]
+    text(size: 10pt)[#render-rich-text(item.summary)]
   }
 
   v(10pt)
@@ -249,7 +249,7 @@
 
   if item.summary != "" {
     v(6pt)
-    text(size: 10pt)[#item.summary]
+    text(size: 10pt)[#render-rich-text(item.summary)]
   }
 
   v(12pt)
@@ -262,12 +262,12 @@
 
   if item.description != "" {
     v(4pt)
-    text(size: 10pt)[#item.description]
+    text(size: 10pt)[#render-rich-text(item.description)]
   }
 
   if item.summary != "" {
     v(4pt)
-    text(size: 9pt)[#item.summary]
+    text(size: 9pt)[#render-rich-text(item.summary)]
   }
 
   v(10pt)
@@ -283,7 +283,7 @@
       #text(weight: "bold", size: 10pt, fill: dark-blue)[#item.name]
       #if item.description != "" {
         v(2pt)
-        text(size: 10pt)[#item.description]
+        text(size: 10pt)[#render-rich-text(item.description)]
       }
     ],
     date-badge(item.date)
@@ -296,7 +296,7 @@
 
   if item.summary != "" {
     v(4pt)
-    text(size: 10pt)[#item.summary]
+    text(size: 10pt)[#render-rich-text(item.summary)]
   }
 
   if has-keywords(item) {
@@ -379,7 +379,7 @@
       [
         #text(weight: "bold", size: 10pt, fill: dark-blue)[Professional Summary]
         #v(6pt)
-        #text(size: 10pt)[#data.sections.summary.content]
+        #text(size: 10pt)[#render-rich-text(data.sections.summary.content)]
       ]
     )
   }

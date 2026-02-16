@@ -46,7 +46,7 @@
 
   if item.summary != "" {
     v(6pt)
-    text(size: 10pt)[#item.summary]
+    text(size: 10pt)[#render-rich-text(item.summary)]
   }
 
   v(14pt)
@@ -95,7 +95,7 @@
   )
 
   if item.description != "" {
-    text(size: 8pt, fill: muted-color)[#item.description]
+    text(size: 8pt, fill: muted-color)[#render-rich-text(item.description)]
   }
 
   v(6pt)
@@ -121,7 +121,7 @@
 
   if item.description != "" {
     v(4pt)
-    text(size: 10pt)[#item.description]
+    text(size: 10pt)[#render-rich-text(item.description)]
   }
 
   if has-keywords(item) {
@@ -175,7 +175,7 @@
 
   if item.summary != "" {
     v(6pt)
-    text(size: 10pt)[#item.summary]
+    text(size: 10pt)[#render-rich-text(item.summary)]
   }
 
   v(12pt)
@@ -197,7 +197,7 @@
 
   if item.summary != "" {
     v(6pt)
-    text(size: 10pt)[#item.summary]
+    text(size: 10pt)[#render-rich-text(item.summary)]
   }
 
   v(14pt)
@@ -210,7 +210,7 @@
 
   if item.description != "" {
     v(4pt)
-    text(size: 10pt)[#item.description]
+    text(size: 10pt)[#render-rich-text(item.description)]
   }
 
   if item.summary != "" {
@@ -218,7 +218,7 @@
     box(
       stroke: (left: 2pt + primary-color),
       inset: (left: 10pt, y: 2pt),
-      text(size: 9pt, style: "italic", fill: muted-color)[#item.summary]
+      text(size: 9pt, style: "italic", fill: muted-color)[#render-rich-text(item.summary)]
     )
   }
 
@@ -232,7 +232,7 @@
 
   if item.description != "" {
     v(4pt)
-    text(size: 10pt)[#item.description]
+    text(size: 10pt)[#render-rich-text(item.description)]
   }
 
   if item.date != "" or item.location != "" {
@@ -250,7 +250,7 @@
 
   if item.summary != "" {
     v(6pt)
-    text(size: 10pt)[#item.summary]
+    text(size: 10pt)[#render-rich-text(item.summary)]
   }
 
   if has-keywords(item) {
@@ -387,7 +387,7 @@
           box(
             stroke: (left: 3pt + primary-color),
             inset: (left: 12pt, y: 4pt),
-            text(size: 10pt, fill: muted-color)[#data.sections.summary.content]
+            text(size: 10pt, fill: muted-color)[#render-rich-text(data.sections.summary.content)]
           )
         }
 
