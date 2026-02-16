@@ -296,6 +296,7 @@ function ToolbarButton(props: ToolbarButtonProps) {
     <button
       type="button"
       title={props.title}
+      aria-label={props.title}
       aria-pressed={props.active}
       disabled={props.disabled}
       onMouseDown={(e) => {

@@ -13,8 +13,10 @@ import {
 export function isHtmlEmpty(html: string): boolean {
   const trimmed = html.trim();
   if (trimmed === "") return true;
+  // Normalize common HTML whitespace entities to regular spaces.
+  const normalized = trimmed.replace(/&nbsp;|&#160;|&#xa0;|&ensp;|&#8194;|&emsp;|&#8195;/gi, " ");
   // Strip all HTML tags and check if any visible text remains.
-  const textContent = trimmed.replace(/<[^>]*>/g, "").trim();
+  const textContent = normalized.replace(/<[^>]*>/g, "").trim();
   return textContent === "";
 }
 

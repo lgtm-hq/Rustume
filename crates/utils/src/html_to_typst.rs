@@ -27,8 +27,9 @@ pub fn html_to_typst(html: &str) -> String {
 
     // Fast path: no HTML tags at all → escape Typst special chars and return.
     // Even plain text needs escaping because templates eval() the result.
+    // Run through clean_output so newline normalization matches the HTML path.
     if !trimmed.contains('<') {
-        return escape_typst(trimmed);
+        return clean_output(escape_typst(trimmed));
     }
 
     let document = Html::parse_fragment(trimmed);
@@ -132,12 +133,22 @@ fn process_node(node: &ego_tree::NodeRef<'_, Node>, output: &mut String, in_list
                         process_node(&child, &mut inner, in_list);
                     }
                     if !inner.is_empty() {
-                        output.push_str("#link(\"");
-                        // Escape quotes in the URL for Typst string literal.
-                        output.push_str(&href.replace('\\', "\\\\").replace('"', "\\\""));
-                        output.push_str("\")[");
-                        output.push_str(&inner);
-                        output.push(']');
+                        // Only emit links with safe schemes.
+                        let lower = href.trim().to_lowercase();
+                        let safe = lower.starts_with("http://")
+                            || lower.starts_with("https://")
+                            || lower.starts_with("mailto:");
+                        if safe {
+                            output.push_str("#link(\"");
+                            // Escape quotes in the URL for Typst string literal.
+                            output.push_str(&href.replace('\\', "\\\\").replace('"', "\\\""));
+                            output.push_str("\")[");
+                            output.push_str(&inner);
+                            output.push(']');
+                        } else {
+                            // Unsafe or unknown scheme — render inner text only.
+                            output.push_str(&inner);
+                        }
                     }
                 }
                 "ul" => {
