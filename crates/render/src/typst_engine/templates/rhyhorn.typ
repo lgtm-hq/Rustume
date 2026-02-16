@@ -50,7 +50,7 @@
 
   if item.summary != "" {
     v(4pt)
-    text(size: 10pt)[#render-rich-text(item.summary)]
+    render-rich-text(item.summary, size: 10pt)
   }
 
   v(10pt)
@@ -86,7 +86,7 @@
       #text(size: 10pt, weight: "bold")[#item.name]
       #if item.description != "" {
         v(1pt)
-        text(size: 9pt)[#render-rich-text(item.description)]
+        render-rich-text(item.description, size: 9pt)
       }
     ],
     skill-bar(item.level)
@@ -109,7 +109,7 @@
       #text(size: 10pt, weight: "bold")[#item.name]
       #if item.description != "" {
         v(1pt)
-        text(size: 9pt)[#render-rich-text(item.description)]
+        render-rich-text(item.description, size: 9pt)
       }
     ],
     skill-bar(item.level)
@@ -140,12 +140,12 @@
 
   if item.description != "" {
     v(2pt)
-    text(size: 10pt)[#render-rich-text(item.description)]
+    render-rich-text(item.description, size: 10pt)
   }
 
   if item.summary != "" {
     v(2pt)
-    text(size: 10pt)[#render-rich-text(item.summary)]
+    render-rich-text(item.summary, size: 10pt)
   }
 
   if has-keywords(item) {
@@ -171,7 +171,7 @@
 
   if item.summary != "" {
     v(2pt)
-    text(size: 9pt)[#render-rich-text(item.summary)]
+    render-rich-text(item.summary, size: 9pt)
   }
 
   v(8pt)
@@ -192,7 +192,7 @@
 
   if item.summary != "" {
     v(2pt)
-    text(size: 9pt)[#render-rich-text(item.summary)]
+    render-rich-text(item.summary, size: 9pt)
   }
 
   v(8pt)
@@ -226,7 +226,7 @@
 
   if item.summary != "" {
     v(2pt)
-    text(size: 9pt)[#render-rich-text(item.summary)]
+    render-rich-text(item.summary, size: 9pt)
   }
 
   v(8pt)
@@ -250,7 +250,7 @@
 
   if item.summary != "" {
     v(4pt)
-    text(size: 10pt)[#render-rich-text(item.summary)]
+    render-rich-text(item.summary, size: 10pt)
   }
 
   v(10pt)
@@ -263,12 +263,12 @@
 
   if item.description != "" {
     v(2pt)
-    text(size: 9pt)[#render-rich-text(item.description)]
+    render-rich-text(item.description, size: 9pt)
   }
 
   if item.summary != "" {
     v(2pt)
-    text(size: 9pt)[#render-rich-text(item.summary)]
+    render-rich-text(item.summary, size: 9pt)
   }
 
   v(8pt)
@@ -282,7 +282,7 @@
       #text(weight: "bold")[#item.name]
       #if item.description != "" {
         v(1pt)
-        text(size: 9pt)[#render-rich-text(item.description)]
+        render-rich-text(item.description, size: 9pt)
       }
     ],
     item.date
@@ -294,7 +294,7 @@
 
   if item.summary != "" {
     v(2pt)
-    text(size: 9pt)[#render-rich-text(item.summary)]
+    render-rich-text(item.summary, size: 9pt)
   }
 
   if has-keywords(item) {
@@ -355,7 +355,7 @@
   // Summary
   if data.sections.summary.visible {
     section-heading(data.sections.summary.name)
-    text(size: 10pt)[#render-rich-text(data.sections.summary.content)]
+    render-rich-text(data.sections.summary.content, size: 10pt)
   }
 
   // Profiles

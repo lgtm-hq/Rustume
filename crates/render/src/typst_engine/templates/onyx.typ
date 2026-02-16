@@ -50,7 +50,7 @@
 
   if item.summary != "" {
     v(6pt)
-    text(size: 10pt, fill: text-color)[#render-rich-text(item.summary)]
+    render-rich-text(item.summary, size: 10pt, fill: text-color)
   }
 
   v(12pt)
@@ -78,7 +78,7 @@
 
   if item.summary != "" {
     v(4pt)
-    text(size: 10pt, fill: text-color)[#render-rich-text(item.summary)]
+    render-rich-text(item.summary, size: 10pt, fill: text-color)
   }
 
   v(12pt)
@@ -94,7 +94,7 @@
       #text(size: 10pt, weight: "medium", fill: text-color)[#item.name]
       #if item.description != "" {
         v(1pt)
-        text(size: 9pt, fill: muted-color)[#render-rich-text(item.description)]
+        render-rich-text(item.description, size: 9pt, fill: muted-color)
       }
     ],
     rating-squares(item.level)
@@ -126,7 +126,7 @@
       #text(size: 10pt, weight: "medium", fill: text-color)[#item.name]
       #if item.description != "" {
         h(6pt)
-        text(size: 9pt, fill: muted-color)[#render-rich-text(item.description)]
+        render-rich-text(item.description, size: 9pt, fill: muted-color)
       }
     ],
     rating-squares(item.level)
@@ -156,12 +156,12 @@
 
   if item.description != "" {
     v(4pt)
-    text(size: 10pt, fill: text-color)[#render-rich-text(item.description)]
+    render-rich-text(item.description, size: 10pt, fill: text-color)
   }
 
   if item.summary != "" {
     v(4pt)
-    text(size: 10pt, fill: text-color)[#render-rich-text(item.summary)]
+    render-rich-text(item.summary, size: 10pt, fill: text-color)
   }
 
   if has-keywords(item) {
@@ -195,7 +195,7 @@
 
   if item.summary != "" {
     v(2pt)
-    text(size: 9pt, fill: text-color)[#render-rich-text(item.summary)]
+    render-rich-text(item.summary, size: 9pt, fill: text-color)
   }
 
   v(8pt)
@@ -216,7 +216,7 @@
 
   if item.summary != "" {
     v(2pt)
-    text(size: 9pt, fill: text-color)[#render-rich-text(item.summary)]
+    render-rich-text(item.summary, size: 9pt, fill: text-color)
   }
 
   v(8pt)
@@ -250,7 +250,7 @@
 
   if item.summary != "" {
     v(4pt)
-    text(size: 9pt, fill: text-color)[#render-rich-text(item.summary)]
+    render-rich-text(item.summary, size: 9pt, fill: text-color)
   }
 
   v(8pt)
@@ -276,7 +276,7 @@
 
   if item.summary != "" {
     v(4pt)
-    text(size: 10pt, fill: text-color)[#render-rich-text(item.summary)]
+    render-rich-text(item.summary, size: 10pt, fill: text-color)
   }
 
   v(12pt)
@@ -289,12 +289,12 @@
 
   if item.description != "" {
     v(2pt)
-    text(size: 9pt, fill: muted-color)[#render-rich-text(item.description)]
+    render-rich-text(item.description, size: 9pt, fill: muted-color)
   }
 
   if item.summary != "" {
     v(2pt)
-    text(size: 9pt, fill: text-color)[#render-rich-text(item.summary)]
+    render-rich-text(item.summary, size: 9pt, fill: text-color)
   }
 
   v(8pt)
@@ -308,7 +308,7 @@
       #text(weight: "bold", size: 10pt, fill: text-color)[#item.name]
       #if item.description != "" {
         v(1pt)
-        text(size: 9pt, fill: muted-color)[#render-rich-text(item.description)]
+        render-rich-text(item.description, size: 9pt, fill: muted-color)
       }
     ],
     item.date
@@ -321,7 +321,7 @@
 
   if item.summary != "" {
     v(2pt)
-    text(size: 9pt, fill: text-color)[#render-rich-text(item.summary)]
+    render-rich-text(item.summary, size: 9pt, fill: text-color)
   }
 
   if has-keywords(item) {
@@ -386,7 +386,7 @@
   // Summary
   if data.sections.summary.visible {
     section-heading(data.sections.summary.name)
-    text(size: 10pt, fill: text-color)[#render-rich-text(data.sections.summary.content)]
+    render-rich-text(data.sections.summary.content, size: 10pt, fill: text-color)
   }
 
   // Profiles

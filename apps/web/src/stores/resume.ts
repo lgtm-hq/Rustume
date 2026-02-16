@@ -9,12 +9,13 @@ import {
   isWasmReady,
 } from "../wasm";
 
-/** TipTap empty editor patterns that should be treated as no content. */
-const EMPTY_HTML_PATTERNS = ["", "<p></p>", "<p><br></p>", "<p><br/></p>", "<p><br /></p>"];
-
 /** Check if an HTML string is effectively empty (plain empty or TipTap empty editor). */
 export function isHtmlEmpty(html: string): boolean {
-  return EMPTY_HTML_PATTERNS.includes(html.trim());
+  const trimmed = html.trim();
+  if (trimmed === "") return true;
+  // Strip all HTML tags and check if any visible text remains.
+  const textContent = trimmed.replace(/<[^>]*>/g, "").trim();
+  return textContent === "";
 }
 
 /**

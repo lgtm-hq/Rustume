@@ -55,7 +55,7 @@
 
   if item.summary != "" {
     v(6pt)
-    text(size: 10pt)[#render-rich-text(item.summary)]
+    render-rich-text(item.summary, size: 10pt)
   }
 
   v(12pt)
@@ -93,7 +93,7 @@
 
   if item.description != "" {
     v(2pt)
-    text(size: 8pt, fill: muted-color)[#render-rich-text(item.description)]
+    render-rich-text(item.description, size: 8pt, fill: muted-color)
   }
 
   let level = clamp-level(item.level)
@@ -117,7 +117,7 @@
 
   if item.description != "" {
     v(2pt)
-    text(size: 8pt, fill: muted-color)[#render-rich-text(item.description)]
+    render-rich-text(item.description, size: 8pt, fill: muted-color)
   }
 
   let level = clamp-level(item.level)
@@ -158,12 +158,12 @@
 
   if item.description != "" {
     v(4pt)
-    text(size: 10pt)[#render-rich-text(item.description)]
+    render-rich-text(item.description, size: 10pt)
   }
 
   if item.summary != "" {
     v(4pt)
-    text(size: 9pt, fill: muted-color)[#render-rich-text(item.summary)]
+    render-rich-text(item.summary, size: 9pt, fill: muted-color)
   }
 
   if has-keywords(item) {
@@ -199,7 +199,7 @@
 
   if item.summary != "" {
     v(4pt)
-    text(size: 9pt)[#render-rich-text(item.summary)]
+    render-rich-text(item.summary, size: 9pt)
   }
 
   v(10pt)
@@ -222,7 +222,7 @@
 
   if item.summary != "" {
     v(4pt)
-    text(size: 9pt)[#render-rich-text(item.summary)]
+    render-rich-text(item.summary, size: 9pt)
   }
 
   v(10pt)
@@ -258,7 +258,7 @@
 
   if item.summary != "" {
     v(4pt)
-    text(size: 9pt)[#render-rich-text(item.summary)]
+    render-rich-text(item.summary, size: 9pt)
   }
 
   v(12pt)
@@ -286,7 +286,7 @@
 
   if item.summary != "" {
     v(6pt)
-    text(size: 10pt)[#render-rich-text(item.summary)]
+    render-rich-text(item.summary, size: 10pt)
   }
 
   v(12pt)
@@ -299,7 +299,7 @@
 
   if item.description != "" {
     v(4pt)
-    text(size: 10pt)[#render-rich-text(item.description)]
+    render-rich-text(item.description, size: 10pt)
   }
 
   if item.summary != "" {
@@ -307,7 +307,7 @@
     box(
       stroke: (left: 2pt + primary-color),
       inset: (left: 10pt, y: 2pt),
-      text(size: 9pt, style: "italic", fill: muted-color)[#render-rich-text(item.summary)]
+      render-rich-text(item.summary, size: 9pt, style: "italic", fill: muted-color)
     )
   }
 
@@ -321,7 +321,7 @@
 
   if item.description != "" {
     v(4pt)
-    text(size: 10pt)[#render-rich-text(item.description)]
+    render-rich-text(item.description, size: 10pt)
   }
 
   if item.date != "" or item.location != "" {
@@ -339,7 +339,7 @@
 
   if item.summary != "" {
     v(6pt)
-    text(size: 10pt)[#render-rich-text(item.summary)]
+    render-rich-text(item.summary, size: 10pt)
   }
 
   if has-keywords(item) {
@@ -406,7 +406,7 @@
       // Summary
       #if data.sections.summary.visible {
         main-section(data.sections.summary.name)
-        text(size: 10pt)[#render-rich-text(data.sections.summary.content)]
+        render-rich-text(data.sections.summary.content, size: 10pt)
       }
 
       // Experience

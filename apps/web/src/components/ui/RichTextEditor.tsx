@@ -47,7 +47,7 @@ export function RichTextEditor(props: RichTextEditorProps) {
           HTMLAttributes: { rel: "noopener noreferrer nofollow" },
         }),
         Placeholder.configure({
-          placeholder: props.placeholder || "",
+          placeholder: () => props.placeholder || "",
         }),
       ],
       content: props.value || "",
@@ -77,19 +77,6 @@ export function RichTextEditor(props: RichTextEditorProps) {
     const ed = editor();
     if (ed) {
       ed.setEditable(!props.disabled);
-    }
-  });
-
-  // Sync placeholder changes
-  createEffect(() => {
-    const ed = editor();
-    const placeholder = props.placeholder || "";
-    if (ed) {
-      const ext = ed.extensionManager.extensions.find((e) => e.name === "placeholder");
-      if (ext) {
-        ext.options.placeholder = placeholder;
-        ed.view.dispatch(ed.state.tr);
-      }
     }
   });
 
@@ -141,9 +128,9 @@ export function RichTextEditor(props: RichTextEditorProps) {
   return (
     <div class={`flex flex-col gap-1.5 ${props.class || ""}`}>
       <Show when={props.label}>
-        <label id={labelId} class="font-mono text-xs uppercase tracking-wider text-stone">
+        <span id={labelId} class="font-mono text-xs uppercase tracking-wider text-stone">
           {props.label}
-        </label>
+        </span>
       </Show>
 
       <div
@@ -191,6 +178,7 @@ export function RichTextEditor(props: RichTextEditorProps) {
             title="Link"
           >
             <svg
+              aria-hidden="true"
               class="h-3.5 w-3.5"
               viewBox="0 0 24 24"
               fill="none"
@@ -211,6 +199,7 @@ export function RichTextEditor(props: RichTextEditorProps) {
             title="Bullet List"
           >
             <svg
+              aria-hidden="true"
               class="h-3.5 w-3.5"
               viewBox="0 0 24 24"
               fill="none"
@@ -232,6 +221,7 @@ export function RichTextEditor(props: RichTextEditorProps) {
             title="Ordered List"
           >
             <svg
+              aria-hidden="true"
               class="h-3.5 w-3.5"
               viewBox="0 0 24 24"
               fill="none"
@@ -278,9 +268,6 @@ export function RichTextEditor(props: RichTextEditorProps) {
         {/* Editor area */}
         <div
           ref={setEditorEl}
-          role="textbox"
-          aria-labelledby={props.label ? labelId : undefined}
-          aria-multiline="true"
           class="rich-text-editor px-3 py-2 min-h-[100px] font-body text-ink"
         />
       </div>

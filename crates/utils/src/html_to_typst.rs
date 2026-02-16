@@ -203,12 +203,22 @@ fn process_node(node: &ego_tree::NodeRef<'_, Node>, output: &mut String, in_list
 }
 
 /// Clean up the final output: collapse excessive blank lines and trim.
-fn clean_output(mut s: String) -> String {
-    // Collapse 3+ consecutive newlines into 2.
-    while s.contains("\n\n\n") {
-        s = s.replace("\n\n\n", "\n\n");
+fn clean_output(s: String) -> String {
+    // Single-pass: collapse runs of 3+ newlines into exactly 2.
+    let mut result = String::with_capacity(s.len());
+    let mut newline_count: u32 = 0;
+    for ch in s.chars() {
+        if ch == '\n' {
+            newline_count += 1;
+            if newline_count <= 2 {
+                result.push(ch);
+            }
+        } else {
+            newline_count = 0;
+            result.push(ch);
+        }
     }
-    s.trim().to_string()
+    result.trim().to_string()
 }
 
 #[cfg(test)]
