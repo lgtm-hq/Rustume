@@ -16,7 +16,11 @@ export interface RichTextEditorProps {
   class?: string;
 }
 
+let editorIdCounter = 0;
+
 export function RichTextEditor(props: RichTextEditorProps) {
+  const editorId = `rte-${++editorIdCounter}`;
+  const labelId = `${editorId}-label`;
   const [editorEl, setEditorEl] = createSignal<HTMLDivElement>();
   const [editor, setEditor] = createSignal<Editor | null>(null);
   const [isFocused, setIsFocused] = createSignal(false);
@@ -137,7 +141,9 @@ export function RichTextEditor(props: RichTextEditorProps) {
   return (
     <div class={`flex flex-col gap-1.5 ${props.class || ""}`}>
       <Show when={props.label}>
-        <label class="font-mono text-xs uppercase tracking-wider text-stone">{props.label}</label>
+        <label id={labelId} class="font-mono text-xs uppercase tracking-wider text-stone">
+          {props.label}
+        </label>
       </Show>
 
       <div
@@ -272,6 +278,9 @@ export function RichTextEditor(props: RichTextEditorProps) {
         {/* Editor area */}
         <div
           ref={setEditorEl}
+          role="textbox"
+          aria-labelledby={props.label ? labelId : undefined}
+          aria-multiline="true"
           class="rich-text-editor px-3 py-2 min-h-[100px] font-body text-ink"
         />
       </div>
@@ -300,6 +309,7 @@ function ToolbarButton(props: ToolbarButtonProps) {
     <button
       type="button"
       title={props.title}
+      aria-pressed={props.active}
       disabled={props.disabled}
       onMouseDown={(e) => {
         e.preventDefault(); // Prevent focus loss from editor

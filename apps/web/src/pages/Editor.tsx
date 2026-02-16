@@ -108,8 +108,14 @@ export default function Editor() {
           error.message.includes("404"));
 
       if (isNotFound) {
-        createNewResume(params.id);
-        toast.info("New resume created");
+        try {
+          createNewResume(params.id);
+          toast.info("New resume created");
+        } catch (createError) {
+          console.error("Failed to create new resume:", createError);
+          toast.error("Failed to create new resume — redirecting to home");
+          navigate("/", { replace: true });
+        }
       } else {
         console.error("Failed to load resume:", error);
         try {

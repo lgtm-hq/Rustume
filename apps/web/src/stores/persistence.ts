@@ -60,19 +60,23 @@ function getLocalResume(id: string): ResumeData | null {
       record.metadata === null
     ) {
       console.error("Malformed resume data in localStorage:", STORAGE_KEY_PREFIX + id);
-      toast.error("Resume data is corrupted and could not be loaded");
       return null;
     }
     return parsed as ResumeData;
   } catch {
     console.error("Failed to parse resume data from localStorage:", STORAGE_KEY_PREFIX + id);
-    toast.error("Resume data is corrupted and could not be loaded");
     return null;
   }
 }
 
 function saveLocalResume(id: string, data: ResumeData): void {
-  localStorage.setItem(STORAGE_KEY_PREFIX + id, JSON.stringify(data));
+  try {
+    localStorage.setItem(STORAGE_KEY_PREFIX + id, JSON.stringify(data));
+  } catch (e) {
+    console.error("Failed to save resume to localStorage:", STORAGE_KEY_PREFIX + id, e);
+    toast.error("Local storage is full — could not save resume");
+    return;
+  }
   let ids: string[] = [];
   try {
     const parsed: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY_PREFIX + "_ids") || "[]");
@@ -84,7 +88,12 @@ function saveLocalResume(id: string, data: ResumeData): void {
   }
   if (!ids.includes(id)) {
     ids.push(id);
-    localStorage.setItem(STORAGE_KEY_PREFIX + "_ids", JSON.stringify(ids));
+    try {
+      localStorage.setItem(STORAGE_KEY_PREFIX + "_ids", JSON.stringify(ids));
+    } catch (e) {
+      console.error("Failed to update resume ID list in localStorage:", e);
+      toast.error("Local storage is full — resume saved but list not updated");
+    }
   }
 }
 
