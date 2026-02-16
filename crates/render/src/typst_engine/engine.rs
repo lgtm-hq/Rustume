@@ -3,6 +3,7 @@
 use crate::traits::{RenderError, Renderer};
 use crate::typst_engine::world::RustumeWorld;
 use rustume_schema::{PageFormat, ResumeData};
+use rustume_utils::{html_to_typst, sanitize_html};
 use tracing::{debug, instrument, warn};
 
 /// Available templates.
@@ -20,6 +21,85 @@ pub const TEMPLATES: &[&str] = &[
     "leafish",   // Full-width header + equal two columns, rose accent (#9f1239)
     "onyx",      // Single-column linear, red accent (#dc2626)
 ];
+
+/// Convert an HTML string to Typst markup via sanitize → convert.
+fn convert_field(html: &str) -> String {
+    if html.is_empty() {
+        return String::new();
+    }
+    html_to_typst(&sanitize_html(html))
+}
+
+/// Clone resume data and preprocess all rich-text fields (summary, description)
+/// from HTML to Typst markup so templates can `eval()` them.
+fn preprocess_rich_text(resume: &ResumeData) -> ResumeData {
+    let mut r = resume.clone();
+
+    // Summary section content
+    r.sections.summary.content = convert_field(&r.sections.summary.content);
+
+    // Experience: summary
+    for item in &mut r.sections.experience.items {
+        item.summary = convert_field(&item.summary);
+    }
+
+    // Education: summary
+    for item in &mut r.sections.education.items {
+        item.summary = convert_field(&item.summary);
+    }
+
+    // Skills: description
+    for item in &mut r.sections.skills.items {
+        item.description = convert_field(&item.description);
+    }
+
+    // Projects: summary, description
+    for item in &mut r.sections.projects.items {
+        item.summary = convert_field(&item.summary);
+        item.description = convert_field(&item.description);
+    }
+
+    // Awards: summary
+    for item in &mut r.sections.awards.items {
+        item.summary = convert_field(&item.summary);
+    }
+
+    // Certifications: summary
+    for item in &mut r.sections.certifications.items {
+        item.summary = convert_field(&item.summary);
+    }
+
+    // Publications: summary
+    for item in &mut r.sections.publications.items {
+        item.summary = convert_field(&item.summary);
+    }
+
+    // Languages: description
+    for item in &mut r.sections.languages.items {
+        item.description = convert_field(&item.description);
+    }
+
+    // Volunteer: summary
+    for item in &mut r.sections.volunteer.items {
+        item.summary = convert_field(&item.summary);
+    }
+
+    // References: summary, description
+    for item in &mut r.sections.references.items {
+        item.summary = convert_field(&item.summary);
+        item.description = convert_field(&item.description);
+    }
+
+    // Custom sections: summary, description
+    for section in r.sections.custom.values_mut() {
+        for item in &mut section.items {
+            item.summary = convert_field(&item.summary);
+            item.description = convert_field(&item.description);
+        }
+    }
+
+    r
+}
 
 /// Typst-based PDF renderer.
 pub struct TypstRenderer {
@@ -75,8 +155,11 @@ impl TypstRenderer {
             &self.default_template
         };
 
+        // Preprocess HTML fields → Typst markup before serialization
+        let resume = preprocess_rich_text(resume);
+
         // Serialize resume data to JSON for Typst
-        let resume_json = serde_json::to_string(resume)
+        let resume_json = serde_json::to_string(&resume)
             .map_err(|e| RenderError::RenderFailed(format!("JSON serialization failed: {}", e)))?;
 
         // Escape the JSON for embedding in Typst string
@@ -389,6 +472,57 @@ mod tests {
         assert!(
             err.contains("Font size"),
             "Expected font size error, got: {err}"
+        );
+    }
+
+    #[test]
+    fn test_preprocess_rich_text_converts_html() {
+        let mut resume = ResumeData::default();
+        resume.sections.summary.content = "<p>Built <strong>great</strong> things</p>".to_string();
+        resume.sections.experience = Section::new("experience", "Experience");
+        resume
+            .sections
+            .experience
+            .add_item(Experience::new("Acme", "Dev").with_summary("<p>Led <em>core</em> work</p>"));
+
+        let processed = preprocess_rich_text(&resume);
+
+        assert!(
+            processed.sections.summary.content.contains("bold"),
+            "Expected Typst bold markup, got: {}",
+            processed.sections.summary.content
+        );
+        assert!(
+            processed.sections.experience.items[0]
+                .summary
+                .contains("emph"),
+            "Expected Typst emph markup, got: {}",
+            processed.sections.experience.items[0].summary
+        );
+    }
+
+    #[test]
+    fn test_preprocess_plain_text_passthrough() {
+        let mut resume = ResumeData::default();
+        resume.sections.summary.content = "Plain text summary".to_string();
+
+        let processed = preprocess_rich_text(&resume);
+
+        assert_eq!(processed.sections.summary.content, "Plain text summary");
+    }
+
+    #[test]
+    fn test_generate_source_with_html() {
+        let renderer = TypstRenderer::new();
+        let mut resume = sample_resume();
+        resume.sections.summary.content = "<p>Built <strong>great</strong> things</p>".to_string();
+
+        let source = renderer.generate_source(&resume).unwrap();
+
+        // The JSON in the source should contain the Typst markup, not raw HTML
+        assert!(
+            !source.contains("<strong>"),
+            "Source should not contain raw HTML: {source}"
         );
     }
 }
