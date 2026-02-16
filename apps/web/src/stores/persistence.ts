@@ -151,7 +151,7 @@ export function useResumeList() {
       try {
         const original = await getResume(id);
         const newId = generateId();
-        await saveResume(newId, original);
+        await saveResume(newId, structuredClone(original));
         await refetch();
         return newId;
       } catch (e) {
