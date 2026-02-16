@@ -10,6 +10,8 @@ cuid2.workspace = true
 regex.workspace = true
 once_cell.workspace = true
 ammonia.workspace = true
+scraper.workspace = true
+ego-tree.workspace = true
 chrono.workspace = true
 
 [dev-dependencies]

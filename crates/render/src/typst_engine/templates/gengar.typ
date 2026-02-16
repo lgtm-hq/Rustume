@@ -65,7 +65,7 @@
 
   if item.summary != "" {
     v(6pt)
-    text(size: 9.5pt)[#item.summary]
+    render-rich-text(item.summary, size: 9.5pt)
   }
 
   v(12pt)
@@ -94,7 +94,7 @@
 
   if item.summary != "" {
     v(4pt)
-    text(size: 9.5pt)[#item.summary]
+    render-rich-text(item.summary, size: 9.5pt)
   }
 
   v(10pt)
@@ -110,7 +110,7 @@
       #text(size: 9pt, weight: "bold")[#item.name]
       #if item.description != "" {
         v(1pt)
-        text(size: 8pt, fill: muted-color)[#item.description]
+        render-rich-text(item.description, size: 8pt, fill: muted-color)
       }
     ],
     rating-boxes(item.level)
@@ -134,7 +134,7 @@
       #text(size: 9pt, weight: "bold")[#item.name]
       #if item.description != "" {
         h(4pt)
-        text(size: 8pt, fill: muted-color)[#item.description]
+        render-rich-text(item.description, size: 8pt, fill: muted-color)
       }
     ],
     rating-boxes(item.level)
@@ -168,7 +168,7 @@
       }
       #if item.description != "" {
         v(2pt)
-        text(size: 9.5pt)[#item.description]
+        render-rich-text(item.description, size: 9.5pt)
       }
     ],
     item.date
@@ -176,7 +176,7 @@
 
   if item.summary != "" {
     v(4pt)
-    text(size: 9.5pt)[#item.summary]
+    render-rich-text(item.summary, size: 9.5pt)
   }
 
   if has-keywords(item) {
@@ -210,7 +210,7 @@
 
   if item.summary != "" {
     v(4pt)
-    text(size: 9.5pt)[#item.summary]
+    render-rich-text(item.summary, size: 9.5pt)
   }
 
   v(8pt)
@@ -231,7 +231,7 @@
 
   if item.summary != "" {
     v(4pt)
-    text(size: 9.5pt)[#item.summary]
+    render-rich-text(item.summary, size: 9.5pt)
   }
 
   v(8pt)
@@ -266,7 +266,7 @@
 
   if item.summary != "" {
     v(4pt)
-    text(size: 9.5pt)[#item.summary]
+    render-rich-text(item.summary, size: 9.5pt)
   }
 
   v(8pt)
@@ -294,7 +294,7 @@
 
   if item.summary != "" {
     v(4pt)
-    text(size: 9.5pt)[#item.summary]
+    render-rich-text(item.summary, size: 9.5pt)
   }
 
   v(10pt)
@@ -307,12 +307,12 @@
 
   if item.description != "" {
     v(2pt)
-    text(size: 9pt, fill: muted-color)[#item.description]
+    render-rich-text(item.description, size: 9pt, fill: muted-color)
   }
 
   if item.summary != "" {
     v(2pt)
-    text(size: 9.5pt)[#item.summary]
+    render-rich-text(item.summary, size: 9.5pt)
   }
 
   v(8pt)
@@ -326,7 +326,7 @@
       #text(weight: "bold", size: 10pt)[#item.name]
       #if item.description != "" {
         v(1pt)
-        text(size: 9pt, fill: muted-color)[#item.description]
+        render-rich-text(item.description, size: 9pt, fill: muted-color)
       }
     ],
     item.date
@@ -339,7 +339,7 @@
 
   if item.summary != "" {
     v(2pt)
-    text(size: 9.5pt)[#item.summary]
+    render-rich-text(item.summary, size: 9.5pt)
   }
 
   if has-keywords(item) {
@@ -448,7 +448,7 @@
         // Summary
         #if data.sections.summary.visible {
           main-section-heading(data.sections.summary.name)
-          text(size: 10pt)[#data.sections.summary.content]
+          render-rich-text(data.sections.summary.content, size: 10pt)
         }
 
         // Experience

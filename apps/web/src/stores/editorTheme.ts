@@ -12,25 +12,28 @@ export const flavors: readonly ThemeFlavor[] = turboFlavors;
 
 export interface EditorThemeState {
   themeId: string;
+  savedThemeLoadFailed: boolean;
 }
 
 // Get initial theme from localStorage or default to catppuccin-mocha
-function getInitialTheme(): string {
-  if (typeof window === "undefined") return "catppuccin-mocha";
+function getInitialTheme(): { themeId: string; failed: boolean } {
+  if (typeof window === "undefined") return { themeId: "catppuccin-mocha", failed: false };
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved && flavors.some((f) => f.id === saved)) {
-      return saved;
+      return { themeId: saved, failed: false };
     }
   } catch {
     console.error("Failed to read theme from localStorage");
-    toast.warning("Could not load saved theme preference");
+    return { themeId: "catppuccin-mocha", failed: true };
   }
-  return "catppuccin-mocha";
+  return { themeId: "catppuccin-mocha", failed: false };
 }
 
+const initialTheme = getInitialTheme();
 const [state, setState] = createStore<EditorThemeState>({
-  themeId: getInitialTheme(),
+  themeId: initialTheme.themeId,
+  savedThemeLoadFailed: initialTheme.failed,
 });
 
 // Apply CSS variables to document root
@@ -92,6 +95,10 @@ export function useEditorTheme() {
 
     // Initialize theme on app start
     init() {
+      if (state.savedThemeLoadFailed) {
+        toast.warning("Could not load saved theme preference");
+        setState("savedThemeLoadFailed", false);
+      }
       const theme = flavors.find((f) => f.id === state.themeId);
       if (theme) {
         applyTheme(theme);

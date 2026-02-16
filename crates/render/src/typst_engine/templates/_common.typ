@@ -38,6 +38,18 @@
   }
 }
 
+/// Render a pre-processed rich-text string (Typst markup) as content.
+/// Plain text passes through unchanged; Typst markup is evaluated.
+/// Accepts optional text-styling parameters (size, fill, style) to avoid
+/// wrapping in text()[…] which breaks on block-level content (lists, paragraphs).
+#let render-rich-text(content, size: none, fill: none, style: none) = {
+  if content == "" or content == none { return }
+  set text(size: size) if size != none
+  set text(fill: fill) if fill != none
+  set text(style: style) if style != none
+  eval(content, mode: "markup")
+}
+
 /// Check whether an item has non-empty keywords.
 #let has-keywords(item) = {
   "keywords" in item and item.keywords != none and item.keywords.len() > 0

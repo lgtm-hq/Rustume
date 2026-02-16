@@ -9,6 +9,17 @@ import {
   isWasmReady,
 } from "../wasm";
 
+/** Check if an HTML string is effectively empty (plain empty or TipTap empty editor). */
+export function isHtmlEmpty(html: string): boolean {
+  const trimmed = html.trim();
+  if (trimmed === "") return true;
+  // Normalize common HTML whitespace entities to regular spaces.
+  const normalized = trimmed.replace(/&nbsp;|&#160;|&#xa0;|&ensp;|&#8194;|&emsp;|&#8195;/gi, " ");
+  // Strip all HTML tags and check if any visible text remains.
+  const textContent = normalized.replace(/<[^>]*>/g, "").trim();
+  return textContent === "";
+}
+
 /**
  * Check if a resume is effectively empty (no meaningful content).
  * Used to determine whether to show sample data in preview.
@@ -21,8 +32,8 @@ export function isResumeEmpty(resume: ResumeData): boolean {
 
   if (hasBasics) return false;
 
-  // Check if summary has content
-  if (resume.sections.summary.visible && resume.sections.summary.content.trim() !== "") {
+  // Check if summary has content (accounting for TipTap empty patterns)
+  if (resume.sections.summary.visible && !isHtmlEmpty(resume.sections.summary.content)) {
     return false;
   }
 

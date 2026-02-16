@@ -41,7 +41,7 @@ set +eo pipefail
 docker run --rm \
 	-v "${WORKSPACE}:/code" \
 	"$LINTRO_IMAGE" \
-	check --output-format grid 2>&1 | tee chk-output.txt
+	check --output-format grid --tool-options clippy:timeout=300 2>&1 | tee chk-output.txt
 EXIT_CODE=${PIPESTATUS[0]}
 set -eo pipefail
 

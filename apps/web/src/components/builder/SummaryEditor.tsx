@@ -1,5 +1,5 @@
 import { Show } from "solid-js";
-import { TextArea } from "../ui";
+import { RichTextEditor } from "../ui";
 import { resumeStore } from "../../stores/resume";
 
 export function SummaryEditor() {
@@ -27,11 +27,10 @@ export function SummaryEditor() {
 
       <Show when={store.resume}>
         {(resume) => (
-          <TextArea
+          <RichTextEditor
             placeholder="Write a compelling summary that highlights your key strengths, experience, and what you're looking for in your next role..."
             value={resume().sections.summary.content}
             onInput={updateSummary}
-            rows={6}
           />
         )}
       </Show>

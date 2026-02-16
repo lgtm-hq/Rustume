@@ -108,13 +108,24 @@ export default function Editor() {
           error.message.includes("404"));
 
       if (isNotFound) {
-        createNewResume(params.id);
-        toast.info("New resume created");
+        try {
+          createNewResume(params.id);
+          toast.info("New resume created");
+        } catch (createError) {
+          console.error("Failed to create new resume:", createError);
+          toast.error("Failed to create new resume — redirecting to home");
+          navigate("/", { replace: true });
+        }
       } else {
         console.error("Failed to load resume:", error);
-        toast.error("Failed to load resume — a new one has been created");
-        // Still create a new resume as fallback, but log the error
-        createNewResume(params.id);
+        try {
+          createNewResume(params.id);
+          toast.error("Failed to load resume — a new one has been created");
+        } catch (fallbackError) {
+          console.error("Failed to create fallback resume:", fallbackError);
+          toast.error("Failed to load resume — redirecting to home");
+          navigate("/", { replace: true });
+        }
       }
     } finally {
       setIsLoading(false);

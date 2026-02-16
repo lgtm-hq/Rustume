@@ -49,7 +49,7 @@
 
   if item.summary != "" {
     v(6pt)
-    text(size: 10pt)[#item.summary]
+    render-rich-text(item.summary, size: 10pt)
   }
 
   v(12pt)
@@ -110,7 +110,7 @@
     column-gutter: 8pt,
     text(size: 10pt, weight: "medium")[#item.name],
     line(start: (0pt, 5pt), length: 100%, stroke: (dash: "dotted") + border-color),
-    text(size: 9pt, fill: muted-color)[#item.description]
+    render-rich-text(item.description, size: 9pt, fill: muted-color)
   )
   v(6pt)
 }
@@ -133,7 +133,7 @@
 
   if item.description != "" {
     v(4pt)
-    text(size: 10pt)[#item.description]
+    render-rich-text(item.description, size: 10pt)
   }
 
   if has-keywords(item) {
@@ -186,7 +186,7 @@
 
   if item.summary != "" {
     v(2pt)
-    text(size: 9pt)[#item.summary]
+    render-rich-text(item.summary, size: 9pt)
   }
 
   v(8pt)
@@ -222,7 +222,7 @@
 
   if item.summary != "" {
     v(4pt)
-    text(size: 10pt)[#item.summary]
+    render-rich-text(item.summary, size: 10pt)
   }
 
   v(10pt)
@@ -249,7 +249,7 @@
 
   if item.summary != "" {
     v(6pt)
-    text(size: 10pt)[#item.summary]
+    render-rich-text(item.summary, size: 10pt)
   }
 
   v(12pt)
@@ -262,12 +262,12 @@
 
   if item.description != "" {
     v(4pt)
-    text(size: 10pt)[#item.description]
+    render-rich-text(item.description, size: 10pt)
   }
 
   if item.summary != "" {
     v(4pt)
-    text(size: 9pt)[#item.summary]
+    render-rich-text(item.summary, size: 9pt)
   }
 
   v(10pt)
@@ -283,7 +283,7 @@
       #text(weight: "bold", size: 10pt, fill: dark-blue)[#item.name]
       #if item.description != "" {
         v(2pt)
-        text(size: 10pt)[#item.description]
+        render-rich-text(item.description, size: 10pt)
       }
     ],
     date-badge(item.date)
@@ -296,7 +296,7 @@
 
   if item.summary != "" {
     v(4pt)
-    text(size: 10pt)[#item.summary]
+    render-rich-text(item.summary, size: 10pt)
   }
 
   if has-keywords(item) {
@@ -379,7 +379,7 @@
       [
         #text(weight: "bold", size: 10pt, fill: dark-blue)[Professional Summary]
         #v(6pt)
-        #text(size: 10pt)[#data.sections.summary.content]
+        #render-rich-text(data.sections.summary.content, size: 10pt)
       ]
     )
   }
