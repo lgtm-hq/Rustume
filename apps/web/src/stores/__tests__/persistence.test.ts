@@ -1,4 +1,5 @@
 import { createRoot } from "solid-js";
+import { createDefaultResume } from "../../wasm/defaults";
 
 // ---------------------------------------------------------------------------
 // Provide a full in-memory localStorage implementation so the persistence
@@ -56,6 +57,8 @@ afterAll(() => {
 vi.mock("../../wasm", () => ({
   listResumes: vi.fn().mockRejectedValue(new Error("WASM not ready")),
   deleteResume: vi.fn().mockRejectedValue(new Error("WASM not ready")),
+  getResume: vi.fn().mockRejectedValue(new Error("WASM not ready")),
+  saveResume: vi.fn().mockRejectedValue(new Error("WASM not ready")),
   resumeExists: vi.fn().mockResolvedValue(false),
   isWasmReady: () => false,
 }));
@@ -175,6 +178,90 @@ describe("persistence store - localStorage fallback path", () => {
         const { checkExists } = useResumeList();
         const exists = await checkExists("does-not-exist");
         expect(exists).toBe(false);
+      } finally {
+        dispose();
+      }
+    });
+  });
+
+  // -------------------------------------------------------------------
+  // duplicateResume (tested through useResumeList.duplicateResume)
+  // -------------------------------------------------------------------
+
+  it("duplicateResume clones resume data under a new ID", async () => {
+    const original = createDefaultResume();
+    original.basics.name = "Original Name";
+    mockStorage.setItem(STORAGE_KEY_PREFIX + "_ids", JSON.stringify(["original-id"]));
+    mockStorage.setItem(STORAGE_KEY_PREFIX + "original-id", JSON.stringify(original));
+
+    await createRoot(async (dispose) => {
+      try {
+        const store = useResumeList();
+        await store.refresh();
+
+        const newId = await store.duplicateResume("original-id");
+
+        // New ID should be different from original
+        expect(newId).not.toBe("original-id");
+        expect(typeof newId).toBe("string");
+        expect(newId.length).toBeGreaterThan(0);
+
+        // The cloned resume should exist in localStorage
+        const clonedRaw = mockStorage.getItem(STORAGE_KEY_PREFIX + newId);
+        expect(clonedRaw).not.toBeNull();
+
+        // The cloned data should match the original
+        const cloned = JSON.parse(clonedRaw!);
+        expect(cloned.basics.name).toBe("Original Name");
+
+        // The IDs list should now have both
+        const ids = JSON.parse(mockStorage.getItem(STORAGE_KEY_PREFIX + "_ids")!);
+        expect(ids).toContain("original-id");
+        expect(ids).toContain(newId);
+
+        // The resource should have been refetched
+        const list = store.resumes();
+        expect(list).toBeDefined();
+        expect(list).toHaveLength(2);
+      } finally {
+        dispose();
+      }
+    });
+  });
+
+  it("duplicateResume throws for non-existing resume", async () => {
+    await createRoot(async (dispose) => {
+      try {
+        const store = useResumeList();
+        await store.refresh();
+
+        await expect(store.duplicateResume("nonexistent")).rejects.toThrow("Resume not found");
+      } finally {
+        dispose();
+      }
+    });
+  });
+
+  it("duplicateResume preserves all sections from original", async () => {
+    const original = createDefaultResume();
+    original.sections.summary.content = "My custom summary";
+    original.metadata.template = "custom-template";
+    mockStorage.setItem(STORAGE_KEY_PREFIX + "_ids", JSON.stringify(["src-id"]));
+    mockStorage.setItem(STORAGE_KEY_PREFIX + "src-id", JSON.stringify(original));
+
+    await createRoot(async (dispose) => {
+      try {
+        const store = useResumeList();
+        await store.refresh();
+
+        const newId = await store.duplicateResume("src-id");
+
+        const cloned = JSON.parse(mockStorage.getItem(STORAGE_KEY_PREFIX + newId)!);
+        expect(cloned.sections.summary.content).toBe("My custom summary");
+        expect(cloned.metadata.template).toBe("custom-template");
+        expect(cloned.sections.experience.items.length).toBe(
+          original.sections.experience.items.length,
+        );
       } finally {
         dispose();
       }

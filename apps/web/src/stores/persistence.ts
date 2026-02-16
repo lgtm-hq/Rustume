@@ -3,9 +3,13 @@ import { toast } from "../components/ui";
 import {
   listResumes as listWasmResumes,
   deleteResume as deleteFromWasmStorage,
+  getResume as getFromWasmStorage,
+  saveResume as saveToWasmStorage,
   resumeExists as wasmResumeExists,
   isWasmReady,
 } from "../wasm";
+import { generateId } from "../wasm/types";
+import type { ResumeData } from "../wasm/types";
 
 export interface ResumeListItem {
   id: string;
@@ -38,6 +42,49 @@ function localResumeExists(id: string): boolean {
   return localStorage.getItem(STORAGE_KEY_PREFIX + id) !== null;
 }
 
+function getLocalResume(id: string): ResumeData | null {
+  const data = localStorage.getItem(STORAGE_KEY_PREFIX + id);
+  if (!data) return null;
+  try {
+    const parsed: unknown = JSON.parse(data);
+    const record = parsed as Record<string, unknown>;
+    if (
+      typeof parsed !== "object" ||
+      parsed === null ||
+      typeof record.basics !== "object" ||
+      record.basics === null ||
+      typeof record.sections !== "object" ||
+      record.sections === null ||
+      typeof record.metadata !== "object" ||
+      record.metadata === null
+    ) {
+      console.error("Malformed resume data in localStorage:", STORAGE_KEY_PREFIX + id);
+      toast.error("Resume data is corrupted and could not be loaded");
+      return null;
+    }
+    return parsed as ResumeData;
+  } catch {
+    console.error("Failed to parse resume data from localStorage:", STORAGE_KEY_PREFIX + id);
+    toast.error("Resume data is corrupted and could not be loaded");
+    return null;
+  }
+}
+
+function saveLocalResume(id: string, data: ResumeData): void {
+  localStorage.setItem(STORAGE_KEY_PREFIX + id, JSON.stringify(data));
+  let ids: string[] = [];
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY_PREFIX + "_ids") || "[]");
+    ids = Array.isArray(parsed) ? (parsed as string[]) : [];
+  } catch {
+    ids = [];
+  }
+  if (!ids.includes(id)) {
+    ids.push(id);
+    localStorage.setItem(STORAGE_KEY_PREFIX + "_ids", JSON.stringify(ids));
+  }
+}
+
 async function listResumes(): Promise<string[]> {
   if (isWasmReady()) {
     return listWasmResumes();
@@ -57,6 +104,24 @@ async function resumeExists(id: string): Promise<boolean> {
     return wasmResumeExists(id);
   }
   return localResumeExists(id);
+}
+
+async function getResume(id: string): Promise<ResumeData> {
+  if (isWasmReady()) {
+    return getFromWasmStorage(id);
+  }
+  const data = getLocalResume(id);
+  if (!data) {
+    throw new Error("Resume not found");
+  }
+  return data;
+}
+
+async function saveResume(id: string, data: ResumeData): Promise<void> {
+  if (isWasmReady()) {
+    return saveToWasmStorage(id, data);
+  }
+  saveLocalResume(id, data);
 }
 
 async function fetchResumeList(): Promise<ResumeListItem[]> {
@@ -95,6 +160,20 @@ export function useResumeList() {
       } catch (e) {
         console.error("Failed to delete resume:", e);
         toast.error("Failed to delete resume");
+        throw e;
+      }
+    },
+
+    async duplicateResume(id: string): Promise<string> {
+      try {
+        const original = await getResume(id);
+        const newId = generateId();
+        await saveResume(newId, structuredClone(original));
+        await refetch();
+        return newId;
+      } catch (e) {
+        console.error("Failed to duplicate resume:", e);
+        toast.error("Failed to duplicate resume");
         throw e;
       }
     },
