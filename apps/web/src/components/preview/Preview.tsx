@@ -112,6 +112,7 @@ export function Preview() {
       })
       .catch((e) => {
         if (currentRequestId !== pageRequestId) return;
+        console.error("Preview error:", e);
         const msg = e instanceof Error ? e.message : String(e) || "Failed to load preview";
         setError(msg);
         if (msg !== lastToastedError) {

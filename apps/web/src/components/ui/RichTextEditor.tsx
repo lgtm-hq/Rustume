@@ -92,9 +92,24 @@ export function RichTextEditor(props: RichTextEditorProps) {
       return;
     }
 
-    const url = window.prompt("URL:");
-    if (url) {
-      ed.chain().focus().setLink({ href: url }).run();
+    const input = window.prompt("URL:");
+    if (!input) return;
+
+    const trimmed = input.trim();
+    const ALLOWED_PROTOCOLS = ["http:", "https:", "mailto:", "tel:"];
+    try {
+      const parsed = new URL(trimmed);
+      if (!ALLOWED_PROTOCOLS.includes(parsed.protocol)) return;
+      ed.chain().focus().setLink({ href: parsed.href }).run();
+    } catch {
+      // Not a valid absolute URL — try prepending https://
+      try {
+        const withProtocol = new URL("https://" + trimmed);
+        if (!ALLOWED_PROTOCOLS.includes(withProtocol.protocol)) return;
+        ed.chain().focus().setLink({ href: withProtocol.href }).run();
+      } catch {
+        // Invalid URL, ignore
+      }
     }
   };
 

@@ -112,9 +112,13 @@ export default function Editor() {
         toast.info("New resume created");
       } else {
         console.error("Failed to load resume:", error);
-        toast.error("Failed to load resume — a new one has been created");
-        // Still create a new resume as fallback, but log the error
-        createNewResume(params.id);
+        try {
+          createNewResume(params.id);
+          toast.error("Failed to load resume — a new one has been created");
+        } catch (fallbackError) {
+          console.error("Failed to create fallback resume:", fallbackError);
+          toast.error("Failed to load resume");
+        }
       }
     } finally {
       setIsLoading(false);

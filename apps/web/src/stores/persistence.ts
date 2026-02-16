@@ -26,7 +26,8 @@ function listLocalResumes(): string[] {
   try {
     return JSON.parse(ids) as string[];
   } catch {
-    console.error("Failed to parse resume IDs from localStorage");
+    console.error("Failed to parse resume IDs from localStorage, resetting list");
+    localStorage.removeItem(STORAGE_KEY_PREFIX + "_ids");
     toast.warning("Resume list data was corrupted — it has been reset");
     return [];
   }
@@ -77,6 +78,8 @@ function saveLocalResume(id: string, data: ResumeData): void {
     const parsed: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY_PREFIX + "_ids") || "[]");
     ids = Array.isArray(parsed) ? (parsed as string[]) : [];
   } catch {
+    console.error("Failed to parse resume IDs from localStorage, resetting list");
+    toast.warning("Resume ID data was corrupted — it has been reset");
     ids = [];
   }
   if (!ids.includes(id)) {

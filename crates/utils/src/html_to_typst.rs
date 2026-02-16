@@ -141,6 +141,7 @@ fn process_node(node: &ego_tree::NodeRef<'_, Node>, output: &mut String, in_list
                     }
                 }
                 "ul" => {
+                    let mut emitted_any = false;
                     for child in node.children() {
                         if let Node::Element(child_el) = child.value() {
                             if child_el.name.local.as_ref() == "li" {
@@ -153,13 +154,17 @@ fn process_node(node: &ego_tree::NodeRef<'_, Node>, output: &mut String, in_list
                                     output.push_str("- ");
                                     output.push_str(trimmed);
                                     output.push('\n');
+                                    emitted_any = true;
                                 }
                             }
                         }
                     }
-                    output.push('\n');
+                    if emitted_any {
+                        output.push('\n');
+                    }
                 }
                 "ol" => {
+                    let mut emitted_any = false;
                     for child in node.children() {
                         if let Node::Element(child_el) = child.value() {
                             if child_el.name.local.as_ref() == "li" {
@@ -172,11 +177,14 @@ fn process_node(node: &ego_tree::NodeRef<'_, Node>, output: &mut String, in_list
                                     output.push_str("+ ");
                                     output.push_str(trimmed);
                                     output.push('\n');
+                                    emitted_any = true;
                                 }
                             }
                         }
                     }
-                    output.push('\n');
+                    if emitted_any {
+                        output.push('\n');
+                    }
                 }
                 "br" => {
                     output.push_str("#linebreak()\n");
