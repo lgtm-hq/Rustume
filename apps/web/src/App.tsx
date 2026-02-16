@@ -1,5 +1,6 @@
 import { onMount, createSignal, Show, type ParentComponent } from "solid-js";
 import { AppShell } from "./components/layout/AppShell";
+import { ToastRegion } from "./components/ui";
 import { initWasm } from "./wasm";
 
 const App: ParentComponent = (props) => {
@@ -23,6 +24,7 @@ const App: ParentComponent = (props) => {
         </div>
       </Show>
       <AppShell>{props.children}</AppShell>
+      <ToastRegion />
     </div>
   );
 };

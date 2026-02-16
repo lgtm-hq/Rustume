@@ -1,5 +1,6 @@
 import { createStore } from "solid-js/store";
 import { flavors as turboFlavors, type ThemeFlavor, type ThemeTokens } from "@lgtm-hq/turbo-themes";
+import { toast } from "../components/ui";
 
 const STORAGE_KEY = "rustume-editor-theme";
 
@@ -23,6 +24,7 @@ function getInitialTheme(): string {
     }
   } catch {
     console.error("Failed to read theme from localStorage");
+    toast.warning("Could not load saved theme preference");
   }
   return "catppuccin-mocha";
 }
@@ -83,6 +85,7 @@ export function useEditorTheme() {
         localStorage.setItem(STORAGE_KEY, themeId);
       } catch {
         console.error("Failed to save theme to localStorage");
+        toast.warning("Could not save theme preference");
       }
       applyTheme(theme);
     },

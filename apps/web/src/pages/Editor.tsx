@@ -1,6 +1,6 @@
 import { createSignal, onMount, Show } from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
-import { Button } from "../components/ui";
+import { Button, toast } from "../components/ui";
 import { SplitPane } from "../components/layout/SplitPane";
 import { Sidebar, type SidebarItem } from "../components/layout/Sidebar";
 import {
@@ -109,8 +109,10 @@ export default function Editor() {
 
       if (isNotFound) {
         createNewResume(params.id);
+        toast.info("New resume created");
       } else {
         console.error("Failed to load resume:", error);
+        toast.error("Failed to load resume — a new one has been created");
         // Still create a new resume as fallback, but log the error
         createNewResume(params.id);
       }

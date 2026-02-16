@@ -1,5 +1,5 @@
 import { createSignal, Show } from "solid-js";
-import { Button, Modal } from "../ui";
+import { Button, Modal, toast } from "../ui";
 import { uiStore } from "../../stores/ui";
 import { resumeStore } from "../../stores/resume";
 import { downloadPdf } from "../../api/render";
@@ -35,9 +35,11 @@ export function ExportModal() {
 
     try {
       await downloadPdf(store.resume, `${getFileName()}.pdf`);
+      toast.success("PDF exported successfully");
       closeModal();
     } catch (e) {
       console.error("Export error:", e);
+      toast.error(e instanceof Error ? e.message : "Failed to export PDF");
       setError(e instanceof Error ? e.message : "Failed to export PDF");
     } finally {
       setIsExporting(false);
@@ -67,9 +69,11 @@ export function ExportModal() {
       document.body.removeChild(a);
 
       URL.revokeObjectURL(url);
+      toast.success("JSON exported successfully");
       closeModal();
     } catch (e) {
       console.error("Export error:", e);
+      toast.error(e instanceof Error ? e.message : "Failed to export JSON");
       setError(e instanceof Error ? e.message : "Failed to export JSON");
     }
   };

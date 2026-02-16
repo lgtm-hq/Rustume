@@ -1,5 +1,6 @@
 import { createStore, produce } from "solid-js/store";
 import { batch } from "solid-js";
+import { toast } from "../components/ui";
 import type { ResumeData, Basics, Sections, Metadata, Section } from "../wasm/types";
 import {
   createEmptyResume,
@@ -62,6 +63,7 @@ function saveToLocalStorage(id: string, data: ResumeData): void {
     ids = JSON.parse(localStorage.getItem(STORAGE_KEY_PREFIX + "_ids") || "[]") as string[];
   } catch {
     console.error("Failed to parse resume IDs from localStorage, resetting list");
+    toast.warning("Resume ID data was corrupted — it has been reset");
     ids = [];
   }
   if (!ids.includes(id)) {
@@ -77,6 +79,7 @@ function getFromLocalStorage(id: string): ResumeData | null {
     return JSON.parse(data) as ResumeData;
   } catch {
     console.error("Failed to parse resume data from localStorage:", id);
+    toast.error("Resume data is corrupted and could not be loaded");
     return null;
   }
 }

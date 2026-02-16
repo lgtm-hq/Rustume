@@ -1,5 +1,5 @@
 import { createSignal, Show } from "solid-js";
-import { Button, Modal } from "../ui";
+import { Button, Modal, toast } from "../ui";
 import { uiStore } from "../../stores/ui";
 import { resumeStore } from "../../stores/resume";
 import {
@@ -103,9 +103,11 @@ export function ImportModal() {
         importResume(parsed);
       }
 
+      toast.success("Resume imported successfully");
       closeModal();
     } catch (e) {
       console.error("Import error:", e);
+      toast.error(e instanceof Error ? e.message : "Failed to import file");
       setError(e instanceof Error ? e.message : "Failed to import file");
     } finally {
       setIsLoading(false);

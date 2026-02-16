@@ -1,6 +1,6 @@
 import { For, Show, createSignal } from "solid-js";
 import { A, useNavigate } from "@solidjs/router";
-import { Button, Spinner } from "../components/ui";
+import { Button, Spinner, toast } from "../components/ui";
 import { useResumeList } from "../stores/persistence";
 import { generateId } from "../wasm/types";
 
@@ -8,7 +8,6 @@ export default function Home() {
   const navigate = useNavigate();
   const { resumes, loading, deleteResume, refresh } = useResumeList();
   const [deletingId, setDeletingId] = createSignal<string | null>(null);
-  const [deleteError, setDeleteError] = createSignal<string | null>(null);
 
   const handleNew = () => {
     const id = generateId();
@@ -22,12 +21,12 @@ export default function Home() {
     if (!confirm("Are you sure you want to delete this resume?")) return;
 
     setDeletingId(id);
-    setDeleteError(null);
     try {
       await deleteResume(id);
+      toast.success("Resume deleted");
     } catch (err) {
       console.error("Failed to delete:", err);
-      setDeleteError(err instanceof Error ? err.message : "Failed to delete resume");
+      toast.error(err instanceof Error ? err.message : "Failed to delete resume");
     } finally {
       setDeletingId(null);
     }
@@ -73,39 +72,6 @@ export default function Home() {
           </div>
         </div>
       </div>
-
-      {/* Delete Error */}
-      <Show when={deleteError()}>
-        <div class="max-w-4xl mx-auto px-4 mb-4">
-          <div
-            role="alert"
-            class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-center justify-between"
-          >
-            <span>{deleteError()}</span>
-            <button
-              type="button"
-              class="text-red-500 hover:text-red-700"
-              onClick={() => setDeleteError(null)}
-              aria-label="Dismiss error"
-            >
-              <svg
-                class="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </Show>
 
       {/* Resume List */}
       <div class="max-w-4xl mx-auto px-4 pb-16">
