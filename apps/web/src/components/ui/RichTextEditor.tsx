@@ -20,6 +20,8 @@ export function RichTextEditor(props: RichTextEditorProps) {
   const [editorEl, setEditorEl] = createSignal<HTMLDivElement>();
   const [editor, setEditor] = createSignal<Editor | null>(null);
   const [isFocused, setIsFocused] = createSignal(false);
+  // Incremented on each TipTap transaction to trigger Solid reactivity for toolbar active state.
+  const [txVersion, setTxVersion] = createSignal(0);
 
   onMount(() => {
     const el = editorEl();
@@ -49,6 +51,7 @@ export function RichTextEditor(props: RichTextEditorProps) {
       onUpdate: ({ editor: e }) => {
         props.onInput?.(e.getHTML());
       },
+      onTransaction: () => setTxVersion((v) => v + 1),
       onFocus: () => setIsFocused(true),
       onBlur: () => setIsFocused(false),
     });
@@ -70,6 +73,19 @@ export function RichTextEditor(props: RichTextEditorProps) {
     const ed = editor();
     if (ed) {
       ed.setEditable(!props.disabled);
+    }
+  });
+
+  // Sync placeholder changes
+  createEffect(() => {
+    const ed = editor();
+    const placeholder = props.placeholder || "";
+    if (ed) {
+      const ext = ed.extensionManager.extensions.find((e) => e.name === "placeholder");
+      if (ext) {
+        ext.options.placeholder = placeholder;
+        ed.view.dispatch(ed.state.tr);
+      }
     }
   });
 
@@ -113,7 +129,10 @@ export function RichTextEditor(props: RichTextEditorProps) {
     }
   };
 
-  const isActive = (name: string) => editor()?.isActive(name) ?? false;
+  const isActive = (name: string) => {
+    txVersion(); // Subscribe to transaction changes for Solid reactivity
+    return editor()?.isActive(name) ?? false;
+  };
 
   return (
     <div class={`flex flex-col gap-1.5 ${props.class || ""}`}>

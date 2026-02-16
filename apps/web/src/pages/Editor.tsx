@@ -117,7 +117,8 @@ export default function Editor() {
           toast.error("Failed to load resume — a new one has been created");
         } catch (fallbackError) {
           console.error("Failed to create fallback resume:", fallbackError);
-          toast.error("Failed to load resume");
+          toast.error("Failed to load resume — redirecting to home");
+          navigate("/", { replace: true });
         }
       }
     } finally {
