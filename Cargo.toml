@@ -31,6 +31,7 @@ typst-assets = { version = "0.14.2", features = ["fonts"] }
 # HTML
 ammonia = "4"
 scraper = "0.20"
+ego-tree = "0.6"
 
 # CSV (for LinkedIn import)
 csv = "1.3"

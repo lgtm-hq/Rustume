@@ -10,6 +10,7 @@
 
 mod color;
 mod date;
+mod html_to_typst;
 mod id;
 mod layout;
 mod sanitize;
@@ -17,6 +18,7 @@ mod string;
 
 pub use color::*;
 pub use date::*;
+pub use html_to_typst::*;
 pub use id::*;
 pub use layout::*;
 pub use sanitize::*;
