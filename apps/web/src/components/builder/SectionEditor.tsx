@@ -1,5 +1,5 @@
 import { For, Show, createSignal, type JSX } from "solid-js";
-import { Button, Input, TextArea } from "../ui";
+import { Button, Input, RichTextEditor } from "../ui";
 import { resumeStore, type SectionKey } from "../../stores/resume";
 import { generateId, createEmptyUrl } from "../../wasm/types";
 import type { Experience, Education, Skill, Project } from "../../wasm/types";
@@ -299,12 +299,11 @@ export function ExperienceEditor() {
               onInput={(v) => update({ date: v })}
             />
           </div>
-          <TextArea
+          <RichTextEditor
             label="Summary"
             placeholder="Describe your responsibilities and achievements..."
             value={item.summary}
             onInput={(v) => update({ summary: v })}
-            rows={3}
           />
           <div class="grid grid-cols-2 gap-4">
             <Input
@@ -382,12 +381,11 @@ export function EducationEditor() {
               onInput={(v) => update({ score: v })}
             />
           </div>
-          <TextArea
+          <RichTextEditor
             label="Summary"
             placeholder="Notable achievements, activities..."
             value={item.summary}
             onInput={(v) => update({ summary: v })}
-            rows={2}
           />
         </div>
       )}
@@ -495,12 +493,11 @@ export function ProjectsEditor() {
             value={item.date}
             onInput={(v) => update({ date: v })}
           />
-          <TextArea
+          <RichTextEditor
             label="Summary"
             placeholder="Detailed description..."
             value={item.summary}
             onInput={(v) => update({ summary: v })}
-            rows={3}
           />
           <Input
             label="Technologies"
