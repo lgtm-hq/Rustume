@@ -380,6 +380,18 @@ export function useResumeStore() {
       markDirty();
     },
 
+    // Layout updates (pages -> columns -> section IDs)
+    updateLayout(layout: string[][][]) {
+      setStore(
+        produce((s) => {
+          if (s.resume) {
+            s.resume.metadata.layout = layout;
+          }
+        }),
+      );
+      markDirty();
+    },
+
     // Import resume data
     importResume(data: ResumeData) {
       batch(() => {

@@ -25,6 +25,7 @@ import { Preview } from "../components/preview";
 import { TemplatePicker, ThemeEditor } from "../components/templates";
 import { ImportModal } from "../components/import";
 import { ExportModal } from "../components/export";
+import { LayoutEditor } from "../components/LayoutEditor";
 import { resumeStore, isNotFoundError } from "../stores/resume";
 import { uiStore } from "../stores/ui";
 import { isWasmReady } from "../wasm";
@@ -33,6 +34,7 @@ type EditorTab =
   | "basics"
   | "summary"
   | "sections"
+  | "layout"
   | "experience"
   | "education"
   | "skills"
@@ -62,6 +64,11 @@ const TABS: SidebarItem[] = [
     id: "sections",
     label: "Sections",
     icon: "M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z",
+  },
+  {
+    id: "layout",
+    label: "Layout",
+    icon: "M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z",
   },
   {
     id: "experience",
@@ -193,6 +200,8 @@ export default function Editor() {
         return <SummaryEditor />;
       case "sections":
         return <SectionList />;
+      case "layout":
+        return <LayoutEditor />;
       case "experience":
         return <ExperienceEditor />;
       case "education":
