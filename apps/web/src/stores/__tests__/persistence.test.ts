@@ -65,6 +65,7 @@ vi.mock("../../wasm", () => ({
 
 // Re-import after mock is in place.
 import { useResumeList } from "../persistence";
+import { ResumeNotFoundError, ResumeCorruptedError } from "../resume";
 
 const STORAGE_KEY_PREFIX = "rustume:";
 
@@ -262,6 +263,90 @@ describe("persistence store - localStorage fallback path", () => {
         expect(cloned.sections.experience.items.length).toBe(
           original.sections.experience.items.length,
         );
+      } finally {
+        dispose();
+      }
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Load-failure regression tests (issue #58)
+// ---------------------------------------------------------------------------
+
+describe("persistence store - load failure scenarios", () => {
+  beforeEach(() => {
+    mockStorage.clear();
+  });
+
+  it("duplicateResume throws ResumeNotFoundError for missing resumes", async () => {
+    await createRoot(async (dispose) => {
+      try {
+        const store = useResumeList();
+        await store.refresh();
+
+        await expect(store.duplicateResume("nonexistent")).rejects.toThrow(ResumeNotFoundError);
+      } finally {
+        dispose();
+      }
+    });
+  });
+
+  it("duplicateResume throws ResumeCorruptedError for malformed JSON", async () => {
+    // Store invalid JSON under a known ID
+    mockStorage.setItem(STORAGE_KEY_PREFIX + "_ids", JSON.stringify(["bad-json"]));
+    mockStorage.setItem(STORAGE_KEY_PREFIX + "bad-json", "{{this is not valid JSON!!");
+
+    await createRoot(async (dispose) => {
+      try {
+        const store = useResumeList();
+        await store.refresh();
+
+        await expect(store.duplicateResume("bad-json")).rejects.toThrow(ResumeCorruptedError);
+      } finally {
+        dispose();
+      }
+    });
+  });
+
+  it("duplicateResume throws ResumeCorruptedError for structurally invalid data", async () => {
+    // Valid JSON but missing required fields (basics, sections, metadata)
+    mockStorage.setItem(STORAGE_KEY_PREFIX + "_ids", JSON.stringify(["malformed"]));
+    mockStorage.setItem(STORAGE_KEY_PREFIX + "malformed", JSON.stringify({ name: "incomplete" }));
+
+    await createRoot(async (dispose) => {
+      try {
+        const store = useResumeList();
+        await store.refresh();
+
+        await expect(store.duplicateResume("malformed")).rejects.toThrow(ResumeCorruptedError);
+      } finally {
+        dispose();
+      }
+    });
+  });
+
+  it("corrupted data does not destroy existing localStorage entries", async () => {
+    // Store a valid resume alongside a corrupted one
+    const validResume = createDefaultResume();
+    validResume.basics.name = "Valid User";
+    mockStorage.setItem(STORAGE_KEY_PREFIX + "_ids", JSON.stringify(["valid-id", "corrupt-id"]));
+    mockStorage.setItem(STORAGE_KEY_PREFIX + "valid-id", JSON.stringify(validResume));
+    mockStorage.setItem(STORAGE_KEY_PREFIX + "corrupt-id", "not json at all");
+
+    await createRoot(async (dispose) => {
+      try {
+        const store = useResumeList();
+        await store.refresh();
+
+        // Attempting to duplicate the corrupted resume should fail
+        await expect(store.duplicateResume("corrupt-id")).rejects.toThrow(ResumeCorruptedError);
+
+        // The valid resume should still be intact
+        const validRaw = mockStorage.getItem(STORAGE_KEY_PREFIX + "valid-id");
+        expect(validRaw).not.toBeNull();
+        const parsed = JSON.parse(validRaw!);
+        expect(parsed.basics.name).toBe("Valid User");
       } finally {
         dispose();
       }

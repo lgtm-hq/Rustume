@@ -9,6 +9,61 @@ import {
   isWasmReady,
 } from "../wasm";
 
+/** Thrown when the requested resume does not exist in storage. */
+export class ResumeNotFoundError extends Error {
+  constructor(id: string) {
+    super(`Resume not found: ${id}`);
+    this.name = "ResumeNotFoundError";
+  }
+}
+
+/** Thrown when stored resume data is corrupted or cannot be deserialized. */
+export class ResumeCorruptedError extends Error {
+  constructor(id: string, cause?: unknown) {
+    super(`Resume data is corrupted: ${id}`);
+    this.name = "ResumeCorruptedError";
+    this.cause = cause;
+  }
+}
+
+/**
+ * Validates that parsed JSON has the required top-level structure of a resume
+ * (`basics`, `sections`, and `metadata` must be non-null objects).
+ * Throws `ResumeCorruptedError` if the structure is invalid.
+ */
+export function validateResumeData(parsed: unknown, id: string): ResumeData {
+  const record = parsed as Record<string, unknown>;
+  if (
+    typeof parsed !== "object" ||
+    parsed === null ||
+    typeof record.basics !== "object" ||
+    record.basics === null ||
+    typeof record.sections !== "object" ||
+    record.sections === null ||
+    typeof record.metadata !== "object" ||
+    record.metadata === null
+  ) {
+    throw new ResumeCorruptedError(id);
+  }
+  return parsed as ResumeData;
+}
+
+/** Returns true when an error indicates the resume simply does not exist. */
+export function isNotFoundError(error: unknown): boolean {
+  if (error instanceof ResumeNotFoundError) return true;
+  if (error instanceof ResumeCorruptedError) return false;
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    return msg.includes("not found") || msg.includes("notfound") || msg.includes("404");
+  }
+  // WASM rejects with plain strings (JsValue::from_str), not Error objects.
+  if (typeof error === "string") {
+    const msg = error.toLowerCase();
+    return msg.includes("not found") || msg.includes("notfound") || msg.includes("404");
+  }
+  return false;
+}
+
 /** Check if an HTML string is effectively empty (plain empty or TipTap empty editor). */
 export function isHtmlEmpty(html: string): boolean {
   const trimmed = html.trim();
@@ -83,15 +138,16 @@ function saveToLocalStorage(id: string, data: ResumeData): void {
   }
 }
 
-function getFromLocalStorage(id: string): ResumeData | null {
+function getFromLocalStorage(id: string): ResumeData {
   const data = localStorage.getItem(STORAGE_KEY_PREFIX + id);
-  if (!data) return null;
+  if (!data) throw new ResumeNotFoundError(id);
   try {
-    return JSON.parse(data) as ResumeData;
-  } catch {
+    const parsed: unknown = JSON.parse(data);
+    return validateResumeData(parsed, id);
+  } catch (e) {
+    if (e instanceof ResumeCorruptedError) throw e;
     console.error("Failed to parse resume data from localStorage:", id);
-    toast.error("Resume data is corrupted and could not be loaded");
-    return null;
+    throw new ResumeCorruptedError(id, e);
   }
 }
 
@@ -106,11 +162,7 @@ async function getResume(id: string): Promise<ResumeData> {
   if (isWasmReady()) {
     return getFromWasmStorage(id);
   }
-  const data = getFromLocalStorage(id);
-  if (!data) {
-    throw new Error("Resume not found");
-  }
-  return data;
+  return getFromLocalStorage(id);
 }
 
 export type SectionKey = keyof Omit<Sections, "summary" | "custom">;

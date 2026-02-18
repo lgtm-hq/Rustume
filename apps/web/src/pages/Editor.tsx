@@ -25,7 +25,7 @@ import { Preview } from "../components/preview";
 import { TemplatePicker, ThemeEditor } from "../components/templates";
 import { ImportModal } from "../components/import";
 import { ExportModal } from "../components/export";
-import { resumeStore } from "../stores/resume";
+import { resumeStore, isNotFoundError } from "../stores/resume";
 import { uiStore } from "../stores/ui";
 import { isWasmReady } from "../wasm";
 
@@ -138,12 +138,16 @@ export default function Editor() {
 
   const [activeTab, setActiveTab] = createSignal<EditorTab>("basics");
   const [isLoading, setIsLoading] = createSignal(true);
+  const [loadError, setLoadError] = createSignal<string | null>(null);
 
-  onMount(async () => {
+  async function attemptLoad() {
     if (!params.id) {
       navigate("/");
       return;
     }
+
+    setIsLoading(true);
+    setLoadError(null);
 
     // Wait for WASM if not ready
     let attempts = 0;
@@ -156,14 +160,8 @@ export default function Editor() {
       // Try to load existing resume
       await loadResume(params.id);
     } catch (error) {
-      // Only create new if it's a "not found" error
-      const isNotFound =
-        error instanceof Error &&
-        (error.message.includes("not found") ||
-          error.message.includes("NotFound") ||
-          error.message.includes("404"));
-
-      if (isNotFound) {
+      if (isNotFoundError(error)) {
+        // Resume genuinely does not exist -- safe to create a new one
         try {
           createNewResume(params.id);
           toast.info("New resume created");
@@ -173,20 +171,19 @@ export default function Editor() {
           navigate("/", { replace: true });
         }
       } else {
+        // Non-"not found" error (corruption, transient I/O, deserialization).
+        // Do NOT create a new resume -- that would destroy existing data.
         console.error("Failed to load resume:", error);
-        try {
-          createNewResume(params.id);
-          toast.error("Failed to load resume — a new one has been created");
-        } catch (fallbackError) {
-          console.error("Failed to create fallback resume:", fallbackError);
-          toast.error("Failed to load resume — redirecting to home");
-          navigate("/", { replace: true });
-        }
+        const message = error instanceof Error ? error.message : "An unexpected error occurred";
+        setLoadError(message);
+        toast.error("Failed to load resume — your data has not been modified");
       }
     } finally {
       setIsLoading(false);
     }
-  });
+  }
+
+  onMount(attemptLoad);
 
   const renderTabContent = () => {
     switch (activeTab()) {
@@ -318,28 +315,64 @@ export default function Editor() {
       {/* Main Content */}
       <div class="flex-1 overflow-hidden">
         <Show
-          when={!isLoading() && store.resume}
+          when={!isLoading() && !loadError() && store.resume}
           fallback={
             <div class="h-full flex items-center justify-center">
-              <div class="text-center">
-                <svg class="w-8 h-8 animate-spin text-accent mx-auto mb-4" viewBox="0 0 24 24">
-                  <circle
-                    class="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    stroke-width="4"
-                    fill="none"
-                  />
-                  <path
-                    class="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  />
-                </svg>
-                <p class="text-stone">Loading resume...</p>
-              </div>
+              <Show
+                when={loadError()}
+                fallback={
+                  <div class="text-center">
+                    <svg class="w-8 h-8 animate-spin text-accent mx-auto mb-4" viewBox="0 0 24 24">
+                      <circle
+                        class="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        stroke-width="4"
+                        fill="none"
+                      />
+                      <path
+                        class="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      />
+                    </svg>
+                    <p class="text-stone">Loading resume...</p>
+                  </div>
+                }
+              >
+                {(errorMsg) => (
+                  <div class="text-center max-w-md px-4">
+                    <svg
+                      class="w-12 h-12 text-[var(--turbo-state-danger)] mx-auto mb-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="1.5"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                      />
+                    </svg>
+                    <h2 class="font-display text-lg font-semibold text-ink mb-2">
+                      Failed to load resume
+                    </h2>
+                    <p class="text-stone text-sm mb-6">{errorMsg()}</p>
+                    <div class="flex items-center justify-center gap-3">
+                      <Button variant="secondary" onClick={() => attemptLoad()}>
+                        Retry
+                      </Button>
+                      <Button variant="ghost" onClick={() => navigate("/", { replace: true })}>
+                        Back to Home
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </Show>
             </div>
           }
         >

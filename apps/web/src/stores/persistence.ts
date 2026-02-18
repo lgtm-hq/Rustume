@@ -10,6 +10,7 @@ import {
 } from "../wasm";
 import { generateId } from "../wasm/types";
 import type { ResumeData } from "../wasm/types";
+import { ResumeNotFoundError, ResumeCorruptedError, validateResumeData } from "./resume";
 
 export interface ResumeListItem {
   id: string;
@@ -43,29 +44,16 @@ function localResumeExists(id: string): boolean {
   return localStorage.getItem(STORAGE_KEY_PREFIX + id) !== null;
 }
 
-function getLocalResume(id: string): ResumeData | null {
+function getLocalResume(id: string): ResumeData {
   const data = localStorage.getItem(STORAGE_KEY_PREFIX + id);
-  if (!data) return null;
+  if (!data) throw new ResumeNotFoundError(id);
   try {
     const parsed: unknown = JSON.parse(data);
-    const record = parsed as Record<string, unknown>;
-    if (
-      typeof parsed !== "object" ||
-      parsed === null ||
-      typeof record.basics !== "object" ||
-      record.basics === null ||
-      typeof record.sections !== "object" ||
-      record.sections === null ||
-      typeof record.metadata !== "object" ||
-      record.metadata === null
-    ) {
-      console.error("Malformed resume data in localStorage:", STORAGE_KEY_PREFIX + id);
-      return null;
-    }
-    return parsed as ResumeData;
-  } catch {
+    return validateResumeData(parsed, id);
+  } catch (e) {
+    if (e instanceof ResumeCorruptedError) throw e;
     console.error("Failed to parse resume data from localStorage:", STORAGE_KEY_PREFIX + id);
-    return null;
+    throw new ResumeCorruptedError(id, e);
   }
 }
 
@@ -122,11 +110,7 @@ async function getResume(id: string): Promise<ResumeData> {
   if (isWasmReady()) {
     return getFromWasmStorage(id);
   }
-  const data = getLocalResume(id);
-  if (!data) {
-    throw new Error("Resume not found");
-  }
-  return data;
+  return getLocalResume(id);
 }
 
 async function saveResume(id: string, data: ResumeData): Promise<void> {
