@@ -1,9 +1,15 @@
 import { Show } from "solid-js";
 import { Input } from "../ui";
 import { resumeStore } from "../../stores/resume";
+import { ImageUpload } from "./ImageUpload";
+import type { Picture } from "../../wasm/types";
 
 export function BasicsForm() {
   const { store, updateBasics } = resumeStore;
+
+  function handlePictureChange(picture: Picture) {
+    updateBasics("picture", picture);
+  }
 
   return (
     <div class="space-y-6">
@@ -92,6 +98,9 @@ export function BasicsForm() {
                 />
               </div>
             </div>
+
+            {/* Profile Photo */}
+            <ImageUpload picture={resume().basics.picture} onPictureChange={handlePictureChange} />
           </div>
         )}
       </Show>
