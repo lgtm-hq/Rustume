@@ -2,7 +2,20 @@ import { For, Show, createSignal, type JSX } from "solid-js";
 import { Button, Input, RichTextEditor } from "../ui";
 import { resumeStore, type SectionKey } from "../../stores/resume";
 import { generateId, createEmptyUrl } from "../../wasm/types";
-import type { Experience, Education, Skill, Project } from "../../wasm/types";
+import type {
+  Experience,
+  Education,
+  Skill,
+  Project,
+  Profile,
+  Award,
+  Certification,
+  Publication,
+  Language,
+  Interest,
+  Volunteer,
+  Reference,
+} from "../../wasm/types";
 
 // Singularize section titles for better UX
 const SINGULAR_MAP: Record<string, string> = {
@@ -516,6 +529,484 @@ export function ProjectsEditor() {
             <Input
               label="Link Label"
               placeholder="View Project"
+              value={item.url.label}
+              onInput={(v) => update({ url: { ...item.url, label: v } })}
+            />
+            <Input
+              label="Link URL"
+              type="url"
+              placeholder="https://..."
+              value={item.url.href}
+              onInput={(v) => update({ url: { ...item.url, href: v } })}
+            />
+          </div>
+        </div>
+      )}
+    />
+  );
+}
+
+export function ProfilesEditor() {
+  return (
+    <SectionEditor<Profile>
+      sectionKey="profiles"
+      title="Profiles"
+      icon="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+      createItem={() => ({
+        id: generateId(),
+        visible: true,
+        network: "",
+        username: "",
+        icon: "",
+        url: createEmptyUrl(),
+      })}
+      getItemTitle={(item) => item.network || item.username}
+      getItemSubtitle={(item) => (item.network && item.username ? `@${item.username}` : "")}
+      renderItem={(item, _index, update) => (
+        <div class="space-y-4">
+          <div class="grid grid-cols-2 gap-4">
+            <Input
+              label="Network"
+              placeholder="GitHub"
+              value={item.network}
+              onInput={(v) => update({ network: v, icon: v.toLowerCase() })}
+            />
+            <Input
+              label="Username"
+              placeholder="johndoe"
+              value={item.username}
+              onInput={(v) => update({ username: v })}
+            />
+          </div>
+          <Input
+            label="Icon"
+            placeholder="github (auto-set from network)"
+            value={item.icon}
+            onInput={(v) => update({ icon: v })}
+          />
+          <div class="grid grid-cols-2 gap-4">
+            <Input
+              label="Link Label"
+              placeholder="Profile"
+              value={item.url.label}
+              onInput={(v) => update({ url: { ...item.url, label: v } })}
+            />
+            <Input
+              label="Link URL"
+              type="url"
+              placeholder="https://github.com/johndoe"
+              value={item.url.href}
+              onInput={(v) => update({ url: { ...item.url, href: v } })}
+            />
+          </div>
+        </div>
+      )}
+    />
+  );
+}
+
+export function AwardsEditor() {
+  return (
+    <SectionEditor<Award>
+      sectionKey="awards"
+      title="Awards"
+      icon="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
+      createItem={() => ({
+        id: generateId(),
+        visible: true,
+        title: "",
+        awarder: "",
+        date: "",
+        summary: "",
+        url: createEmptyUrl(),
+      })}
+      getItemTitle={(item) => item.title}
+      getItemSubtitle={(item) => item.awarder}
+      renderItem={(item, _index, update) => (
+        <div class="space-y-4">
+          <Input
+            label="Title"
+            placeholder="Best Paper Award"
+            value={item.title}
+            onInput={(v) => update({ title: v })}
+          />
+          <div class="grid grid-cols-2 gap-4">
+            <Input
+              label="Awarder"
+              placeholder="IEEE"
+              value={item.awarder}
+              onInput={(v) => update({ awarder: v })}
+            />
+            <Input
+              label="Date"
+              placeholder="2023"
+              value={item.date}
+              onInput={(v) => update({ date: v })}
+            />
+          </div>
+          <RichTextEditor
+            label="Summary"
+            placeholder="Describe the award and why you received it..."
+            value={item.summary}
+            onInput={(v) => update({ summary: v })}
+          />
+          <div class="grid grid-cols-2 gap-4">
+            <Input
+              label="Link Label"
+              placeholder="Award page"
+              value={item.url.label}
+              onInput={(v) => update({ url: { ...item.url, label: v } })}
+            />
+            <Input
+              label="Link URL"
+              type="url"
+              placeholder="https://..."
+              value={item.url.href}
+              onInput={(v) => update({ url: { ...item.url, href: v } })}
+            />
+          </div>
+        </div>
+      )}
+    />
+  );
+}
+
+export function CertificationsEditor() {
+  return (
+    <SectionEditor<Certification>
+      sectionKey="certifications"
+      title="Certifications"
+      icon="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
+      createItem={() => ({
+        id: generateId(),
+        visible: true,
+        name: "",
+        issuer: "",
+        date: "",
+        summary: "",
+        url: createEmptyUrl(),
+      })}
+      getItemTitle={(item) => item.name}
+      getItemSubtitle={(item) => item.issuer}
+      renderItem={(item, _index, update) => (
+        <div class="space-y-4">
+          <Input
+            label="Certification Name"
+            placeholder="AWS Solutions Architect"
+            value={item.name}
+            onInput={(v) => update({ name: v })}
+          />
+          <div class="grid grid-cols-2 gap-4">
+            <Input
+              label="Issuer"
+              placeholder="Amazon Web Services"
+              value={item.issuer}
+              onInput={(v) => update({ issuer: v })}
+            />
+            <Input
+              label="Date"
+              placeholder="2023"
+              value={item.date}
+              onInput={(v) => update({ date: v })}
+            />
+          </div>
+          <RichTextEditor
+            label="Summary"
+            placeholder="Details about the certification..."
+            value={item.summary}
+            onInput={(v) => update({ summary: v })}
+          />
+          <div class="grid grid-cols-2 gap-4">
+            <Input
+              label="Link Label"
+              placeholder="Verify credential"
+              value={item.url.label}
+              onInput={(v) => update({ url: { ...item.url, label: v } })}
+            />
+            <Input
+              label="Link URL"
+              type="url"
+              placeholder="https://..."
+              value={item.url.href}
+              onInput={(v) => update({ url: { ...item.url, href: v } })}
+            />
+          </div>
+        </div>
+      )}
+    />
+  );
+}
+
+export function PublicationsEditor() {
+  return (
+    <SectionEditor<Publication>
+      sectionKey="publications"
+      title="Publications"
+      icon="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+      createItem={() => ({
+        id: generateId(),
+        visible: true,
+        name: "",
+        publisher: "",
+        date: "",
+        summary: "",
+        url: createEmptyUrl(),
+      })}
+      getItemTitle={(item) => item.name}
+      getItemSubtitle={(item) => item.publisher}
+      renderItem={(item, _index, update) => (
+        <div class="space-y-4">
+          <Input
+            label="Publication Name"
+            placeholder="Machine Learning in Practice"
+            value={item.name}
+            onInput={(v) => update({ name: v })}
+          />
+          <div class="grid grid-cols-2 gap-4">
+            <Input
+              label="Publisher"
+              placeholder="IEEE / ACM / Springer"
+              value={item.publisher}
+              onInput={(v) => update({ publisher: v })}
+            />
+            <Input
+              label="Date"
+              placeholder="2023"
+              value={item.date}
+              onInput={(v) => update({ date: v })}
+            />
+          </div>
+          <RichTextEditor
+            label="Summary"
+            placeholder="Abstract or description of the publication..."
+            value={item.summary}
+            onInput={(v) => update({ summary: v })}
+          />
+          <div class="grid grid-cols-2 gap-4">
+            <Input
+              label="Link Label"
+              placeholder="Read paper"
+              value={item.url.label}
+              onInput={(v) => update({ url: { ...item.url, label: v } })}
+            />
+            <Input
+              label="Link URL"
+              type="url"
+              placeholder="https://doi.org/..."
+              value={item.url.href}
+              onInput={(v) => update({ url: { ...item.url, href: v } })}
+            />
+          </div>
+        </div>
+      )}
+    />
+  );
+}
+
+export function LanguagesEditor() {
+  return (
+    <SectionEditor<Language>
+      sectionKey="languages"
+      title="Languages"
+      icon="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"
+      createItem={() => ({
+        id: generateId(),
+        visible: true,
+        name: "",
+        description: "",
+        level: 0,
+      })}
+      getItemTitle={(item) => item.name}
+      getItemSubtitle={(item) => item.description}
+      renderItem={(item, _index, update) => (
+        <div class="space-y-4">
+          <Input
+            label="Language"
+            placeholder="English"
+            value={item.name}
+            onInput={(v) => update({ name: v })}
+          />
+          <Input
+            label="Proficiency"
+            placeholder="Native, Fluent, Intermediate, Basic"
+            value={item.description}
+            onInput={(v) => update({ description: v })}
+          />
+          <div>
+            <label class="font-mono text-xs uppercase tracking-wider text-stone block mb-2">
+              Level ({item.level}/5)
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="5"
+              value={item.level}
+              onInput={(e) => update({ level: parseInt(e.currentTarget.value) })}
+              class="w-full accent-accent"
+            />
+          </div>
+        </div>
+      )}
+    />
+  );
+}
+
+export function InterestsEditor() {
+  return (
+    <SectionEditor<Interest>
+      sectionKey="interests"
+      title="Interests"
+      icon="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+      createItem={() => ({
+        id: generateId(),
+        visible: true,
+        name: "",
+        keywords: [],
+      })}
+      getItemTitle={(item) => item.name}
+      getItemSubtitle={(item) => item.keywords.slice(0, 3).join(", ")}
+      renderItem={(item, _index, update) => (
+        <div class="space-y-4">
+          <Input
+            label="Interest"
+            placeholder="Open Source"
+            value={item.name}
+            onInput={(v) => update({ name: v })}
+          />
+          <Input
+            label="Keywords"
+            placeholder="Linux, Rust, WebAssembly (comma separated)"
+            value={item.keywords.join(", ")}
+            onInput={(v) =>
+              update({
+                keywords: v
+                  .split(",")
+                  .map((k) => k.trim())
+                  .filter(Boolean),
+              })
+            }
+          />
+        </div>
+      )}
+    />
+  );
+}
+
+export function VolunteerEditor() {
+  return (
+    <SectionEditor<Volunteer>
+      sectionKey="volunteer"
+      title="Volunteer"
+      icon="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+      createItem={() => ({
+        id: generateId(),
+        visible: true,
+        organization: "",
+        position: "",
+        location: "",
+        date: "",
+        summary: "",
+        url: createEmptyUrl(),
+      })}
+      getItemTitle={(item) => item.position || item.organization}
+      getItemSubtitle={(item) => (item.organization && item.position ? item.organization : "")}
+      renderItem={(item, _index, update) => (
+        <div class="space-y-4">
+          <div class="grid grid-cols-2 gap-4">
+            <Input
+              label="Position"
+              placeholder="Volunteer Coordinator"
+              value={item.position}
+              onInput={(v) => update({ position: v })}
+            />
+            <Input
+              label="Organization"
+              placeholder="Red Cross"
+              value={item.organization}
+              onInput={(v) => update({ organization: v })}
+            />
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <Input
+              label="Location"
+              placeholder="New York, NY"
+              value={item.location}
+              onInput={(v) => update({ location: v })}
+            />
+            <Input
+              label="Date"
+              placeholder="Jan 2020 - Present"
+              value={item.date}
+              onInput={(v) => update({ date: v })}
+            />
+          </div>
+          <RichTextEditor
+            label="Summary"
+            placeholder="Describe your volunteer activities and impact..."
+            value={item.summary}
+            onInput={(v) => update({ summary: v })}
+          />
+          <div class="grid grid-cols-2 gap-4">
+            <Input
+              label="Link Label"
+              placeholder="Organization website"
+              value={item.url.label}
+              onInput={(v) => update({ url: { ...item.url, label: v } })}
+            />
+            <Input
+              label="Link URL"
+              type="url"
+              placeholder="https://..."
+              value={item.url.href}
+              onInput={(v) => update({ url: { ...item.url, href: v } })}
+            />
+          </div>
+        </div>
+      )}
+    />
+  );
+}
+
+export function ReferencesEditor() {
+  return (
+    <SectionEditor<Reference>
+      sectionKey="references"
+      title="References"
+      icon="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+      createItem={() => ({
+        id: generateId(),
+        visible: true,
+        name: "",
+        description: "",
+        summary: "",
+        url: createEmptyUrl(),
+      })}
+      getItemTitle={(item) => item.name}
+      getItemSubtitle={(item) => item.description}
+      renderItem={(item, _index, update) => (
+        <div class="space-y-4">
+          <Input
+            label="Name"
+            placeholder="Jane Smith"
+            value={item.name}
+            onInput={(v) => update({ name: v })}
+          />
+          <Input
+            label="Description"
+            placeholder="Former Manager at Acme Inc."
+            value={item.description}
+            onInput={(v) => update({ description: v })}
+          />
+          <RichTextEditor
+            label="Summary"
+            placeholder="Reference details or testimonial..."
+            value={item.summary}
+            onInput={(v) => update({ summary: v })}
+          />
+          <div class="grid grid-cols-2 gap-4">
+            <Input
+              label="Link Label"
+              placeholder="LinkedIn"
               value={item.url.label}
               onInput={(v) => update({ url: { ...item.url, label: v } })}
             />

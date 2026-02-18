@@ -12,6 +12,14 @@ import {
   EducationEditor,
   SkillsEditor,
   ProjectsEditor,
+  ProfilesEditor,
+  AwardsEditor,
+  CertificationsEditor,
+  PublicationsEditor,
+  LanguagesEditor,
+  InterestsEditor,
+  VolunteerEditor,
+  ReferencesEditor,
 } from "../components/builder";
 import { Preview } from "../components/preview";
 import { TemplatePicker, ThemeEditor } from "../components/templates";
@@ -29,6 +37,14 @@ type EditorTab =
   | "education"
   | "skills"
   | "projects"
+  | "profiles"
+  | "awards"
+  | "certifications"
+  | "publications"
+  | "languages"
+  | "interests"
+  | "volunteer"
+  | "references"
   | "theme";
 
 const TABS: SidebarItem[] = [
@@ -66,6 +82,46 @@ const TABS: SidebarItem[] = [
     id: "projects",
     label: "Projects",
     icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10",
+  },
+  {
+    id: "profiles",
+    label: "Profiles",
+    icon: "M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1",
+  },
+  {
+    id: "awards",
+    label: "Awards",
+    icon: "M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z",
+  },
+  {
+    id: "certifications",
+    label: "Certs",
+    icon: "M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z",
+  },
+  {
+    id: "publications",
+    label: "Pubs",
+    icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253",
+  },
+  {
+    id: "languages",
+    label: "Langs",
+    icon: "M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129",
+  },
+  {
+    id: "interests",
+    label: "Interests",
+    icon: "M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z",
+  },
+  {
+    id: "volunteer",
+    label: "Volunteer",
+    icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z",
+  },
+  {
+    id: "references",
+    label: "Refs",
+    icon: "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z",
   },
   {
     id: "theme",
@@ -148,6 +204,22 @@ export default function Editor() {
         return <SkillsEditor />;
       case "projects":
         return <ProjectsEditor />;
+      case "profiles":
+        return <ProfilesEditor />;
+      case "awards":
+        return <AwardsEditor />;
+      case "certifications":
+        return <CertificationsEditor />;
+      case "publications":
+        return <PublicationsEditor />;
+      case "languages":
+        return <LanguagesEditor />;
+      case "interests":
+        return <InterestsEditor />;
+      case "volunteer":
+        return <VolunteerEditor />;
+      case "references":
+        return <ReferencesEditor />;
       case "theme":
         return <ThemeEditor />;
       default:
