@@ -8,4 +8,12 @@ export {
   EducationEditor,
   SkillsEditor,
   ProjectsEditor,
+  ProfilesEditor,
+  AwardsEditor,
+  CertificationsEditor,
+  PublicationsEditor,
+  LanguagesEditor,
+  InterestsEditor,
+  VolunteerEditor,
+  ReferencesEditor,
 } from "./SectionEditor";
