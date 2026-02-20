@@ -20,6 +20,9 @@ target/
 pkg/
 bindings/wasm/pkg/
 
+# -------------------- Node / JS --------------------
+node_modules/
+
 # -------------------- Linting & Coverage --------------------
 .lintro/
 htmlcov/
