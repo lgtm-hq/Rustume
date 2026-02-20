@@ -1,4 +1,5 @@
 export { BasicsForm } from "./BasicsForm";
+export { ImageUpload, type ImageUploadProps } from "./ImageUpload";
 export { SectionList } from "./SectionList";
 export { SectionPanel } from "./SectionPanel";
 export { SummaryEditor } from "./SummaryEditor";

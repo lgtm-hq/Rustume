@@ -4,6 +4,7 @@ import { toast } from "../components/ui";
 import type { ResumeData, Basics, Sections, Metadata, Section } from "../wasm/types";
 import {
   createEmptyResume,
+  createEmptyPicture,
   saveResume as saveToWasmStorage,
   getResume as getFromWasmStorage,
   isWasmReady,
@@ -227,6 +228,10 @@ export function useResumeStore() {
     async loadResume(id: string) {
       try {
         const resume = await getResume(id);
+        // Normalize: ensure basics.picture exists (older resumes may lack it)
+        if (!resume.basics.picture) {
+          resume.basics.picture = createEmptyPicture();
+        }
         batch(() => {
           setStore("resume", resume);
           setStore("id", id);
@@ -382,6 +387,10 @@ export function useResumeStore() {
 
     // Import resume data
     importResume(data: ResumeData) {
+      // Normalize: ensure basics.picture exists (imported data may lack it)
+      if (!data.basics.picture) {
+        data.basics.picture = createEmptyPicture();
+      }
       batch(() => {
         setStore("resume", data);
         setStore("isDirty", true);
