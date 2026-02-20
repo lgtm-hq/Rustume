@@ -11,6 +11,8 @@ interface DroppableColumnProps {
   sectionIds: string[];
   /** Total number of columns (used for labelling). */
   totalColumns: number;
+  /** ID of the section currently being keyboard-dragged, if any. */
+  kbActiveId?: string | null;
 }
 
 const COLUMN_LABELS: Record<number, string[]> = {
@@ -30,6 +32,8 @@ export function DroppableColumn(props: DroppableColumnProps) {
   return (
     <div
       ref={droppable.ref}
+      role="listbox"
+      aria-label={label()}
       class="flex-1 min-w-0 rounded-lg border-2 border-dashed transition-colors duration-150 p-2"
       classList={{
         "border-accent/50 bg-accent/5": droppable.isActiveDroppable,
@@ -49,7 +53,11 @@ export function DroppableColumn(props: DroppableColumnProps) {
       {/* Sortable Section List */}
       <div class="space-y-1.5 min-h-[48px]">
         <SortableProvider ids={props.sectionIds}>
-          <For each={props.sectionIds}>{(sectionId) => <DraggableSection id={sectionId} />}</For>
+          <For each={props.sectionIds}>
+            {(sectionId) => (
+              <DraggableSection id={sectionId} kbActive={props.kbActiveId === sectionId} />
+            )}
+          </For>
         </SortableProvider>
 
         {/* Empty state */}

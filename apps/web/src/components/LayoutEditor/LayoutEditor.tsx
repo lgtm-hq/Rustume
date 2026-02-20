@@ -68,6 +68,11 @@ export function LayoutEditor() {
   const [columns, setColumns] = createSignal<string[][]>([]);
   const [activeId, setActiveId] = createSignal<string | null>(null);
 
+  // Keyboard DnD state
+  const [kbDragId, setKbDragId] = createSignal<string | null>(null);
+  const [kbDragOrigin, setKbDragOrigin] = createSignal<string[][] | null>(null);
+  const [announcement, setAnnouncement] = createSignal("");
+
   // Sync from store -> local state on initial load and external layout changes.
   // Uses `on()` to track only the layout reference, and `untrack` in persistLayout
   // to avoid a write->effect->re-normalize loop during drag operations.
@@ -123,9 +128,121 @@ export function LayoutEditor() {
     return findColumnOfSection(String(id));
   }
 
+  // --- Keyboard DnD helpers ---
+
+  /** Look up the human-friendly label for a section ID. */
+  function sectionLabel(id: string): string {
+    return SECTIONS.find((s) => s.key === id)?.name ?? id;
+  }
+
+  /** Announce a message to screen readers via the live region. */
+  function announce(message: string) {
+    setAnnouncement("");
+    requestAnimationFrame(() => setAnnouncement(message));
+  }
+
+  /** Move a section in the given direction during keyboard drag. */
+  function moveSection(sectionId: string, key: string) {
+    const cols = columns();
+    const colIdx = findColumnOfSection(sectionId);
+    if (colIdx < 0) return;
+
+    const col = cols[colIdx];
+    const sectionIdx = col.indexOf(sectionId);
+    const newCols = cols.map((c) => [...c]);
+
+    if (key === "ArrowUp" && sectionIdx > 0) {
+      [newCols[colIdx][sectionIdx - 1], newCols[colIdx][sectionIdx]] = [
+        newCols[colIdx][sectionIdx],
+        newCols[colIdx][sectionIdx - 1],
+      ];
+      setColumns(newCols);
+      announce(`${sectionLabel(sectionId)} moved up`);
+    } else if (key === "ArrowDown" && sectionIdx < col.length - 1) {
+      [newCols[colIdx][sectionIdx], newCols[colIdx][sectionIdx + 1]] = [
+        newCols[colIdx][sectionIdx + 1],
+        newCols[colIdx][sectionIdx],
+      ];
+      setColumns(newCols);
+      announce(`${sectionLabel(sectionId)} moved down`);
+    } else if (key === "ArrowLeft" && colIdx > 0) {
+      newCols[colIdx] = newCols[colIdx].filter((id) => id !== sectionId);
+      newCols[colIdx - 1].push(sectionId);
+      setColumns(newCols);
+      announce(`${sectionLabel(sectionId)} moved to column ${colIdx}`);
+    } else if (key === "ArrowRight" && colIdx < cols.length - 1) {
+      newCols[colIdx] = newCols[colIdx].filter((id) => id !== sectionId);
+      newCols[colIdx + 1].push(sectionId);
+      setColumns(newCols);
+      announce(`${sectionLabel(sectionId)} moved to column ${colIdx + 2}`);
+    }
+
+    // Re-focus the section after DOM updates
+    requestAnimationFrame(() => {
+      const el = document.querySelector(`[data-section-id="${sectionId}"]`) as HTMLElement | null;
+      el?.focus();
+    });
+  }
+
+  /** Handle keyboard events for accessible drag and drop. */
+  function handleKeyDown(e: KeyboardEvent) {
+    const target = e.target as HTMLElement;
+    const sectionEl = target.closest("[data-section-id]");
+    const sectionId = sectionEl?.getAttribute("data-section-id");
+    if (!sectionId) return;
+
+    const dragging = kbDragId();
+
+    if (!dragging) {
+      if (e.key === " " || e.key === "Enter") {
+        e.preventDefault();
+        setKbDragId(sectionId);
+        setKbDragOrigin(columns().map((c) => [...c]));
+        announce(
+          `Picked up ${sectionLabel(sectionId)}. Use arrow keys to move, Enter or Space to drop, Escape to cancel.`,
+        );
+      }
+      return;
+    }
+
+    e.preventDefault();
+
+    if (e.key === " " || e.key === "Enter") {
+      persistLayout(columns());
+      const label = sectionLabel(dragging);
+      setKbDragId(null);
+      setKbDragOrigin(null);
+      announce(`Dropped ${label}`);
+    } else if (e.key === "Escape") {
+      const origin = kbDragOrigin();
+      if (origin) setColumns(origin);
+      const label = sectionLabel(dragging);
+      setKbDragId(null);
+      setKbDragOrigin(null);
+      announce(`Cancelled. ${label} returned to original position`);
+      // Re-focus the section at its original position
+      requestAnimationFrame(() => {
+        const el = document.querySelector(`[data-section-id="${dragging}"]`) as HTMLElement | null;
+        el?.focus();
+      });
+    } else if (
+      e.key === "ArrowUp" ||
+      e.key === "ArrowDown" ||
+      e.key === "ArrowLeft" ||
+      e.key === "ArrowRight"
+    ) {
+      moveSection(dragging, e.key);
+    }
+  }
+
   // --- DnD Callbacks ---
 
   function onDragStart({ draggable }: DragEvent) {
+    // Cancel any active keyboard drag when pointer drag starts
+    if (kbDragId()) {
+      setKbDragId(null);
+      setKbDragOrigin(null);
+    }
     setActiveId(String(draggable.id));
   }
 
@@ -291,6 +408,7 @@ export function LayoutEditor() {
               "flex-col": columns().length === 1,
               "flex-row": columns().length > 1,
             }}
+            onKeyDown={handleKeyDown}
           >
             <For each={columns()}>
               {(col, index) => (
@@ -299,6 +417,7 @@ export function LayoutEditor() {
                   index={index()}
                   sectionIds={col}
                   totalColumns={columns().length}
+                  kbActiveId={kbDragId()}
                 />
               )}
             </For>
@@ -319,9 +438,15 @@ export function LayoutEditor() {
 
       {/* Help Text */}
       <p class="text-xs text-stone/60 leading-relaxed">
-        Drag sections to reorder them within a column or move them between columns. The layout
+        Drag sections or use the keyboard (Space to pick up, arrow keys to move, Space to drop,
+        Escape to cancel) to reorder them within a column or move them between columns. The layout
         determines how sections appear in your resume PDF.
       </p>
+
+      {/* Screen reader live region for DnD announcements */}
+      <div aria-live="assertive" aria-atomic="true" class="sr-only">
+        {announcement()}
+      </div>
     </div>
   );
 }

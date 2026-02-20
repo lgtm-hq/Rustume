@@ -4,6 +4,8 @@ import { SECTIONS, type SectionInfo } from "../builder/constants";
 
 interface DraggableSectionProps {
   id: string;
+  /** Whether this section is currently being keyboard-dragged. */
+  kbActive?: boolean;
 }
 
 /** Look up the human-friendly label and icon for a section ID. */
@@ -22,11 +24,18 @@ export function DraggableSection(props: DraggableSectionProps) {
   return (
     <div
       ref={sortable.ref}
+      tabindex="0"
+      role="option"
+      aria-roledescription="draggable section"
+      aria-selected={props.kbActive ?? false}
+      data-section-id={props.id}
       class="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-paper
-        transition-all duration-150 cursor-grab active:cursor-grabbing select-none group"
+        transition-all duration-150 cursor-grab active:cursor-grabbing select-none group
+        focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
       classList={{
         "opacity-25 border-dashed": sortable.isActiveDraggable,
         "shadow-md ring-2 ring-accent/30 scale-[1.02]": isActive() && !sortable.isActiveDraggable,
+        "ring-2 ring-accent bg-accent/5": props.kbActive === true,
       }}
       style={transformStyle(sortable.transform)}
       {...sortable.dragActivators}
