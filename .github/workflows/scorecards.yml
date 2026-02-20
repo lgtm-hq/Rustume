@@ -39,6 +39,7 @@ jobs:
             ossf.github.io:443
             www.bestpractices.dev:443
             api.osv.dev:443
+            api.deps.dev:443
             api.scorecard.dev:443
             oss-fuzz-build-logs.storage.googleapis.com:443
 
