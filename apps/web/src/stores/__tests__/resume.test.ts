@@ -1,7 +1,13 @@
 import { createRoot } from "solid-js";
 import { createDefaultResume } from "../../wasm/defaults";
 import type { ResumeData } from "../../wasm/types";
-import { isResumeEmpty, useResumeStore } from "../resume";
+import {
+  isResumeEmpty,
+  useResumeStore,
+  ResumeNotFoundError,
+  ResumeCorruptedError,
+  isNotFoundError,
+} from "../resume";
 
 vi.mock("../../wasm", () => ({
   createEmptyResume: () => createDefaultResume(),
@@ -253,6 +259,117 @@ describe("useResumeStore", () => {
       expect(store.isDirty).toBe(true);
       dispose();
     });
+  });
+
+  it("loadResume throws ResumeNotFoundError for missing resumes", async () => {
+    await createRoot(async (dispose) => {
+      try {
+        const { loadResume } = useResumeStore();
+        await expect(loadResume("nonexistent-id")).rejects.toThrow(ResumeNotFoundError);
+      } finally {
+        dispose();
+      }
+    });
+  });
+
+  it("loadResume throws ResumeCorruptedError for malformed data", async () => {
+    localStorage.setItem("rustume:corrupted-id", "{{not valid json!!");
+    await createRoot(async (dispose) => {
+      try {
+        const { loadResume } = useResumeStore();
+        await expect(loadResume("corrupted-id")).rejects.toThrow(ResumeCorruptedError);
+      } finally {
+        dispose();
+      }
+    });
+  });
+
+  it("loadResume sets error on the store without modifying resume when loading fails", async () => {
+    await createRoot(async (dispose) => {
+      try {
+        const { store, createNewResume, loadResume } = useResumeStore();
+        // Seed a non-null resume so the assertion checks a real instance
+        createNewResume("existing-resume");
+        const resumeBefore = store.resume;
+        expect(resumeBefore).not.toBeNull();
+        try {
+          await loadResume("nonexistent-id");
+        } catch {
+          // expected
+        }
+        expect(store.error).toBeTruthy();
+        // The existing resume should not have been replaced
+        expect(store.resume).toBe(resumeBefore);
+      } finally {
+        dispose();
+      }
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Error classes and isNotFoundError — pure function tests
+// ---------------------------------------------------------------------------
+
+describe("ResumeNotFoundError", () => {
+  it("has the correct name and message", () => {
+    const err = new ResumeNotFoundError("abc-123");
+    expect(err.name).toBe("ResumeNotFoundError");
+    expect(err.message).toContain("abc-123");
+    expect(err).toBeInstanceOf(Error);
+  });
+});
+
+describe("ResumeCorruptedError", () => {
+  it("has the correct name and message", () => {
+    const err = new ResumeCorruptedError("abc-123");
+    expect(err.name).toBe("ResumeCorruptedError");
+    expect(err.message).toContain("abc-123");
+    expect(err).toBeInstanceOf(Error);
+  });
+
+  it("preserves the cause", () => {
+    const cause = new SyntaxError("Unexpected token");
+    const err = new ResumeCorruptedError("abc-123", cause);
+    expect(err.cause).toBe(cause);
+  });
+});
+
+describe("isNotFoundError", () => {
+  it("returns true for ResumeNotFoundError", () => {
+    expect(isNotFoundError(new ResumeNotFoundError("id"))).toBe(true);
+  });
+
+  it("returns true for generic errors with 'not found' in the message", () => {
+    expect(isNotFoundError(new Error("Resume not found"))).toBe(true);
+    expect(isNotFoundError(new Error("Key NotFound in store"))).toBe(true);
+    expect(isNotFoundError(new Error("404 — resource missing"))).toBe(true);
+  });
+
+  it("returns false for ResumeCorruptedError", () => {
+    expect(isNotFoundError(new ResumeCorruptedError("id"))).toBe(false);
+  });
+
+  it("returns false for generic errors", () => {
+    expect(isNotFoundError(new Error("Storage read failed"))).toBe(false);
+    expect(isNotFoundError(new Error("Network timeout"))).toBe(false);
+  });
+
+  it("returns true for plain string rejections containing 'not found' (WASM path)", () => {
+    expect(isNotFoundError("Not found: some-resume-id")).toBe(true);
+    expect(isNotFoundError("NotFound")).toBe(true);
+    expect(isNotFoundError("404 - missing")).toBe(true);
+  });
+
+  it("returns false for plain string rejections without 'not found'", () => {
+    expect(isNotFoundError("Storage read failed")).toBe(false);
+    expect(isNotFoundError("string error")).toBe(false);
+  });
+
+  it("returns false for non-Error, non-string values", () => {
+    expect(isNotFoundError(null)).toBe(false);
+    expect(isNotFoundError(undefined)).toBe(false);
+    expect(isNotFoundError(42)).toBe(false);
   });
 });
 
