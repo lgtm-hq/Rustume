@@ -52,6 +52,16 @@ jobs:
         if: steps.guard.outputs.ok != 'true'
         run: ./scripts/ci/ci-log.sh "Not a release bump commit; skipping."
 
+      - name: Create GitHub App installation token
+        if: steps.guard.outputs.ok == 'true'
+        id: app-token
+        # yamllint disable-line rule:line-length
+        uses: actions/create-github-app-token@bf559f85448f9380bcfa2899dbdc01eb5b37be3a # v3.0.0-beta.2
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
       - name: Read version from Cargo.toml
         if: steps.guard.outputs.ok == 'true'
         id: version
@@ -83,7 +93,7 @@ jobs:
           steps.prev.outputs.version != steps.version.outputs.version &&
           steps.check.outputs.exists == 'false'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: ./scripts/ci/maintenance/auto-tag.sh configure-auth
 
       - name: Create and push tag

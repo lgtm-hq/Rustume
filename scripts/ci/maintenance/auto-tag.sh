@@ -101,10 +101,7 @@ configure-auth)
 	fi
 	git config user.name "github-actions[bot]"
 	git config user.email "github-actions[bot]@users.noreply.github.com"
-	# Use credential helper to avoid token in URL (defense-in-depth)
-	# shellcheck disable=SC2016  # Single quotes intentional - variable evaluated by credential helper at runtime
-	git config credential.helper '!f() { echo "password=${GITHUB_TOKEN}"; }; f'
-	git remote set-url origin "https://github-actions[bot]@github.com/${GITHUB_REPOSITORY}.git"
+	git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 	echo "Git auth configured"
 	;;
 
