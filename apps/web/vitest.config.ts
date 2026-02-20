@@ -3,7 +3,21 @@ import { defineConfig } from "vitest/config";
 import solid from "vite-plugin-solid";
 
 export default defineConfig({
-  plugins: [solid()],
+  plugins: [
+    solid(),
+    {
+      name: "wasm-stub",
+      enforce: "pre",
+      resolveId(id) {
+        if (/rustume_wasm/.test(id)) return "\0virtual:rustume_wasm";
+      },
+      load(id) {
+        if (id === "\0virtual:rustume_wasm") {
+          return 'throw new Error("WASM not available in test environment");';
+        }
+      },
+    },
+  ],
   test: {
     environment: "jsdom",
     globals: true,
