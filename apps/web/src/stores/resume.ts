@@ -9,6 +9,7 @@ import {
   getResume as getFromWasmStorage,
   isWasmReady,
 } from "../wasm";
+import { getResumeMeta, setResumeMeta } from "./persistence";
 
 /** Thrown when the requested resume does not exist in storage. */
 export class ResumeNotFoundError extends Error {
@@ -198,6 +199,14 @@ async function persistResume() {
 
   try {
     await saveResume(store.id, store.resume);
+
+    // Update persisted list-metadata (title & timestamp).
+    // Keep the user-defined title if one exists; otherwise derive from basics.name.
+    const existing = getResumeMeta(store.id);
+    const name = store.resume.basics?.name?.trim();
+    const title = existing?.title ?? (name || "Untitled Resume");
+    setResumeMeta(store.id, title);
+
     batch(() => {
       setStore("isDirty", false);
       setStore("lastSaved", new Date());
