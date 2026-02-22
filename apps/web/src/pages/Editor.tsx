@@ -176,6 +176,7 @@ export default function Editor() {
     },
     {
       key: "?",
+      shift: true,
       handler: () => openModal("shortcuts"),
       label: "Show shortcuts",
       category: "General",
