@@ -4,11 +4,35 @@ import { Button, Spinner, toast } from "../components/ui";
 import { useResumeList } from "../stores/persistence";
 import { generateId } from "../wasm/types";
 
+/** Format a Date as a human-readable relative or absolute string. */
+function formatUpdatedAt(date: Date): string {
+  const now = Date.now();
+  const diff = now - date.getTime();
+
+  if (diff < 60_000) return "just now";
+  if (diff < 3_600_000) {
+    const mins = Math.floor(diff / 60_000);
+    return `${mins}m ago`;
+  }
+  if (diff < 86_400_000) {
+    const hrs = Math.floor(diff / 3_600_000);
+    return `${hrs}h ago`;
+  }
+  if (diff < 604_800_000) {
+    const days = Math.floor(diff / 86_400_000);
+    return `${days}d ago`;
+  }
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
 export default function Home() {
   const navigate = useNavigate();
-  const { resumes, loading, deleteResume, duplicateResume, refresh } = useResumeList();
+  const { resumes, loading, deleteResume, duplicateResume, renameResume, refresh } =
+    useResumeList();
   const [deletingId, setDeletingId] = createSignal<string | null>(null);
   const [duplicatingId, setDuplicatingId] = createSignal<string | null>(null);
+  const [renamingId, setRenamingId] = createSignal<string | null>(null);
+  const [renameValue, setRenameValue] = createSignal("");
 
   const handleNew = () => {
     const id = generateId();
@@ -47,6 +71,33 @@ export default function Home() {
     } finally {
       setDuplicatingId(null);
     }
+  };
+
+  const startRename = (id: string, currentName: string, event: Event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setRenamingId(id);
+    setRenameValue(currentName);
+  };
+
+  const confirmRename = async (id: string) => {
+    const trimmed = renameValue().trim();
+    if (trimmed) {
+      try {
+        await renameResume(id, trimmed);
+        toast.success("Resume renamed");
+      } catch (err) {
+        console.error("Failed to rename:", err);
+        toast.error(err instanceof Error ? err.message : "Failed to rename resume");
+      }
+    }
+    setRenamingId(null);
+    setRenameValue("");
+  };
+
+  const cancelRename = () => {
+    setRenamingId(null);
+    setRenameValue("");
   };
 
   return (
@@ -179,14 +230,110 @@ export default function Home() {
                         </svg>
                       </div>
                       <div class="min-w-0">
-                        <h3 class="font-body font-medium text-ink group-hover:text-accent transition-colors truncate">
-                          {resume.name}
-                        </h3>
-                        <p class="text-sm text-stone font-mono">{resume.id.slice(0, 8)}...</p>
+                        <Show
+                          when={renamingId() !== resume.id}
+                          fallback={
+                            <div
+                              class="flex items-center gap-2"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                              }}
+                            >
+                              <input
+                                type="text"
+                                class="font-body font-medium text-ink bg-surface border border-border
+                                  rounded px-2 py-0.5 text-sm focus:outline-none focus:border-accent w-48"
+                                value={renameValue()}
+                                onInput={(e) => setRenameValue(e.currentTarget.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") confirmRename(resume.id);
+                                  if (e.key === "Escape") cancelRename();
+                                }}
+                                ref={(el) => setTimeout(() => el.focus(), 0)}
+                                data-testid="rename-input"
+                              />
+                              <button
+                                type="button"
+                                class="p-1 text-accent hover:text-accent/80 transition-colors"
+                                onClick={() => confirmRename(resume.id)}
+                                title="Confirm rename"
+                                aria-label="Confirm rename"
+                              >
+                                <svg
+                                  class="w-4 h-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                  aria-hidden="true"
+                                >
+                                  <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M5 13l4 4L19 7"
+                                  />
+                                </svg>
+                              </button>
+                              <button
+                                type="button"
+                                class="p-1 text-stone hover:text-ink transition-colors"
+                                onClick={() => cancelRename()}
+                                title="Cancel rename"
+                                aria-label="Cancel rename"
+                              >
+                                <svg
+                                  class="w-4 h-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                  aria-hidden="true"
+                                >
+                                  <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                          }
+                        >
+                          <h3 class="font-body font-medium text-ink group-hover:text-accent transition-colors truncate">
+                            {resume.name}
+                          </h3>
+                          <p class="text-sm text-stone">
+                            Updated {formatUpdatedAt(resume.updatedAt)}
+                          </p>
+                        </Show>
                       </div>
                     </A>
 
                     <div class="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        type="button"
+                        class="p-2 text-stone hover:text-accent hover:bg-accent/10 rounded-lg transition-colors"
+                        onClick={(e) => startRename(resume.id, resume.name, e)}
+                        title="Rename"
+                        aria-label="Rename resume"
+                      >
+                        <svg
+                          class="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                          />
+                        </svg>
+                      </button>
+
                       <button
                         type="button"
                         class="p-2 text-stone hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors
