@@ -1,26 +1,17 @@
-import { Show, For, createResource, createSignal } from "solid-js";
-import { toast } from "../ui";
+import { Show, For, createSignal } from "solid-js";
 import { resumeStore } from "../../stores/resume";
-import { get } from "../../api/client";
+import { getThemePresets } from "../../stores/themePresets";
 import type { ThemePresetInfo } from "../../wasm/types";
 
 export function ThemeEditor() {
   const { store, updateTheme } = resumeStore;
   const [activeTab, setActiveTab] = createSignal<"presets" | "custom">("presets");
 
-  // Fetch theme presets from API
-  const [presets] = createResource(async () => {
-    try {
-      return await get<ThemePresetInfo[]>("/themes");
-    } catch (e) {
-      console.error("Failed to fetch themes:", e);
-      toast.error("Failed to load theme presets");
-      return [];
-    }
-  });
+  // Theme presets are embedded client-side -- no network dependency.
+  const presets = getThemePresets();
 
-  const lightPresets = () => presets()?.filter((p) => !p.isDark) ?? [];
-  const darkPresets = () => presets()?.filter((p) => p.isDark) ?? [];
+  const lightPresets = presets.filter((p) => !p.isDark);
+  const darkPresets = presets.filter((p) => p.isDark);
 
   const applyPreset = (preset: ThemePresetInfo) => {
     updateTheme({
@@ -78,51 +69,43 @@ export function ThemeEditor() {
           <div class="space-y-4">
             {/* Presets Tab */}
             <Show when={activeTab() === "presets"}>
-              <Show when={presets.loading}>
-                <div class="flex items-center justify-center py-8 text-stone">
-                  Loading presets...
-                </div>
-              </Show>
-
-              <Show when={!presets.loading && presets()}>
-                <div class="space-y-4">
-                  {/* Light Themes */}
-                  <div>
-                    <h3 class="font-mono text-xs uppercase tracking-wider text-stone mb-2">
-                      Light Themes
-                    </h3>
-                    <div class="grid grid-cols-4 gap-2">
-                      <For each={lightPresets()}>
-                        {(preset) => (
-                          <PresetCard
-                            preset={preset}
-                            isSelected={currentPresetId() === preset.id}
-                            onSelect={() => applyPreset(preset)}
-                          />
-                        )}
-                      </For>
-                    </div>
-                  </div>
-
-                  {/* Dark Themes */}
-                  <div>
-                    <h3 class="font-mono text-xs uppercase tracking-wider text-stone mb-2">
-                      Dark Themes
-                    </h3>
-                    <div class="grid grid-cols-4 gap-2">
-                      <For each={darkPresets()}>
-                        {(preset) => (
-                          <PresetCard
-                            preset={preset}
-                            isSelected={currentPresetId() === preset.id}
-                            onSelect={() => applyPreset(preset)}
-                          />
-                        )}
-                      </For>
-                    </div>
+              <div class="space-y-4">
+                {/* Light Themes */}
+                <div>
+                  <h3 class="font-mono text-xs uppercase tracking-wider text-stone mb-2">
+                    Light Themes
+                  </h3>
+                  <div class="grid grid-cols-4 gap-2">
+                    <For each={lightPresets}>
+                      {(preset) => (
+                        <PresetCard
+                          preset={preset}
+                          isSelected={currentPresetId() === preset.id}
+                          onSelect={() => applyPreset(preset)}
+                        />
+                      )}
+                    </For>
                   </div>
                 </div>
-              </Show>
+
+                {/* Dark Themes */}
+                <div>
+                  <h3 class="font-mono text-xs uppercase tracking-wider text-stone mb-2">
+                    Dark Themes
+                  </h3>
+                  <div class="grid grid-cols-4 gap-2">
+                    <For each={darkPresets}>
+                      {(preset) => (
+                        <PresetCard
+                          preset={preset}
+                          isSelected={currentPresetId() === preset.id}
+                          onSelect={() => applyPreset(preset)}
+                        />
+                      )}
+                    </For>
+                  </div>
+                </div>
+              </div>
             </Show>
 
             {/* Custom Tab */}
