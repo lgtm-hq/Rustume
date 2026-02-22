@@ -9,7 +9,7 @@ import {
   getResume as getFromWasmStorage,
   isWasmReady,
 } from "../wasm";
-import { getResumeMeta, setResumeMeta } from "./persistence";
+import { getResumeMeta, setResumeMeta, deriveTitleFromResume } from "./persistence";
 
 /** Thrown when the requested resume does not exist in storage. */
 export class ResumeNotFoundError extends Error {
@@ -203,8 +203,7 @@ async function persistResume() {
     // Update persisted list-metadata (title & timestamp).
     // Keep the user-defined title if one exists; otherwise derive from basics.name.
     const existing = getResumeMeta(store.id);
-    const name = store.resume.basics?.name?.trim();
-    const title = existing?.title ?? (name || "Untitled Resume");
+    const title = existing?.title ?? deriveTitleFromResume(store.resume);
     setResumeMeta(store.id, title);
 
     batch(() => {

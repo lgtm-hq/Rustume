@@ -244,13 +244,14 @@ export default function Home() {
                                 type="text"
                                 class="font-body font-medium text-ink bg-surface border border-border
                                   rounded px-2 py-0.5 text-sm focus:outline-none focus:border-accent w-48"
+                                aria-label="Rename resume"
                                 value={renameValue()}
                                 onInput={(e) => setRenameValue(e.currentTarget.value)}
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter") confirmRename(resume.id);
                                   if (e.key === "Escape") cancelRename();
                                 }}
-                                ref={(el) => setTimeout(() => el.focus(), 0)}
+                                ref={(el) => setTimeout(() => el?.focus(), 0)}
                                 data-testid="rename-input"
                               />
                               <button
@@ -339,7 +340,9 @@ export default function Home() {
                         class="p-2 text-stone hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors
                           disabled:opacity-50 disabled:cursor-not-allowed"
                         onClick={(e) => handleDelete(resume.id, e)}
-                        disabled={deletingId() !== null || duplicatingId() !== null}
+                        disabled={
+                          deletingId() !== null || duplicatingId() !== null || renamingId() !== null
+                        }
                         title="Delete"
                         aria-label="Delete resume"
                       >
@@ -369,7 +372,9 @@ export default function Home() {
                         class="p-2 text-stone hover:text-accent hover:bg-accent/10 rounded-lg transition-colors
                           disabled:opacity-50 disabled:cursor-not-allowed"
                         onClick={(e) => handleDuplicate(resume.id, e)}
-                        disabled={duplicatingId() !== null || deletingId() !== null}
+                        disabled={
+                          duplicatingId() !== null || deletingId() !== null || renamingId() !== null
+                        }
                         title="Duplicate"
                         aria-label="Duplicate resume"
                       >
