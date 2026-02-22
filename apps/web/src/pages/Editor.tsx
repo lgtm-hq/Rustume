@@ -1,6 +1,7 @@
 import { createSignal, onMount, Show } from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
-import { Button, toast } from "../components/ui";
+import { Button, toast, ShortcutsModal } from "../components/ui";
+import { useHotkeys, type Shortcut } from "../hooks/useHotkeys";
 import { SplitPane } from "../components/layout/SplitPane";
 import { Sidebar, type SidebarItem } from "../components/layout/Sidebar";
 import {
@@ -141,11 +142,69 @@ export default function Editor() {
   const params = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { store, loadResume, createNewResume } = resumeStore;
-  const { store: ui, openModal, setPanel } = uiStore;
+  const { store: ui, openModal, closeModal, setPanel } = uiStore;
 
   const [activeTab, setActiveTab] = createSignal<EditorTab>("basics");
   const [isLoading, setIsLoading] = createSignal(true);
   const [loadError, setLoadError] = createSignal<string | null>(null);
+
+  const shortcuts: Shortcut[] = [
+    {
+      key: "s",
+      mod: true,
+      handler: () => {
+        resumeStore.forceSave();
+        toast.success("Saved");
+      },
+      label: "Save",
+      category: "General",
+    },
+    {
+      key: "p",
+      mod: true,
+      handler: () => openModal("export"),
+      label: "Export PDF",
+      category: "General",
+    },
+    {
+      key: "Escape",
+      handler: () => {
+        if (ui.modal) closeModal();
+      },
+      label: "Close modal",
+      category: "General",
+    },
+    {
+      key: "?",
+      shift: true,
+      handler: () => openModal("shortcuts"),
+      label: "Show shortcuts",
+      category: "General",
+    },
+    {
+      key: "1",
+      mod: true,
+      handler: () => setPanel("editor"),
+      label: "Editor panel",
+      category: "View",
+    },
+    {
+      key: "2",
+      mod: true,
+      handler: () => setPanel("both"),
+      label: "Split view",
+      category: "View",
+    },
+    {
+      key: "3",
+      mod: true,
+      handler: () => setPanel("preview"),
+      label: "Preview panel",
+      category: "View",
+    },
+  ];
+
+  useHotkeys(shortcuts);
 
   async function attemptLoad() {
     if (!params.id) {
@@ -416,6 +475,7 @@ export default function Editor() {
       <TemplatePicker />
       <ImportModal />
       <ExportModal />
+      <ShortcutsModal shortcuts={shortcuts} />
     </div>
   );
 }
