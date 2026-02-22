@@ -84,7 +84,7 @@ export function getResumeMeta(id: string): ResumeMetaEntry | null {
  * Derive a display title for a resume.
  * Priority: persisted title > basics.name > fallback placeholder.
  */
-function deriveTitleFromResume(data: ResumeData): string {
+export function deriveTitleFromResume(data: ResumeData): string {
   const name = data.basics?.name?.trim();
   if (name) return name;
   return "Untitled Resume";
@@ -111,7 +111,6 @@ function deleteLocalResume(id: string): void {
   localStorage.removeItem(STORAGE_KEY_PREFIX + id);
   const ids = listLocalResumes().filter((i) => i !== id);
   localStorage.setItem(STORAGE_KEY_PREFIX + "_ids", JSON.stringify(ids));
-  deleteResumeMeta(id);
 }
 
 function localResumeExists(id: string): boolean {
@@ -219,36 +218,45 @@ async function fetchResumeList(): Promise<ResumeListItem[]> {
   try {
     const ids = await listResumes();
     const metaMap = getMetaMap();
-    const items: ResumeListItem[] = [];
+
+    // Separate IDs that already have metadata from those that need migration
+    const withMeta: ResumeListItem[] = [];
+    const needsMigration: string[] = [];
 
     for (const id of ids) {
       const meta = metaMap[id];
       if (meta) {
-        items.push({
+        withMeta.push({
           id,
           name: meta.title,
           updatedAt: new Date(meta.updatedAt),
         });
       } else {
-        // Migration: no metadata yet — try to derive from stored resume data
-        let title = "Untitled Resume";
-        try {
-          const data = await getResume(id);
-          title = deriveTitleFromResume(data);
-          // Persist the derived metadata so future loads are instant
-          setResumeMeta(id, title);
-        } catch {
-          // Resume data may be corrupted — use fallback title
-        }
-        items.push({
-          id,
-          name: title,
-          updatedAt: new Date(),
-        });
+        needsMigration.push(id);
       }
     }
 
-    return items;
+    if (needsMigration.length === 0) {
+      return withMeta;
+    }
+
+    // Fetch resumes that need migration in parallel
+    const migrationResults = await Promise.allSettled(
+      needsMigration.map((id) => getResume(id).then((data) => ({ id, data }))),
+    );
+
+    const migratedItems: ResumeListItem[] = needsMigration.map((id, i) => {
+      const result = migrationResults[i];
+      let title = "Untitled Resume";
+      if (result.status === "fulfilled") {
+        title = deriveTitleFromResume(result.value.data);
+        // Persist the derived metadata so future loads are instant
+        setResumeMeta(id, title);
+      }
+      return { id, name: title, updatedAt: new Date() };
+    });
+
+    return [...withMeta, ...migratedItems];
   } catch (e) {
     console.error("Failed to list resumes:", e);
     toast.error("Failed to load resume list");
