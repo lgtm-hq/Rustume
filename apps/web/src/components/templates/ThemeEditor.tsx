@@ -10,8 +10,8 @@ export function ThemeEditor() {
   // Theme presets are embedded client-side -- no network dependency.
   const presets = getThemePresets();
 
-  const lightPresets = () => presets.filter((p) => !p.isDark);
-  const darkPresets = () => presets.filter((p) => p.isDark);
+  const lightPresets = presets.filter((p) => !p.isDark);
+  const darkPresets = presets.filter((p) => p.isDark);
 
   const applyPreset = (preset: ThemePresetInfo) => {
     updateTheme({
@@ -76,7 +76,7 @@ export function ThemeEditor() {
                     Light Themes
                   </h3>
                   <div class="grid grid-cols-4 gap-2">
-                    <For each={lightPresets()}>
+                    <For each={lightPresets}>
                       {(preset) => (
                         <PresetCard
                           preset={preset}
@@ -94,7 +94,7 @@ export function ThemeEditor() {
                     Dark Themes
                   </h3>
                   <div class="grid grid-cols-4 gap-2">
-                    <For each={darkPresets()}>
+                    <For each={darkPresets}>
                       {(preset) => (
                         <PresetCard
                           preset={preset}

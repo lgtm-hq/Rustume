@@ -7,8 +7,9 @@ import type { ThemePresetInfo } from "../wasm/types";
  * editor works reliably regardless of network state (offline-first).  There
  * is intentionally **no** dependency on a `/api/themes` server endpoint.
  *
- * When adding or modifying presets, update this list and the corresponding
- * `FALLBACK_THEMES` in `src/wasm/index.ts` to keep them in sync.
+ * Note: `FALLBACK_THEMES` in `src/wasm/index.ts` is an independent system
+ * that maps *template* names to default colors. These preset lists serve
+ * different purposes and do not need to stay in sync.
  */
 export const THEME_PRESETS: readonly ThemePresetInfo[] = [
   // ── Light presets ──────────────────────────────────────────────────
