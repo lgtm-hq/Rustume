@@ -19,11 +19,15 @@ function isEditable(target: EventTarget | null): boolean {
   return target.isContentEditable;
 }
 
+/** Characters that inherently require the Shift key on standard keyboards. */
+const SHIFTED_CHARS = new Set('~!@#$%^&*()_+{}|:"<>?');
+
 /** Format a shortcut for display, e.g. "Cmd+S" or "Ctrl+S". */
 export function formatShortcut(shortcut: Pick<Shortcut, "key" | "mod" | "shift">): string {
   const parts: string[] = [];
   if (shortcut.mod) parts.push(isMac ? "\u2318" : "Ctrl");
-  if (shortcut.shift) parts.push(isMac ? "\u21E7" : "Shift");
+  // Skip the shift label when the key itself is a shifted character (e.g. "?", "!")
+  if (shortcut.shift && !SHIFTED_CHARS.has(shortcut.key)) parts.push(isMac ? "\u21E7" : "Shift");
   const keyLabel = shortcut.key === "Escape" ? "Esc" : shortcut.key.toUpperCase();
   parts.push(keyLabel);
   return parts.join(isMac ? "" : "+");
