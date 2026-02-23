@@ -7,4 +7,4 @@ export { Accordion, type AccordionProps, type AccordionItemData } from "./Accord
 export { Switch, type SwitchProps } from "./Switch";
 export { Spinner, type SpinnerProps } from "./Spinner";
 export { ToastRegion, toast } from "./Toast";
-export { ShortcutsModal } from "./ShortcutsModal";
+export { ShortcutsModal, type ShortcutsModalProps } from "./ShortcutsModal";

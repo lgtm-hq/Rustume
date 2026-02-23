@@ -1,5 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { formatShortcut } from "../useHotkeys";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { renderHook, cleanup } from "@solidjs/testing-library";
+import { formatShortcut, useHotkeys, type Shortcut } from "../useHotkeys";
+
+afterEach(cleanup);
 
 describe("formatShortcut", () => {
   const originalNavigator = globalThis.navigator;
@@ -14,89 +17,141 @@ describe("formatShortcut", () => {
 
   it("formats a plain key", () => {
     const result = formatShortcut({ key: "s" });
-    expect(result).toContain("S");
+    expect(result).toBe("S");
   });
 
   it("formats Escape as Esc", () => {
     const result = formatShortcut({ key: "Escape" });
-    expect(result).toContain("Esc");
+    expect(result).toBe("Esc");
   });
 
-  it("includes mod prefix", () => {
+  it("includes mod prefix (non-Mac uses Ctrl)", () => {
+    // In jsdom, navigator.userAgent does not contain "Mac", so Ctrl path is used
     const result = formatShortcut({ key: "s", mod: true });
-    // Should contain either Cmd symbol or Ctrl depending on platform
-    expect(result.length).toBeGreaterThan(1);
+    expect(result).toContain("Ctrl");
+    expect(result).toContain("S");
   });
 
-  it("includes shift prefix", () => {
+  it("includes shift prefix (non-Mac uses Shift)", () => {
     const result = formatShortcut({ key: "z", mod: true, shift: true });
-    expect(result.length).toBeGreaterThan(1);
+    expect(result).toContain("Ctrl");
+    expect(result).toContain("Shift");
+    expect(result).toContain("Z");
   });
 });
 
-describe("useHotkeys event handling", () => {
-  beforeEach(() => {
-    // Clean up any listeners between tests
-    vi.restoreAllMocks();
-  });
+describe("useHotkeys", () => {
+  afterEach(cleanup);
 
-  it("fires handler on matching keydown", async () => {
-    const handler = vi.fn();
-
-    // Manually simulate what useHotkeys does internally
-    const listener = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === "s" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        handler();
-      }
+  function createShortcut(overrides: Partial<Shortcut> = {}): Shortcut {
+    return {
+      key: "s",
+      handler: vi.fn(),
+      label: "Test",
+      category: "Test",
+      ...overrides,
     };
-    document.addEventListener("keydown", listener);
+  }
+
+  it("fires handler on matching keydown with mod", () => {
+    const handler = vi.fn();
+    const shortcut = createShortcut({ key: "s", mod: true, handler });
+
+    renderHook(() => useHotkeys([shortcut]));
 
     document.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "s", metaKey: true, bubbles: true }),
+      new KeyboardEvent("keydown", { key: "s", ctrlKey: true, bubbles: true }),
     );
 
     expect(handler).toHaveBeenCalledOnce();
-    document.removeEventListener("keydown", listener);
   });
 
   it("does not fire handler on non-matching key", () => {
     const handler = vi.fn();
+    const shortcut = createShortcut({ key: "s", mod: true, handler });
 
-    const listener = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === "s" && (e.metaKey || e.ctrlKey)) {
-        handler();
-      }
-    };
-    document.addEventListener("keydown", listener);
+    renderHook(() => useHotkeys([shortcut]));
 
     document.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "a", metaKey: true, bubbles: true }),
+      new KeyboardEvent("keydown", { key: "a", ctrlKey: true, bubbles: true }),
     );
 
     expect(handler).not.toHaveBeenCalled();
-    document.removeEventListener("keydown", listener);
   });
 
-  it("suppresses plain keys when target is an input", () => {
+  it("does not fire when mod is required but not pressed", () => {
     const handler = vi.fn();
+    const shortcut = createShortcut({ key: "s", mod: true, handler });
+
+    renderHook(() => useHotkeys([shortcut]));
+
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "s", ctrlKey: false, bubbles: true }),
+    );
+
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("matches shift when required", () => {
+    const handler = vi.fn();
+    const shortcut = createShortcut({ key: "z", mod: true, shift: true, handler });
+
+    renderHook(() => useHotkeys([shortcut]));
+
+    // Without shift — should not fire
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "z", ctrlKey: true, shiftKey: false, bubbles: true }),
+    );
+    expect(handler).not.toHaveBeenCalled();
+
+    // With shift — should fire
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "z", ctrlKey: true, shiftKey: true, bubbles: true }),
+    );
+    expect(handler).toHaveBeenCalledOnce();
+  });
+
+  it("suppresses plain keys when target is an editable element", () => {
+    const handler = vi.fn();
+    const shortcut = createShortcut({ key: "?", shift: true, handler });
+
+    renderHook(() => useHotkeys([shortcut]));
+
     const input = document.createElement("input");
     document.body.appendChild(input);
 
-    const listener = (e: KeyboardEvent) => {
-      const isEditable =
-        e.target instanceof HTMLElement &&
-        (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA");
-      if (e.key === "?" && !isEditable) {
-        handler();
-      }
-    };
-    document.addEventListener("keydown", listener);
-
-    input.dispatchEvent(new KeyboardEvent("keydown", { key: "?", bubbles: true }));
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "?", shiftKey: true, bubbles: true }));
 
     expect(handler).not.toHaveBeenCalled();
-    document.removeEventListener("keydown", listener);
     document.body.removeChild(input);
+  });
+
+  it("allows mod combos even in editable elements", () => {
+    const handler = vi.fn();
+    const shortcut = createShortcut({ key: "s", mod: true, handler });
+
+    renderHook(() => useHotkeys([shortcut]));
+
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "s", ctrlKey: true, bubbles: true }));
+
+    expect(handler).toHaveBeenCalledOnce();
+    document.body.removeChild(input);
+  });
+
+  it("cleans up listeners on cleanup", () => {
+    const handler = vi.fn();
+    const shortcut = createShortcut({ key: "s", mod: true, handler });
+
+    const { cleanup: hookCleanup } = renderHook(() => useHotkeys([shortcut]));
+    hookCleanup();
+
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "s", ctrlKey: true, bubbles: true }),
+    );
+
+    expect(handler).not.toHaveBeenCalled();
   });
 });

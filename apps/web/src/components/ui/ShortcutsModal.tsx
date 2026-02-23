@@ -1,16 +1,16 @@
-import { For } from "solid-js";
+import { createMemo, For } from "solid-js";
 import { Modal } from "./Modal";
 import { formatShortcut, type Shortcut } from "../../hooks/useHotkeys";
 import { uiStore } from "../../stores/ui";
 
-interface ShortcutsModalProps {
+export interface ShortcutsModalProps {
   shortcuts: Shortcut[];
 }
 
 export function ShortcutsModal(props: ShortcutsModalProps) {
   const { store: ui, closeModal } = uiStore;
 
-  const grouped = () => {
+  const grouped = createMemo(() => {
     const map = new Map<string, Shortcut[]>();
     for (const s of props.shortcuts) {
       const list = map.get(s.category) || [];
@@ -18,7 +18,7 @@ export function ShortcutsModal(props: ShortcutsModalProps) {
       map.set(s.category, list);
     }
     return map;
-  };
+  });
 
   return (
     <Modal
