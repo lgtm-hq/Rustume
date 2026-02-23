@@ -330,7 +330,7 @@ export default function Home() {
                           disabled:opacity-50 disabled:cursor-not-allowed"
                         onClick={(e) => startRename(resume.id, resume.name, e)}
                         disabled={
-                          deletingId() !== null || duplicatingId() !== null
+                          deletingId() !== null || duplicatingId() !== null || renamingId() !== null
                         }
                         title="Rename"
                         aria-label="Rename resume"

@@ -49,9 +49,13 @@ export function getMetaMap(): Record<string, ResumeMetaEntry> {
   }
 }
 
-/** Persist the full metadata map back to localStorage. */
+/** Persist the full metadata map back to localStorage. Throws on quota errors. */
 function setMetaMap(map: Record<string, ResumeMetaEntry>): void {
-  localStorage.setItem(META_KEY, JSON.stringify(map));
+  try {
+    localStorage.setItem(META_KEY, JSON.stringify(map));
+  } catch (e) {
+    throw new Error("Failed to persist resume metadata: localStorage quota exceeded", { cause: e });
+  }
 }
 
 /** Upsert metadata for a single resume. */
@@ -287,13 +291,14 @@ export function useResumeList() {
       try {
         const original = await getResume(id);
         const newId = generateId();
-        await saveResume(newId, structuredClone(original));
 
-        // Copy metadata with "(Copy)" suffix
+        // Set metadata with "(Copy)" suffix before saving so saveResume
+        // sees existing metadata and doesn't overwrite it.
         const originalMeta = getResumeMeta(id);
         const baseName = originalMeta?.title ?? deriveTitleFromResume(original);
         setResumeMeta(newId, `${baseName} (Copy)`);
 
+        await saveResume(newId, structuredClone(original));
         await refetch();
         return newId;
       } catch (e) {
