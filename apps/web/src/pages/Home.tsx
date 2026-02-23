@@ -212,104 +212,116 @@ export default function Home() {
                     class="group flex items-center justify-between p-4 border border-border
                       rounded-xl hover:border-accent hover:shadow-card transition-all bg-paper"
                   >
-                    <A href={`/edit/${resume.id}`} class="flex items-center gap-4 flex-1 min-w-0">
-                      <div class="w-12 h-12 bg-surface rounded-lg flex items-center justify-center flex-shrink-0">
-                        <svg
-                          class="w-6 h-6 text-stone group-hover:text-accent transition-colors"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          aria-hidden="true"
-                        >
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="1.5"
-                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                          />
-                        </svg>
-                      </div>
-                      <div class="min-w-0">
-                        <Show
-                          when={renamingId() !== resume.id}
-                          fallback={
-                            <div
-                              class="flex items-center gap-2"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                              }}
+                    <Show
+                      when={renamingId() !== resume.id}
+                      fallback={
+                        <div class="flex items-center gap-4 flex-1 min-w-0">
+                          <div class="w-12 h-12 bg-surface rounded-lg flex items-center justify-center flex-shrink-0">
+                            <svg
+                              class="w-6 h-6 text-stone"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                              aria-hidden="true"
                             >
-                              <input
-                                type="text"
-                                class="font-body font-medium text-ink bg-surface border border-border
-                                  rounded px-2 py-0.5 text-sm focus:outline-none focus:border-accent w-48"
-                                aria-label="Rename resume"
-                                value={renameValue()}
-                                onInput={(e) => setRenameValue(e.currentTarget.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") confirmRename(resume.id);
-                                  if (e.key === "Escape") cancelRename();
-                                }}
-                                ref={(el) => setTimeout(() => el?.focus(), 0)}
-                                data-testid="rename-input"
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="1.5"
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                               />
-                              <button
-                                type="button"
-                                class="p-1 text-accent hover:text-accent/80 transition-colors"
-                                onClick={() => confirmRename(resume.id)}
-                                title="Confirm rename"
-                                aria-label="Confirm rename"
+                            </svg>
+                          </div>
+                          <div class="min-w-0 flex items-center gap-2">
+                            <input
+                              type="text"
+                              class="font-body font-medium text-ink bg-surface border border-border
+                                rounded px-2 py-0.5 text-sm focus:outline-none focus:border-accent w-48"
+                              aria-label="Rename resume"
+                              value={renameValue()}
+                              onInput={(e) => setRenameValue(e.currentTarget.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") confirmRename(resume.id);
+                                if (e.key === "Escape") cancelRename();
+                              }}
+                              ref={(el) => setTimeout(() => el?.focus(), 0)}
+                              data-testid="rename-input"
+                            />
+                            <button
+                              type="button"
+                              class="p-1 text-accent hover:text-accent/80 transition-colors"
+                              onClick={() => confirmRename(resume.id)}
+                              title="Confirm rename"
+                              aria-label="Confirm rename"
+                            >
+                              <svg
+                                class="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
                               >
-                                <svg
-                                  class="w-4 h-4"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                  aria-hidden="true"
-                                >
-                                  <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M5 13l4 4L19 7"
-                                  />
-                                </svg>
-                              </button>
-                              <button
-                                type="button"
-                                class="p-1 text-stone hover:text-ink transition-colors"
-                                onClick={() => cancelRename()}
-                                title="Cancel rename"
-                                aria-label="Cancel rename"
+                                <path
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                  stroke-width="2"
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              class="p-1 text-stone hover:text-ink transition-colors"
+                              onClick={() => cancelRename()}
+                              title="Cancel rename"
+                              aria-label="Cancel rename"
+                            >
+                              <svg
+                                class="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
                               >
-                                <svg
-                                  class="w-4 h-4"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                  aria-hidden="true"
-                                >
-                                  <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M6 18L18 6M6 6l12 12"
-                                  />
-                                </svg>
-                              </button>
-                            </div>
-                          }
-                        >
+                                <path
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                  stroke-width="2"
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      }
+                    >
+                      <A href={`/edit/${resume.id}`} class="flex items-center gap-4 flex-1 min-w-0">
+                        <div class="w-12 h-12 bg-surface rounded-lg flex items-center justify-center flex-shrink-0">
+                          <svg
+                            class="w-6 h-6 text-stone group-hover:text-accent transition-colors"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="1.5"
+                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
+                          </svg>
+                        </div>
+                        <div class="min-w-0">
                           <h3 class="font-body font-medium text-ink group-hover:text-accent transition-colors truncate">
                             {resume.name}
                           </h3>
                           <p class="text-sm text-stone">
                             Updated {formatUpdatedAt(resume.updatedAt)}
                           </p>
-                        </Show>
-                      </div>
-                    </A>
+                        </div>
+                      </A>
+                    </Show>
 
                     <div class="flex items-center gap-2 flex-shrink-0">
                       <button
