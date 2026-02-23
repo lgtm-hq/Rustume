@@ -51,11 +51,7 @@ export function getMetaMap(): Record<string, ResumeMetaEntry> {
 
 /** Persist the full metadata map back to localStorage. */
 function setMetaMap(map: Record<string, ResumeMetaEntry>): void {
-  try {
-    localStorage.setItem(META_KEY, JSON.stringify(map));
-  } catch (e) {
-    console.error("Failed to save resume metadata to localStorage:", e);
-  }
+  localStorage.setItem(META_KEY, JSON.stringify(map));
 }
 
 /** Upsert metadata for a single resume. */

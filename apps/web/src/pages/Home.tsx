@@ -314,8 +314,12 @@ export default function Home() {
                     <div class="flex items-center gap-2 flex-shrink-0">
                       <button
                         type="button"
-                        class="p-2 text-stone hover:text-accent hover:bg-accent/10 rounded-lg transition-colors"
+                        class="p-2 text-stone hover:text-accent hover:bg-accent/10 rounded-lg transition-colors
+                          disabled:opacity-50 disabled:cursor-not-allowed"
                         onClick={(e) => startRename(resume.id, resume.name, e)}
+                        disabled={
+                          deletingId() !== null || duplicatingId() !== null
+                        }
                         title="Rename"
                         aria-label="Rename resume"
                       >
