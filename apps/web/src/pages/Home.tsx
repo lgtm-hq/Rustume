@@ -9,6 +9,8 @@ function formatUpdatedAt(date: Date): string {
   const now = Date.now();
   const diff = now - date.getTime();
 
+  // Guard against future dates (e.g. clock skew)
+  if (diff < 0) return "just now";
   if (diff < 60_000) return "just now";
   if (diff < 3_600_000) {
     const mins = Math.floor(diff / 60_000);
@@ -22,7 +24,11 @@ function formatUpdatedAt(date: Date): string {
     const days = Math.floor(diff / 86_400_000);
     return `${days}d ago`;
   }
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 export default function Home() {

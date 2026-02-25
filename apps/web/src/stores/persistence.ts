@@ -160,7 +160,12 @@ function saveLocalResume(id: string, data: ResumeData): void {
   // Update metadata: keep existing title if set, otherwise derive from data
   const existing = getResumeMeta(id);
   const title = existing?.title ?? deriveTitleFromResume(data);
-  setResumeMeta(id, title);
+  try {
+    setResumeMeta(id, title);
+  } catch (e) {
+    console.error("Failed to update resume metadata:", e);
+    toast.warning("Resume saved but metadata could not be updated — storage may be full");
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -204,7 +209,12 @@ async function saveResume(id: string, data: ResumeData): Promise<void> {
     // Update metadata in localStorage even for WASM backend
     const existing = getResumeMeta(id);
     const title = existing?.title ?? deriveTitleFromResume(data);
-    setResumeMeta(id, title);
+    try {
+      setResumeMeta(id, title);
+    } catch (e) {
+      console.error("Failed to update resume metadata:", e);
+      toast.warning("Resume saved but metadata could not be updated — storage may be full");
+    }
     return;
   }
   saveLocalResume(id, data);
