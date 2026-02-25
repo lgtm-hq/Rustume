@@ -24,31 +24,32 @@ jobs:
     steps:
       - name: Harden Runner
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@v0
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
         with:
           egress-policy: block
           allowed-endpoints: >
-            github.com:443
-            api.github.com:443
-            codeload.github.com:443
-            objects.githubusercontent.com:443
-            sigstore.dev:443
-            fulcio.sigstore.dev:443
-            rekor.sigstore.dev:443
-            tuf-repo-cdn.sigstore.dev:443
-            ossf.github.io:443
-            www.bestpractices.dev:443
-            api.osv.dev:443
+            agent.api.stepsecurity.io:443
             api.deps.dev:443
+            api.github.com:443
+            api.osv.dev:443
             api.scorecard.dev:443
+            codeload.github.com:443
+            fulcio.sigstore.dev:443
+            github.com:443
+            objects.githubusercontent.com:443
             oss-fuzz-build-logs.storage.googleapis.com:443
+            ossf.github.io:443
+            rekor.sigstore.dev:443
+            sigstore.dev:443
+            tuf-repo-cdn.sigstore.dev:443
+            www.bestpractices.dev:443
 
       - name: Checkout
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@v0
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Run Scorecards analysis
         # yamllint disable-line rule:line-length
