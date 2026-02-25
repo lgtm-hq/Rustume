@@ -32,16 +32,32 @@ const META_KEY = STORAGE_KEY_PREFIX + "_meta";
 // Metadata helpers
 // ---------------------------------------------------------------------------
 
+/** Check whether a value matches the ResumeMetaEntry shape. */
+function isValidMetaEntry(v: unknown): v is ResumeMetaEntry {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    typeof (v as Record<string, unknown>).title === "string" &&
+    typeof (v as Record<string, unknown>).updatedAt === "string"
+  );
+}
+
 /** Read the entire metadata map from localStorage. */
 export function getMetaMap(): Record<string, ResumeMetaEntry> {
   const raw = localStorage.getItem(META_KEY);
   if (!raw) return {};
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-      return parsed as Record<string, ResumeMetaEntry>;
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return {};
     }
-    return {};
+    const result: Record<string, ResumeMetaEntry> = {};
+    for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+      if (isValidMetaEntry(value)) {
+        result[key] = value;
+      }
+    }
+    return result;
   } catch {
     console.error("Failed to parse resume metadata from localStorage, resetting");
     localStorage.removeItem(META_KEY);
@@ -249,7 +265,7 @@ async function fetchResumeList(): Promise<ResumeListItem[]> {
           try {
             setResumeMeta(id, title);
           } catch (metaErr) {
-            console.error(`Failed to persist metadata for resume ${id}:`, metaErr);
+            console.error("Failed to persist metadata for resume:", id, metaErr);
           }
         }
         migratedMap.set(id, { id, name: title, updatedAt: new Date() });
@@ -303,6 +319,7 @@ export function useResumeList() {
 
     async duplicateResume(id: string): Promise<string> {
       let newId: string | undefined;
+      let saveCompleted = false;
       try {
         const original = await getResume(id);
         newId = generateId();
@@ -314,11 +331,12 @@ export function useResumeList() {
         setResumeMeta(newId, `${baseName} (Copy)`);
 
         await saveResume(newId, structuredClone(original));
+        saveCompleted = true;
         await refetch();
         return newId;
       } catch (e) {
-        // Clean up pre-created metadata so no orphan remains
-        if (newId) {
+        // Only roll back pre-created metadata if save didn't complete
+        if (newId && !saveCompleted) {
           try {
             deleteResumeMeta(newId);
           } catch {
