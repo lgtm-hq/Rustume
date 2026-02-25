@@ -95,6 +95,7 @@ export default function Home() {
       } catch (err) {
         console.error("Failed to rename:", err);
         toast.error(err instanceof Error ? err.message : "Failed to rename resume");
+        return;
       }
     }
     setRenamingId(null);

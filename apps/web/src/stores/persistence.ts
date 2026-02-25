@@ -246,7 +246,11 @@ async function fetchResumeList(): Promise<ResumeListItem[]> {
         if (result.status === "fulfilled") {
           title = deriveTitleFromResume(result.value.data);
           // Persist the derived metadata so future loads are instant
-          setResumeMeta(id, title);
+          try {
+            setResumeMeta(id, title);
+          } catch (metaErr) {
+            console.error(`Failed to persist metadata for resume ${id}:`, metaErr);
+          }
         }
         migratedMap.set(id, { id, name: title, updatedAt: new Date() });
       }
@@ -298,9 +302,10 @@ export function useResumeList() {
     },
 
     async duplicateResume(id: string): Promise<string> {
+      let newId: string | undefined;
       try {
         const original = await getResume(id);
-        const newId = generateId();
+        newId = generateId();
 
         // Set metadata with "(Copy)" suffix before saving so saveResume
         // sees existing metadata and doesn't overwrite it.
@@ -312,6 +317,14 @@ export function useResumeList() {
         await refetch();
         return newId;
       } catch (e) {
+        // Clean up pre-created metadata so no orphan remains
+        if (newId) {
+          try {
+            deleteResumeMeta(newId);
+          } catch {
+            // Best-effort cleanup
+          }
+        }
         console.error("Failed to duplicate resume:", e);
         toast.error("Failed to duplicate resume");
         throw e;
