@@ -18,8 +18,96 @@ export interface ResumeListItem {
   updatedAt: Date;
 }
 
+/** Serialized form stored in localStorage under the `_meta` key. */
+export interface ResumeMetaEntry {
+  title: string;
+  updatedAt: string; // ISO-8601
+}
+
 // LocalStorage fallback
 const STORAGE_KEY_PREFIX = "rustume:";
+const META_KEY = STORAGE_KEY_PREFIX + "_meta";
+
+// ---------------------------------------------------------------------------
+// Metadata helpers
+// ---------------------------------------------------------------------------
+
+/** Check whether a value matches the ResumeMetaEntry shape. */
+function isValidMetaEntry(v: unknown): v is ResumeMetaEntry {
+  if (typeof v !== "object" || v === null) return false;
+  const obj = v as Record<string, unknown>;
+  if (typeof obj.title !== "string") return false;
+  if (typeof obj.updatedAt !== "string") return false;
+  return !Number.isNaN(Date.parse(obj.updatedAt));
+}
+
+/** Read the entire metadata map from localStorage. */
+export function getMetaMap(): Record<string, ResumeMetaEntry> {
+  const raw = localStorage.getItem(META_KEY);
+  if (!raw) return {};
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return {};
+    }
+    const result: Record<string, ResumeMetaEntry> = {};
+    for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+      if (isValidMetaEntry(value)) {
+        result[key] = value;
+      }
+    }
+    return result;
+  } catch {
+    console.error("Failed to parse resume metadata from localStorage, resetting");
+    localStorage.removeItem(META_KEY);
+    return {};
+  }
+}
+
+/** Persist the full metadata map back to localStorage. Throws on quota errors. */
+function setMetaMap(map: Record<string, ResumeMetaEntry>): void {
+  try {
+    localStorage.setItem(META_KEY, JSON.stringify(map));
+  } catch (e) {
+    throw new Error("Failed to persist resume metadata: localStorage quota exceeded", { cause: e });
+  }
+}
+
+/** Upsert metadata for a single resume. */
+export function setResumeMeta(id: string, title: string, updatedAt?: Date): void {
+  const map = getMetaMap();
+  map[id] = {
+    title,
+    updatedAt: (updatedAt ?? new Date()).toISOString(),
+  };
+  setMetaMap(map);
+}
+
+/** Remove metadata for a single resume. */
+function deleteResumeMeta(id: string): void {
+  const map = getMetaMap();
+  delete map[id];
+  setMetaMap(map);
+}
+
+/** Get metadata for a single resume, or null if missing. */
+export function getResumeMeta(id: string): ResumeMetaEntry | null {
+  return getMetaMap()[id] ?? null;
+}
+
+/**
+ * Derive a display title for a resume.
+ * Priority: persisted title > basics.name > fallback placeholder.
+ */
+export function deriveTitleFromResume(data: ResumeData): string {
+  const name = data.basics?.name?.trim();
+  if (name) return name;
+  return "Untitled Resume";
+}
+
+// ---------------------------------------------------------------------------
+// LocalStorage resume CRUD
+// ---------------------------------------------------------------------------
 
 function listLocalResumes(): string[] {
   const ids = localStorage.getItem(STORAGE_KEY_PREFIX + "_ids");
@@ -57,13 +145,14 @@ function getLocalResume(id: string): ResumeData {
   }
 }
 
-function saveLocalResume(id: string, data: ResumeData): void {
+/** Save a resume to localStorage. Returns false if the primary write fails. */
+function saveLocalResume(id: string, data: ResumeData): boolean {
   try {
     localStorage.setItem(STORAGE_KEY_PREFIX + id, JSON.stringify(data));
   } catch (e) {
     console.error("Failed to save resume to localStorage:", STORAGE_KEY_PREFIX + id, e);
     toast.error("Local storage is full — could not save resume");
-    return;
+    return false;
   }
   let ids: string[] = [];
   try {
@@ -83,7 +172,22 @@ function saveLocalResume(id: string, data: ResumeData): void {
       toast.error("Local storage is full — resume saved but list not updated");
     }
   }
+
+  // Update metadata: keep existing title if set, otherwise derive from data
+  const existing = getResumeMeta(id);
+  const title = existing?.title ?? deriveTitleFromResume(data);
+  try {
+    setResumeMeta(id, title);
+  } catch (e) {
+    console.error("Failed to update resume metadata:", e);
+    toast.warning("Resume saved but metadata could not be updated — storage may be full");
+  }
+  return true;
 }
+
+// ---------------------------------------------------------------------------
+// Unified async API (WASM with localStorage fallback)
+// ---------------------------------------------------------------------------
 
 async function listResumes(): Promise<string[]> {
   if (isWasmReady()) {
@@ -94,9 +198,12 @@ async function listResumes(): Promise<string[]> {
 
 async function deleteResume(id: string): Promise<void> {
   if (isWasmReady()) {
-    return deleteFromWasmStorage(id);
+    await deleteFromWasmStorage(id);
+  } else {
+    deleteLocalResume(id);
   }
-  deleteLocalResume(id);
+  // Always clean up metadata (stored in localStorage regardless of backend)
+  deleteResumeMeta(id);
 }
 
 async function resumeExists(id: string): Promise<boolean> {
@@ -115,27 +222,80 @@ async function getResume(id: string): Promise<ResumeData> {
 
 async function saveResume(id: string, data: ResumeData): Promise<void> {
   if (isWasmReady()) {
-    return saveToWasmStorage(id, data);
+    await saveToWasmStorage(id, data);
+    // Update metadata in localStorage even for WASM backend
+    const existing = getResumeMeta(id);
+    const title = existing?.title ?? deriveTitleFromResume(data);
+    try {
+      setResumeMeta(id, title);
+    } catch (e) {
+      console.error("Failed to update resume metadata:", e);
+      toast.warning("Resume saved but metadata could not be updated — storage may be full");
+    }
+    return;
   }
-  saveLocalResume(id, data);
+  if (!saveLocalResume(id, data)) {
+    throw new Error("Failed to save resume to local storage");
+  }
 }
+
+// ---------------------------------------------------------------------------
+// Fetch list with real metadata
+// ---------------------------------------------------------------------------
 
 async function fetchResumeList(): Promise<ResumeListItem[]> {
   try {
     const ids = await listResumes();
-    // For now, just return IDs - in a full implementation,
-    // we'd store metadata separately or fetch each resume
-    return ids.map((id) => ({
-      id,
-      name: `Resume ${id.slice(0, 8)}`,
-      updatedAt: new Date(),
-    }));
+    const metaMap = getMetaMap();
+
+    // Identify IDs that need migration (no metadata yet)
+    const needsMigration = ids.filter((id) => !metaMap[id]);
+
+    // Migrate missing metadata in parallel
+    const migratedMap = new Map<string, ResumeListItem>();
+    if (needsMigration.length > 0) {
+      const migrationResults = await Promise.allSettled(
+        needsMigration.map((id) => getResume(id).then((data) => ({ id, data }))),
+      );
+
+      for (let i = 0; i < needsMigration.length; i++) {
+        const id = needsMigration[i];
+        const result = migrationResults[i];
+        let title = "Untitled Resume";
+        if (result.status === "fulfilled") {
+          title = deriveTitleFromResume(result.value.data);
+          // Persist the derived metadata so future loads are instant
+          try {
+            setResumeMeta(id, title);
+          } catch (metaErr) {
+            console.error("Failed to persist metadata for resume:", id, metaErr);
+          }
+        }
+        migratedMap.set(id, { id, name: title, updatedAt: new Date() });
+      }
+    }
+
+    // Map over original ids to preserve ordering
+    return ids.map((id) => {
+      const migrated = migratedMap.get(id);
+      if (migrated) return migrated;
+      const meta = metaMap[id];
+      return {
+        id,
+        name: meta.title,
+        updatedAt: new Date(meta.updatedAt),
+      };
+    });
   } catch (e) {
     console.error("Failed to list resumes:", e);
     toast.error("Failed to load resume list");
     return [];
   }
 }
+
+// ---------------------------------------------------------------------------
+// Public hook
+// ---------------------------------------------------------------------------
 
 export function useResumeList() {
   const [resumes, { refetch }] = createResource(fetchResumeList);
@@ -161,15 +321,47 @@ export function useResumeList() {
     },
 
     async duplicateResume(id: string): Promise<string> {
+      let newId: string | undefined;
+      let saveCompleted = false;
       try {
         const original = await getResume(id);
-        const newId = generateId();
+        newId = generateId();
+
+        // Set metadata with "(Copy)" suffix before saving so saveResume
+        // sees existing metadata and doesn't overwrite it.
+        const originalMeta = getResumeMeta(id);
+        const baseName = originalMeta?.title ?? deriveTitleFromResume(original);
+        setResumeMeta(newId, `${baseName} (Copy)`);
+
         await saveResume(newId, structuredClone(original));
+        saveCompleted = true;
         await refetch();
         return newId;
       } catch (e) {
+        // Only roll back pre-created metadata if save didn't complete
+        if (newId && !saveCompleted) {
+          try {
+            deleteResumeMeta(newId);
+          } catch {
+            // Best-effort cleanup
+          }
+        }
         console.error("Failed to duplicate resume:", e);
         toast.error("Failed to duplicate resume");
+        throw e;
+      }
+    },
+
+    async renameResume(id: string, newTitle: string) {
+      try {
+        const trimmed = newTitle.trim();
+        if (!trimmed) return;
+        if (!(await resumeExists(id))) return;
+        setResumeMeta(id, trimmed);
+        await refetch();
+      } catch (e) {
+        console.error("Failed to rename resume:", e);
+        toast.error("Failed to rename resume");
         throw e;
       }
     },
