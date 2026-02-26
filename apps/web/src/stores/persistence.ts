@@ -356,6 +356,7 @@ export function useResumeList() {
       try {
         const trimmed = newTitle.trim();
         if (!trimmed) return;
+        if (!(await resumeExists(id))) return;
         setResumeMeta(id, trimmed);
         await refetch();
       } catch (e) {
