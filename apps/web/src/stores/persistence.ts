@@ -34,12 +34,11 @@ const META_KEY = STORAGE_KEY_PREFIX + "_meta";
 
 /** Check whether a value matches the ResumeMetaEntry shape. */
 function isValidMetaEntry(v: unknown): v is ResumeMetaEntry {
-  return (
-    typeof v === "object" &&
-    v !== null &&
-    typeof (v as Record<string, unknown>).title === "string" &&
-    typeof (v as Record<string, unknown>).updatedAt === "string"
-  );
+  if (typeof v !== "object" || v === null) return false;
+  const obj = v as Record<string, unknown>;
+  if (typeof obj.title !== "string") return false;
+  if (typeof obj.updatedAt !== "string") return false;
+  return !Number.isNaN(Date.parse(obj.updatedAt));
 }
 
 /** Read the entire metadata map from localStorage. */
@@ -146,13 +145,14 @@ function getLocalResume(id: string): ResumeData {
   }
 }
 
-function saveLocalResume(id: string, data: ResumeData): void {
+/** Save a resume to localStorage. Returns false if the primary write fails. */
+function saveLocalResume(id: string, data: ResumeData): boolean {
   try {
     localStorage.setItem(STORAGE_KEY_PREFIX + id, JSON.stringify(data));
   } catch (e) {
     console.error("Failed to save resume to localStorage:", STORAGE_KEY_PREFIX + id, e);
     toast.error("Local storage is full — could not save resume");
-    return;
+    return false;
   }
   let ids: string[] = [];
   try {
@@ -182,6 +182,7 @@ function saveLocalResume(id: string, data: ResumeData): void {
     console.error("Failed to update resume metadata:", e);
     toast.warning("Resume saved but metadata could not be updated — storage may be full");
   }
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -233,7 +234,9 @@ async function saveResume(id: string, data: ResumeData): Promise<void> {
     }
     return;
   }
-  saveLocalResume(id, data);
+  if (!saveLocalResume(id, data)) {
+    throw new Error("Failed to save resume to local storage");
+  }
 }
 
 // ---------------------------------------------------------------------------
