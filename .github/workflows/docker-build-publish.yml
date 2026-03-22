@@ -25,7 +25,7 @@ jobs:
   docker:
     name: 🐳 Docker Build & Publish
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@6686f5e98911343d73c4bd0e173b4749c5086423 # v0
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@a5b0b3aba611730e5e75feab8d0920bbd7080a3e # v0.8.2
     permissions:
       contents: read
       packages: write
