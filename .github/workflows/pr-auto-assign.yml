@@ -1,20 +1,22 @@
 # SPDX-License-Identifier: MIT
 ---
 name: PR - Auto Assign
-# Automatically assigns the PR author as the assignee.
-# Uses lgtm-ci harden-runner action.
+# Automatically assigns a random CODEOWNER to new pull requests.
+# Ensures every PR has an assignee for accountability.
 
 "on":
   pull_request_target:
     types: [opened, reopened]
 
-permissions:
-  pull-requests: write
+permissions: {}
 
 jobs:
   assign:
     name: 👤 Auto Assign PR Author
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: write
     timeout-minutes: 5
 
     steps:
@@ -26,16 +28,19 @@ jobs:
           allowed-endpoints: >
             github.com:443
             api.github.com:443
+            codeload.github.com:443
 
-      - name: Assign PR author
-        # yamllint disable-line rule:line-length
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
         with:
-          script: |
-            const author = context.payload.pull_request.user.login;
-            await github.rest.issues.addAssignees({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-              assignees: [author]
-            });
+          sparse-checkout: |
+            .github/CODEOWNERS
+            scripts/ci/github/pr-auto-assign.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Assign random CODEOWNER
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_AUTHOR_TYPE: ${{ github.event.pull_request.user.type }}
+        run: ./scripts/ci/github/pr-auto-assign.sh
