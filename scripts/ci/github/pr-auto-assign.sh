@@ -5,7 +5,9 @@
 # Required environment variables:
 #   GH_TOKEN        - GitHub token for gh CLI
 #   PR_NUMBER       - Pull request number to assign
-#   PR_AUTHOR_TYPE  - GitHub user type of the PR author (e.g. "User", "Bot")
+#
+# Optional environment variables:
+#   PR_AUTHOR_TYPE  - GitHub user type (e.g. "User", "Bot")
 
 set -euo pipefail
 
@@ -22,21 +24,30 @@ fi
 CODEOWNERS_FILE=".github/CODEOWNERS"
 
 if [[ ! -f "$CODEOWNERS_FILE" ]]; then
-	echo "No CODEOWNERS file found at $CODEOWNERS_FILE, skipping assignment"
-	exit 0
+	echo "Error: CODEOWNERS file not found at $CODEOWNERS_FILE" >&2
+	echo "Check sparse-checkout configuration or file path." >&2
+	exit 1
 fi
 
-# Extract usernames from CODEOWNERS, filter out team entries (@org/team)
-# Pipeline: extract @mentions -> dedupe -> remove @ -> filter individuals
+# Parse CODEOWNERS: skip comments/blank lines, extract owner columns (fields
+# after the pattern), keep only individual users (no org/team entries with /)
 owners=""
-pipeline_output=$(grep -oE '@[a-zA-Z0-9_/-]+' "$CODEOWNERS_FILE" |
-	sort -u | tr -d '@' | grep -E '^[A-Za-z0-9_-]+$') &&
+pipeline_output=$(awk '
+  /^[[:space:]]*(#|$)/ { next }
+  {
+    for (i = 2; i <= NF; i++) {
+      owner = $i
+      sub(/^@/, "", owner)
+      if (owner !~ /\// && owner ~ /^[A-Za-z0-9_-]+$/) print owner
+    }
+  }
+' "$CODEOWNERS_FILE" | sort -u) &&
 	exit_code=0 || exit_code=$?
 
 if [[ $exit_code -eq 0 ]]; then
 	owners="$pipeline_output"
 elif [[ $exit_code -eq 1 ]]; then
-	# grep exit code 1 means no matches - expected when no individual owners
+	# awk/sort exit code 1 means no matches - expected when no individual owners
 	echo "No matches found in pipeline, treating as empty result"
 	owners=""
 else
