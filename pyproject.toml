@@ -6,7 +6,7 @@
 name = "rustume-lint"
 version = "0.1.0"
 description = "Linting configuration for Rustume"
-requires-python = ">=3.11"
+requires-python = "==3.14.3"
 readme = "README.md"
 license = { text = "MIT" }
 
@@ -14,7 +14,7 @@ license = { text = "MIT" }
 dependencies = []
 
 [dependency-groups]
-lint = ["lintro>=0.51.4"]
+lint = ["lintro==0.51.4"]
 
 [tool.lintro]
 line_length = 100

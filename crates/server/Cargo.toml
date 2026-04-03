@@ -34,19 +34,19 @@ thiserror.workspace = true
 
 # Logging
 tracing.workspace = true
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = { version = "=0.3.22", features = ["env-filter"] }
 
 # Base64 for binary data in JSON
-base64 = "0.22"
+base64 = "=0.22.1"
 
 # Caching
 lru.workspace = true
 
 # OpenAPI / Swagger
 utoipa.workspace = true
-utoipa-swagger-ui = { version = "8", features = ["axum"] }
+utoipa-swagger-ui = { version = "=8.1.0", features = ["axum"] }
 
 [dev-dependencies]
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "=0.12.28", features = ["json"] }
 tower = { workspace = true, features = ["util"] }
-http-body-util = "0.1"
+http-body-util = "=0.1.3"

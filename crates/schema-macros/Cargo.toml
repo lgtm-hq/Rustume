@@ -9,6 +9,6 @@ description = "Procedural macros for Rustume schema types"
 proc-macro = true
 
 [dependencies]
-syn = { version = "2.0", features = ["full", "extra-traits"] }
-quote = "1.0"
-proc-macro2 = "1.0"
+syn = { version = "=2.0.114", features = ["full", "extra-traits"] }
+quote = "=1.0.44"
+proc-macro2 = "=1.0.106"
