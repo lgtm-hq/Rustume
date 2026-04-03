@@ -38,7 +38,7 @@ helps prevent potential exploitation while we work on a fix.
 ### **Response Timeline**
 
 - **Acknowledgment**: Within 24-48 hours
-- **Investigation**: We'll look into it promptly
+- **Assessment**: Initial severity assessment within 7 calendar days
 - **Updates**: You'll be kept informed of progress
 - **Fix**: We'll work on a solution and coordinate disclosure
 
