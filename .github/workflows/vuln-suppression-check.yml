@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: MIT
+---
+name: Security - Vulnerability Suppression Check
+# Weekly check for stale or expired vulnerability suppressions.
+# Opens a cleanup PR when suppressions are no longer needed.
+
+"on":
+  schedule:
+    # Weekly on Monday at 04:00 UTC
+    - cron: "0 4 * * 1"
+  workflow_dispatch: {}
+
+permissions: {}
+
+concurrency:
+  group: vuln-suppression-check-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  check-suppressions:
+    name: 🔍 Check Vulnerability Suppressions
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Harden Runner
+        # yamllint disable-line rule:line-length
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            codeload.github.com:443
+            objects.githubusercontent.com:443
+            api.osv.dev:443
+            api.deps.dev:443
+
+      - name: Checkout
+        # yamllint disable-line rule:line-length
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Install osv-scanner
+        run: scripts/utils/install-osv-scanner.sh
+
+      - name: Check suppression staleness
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/ci/check-vuln-suppressions.sh

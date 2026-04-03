@@ -1,0 +1,25 @@
+# OSV-Scanner configuration for Rustume.
+# Suppressions for known vulnerabilities with no patched version available
+# in the current base image (Debian 12 bookworm).
+# Review periodically and remove once upstream fixes land.
+
+# --- glibc CVEs in debian:bookworm-slim (no fix available) ---
+# These are in the base image's preinstalled libc6 and cannot be
+# upgraded beyond what the distro provides. Tracked here with
+# expiration dates so lintro's suppression staleness check flags
+# them for re-evaluation.
+
+[[IgnoredVulns]]
+id = "CVE-2026-0861"
+ignoreUntil = 2026-07-03
+reason = "glibc memalign heap corruption — no fix in bookworm, accepted risk until base-image upgrade"
+
+[[IgnoredVulns]]
+id = "CVE-2026-0915"
+ignoreUntil = 2026-07-03
+reason = "glibc info disclosure via zero-valued network query — no fix in bookworm, accepted risk"
+
+[[IgnoredVulns]]
+id = "CVE-2025-15281"
+ignoreUntil = 2026-07-03
+reason = "glibc uninitialized memory in wordexp — no fix in bookworm, accepted risk"
