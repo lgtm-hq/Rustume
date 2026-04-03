@@ -52,7 +52,7 @@ helps prevent potential exploitation while we work on a fix.
 ## Security Updates
 
 Security fixes will be released as patch versions and documented in
-[CHANGELOG.md](CHANGELOG.md).
+[GitHub Releases](https://github.com/lgtm-hq/Rustume/releases).
 
 ## Security Measures
 
@@ -69,4 +69,4 @@ This project implements the following security practices:
 ## Contact
 
 - **Primary**: `turbocoder13@gmail.com`
-- **Backup**: Create a private security issue in GitHub
+- **Backup**: Create a [private security advisory][advisory]
