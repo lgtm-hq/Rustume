@@ -108,6 +108,11 @@ and this project adheres to
 
 ## [0.6.0] - 2026-02-20
 
+> **Note:** v0.1.1–v0.5.0 were released on the same day with cumulative
+> (non-incremental) notes and have been consolidated into this entry.
+> See [release history](https://github.com/lgtm-hq/Rustume/releases) for
+> the original per-version notes.
+
 ### Added
 
 - Port all 12 Typst templates with thumbnails and preview UX (#48)
