@@ -12,12 +12,11 @@ services:
       - RUST_LOG=info
       - PORT=3000
     restart: unless-stopped
+    # Distroless image has no shell or wget — disable container-local
+    # healthcheck. Use Docker Desktop / external monitoring to probe
+    # GET http://localhost:3000/health instead.
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 3s
-      retries: 3
-      start_period: 5s
+      disable: true
     # Resource limits (optional, adjust as needed)
     deploy:
       resources:

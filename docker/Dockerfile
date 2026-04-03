@@ -8,11 +8,13 @@ FROM rust:1.93-bookworm@sha256:c38b1b917cb749e50aea7dd6e87f6e315d62a4bc84e38d63f
 
 WORKDIR /app
 
-# Install build dependencies
+# Install build dependencies (includes fonts for copying to distroless runtime)
 # hadolint ignore=DL3008 -- apt version pinning impractical; Renovate updates base image
 RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     libssl-dev \
+    fonts-liberation \
+    fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy workspace files
@@ -24,38 +26,18 @@ COPY bindings ./bindings
 RUN cargo build --release -p rustume-server
 
 # =============================================================================
-# Stage 2: Runtime
+# Stage 2: Runtime (distroless — minimal attack surface)
 # =============================================================================
-FROM debian:bookworm-slim@sha256:56ff6d36d4eb3db13a741b342ec466f121480b5edded42e4b7ee850ce7a418ee AS runtime
-
-# Install runtime dependencies
-# - ca-certificates: for HTTPS
-# - fonts-liberation: standard fonts for PDF rendering
-# - fonts-dejavu: fallback fonts
-# - wget: for healthcheck (smaller than curl)
-# hadolint ignore=DL3008 -- apt version pinning impractical; Renovate updates base image
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    fonts-liberation \
-    fonts-dejavu-core \
-    wget \
-    zlib1g \
-    && rm -rf /var/lib/apt/lists/*
-
-# Create non-root user
-RUN groupadd --gid 1000 rustume \
-    && useradd --uid 1000 --gid rustume --shell /bin/bash --create-home rustume
+FROM gcr.io/distroless/cc-debian12:nonroot@sha256:7e5b8df2f4d36f5599ef4ab856d7d444922531709becb03f3368c6d797d0a5eb AS runtime
 
 WORKDIR /app
 
 # Copy binary from builder
 COPY --from=builder /app/target/release/rustume-server /app/rustume-server
 
-# Set ownership
-RUN chown -R rustume:rustume /app
-
-# Switch to non-root user
-USER rustume
+# Copy font files from builder (needed for PDF rendering)
+COPY --from=builder /usr/share/fonts/truetype/liberation /usr/share/fonts/truetype/liberation
+COPY --from=builder /usr/share/fonts/truetype/dejavu /usr/share/fonts/truetype/dejavu
 
 # Environment variables
 ENV RUST_LOG=info
@@ -64,9 +46,8 @@ ENV PORT=3000
 # Expose port
 EXPOSE 3000
 
-# Health check (uses PORT env var with fallback to 3000)
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --spider -q http://localhost:${PORT:-3000}/health || exit 1
+# Note: distroless has no shell — health checks should be configured
+# in the orchestrator (Docker Compose, Kubernetes) via HTTP probes
 
-# Run server
+# Run server (distroless nonroot user is UID 65532)
 CMD ["/app/rustume-server"]
