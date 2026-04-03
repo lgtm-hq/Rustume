@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: MIT
+---
+name: Security - CodeQL Analysis
+# Runs CodeQL static analysis on pushes, PRs, and weekly schedule.
+
+"on":
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: 🔬 CodeQL Analysis
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    concurrency:
+      group: codeql-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Harden Runner
+        # yamllint disable-line rule:line-length
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        # yamllint disable-line rule:line-length
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Initialize CodeQL
+        # yamllint disable-line rule:line-length
+        uses: github/codeql-action/init@b20883b0cd1f46c72ae0ba6d1090936928f9fa30 # v4
+        with:
+          languages: actions
+
+      - name: Perform CodeQL Analysis
+        # yamllint disable-line rule:line-length
+        uses: github/codeql-action/analyze@b20883b0cd1f46c72ae0ba6d1090936928f9fa30 # v4
