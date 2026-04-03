@@ -39,7 +39,7 @@ jobs:
         # yamllint disable-line rule:line-length
         uses: github/codeql-action/init@b20883b0cd1f46c72ae0ba6d1090936928f9fa30 # v4
         with:
-          languages: actions
+          languages: actions, rust
 
       - name: Perform CodeQL Analysis
         # yamllint disable-line rule:line-length
