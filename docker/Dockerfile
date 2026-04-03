@@ -13,6 +13,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     libssl-dev \
+    zlib1g \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy workspace files
@@ -39,6 +40,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-liberation \
     fonts-dejavu-core \
     wget \
+    zlib1g \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
