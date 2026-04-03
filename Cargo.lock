@@ -883,6 +883,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "12a0bb14ac04a9fcf170d0bbbef949b44cc492f4452bd20c095636956f653642"
 
 [[package]]
+name = "ego-tree"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b04dc5a38e4f151a79d9f2451ae6037fb6eaf5cba34771f44781f80e508498e3"
+
+[[package]]
 name = "either"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3325,7 +3331,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-cli"
-version = "0.8.4"
+version = "0.11.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -3346,7 +3352,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-parser"
-version = "0.8.4"
+version = "0.11.0"
 dependencies = [
  "csv",
  "cuid2",
@@ -3362,7 +3368,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-render"
-version = "0.8.4"
+version = "0.11.0"
 dependencies = [
  "chrono",
  "rstest",
@@ -3381,7 +3387,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-schema"
-version = "0.8.4"
+version = "0.11.0"
 dependencies = [
  "cuid2",
  "once_cell",
@@ -3398,7 +3404,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-schema-macros"
-version = "0.8.4"
+version = "0.11.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3407,7 +3413,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-server"
-version = "0.8.4"
+version = "0.11.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -3434,7 +3440,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-storage"
-version = "0.8.4"
+version = "0.11.0"
 dependencies = [
  "async-trait",
  "js-sys",
@@ -3451,12 +3457,12 @@ dependencies = [
 
 [[package]]
 name = "rustume-utils"
-version = "0.8.4"
+version = "0.11.0"
 dependencies = [
  "ammonia",
  "chrono",
  "cuid2",
- "ego-tree",
+ "ego-tree 0.11.0",
  "once_cell",
  "regex",
  "rstest",
@@ -3465,7 +3471,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-wasm"
-version = "0.8.4"
+version = "0.11.0"
 dependencies = [
  "js-sys",
  "rustume-parser",
@@ -3557,7 +3563,7 @@ checksum = "b90460b31bfe1fc07be8262e42c665ad97118d4585869de9345a84d501a9eaf0"
 dependencies = [
  "ahash",
  "cssparser 0.31.2",
- "ego-tree",
+ "ego-tree 0.6.3",
  "getopts",
  "html5ever 0.27.0",
  "once_cell",
