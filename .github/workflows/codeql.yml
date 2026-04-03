@@ -41,6 +41,11 @@ jobs:
             codeload.github.com:443
             release-assets.githubusercontent.com:443
             objects.githubusercontent.com:443
+            static.rust-lang.org:443
+            sh.rustup.rs:443
+            crates.io:443
+            static.crates.io:443
+            index.crates.io:443
 
       - name: Checkout
         # yamllint disable-line rule:line-length
@@ -51,10 +56,11 @@ jobs:
         uses: github/codeql-action/init@b20883b0cd1f46c72ae0ba6d1090936928f9fa30 # v4
         with:
           languages: actions, rust
+          build-mode: manual
 
-      - name: Autobuild
-        # yamllint disable-line rule:line-length
-        uses: github/codeql-action/autobuild@b20883b0cd1f46c72ae0ba6d1090936928f9fa30 # v4
+      - name: Build for CodeQL analysis
+        shell: bash
+        run: cargo check --workspace
 
       - name: Perform CodeQL Analysis
         # yamllint disable-line rule:line-length
