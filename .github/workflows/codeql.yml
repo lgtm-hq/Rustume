@@ -3,6 +3,8 @@
 name: Security - CodeQL Code Scanning
 # GitHub CodeQL static analysis for security vulnerabilities.
 # Scans Rust and GitHub Actions code, uploads results to Security tab.
+# Rust endpoints are allowed so the extractor can download dependencies
+# for type resolution and macro expansion.
 
 "on":
   push:
@@ -39,8 +41,14 @@ jobs:
             github.com:443
             api.github.com:443
             codeload.github.com:443
+            raw.githubusercontent.com:443
             release-assets.githubusercontent.com:443
             objects.githubusercontent.com:443
+            static.rust-lang.org:443
+            sh.rustup.rs:443
+            crates.io:443
+            static.crates.io:443
+            index.crates.io:443
 
       - name: Checkout
         # yamllint disable-line rule:line-length
