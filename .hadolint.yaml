@@ -3,10 +3,13 @@
 # https://github.com/hadolint/hadolint
 
 ignored:
-  # DL3008: Pin versions in apt get install
-  # Disabled because pinned versions can become unavailable, breaking builds.
-  # We use latest for base packages in reproducible base images.
-  - DL3008
+  # DL3018: Pin versions in apk add
+  # Alpine packages are versioned per-release (e.g., musl-dev=1.2.5-r9 only
+  # exists in one Alpine minor release). Pinning breaks builds when Renovate
+  # updates the rust:alpine base image digest to a newer Alpine release.
+  # The base image is already pinned by SHA digest, which controls the exact
+  # package versions available.
+  - DL3018
 
 trustedRegistries:
   - docker.io
