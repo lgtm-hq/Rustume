@@ -12,6 +12,10 @@
 //! - `POST /api/validate` - Validate resume data
 //! - `GET /swagger-ui` - Swagger UI documentation
 
+#[cfg(target_env = "musl")]
+#[global_allocator]
+static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
 use anyhow::Context;
 use axum::{
     extract::{DefaultBodyLimit, Path},

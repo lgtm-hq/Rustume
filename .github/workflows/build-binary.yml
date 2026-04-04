@@ -23,7 +23,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - target: x86_64-unknown-linux-gnu
+          - target: x86_64-unknown-linux-musl
             os: ubuntu-24.04
             archive: tar.gz
           - target: aarch64-unknown-linux-gnu
@@ -64,6 +64,10 @@ jobs:
         uses: lgtm-hq/lgtm-ci/.github/actions/setup-rust@282efbc5344859744d952012d982cec7be75c294 # v0
         with:
           targets: ${{ matrix.target }}
+
+      - name: Install musl toolchain
+        if: contains(matrix.target, 'musl')
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
 
       - name: Install cross (for cross-compilation)
         if: matrix.cross
