@@ -23,4 +23,4 @@ reason = "paste — transitive via typst -> hayagriva; informational (unmaintain
 [[IgnoredVulns]]
 id = "RUSTSEC-2026-0049"
 ignoreUntil = 2026-10-04
-reason = "rustls-webpki — dev-dep only (reqwest in tests); update blocked by cuid2 getrandom conflict"
+reason = "rustls-webpki — dev-dep via reqwest -> hyper-rustls -> rustls; cargo update blocked by cuid2 getrandom feature conflict"
