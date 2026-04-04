@@ -1,2 +1,3 @@
 # OSV-Scanner configuration for Rustume.
-# No suppressions needed — musl static build eliminates glibc/gcc CVEs.
+# No active suppressions. Transitive deps (yaml-rust, bincode, paste)
+# in the typst ecosystem are tracked upstream but not currently flagged.
