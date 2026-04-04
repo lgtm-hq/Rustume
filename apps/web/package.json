@@ -14,35 +14,38 @@
   },
   "dependencies": {
     "@kobalte/core": "^0.13.11",
-    "@lgtm-hq/turbo-themes": "^0.12.31",
+    "@lgtm-hq/turbo-themes": "^0.12.33",
     "@solidjs/router": "^0.15.4",
     "@tailwindcss/typography": "^0.5.19",
-    "@tailwindcss/vite": "^4.1.18",
+    "@tailwindcss/vite": "^4.2.2",
     "@thisbeyond/solid-dnd": "^0.7.5",
-    "@tiptap/core": "^3.19.0",
-    "@tiptap/extension-link": "^3.19.0",
-    "@tiptap/extension-placeholder": "^3.19.0",
-    "@tiptap/extension-underline": "^3.19.0",
-    "@tiptap/pm": "^3.19.0",
-    "@tiptap/starter-kit": "^3.19.0",
-    "postcss": "^8.5.6",
-    "solid-js": "^1.9.11",
-    "tailwindcss": "^4.1.18",
+    "@tiptap/core": "^3.22.1",
+    "@tiptap/extension-link": "^3.22.1",
+    "@tiptap/extension-placeholder": "^3.22.1",
+    "@tiptap/extension-underline": "^3.22.1",
+    "@tiptap/pm": "^3.22.1",
+    "@tiptap/starter-kit": "^3.22.1",
+    "postcss": "^8.5.8",
+    "solid-js": "^1.9.12",
+    "tailwindcss": "^4.2.2",
     "vite": "^7.3.1",
     "vite-plugin-pwa": "^1.2.0",
-    "vite-plugin-solid": "^2.11.10",
+    "vite-plugin-solid": "^2.11.11",
     "workbox-window": "^7.4.0"
   },
   "devDependencies": {
     "@solidjs/testing-library": "^0.8.10",
     "@testing-library/jest-dom": "^6.9.1",
-    "@types/bun": "^1.2.7",
-    "@types/node": "^25.1.0",
-    "@vitest/coverage-v8": "^4.0.18",
-    "jsdom": "^28.0.0",
-    "vitest": "^4.0.18"
+    "@types/bun": "^1.3.11",
+    "@types/node": "^25.5.2",
+    "@vitest/coverage-v8": "^4.1.2",
+    "jsdom": "^28.1.0",
+    "vitest": "^4.1.2"
   },
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "overrides": {
+    "@rollup/plugin-terser": "^1.0.0"
   }
 }

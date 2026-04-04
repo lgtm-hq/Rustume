@@ -1,43 +1,37 @@
 # Rustume API Server Dockerfile
-# Multi-stage build for minimal image size
+# Multi-stage build: musl static binary + distroless/static runtime (zero CVEs)
 
 # =============================================================================
-# Stage 1: Builder
+# Stage 1: Builder (Alpine for musl toolchain)
 # =============================================================================
-FROM rust:1.93-bookworm@sha256:c38b1b917cb749e50aea7dd6e87f6e315d62a4bc84e38d63f5eb8b1908db1b9a AS builder
+FROM rust:1.93-alpine@sha256:4fec02de605563c297c78a31064c8335bc004fa2b0bf406b1b99441da64e2d2d AS builder
 
 WORKDIR /app
 
-# Install build dependencies (includes fonts for copying to distroless runtime)
-# hadolint ignore=DL3008 -- apt version pinning impractical; Renovate updates base image
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    pkg-config \
-    libssl-dev \
-    fonts-liberation \
-    fonts-dejavu-core \
-    && rm -rf /var/lib/apt/lists/*
+# Install musl build toolchain and fonts (data files for copying to runtime)
+RUN apk add --no-cache musl-dev font-liberation font-dejavu
 
 # Copy workspace files
 COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
 COPY bindings ./bindings
 
-# Build release binary
-RUN cargo build --release -p rustume-server
+# Build statically-linked release binary (explicit target for stable artifact path)
+RUN cargo build --release --target x86_64-unknown-linux-musl -p rustume-server
 
 # =============================================================================
-# Stage 2: Runtime (distroless — minimal attack surface)
+# Stage 2: Runtime (distroless/static — no libc, no CVEs)
 # =============================================================================
-FROM gcr.io/distroless/cc-debian12:nonroot@sha256:7e5b8df2f4d36f5599ef4ab856d7d444922531709becb03f3368c6d797d0a5eb AS runtime
+FROM gcr.io/distroless/static:nonroot@sha256:e3f945647ffb95b5839c07038d64f9811adf17308b9121d8a2b87b6a22a80a39 AS runtime
 
 WORKDIR /app
 
 # Copy binary from builder
-COPY --from=builder /app/target/release/rustume-server /app/rustume-server
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/rustume-server /app/rustume-server
 
 # Copy font files from builder (needed for PDF rendering)
-COPY --from=builder /usr/share/fonts/truetype/liberation /usr/share/fonts/truetype/liberation
-COPY --from=builder /usr/share/fonts/truetype/dejavu /usr/share/fonts/truetype/dejavu
+COPY --from=builder /usr/share/fonts/liberation /usr/share/fonts/truetype/liberation
+COPY --from=builder /usr/share/fonts/dejavu /usr/share/fonts/truetype/dejavu
 
 # Environment variables
 ENV RUST_LOG=info

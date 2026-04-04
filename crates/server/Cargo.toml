@@ -46,6 +46,12 @@ lru.workspace = true
 utoipa.workspace = true
 utoipa-swagger-ui = { version = "8", features = ["axum"] }
 
+# Use jemalloc on musl to avoid musl's slower default allocator
+[target.'cfg(target_env = "musl")'.dependencies]
+tikv-jemallocator = { version = "0.6", features = [
+  "unprefixed_malloc_on_supported_platforms",
+] }
+
 [dev-dependencies]
 reqwest = { version = "0.12", features = ["json"] }
 tower = { workspace = true, features = ["util"] }
