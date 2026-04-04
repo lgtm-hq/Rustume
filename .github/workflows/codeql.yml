@@ -3,6 +3,8 @@
 name: Security - CodeQL Code Scanning
 # GitHub CodeQL static analysis for security vulnerabilities.
 # Scans Rust and GitHub Actions code, uploads results to Security tab.
+# Split into two jobs because actions only supports build-mode: none
+# while rust needs build-mode: manual for full type resolution.
 
 "on":
   push:
@@ -18,15 +20,59 @@ name: Security - CodeQL Code Scanning
 permissions: {}
 
 jobs:
-  analyze:
-    name: 🔬 CodeQL Analysis
+  analyze-actions:
+    name: 🔬 CodeQL (Actions)
+    permissions:
+      contents: read
+      security-events: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    concurrency:
+      group: codeql-actions-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Harden Runner
+        # yamllint disable-line rule:line-length
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            codeload.github.com:443
+            release-assets.githubusercontent.com:443
+            objects.githubusercontent.com:443
+
+      - name: Checkout
+        # yamllint disable-line rule:line-length
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Initialize CodeQL
+        # yamllint disable-line rule:line-length
+        uses: github/codeql-action/init@b20883b0cd1f46c72ae0ba6d1090936928f9fa30 # v4
+        with:
+          languages: actions
+
+      - name: Autobuild
+        # yamllint disable-line rule:line-length
+        uses: github/codeql-action/autobuild@b20883b0cd1f46c72ae0ba6d1090936928f9fa30 # v4
+
+      - name: Perform CodeQL Analysis
+        # yamllint disable-line rule:line-length
+        uses: github/codeql-action/analyze@b20883b0cd1f46c72ae0ba6d1090936928f9fa30 # v4
+        with:
+          category: "/language:actions"
+
+  analyze-rust:
+    name: 🔬 CodeQL (Rust)
     permissions:
       contents: read
       security-events: write
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     concurrency:
-      group: codeql-${{ github.ref }}
+      group: codeql-rust-${{ github.ref }}
       cancel-in-progress: true
 
     steps:
@@ -55,7 +101,7 @@ jobs:
         # yamllint disable-line rule:line-length
         uses: github/codeql-action/init@b20883b0cd1f46c72ae0ba6d1090936928f9fa30 # v4
         with:
-          languages: actions, rust
+          languages: rust
           build-mode: manual
 
       - name: Build for CodeQL analysis
@@ -66,4 +112,4 @@ jobs:
         # yamllint disable-line rule:line-length
         uses: github/codeql-action/analyze@b20883b0cd1f46c72ae0ba6d1090936928f9fa30 # v4
         with:
-          category: "/language:all"
+          category: "/language:rust"
