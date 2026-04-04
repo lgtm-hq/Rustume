@@ -9,7 +9,7 @@ FROM rust:1.93-alpine@sha256:4fec02de605563c297c78a31064c8335bc004fa2b0bf406b1b9
 WORKDIR /app
 
 # Install musl build toolchain and fonts (data files for copying to runtime)
-RUN apk add --no-cache musl-dev font-liberation font-dejavu
+RUN apk add --no-cache musl-dev make curl font-liberation font-dejavu
 
 # Copy workspace files
 COPY Cargo.toml Cargo.lock ./
