@@ -66,7 +66,7 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Install musl toolchain
-        if: contains(matrix.target, 'musl')
+        if: contains(matrix.target, 'musl') && runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y musl-tools
 
       - name: Install cross (for cross-compilation)

@@ -16,8 +16,8 @@ COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
 COPY bindings ./bindings
 
-# Build statically-linked release binary
-RUN cargo build --release -p rustume-server
+# Build statically-linked release binary (explicit target for stable artifact path)
+RUN cargo build --release --target x86_64-unknown-linux-musl -p rustume-server
 
 # =============================================================================
 # Stage 2: Runtime (distroless/static — no libc, no CVEs)
@@ -27,7 +27,7 @@ FROM gcr.io/distroless/static:nonroot@sha256:e3f945647ffb95b5839c07038d64f9811ad
 WORKDIR /app
 
 # Copy binary from builder
-COPY --from=builder /app/target/release/rustume-server /app/rustume-server
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/rustume-server /app/rustume-server
 
 # Copy font files from builder (needed for PDF rendering)
 COPY --from=builder /usr/share/fonts/liberation /usr/share/fonts/truetype/liberation

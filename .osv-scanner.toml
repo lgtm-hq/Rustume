@@ -1,3 +1,26 @@
 # OSV-Scanner configuration for Rustume.
-# No active suppressions. Transitive deps (yaml-rust, bincode, paste)
-# in the typst ecosystem are tracked upstream but not currently flagged.
+# Suppressions for transitive dependencies blocked on upstream releases.
+
+# --- Typst ecosystem: blocked on syntect/hayagriva upgrades ---
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0320"
+ignoreUntil = 2026-10-04
+reason = "yaml-rust — transitive via typst -> syntect; blocked until syntect migrates to yaml-rust2"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2025-0141"
+ignoreUntil = 2026-10-04
+reason = "bincode — transitive via typst -> syntect; blocked until syntect drops bincode"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0436"
+ignoreUntil = 2026-10-04
+reason = "paste — transitive via typst -> hayagriva; informational (unmaintained), functionally stable"
+
+# --- Dev-dependency: blocked on cuid2/getrandom conflict ---
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0049"
+ignoreUntil = 2026-10-04
+reason = "rustls-webpki — dev-dep only (reqwest in tests); update blocked by cuid2 getrandom conflict"
