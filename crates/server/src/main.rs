@@ -745,7 +745,7 @@ fn create_router() -> Router {
         .route("/health", get(health))
         // API routes
         .route("/api/templates", get(list_templates))
-        .route("/api/templates/:id/thumbnail", get(template_thumbnail))
+        .route("/api/templates/{id}/thumbnail", get(template_thumbnail))
         .route("/api/parse", post(parse))
         .route("/api/render/pdf", post(render_pdf))
         .route("/api/render/preview", post(render_preview))
