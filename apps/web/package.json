@@ -15,7 +15,7 @@
   "dependencies": {
     "@kobalte/core": "^0.13.11",
     "@lgtm-hq/turbo-themes": "^0.20.0",
-    "@solidjs/router": "^0.15.4",
+    "@solidjs/router": "^0.16.0",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.2.2",
     "@thisbeyond/solid-dnd": "^0.7.5",
