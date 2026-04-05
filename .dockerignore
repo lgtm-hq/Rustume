@@ -2,6 +2,9 @@
 target/
 *.rs.bk
 
+# Web frontend (not built by this Dockerfile — API server only)
+apps/
+
 # IDE
 .idea/
 .vscode/
