@@ -21,6 +21,7 @@
     {
       "groupName": "axum ecosystem",
       "groupSlug": "axum-ecosystem",
+      "matchManagers": ["cargo"],
       "matchPackageNames": [
         "axum",
         "axum-core",
