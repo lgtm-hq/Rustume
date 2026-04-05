@@ -53,6 +53,6 @@ tikv-jemallocator = { version = "0.6", features = [
 ] }
 
 [dev-dependencies]
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.13", features = ["json"] }
 tower = { workspace = true, features = ["util"] }
 http-body-util = "0.1"
