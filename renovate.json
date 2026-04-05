@@ -17,6 +17,21 @@
       "groupSlug": "linting-tools",
       "matchPackageNames": ["ghcr.io/lgtm-hq/py-lintro"],
       "automerge": false
+    },
+    {
+      "groupName": "axum ecosystem",
+      "groupSlug": "axum-ecosystem",
+      "matchPackageNames": [
+        "axum",
+        "axum-core",
+        "axum-extra",
+        "axum-macros",
+        "tower",
+        "tower-http",
+        "utoipa",
+        "utoipa-swagger-ui",
+        "utoipa-axum"
+      ]
     }
   ]
 }
