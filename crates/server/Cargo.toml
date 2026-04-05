@@ -44,7 +44,7 @@ lru.workspace = true
 
 # OpenAPI / Swagger
 utoipa.workspace = true
-utoipa-swagger-ui = { version = "8", features = ["axum"] }
+utoipa-swagger-ui = { version = "9", features = ["axum"] }
 
 # Use jemalloc on musl to avoid musl's slower default allocator
 [target.'cfg(target_env = "musl")'.dependencies]

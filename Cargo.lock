@@ -219,7 +219,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "edca88bc138befd0323b20752846e6587272d3b03b0343c8ea28a6f819e6e71f"
 dependencies = [
  "async-trait",
- "axum-core",
+ "axum-core 0.4.5",
  "bytes",
  "futures-util",
  "http",
@@ -228,7 +228,7 @@ dependencies = [
  "hyper",
  "hyper-util",
  "itoa",
- "matchit",
+ "matchit 0.7.3",
  "memchr",
  "mime",
  "percent-encoding",
@@ -244,6 +244,33 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
+]
+
+[[package]]
+name = "axum"
+version = "0.8.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b52af3cb4058c895d37317bb27508dccc8e5f2d39454016b297bf4a400597b8"
+dependencies = [
+ "axum-core 0.5.6",
+ "bytes",
+ "futures-util",
+ "http",
+ "http-body",
+ "http-body-util",
+ "itoa",
+ "matchit 0.8.4",
+ "memchr",
+ "mime",
+ "percent-encoding",
+ "pin-project-lite",
+ "serde_core",
+ "serde_json",
+ "serde_path_to_error",
+ "sync_wrapper",
+ "tower",
+ "tower-layer",
+ "tower-service",
 ]
 
 [[package]]
@@ -265,6 +292,24 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
+]
+
+[[package]]
+name = "axum-core"
+version = "0.5.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08c78f31d7b1291f7ee735c1c6780ccde7785daae9a9206026862dab7d8792d1"
+dependencies = [
+ "bytes",
+ "futures-core",
+ "http",
+ "http-body",
+ "http-body-util",
+ "mime",
+ "pin-project-lite",
+ "sync_wrapper",
+ "tower-layer",
+ "tower-service",
 ]
 
 [[package]]
@@ -2272,6 +2317,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e7465ac9959cc2b1404e8e2367b43684a6d13790fe23056cc8c6c5a6b7bcb94"
 
 [[package]]
+name = "matchit"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
+
+[[package]]
 name = "memchr"
 version = "2.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3399,7 +3450,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-cli"
-version = "0.11.2"
+version = "0.11.3"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -3412,7 +3463,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tracing",
  "tracing-subscriber",
  "validator",
@@ -3420,7 +3471,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-parser"
-version = "0.11.2"
+version = "0.11.3"
 dependencies = [
  "csv",
  "cuid2",
@@ -3429,14 +3480,14 @@ dependencies = [
  "rustume-utils",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "validator",
- "zip",
+ "zip 8.5.0",
 ]
 
 [[package]]
 name = "rustume-render"
-version = "0.11.2"
+version = "0.11.3"
 dependencies = [
  "chrono",
  "rstest",
@@ -3445,7 +3496,7 @@ dependencies = [
  "rustume-utils",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tracing",
  "typst",
  "typst-assets",
@@ -3455,7 +3506,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-schema"
-version = "0.11.2"
+version = "0.11.3"
 dependencies = [
  "cuid2",
  "once_cell",
@@ -3465,14 +3516,14 @@ dependencies = [
  "rustume-schema-macros",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "utoipa",
  "validator",
 ]
 
 [[package]]
 name = "rustume-schema-macros"
-version = "0.11.2"
+version = "0.11.3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3481,10 +3532,10 @@ dependencies = [
 
 [[package]]
 name = "rustume-server"
-version = "0.11.2"
+version = "0.11.3"
 dependencies = [
  "anyhow",
- "axum",
+ "axum 0.7.9",
  "base64",
  "http-body-util",
  "lru",
@@ -3495,7 +3546,7 @@ dependencies = [
  "rustume-utils",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tikv-jemallocator",
  "tokio",
  "tower",
@@ -3509,7 +3560,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-storage"
-version = "0.11.2"
+version = "0.11.3"
 dependencies = [
  "async-trait",
  "js-sys",
@@ -3517,7 +3568,7 @@ dependencies = [
  "rustume-schema",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -3526,7 +3577,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-utils"
-version = "0.11.2"
+version = "0.11.3"
 dependencies = [
  "ammonia",
  "chrono",
@@ -3540,7 +3591,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-wasm"
-version = "0.11.2"
+version = "0.11.3"
 dependencies = [
  "js-sys",
  "rustume-parser",
@@ -3550,7 +3601,7 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "validator",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -4591,6 +4642,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6af6ae20167a9ece4bcb41af5b80f8a1f1df981f6391189ce00fd257af04126a"
 
 [[package]]
+name = "typed-path"
+version = "0.12.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e28f89b80c87b8fb0cf04ab448d5dd0dd0ade2f8891bae878de66a75a28600e"
+
+[[package]]
 name = "typenum"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5137,11 +5194,11 @@ dependencies = [
 
 [[package]]
 name = "utoipa-swagger-ui"
-version = "8.1.0"
+version = "9.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db4b5ac679cc6dfc5ea3f2823b0291c777750ffd5e13b21137e0f7ac0e8f9617"
+checksum = "d047458f1b5b65237c2f6dc6db136945667f40a7668627b3490b9513a3d43a55"
 dependencies = [
- "axum",
+ "axum 0.8.8",
  "base64",
  "mime_guess",
  "regex",
@@ -5150,7 +5207,7 @@ dependencies = [
  "serde_json",
  "url",
  "utoipa",
- "zip",
+ "zip 3.0.0",
 ]
 
 [[package]]
@@ -5983,18 +6040,29 @@ dependencies = [
 
 [[package]]
 name = "zip"
-version = "2.4.2"
+version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fabe6324e908f85a1c52063ce7aa26b68dcb7eb6dbc83a2d148403c9bc3eba50"
+checksum = "12598812502ed0105f607f941c386f43d441e00148fce9dec3ca5ffb0bde9308"
 dependencies = [
  "arbitrary",
  "crc32fast",
- "crossbeam-utils",
- "displaydoc",
  "flate2",
  "indexmap",
  "memchr",
- "thiserror 2.0.18",
+ "zopfli",
+]
+
+[[package]]
+name = "zip"
+version = "8.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2726508a48f38dceb22b35ecbbd2430efe34ff05c62bd3285f965d7911b33464"
+dependencies = [
+ "crc32fast",
+ "flate2",
+ "indexmap",
+ "memchr",
+ "typed-path",
  "zopfli",
 ]
 
