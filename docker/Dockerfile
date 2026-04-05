@@ -38,6 +38,12 @@ RUN apk add --no-cache font-liberation font-dejavu
 # Cook dependencies — this layer is cached as long as recipe.json is unchanged.
 # Cache mounts persist compiled artifacts and crate sources across builds,
 # speeding up cold rebuilds when recipe.json changes (dep bumps, toolchain upgrades).
+#
+# NOTE: the /app/target cache mount is LOAD-BEARING across the cook and build
+# RUNs below — cook writes compiled deps there, build reads them. Cache mounts
+# are ephemeral (not captured in layers), so BOTH RUNs must mount the same id
+# (rustume-target). Removing the mount on cook breaks the hand-off and forces
+# build to recompile all deps from scratch even on warm cache.
 COPY --from=planner /app/recipe.json recipe.json
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/app/target,id=rustume-target \
