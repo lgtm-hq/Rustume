@@ -36,17 +36,20 @@ FROM chef AS builder
 RUN apk add --no-cache font-liberation font-dejavu
 
 # Cook dependencies — this layer is cached as long as recipe.json is unchanged.
-# Cache mount for registry persists downloaded crate sources across builds.
+# Cache mounts persist compiled artifacts and crate sources across builds,
+# speeding up cold rebuilds when recipe.json changes (dep bumps, toolchain upgrades).
 COPY --from=planner /app/recipe.json recipe.json
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/app/target,id=rustume-target \
     cargo chef cook --release --target x86_64-unknown-linux-musl \
       --recipe-path recipe.json -p rustume-server
 
-# Copy workspace source and build (reuses cooked deps in /app/target)
+# Copy workspace source and build (reuses cooked deps via shared target cache mount)
 COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
 COPY bindings ./bindings
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/app/target,id=rustume-target \
     cargo build --release --target x86_64-unknown-linux-musl -p rustume-server && \
     cp target/x86_64-unknown-linux-musl/release/rustume-server /app/rustume-server
 
