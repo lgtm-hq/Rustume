@@ -357,6 +357,11 @@
     text(size: 8pt, fill: muted-color)[#item.keywords.join(", ")]
   }
 
+
+  if has-url(item) {
+    v(2pt)
+    link(item.url.href)[#text(size: 9pt, fill: primary-color)[#item.url.href]]
+  }
   v(10pt)
 }
 
