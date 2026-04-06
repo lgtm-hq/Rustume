@@ -785,8 +785,54 @@ async fn shutdown_signal() {
     info!("Shutdown signal received, starting graceful shutdown");
 }
 
+/// Perform a health probe by sending an HTTP GET to the local `/health` endpoint.
+///
+/// Used with `--health` so the same binary serves as its own healthchecker
+/// in distroless containers where curl/wget are unavailable.
+fn health_probe() -> i32 {
+    use std::io::{Read, Write};
+
+    let port: u16 = std::env::var("PORT")
+        .ok()
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(DEFAULT_PORT);
+
+    let timeout = std::time::Duration::from_secs(3);
+    let addr: std::net::SocketAddr = ([127, 0, 0, 1], port).into();
+
+    let mut stream = match std::net::TcpStream::connect_timeout(&addr, timeout) {
+        Ok(s) => s,
+        Err(_) => return 1,
+    };
+    let _ = stream.set_read_timeout(Some(timeout));
+    let _ = stream.set_write_timeout(Some(timeout));
+
+    let request = format!(
+        "GET /health HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n"
+    );
+    if stream.write_all(request.as_bytes()).is_err() {
+        return 1;
+    }
+
+    let mut response = String::new();
+    if stream.read_to_string(&mut response).is_err() {
+        return 1;
+    }
+
+    if response.starts_with("HTTP/1.1 200") || response.starts_with("HTTP/1.0 200") {
+        0
+    } else {
+        1
+    }
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Health probe mode: lightweight healthcheck for distroless containers
+    if std::env::args().any(|a| a == "--health") {
+        std::process::exit(health_probe());
+    }
+
     // Initialize logging
     tracing_subscriber::fmt()
         .with_env_filter(

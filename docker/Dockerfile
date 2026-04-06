@@ -80,8 +80,8 @@ ENV PORT=3000
 # Expose port
 EXPOSE 3000
 
-# Note: distroless has no shell — health checks should be configured
-# in the orchestrator (Docker Compose, Kubernetes) via HTTP probes
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD ["/app/rustume-server", "--health"]
 
 # Run server (distroless nonroot user is UID 65532)
 CMD ["/app/rustume-server"]
