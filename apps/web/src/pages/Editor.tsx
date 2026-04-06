@@ -2,6 +2,7 @@ import { createSignal, onMount, Show } from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
 import { Button, toast, ShortcutsModal } from "../components/ui";
 import { useHotkeys, type Shortcut } from "../hooks/useHotkeys";
+import { useNavigationGuard } from "../hooks/useNavigationGuard";
 import { SplitPane } from "../components/layout/SplitPane";
 import { Sidebar, type SidebarItem } from "../components/layout/Sidebar";
 import {
@@ -205,6 +206,7 @@ export default function Editor() {
   ];
 
   useHotkeys(shortcuts);
+  useNavigationGuard(() => store.isDirty);
 
   async function attemptLoad() {
     if (!params.id) {
