@@ -147,7 +147,7 @@
     let display = if network != "" and username != "" { [#network: #username] } else if network != "" { network } else { username }
 
     if has-url(item) {
-      let label = if username != "" { display } else { item.url.href }
+      let label = if network != "" or username != "" { display } else { item.url.href }
       link(item.url.href)[#text(fill: primary-color)[#label]]
     } else if network != "" or username != "" {
       text(size: 10pt)[#display]

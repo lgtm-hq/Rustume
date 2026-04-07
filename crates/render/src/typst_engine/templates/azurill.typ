@@ -10,7 +10,7 @@
   let text-color = rgb(data.metadata.theme.at("text", default: "#1f2937"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
   // Derived colors (not in schema — computed from theme values)
-  let muted-color = rgb("#6b7280")
+  let muted-color = text-color.lighten(40%)
 
   // ── Helper functions (capture theme colors from enclosing scope) ──
 
@@ -146,12 +146,20 @@
   let render-profile(item) = {
     if item.visible == false { return }
 
-    text(size: 8pt, fill: muted-color)[#item.network]
-    v(1pt)
-    if has-url(item) {
-      link(item.url.href)[#text(size: 9pt, fill: primary-color)[#item.username]]
-    } else {
-      text(size: 9pt)[#item.username]
+    let network = if "network" in item and item.network != none { item.network } else { "" }
+    let username = if "username" in item and item.username != none { item.username } else { "" }
+
+    if network != "" {
+      text(size: 8pt, fill: muted-color)[#network]
+      v(1pt)
+    }
+    let label = if username != "" { username } else if has-url(item) { item.url.href } else { "" }
+    if label != "" {
+      if has-url(item) {
+        link(item.url.href)[#text(size: 9pt, fill: primary-color)[#label]]
+      } else {
+        text(size: 9pt)[#label]
+      }
     }
     v(6pt)
   }
