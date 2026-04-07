@@ -144,11 +144,13 @@
     let network = if "network" in item and item.network != none { item.network } else { "" }
     let username = if "username" in item and item.username != none { item.username } else { "" }
 
+    let display = if network != "" and username != "" { [#network: #username] } else if network != "" { network } else { username }
+
     if has-url(item) {
-      let label = if username != "" { [#network: #username] } else { item.url.href }
+      let label = if username != "" { display } else { item.url.href }
       link(item.url.href)[#text(fill: primary-color)[#label]]
     } else if network != "" or username != "" {
-      text(size: 10pt)[#network: #username]
+      text(size: 10pt)[#display]
     }
     h(14pt)
   }
