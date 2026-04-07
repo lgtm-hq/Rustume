@@ -46,7 +46,7 @@
   }
 
   let rating-boxes(level) = {
-    rating-indicators(level, 8pt, 8pt, primary-color, rgb("#d1d5db"), 1pt, 2pt)
+    rating-indicators(level, 8pt, 8pt, primary-color, bg-color.darken(10%), 1pt, 2pt)
   }
 
   let render-experience(item) = {

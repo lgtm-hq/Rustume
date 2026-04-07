@@ -36,7 +36,7 @@
   }
 
   let skill-dots(level) = {
-    rating-indicators(level, 6pt, 6pt, primary-color, rgb("#d6d3d1"), 50%, 3pt)
+    rating-indicators(level, 6pt, 6pt, primary-color, sidebar-bg.darken(15%), 50%, 3pt)
   }
 
   let render-experience(item) = {
