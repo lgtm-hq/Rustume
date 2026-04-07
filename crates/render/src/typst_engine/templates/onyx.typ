@@ -3,347 +3,352 @@
 
 #import "_common.typ": *
 
-#let primary-color = rgb("#dc2626")
-#let text-color = rgb("#111827")
-#let muted-color = rgb("#6b7280")
-
-#let section-heading(title) = {
-  v(14pt)
-  box(
-    width: 100%,
-    stroke: (bottom: 1.5pt + primary-color),
-    inset: (bottom: 4pt),
-    text(weight: "bold", size: 10pt, fill: primary-color, tracking: 0.06em)[#upper(title)]
-  )
-  v(10pt)
-}
-
-#let entry-header(left-content, right-content) = {
-  grid(
-    columns: (1fr, auto),
-    column-gutter: 8pt,
-    left-content,
-    align(right)[
-      #text(size: 9pt, fill: muted-color)[#right-content]
-    ]
-  )
-}
-
-#let rating-squares(level) = {
-  rating-indicators(level, 8pt, 8pt, primary-color, rgb("#e5e7eb"), 0pt, 2pt)
-}
-
-#let render-experience(item) = {
-  if item.visible == false { return }
-
-  entry-header(
-    [
-      #text(weight: "bold", size: 11pt, fill: text-color)[#item.position]
-      #v(2pt)
-      #text(size: 10pt, fill: primary-color)[#item.company]
-      #if item.location != "" {
-        text(size: 9pt, fill: muted-color)[ · #item.location]
-      }
-    ],
-    item.date
-  )
-
-  if item.summary != "" {
-    v(6pt)
-    render-rich-text(item.summary, size: 10pt, fill: text-color)
-  }
-
-  v(12pt)
-}
-
-#let render-education(item) = {
-  if item.visible == false { return }
-
-  entry-header(
-    [
-      #text(weight: "bold", size: 11pt, fill: text-color)[#item.institution]
-      #if item.studyType != "" or item.area != "" {
-        v(2pt)
-        let degree = format-degree(item.studyType, item.area)
-        text(size: 10pt, fill: text-color)[#degree]
-      }
-    ],
-    item.date
-  )
-
-  if item.score != "" {
-    v(2pt)
-    text(size: 9pt, fill: muted-color)[#item.score]
-  }
-
-  if item.summary != "" {
-    v(4pt)
-    render-rich-text(item.summary, size: 10pt, fill: text-color)
-  }
-
-  v(12pt)
-}
-
-#let render-skill(item) = {
-  if item.visible == false { return }
-
-  grid(
-    columns: (1fr, auto),
-    column-gutter: 8pt,
-    [
-      #text(size: 10pt, weight: "medium", fill: text-color)[#item.name]
-      #if item.description != "" {
-        v(1pt)
-        render-rich-text(item.description, size: 9pt, fill: muted-color)
-      }
-    ],
-    rating-squares(item.level)
-  )
-
-  if has-keywords(item) {
-    v(2pt)
-    for keyword in item.keywords {
-      box(
-        fill: rgb("#fef2f2"),
-        radius: 3pt,
-        inset: (x: 6pt, y: 2pt),
-        text(size: 8pt, fill: primary-color)[#keyword]
-      )
-      h(4pt)
-    }
-  }
-
-  v(8pt)
-}
-
-#let render-language(item) = {
-  if item.visible == false { return }
-
-  grid(
-    columns: (1fr, auto),
-    column-gutter: 8pt,
-    [
-      #text(size: 10pt, weight: "medium", fill: text-color)[#item.name]
-      #if item.description != "" {
-        h(6pt)
-        render-rich-text(item.description, size: 9pt, fill: muted-color)
-      }
-    ],
-    rating-squares(item.level)
-  )
-
-  v(6pt)
-}
-
-#let render-profile(item) = {
-  if item.visible == false { return }
-
-  if has-url(item) {
-    link(item.url.href)[#text(fill: primary-color)[#item.network]]
-  } else {
-    text(size: 10pt, fill: text-color)[#item.network: #item.username]
-  }
-  h(14pt)
-}
-
-#let render-project(item) = {
-  if item.visible == false { return }
-
-  entry-header(
-    [#text(weight: "bold", size: 10pt, fill: text-color)[#item.name]],
-    item.date
-  )
-
-  if item.description != "" {
-    v(4pt)
-    render-rich-text(item.description, size: 10pt, fill: text-color)
-  }
-
-  if item.summary != "" {
-    v(4pt)
-    render-rich-text(item.summary, size: 10pt, fill: text-color)
-  }
-
-  if has-keywords(item) {
-    v(4pt)
-    for keyword in item.keywords {
-      box(
-        fill: rgb("#fef2f2"),
-        radius: 3pt,
-        inset: (x: 6pt, y: 2pt),
-        text(size: 8pt, fill: primary-color)[#keyword]
-      )
-      h(4pt)
-    }
-  }
-
-  v(12pt)
-}
-
-#let render-certification(item) = {
-  if item.visible == false { return }
-
-  entry-header(
-    [
-      #text(weight: "medium", size: 10pt, fill: text-color)[#item.name]
-      #if item.issuer != "" {
-        text(size: 9pt, fill: muted-color)[ — #item.issuer]
-      }
-    ],
-    item.date
-  )
-
-  if item.summary != "" {
-    v(2pt)
-    render-rich-text(item.summary, size: 9pt, fill: text-color)
-  }
-
-  v(8pt)
-}
-
-#let render-award(item) = {
-  if item.visible == false { return }
-
-  entry-header(
-    [
-      #text(weight: "medium", size: 10pt, fill: text-color)[#item.title]
-      #if item.awarder != "" {
-        text(size: 9pt, fill: muted-color)[ — #item.awarder]
-      }
-    ],
-    item.date
-  )
-
-  if item.summary != "" {
-    v(2pt)
-    render-rich-text(item.summary, size: 9pt, fill: text-color)
-  }
-
-  v(8pt)
-}
-
-#let render-interest(item) = {
-  if item.visible == false { return }
-
-  text(size: 10pt, weight: "medium", fill: text-color)[#item.name]
-
-  if has-keywords(item) {
-    text(size: 9pt, fill: muted-color)[ — #item.keywords.join(", ")]
-  }
-
-  v(6pt)
-}
-
-#let render-publication(item) = {
-  if item.visible == false { return }
-
-  entry-header(
-    [
-      #text(weight: "bold", size: 10pt, fill: text-color)[#item.name]
-      #if item.publisher != "" {
-        v(1pt)
-        text(size: 9pt, fill: muted-color)[#item.publisher]
-      }
-    ],
-    item.date
-  )
-
-  if item.summary != "" {
-    v(4pt)
-    render-rich-text(item.summary, size: 9pt, fill: text-color)
-  }
-
-  v(8pt)
-}
-
-#let render-volunteer(item) = {
-  if item.visible == false { return }
-
-  entry-header(
-    [
-      #text(weight: "bold", size: 11pt, fill: text-color)[#item.organization]
-      #if item.position != "" {
-        text(size: 10pt, fill: text-color)[ — #item.position]
-      }
-    ],
-    item.date
-  )
-
-  if item.location != "" {
-    v(2pt)
-    text(size: 9pt, fill: muted-color)[#item.location]
-  }
-
-  if item.summary != "" {
-    v(4pt)
-    render-rich-text(item.summary, size: 10pt, fill: text-color)
-  }
-
-  v(12pt)
-}
-
-#let render-reference(item) = {
-  if item.visible == false { return }
-
-  text(weight: "bold", size: 10pt, fill: text-color)[#item.name]
-
-  if item.description != "" {
-    v(2pt)
-    render-rich-text(item.description, size: 9pt, fill: muted-color)
-  }
-
-  if item.summary != "" {
-    v(2pt)
-    render-rich-text(item.summary, size: 9pt, fill: text-color)
-  }
-
-  v(8pt)
-}
-
-#let render-custom(item) = {
-  if item.visible == false { return }
-
-  entry-header(
-    [
-      #text(weight: "bold", size: 10pt, fill: text-color)[#item.name]
-      #if item.description != "" {
-        v(1pt)
-        render-rich-text(item.description, size: 9pt, fill: muted-color)
-      }
-    ],
-    item.date
-  )
-
-  if item.location != "" {
-    v(2pt)
-    text(size: 9pt, fill: muted-color)[#item.location]
-  }
-
-  if item.summary != "" {
-    v(2pt)
-    render-rich-text(item.summary, size: 9pt, fill: text-color)
-  }
-
-  if has-keywords(item) {
-    v(2pt)
-    for keyword in item.keywords {
-      box(
-        fill: rgb("#fef2f2"),
-        radius: 3pt,
-        inset: (x: 6pt, y: 2pt),
-        text(size: 8pt, fill: primary-color)[#keyword]
-      )
-      h(4pt)
-    }
-  }
-
-
-  render-url(item, primary-color)
-  v(8pt)
-}
 
 #let template(data) = {
-  set page(
+  // ── Theme colors from resume metadata (with sensible fallbacks) ──
+  let primary-color = rgb(data.metadata.theme.at("primary", default: "#dc2626"))
+  let text-color = rgb(data.metadata.theme.at("text", default: "#111827"))
+  let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
+  // Derived colors (not in schema — computed from theme values)
+  let muted-color = rgb("#6b7280")
+
+  // ── Helper functions (capture theme colors from enclosing scope) ──
+
+  let section-heading(title) = {
+    v(14pt)
+    box(
+      width: 100%,
+      stroke: (bottom: 1.5pt + primary-color),
+      inset: (bottom: 4pt),
+      text(weight: "bold", size: 10pt, fill: primary-color, tracking: 0.06em)[#upper(title)]
+    )
+    v(10pt)
+  }
+
+  let entry-header(left-content, right-content) = {
+    grid(
+      columns: (1fr, auto),
+      column-gutter: 8pt,
+      left-content,
+      align(right)[
+        #text(size: 9pt, fill: muted-color)[#right-content]
+      ]
+    )
+  }
+
+  let rating-squares(level) = {
+    rating-indicators(level, 8pt, 8pt, primary-color, rgb("#e5e7eb"), 0pt, 2pt)
+  }
+
+  let render-experience(item) = {
+    if item.visible == false { return }
+
+    entry-header(
+      [
+        #text(weight: "bold", size: 11pt, fill: text-color)[#item.position]
+        #v(2pt)
+        #text(size: 10pt, fill: primary-color)[#item.company]
+        #if item.location != "" {
+          text(size: 9pt, fill: muted-color)[ · #item.location]
+        }
+      ],
+      item.date
+    )
+
+    if item.summary != "" {
+      v(6pt)
+      render-rich-text(item.summary, size: 10pt, fill: text-color)
+    }
+
+    v(12pt)
+  }
+
+  let render-education(item) = {
+    if item.visible == false { return }
+
+    entry-header(
+      [
+        #text(weight: "bold", size: 11pt, fill: text-color)[#item.institution]
+        #if item.studyType != "" or item.area != "" {
+          v(2pt)
+          let degree = format-degree(item.studyType, item.area)
+          text(size: 10pt, fill: text-color)[#degree]
+        }
+      ],
+      item.date
+    )
+
+    if item.score != "" {
+      v(2pt)
+      text(size: 9pt, fill: muted-color)[#item.score]
+    }
+
+    if item.summary != "" {
+      v(4pt)
+      render-rich-text(item.summary, size: 10pt, fill: text-color)
+    }
+
+    v(12pt)
+  }
+
+  let render-skill(item) = {
+    if item.visible == false { return }
+
+    grid(
+      columns: (1fr, auto),
+      column-gutter: 8pt,
+      [
+        #text(size: 10pt, weight: "medium", fill: text-color)[#item.name]
+        #if item.description != "" {
+          v(1pt)
+          render-rich-text(item.description, size: 9pt, fill: muted-color)
+        }
+      ],
+      rating-squares(item.level)
+    )
+
+    if has-keywords(item) {
+      v(2pt)
+      for keyword in item.keywords {
+        box(
+          fill: rgb("#fef2f2"),
+          radius: 3pt,
+          inset: (x: 6pt, y: 2pt),
+          text(size: 8pt, fill: primary-color)[#keyword]
+        )
+        h(4pt)
+      }
+    }
+
+    v(8pt)
+  }
+
+  let render-language(item) = {
+    if item.visible == false { return }
+
+    grid(
+      columns: (1fr, auto),
+      column-gutter: 8pt,
+      [
+        #text(size: 10pt, weight: "medium", fill: text-color)[#item.name]
+        #if item.description != "" {
+          h(6pt)
+          render-rich-text(item.description, size: 9pt, fill: muted-color)
+        }
+      ],
+      rating-squares(item.level)
+    )
+
+    v(6pt)
+  }
+
+  let render-profile(item) = {
+    if item.visible == false { return }
+
+    if has-url(item) {
+      link(item.url.href)[#text(fill: primary-color)[#item.network]]
+    } else {
+      text(size: 10pt, fill: text-color)[#item.network: #item.username]
+    }
+    h(14pt)
+  }
+
+  let render-project(item) = {
+    if item.visible == false { return }
+
+    entry-header(
+      [#text(weight: "bold", size: 10pt, fill: text-color)[#item.name]],
+      item.date
+    )
+
+    if item.description != "" {
+      v(4pt)
+      render-rich-text(item.description, size: 10pt, fill: text-color)
+    }
+
+    if item.summary != "" {
+      v(4pt)
+      render-rich-text(item.summary, size: 10pt, fill: text-color)
+    }
+
+    if has-keywords(item) {
+      v(4pt)
+      for keyword in item.keywords {
+        box(
+          fill: rgb("#fef2f2"),
+          radius: 3pt,
+          inset: (x: 6pt, y: 2pt),
+          text(size: 8pt, fill: primary-color)[#keyword]
+        )
+        h(4pt)
+      }
+    }
+
+    v(12pt)
+  }
+
+  let render-certification(item) = {
+    if item.visible == false { return }
+
+    entry-header(
+      [
+        #text(weight: "medium", size: 10pt, fill: text-color)[#item.name]
+        #if item.issuer != "" {
+          text(size: 9pt, fill: muted-color)[ — #item.issuer]
+        }
+      ],
+      item.date
+    )
+
+    if item.summary != "" {
+      v(2pt)
+      render-rich-text(item.summary, size: 9pt, fill: text-color)
+    }
+
+    v(8pt)
+  }
+
+  let render-award(item) = {
+    if item.visible == false { return }
+
+    entry-header(
+      [
+        #text(weight: "medium", size: 10pt, fill: text-color)[#item.title]
+        #if item.awarder != "" {
+          text(size: 9pt, fill: muted-color)[ — #item.awarder]
+        }
+      ],
+      item.date
+    )
+
+    if item.summary != "" {
+      v(2pt)
+      render-rich-text(item.summary, size: 9pt, fill: text-color)
+    }
+
+    v(8pt)
+  }
+
+  let render-interest(item) = {
+    if item.visible == false { return }
+
+    text(size: 10pt, weight: "medium", fill: text-color)[#item.name]
+
+    if has-keywords(item) {
+      text(size: 9pt, fill: muted-color)[ — #item.keywords.join(", ")]
+    }
+
+    v(6pt)
+  }
+
+  let render-publication(item) = {
+    if item.visible == false { return }
+
+    entry-header(
+      [
+        #text(weight: "bold", size: 10pt, fill: text-color)[#item.name]
+        #if item.publisher != "" {
+          v(1pt)
+          text(size: 9pt, fill: muted-color)[#item.publisher]
+        }
+      ],
+      item.date
+    )
+
+    if item.summary != "" {
+      v(4pt)
+      render-rich-text(item.summary, size: 9pt, fill: text-color)
+    }
+
+    v(8pt)
+  }
+
+  let render-volunteer(item) = {
+    if item.visible == false { return }
+
+    entry-header(
+      [
+        #text(weight: "bold", size: 11pt, fill: text-color)[#item.organization]
+        #if item.position != "" {
+          text(size: 10pt, fill: text-color)[ — #item.position]
+        }
+      ],
+      item.date
+    )
+
+    if item.location != "" {
+      v(2pt)
+      text(size: 9pt, fill: muted-color)[#item.location]
+    }
+
+    if item.summary != "" {
+      v(4pt)
+      render-rich-text(item.summary, size: 10pt, fill: text-color)
+    }
+
+    v(12pt)
+  }
+
+  let render-reference(item) = {
+    if item.visible == false { return }
+
+    text(weight: "bold", size: 10pt, fill: text-color)[#item.name]
+
+    if item.description != "" {
+      v(2pt)
+      render-rich-text(item.description, size: 9pt, fill: muted-color)
+    }
+
+    if item.summary != "" {
+      v(2pt)
+      render-rich-text(item.summary, size: 9pt, fill: text-color)
+    }
+
+    v(8pt)
+  }
+
+  let render-custom(item) = {
+    if item.visible == false { return }
+
+    entry-header(
+      [
+        #text(weight: "bold", size: 10pt, fill: text-color)[#item.name]
+        #if item.description != "" {
+          v(1pt)
+          render-rich-text(item.description, size: 9pt, fill: muted-color)
+        }
+      ],
+      item.date
+    )
+
+    if item.location != "" {
+      v(2pt)
+      text(size: 9pt, fill: muted-color)[#item.location]
+    }
+
+    if item.summary != "" {
+      v(2pt)
+      render-rich-text(item.summary, size: 9pt, fill: text-color)
+    }
+
+    if has-keywords(item) {
+      v(2pt)
+      for keyword in item.keywords {
+        box(
+          fill: rgb("#fef2f2"),
+          radius: 3pt,
+          inset: (x: 6pt, y: 2pt),
+          text(size: 8pt, fill: primary-color)[#keyword]
+        )
+        h(4pt)
+      }
+    }
+
+    render-url(item, primary-color)
+    v(8pt)
+  }
+
+  set page(fill: bg-color, 
     margin: (x: 48pt, y: 48pt),
   )
 
