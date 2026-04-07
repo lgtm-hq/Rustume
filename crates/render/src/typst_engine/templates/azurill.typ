@@ -357,6 +357,8 @@
     text(size: 8pt, fill: muted-color)[#item.keywords.join(", ")]
   }
 
+
+  render-url(item, primary-color)
   v(10pt)
 }
 

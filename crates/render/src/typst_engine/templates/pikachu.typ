@@ -258,6 +258,8 @@
     text(size: 9pt, fill: muted-color)[#item.keywords.join(" · ")]
   }
 
+
+  render-url(item, primary-color)
   v(12pt)
 }
 

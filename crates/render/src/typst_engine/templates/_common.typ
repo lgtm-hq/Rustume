@@ -50,6 +50,15 @@
   eval(content, mode: "markup")
 }
 
+/// Render a clickable URL link for an item, if present.
+/// Uses primary-color for styling — caller must have it in scope.
+#let render-url(item, color) = {
+  if has-url(item) {
+    v(2pt)
+    link(item.url.href)[#text(size: 9pt, fill: color)[#item.url.href]]
+  }
+}
+
 /// Check whether an item has non-empty keywords.
 #let has-keywords(item) = {
   "keywords" in item and item.keywords != none and item.keywords.len() > 0
