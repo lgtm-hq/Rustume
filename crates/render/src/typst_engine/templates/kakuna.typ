@@ -11,12 +11,12 @@
   let text-color = rgb(data.metadata.theme.at("text", default: "#422006"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
   // Derived colors (not in schema — computed from theme values)
-  let muted-color = rgb("#a8a29e")
+  let muted-color = text-color.lighten(40%)
 
   // ── Helper functions (capture theme colors from enclosing scope) ──
 
-  let light-bg = rgb("#faf5f0")
-  let border-color = rgb("#d6d3d1")
+  let light-bg = primary-color.lighten(92%)
+  let border-color = bg-color.darken(15%)
 
   let section-heading(title) = {
     v(16pt)
@@ -31,7 +31,7 @@
 
   let skill-bar(level) = {
     h(4pt)
-    rating-indicators(level, 8pt, 8pt, primary-color, border-color, 50%, 2pt)
+    rating-indicators(level, 8pt, 8pt, primary-color, bg-color.darken(10%), 50%, 2pt)
   }
 
   let entry-header(left-content, right-content) = {

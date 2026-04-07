@@ -14,9 +14,9 @@
 
   // ── Helper functions (capture theme colors from enclosing scope) ──
 
-  let light-bg = rgb("#fef3c7")
-  let sidebar-bg = rgb("#fffbeb")
-  let bar-empty = rgb("#e5e7eb")
+  let light-bg = primary-color.lighten(90%)
+  let sidebar-bg = primary-color.lighten(95%)
+  let bar-empty = bg-color.darken(10%)
 
   // Section heading for main content area (right column)
   let main-section-heading(title) = {

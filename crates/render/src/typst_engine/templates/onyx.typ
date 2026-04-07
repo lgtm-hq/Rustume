@@ -37,7 +37,7 @@
   }
 
   let rating-squares(level) = {
-    rating-indicators(level, 8pt, 8pt, primary-color, rgb("#e5e7eb"), 0pt, 2pt)
+    rating-indicators(level, 8pt, 8pt, primary-color, bg-color.darken(10%), 0pt, 2pt)
   }
 
   let render-experience(item) = {
@@ -111,7 +111,7 @@
       v(2pt)
       for keyword in item.keywords {
         box(
-          fill: rgb("#fef2f2"),
+          fill: primary-color.lighten(92%),
           radius: 3pt,
           inset: (x: 6pt, y: 2pt),
           text(size: 8pt, fill: primary-color)[#keyword]
@@ -175,7 +175,7 @@
       v(4pt)
       for keyword in item.keywords {
         box(
-          fill: rgb("#fef2f2"),
+          fill: primary-color.lighten(92%),
           radius: 3pt,
           inset: (x: 6pt, y: 2pt),
           text(size: 8pt, fill: primary-color)[#keyword]
@@ -335,7 +335,7 @@
       v(2pt)
       for keyword in item.keywords {
         box(
-          fill: rgb("#fef2f2"),
+          fill: primary-color.lighten(92%),
           radius: 3pt,
           inset: (x: 6pt, y: 2pt),
           text(size: 8pt, fill: primary-color)[#keyword]
