@@ -65,6 +65,16 @@ jobs:
           CURRENT_VERSION: ${{ steps.current.outputs.version }}
         run: ./scripts/ci/release/check-bump-needed.sh
 
+      - name: Create GitHub App installation token
+        if: steps.needs_bump.outputs.required == 'true'
+        id: app-token
+        # yamllint disable-line rule:line-length
+        uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3.0.0-beta.2
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
       - name: Update Cargo.toml version
         if: steps.needs_bump.outputs.required == 'true'
         run: >
@@ -77,7 +87,7 @@ jobs:
         # yamllint disable-line rule:line-length
         uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
           commit-message: >-
             chore(release): cut ${{ steps.semrel.outputs.next-version }}
           title: >-
@@ -96,6 +106,6 @@ jobs:
       - name: Enable auto-merge for Release PR
         if: steps.cpr.outputs.pull-request-number != ''
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
         run: ./scripts/ci/release/enable-auto-merge.sh
