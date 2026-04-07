@@ -22,6 +22,7 @@ export function useNavigationGuard(isDirty: Accessor<boolean>) {
     if (isDirty()) {
       const handler = (e: BeforeUnloadEvent) => {
         e.preventDefault();
+        e.returnValue = "";
       };
       window.addEventListener("beforeunload", handler);
       onCleanup(() => window.removeEventListener("beforeunload", handler));
