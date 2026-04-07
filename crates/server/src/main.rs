@@ -807,9 +807,8 @@ fn health_probe() -> i32 {
     let _ = stream.set_read_timeout(Some(timeout));
     let _ = stream.set_write_timeout(Some(timeout));
 
-    let request = format!(
-        "GET /health HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n"
-    );
+    let request =
+        format!("GET /health HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n");
     if stream.write_all(request.as_bytes()).is_err() {
         return 1;
     }
@@ -819,10 +818,13 @@ fn health_probe() -> i32 {
         return 1;
     }
 
-    if response.starts_with("HTTP/1.1 200") || response.starts_with("HTTP/1.0 200") {
-        0
-    } else {
-        1
+    match response
+        .split_whitespace()
+        .nth(1)
+        .and_then(|s| s.parse::<u16>().ok())
+    {
+        Some(200..=299) => 0,
+        _ => 1,
     }
 }
 
