@@ -8,10 +8,20 @@
 # =============================================================================
 FROM rust:1.94-alpine@sha256:7f752ee8ea5deb9f4863d8c3f228a216a6466619882f09a44b9eda9617dc7770 AS chef
 
+# BuildKit auto-populates TARGETARCH per --platform (amd64 | arm64)
+ARG TARGETARCH
+
 WORKDIR /app
 # musl-dev + make: required for tikv-jemalloc-sys to compile jemalloc from C source
+# Map TARGETARCH → Rust triple and persist for downstream stages
 RUN apk add --no-cache musl-dev make curl && \
-    cargo install cargo-chef@0.1.77 --locked
+    cargo install cargo-chef@0.1.77 --locked && \
+    case "${TARGETARCH}" in \
+      amd64) echo "x86_64-unknown-linux-musl" > /tmp/rust_target ;; \
+      arm64) echo "aarch64-unknown-linux-musl" > /tmp/rust_target ;; \
+      *) echo "unsupported TARGETARCH: ${TARGETARCH}" >&2 && exit 1 ;; \
+    esac && \
+    rustup target add "$(cat /tmp/rust_target)"
 
 # =============================================================================
 # Stage 2: Planner (compute dependency recipe from workspace manifests)
@@ -32,6 +42,9 @@ RUN cargo chef prepare --recipe-path recipe.json
 # (triggered only when Cargo.toml or Cargo.lock change via recipe.json).
 FROM chef AS builder
 
+# Re-declare — ARGs do not cross FROM boundaries
+ARG TARGETARCH
+
 # Install fonts (data files for copying to runtime)
 RUN apk add --no-cache font-liberation font-dejavu
 
@@ -42,22 +55,25 @@ RUN apk add --no-cache font-liberation font-dejavu
 # NOTE: the /app/target cache mount is LOAD-BEARING across the cook and build
 # RUNs below — cook writes compiled deps there, build reads them. Cache mounts
 # are ephemeral (not captured in layers), so BOTH RUNs must mount the same id
-# (rustume-target). Removing the mount on cook breaks the hand-off and forces
-# build to recompile all deps from scratch even on warm cache.
+# (rustume-target-<arch>). Removing the mount on cook breaks the hand-off and
+# forces build to recompile all deps from scratch even on warm cache.
+# Cache ids are scoped per-arch so concurrent amd64/arm64 builds don't collide.
 COPY --from=planner /app/recipe.json recipe.json
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/app/target,id=rustume-target \
-    cargo chef cook --release --target x86_64-unknown-linux-musl \
+RUN --mount=type=cache,target=/usr/local/cargo/registry,id=rustume-registry-${TARGETARCH} \
+    --mount=type=cache,target=/app/target,id=rustume-target-${TARGETARCH} \
+    RUST_TARGET="$(cat /tmp/rust_target)" && \
+    cargo chef cook --release --target "${RUST_TARGET}" \
       --recipe-path recipe.json -p rustume-server
 
 # Copy workspace source and build (reuses cooked deps via shared target cache mount)
 COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
 COPY bindings ./bindings
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/app/target,id=rustume-target \
-    cargo build --release --target x86_64-unknown-linux-musl -p rustume-server && \
-    cp target/x86_64-unknown-linux-musl/release/rustume-server /app/rustume-server
+RUN --mount=type=cache,target=/usr/local/cargo/registry,id=rustume-registry-${TARGETARCH} \
+    --mount=type=cache,target=/app/target,id=rustume-target-${TARGETARCH} \
+    RUST_TARGET="$(cat /tmp/rust_target)" && \
+    cargo build --release --target "${RUST_TARGET}" -p rustume-server && \
+    cp "target/${RUST_TARGET}/release/rustume-server" /app/rustume-server
 
 # =============================================================================
 # Stage 4: Runtime (distroless/static — no libc, no CVEs)
