@@ -70,3 +70,29 @@ export async function fetchBlob(endpoint: string, body?: unknown): Promise<Blob>
 
   return response.blob();
 }
+
+export interface BlobResponse {
+  blob: Blob;
+  headers: Headers;
+}
+
+export async function fetchBlobWithHeaders(
+  endpoint: string,
+  body?: unknown,
+): Promise<BlobResponse> {
+  const url = `${API_BASE}${endpoint}`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new ApiError(response.status, text || response.statusText);
+  }
+
+  return { blob: await response.blob(), headers: response.headers };
+}

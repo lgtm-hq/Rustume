@@ -15,6 +15,7 @@ export function Preview() {
   const [isLoading, setIsLoading] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
   const [lastCachedUrl, setLastCachedUrl] = createSignal<string | null>(null);
+  const [totalPages, setTotalPages] = createSignal(1);
 
   // Request ID to guard against race conditions
   let resumeRequestId = 0;
@@ -52,10 +53,11 @@ export function Preview() {
     setError(null);
 
     renderPreview(store.resume, ui.previewPage)
-      .then((url) => {
+      .then((result) => {
         if (currentRequestId !== resumeRequestId) return;
-        setPreviewUrl(url);
-        setLastCachedUrl(url);
+        setPreviewUrl(result.url);
+        setLastCachedUrl(result.url);
+        setTotalPages(result.totalPages);
         setError(null);
         lastToastedError = "";
       })
@@ -103,10 +105,11 @@ export function Preview() {
     setError(null);
 
     renderPreview(store.resume, page)
-      .then((url) => {
+      .then((result) => {
         if (currentRequestId !== pageRequestId) return;
-        setPreviewUrl(url);
-        setLastCachedUrl(url);
+        setPreviewUrl(result.url);
+        setLastCachedUrl(result.url);
+        setTotalPages(result.totalPages);
         setError(null);
         lastToastedError = "";
       })
@@ -151,11 +154,13 @@ export function Preview() {
             </svg>
           </button>
           <span class="text-sm font-mono text-stone min-w-[60px] text-center">
-            Page {ui.previewPage + 1}
+            {ui.previewPage + 1} / {totalPages()}
           </span>
           <button
-            class="p-1.5 text-stone hover:text-ink hover:bg-surface rounded transition-colors"
+            class="p-1.5 text-stone hover:text-ink hover:bg-surface rounded transition-colors
+              disabled:opacity-30 disabled:cursor-not-allowed"
             onClick={() => setPreviewPage(ui.previewPage + 1)}
+            disabled={ui.previewPage >= totalPages() - 1}
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -168,7 +173,27 @@ export function Preview() {
           </button>
         </div>
 
-        <div class="flex items-center gap-1">
+        <div class="flex items-center gap-2">
+          <Show when={totalPages() > 1}>
+            <span
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-mono"
+              style={{
+                background: "color-mix(in srgb, var(--turbo-state-warning) 15%, transparent)",
+                color: "var(--turbo-state-warning)",
+              }}
+              title={`Content spans ${totalPages()} pages`}
+            >
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              {totalPages()} pages
+            </span>
+          </Show>
           <button
             class="p-1.5 text-stone hover:text-ink hover:bg-surface rounded transition-colors"
             onClick={zoomOut}

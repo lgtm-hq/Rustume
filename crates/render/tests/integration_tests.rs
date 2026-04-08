@@ -330,12 +330,13 @@ fn test_render_preview_page_0() {
         result.err()
     );
 
-    let png = result.unwrap();
+    let (png, total_pages) = result.unwrap();
     // PNG files start with the PNG signature
     assert!(
         png.starts_with(&[0x89, 0x50, 0x4E, 0x47]),
         "Output is not a valid PNG"
     );
+    assert!(total_pages >= 1, "Should have at least one page");
 }
 
 #[test]

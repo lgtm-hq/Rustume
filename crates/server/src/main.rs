@@ -472,7 +472,7 @@ async fn template_thumbnail(Path(id): Path<String>) -> Result<Response, ApiError
     resume.metadata.theme.background = theme.background.clone();
 
     let renderer = TypstRenderer::new();
-    let png = renderer
+    let (png, _total_pages) = renderer
         .render_preview(&resume, 0)
         .map_err(|e| ApiError::internal(format!("Failed to render thumbnail: {}", e)))?;
 
@@ -608,11 +608,15 @@ async fn render_preview(Json(req): Json<RenderPreviewRequest>) -> Result<Respons
 
     // Render
     let renderer = TypstRenderer::new();
-    let png = renderer
+    let (png, total_pages) = renderer
         .render_preview(&resume, req.page)
         .map_err(|e| ApiError::internal(format!("Failed to render preview: {}", e)))?;
 
-    Ok((StatusCode::OK, [(header::CONTENT_TYPE, "image/png")], png).into_response())
+    let mut response = (StatusCode::OK, [(header::CONTENT_TYPE, "image/png")], png).into_response();
+    response
+        .headers_mut()
+        .insert("X-Total-Pages", total_pages.to_string().parse().unwrap());
+    Ok(response)
 }
 
 /// Validate resume data
@@ -724,7 +728,8 @@ fn create_router() -> Router {
     let cors = {
         let base = CorsLayer::new()
             .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
-            .allow_headers([header::CONTENT_TYPE, header::ACCEPT]);
+            .allow_headers([header::CONTENT_TYPE, header::ACCEPT])
+            .expose_headers(["X-Total-Pages".parse::<header::HeaderName>().unwrap()]);
 
         match std::env::var("CORS_ORIGIN").ok() {
             Some(origin) if !origin.is_empty() && origin != "*" => {

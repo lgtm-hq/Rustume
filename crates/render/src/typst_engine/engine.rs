@@ -286,9 +286,14 @@ impl Renderer for TypstRenderer {
     }
 
     #[instrument(skip(self, resume), fields(page))]
-    fn render_preview(&self, resume: &ResumeData, page: usize) -> Result<Vec<u8>, RenderError> {
+    fn render_preview(
+        &self,
+        resume: &ResumeData,
+        page: usize,
+    ) -> Result<(Vec<u8>, usize), RenderError> {
         debug!("Rendering preview for page {}", page);
         let document = self.compile(resume)?;
+        let total_pages = document.pages.len();
 
         // Get the requested page
         let page_content = document
@@ -306,7 +311,7 @@ impl Renderer for TypstRenderer {
             .encode_png()
             .map_err(|e| RenderError::RenderFailed(format!("PNG encoding failed: {}", e)))?;
 
-        Ok(png_bytes)
+        Ok((png_bytes, total_pages))
     }
 }
 

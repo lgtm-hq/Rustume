@@ -26,5 +26,10 @@ pub trait Renderer {
 
     /// Render resume preview image (PNG).
     /// `page` is zero-based (0 = first page).
-    fn render_preview(&self, resume: &ResumeData, page: usize) -> Result<Vec<u8>, RenderError>;
+    /// Returns `(png_bytes, total_page_count)`.
+    fn render_preview(
+        &self,
+        resume: &ResumeData,
+        page: usize,
+    ) -> Result<(Vec<u8>, usize), RenderError>;
 }
