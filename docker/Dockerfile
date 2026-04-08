@@ -20,8 +20,7 @@ RUN apk add --no-cache musl-dev make curl && \
       amd64) echo "x86_64-unknown-linux-musl" > /tmp/rust_target ;; \
       arm64) echo "aarch64-unknown-linux-musl" > /tmp/rust_target ;; \
       *) echo "unsupported TARGETARCH: ${TARGETARCH}" >&2 && exit 1 ;; \
-    esac && \
-    rustup target add "$(cat /tmp/rust_target)"
+    esac
 
 # =============================================================================
 # Stage 2: Planner (compute dependency recipe from workspace manifests)
