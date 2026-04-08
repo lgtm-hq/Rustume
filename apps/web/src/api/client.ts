@@ -49,7 +49,7 @@ export async function get<T>(endpoint: string): Promise<T> {
 export async function post<T>(endpoint: string, body?: unknown): Promise<T> {
   return request<T>(endpoint, {
     method: "POST",
-    body: body ? JSON.stringify(body) : undefined,
+    body: body !== undefined && body !== null ? JSON.stringify(body) : undefined,
   });
 }
 
@@ -73,7 +73,7 @@ export async function fetchBlobWithHeaders(
     headers: {
       "Content-Type": "application/json",
     },
-    body: body ? JSON.stringify(body) : undefined,
+    body: body !== undefined && body !== null ? JSON.stringify(body) : undefined,
   });
 
   if (!response.ok) {
