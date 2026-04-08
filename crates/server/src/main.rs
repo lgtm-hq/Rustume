@@ -1065,6 +1065,7 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(response.headers().get("content-type").unwrap(), "image/png");
+        assert!(response.headers().contains_key("x-total-pages"));
 
         let body = axum::body::to_bytes(response.into_body(), usize::MAX)
             .await

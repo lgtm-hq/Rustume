@@ -54,21 +54,8 @@ export async function post<T>(endpoint: string, body?: unknown): Promise<T> {
 }
 
 export async function fetchBlob(endpoint: string, body?: unknown): Promise<Blob> {
-  const url = `${API_BASE}${endpoint}`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new ApiError(response.status, text || response.statusText);
-  }
-
-  return response.blob();
+  const { blob } = await fetchBlobWithHeaders(endpoint, body);
+  return blob;
 }
 
 export interface BlobResponse {
