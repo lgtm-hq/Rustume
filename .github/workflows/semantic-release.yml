@@ -5,8 +5,27 @@ name: Release - Automated PR Creation
 # Uses lgtm-ci calculate-version action for version computation.
 
 "on":
+  # Gate releases on CI passing: only trigger after the Rust test suite
+  # completes on main. The job condition below rejects failed runs.
+  workflow_run:
+    workflows: ["Test - Rust Test Suite"]
+    branches: [main]
+    types: [completed]
+  # For commits that don't touch Rust source (docs, scripts, Docker, etc.)
+  # the test suite never runs, so fall back to a direct push trigger.
+  # Using an explicit include list (paths) ensures Rust-only commits never
+  # fire this trigger. Mixed commits may still fire both paths, but the
+  # branch protection required-checks gate auto-merge on the release PR.
   push:
     branches: [main]
+    paths:
+      - "docs/**"
+      - "scripts/**"
+      - "docker/**"
+      - "**.md"
+      - "renovate.json"
+      - ".github/**"
+      - "Makefile"
   workflow_dispatch:
 
 permissions:
@@ -16,6 +35,13 @@ jobs:
   open-release-pr:
     name: Compute next version and open Release PR
     runs-on: ubuntu-24.04
+    # When triggered by workflow_run, only proceed if the test suite passed.
+    # Push and workflow_dispatch triggers always proceed (no Rust CI to gate on).
+    if: >-
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success')
     permissions:
       contents: write
       pull-requests: write
