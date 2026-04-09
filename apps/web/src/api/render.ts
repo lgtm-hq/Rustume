@@ -1,4 +1,4 @@
-import { fetchBlob, get, post } from "./client";
+import { fetchBlob, fetchBlobWithHeaders, get, post } from "./client";
 import type { ResumeData, TemplateInfo, ValidationResult } from "../wasm/types";
 
 export interface RenderRequest {
@@ -16,8 +16,13 @@ export interface ParseRequest {
   base64?: boolean;
 }
 
+export interface PreviewResult {
+  url: string;
+  totalPages: number;
+}
+
 // Preview cache to avoid redundant fetches
-const previewCache = new Map<string, { url: string; timestamp: number }>();
+const previewCache = new Map<string, { url: string; totalPages: number; timestamp: number }>();
 const CACHE_TTL = 60000; // 1 minute
 
 function getCacheKey(resume: ResumeData, template: string, page: number): string {
@@ -47,7 +52,7 @@ export async function renderPreview(
   resume: ResumeData,
   page: number = 0,
   template?: string,
-): Promise<string> {
+): Promise<PreviewResult> {
   // Clean up expired entries before processing
   cleanupExpiredCache();
 
@@ -57,14 +62,16 @@ export async function renderPreview(
   // Check cache
   const cached = previewCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return cached.url;
+    return { url: cached.url, totalPages: cached.totalPages };
   }
 
-  const blob = await fetchBlob("/render/preview", {
+  const { blob, headers } = await fetchBlobWithHeaders("/render/preview", {
     resume,
     template: templateName,
     page,
   } satisfies PreviewRequest);
+
+  const totalPages = parseInt(headers.get("X-Total-Pages") || "1", 10);
 
   // Revoke old URL if exists
   if (cached) {
@@ -72,9 +79,9 @@ export async function renderPreview(
   }
 
   const url = URL.createObjectURL(blob);
-  previewCache.set(cacheKey, { url, timestamp: Date.now() });
+  previewCache.set(cacheKey, { url, totalPages, timestamp: Date.now() });
 
-  return url;
+  return { url, totalPages };
 }
 
 export async function renderPdf(resume: ResumeData, template?: string): Promise<Blob> {

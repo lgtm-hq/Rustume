@@ -347,7 +347,7 @@ fn cmd_preview(
     resume.validate().context("Resume validation failed")?;
 
     let renderer = TypstRenderer::new();
-    let png = renderer
+    let (png, _total_pages) = renderer
         .render_preview(&resume, page)
         .context("Failed to render preview")?;
 

@@ -15,7 +15,7 @@
 //! let pdf_bytes = renderer.render_pdf(&resume)?;
 //!
 //! // Generate preview image
-//! let png_bytes = renderer.render_preview(&resume, 0)?;
+//! let (png_bytes, _total_pages) = renderer.render_preview(&resume, 0)?;
 //! ```
 
 mod traits;
