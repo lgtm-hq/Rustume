@@ -11,15 +11,21 @@ name: Release - Automated PR Creation
     workflows: ["Test - Rust Test Suite"]
     branches: [main]
     types: [completed]
-  # For commits that don't touch Rust source (docs, scripts, templates, etc.)
+  # For commits that don't touch Rust source (docs, scripts, Docker, etc.)
   # the test suite never runs, so fall back to a direct push trigger.
+  # Using an explicit include list (paths) ensures Rust-only commits never
+  # fire this trigger. Mixed commits may still fire both paths, but the
+  # branch protection required-checks gate auto-merge on the release PR.
   push:
     branches: [main]
-    paths-ignore:
-      - "**.rs"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - ".github/workflows/test-rust.yml"
+    paths:
+      - "docs/**"
+      - "scripts/**"
+      - "docker/**"
+      - "**.md"
+      - "renovate.json"
+      - ".github/**"
+      - "Makefile"
   workflow_dispatch:
 
 permissions:
