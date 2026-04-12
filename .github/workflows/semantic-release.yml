@@ -56,7 +56,7 @@ jobs:
     steps:
       - name: Harden Runner
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@282efbc5344859744d952012d982cec7be75c294 # v0
+        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@3ce2f6cc0ae201d97ebe3a86f5770840947c9f04 # v0
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -67,7 +67,7 @@ jobs:
 
       - name: Checkout
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@282efbc5344859744d952012d982cec7be75c294 # v0
+        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@3ce2f6cc0ae201d97ebe3a86f5770840947c9f04 # v0
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -76,7 +76,7 @@ jobs:
       - name: Calculate next version
         id: semrel
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/calculate-version@282efbc5344859744d952012d982cec7be75c294 # v0
+        uses: lgtm-hq/lgtm-ci/.github/actions/calculate-version@3ce2f6cc0ae201d97ebe3a86f5770840947c9f04 # v0
         with:
           max-bump: minor
 
@@ -95,7 +95,7 @@ jobs:
         if: steps.needs_bump.outputs.required == 'true'
         id: app-token
         # yamllint disable-line rule:line-length
-        uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3.0.0-beta.2
+        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1-beta.2
         with:
           app-id: ${{ secrets.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
@@ -111,7 +111,7 @@ jobs:
         if: steps.needs_bump.outputs.required == 'true'
         id: cpr
         # yamllint disable-line rule:line-length
-        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
         with:
           token: ${{ steps.app-token.outputs.token }}
           commit-message: >-
