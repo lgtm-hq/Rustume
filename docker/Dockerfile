@@ -6,7 +6,7 @@
 # =============================================================================
 # Stage 1: Chef base (shared toolchain for planner + builder)
 # =============================================================================
-FROM rust:1.94-alpine@sha256:77237dd363a0b127bb5ef532c2d64c0deb380b738e43a9c4bdac73398d6d0a08 AS chef
+FROM rust:1.95-alpine@sha256:606fd313a0f49743ee2a7bd49a0914bab7deedb12791f3a846a34a4711db7ed2 AS chef
 
 # BuildKit auto-populates TARGETARCH per --platform (amd64 | arm64)
 ARG TARGETARCH
