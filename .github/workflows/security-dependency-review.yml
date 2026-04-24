@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  LINTRO_IMAGE: ghcr.io/lgtm-hq/py-lintro:0.57.1
+  LINTRO_IMAGE: ghcr.io/lgtm-hq/py-lintro:0.60.2
 
 jobs:
   security-audit:

@@ -77,7 +77,7 @@ jobs:
         id: lintro
         env:
           # yamllint disable-line rule:line-length
-          LINTRO_IMAGE: ghcr.io/lgtm-hq/py-lintro@sha256:bf127b81b3f7c4e5b56706d925fd8d2efcdea9110944374f43d82fdacfc8b9f2
+          LINTRO_IMAGE: ghcr.io/lgtm-hq/py-lintro:0.60.2@sha256:587283626d467b449922306e6a17d9386e96fd548e229fb003c155cc8878be44
           WORKSPACE: ${{ github.workspace }}
         run: ./scripts/ci/lintro/run-lintro-docker.sh
 
