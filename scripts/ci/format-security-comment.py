@@ -146,8 +146,9 @@ def format_error(raw_path: str) -> str:
 
     raw = Path(raw_path)
     if raw.exists():
-        content = raw.read_text()[:500]
-        lines.extend(["```", content, "```", ""])
+        content = raw.read_text(errors="replace")[:500]
+        content = content.replace("```", "ʼʼʼ")
+        lines.extend(["```text", content, "```", ""])
 
     return "\n".join(lines)
 

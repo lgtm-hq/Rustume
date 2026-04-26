@@ -56,13 +56,15 @@ runs:
         COMMENT_BODY:
           ${{ inputs.file != '' && steps.read-file.outputs.content || inputs.body }}
         COMMENT_MARKER: ${{ inputs.marker }}
+        INPUT_PR_NUMBER: ${{ inputs.pr-number }}
       with:
         github-token: ${{ inputs.github-token }}
         script: |
           const marker = `<!-- ${process.env.COMMENT_MARKER} -->`;
           const body = `${marker}\n${process.env.COMMENT_BODY}`;
 
-          const prNumber = ${{ inputs.pr-number || 'context.issue.number' }};
+          const inputPr = process.env.INPUT_PR_NUMBER;
+          const prNumber = inputPr ? parseInt(inputPr, 10) : context.issue.number;
 
           if (!prNumber) {
             console.log('No PR number found, skipping comment');

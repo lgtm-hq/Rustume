@@ -19,24 +19,38 @@ docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
   --output-format json --output /code/"${OSV_RESULTS}" \
   2>&1 | tee osv-output.txt || OSV_EXIT_CODE=$?
 
+PARSE_OK=0
 HAS_VULNS=0
-if [[ -f "${OSV_RESULTS}" ]] && python3 -c "
+if [[ -f "${OSV_RESULTS}" ]]; then
+  PYRC=0
+  python3 -c "
 import json, sys
 path = sys.argv[1]
 try:
     d = json.load(open(path))
-    r = next((x for x in d.get('results', []) if x.get('tool') == 'osv_scanner'), None)
-    sys.exit(0 if r and r.get('issues_count', 0) > 0 else 1)
-except (json.JSONDecodeError, KeyError) as e:
+except json.JSONDecodeError as e:
     print(f'Failed to parse {path}: {e}', file=sys.stderr)
-    sys.exit(1)
-" "${OSV_RESULTS}" 2>&1; then
-  HAS_VULNS=1
+    sys.exit(2)
+r = next((x for x in d.get('results', []) if x.get('tool') == 'osv_scanner'), None)
+if r is None:
+    print(f'No osv_scanner result in {path}', file=sys.stderr)
+    sys.exit(2)
+sys.exit(0 if r.get('issues_count', 0) > 0 else 1)
+" "${OSV_RESULTS}" || PYRC=$?
+  case "${PYRC}" in
+    0) PARSE_OK=1; HAS_VULNS=1 ;;
+    1) PARSE_OK=1 ;;
+    *) PARSE_OK=0 ;;
+  esac
 fi
 
 AUDIT_FAILED=0
 if [[ "${OSV_EXIT_CODE}" -ne 0 ]] && [[ "${HAS_VULNS}" -eq 0 ]]; then
   log_info "osv-scanner exited non-zero but no valid vulnerability data found"
+  AUDIT_FAILED=1
+fi
+if [[ "${OSV_EXIT_CODE}" -eq 0 ]] && [[ "${PARSE_OK}" -eq 0 ]]; then
+  log_error "osv-scanner exited 0 but results are missing or unparseable"
   AUDIT_FAILED=1
 fi
 
@@ -77,6 +91,9 @@ fi
 
 if [[ "${AUDIT_FAILED}" -eq 1 ]]; then
   log_error "Security audit failed (tool/scan error)"
+  exit 1
+elif [[ "${FORMAT_FAILED}" -eq 1 ]]; then
+  log_error "Security audit comment formatting failed"
   exit 1
 elif [[ "${HAS_VULNS}" -eq 1 ]]; then
   log_error "Security audit found vulnerabilities"

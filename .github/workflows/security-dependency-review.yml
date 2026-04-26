@@ -19,7 +19,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  LINTRO_IMAGE: ghcr.io/lgtm-hq/py-lintro:0.60.2
+  # py-lintro 0.60.2 pinned to immutable digest for reproducibility
+  LINTRO_IMAGE: ghcr.io/lgtm-hq/py-lintro:0.60.2@sha256:480cd6cfc40c6ad27ec1491a208fa3111fc72c679fc3a4246762c5cbd8752175
 
 jobs:
   security-audit:
