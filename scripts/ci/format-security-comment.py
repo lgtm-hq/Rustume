@@ -147,7 +147,9 @@ def format_error(raw_path: str) -> str:
     raw = Path(raw_path)
     if raw.exists():
         content = raw.read_text(errors="replace")[:500]
-        content = content.replace("```", "ʼʼʼ")
+        # Use modifier apostrophe (U+02BC) instead of backtick to neutralise
+        # any embedded ``` and prevent breaking out of the markdown fence.
+        content = content.replace("```", "ʼʼʼ")  # noqa: RUF001
         lines.extend(["```text", content, "```", ""])
 
     return "\n".join(lines)
