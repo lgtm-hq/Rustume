@@ -88,7 +88,7 @@ ${COMMENT_BODY}"
 
 generate_pr_comment "Security Audit" "${STATUS}" "${CONTENT}" "${COMMENT_FILE}"
 
-if [[ "${HAS_VULNS}" -eq 0 ]] && [[ "${AUDIT_FAILED}" -eq 0 ]]; then
+if [[ "${HAS_VULNS}" -eq 0 ]] && [[ "${AUDIT_FAILED}" -eq 0 ]] && [[ "${FORMAT_FAILED}" -eq 0 ]]; then
 	rm -f "${OSV_RESULTS}" osv-output.txt
 fi
 
