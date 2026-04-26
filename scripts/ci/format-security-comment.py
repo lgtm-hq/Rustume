@@ -74,8 +74,7 @@ def format_clean(result: dict[str, Any]) -> str:
     """Format output when no vulnerabilities are found."""
     lines = [
         "### 🔍 Checks Performed",
-        "- **osv-scanner**: Scanned all lockfiles against the "
-        "[OSV database](https://osv.dev)",
+        "- **osv-scanner**: Scanned all lockfiles against the [OSV database](https://osv.dev)",
         "",
         "No security vulnerabilities found in dependencies.",
         "",
@@ -92,8 +91,7 @@ def format_vulnerabilities(result: dict[str, Any]) -> str:
     """Format output when vulnerabilities are found."""
     lines = [
         "### 🔍 Checks Performed",
-        "- **osv-scanner**: Scanned all lockfiles against the "
-        "[OSV database](https://osv.dev)",
+        "- **osv-scanner**: Scanned all lockfiles against the [OSV database](https://osv.dev)",
         "",
         "### ⚠️ Vulnerability Report",
         "",
@@ -109,9 +107,7 @@ def format_vulnerabilities(result: dict[str, Any]) -> str:
             lines.append(f"| {msg} | `{filepath}` |")
     else:
         count = result.get("issues_count", 0)
-        lines.append(
-            f"| {count} vulnerability(ies) found — see CI logs for details | |"
-        )
+        lines.append(f"| {count} vulnerability(ies) found — see CI logs for details | |")
 
     lines.extend(
         [
@@ -119,8 +115,7 @@ def format_vulnerabilities(result: dict[str, Any]) -> str:
             "### 📋 Recommended Actions",
             "",
             "1. Review the vulnerabilities above",
-            "2. Update affected packages if fixes are available "
-            "(`bun update <package>`)",
+            "2. Update affected packages if fixes are available (`bun update <package>`)",
             "3. If no fix is available, add a suppression to "
             "`.osv-scanner.toml` with an expiry date",
             "",
@@ -139,8 +134,7 @@ def format_error(raw_path: str) -> str:
     lines = [
         "### ❌ Scanner Error",
         "",
-        "osv-scanner encountered an error during scanning. "
-        "Review the CI logs for details.",
+        "osv-scanner encountered an error during scanning. Review the CI logs for details.",
         "",
     ]
 

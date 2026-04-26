@@ -24,31 +24,18 @@ runs:
   steps:
     - name: Validate inputs
       shell: bash
-      run: |
-        if [[ -n "${{ inputs.body }}" && -n "${{ inputs.file }}" ]]; then
-          echo "::error::Specify either 'body' or 'file', not both"
-          exit 1
-        fi
-        if [[ -z "${{ inputs.body }}" && -z "${{ inputs.file }}" ]]; then
-          echo "::error::Either 'body' or 'file' must be provided"
-          exit 1
-        fi
+      env:
+        INPUT_BODY: ${{ inputs.body }}
+        INPUT_FILE: ${{ inputs.file }}
+      run: ./scripts/ci/github/post-pr-comment-validate.sh
 
     - name: Read comment from file
       if: inputs.file != ''
       id: read-file
       shell: bash
-      run: |
-        if [ ! -f "${{ inputs.file }}" ]; then
-          echo "::error::Comment file not found: ${{ inputs.file }}"
-          exit 1
-        fi
-        delim="EOF_$(date +%s%N)"
-        {
-          echo "content<<${delim}"
-          cat "${{ inputs.file }}"
-          echo "${delim}"
-        } >> "$GITHUB_OUTPUT"
+      env:
+        INPUT_FILE: ${{ inputs.file }}
+      run: ./scripts/ci/github/post-pr-comment-read-file.sh
 
     - name: Post or update PR comment
       uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7

@@ -1,7 +1,7 @@
 ---
 name: Security - Dependency Vulnerability Scan
 
-on:
+'on':
   pull_request:
   merge_group:
   push:
