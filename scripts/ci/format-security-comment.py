@@ -30,7 +30,9 @@ def escape_md_cell(text: str | None) -> str:
 
 def parse_lintro_json(path: str) -> dict[str, Any]:
     """Parse the lintro JSON output file."""
-    data: dict[str, Any] = json.loads(Path(path).read_text())
+    data = json.loads(Path(path).read_text())
+    if not isinstance(data, dict):
+        return {}
     results = data.get("results", [])
     if not isinstance(results, list):
         return {}
@@ -115,7 +117,9 @@ def format_vulnerabilities(result: dict[str, Any]) -> str:
             "### 📋 Recommended Actions",
             "",
             "1. Review the vulnerabilities above",
-            "2. Update affected packages if fixes are available (`bun update <package>`)",
+            "2. Update affected packages with the appropriate package manager "
+            "for this project (e.g. `cargo update`, `bun update`, `uv sync`) "
+            "if fixes are available",
             "3. If no fix is available, add a suppression to "
             "`.osv-scanner.toml` with an expiry date",
             "",

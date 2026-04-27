@@ -33,14 +33,17 @@ import json, sys
 path = sys.argv[1]
 try:
     d = json.load(open(path))
-except json.JSONDecodeError as e:
-    print(f'Failed to parse {path}: {e}', file=sys.stderr)
+    if not isinstance(d, dict):
+        print(f'Unexpected JSON root (not a dict) in {path}', file=sys.stderr)
+        sys.exit(2)
+    r = next((x for x in d.get('results', []) if isinstance(x, dict) and x.get('tool') == 'osv_scanner'), None)
+    if r is None:
+        print(f'No osv_scanner result in {path}', file=sys.stderr)
+        sys.exit(2)
+    sys.exit(0 if r.get('issues_count', 0) > 0 else 1)
+except Exception as e:
+    print(f'Failed to interpret {path}: {e!r}', file=sys.stderr)
     sys.exit(2)
-r = next((x for x in d.get('results', []) if x.get('tool') == 'osv_scanner'), None)
-if r is None:
-    print(f'No osv_scanner result in {path}', file=sys.stderr)
-    sys.exit(2)
-sys.exit(0 if r.get('issues_count', 0) > 0 else 1)
 " "${OSV_RESULTS}" || PYRC=$?
 	case "${PYRC}" in
 	0)

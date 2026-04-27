@@ -11,5 +11,4 @@ LINTRO_IMAGE="${LINTRO_IMAGE:?LINTRO_IMAGE env var must be set}"
 
 log_info "Pulling ${LINTRO_IMAGE}..."
 docker pull "${LINTRO_IMAGE}"
-docker tag "${LINTRO_IMAGE}" py-lintro:latest
-log_success "Tagged ${LINTRO_IMAGE} as py-lintro:latest"
+log_success "Pulled ${LINTRO_IMAGE}"
