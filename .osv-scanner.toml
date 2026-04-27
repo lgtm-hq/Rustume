@@ -17,10 +17,3 @@ reason = "bincode — transitive via typst -> syntect; blocked until syntect dro
 id = "RUSTSEC-2024-0436"
 ignoreUntil = 2026-10-04
 reason = "paste — transitive via typst -> hayagriva; informational (unmaintained), functionally stable"
-
-# --- Dev-dependency: blocked on cuid2/getrandom conflict ---
-
-[[IgnoredVulns]]
-id = "RUSTSEC-2026-0049"
-ignoreUntil = 2026-10-04
-reason = "rustls-webpki — dev-dep via reqwest -> hyper-rustls -> rustls; cargo update blocked by cuid2 getrandom feature conflict"
