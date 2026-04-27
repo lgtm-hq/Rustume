@@ -93,8 +93,6 @@ jobs:
 
       - name: Post PR comment
         uses: ./.github/actions/post-pr-comment
-        continue-on-error: true
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           file: security-audit-comment.txt
           marker: security-audit-report

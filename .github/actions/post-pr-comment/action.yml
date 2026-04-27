@@ -1,52 +1,26 @@
 ---
 name: Post PR Comment
-description: Post or update a comment on a PR with marker-based deduplication
-
+description: Post a prepared comment file to the current pull request
 inputs:
-  github-token:
-    description: GitHub token for API access
+  file:
+    description: Path to the comment file
     required: true
   marker:
-    description: Unique marker to identify and update existing comments
-    required: true
-  body:
-    description: Comment body content (markdown) - mutually exclusive with file
+    description: HTML comment marker for in-place update (optional)
     required: false
-  file:
-    description: Path to file containing comment body - mutually exclusive with body
-    required: false
-  pr-number:
-    description: PR number (defaults to current PR)
-    required: false
+    default: ''
 
 runs:
   using: composite
   steps:
-    - name: Validate inputs
+    - name: Post comment
       shell: bash
       env:
-        INPUT_BODY: ${{ inputs.body }}
-        INPUT_FILE: ${{ inputs.file }}
-      run: ./scripts/ci/github/post-pr-comment-validate.sh
-
-    - name: Read comment from file
-      if: inputs.file != ''
-      id: read-file
-      shell: bash
-      env:
-        INPUT_FILE: ${{ inputs.file }}
-      run: ./scripts/ci/github/post-pr-comment-read-file.sh
-
-    - name: Post or update PR comment
-      uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
-      env:
-        COMMENT_BODY:
-          ${{ inputs.file != '' && steps.read-file.outputs.content || inputs.body }}
-        COMMENT_MARKER: ${{ inputs.marker }}
-        INPUT_PR_NUMBER: ${{ inputs.pr-number }}
-      with:
-        github-token: ${{ inputs.github-token }}
-        script: |
-          const ws = process.env.GITHUB_WORKSPACE;
-          const script = require(`${ws}/scripts/ci/github/post-pr-comment.js`);
-          await script({ github, context, core });
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        GITHUB_TOKEN: ${{ github.token }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        MARKER: ${{ inputs.marker }}
+        COMMENT_FILE: ${{ inputs.file }}
+      run: |
+        SCRIPTS="$GITHUB_ACTION_PATH/../../../scripts"
+        "$SCRIPTS/ci/github/ci-post-pr-comment.sh" "$COMMENT_FILE"
