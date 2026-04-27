@@ -96,4 +96,4 @@ async-trait = "0.1"
 utoipa = { version = "5", features = ["axum_extras"] }
 
 # Caching
-lru = "0.16"
+lru = "0.18"
