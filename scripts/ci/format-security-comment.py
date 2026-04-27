@@ -166,7 +166,7 @@ def main() -> None:
 
     try:
         result = parse_lintro_json(results_path)
-    except json.JSONDecodeError as e:
+    except (json.JSONDecodeError, OSError) as e:
         print(f"Failed to parse {results_path}: {e}", file=sys.stderr)
         print(format_error(results_path))
         sys.exit(1)
