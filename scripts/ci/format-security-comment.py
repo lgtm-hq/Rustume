@@ -145,10 +145,12 @@ def format_error(raw_path: str) -> str:
     raw = Path(raw_path)
     if raw.exists():
         content = raw.read_text(errors="replace")[:500]
-        # Use modifier apostrophe (U+02BC) instead of backtick to neutralise
-        # any embedded ``` and prevent breaking out of the markdown fence.
-        content = content.replace("```", "ʼʼʼ")  # noqa: RUF001
-        lines.extend(["```text", content, "```", ""])
+        # Pick a fence longer than any backtick run in content so embedded
+        # ``` cannot break out of the markdown code fence.
+        fence = "```"
+        while fence in content:
+            fence += "`"
+        lines.extend([f"{fence}text", content, fence, ""])
 
     return "\n".join(lines)
 
