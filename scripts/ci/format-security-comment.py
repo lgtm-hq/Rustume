@@ -16,15 +16,18 @@ from pathlib import Path
 from typing import Any
 
 
-def escape_md_cell(text: str | None) -> str:
+def escape_md_cell(text: object) -> str:
     """Escape characters that would break a markdown table cell.
 
     Replaces ``|`` with ``\\|`` and strips newlines so that cell content
-    stays on a single table row.  Accepts ``None`` and converts it to an
-    empty string so callers don't need to guard against missing values.
+    stays on a single table row.  Accepts ``None`` (yields an empty string)
+    and any non-string value (coerced via ``str``) so callers don't need
+    to guard against missing or non-string values from untyped JSON.
     """
     if text is None:
         return ""
+    if not isinstance(text, str):
+        text = str(text)
     return text.replace("|", r"\|").replace("\n", " ").replace("\r", "")
 
 
