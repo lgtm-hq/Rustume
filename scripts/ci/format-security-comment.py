@@ -101,7 +101,7 @@ def _get_suppressions(result: dict[str, Any]) -> list[dict[str, Any]]:
     suppressions = ai_metadata.get("suppressions", [])
     if not isinstance(suppressions, list):
         return []
-    return suppressions
+    return [s for s in suppressions if isinstance(s, dict)]
 
 
 def format_vulnerabilities(result: dict[str, Any]) -> str:
@@ -116,14 +116,22 @@ def format_vulnerabilities(result: dict[str, Any]) -> str:
         "|---------------|------|",
     ]
 
-    issues = result.get("issues", [])
+    raw_issues = result.get("issues")
+    issues = raw_issues if isinstance(raw_issues, list) else []
     if issues:
         for issue in issues:
-            msg = escape_md_cell(issue.get("message", "Unknown vulnerability"))
-            filepath = escape_md_cell(issue.get("file", "unknown"))
+            if isinstance(issue, dict):
+                msg = escape_md_cell(issue.get("message", "Unknown vulnerability"))
+                filepath = escape_md_cell(issue.get("file", "unknown"))
+            elif isinstance(issue, str):
+                msg = escape_md_cell(issue)
+                filepath = escape_md_cell("unknown")
+            else:
+                continue
             lines.append(f"| {msg} | `{filepath}` |")
     else:
-        count = result.get("issues_count", 0)
+        raw_count = result.get("issues_count", 0)
+        count = raw_count if isinstance(raw_count, int) else 0
         lines.append(f"| {count} vulnerability(ies) found — see CI logs for details | |")
 
     lines.extend(
@@ -159,7 +167,10 @@ def format_error(raw_path: str) -> str:
 
     raw = Path(raw_path)
     if raw.exists():
-        content = raw.read_text(errors="replace")[:500]
+        try:
+            content = raw.read_text(errors="replace")[:500]
+        except OSError as exc:
+            content = f"<unable to read {raw_path}: {exc}>"
         # Pick a fence longer than any backtick run in content so embedded
         # ``` cannot break out of the markdown code fence.
         fence = "```"
