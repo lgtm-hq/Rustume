@@ -67,6 +67,8 @@ def format_suppressions_table(suppressions: list[dict[str, Any]]) -> str:
         raw_expires = s.get("ignore_until")
         expires = escape_md_cell(str(raw_expires) if raw_expires is not None else "N/A")
         raw_status = s.get("status") or ""
+        if not isinstance(raw_status, str):
+            raw_status = str(raw_status)
         status = escape_md_cell(status_icons.get(raw_status, raw_status or "unknown"))
         reason = escape_md_cell(s.get("reason", ""))
         lines.append(f"| `{vuln_id}` | {expires} | {status} | {reason} |")
