@@ -69,7 +69,10 @@ jobs:
 
   post-pr-comment:
     name: "💬 Post PR Comment"
-    if: always() && github.event_name == 'pull_request'
+    if: >-
+      always() &&
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository
     needs: security-audit
     permissions:
       contents: read

@@ -118,18 +118,19 @@ def format_vulnerabilities(result: dict[str, Any]) -> str:
 
     raw_issues = result.get("issues")
     issues = raw_issues if isinstance(raw_issues, list) else []
-    if issues:
-        for issue in issues:
-            if isinstance(issue, dict):
-                msg = escape_md_cell(issue.get("message", "Unknown vulnerability"))
-                filepath = escape_md_cell(issue.get("file", "unknown"))
-            elif isinstance(issue, str):
-                msg = escape_md_cell(issue)
-                filepath = escape_md_cell("unknown")
-            else:
-                continue
-            lines.append(f"| {msg} | `{filepath}` |")
-    else:
+    rows_added = 0
+    for issue in issues:
+        if isinstance(issue, dict):
+            msg = escape_md_cell(issue.get("message", "Unknown vulnerability"))
+            filepath = escape_md_cell(issue.get("file", "unknown"))
+        elif isinstance(issue, str):
+            msg = escape_md_cell(issue)
+            filepath = escape_md_cell("unknown")
+        else:
+            continue
+        lines.append(f"| {msg} | `{filepath}` |")
+        rows_added += 1
+    if rows_added == 0:
         raw_count = result.get("issues_count", 0)
         count = raw_count if isinstance(raw_count, int) else 0
         lines.append(f"| {count} vulnerability(ies) found — see CI logs for details | |")
@@ -194,7 +195,7 @@ def main() -> None:
 
     try:
         result = parse_lintro_json(results_path)
-    except (json.JSONDecodeError, OSError) as e:
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError) as e:
         print(f"Failed to parse {results_path}: {e}", file=sys.stderr)
         print(format_error(results_path))
         sys.exit(1)
