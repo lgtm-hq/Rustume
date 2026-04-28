@@ -82,11 +82,26 @@ def format_clean(result: dict[str, Any]) -> str:
         "",
     ]
 
-    suppressions = result.get("ai_metadata", {}).get("suppressions", [])
+    suppressions = _get_suppressions(result)
     if suppressions:
         lines.append(format_suppressions_table(suppressions))
 
     return "\n".join(lines)
+
+
+def _get_suppressions(result: dict[str, Any]) -> list[dict[str, Any]]:
+    """Safely extract suppression entries from a lintro result.
+
+    Returns an empty list when ``ai_metadata`` is missing, ``None``, or not a
+    mapping, so callers don't have to defend against malformed payloads.
+    """
+    ai_metadata = result.get("ai_metadata")
+    if not isinstance(ai_metadata, dict):
+        return []
+    suppressions = ai_metadata.get("suppressions", [])
+    if not isinstance(suppressions, list):
+        return []
+    return suppressions
 
 
 def format_vulnerabilities(result: dict[str, Any]) -> str:
@@ -126,7 +141,7 @@ def format_vulnerabilities(result: dict[str, Any]) -> str:
         ]
     )
 
-    suppressions = result.get("ai_metadata", {}).get("suppressions", [])
+    suppressions = _get_suppressions(result)
     if suppressions:
         lines.append(format_suppressions_table(suppressions))
 
@@ -177,8 +192,11 @@ def main() -> None:
         print(format_error(results_path))
         sys.exit(1)
 
-    issues_count = result.get("issues_count", 0)
-    if issues_count > 0:
+    raw_count = result.get("issues_count", 0)
+    issues_count = raw_count if isinstance(raw_count, int) else 0
+    issues = result.get("issues")
+    has_issues = isinstance(issues, list) and len(issues) > 0
+    if issues_count > 0 or has_issues:
         print(format_vulnerabilities(result))
     else:
         print(format_clean(result))
