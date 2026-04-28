@@ -1,0 +1,26 @@
+---
+name: Post PR Comment
+description: Post a prepared comment file to the current pull request
+inputs:
+  file:
+    description: Path to the comment file
+    required: true
+  marker:
+    description: HTML comment marker for in-place update (optional)
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Post comment
+      shell: bash
+      env:
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        GITHUB_TOKEN: ${{ github.token }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        MARKER: ${{ inputs.marker }}
+        COMMENT_FILE: ${{ inputs.file }}
+      run: |
+        SCRIPTS="$GITHUB_ACTION_PATH/../../../scripts"
+        "$SCRIPTS/ci/github/ci-post-pr-comment.sh" "$COMMENT_FILE"

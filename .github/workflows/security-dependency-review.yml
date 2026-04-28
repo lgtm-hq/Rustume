@@ -1,0 +1,105 @@
+---
+name: Security - Dependency Vulnerability Scan
+
+'on':
+  pull_request:
+  merge_group:
+    types: [checks_requested]
+  push:
+    branches: [main]
+  schedule:
+    # Weekly scan: Monday 05:30 UTC
+    - cron: '30 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # py-lintro 0.61.0 pinned to immutable digest for reproducibility
+  LINTRO_IMAGE: ghcr.io/lgtm-hq/py-lintro:0.61.0@sha256:95b9fd9d62c3ca1227447467767ec915e78a7eef62282dd18c0b1c02ee4d3887
+
+jobs:
+  security-audit:
+    name: "🔐 Security Audit"
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+        if: ${{ !env.ACT }}
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            api.osv.dev:443
+            api.deps.dev:443
+            github.com:443
+            ghcr.io:443
+            objects.githubusercontent.com:443
+            pkg-containers.githubusercontent.com:443
+            codeload.github.com:443
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Pull py-lintro Docker image
+        run: ./scripts/ci/pull-lintro-image.sh
+
+      - name: Run security audit
+        id: audit
+        continue-on-error: true
+        run: ./scripts/ci/security-audit.sh
+
+      - name: Upload comment artifact
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: security-audit-comment
+          path: security-audit-comment.txt
+          if-no-files-found: error
+
+      - name: Fail on vulnerabilities
+        if: steps.audit.outcome == 'failure'
+        run: ./scripts/ci/fail-audit.sh
+
+  post-pr-comment:
+    name: "💬 Post PR Comment"
+    if: >-
+      always() &&
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    needs: security-audit
+    permissions:
+      contents: read
+      pull-requests: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+        if: ${{ !env.ACT }}
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            github.com:443
+            codeload.github.com:443
+            objects.githubusercontent.com:443
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Download comment artifact
+        id: download_comment_artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: security-audit-comment
+
+      - name: Post PR comment
+        uses: ./.github/actions/post-pr-comment
+        with:
+          file: security-audit-comment.txt
+          marker: security-audit-report
