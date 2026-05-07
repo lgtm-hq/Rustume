@@ -37,7 +37,7 @@ ego-tree = "0.11"
 csv = "1.3"
 
 # ZIP (for LinkedIn import)
-zip = "2.2"
+zip = "8.0"
 
 # Async
 tokio = { version = "1", features = [
@@ -75,7 +75,7 @@ web-sys = { version = "0.3", features = [
 ] }
 
 # Error handling
-thiserror = "1.0"
+thiserror = "2.0"
 anyhow = "1.0"
 
 # Regex
