@@ -40,9 +40,9 @@
     },
   },
   "overrides": {
-    "@babel/plugin-transform-modules-systemjs": ">=7.29.4",
+    "@babel/plugin-transform-modules-systemjs": "^7.29.4",
     "@rollup/plugin-terser": "^1.0.0",
-    "fast-uri": ">=3.1.2",
+    "fast-uri": "^3.1.2",
   },
   "packages": {
     "@acemir/cssom": ["@acemir/cssom@0.9.31", "", {}, "sha512-ZnR3GSaH+/vJ0YlHau21FjfLYjMpYVIzTD8M8vIEQvIGxeOXyXdzCI140rrCY862p/C/BbzWsjc1dgnM9mkoTA=="],
