@@ -142,8 +142,8 @@ body {
 
 /* Selection */
 ::selection {
-  background: var(--color-accent-light);
-  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-accent) 55%, var(--color-paper));
+  color: var(--color-paper);
 }
 
 /* Scrollbar */
@@ -249,6 +249,10 @@ body {
   margin: 0.125em 0;
 }
 
+.rich-text-editor .tiptap li::marker {
+  color: var(--color-ink);
+}
+
 .rich-text-editor .tiptap a {
   color: var(--color-accent);
   text-decoration: underline;
@@ -267,6 +271,11 @@ body {
 /* Kobalte overrides */
 [data-kb-popper-content-wrapper] {
   z-index: 50 !important;
+}
+
+#section-visibility-panel {
+  margin-top: 3.5rem;
+  max-height: calc(100% - 3.5rem);
 }
 
 /* Kobalte Tooltip */
