@@ -3,6 +3,7 @@ import {
   DragDropProvider,
   DragDropSensors,
   DragOverlay,
+  SortableProvider,
   closestCenter,
 } from "@thisbeyond/solid-dnd";
 import type { DragEvent } from "@thisbeyond/solid-dnd";
@@ -10,7 +11,6 @@ import { resumeStore } from "../../stores/resume";
 import { toast } from "../ui";
 import { SECTIONS } from "../builder/constants";
 import { DroppableColumn } from "./DroppableColumn";
-import { DraggableSection } from "./DraggableSection";
 import { ColumnControls } from "./ColumnControls";
 
 /** Column droppable IDs follow the pattern "col-{index}". */
@@ -135,6 +135,8 @@ export function LayoutEditor() {
     return SECTIONS.find((s) => s.key === id)?.name ?? id;
   }
 
+  const sortableIds = () => columns().flat();
+
   /** Announce a message to screen readers via the live region. */
   function announce(message: string) {
     setAnnouncement("");
@@ -246,39 +248,8 @@ export function LayoutEditor() {
     setActiveId(String(draggable.id));
   }
 
-  function onDragOver({ draggable, droppable }: DragEvent) {
-    if (!droppable) return;
-
-    const draggableId = String(draggable.id);
-    const fromCol = resolveColumnIndex(draggable.id);
-    const toCol = resolveColumnIndex(droppable.id);
-
-    if (fromCol < 0 || toCol < 0 || fromCol === toCol) return;
-
-    // Move section to the new column (append at the end for now; onDragEnd handles ordering)
-    setColumns((prev) => {
-      const next = prev.map((col) => [...col]);
-      // Remove from source
-      next[fromCol] = next[fromCol].filter((id) => id !== draggableId);
-      // Append to target
-      if (!next[toCol].includes(draggableId)) {
-        // Insert before the droppable section if it's a section, else append
-        const droppableIdx = parseColumnIndex(droppable.id);
-        if (droppableIdx >= 0) {
-          // Dropped on column itself -> append
-          next[toCol].push(draggableId);
-        } else {
-          // Dropped on a sibling section -> insert at that position
-          const targetIdx = next[toCol].indexOf(String(droppable.id));
-          if (targetIdx >= 0) {
-            next[toCol].splice(targetIdx, 0, draggableId);
-          } else {
-            next[toCol].push(draggableId);
-          }
-        }
-      }
-      return next;
-    });
+  function onDragOver() {
+    // Keep drag-over read-only; mutations happen atomically on drag end.
   }
 
   function onDragEnd({ draggable, droppable }: DragEvent) {
@@ -315,21 +286,27 @@ export function LayoutEditor() {
     const currentCols = columns();
     const newCols = currentCols.map((col) => [...col]);
 
-    if (fromCol === toCol) {
-      // Reorder within the same column
-      const col = newCols[fromCol];
-      const fromIdx = col.indexOf(draggableId);
-      let toIdx = col.indexOf(droppableId);
-      if (fromIdx >= 0 && toIdx >= 0 && fromIdx !== toIdx) {
-        col.splice(fromIdx, 1);
-        // After removal, indices shift down for items below fromIdx
-        if (fromIdx < toIdx) {
-          toIdx--;
-        }
-        col.splice(toIdx, 0, draggableId);
-      }
+    const sourceIdx = newCols[fromCol].indexOf(draggableId);
+    if (sourceIdx < 0) {
+      persistLayout(currentCols);
+      return;
     }
-    // Cross-column moves are already handled in onDragOver
+
+    const [moved] = newCols[fromCol].splice(sourceIdx, 1);
+    if (!moved) {
+      persistLayout(currentCols);
+      return;
+    }
+
+    const droppedOnColumn = parseColumnIndex(droppable.id) >= 0;
+    const targetIdx = droppedOnColumn ? newCols[toCol].length : newCols[toCol].indexOf(droppableId);
+    let insertIdx = targetIdx >= 0 ? targetIdx : newCols[toCol].length;
+
+    if (fromCol === toCol && sourceIdx < insertIdx) {
+      insertIdx--;
+    }
+
+    newCols[toCol].splice(insertIdx, 0, moved);
 
     setColumns(newCols);
     persistLayout(newCols);
@@ -402,33 +379,35 @@ export function LayoutEditor() {
         >
           <DragDropSensors />
 
-          <div
-            class="flex gap-3"
-            classList={{
-              "flex-col": columns().length === 1,
-              "flex-row": columns().length > 1,
-            }}
-            onKeyDown={handleKeyDown}
-          >
-            <For each={columns()}>
-              {(col, index) => (
-                <DroppableColumn
-                  columnId={columnId(index())}
-                  index={index()}
-                  sectionIds={col}
-                  totalColumns={columns().length}
-                  kbActiveId={kbDragId()}
-                />
-              )}
-            </For>
-          </div>
+          <SortableProvider ids={sortableIds()}>
+            <div
+              class="flex gap-3"
+              classList={{
+                "flex-col": columns().length === 1,
+                "flex-row": columns().length > 1,
+              }}
+              onKeyDown={handleKeyDown}
+            >
+              <For each={columns()}>
+                {(col, index) => (
+                  <DroppableColumn
+                    columnId={columnId(index())}
+                    index={index()}
+                    sectionIds={col}
+                    totalColumns={columns().length}
+                    kbActiveId={kbDragId()}
+                  />
+                )}
+              </For>
+            </div>
+          </SortableProvider>
 
           {/* Drag Overlay - shows a floating copy of the dragged item */}
           <DragOverlay>
             <Show when={activeId()}>
               {(id) => (
-                <div class="pointer-events-none">
-                  <DraggableSection id={id()} />
+                <div class="pointer-events-none rounded-lg border border-accent bg-paper px-3 py-2 text-sm font-body text-ink shadow-lg">
+                  {sectionLabel(id())}
                 </div>
               )}
             </Show>
