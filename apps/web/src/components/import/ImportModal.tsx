@@ -13,6 +13,40 @@ import { parseResume } from "../../api/render";
 
 type ImportFormat = "json-resume" | "rrv3" | "linkedin" | "rustume";
 
+function toHexColor(value: string): string {
+  const match = value
+    .trim()
+    .match(/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*[\d.]+)?\s*\)$/i);
+  if (!match) return value;
+
+  return (
+    "#" +
+    match
+      .slice(1, 4)
+      .map((component) =>
+        Math.max(0, Math.min(255, Number(component)))
+          .toString(16)
+          .padStart(2, "0"),
+      )
+      .join("")
+  );
+}
+
+function normalizeImportedResume(resume: ResumeData): ResumeData {
+  return {
+    ...resume,
+    metadata: {
+      ...resume.metadata,
+      theme: {
+        ...resume.metadata.theme,
+        background: toHexColor(resume.metadata.theme.background),
+        text: toHexColor(resume.metadata.theme.text),
+        primary: toHexColor(resume.metadata.theme.primary),
+      },
+    },
+  };
+}
+
 // Safe base64 encoding for large arrays (avoids call stack overflow)
 function uint8ArrayToBase64(data: Uint8Array): string {
   const CHUNK_SIZE = 0x8000; // 32KB chunks
@@ -53,7 +87,7 @@ export function ImportModal() {
 
         if (isWasmReady()) {
           const resume = parseLinkedInExport(data);
-          importResume(resume);
+          importResume(normalizeImportedResume(resume));
         } else {
           // Use server API with safe chunked base64 encoding
           const base64 = uint8ArrayToBase64(data);
@@ -62,7 +96,7 @@ export function ImportModal() {
             data: base64,
             base64: true,
           });
-          importResume(resume);
+          importResume(normalizeImportedResume(resume));
         }
       } else {
         // JSON formats
@@ -100,7 +134,7 @@ export function ImportModal() {
           });
         }
 
-        importResume(parsed);
+        importResume(normalizeImportedResume(parsed));
       }
 
       toast.success("Resume imported successfully");
