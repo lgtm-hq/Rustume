@@ -411,12 +411,12 @@
   grid(
     columns: (160pt, 1fr),
     column-gutter: 0pt,
+    fill: (x, _) => if x == 0 { sidebar-bg } else { bg-color },
 
     // Left column - sidebar with light teal background
-    box(
-      width: 100%,
-      fill: sidebar-bg,
-      inset: (x: 14pt, y: 12pt),
+    pad(
+      x: 14pt,
+      y: 12pt,
       [
         // Profiles
         #if data.sections.profiles.visible {

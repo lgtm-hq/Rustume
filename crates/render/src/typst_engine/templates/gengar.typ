@@ -378,13 +378,12 @@
   grid(
     columns: (170pt, 1fr),
     column-gutter: 0pt,
+    fill: (x, _) => if x == 0 { sidebar-bg } else { bg-color },
 
     // ── LEFT SIDEBAR ──
-    box(
-      width: 100%,
-      height: 100%,
-      fill: sidebar-bg,
-      inset: (x: 16pt, y: 28pt),
+    pad(
+      x: 16pt,
+      y: 28pt,
       {
       set text(fill: sidebar-text)
       [

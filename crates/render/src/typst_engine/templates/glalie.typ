@@ -367,13 +367,12 @@
   grid(
     columns: (170pt, 1fr),
     column-gutter: 0pt,
+    fill: (x, _) => if x == 0 { sidebar-bg },
 
     // ===== LEFT SIDEBAR =====
-    box(
-      width: 100%,
-      fill: sidebar-bg,
-      height: 100%,
-      inset: (x: 16pt, y: 24pt),
+    pad(
+      x: 16pt,
+      y: 24pt,
       [
         // Header: Name, headline, contact info
         #text(size: 18pt, weight: "bold", fill: text-color)[#data.basics.name]
