@@ -384,51 +384,35 @@
 
 
   let render-section(key, heading) = {
-    if key == "summary" and data.sections.summary.visible {
-      heading(data.sections.summary.name)
-      render-rich-text(data.sections.summary.content, size: 10pt)
-    } else if key == "profiles" and data.sections.profiles.visible {
-      heading(data.sections.profiles.name)
-      for item in data.sections.profiles.items { render-profile(item) }
-    } else if key == "experience" and data.sections.experience.visible {
-      heading(data.sections.experience.name)
-      for item in data.sections.experience.items { render-experience(item) }
-    } else if key == "education" and data.sections.education.visible {
-      heading(data.sections.education.name)
-      for item in data.sections.education.items { render-education(item) }
-    } else if key == "awards" and data.sections.awards.visible {
-      heading(data.sections.awards.name)
-      for item in data.sections.awards.items { render-award(item) }
-    } else if key == "certifications" and data.sections.certifications.visible {
-      heading(data.sections.certifications.name)
-      for item in data.sections.certifications.items { render-certification(item) }
-    } else if key == "skills" and data.sections.skills.visible {
-      heading(data.sections.skills.name)
-      for item in data.sections.skills.items { render-skill(item) }
-    } else if key == "interests" and data.sections.interests.visible {
-      heading(data.sections.interests.name)
-      for item in data.sections.interests.items { render-interest(item) }
-    } else if key == "publications" and data.sections.publications.visible {
-      heading(data.sections.publications.name)
-      for item in data.sections.publications.items { render-publication(item) }
-    } else if key == "volunteer" and data.sections.volunteer.visible {
-      heading(data.sections.volunteer.name)
-      for item in data.sections.volunteer.items { render-volunteer(item) }
-    } else if key == "languages" and data.sections.languages.visible {
-      heading(data.sections.languages.name)
-      for item in data.sections.languages.items { render-language(item) }
-    } else if key == "projects" and data.sections.projects.visible {
-      heading(data.sections.projects.name)
-      for item in data.sections.projects.items { render-project(item) }
-    } else if key == "references" and data.sections.references.visible {
-      heading(data.sections.references.name)
-      for item in data.sections.references.items { render-reference(item) }
+    if key == "summary" {
+      render-rich-text-section(data.sections.summary, heading)
+    } else if key == "profiles" {
+      render-item-section(data.sections.profiles, heading, render-profile)
+    } else if key == "experience" {
+      render-item-section(data.sections.experience, heading, render-experience)
+    } else if key == "education" {
+      render-item-section(data.sections.education, heading, render-education)
+    } else if key == "awards" {
+      render-item-section(data.sections.awards, heading, render-award)
+    } else if key == "certifications" {
+      render-item-section(data.sections.certifications, heading, render-certification)
+    } else if key == "skills" {
+      render-item-section(data.sections.skills, heading, render-skill)
+    } else if key == "interests" {
+      render-item-section(data.sections.interests, heading, render-interest)
+    } else if key == "publications" {
+      render-item-section(data.sections.publications, heading, render-publication)
+    } else if key == "volunteer" {
+      render-item-section(data.sections.volunteer, heading, render-volunteer)
+    } else if key == "languages" {
+      render-item-section(data.sections.languages, heading, render-language)
+    } else if key == "projects" {
+      render-item-section(data.sections.projects, heading, render-project)
+    } else if key == "references" {
+      render-item-section(data.sections.references, heading, render-reference)
     } else if key == "custom" and "custom" in data.sections {
       for (_, section) in data.sections.custom {
-        if section.visible {
-          heading(section.name)
-          for item in section.items { render-custom(item) }
-        }
+        render-item-section(section, heading, render-custom)
       }
     }
   }

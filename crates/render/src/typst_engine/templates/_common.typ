@@ -175,3 +175,38 @@
     fallback
   }
 }
+
+/// Render a text-only section without splitting it from its heading.
+#let render-rich-text-section(section, heading, size: 10pt, fill: none, style: none) = {
+  if section.visible {
+    block(breakable: false)[
+      #heading(section.name)
+      #render-rich-text(section.content, size: size, fill: fill, style: style)
+    ]
+  }
+}
+
+/// Render item sections while keeping headings with the first item.
+#let render-item-section(section, heading, render-item) = {
+  if section.visible {
+    let has-items = false
+    let is-first = true
+
+    for item in section.items {
+      has-items = true
+      block(breakable: false)[
+        #if is-first {
+          heading(section.name)
+        }
+        #render-item(item)
+      ]
+      is-first = false
+    }
+
+    if not has-items {
+      block(breakable: false)[
+        #heading(section.name)
+      ]
+    }
+  }
+}
