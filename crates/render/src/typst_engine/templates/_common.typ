@@ -210,3 +210,133 @@
     }
   }
 }
+
+#let identity(content) = {
+  content
+}
+
+#let render-slot(slot) = {
+  if slot != none {
+    slot()
+  }
+}
+
+/// Render a semantic section key using template-provided presentation renderers.
+#let render-section(data, key, heading, renderers) = {
+  if key == "summary" {
+    render-rich-text-section(data.sections.summary, heading)
+  } else if key == "profiles" {
+    render-item-section(data.sections.profiles, heading, renderers.profiles)
+  } else if key == "experience" {
+    render-item-section(data.sections.experience, heading, renderers.experience)
+  } else if key == "education" {
+    render-item-section(data.sections.education, heading, renderers.education)
+  } else if key == "awards" {
+    render-item-section(data.sections.awards, heading, renderers.awards)
+  } else if key == "certifications" {
+    render-item-section(data.sections.certifications, heading, renderers.certifications)
+  } else if key == "skills" {
+    render-item-section(data.sections.skills, heading, renderers.skills)
+  } else if key == "interests" {
+    render-item-section(data.sections.interests, heading, renderers.interests)
+  } else if key == "publications" {
+    render-item-section(data.sections.publications, heading, renderers.publications)
+  } else if key == "volunteer" {
+    render-item-section(data.sections.volunteer, heading, renderers.volunteer)
+  } else if key == "languages" {
+    render-item-section(data.sections.languages, heading, renderers.languages)
+  } else if key == "projects" {
+    render-item-section(data.sections.projects, heading, renderers.projects)
+  } else if key == "references" {
+    render-item-section(data.sections.references, heading, renderers.references)
+  } else if key == "custom" and "custom" in data.sections {
+    for (_, section) in data.sections.custom {
+      render-item-section(section, heading, renderers.custom)
+    }
+  }
+}
+
+/// Render a configured sequence of semantic section keys.
+#let render-sections(data, keys, heading, renderers) = {
+  for key in keys {
+    render-section(data, key, heading, renderers)
+  }
+}
+
+/// Render one configured layout column with a fallback section order.
+#let render-sections-for-column(data, column, fallback, heading, renderers) = {
+  render-sections(data, layout-column-sections(data, column, fallback), heading, renderers)
+}
+
+/// Render all configured layout columns in order for single-column templates.
+#let render-all-sections(data, heading, renderers) = {
+  render-sections(data, layout-all-sections(data), heading, renderers)
+}
+
+/// Render a resume from shared semantic rules and template-provided presentation.
+#let render-resume(data, config) = {
+  let layout = config.layout
+  let renderers = config.renderers
+  let main-heading = config.at("main-heading", default: config.at("heading", default: none))
+  let sidebar-heading = config.at("sidebar-heading", default: main-heading)
+  let main-fallback = config.at("main-fallback", default: default-main-sections + ("custom",))
+  let sidebar-fallback = config.at("sidebar-fallback", default: default-sidebar-sections)
+  let before-layout = config.at("before-layout", default: none)
+  let header = config.at("header", default: none)
+  let sidebar-before = config.at("sidebar-before", default: none)
+  let main-before = config.at("main-before", default: none)
+  let left-before = config.at("left-before", default: none)
+  let right-before = config.at("right-before", default: none)
+  let sidebar-wrapper = config.at("sidebar-wrapper", default: identity)
+  let main-wrapper = config.at("main-wrapper", default: identity)
+  let left-wrapper = config.at("left-wrapper", default: identity)
+  let right-wrapper = config.at("right-wrapper", default: identity)
+
+  render-slot(header)
+  render-slot(before-layout)
+
+  if layout == "single" {
+    render-all-sections(data, main-heading, renderers)
+  } else if layout == "sidebar-left" or layout == "full-header-sidebar" {
+    sidebar-layout(
+      sidebar-width: config.at("sidebar-width", default: 170pt),
+      sidebar-bg: config.at("sidebar-bg", default: none),
+      body-bg: config.at("body-bg", default: none),
+      sidebar-inset: config.at("sidebar-inset", default: (x: 16pt, y: 24pt)),
+      main-inset: config.at("main-inset", default: (x: 24pt, y: 24pt)),
+      sidebar-content: sidebar-wrapper([
+        #render-slot(sidebar-before)
+        #render-sections-for-column(data, 1, sidebar-fallback, sidebar-heading, renderers)
+      ]),
+      main-content: main-wrapper([
+        #render-slot(main-before)
+        #render-sections-for-column(data, 0, main-fallback, main-heading, renderers)
+      ]),
+    )
+  } else if layout == "two-column" {
+    two-column-layout(
+      columns: config.at("columns", default: (1fr, 2fr)),
+      column-gutter: config.at("column-gutter", default: 20pt),
+      left-content: left-wrapper([
+        #render-slot(left-before)
+        #render-sections-for-column(
+          data,
+          config.at("left-column", default: 0),
+          config.at("left-fallback", default: main-fallback),
+          config.at("left-heading", default: main-heading),
+          renderers,
+        )
+      ]),
+      right-content: right-wrapper([
+        #render-slot(right-before)
+        #render-sections-for-column(
+          data,
+          config.at("right-column", default: 1),
+          config.at("right-fallback", default: sidebar-fallback),
+          config.at("right-heading", default: sidebar-heading),
+          renderers,
+        )
+      ]),
+    )
+  }
+}

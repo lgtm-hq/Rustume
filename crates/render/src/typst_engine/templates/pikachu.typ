@@ -273,39 +273,21 @@
 
   // Page setup - no margin, we'll handle it in the grid
 
-  let render-section(key, heading) = {
-    if key == "summary" {
-      render-rich-text-section(data.sections.summary, heading)
-    } else if key == "profiles" {
-      render-item-section(data.sections.profiles, heading, render-profile)
-    } else if key == "experience" {
-      render-item-section(data.sections.experience, heading, render-experience)
-    } else if key == "education" {
-      render-item-section(data.sections.education, heading, render-education)
-    } else if key == "awards" {
-      render-item-section(data.sections.awards, heading, render-award)
-    } else if key == "certifications" {
-      render-item-section(data.sections.certifications, heading, render-certification)
-    } else if key == "skills" {
-      render-item-section(data.sections.skills, heading, render-skill)
-    } else if key == "interests" {
-      render-item-section(data.sections.interests, heading, render-interest)
-    } else if key == "publications" {
-      render-item-section(data.sections.publications, heading, render-publication)
-    } else if key == "volunteer" {
-      render-item-section(data.sections.volunteer, heading, render-volunteer)
-    } else if key == "languages" {
-      render-item-section(data.sections.languages, heading, render-language)
-    } else if key == "projects" {
-      render-item-section(data.sections.projects, heading, render-project)
-    } else if key == "references" {
-      render-item-section(data.sections.references, heading, render-reference)
-    } else if key == "custom" and "custom" in data.sections {
-      for (_, section) in data.sections.custom {
-        render-item-section(section, heading, render-custom)
-      }
-    }
-  }
+  let renderers = (
+    profiles: render-profile,
+    experience: render-experience,
+    education: render-education,
+    awards: render-award,
+    certifications: render-certification,
+    skills: render-skill,
+    interests: render-interest,
+    publications: render-publication,
+    volunteer: render-volunteer,
+    languages: render-language,
+    projects: render-project,
+    references: render-reference,
+    custom: render-custom,
+  )
 
   set page(fill: bg-color, 
     margin: 0pt,
@@ -322,76 +304,79 @@
     justify: false,
   )
 
-  sidebar-layout(
+  let sidebar-wrapper(body) = {
+    set text(fill: sidebar-text-color)
+    body
+  }
+
+  let sidebar-before = () => [
+    // Profile photo placeholder (initials)
+    #align(center)[
+      #box(
+        width: 80pt,
+        height: 80pt,
+        fill: primary-color,
+        radius: 50%,
+        [
+          #align(center + horizon)[
+            #text(size: 28pt, weight: "bold", fill: white)[
+              #let parts = data.basics.name.split(" ").filter(w => w.len() > 0)
+              #let initials = if parts.len() > 0 { parts.map(w => w.at(0, default: "")).join("") } else { "" }
+              #initials
+            ]
+          ]
+        ]
+      )
+    ]
+
+    #v(16pt)
+
+    // Contact
+    #sidebar-section("Contact")
+
+    #if data.basics.email != "" {
+      text(size: 9pt)[✉ #data.basics.email]
+      v(4pt)
+    }
+
+    #if data.basics.phone != "" {
+      text(size: 9pt)[☎ #data.basics.phone]
+      v(4pt)
+    }
+
+    #if data.basics.location != "" {
+      text(size: 9pt)[📍 #data.basics.location]
+      v(4pt)
+    }
+
+    #if has-url(data.basics) {
+      text(size: 9pt)[🔗 #link(data.basics.url.href)[Website]]
+      v(4pt)
+    }
+  ]
+
+  let main-before = () => [
+    // Name and headline
+    #text(size: 26pt, weight: "bold")[#data.basics.name]
+
+    #if data.basics.headline != "" {
+      v(4pt)
+      text(size: 12pt, fill: primary-color)[#data.basics.headline]
+    }
+  ]
+
+  render-resume(data, (
+    layout: "sidebar-left",
+    renderers: renderers,
     sidebar-width: 180pt,
     sidebar-bg: sidebar-bg,
     body-bg: bg-color,
     sidebar-inset: (x: 16pt, y: 32pt),
     main-inset: (x: 24pt, y: 32pt),
-    sidebar-content: {
-      set text(fill: sidebar-text-color)
-      [
-        // Profile photo placeholder (initials)
-        #align(center)[
-          #box(
-            width: 80pt,
-            height: 80pt,
-            fill: primary-color,
-            radius: 50%,
-            [
-              #align(center + horizon)[
-                #text(size: 28pt, weight: "bold", fill: white)[
-                  #let parts = data.basics.name.split(" ").filter(w => w.len() > 0)
-                  #let initials = if parts.len() > 0 { parts.map(w => w.at(0, default: "")).join("") } else { "" }
-                  #initials
-                ]
-              ]
-            ]
-          )
-        ]
-
-        #v(16pt)
-
-        // Contact
-        #sidebar-section("Contact")
-
-        #if data.basics.email != "" {
-          text(size: 9pt)[✉ #data.basics.email]
-          v(4pt)
-        }
-
-        #if data.basics.phone != "" {
-          text(size: 9pt)[☎ #data.basics.phone]
-          v(4pt)
-        }
-
-        #if data.basics.location != "" {
-          text(size: 9pt)[📍 #data.basics.location]
-          v(4pt)
-        }
-
-        #if has-url(data.basics) {
-          text(size: 9pt)[🔗 #link(data.basics.url.href)[Website]]
-          v(4pt)
-        }
-
-        #for key in layout-column-sections(data, 1, default-sidebar-sections) {
-          render-section(key, sidebar-section)
-        }
-      ]
-    },
-    main-content: [
-        // Name and headline
-        #text(size: 26pt, weight: "bold")[#data.basics.name]
-
-        #if data.basics.headline != "" {
-          v(4pt)
-          text(size: 12pt, fill: primary-color)[#data.basics.headline]
-        }
-
-        #for key in layout-column-sections(data, 0, default-main-sections + ("custom",)) {
-          render-section(key, main-section)
-        }
-    ]
-  )
+    sidebar-heading: sidebar-section,
+    main-heading: main-section,
+    sidebar-before: sidebar-before,
+    main-before: main-before,
+    sidebar-wrapper: sidebar-wrapper,
+  ))
 }

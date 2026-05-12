@@ -360,39 +360,21 @@
   }
 
 
-  let render-section(key, heading) = {
-    if key == "summary" {
-      render-rich-text-section(data.sections.summary, heading)
-    } else if key == "profiles" {
-      render-item-section(data.sections.profiles, heading, render-profile)
-    } else if key == "experience" {
-      render-item-section(data.sections.experience, heading, render-experience)
-    } else if key == "education" {
-      render-item-section(data.sections.education, heading, render-education)
-    } else if key == "awards" {
-      render-item-section(data.sections.awards, heading, render-award)
-    } else if key == "certifications" {
-      render-item-section(data.sections.certifications, heading, render-certification)
-    } else if key == "skills" {
-      render-item-section(data.sections.skills, heading, render-skill)
-    } else if key == "interests" {
-      render-item-section(data.sections.interests, heading, render-interest)
-    } else if key == "publications" {
-      render-item-section(data.sections.publications, heading, render-publication)
-    } else if key == "volunteer" {
-      render-item-section(data.sections.volunteer, heading, render-volunteer)
-    } else if key == "languages" {
-      render-item-section(data.sections.languages, heading, render-language)
-    } else if key == "projects" {
-      render-item-section(data.sections.projects, heading, render-project)
-    } else if key == "references" {
-      render-item-section(data.sections.references, heading, render-reference)
-    } else if key == "custom" and "custom" in data.sections {
-      for (_, section) in data.sections.custom {
-        render-item-section(section, heading, render-custom)
-      }
-    }
-  }
+  let renderers = (
+    profiles: render-profile,
+    experience: render-experience,
+    education: render-education,
+    awards: render-award,
+    certifications: render-certification,
+    skills: render-skill,
+    interests: render-interest,
+    publications: render-publication,
+    volunteer: render-volunteer,
+    languages: render-language,
+    projects: render-project,
+    references: render-reference,
+    custom: render-custom,
+  )
 
   set page(fill: bg-color, 
     margin: 0pt,
@@ -409,52 +391,52 @@
     justify: false,
   )
 
-  sidebar-layout(
+  let sidebar-wrapper(body) = {
+    set text(fill: sidebar-text)
+    body
+  }
+
+  let sidebar-before = () => [
+    // Header: Name, headline, contact info
+    #text(size: 18pt, weight: "bold", fill: sidebar-text)[#data.basics.name]
+
+    #if data.basics.headline != "" {
+      v(6pt)
+      text(size: 9pt, fill: muted-color)[#data.basics.headline]
+    }
+
+    #v(12pt)
+
+    // Contact info
+    #if data.basics.email != "" {
+      text(size: 8pt, fill: sidebar-text)[#data.basics.email]
+      v(4pt)
+    }
+    #if data.basics.phone != "" {
+      text(size: 8pt, fill: sidebar-text)[#data.basics.phone]
+      v(4pt)
+    }
+    #if data.basics.location != "" {
+      text(size: 8pt, fill: sidebar-text)[#data.basics.location]
+      v(4pt)
+    }
+    #if has-url(data.basics) {
+      link(data.basics.url.href)[#text(size: 8pt, fill: primary-color)[#data.basics.url.href]]
+      v(4pt)
+    }
+  ]
+
+  render-resume(data, (
+    layout: "sidebar-left",
+    renderers: renderers,
     sidebar-width: 170pt,
     sidebar-bg: sidebar-bg,
     body-bg: bg-color,
     sidebar-inset: (x: 16pt, y: 28pt),
     main-inset: (x: 24pt, y: 28pt),
-    sidebar-content: {
-      set text(fill: sidebar-text)
-      [
-        // Header: Name, headline, contact info
-        #text(size: 18pt, weight: "bold", fill: sidebar-text)[#data.basics.name]
-
-        #if data.basics.headline != "" {
-          v(6pt)
-          text(size: 9pt, fill: muted-color)[#data.basics.headline]
-        }
-
-        #v(12pt)
-
-        // Contact info
-        #if data.basics.email != "" {
-          text(size: 8pt, fill: sidebar-text)[#data.basics.email]
-          v(4pt)
-        }
-        #if data.basics.phone != "" {
-          text(size: 8pt, fill: sidebar-text)[#data.basics.phone]
-          v(4pt)
-        }
-        #if data.basics.location != "" {
-          text(size: 8pt, fill: sidebar-text)[#data.basics.location]
-          v(4pt)
-        }
-        #if has-url(data.basics) {
-          link(data.basics.url.href)[#text(size: 8pt, fill: primary-color)[#data.basics.url.href]]
-          v(4pt)
-        }
-
-        #for key in layout-column-sections(data, 1, default-sidebar-sections) {
-          render-section(key, sidebar-section-heading)
-        }
-      ]
-    },
-    main-content: [
-        #for key in layout-column-sections(data, 0, default-main-sections + ("custom",)) {
-          render-section(key, main-section-heading)
-        }
-    ],
-  )
+    sidebar-heading: sidebar-section-heading,
+    main-heading: main-section-heading,
+    sidebar-before: sidebar-before,
+    sidebar-wrapper: sidebar-wrapper,
+  ))
 }

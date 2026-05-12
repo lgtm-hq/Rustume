@@ -378,39 +378,21 @@
 
   // Page setup
 
-  let render-section(key, heading) = {
-    if key == "summary" {
-      render-rich-text-section(data.sections.summary, heading)
-    } else if key == "profiles" {
-      render-item-section(data.sections.profiles, heading, render-profile)
-    } else if key == "experience" {
-      render-item-section(data.sections.experience, heading, render-experience)
-    } else if key == "education" {
-      render-item-section(data.sections.education, heading, render-education)
-    } else if key == "awards" {
-      render-item-section(data.sections.awards, heading, render-award)
-    } else if key == "certifications" {
-      render-item-section(data.sections.certifications, heading, render-certification)
-    } else if key == "skills" {
-      render-item-section(data.sections.skills, heading, render-skill)
-    } else if key == "interests" {
-      render-item-section(data.sections.interests, heading, render-interest)
-    } else if key == "publications" {
-      render-item-section(data.sections.publications, heading, render-publication)
-    } else if key == "volunteer" {
-      render-item-section(data.sections.volunteer, heading, render-volunteer)
-    } else if key == "languages" {
-      render-item-section(data.sections.languages, heading, render-language)
-    } else if key == "projects" {
-      render-item-section(data.sections.projects, heading, render-project)
-    } else if key == "references" {
-      render-item-section(data.sections.references, heading, render-reference)
-    } else if key == "custom" and "custom" in data.sections {
-      for (_, section) in data.sections.custom {
-        render-item-section(section, heading, render-custom)
-      }
-    }
-  }
+  let renderers = (
+    profiles: render-profile,
+    experience: render-experience,
+    education: render-education,
+    awards: render-award,
+    certifications: render-certification,
+    skills: render-skill,
+    interests: render-interest,
+    publications: render-publication,
+    volunteer: render-volunteer,
+    languages: render-language,
+    projects: render-project,
+    references: render-reference,
+    custom: render-custom,
+  )
 
   set page(fill: bg-color, 
     margin: 48pt,
@@ -452,22 +434,16 @@
   line(length: 100%, stroke: 1pt + primary-color)
   v(12pt)
 
-  two-column-layout(
+  render-resume(data, (
+    layout: "two-column",
+    renderers: renderers,
     columns: (1fr, 2fr),
     column-gutter: 20pt,
-
-    // ── Left column (sidebar) ──
-    left-content: [
-      #for key in layout-column-sections(data, 1, default-sidebar-sections) {
-        render-section(key, sidebar-section-heading)
-      }
-    ],
-
-    // ── Right column (main content) ──
-    right-content: [
-      #for key in layout-column-sections(data, 0, default-main-sections + ("custom",)) {
-        render-section(key, main-section-heading)
-      }
-    ]
-  )
+    left-column: 1,
+    left-fallback: default-sidebar-sections,
+    left-heading: sidebar-section-heading,
+    right-column: 0,
+    right-fallback: default-main-sections + ("custom",),
+    right-heading: main-section-heading,
+  ))
 }

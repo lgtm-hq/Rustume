@@ -6,7 +6,10 @@
 use rstest::rstest;
 use rustume_parser::{JsonResumeParser, Parser, ReactiveResumeV3Parser};
 use rustume_render::{get_page_size, get_template_theme, Renderer, TypstRenderer, TEMPLATES};
-use rustume_schema::{Basics, Education, Experience, PageFormat, ResumeData, Section, Skill};
+use rustume_schema::{
+    Basics, CustomItem, Education, Experience, PageFormat, ResumeData, Section, Skill,
+};
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
@@ -469,4 +472,168 @@ fn test_render_template_with_content(#[case] template_name: &str) {
         "Output for '{}' is not a valid PDF",
         template_name
     );
+}
+
+#[rstest]
+#[case("rhyhorn")]
+#[case("azurill")]
+#[case("pikachu")]
+#[case("nosepass")]
+#[case("bronzor")]
+#[case("chikorita")]
+#[case("ditto")]
+#[case("gengar")]
+#[case("glalie")]
+#[case("kakuna")]
+#[case("leafish")]
+#[case("onyx")]
+fn test_templates_render_non_default_layout(#[case] template_name: &str) {
+    let renderer = TypstRenderer::new();
+    let mut resume = sample_resume();
+    resume.metadata.template = template_name.to_string();
+    resume.metadata.layout = vec![vec![
+        vec![
+            "summary".to_string(),
+            "skills".to_string(),
+            "projects".to_string(),
+            "custom".to_string(),
+        ],
+        vec![
+            "experience".to_string(),
+            "education".to_string(),
+            "profiles".to_string(),
+        ],
+    ]];
+    resume.sections.profiles.visible = true;
+
+    let result = renderer.render_pdf(&resume);
+
+    assert!(
+        result.is_ok(),
+        "PDF rendering failed for non-default layout in '{template_name}': {:?}",
+        result.err()
+    );
+    assert!(result.unwrap().starts_with(b"%PDF-"));
+}
+
+#[rstest]
+#[case("rhyhorn")]
+#[case("azurill")]
+#[case("pikachu")]
+#[case("nosepass")]
+#[case("bronzor")]
+#[case("chikorita")]
+#[case("ditto")]
+#[case("gengar")]
+#[case("glalie")]
+#[case("kakuna")]
+#[case("leafish")]
+#[case("onyx")]
+fn test_templates_render_custom_sections(#[case] template_name: &str) {
+    let renderer = TypstRenderer::new();
+    let mut resume = sample_resume();
+    resume.metadata.template = template_name.to_string();
+    resume.metadata.layout = vec![vec![
+        vec!["summary".to_string(), "experience".to_string()],
+        vec!["skills".to_string(), "custom".to_string()],
+    ]];
+
+    let mut custom_section = Section::new("open-source", "Open Source");
+    let mut custom_item = CustomItem::new("Rustume");
+    custom_item.description = "Maintained Typst template rendering".to_string();
+    custom_item.summary = "Built shared rendering contracts for all templates.".to_string();
+    custom_section.add_item(custom_item);
+    resume.sections.custom = HashMap::from([("open-source".to_string(), custom_section)]);
+
+    let result = renderer.render_pdf(&resume);
+
+    assert!(
+        result.is_ok(),
+        "PDF rendering failed for custom sections in '{template_name}': {:?}",
+        result.err()
+    );
+    assert!(result.unwrap().starts_with(b"%PDF-"));
+}
+
+#[rstest]
+#[case("rhyhorn")]
+#[case("azurill")]
+#[case("pikachu")]
+#[case("nosepass")]
+#[case("bronzor")]
+#[case("chikorita")]
+#[case("ditto")]
+#[case("gengar")]
+#[case("glalie")]
+#[case("kakuna")]
+#[case("leafish")]
+#[case("onyx")]
+fn test_templates_render_multi_page_content(#[case] template_name: &str) {
+    let renderer = TypstRenderer::new();
+    let mut resume = sample_resume();
+    resume.metadata.template = template_name.to_string();
+    resume.sections.experience = Section::new("experience", "Experience");
+    for i in 0..30 {
+        resume.sections.experience.add_item(
+            Experience::new(format!("Company {}", i), format!("Position {}", i))
+                .with_summary("Owned planning, implementation, testing, and rollout for complex template rendering work across multiple resume sections."),
+        );
+    }
+
+    let result = renderer.render_preview(&resume, 0);
+
+    assert!(
+        result.is_ok(),
+        "Preview rendering failed for multi-page content in '{template_name}': {:?}",
+        result.err()
+    );
+    let (_, total_pages) = result.unwrap();
+    assert!(
+        total_pages > 1,
+        "Expected '{template_name}' to render more than one page"
+    );
+}
+
+#[test]
+fn test_templates_use_shared_render_contract() {
+    let template_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("typst_engine")
+        .join("templates");
+
+    for entry in fs::read_dir(&template_dir)
+        .unwrap_or_else(|e| panic!("Failed to read {}: {e}", template_dir.display()))
+    {
+        let path = entry.expect("template dir entry should be readable").path();
+        if path.file_name().and_then(|name| name.to_str()) == Some("_common.typ") {
+            continue;
+        }
+        if path.extension().and_then(|ext| ext.to_str()) != Some("typ") {
+            continue;
+        }
+
+        let contents = fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("Failed to read {}: {e}", path.display()));
+        assert!(
+            contents.contains("render-resume(data,"),
+            "{} must render through _common.typ::render-resume",
+            path.display()
+        );
+        assert!(
+            !contents.contains("data.metadata.layout"),
+            "{} must not read layout metadata directly",
+            path.display()
+        );
+        assert!(
+            !contents.contains("data.sections.") || !contents.contains(".visible"),
+            "{} must not orchestrate section visibility directly",
+            path.display()
+        );
+        assert!(
+            !contents.contains("layout-column-sections(")
+                && !contents.contains("layout-all-sections("),
+            "{} must not resolve layout sections directly",
+            path.display()
+        );
+    }
 }

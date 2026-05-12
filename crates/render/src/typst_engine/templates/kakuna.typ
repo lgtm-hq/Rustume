@@ -343,39 +343,21 @@
   }
 
 
-  let render-section(key, heading) = {
-    if key == "summary" {
-      render-rich-text-section(data.sections.summary, heading)
-    } else if key == "profiles" {
-      render-item-section(data.sections.profiles, heading, render-profile)
-    } else if key == "experience" {
-      render-item-section(data.sections.experience, heading, render-experience)
-    } else if key == "education" {
-      render-item-section(data.sections.education, heading, render-education)
-    } else if key == "awards" {
-      render-item-section(data.sections.awards, heading, render-award)
-    } else if key == "certifications" {
-      render-item-section(data.sections.certifications, heading, render-certification)
-    } else if key == "skills" {
-      render-item-section(data.sections.skills, heading, render-skill)
-    } else if key == "interests" {
-      render-item-section(data.sections.interests, heading, render-interest)
-    } else if key == "publications" {
-      render-item-section(data.sections.publications, heading, render-publication)
-    } else if key == "volunteer" {
-      render-item-section(data.sections.volunteer, heading, render-volunteer)
-    } else if key == "languages" {
-      render-item-section(data.sections.languages, heading, render-language)
-    } else if key == "projects" {
-      render-item-section(data.sections.projects, heading, render-project)
-    } else if key == "references" {
-      render-item-section(data.sections.references, heading, render-reference)
-    } else if key == "custom" and "custom" in data.sections {
-      for (_, section) in data.sections.custom {
-        render-item-section(section, heading, render-custom)
-      }
-    }
-  }
+  let renderers = (
+    profiles: render-profile,
+    experience: render-experience,
+    education: render-education,
+    awards: render-award,
+    certifications: render-certification,
+    skills: render-skill,
+    interests: render-interest,
+    publications: render-publication,
+    volunteer: render-volunteer,
+    languages: render-language,
+    projects: render-project,
+    references: render-reference,
+    custom: render-custom,
+  )
 
   set page(fill: bg-color, 
     margin: 48pt,
@@ -419,7 +401,9 @@
 
   v(8pt)
 
-  for key in layout-all-sections(data) {
-    render-section(key, section-heading)
-  }
+  render-resume(data, (
+    layout: "single",
+    renderers: renderers,
+    heading: section-heading,
+  ))
 }
