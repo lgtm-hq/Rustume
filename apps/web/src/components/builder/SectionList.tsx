@@ -1,19 +1,28 @@
 import { For, Show } from "solid-js";
-import { resumeStore, type SectionKey } from "../../stores/resume";
+import { resumeStore, type LayoutSectionKey } from "../../stores/resume";
 import { SECTIONS } from "./constants";
 
 export function SectionList() {
   const { store, toggleSectionVisibility } = resumeStore;
 
-  const getItemCount = (key: SectionKey | "summary"): number => {
+  const getItemCount = (key: LayoutSectionKey): number => {
     if (!store.resume) return 0;
     if (key === "summary") return store.resume.sections.summary.content ? 1 : 0;
+    if (key === "custom") {
+      return Object.values(store.resume.sections.custom).reduce(
+        (total, section) => total + section.items.length,
+        0,
+      );
+    }
     return store.resume.sections[key].items.length;
   };
 
-  const isVisible = (key: SectionKey | "summary"): boolean => {
+  const isVisible = (key: LayoutSectionKey): boolean => {
     if (!store.resume) return false;
     if (key === "summary") return store.resume.sections.summary.visible;
+    if (key === "custom") {
+      return Object.values(store.resume.sections.custom).some((section) => section.visible);
+    }
     return store.resume.sections[key].visible;
   };
 

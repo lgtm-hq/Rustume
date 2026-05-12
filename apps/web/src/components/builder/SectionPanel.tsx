@@ -1,5 +1,5 @@
 import { For } from "solid-js";
-import { resumeStore, type SectionKey } from "../../stores/resume";
+import { resumeStore, type LayoutSectionKey } from "../../stores/resume";
 import { uiStore } from "../../stores/ui";
 import { SECTIONS } from "./constants";
 
@@ -7,9 +7,12 @@ export function SectionPanel() {
   const { store, toggleSectionVisibility } = resumeStore;
   const { store: ui, toggleSectionPanel } = uiStore;
 
-  const isVisible = (key: SectionKey | "summary"): boolean => {
+  const isVisible = (key: LayoutSectionKey): boolean => {
     if (!store.resume) return false;
     if (key === "summary") return store.resume.sections.summary.visible;
+    if (key === "custom") {
+      return Object.values(store.resume.sections.custom).some((section) => section.visible);
+    }
     return store.resume.sections[key].visible;
   };
 

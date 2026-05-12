@@ -167,6 +167,7 @@ async function getResume(id: string): Promise<ResumeData> {
 }
 
 export type SectionKey = keyof Omit<Sections, "summary" | "custom">;
+export type LayoutSectionKey = SectionKey | "summary" | "custom";
 
 export interface ResumeStore {
   resume: ResumeData | null;
@@ -280,12 +281,18 @@ export function useResumeStore() {
     },
 
     // Section visibility
-    toggleSectionVisibility(sectionKey: SectionKey | "summary") {
+    toggleSectionVisibility(sectionKey: LayoutSectionKey) {
       setStore(
         produce((s) => {
           if (s.resume) {
             if (sectionKey === "summary") {
               s.resume.sections.summary.visible = !s.resume.sections.summary.visible;
+            } else if (sectionKey === "custom") {
+              const sections = Object.values(s.resume.sections.custom);
+              const nextVisible = !sections.some((section) => section.visible);
+              for (const section of sections) {
+                section.visible = nextVisible;
+              }
             } else {
               s.resume.sections[sectionKey].visible = !s.resume.sections[sectionKey].visible;
             }
