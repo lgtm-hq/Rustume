@@ -407,17 +407,13 @@
     ]
   )
 
-  // Two-column grid: sidebar (left) + main (right)
-  grid(
-    columns: (160pt, 1fr),
-    column-gutter: 0pt,
-    fill: (x, _) => if x == 0 { sidebar-bg } else { bg-color },
-
-    // Left column - sidebar with light teal background
-    pad(
-      x: 14pt,
-      y: 12pt,
-      [
+  sidebar-layout(
+    sidebar-width: 160pt,
+    sidebar-bg: sidebar-bg,
+    body-bg: bg-color,
+    sidebar-inset: (x: 14pt, y: 12pt),
+    main-inset: (x: 20pt, y: 12pt),
+    sidebar-content: [
         // Profiles
         #if data.sections.profiles.visible {
           sidebar-heading(data.sections.profiles.name)
@@ -449,14 +445,8 @@
             render-interest(item)
           }
         }
-      ]
-    ),
-
-    // Right column - main content with internal padding
-    box(
-      width: 100%,
-      inset: (x: 20pt, y: 12pt),
-      [
+    ],
+    main-content: [
         // Summary
         #if data.sections.summary.visible {
           section-heading(data.sections.summary.name)
@@ -526,8 +516,7 @@
             render-reference(item)
           }
         }
-      ]
-    )
+    ]
   )
 
   // Custom sections after grid

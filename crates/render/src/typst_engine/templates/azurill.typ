@@ -417,13 +417,12 @@
   line(length: 100%, stroke: 1pt + primary-color)
   v(12pt)
 
-  // ── Two-column grid: sidebar (1fr) + main (2fr) ──
-  grid(
+  two-column-layout(
     columns: (1fr, 2fr),
     column-gutter: 20pt,
 
     // ── Left column (sidebar) ──
-    [
+    left-content: [
       // Profiles
       #if data.sections.profiles.visible {
         sidebar-section-heading(data.sections.profiles.name)
@@ -458,7 +457,7 @@
     ],
 
     // ── Right column (main content) ──
-    [
+    right-content: [
       // Summary
       #if data.sections.summary.visible {
         render-rich-text(data.sections.summary.content, size: 10pt, fill: muted-color, style: "italic")

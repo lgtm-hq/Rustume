@@ -287,17 +287,13 @@
     justify: false,
   )
 
-  // Two-column layout with sidebar
-  grid(
-    columns: (180pt, 1fr),
-    column-gutter: 0pt,
-    fill: (x, _) => if x == 0 { sidebar-bg } else { bg-color },
-
-    // LEFT SIDEBAR
-    pad(
-      x: 16pt,
-      y: 32pt,
-      {
+  sidebar-layout(
+    sidebar-width: 180pt,
+    sidebar-bg: sidebar-bg,
+    body-bg: bg-color,
+    sidebar-inset: (x: 16pt, y: 32pt),
+    main-inset: (x: 24pt, y: 32pt),
+    sidebar-content: {
       set text(fill: sidebar-text-color)
       [
         // Profile photo placeholder (initials)
@@ -376,14 +372,8 @@
           }
         }
       ]
-      }
-    ),
-
-    // MAIN CONTENT
-    box(
-      width: 100%,
-      inset: (x: 24pt, y: 32pt),
-      [
+    },
+    main-content: [
         // Name and headline
         #text(size: 26pt, weight: "bold")[#data.basics.name]
 
@@ -477,7 +467,6 @@
             }
           }
         }
-      ]
-    )
+    ]
   )
 }

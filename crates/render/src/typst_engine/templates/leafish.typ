@@ -438,13 +438,12 @@
 
   v(12pt)
 
-  // === TWO-COLUMN GRID ===
-  grid(
+  two-column-layout(
     columns: (1fr, 1fr),
     column-gutter: 20pt,
 
     // ---- LEFT COLUMN ----
-    [
+    left-content: [
       // Summary
       #if data.sections.summary.visible {
         section-heading(data.sections.summary.name)
@@ -493,7 +492,7 @@
     ],
 
     // ---- RIGHT COLUMN ----
-    [
+    right-content: [
       // Profiles
       #if data.sections.profiles.visible {
         section-heading(data.sections.profiles.name)

@@ -404,13 +404,12 @@
   line(length: 100%, stroke: 1pt + border-color)
   v(12pt)
 
-  // Two-column grid: main (2fr, LEFT) + sidebar (1fr, RIGHT)
-  grid(
+  two-column-layout(
     columns: (2fr, 1fr),
     column-gutter: 20pt,
 
     // LEFT COLUMN - Main content
-    [
+    left-content: [
       // Summary
       #if data.sections.summary.visible {
         main-section(data.sections.summary.name)
@@ -483,7 +482,7 @@
     ],
 
     // RIGHT COLUMN - Sidebar with light green background
-    box(
+    right-content: box(
       fill: light-bg,
       radius: 6pt,
       inset: 12pt,

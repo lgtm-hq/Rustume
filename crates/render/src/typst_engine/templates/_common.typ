@@ -81,3 +81,40 @@
   if basics.location != "" { items = items + (basics.location,) }
   items
 }
+
+/// Fixed-width sidebar plus flowing main content.
+///
+/// The grid owns the sidebar background while each column receives breakable
+/// padding, so long content can continue onto later pages.
+#let sidebar-layout(
+  sidebar-width: 170pt,
+  sidebar-bg: none,
+  body-bg: none,
+  sidebar-inset: (x: 16pt, y: 24pt),
+  main-inset: (x: 24pt, y: 24pt),
+  sidebar-content: none,
+  main-content: none,
+) = {
+  grid(
+    columns: (sidebar-width, 1fr),
+    column-gutter: 0pt,
+    fill: (x, _) => if x == 0 { sidebar-bg } else { body-bg },
+    pad(x: sidebar-inset.x, y: sidebar-inset.y, sidebar-content),
+    pad(x: main-inset.x, y: main-inset.y, main-content),
+  )
+}
+
+/// Proportional two-column content layout.
+#let two-column-layout(
+  columns: (1fr, 2fr),
+  column-gutter: 20pt,
+  left-content: none,
+  right-content: none,
+) = {
+  grid(
+    columns: columns,
+    column-gutter: column-gutter,
+    left-content,
+    right-content,
+  )
+}

@@ -363,17 +363,12 @@
     justify: true,
   )
 
-  // ── Two-column grid: sidebar (left, 170pt) + main (right, 1fr) ──
-  grid(
-    columns: (170pt, 1fr),
-    column-gutter: 0pt,
-    fill: (x, _) => if x == 0 { sidebar-bg },
-
-    // ===== LEFT SIDEBAR =====
-    pad(
-      x: 16pt,
-      y: 24pt,
-      [
+  sidebar-layout(
+    sidebar-width: 170pt,
+    sidebar-bg: sidebar-bg,
+    sidebar-inset: (x: 16pt, y: 24pt),
+    main-inset: (x: 24pt, y: 24pt),
+    sidebar-content: [
         // Header: Name, headline, contact info
         #text(size: 18pt, weight: "bold", fill: text-color)[#data.basics.name]
 
@@ -433,14 +428,8 @@
             render-interest(item)
           }
         }
-      ]
-    ),
-
-    // ===== RIGHT MAIN CONTENT =====
-    box(
-      width: 100%,
-      inset: (x: 24pt, y: 24pt),
-      [
+    ],
+    main-content: [
         // Summary
         #if data.sections.summary.visible {
           section-heading(data.sections.summary.name)
@@ -510,8 +499,7 @@
             render-reference(item)
           }
         }
-      ]
-    )
+    ]
   )
 
   // Custom sections after grid (full width)
