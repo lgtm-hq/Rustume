@@ -23,6 +23,31 @@ export function Preview() {
 
   // Dedup guard to prevent toast spam on repeated preview errors
   let lastToastedError = "";
+  let lastWheelNavigation = 0;
+
+  const goToPage = (page: number) => {
+    const nextPage = Math.min(Math.max(page, 0), totalPages() - 1);
+    if (nextPage !== ui.previewPage) {
+      setPreviewPage(nextPage);
+    }
+  };
+
+  const handleWheel = (event: WheelEvent) => {
+    if (Math.abs(event.deltaY) < 30 || totalPages() <= 1) return;
+
+    const now = Date.now();
+    if (now - lastWheelNavigation < 400) return;
+
+    event.preventDefault();
+    lastWheelNavigation = now;
+    goToPage(ui.previewPage + (event.deltaY > 0 ? 1 : -1));
+  };
+
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    event.preventDefault();
+    goToPage(ui.previewPage + (event.key === "ArrowDown" ? 1 : -1));
+  };
 
   // Debounce the resume data to avoid too many preview requests
   const debouncedResume = useDebounce(
@@ -145,7 +170,7 @@ export function Preview() {
           <button
             class="p-1.5 text-stone hover:text-ink hover:bg-surface rounded transition-colors
               disabled:opacity-30 disabled:cursor-not-allowed"
-            onClick={() => setPreviewPage(Math.max(0, ui.previewPage - 1))}
+            onClick={() => goToPage(ui.previewPage - 1)}
             disabled={ui.previewPage === 0}
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -163,7 +188,7 @@ export function Preview() {
           <button
             class="p-1.5 text-stone hover:text-ink hover:bg-surface rounded transition-colors
               disabled:opacity-30 disabled:cursor-not-allowed"
-            onClick={() => setPreviewPage(ui.previewPage + 1)}
+            onClick={() => goToPage(ui.previewPage + 1)}
             disabled={ui.previewPage >= totalPages() - 1}
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -228,10 +253,18 @@ export function Preview() {
       </div>
 
       {/* Preview Area */}
-      <div class="flex-1 overflow-auto p-6 flex items-start justify-center">
+      <div
+        class="flex-1 overflow-auto p-6 flex items-start justify-center focus:outline-none"
+        tabIndex={0}
+        onWheel={handleWheel}
+        onKeyDown={handleKeyDown}
+      >
         <div
-          class="relative transition-transform duration-200 origin-top"
-          style={{ transform: `scale(${ui.previewZoom})` }}
+          class="relative transition-[width,height] duration-200 origin-top"
+          style={{
+            width: `${595 * ui.previewZoom}px`,
+            height: `${842 * ui.previewZoom}px`,
+          }}
         >
           {/* Paper Effect */}
           <div
@@ -240,8 +273,8 @@ export function Preview() {
               hover:rotate-[0.3deg]"
             style={{
               // A4 aspect ratio at reasonable size
-              width: "595px",
-              height: "842px",
+              width: "100%",
+              height: "100%",
             }}
           >
             <Show
@@ -305,7 +338,7 @@ export function Preview() {
               <img
                 src={previewUrl()!}
                 alt="Resume preview"
-                class="w-full h-full object-contain"
+                class="w-full h-full object-fill"
                 classList={{ "opacity-50": isLoading() }}
               />
             </Show>
