@@ -60,6 +60,26 @@ export function RichTextEditor(props: RichTextEditorProps) {
       onBlur: () => setIsFocused(false),
     });
 
+    const handleTabKey = (event: KeyboardEvent) => {
+      if (event.key !== "Tab" || !ed.isFocused || props.disabled) return;
+
+      const handled = event.shiftKey
+        ? ed.chain().focus().liftListItem("listItem").run()
+        : ed.isActive("listItem")
+          ? ed.chain().focus().sinkListItem("listItem").run()
+          : ed.chain().focus().toggleBulletList().run();
+
+      if (handled) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+
+    el.addEventListener("keydown", handleTabKey, true);
+    onCleanup(() => {
+      el.removeEventListener("keydown", handleTabKey, true);
+    });
+
     setEditor(ed);
   });
 
