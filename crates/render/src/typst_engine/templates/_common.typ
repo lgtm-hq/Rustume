@@ -118,3 +118,60 @@
     right-content,
   )
 }
+
+
+#let default-main-sections = (
+  "summary",
+  "experience",
+  "education",
+  "awards",
+  "certifications",
+  "publications",
+  "volunteer",
+  "projects",
+  "references",
+)
+
+#let default-sidebar-sections = (
+  "profiles",
+  "skills",
+  "interests",
+  "certifications",
+  "awards",
+  "publications",
+  "languages",
+)
+
+#let default-all-sections = default-main-sections + default-sidebar-sections + ("custom",)
+
+/// Return the section keys configured for a layout column, with a fallback.
+#let layout-column-sections(data, column, fallback) = {
+  if data.metadata.layout.len() > 0 and data.metadata.layout.at(0).len() > column {
+    let keys = data.metadata.layout.at(0).at(column)
+    if keys.len() > 0 {
+      keys
+    } else {
+      fallback
+    }
+  } else {
+    fallback
+  }
+}
+
+/// Return all page-0 layout keys in column order for single-column templates.
+#let layout-all-sections(data, fallback: default-all-sections) = {
+  if data.metadata.layout.len() == 0 {
+    return fallback
+  }
+
+  let keys = ()
+  for column in data.metadata.layout.at(0) {
+    keys = keys + column
+  }
+
+  if keys.len() > 0 {
+    keys
+  } else {
+    fallback
+  }
+}

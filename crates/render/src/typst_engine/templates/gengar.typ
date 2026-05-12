@@ -359,6 +359,57 @@
     v(8pt)
   }
 
+
+  let render-section(key, heading) = {
+    if key == "summary" and data.sections.summary.visible {
+      heading(data.sections.summary.name)
+      render-rich-text(data.sections.summary.content, size: 10pt)
+    } else if key == "profiles" and data.sections.profiles.visible {
+      heading(data.sections.profiles.name)
+      for item in data.sections.profiles.items { render-profile(item) }
+    } else if key == "experience" and data.sections.experience.visible {
+      heading(data.sections.experience.name)
+      for item in data.sections.experience.items { render-experience(item) }
+    } else if key == "education" and data.sections.education.visible {
+      heading(data.sections.education.name)
+      for item in data.sections.education.items { render-education(item) }
+    } else if key == "awards" and data.sections.awards.visible {
+      heading(data.sections.awards.name)
+      for item in data.sections.awards.items { render-award(item) }
+    } else if key == "certifications" and data.sections.certifications.visible {
+      heading(data.sections.certifications.name)
+      for item in data.sections.certifications.items { render-certification(item) }
+    } else if key == "skills" and data.sections.skills.visible {
+      heading(data.sections.skills.name)
+      for item in data.sections.skills.items { render-skill(item) }
+    } else if key == "interests" and data.sections.interests.visible {
+      heading(data.sections.interests.name)
+      for item in data.sections.interests.items { render-interest(item) }
+    } else if key == "publications" and data.sections.publications.visible {
+      heading(data.sections.publications.name)
+      for item in data.sections.publications.items { render-publication(item) }
+    } else if key == "volunteer" and data.sections.volunteer.visible {
+      heading(data.sections.volunteer.name)
+      for item in data.sections.volunteer.items { render-volunteer(item) }
+    } else if key == "languages" and data.sections.languages.visible {
+      heading(data.sections.languages.name)
+      for item in data.sections.languages.items { render-language(item) }
+    } else if key == "projects" and data.sections.projects.visible {
+      heading(data.sections.projects.name)
+      for item in data.sections.projects.items { render-project(item) }
+    } else if key == "references" and data.sections.references.visible {
+      heading(data.sections.references.name)
+      for item in data.sections.references.items { render-reference(item) }
+    } else if key == "custom" and "custom" in data.sections {
+      for (_, section) in data.sections.custom {
+        if section.visible {
+          heading(section.name)
+          for item in section.items { render-custom(item) }
+        }
+      }
+    }
+  }
+
   set page(fill: bg-color, 
     margin: 0pt,
   )
@@ -411,123 +462,15 @@
           v(4pt)
         }
 
-        // Profiles
-        #if data.sections.profiles.visible {
-          sidebar-section-heading(data.sections.profiles.name)
-          for item in data.sections.profiles.items {
-            render-profile(item)
-          }
-        }
-
-        // Skills
-        #if data.sections.skills.visible {
-          sidebar-section-heading(data.sections.skills.name)
-          for item in data.sections.skills.items {
-            render-skill(item)
-          }
-        }
-
-        // Languages
-        #if data.sections.languages.visible {
-          sidebar-section-heading(data.sections.languages.name)
-          for item in data.sections.languages.items {
-            render-language(item)
-          }
-        }
-
-        // Interests
-        #if data.sections.interests.visible {
-          sidebar-section-heading(data.sections.interests.name)
-          for item in data.sections.interests.items {
-            render-interest(item)
-          }
+        #for key in layout-column-sections(data, 1, default-sidebar-sections) {
+          render-section(key, sidebar-section-heading)
         }
       ]
     },
     main-content: [
-        // Summary
-        #if data.sections.summary.visible {
-          main-section-heading(data.sections.summary.name)
-          render-rich-text(data.sections.summary.content, size: 10pt)
-        }
-
-        // Experience
-        #if data.sections.experience.visible {
-          main-section-heading(data.sections.experience.name)
-          for item in data.sections.experience.items {
-            render-experience(item)
-          }
-        }
-
-        // Education
-        #if data.sections.education.visible {
-          main-section-heading(data.sections.education.name)
-          for item in data.sections.education.items {
-            render-education(item)
-          }
-        }
-
-        // Awards
-        #if data.sections.awards.visible {
-          main-section-heading(data.sections.awards.name)
-          for item in data.sections.awards.items {
-            render-award(item)
-          }
-        }
-
-        // Certifications
-        #if data.sections.certifications.visible {
-          main-section-heading(data.sections.certifications.name)
-          for item in data.sections.certifications.items {
-            render-certification(item)
-          }
-        }
-
-        // Publications
-        #if data.sections.publications.visible {
-          main-section-heading(data.sections.publications.name)
-          for item in data.sections.publications.items {
-            render-publication(item)
-          }
-        }
-
-        // Volunteer
-        #if data.sections.volunteer.visible {
-          main-section-heading(data.sections.volunteer.name)
-          for item in data.sections.volunteer.items {
-            render-volunteer(item)
-          }
-        }
-
-        // Projects
-        #if data.sections.projects.visible {
-          main-section-heading(data.sections.projects.name)
-          for item in data.sections.projects.items {
-            render-project(item)
-          }
-        }
-
-        // References
-        #if data.sections.references.visible {
-          main-section-heading(data.sections.references.name)
-          for item in data.sections.references.items {
-            render-reference(item)
-          }
+        #for key in layout-column-sections(data, 0, default-main-sections + ("custom",)) {
+          render-section(key, main-section-heading)
         }
     ],
   )
-
-  // Custom sections (after grid, full-width)
-  if "custom" in data.sections {
-    for (key, section) in data.sections.custom {
-      if section.visible {
-        pad(x: 24pt)[
-          #main-section-heading(section.name)
-          #for item in section.items {
-            render-custom(item)
-          }
-        ]
-      }
-    }
-  }
 }
