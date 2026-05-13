@@ -25,28 +25,39 @@ export function Preview() {
   let lastToastedError = "";
   let lastWheelNavigation = 0;
 
+  const resolvePage = (page: number) => Math.min(Math.max(page, 0), totalPages() - 1);
+
   const goToPage = (page: number) => {
-    const nextPage = Math.min(Math.max(page, 0), totalPages() - 1);
+    const nextPage = resolvePage(page);
     if (nextPage !== ui.previewPage) {
       setPreviewPage(nextPage);
     }
   };
 
-  const handleWheel = (event: WheelEvent) => {
-    if (Math.abs(event.deltaY) < 30 || totalPages() <= 1) return;
+  const goToPageWithCooldown = (page: number) => {
+    if (totalPages() <= 1) return false;
 
     const now = Date.now();
-    if (now - lastWheelNavigation < 400) return;
+    if (now - lastWheelNavigation < 400) return false;
 
-    event.preventDefault();
+    const nextPage = resolvePage(page);
+    if (nextPage === ui.previewPage) return false;
+
     lastWheelNavigation = now;
-    goToPage(ui.previewPage + (event.deltaY > 0 ? 1 : -1));
+    goToPage(nextPage);
+    return true;
+  };
+
+  const handleWheel = (event: WheelEvent) => {
+    if (Math.abs(event.deltaY) < 30) return;
+    if (!goToPageWithCooldown(ui.previewPage + (event.deltaY > 0 ? 1 : -1))) return;
+    event.preventDefault();
   };
 
   const handleKeyDown = (event: KeyboardEvent) => {
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    if (!goToPageWithCooldown(ui.previewPage + (event.key === "ArrowDown" ? 1 : -1))) return;
     event.preventDefault();
-    goToPage(ui.previewPage + (event.key === "ArrowDown" ? 1 : -1));
   };
 
   // Debounce the resume data to avoid too many preview requests

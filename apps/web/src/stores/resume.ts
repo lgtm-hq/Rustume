@@ -416,9 +416,10 @@ export function useResumeStore() {
             return;
           }
 
-          const page = s.resume.metadata.layout[0];
+          const page = s.resume.metadata.layout[0] ?? [];
           if (!page || page.length === 0) {
-            s.resume.metadata.layout[0] = [[section.id]];
+            page.push([section.id]);
+            s.resume.metadata.layout[0] = page;
             return;
           }
 

@@ -65,7 +65,9 @@ jobs:
         run: ./scripts/ci/testing/ci-coverage-metrics.sh lcov rust-coverage.lcov
 
       - name: Generate Rust coverage PR comment
-        if: github.event_name == 'pull_request'
+        if: >-
+          github.event_name == 'pull_request' &&
+          steps.rust-metrics.outcome == 'success'
         env:
           COVERAGE_NAME: Rust
           COVERAGE_MARKER: "<!-- rust-coverage-report -->"
@@ -134,7 +136,9 @@ jobs:
           apps/web/coverage/coverage-summary.json
 
       - name: Generate Web coverage PR comment
-        if: github.event_name == 'pull_request'
+        if: >-
+          github.event_name == 'pull_request' &&
+          steps.web-metrics.outcome == 'success'
         env:
           COVERAGE_NAME: Web
           COVERAGE_MARKER: "<!-- web-coverage-report -->"

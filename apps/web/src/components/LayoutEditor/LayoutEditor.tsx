@@ -323,9 +323,6 @@ export function LayoutEditor() {
     }
 
     const droppedOnColumn = parseColumnIndex(droppable.id) >= 0;
-    const originalTargetIdx = droppedOnColumn
-      ? newCols[toCol].length
-      : newCols[toCol].indexOf(droppableId);
 
     const [moved] = newCols[fromCol].splice(sourceIdx, 1);
     if (!moved) {
@@ -334,12 +331,7 @@ export function LayoutEditor() {
     }
 
     const targetIdx = droppedOnColumn ? newCols[toCol].length : newCols[toCol].indexOf(droppableId);
-    const insertIdx =
-      fromCol === toCol && !droppedOnColumn
-        ? originalTargetIdx
-        : targetIdx >= 0
-          ? targetIdx
-          : newCols[toCol].length;
+    const insertIdx = targetIdx >= 0 ? targetIdx : newCols[toCol].length;
 
     newCols[toCol].splice(insertIdx, 0, moved);
 

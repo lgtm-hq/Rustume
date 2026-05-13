@@ -77,7 +77,9 @@ export async function renderPreview(
     page,
   } satisfies PreviewRequest);
 
-  const totalPages = parseInt(headers.get("X-Total-Pages") || "1", 10);
+  const parsedTotalPages = parseInt(headers.get("X-Total-Pages") || "1", 10);
+  const totalPages =
+    Number.isFinite(parsedTotalPages) && parsedTotalPages > 0 ? parsedTotalPages : 1;
 
   // Revoke old URL if exists
   if (cached) {

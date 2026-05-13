@@ -624,8 +624,11 @@ fn test_templates_use_shared_render_contract() {
             "{} must not read layout metadata directly",
             path.display()
         );
+        // Item-level visibility checks such as `item.visible` are allowed, but
+        // templates must not orchestrate section visibility via
+        // `data.sections.<...>.visible`.
         assert!(
-            !contents.contains("data.sections.") || !contents.contains(".visible"),
+            !(contents.contains("data.sections.") && contents.contains(".visible")),
             "{} must not orchestrate section visibility directly",
             path.display()
         );

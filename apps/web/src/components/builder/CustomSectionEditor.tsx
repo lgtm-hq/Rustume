@@ -137,7 +137,6 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
               class={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
                 currentSection().visible ? "bg-accent" : "bg-border"
               }`}
-              title={currentSection().visible ? "Hide section" : "Show section"}
               aria-label={currentSection().visible ? "Hide section" : "Show section"}
               aria-pressed={currentSection().visible}
               onClick={() => handleUpdateSection({ visible: !currentSection().visible })}
@@ -272,11 +271,17 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
                       </div>
 
                       <div class="flex items-center gap-3">
-                        <label class="flex items-center gap-2 cursor-pointer">
-                          <span class="text-xs font-mono text-stone">Visible</span>
+                        <div class="flex items-center gap-2">
+                          <span
+                            id={`custom-item-${props.sectionId}-${index()}-visible-label`}
+                            class="text-xs font-mono text-stone"
+                          >
+                            Visible
+                          </span>
                           <button
                             type="button"
                             aria-pressed={item.visible}
+                            aria-labelledby={`custom-item-${props.sectionId}-${index()}-visible-label`}
                             class={`w-8 h-5 rounded-full transition-colors relative ${
                               item.visible ? "bg-accent" : "bg-border"
                             }`}
@@ -289,7 +294,7 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
                                   }`}
                             />
                           </button>
-                        </label>
+                        </div>
 
                         <button
                           class="p-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"

@@ -207,6 +207,16 @@ describe("renderPreview", () => {
     expect(result).toEqual({ url: "blob:http://localhost/abc123", totalPages: 3 });
   });
 
+  it("falls back to one page when total page header is invalid", async () => {
+    const mockBlob = new Blob(["png-content"], { type: "image/png" });
+    mockPreviewBlob(mockBlob, "not-a-number");
+    mockCreateObjectURL.mockReturnValue("blob:http://localhost/invalid-pages");
+
+    const result = await renderPreview(mockResume, 0);
+
+    expect(result).toEqual({ url: "blob:http://localhost/invalid-pages", totalPages: 1 });
+  });
+
   it("caches result and returns cached URL on repeat call", async () => {
     const mockBlob = new Blob(["png-content"], { type: "image/png" });
     mockPreviewBlob(mockBlob, "2");
