@@ -130,7 +130,10 @@ function normalizeResumeForStore(resume: ResumeData): ResumeData {
     resume.basics.picture = createEmptyPicture();
   }
 
-  const customIds = Object.keys(resume.sections.custom ?? {});
+  resume.sections.custom ??= {};
+  resume.metadata.layout ??= [];
+
+  const customIds = Object.keys(resume.sections.custom);
   if (customIds.length === 0) return resume;
 
   if (resume.metadata.layout.length === 0) {

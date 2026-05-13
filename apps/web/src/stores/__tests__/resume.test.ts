@@ -262,6 +262,26 @@ describe("useResumeStore", () => {
     });
   });
 
+  it("importResume materializes missing custom and layout from legacy JSON", () => {
+    createRoot((dispose) => {
+      const { store, importResume } = useResumeStore();
+      const base = createDefaultResume();
+      const legacy = JSON.parse(
+        JSON.stringify({
+          ...base,
+          sections: { ...base.sections, custom: undefined },
+          metadata: { ...base.metadata, layout: undefined },
+        }),
+      ) as ResumeData;
+
+      importResume(legacy);
+
+      expect(store.resume!.sections.custom).toEqual({});
+      expect(store.resume!.metadata.layout).toEqual([]);
+      dispose();
+    });
+  });
+
   it("importResume preserves fixed sections when normalizing an empty first layout page", () => {
     createRoot((dispose) => {
       const { store, importResume } = useResumeStore();
