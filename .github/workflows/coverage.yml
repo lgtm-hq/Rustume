@@ -15,6 +15,7 @@ name: Coverage Reports
       - "apps/web/**"
       - ".github/workflows/coverage.yml"
       - "scripts/ci/github/ci-post-pr-comment.sh"
+      - "scripts/ci/github/ci-set-coverage-pr-comment-ready-output.sh"
       - "scripts/ci/testing/ci-coverage-metrics.sh"
       - "scripts/ci/testing/ci-coverage-pr-comment.sh"
       - "scripts/ci/testing/ci-rust-coverage.sh"
@@ -33,9 +34,10 @@ jobs:
   rust-coverage:
     name: 🦀 Rust Coverage
     runs-on: ubuntu-24.04
+    outputs:
+      rust_pr_comment_ready: ${{ steps.rust-comment-meta.outputs.ready }}
     permissions:
       contents: read
-      pull-requests: write
     timeout-minutes: 45
     if: >-
       github.event_name != 'pull_request' ||
@@ -83,16 +85,22 @@ jobs:
           COVERAGE_FUNCTIONS: ${{ steps.rust-metrics.outputs.functions-coverage }}
         run: ./scripts/ci/testing/ci-coverage-pr-comment.sh
 
-      - name: Comment PR with Rust coverage
-        if: >-
-          github.event_name == 'pull_request' &&
-          github.event.pull_request.head.repo.fork == false &&
-          steps.generate-rust-comment.outcome == 'success'
+      - id: rust-comment-meta
+        if: always()
         env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          GITHUB_TOKEN: ${{ github.token }}
-          MARKER: "<!-- rust-coverage-report -->"
-        run: ./scripts/ci/github/ci-post-pr-comment.sh rust-coverage-pr-comment.txt
+          EVENT_NAME: ${{ github.event_name }}
+          GENERATE_COMMENT_STEP_OUTCOME: ${{ steps.generate-rust-comment.outcome }}
+          PR_HEAD_REPO_IS_FORK: >-
+            ${{ github.event_name == 'pull_request' &&
+            github.event.pull_request.head.repo.fork || false }}
+        run: ./scripts/ci/github/ci-set-coverage-pr-comment-ready-output.sh
+
+      - name: Upload Rust coverage PR comment artifact
+        if: steps.rust-comment-meta.outputs.ready == 'true'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: rust-coverage-pr-comment
+          path: rust-coverage-pr-comment.txt
 
       - name: Fail if Rust coverage failed
         if: env.RUST_COVERAGE_EXIT_CODE != '0'
@@ -100,12 +108,41 @@ jobs:
           COVERAGE_NAME: Rust
         run: ./scripts/ci/testing/fail-on-coverage.sh
 
-  web-coverage:
-    name: 🌐 Web Coverage
+  rust-coverage-pr-comment:
+    name: 💬 Rust coverage PR comment
     runs-on: ubuntu-24.04
+    needs: rust-coverage
+    if: >-
+      github.event_name == 'pull_request' &&
+      needs.rust-coverage.outputs.rust_pr_comment_ready == 'true'
     permissions:
       contents: read
       pull-requests: write
+    timeout-minutes: 5
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: rust-coverage-pr-comment
+
+      - name: Comment PR with Rust coverage
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ github.token }}
+          MARKER: "<!-- rust-coverage-report -->"
+        run: ./scripts/ci/github/ci-post-pr-comment.sh rust-coverage-pr-comment.txt
+
+  web-coverage:
+    name: 🌐 Web Coverage
+    runs-on: ubuntu-24.04
+    outputs:
+      web_pr_comment_ready: ${{ steps.web-comment-meta.outputs.ready }}
+    permissions:
+      contents: read
     timeout-minutes: 30
     if: >-
       github.event_name != 'pull_request' ||
@@ -155,19 +192,53 @@ jobs:
           COVERAGE_STATEMENTS: ${{ steps.web-metrics.outputs.statements-coverage }}
         run: ./scripts/ci/testing/ci-coverage-pr-comment.sh
 
-      - name: Comment PR with Web coverage
-        if: >-
-          github.event_name == 'pull_request' &&
-          github.event.pull_request.head.repo.fork == false &&
-          steps.generate-web-comment.outcome == 'success'
+      - id: web-comment-meta
+        if: always()
         env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          GITHUB_TOKEN: ${{ github.token }}
-          MARKER: "<!-- web-coverage-report -->"
-        run: ./scripts/ci/github/ci-post-pr-comment.sh web-coverage-pr-comment.txt
+          EVENT_NAME: ${{ github.event_name }}
+          GENERATE_COMMENT_STEP_OUTCOME: ${{ steps.generate-web-comment.outcome }}
+          PR_HEAD_REPO_IS_FORK: >-
+            ${{ github.event_name == 'pull_request' &&
+            github.event.pull_request.head.repo.fork || false }}
+        run: ./scripts/ci/github/ci-set-coverage-pr-comment-ready-output.sh
+
+      - name: Upload Web coverage PR comment artifact
+        if: steps.web-comment-meta.outputs.ready == 'true'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: web-coverage-pr-comment
+          path: web-coverage-pr-comment.txt
 
       - name: Fail if Web coverage failed
         if: env.WEB_COVERAGE_EXIT_CODE != '0'
         env:
           COVERAGE_NAME: Web
         run: ./scripts/ci/testing/fail-on-coverage.sh
+
+  web-coverage-pr-comment:
+    name: 💬 Web coverage PR comment
+    runs-on: ubuntu-24.04
+    needs: web-coverage
+    if: >-
+      github.event_name == 'pull_request' &&
+      needs.web-coverage.outputs.web_pr_comment_ready == 'true'
+    permissions:
+      contents: read
+      pull-requests: write
+    timeout-minutes: 5
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: web-coverage-pr-comment
+
+      - name: Comment PR with Web coverage
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ github.token }}
+          MARKER: "<!-- web-coverage-report -->"
+        run: ./scripts/ci/github/ci-post-pr-comment.sh web-coverage-pr-comment.txt
