@@ -131,10 +131,10 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
             />
           </div>
 
-          <div class="flex items-center gap-2">
+          <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
             <button
               type="button"
-              class={`w-8 h-5 rounded-full transition-colors relative ${
+              class={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
                 currentSection().visible ? "bg-accent" : "bg-border"
               }`}
               title={currentSection().visible ? "Hide section" : "Show section"}
@@ -143,9 +143,9 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
               onClick={() => handleUpdateSection({ visible: !currentSection().visible })}
             >
               <span
-                class={`absolute top-0.5 w-4 h-4 bg-paper rounded-full shadow-sm
+                class={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-paper shadow-sm
                     transition-transform ${
-                      currentSection().visible ? "translate-x-3.5" : "translate-x-0.5"
+                      currentSection().visible ? "translate-x-4" : "translate-x-0"
                     }`}
               />
             </button>
@@ -455,7 +455,7 @@ export function CustomSectionsIndex(props: CustomSectionsIndexProps) {
               <div class="flex items-center gap-3">
                 <button
                   type="button"
-                  class={`w-8 h-5 rounded-full transition-colors relative flex-shrink-0 ${
+                  class={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${
                     section.visible ? "bg-accent" : "bg-border"
                   }`}
                   title={section.visible ? "Hide section" : "Show section"}
@@ -464,10 +464,8 @@ export function CustomSectionsIndex(props: CustomSectionsIndexProps) {
                   onClick={() => updateCustomSection(id, { visible: !section.visible })}
                 >
                   <span
-                    class={`absolute top-0.5 w-4 h-4 bg-paper rounded-full shadow-sm
-                      transition-transform ${
-                        section.visible ? "translate-x-3.5" : "translate-x-0.5"
-                      }`}
+                    class={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-paper shadow-sm
+                      transition-transform ${section.visible ? "translate-x-4" : "translate-x-0"}`}
                   />
                 </button>
                 <div class="min-w-0 flex-1">
