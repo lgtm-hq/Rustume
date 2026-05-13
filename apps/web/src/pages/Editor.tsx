@@ -8,7 +8,6 @@ import { Sidebar, type SidebarItem } from "../components/layout/Sidebar";
 import {
   BasicsForm,
   SummaryEditor,
-  SectionList,
   SectionPanel,
   ExperienceEditor,
   EducationEditor,
@@ -37,7 +36,6 @@ import { isWasmReady } from "../wasm";
 type EditorTab =
   | "basics"
   | "summary"
-  | "sections"
   | "layout"
   | "experience"
   | "education"
@@ -67,11 +65,6 @@ const TABS: SidebarItem[] = [
     id: "summary",
     label: "Summary",
     icon: "M4 6h16M4 12h16M4 18h7",
-  },
-  {
-    id: "sections",
-    label: "Sections",
-    icon: "M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z",
   },
   {
     id: "layout",
@@ -150,6 +143,40 @@ const TABS: SidebarItem[] = [
   },
 ];
 
+const CONTENT_TAB_IDS = new Set([
+  "basics",
+  "summary",
+  "experience",
+  "education",
+  "skills",
+  "projects",
+  "profiles",
+  "awards",
+  "certifications",
+  "publications",
+  "languages",
+  "interests",
+  "volunteer",
+  "references",
+]);
+const SETTINGS_TAB_IDS = new Set(["layout", "theme"]);
+const SIDEBAR_GROUP_ORDER = new Map([
+  ["Content", 0],
+  ["Custom", 1],
+  ["Settings", 2],
+]);
+
+function withSidebarGroup(item: SidebarItem): SidebarItem {
+  if (CONTENT_TAB_IDS.has(item.id)) return { ...item, group: "Content" };
+  if (item.id === "custom") return { ...item, group: "Custom" };
+  if (SETTINGS_TAB_IDS.has(item.id)) return { ...item, group: "Settings" };
+  return item;
+}
+
+function sidebarGroupOrder(item: SidebarItem): number {
+  return SIDEBAR_GROUP_ORDER.get(item.group ?? "") ?? Number.MAX_SAFE_INTEGER;
+}
+
 export default function Editor() {
   const params = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -160,15 +187,19 @@ export default function Editor() {
   const [isLoading, setIsLoading] = createSignal(true);
   const [loadError, setLoadError] = createSignal<string | null>(null);
   const sidebarItems = createMemo<SidebarItem[]>(() =>
-    TABS.map((item) => {
-      if (item.id !== "custom") return item;
-      const children = Object.entries(store.resume?.sections.custom ?? {}).map(([id, section]) => ({
-        id: `custom:${id}`,
-        label: section.name || "Untitled",
-        icon: CUSTOM_ICON,
-      }));
-      return { ...item, children };
-    }),
+    TABS.map(withSidebarGroup)
+      .sort((a, b) => sidebarGroupOrder(a) - sidebarGroupOrder(b))
+      .map((item) => {
+        if (item.id !== "custom") return item;
+        const children = Object.entries(store.resume?.sections.custom ?? {}).map(
+          ([id, section]) => ({
+            id: `custom:${id}`,
+            label: section.name || "Untitled",
+            icon: CUSTOM_ICON,
+          }),
+        );
+        return { ...item, children };
+      }),
   );
 
   const shortcuts: Shortcut[] = [
@@ -281,8 +312,6 @@ export default function Editor() {
         return <BasicsForm />;
       case "summary":
         return <SummaryEditor />;
-      case "sections":
-        return <SectionList />;
       case "layout":
         return <LayoutEditor />;
       case "experience":

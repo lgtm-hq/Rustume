@@ -273,11 +273,6 @@ body {
   z-index: 50 !important;
 }
 
-#section-visibility-panel {
-  margin-top: 3.5rem;
-  max-height: calc(100% - 3.5rem);
-}
-
 /* Kobalte Tooltip */
 [data-kb-tooltip-content] {
   animation: tooltip-in 0.15s ease-out;
