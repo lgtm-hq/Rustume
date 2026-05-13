@@ -18,11 +18,12 @@ interface SidebarProps {
 export function Sidebar(props: SidebarProps) {
   const [isPinned, setIsPinned] = createSignal(false);
   const [isHovered, setIsHovered] = createSignal(false);
+  const [isKeyboardFocused, setIsKeyboardFocused] = createSignal(false);
   const [isExpanded, setIsExpanded] = createSignal(false);
 
-  // Expand when pinned OR hovered
+  // Expand when pinned, hovered, or focused by keyboard navigation.
   createEffect(() => {
-    setIsExpanded(isPinned() || isHovered());
+    setIsExpanded(isPinned() || isHovered() || isKeyboardFocused());
   });
 
   // Debounce hover to prevent flicker
@@ -38,6 +39,13 @@ export function Sidebar(props: SidebarProps) {
     hoverTimeout = setTimeout(() => {
       setIsHovered(false);
     }, 150);
+  };
+
+  const handleFocusOut = (event: FocusEvent) => {
+    const nextTarget = event.relatedTarget;
+    const currentTarget = event.currentTarget as HTMLDivElement | null;
+    if (currentTarget && nextTarget instanceof Node && currentTarget.contains(nextTarget)) return;
+    setIsKeyboardFocused(false);
   };
 
   onCleanup(() => {
@@ -65,6 +73,8 @@ export function Sidebar(props: SidebarProps) {
       style={{ width: isExpanded() ? "180px" : "56px" }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onFocusIn={() => setIsKeyboardFocused(true)}
+      onFocusOut={handleFocusOut}
     >
       {/* Pin Button */}
       <div class="px-2 mb-2">
@@ -122,46 +132,29 @@ export function Sidebar(props: SidebarProps) {
               <Show
                 when={isExpanded()}
                 fallback={
-                  <>
-                    <Tooltip placement="right" openDelay={100} closeDelay={0}>
-                      <Tooltip.Trigger
-                        as="button"
-                        type="button"
-                        aria-label={item.label}
-                        aria-expanded={item.children?.length ? isExpanded() : undefined}
-                        class={`w-full p-2.5 flex items-center justify-center rounded-lg transition-colors
-                          ${
-                            isItemActive(item)
-                              ? "text-accent bg-accent/10"
-                              : "text-stone hover:text-ink hover:bg-paper"
-                          }`}
-                        onClick={() => props.onSelect(item.id)}
-                      >
-                        {renderIcon(item.icon)}
-                      </Tooltip.Trigger>
-                      <Tooltip.Portal>
-                        <Tooltip.Content class="z-50 px-2.5 py-1.5 bg-ink text-paper text-xs font-medium rounded-lg shadow-lg animate-fade-in">
-                          {item.label}
-                          <Tooltip.Arrow />
-                        </Tooltip.Content>
-                      </Tooltip.Portal>
-                    </Tooltip>
-                    <Show when={item.children?.length}>
-                      <div class="sr-only" aria-label={`${item.label} subsections`}>
-                        <For each={item.children}>
-                          {(child) => (
-                            <button
-                              type="button"
-                              aria-label={child.label}
-                              onClick={() => props.onSelect(child.id)}
-                            >
-                              {child.label}
-                            </button>
-                          )}
-                        </For>
-                      </div>
-                    </Show>
-                  </>
+                  <Tooltip placement="right" openDelay={100} closeDelay={0}>
+                    <Tooltip.Trigger
+                      as="button"
+                      type="button"
+                      aria-label={item.label}
+                      aria-expanded={item.children?.length ? isExpanded() : undefined}
+                      class={`w-full p-2.5 flex items-center justify-center rounded-lg transition-colors
+                        ${
+                          isItemActive(item)
+                            ? "text-accent bg-accent/10"
+                            : "text-stone hover:text-ink hover:bg-paper"
+                        }`}
+                      onClick={() => props.onSelect(item.id)}
+                    >
+                      {renderIcon(item.icon)}
+                    </Tooltip.Trigger>
+                    <Tooltip.Portal>
+                      <Tooltip.Content class="z-50 px-2.5 py-1.5 bg-ink text-paper text-xs font-medium rounded-lg shadow-lg animate-fade-in">
+                        {item.label}
+                        <Tooltip.Arrow />
+                      </Tooltip.Content>
+                    </Tooltip.Portal>
+                  </Tooltip>
                 }
               >
                 <div>

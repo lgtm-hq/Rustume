@@ -36,6 +36,13 @@ export function SectionPanel() {
   const PANEL_ID = "section-visibility-panel";
   const PANEL_HEADER_ID = "section-visibility-header";
 
+  const handleFocusOut = (event: FocusEvent) => {
+    const nextTarget = event.relatedTarget;
+    const currentTarget = event.currentTarget as HTMLDivElement | null;
+    if (currentTarget && nextTarget instanceof Node && currentTarget.contains(nextTarget)) return;
+    setSectionPanelOpen(false);
+  };
+
   return (
     <div
       class={`absolute bottom-0 right-0 top-12 z-10 transition-[width] duration-200 ease-out ${
@@ -44,6 +51,7 @@ export function SectionPanel() {
       onMouseEnter={() => setSectionPanelOpen(true)}
       onMouseLeave={() => setSectionPanelOpen(false)}
       onFocusIn={() => setSectionPanelOpen(true)}
+      onFocusOut={handleFocusOut}
     >
       {/* Toggle Button */}
       <button
