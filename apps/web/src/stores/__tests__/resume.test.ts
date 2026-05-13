@@ -2,6 +2,7 @@ import { createRoot } from "solid-js";
 import { createDefaultResume } from "../../wasm/defaults";
 import type { ResumeData } from "../../wasm/types";
 import {
+  FIXED_LAYOUT_SECTION_KEYS,
   isResumeEmpty,
   useResumeStore,
   ResumeNotFoundError,
@@ -287,7 +288,7 @@ describe("useResumeStore", () => {
     });
   });
 
-  it("addCustomSection initializes an empty layout as a single summary column", () => {
+  it("addCustomSection seeds empty layout with summary, fixed sections, and custom id", () => {
     createRoot((dispose) => {
       const { store, importResume, addCustomSection } = useResumeStore();
       const imported = createDefaultResume();
@@ -296,7 +297,23 @@ describe("useResumeStore", () => {
       importResume(imported);
       const sectionId = addCustomSection("Writing");
 
-      expect(store.resume!.metadata.layout).toEqual([[["summary", sectionId]]]);
+      expect(store.resume!.metadata.layout).toEqual([
+        [["summary", ...FIXED_LAYOUT_SECTION_KEYS, sectionId]],
+      ]);
+      dispose();
+    });
+  });
+
+  it("addCustomSection merges into empty page 0 without dropping fixed sections on other pages", () => {
+    createRoot((dispose) => {
+      const { store, importResume, addCustomSection } = useResumeStore();
+      const imported = createDefaultResume();
+      imported.metadata.layout = [[], [["education", "skills"]]];
+
+      importResume(imported);
+      const sectionId = addCustomSection("Writing");
+
+      expect(store.resume!.metadata.layout[0]).toEqual([["education", "skills", sectionId]]);
       dispose();
     });
   });

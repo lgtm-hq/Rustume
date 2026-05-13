@@ -65,7 +65,7 @@ export function isNotFoundError(error: unknown): boolean {
   return false;
 }
 
-const FIXED_LAYOUT_SECTION_KEYS: (keyof Omit<Sections, "summary" | "custom">)[] = [
+export const FIXED_LAYOUT_SECTION_KEYS: (keyof Omit<Sections, "summary" | "custom">)[] = [
   "experience",
   "education",
   "skills",
@@ -412,14 +412,23 @@ export function useResumeStore() {
 
           s.resume.sections.custom[section.id] = section;
           if (s.resume.metadata.layout.length === 0) {
-            s.resume.metadata.layout = [[["summary", section.id]]];
+            s.resume.metadata.layout = [[["summary", ...FIXED_LAYOUT_SECTION_KEYS, section.id]]];
             return;
           }
 
           const page = s.resume.metadata.layout[0] ?? [];
           if (!page || page.length === 0) {
-            page.push([section.id]);
-            s.resume.metadata.layout[0] = page;
+            const fixedIds = s.resume.metadata.layout
+              .flat(2)
+              .filter((id) => FIXED_LAYOUT_SECTION_KEY_SET.has(id));
+            const mergedIds = [...fixedIds, section.id];
+            const seen = new Set<string>();
+            const uniqueMerged = mergedIds.filter((id) => {
+              if (seen.has(id)) return false;
+              seen.add(id);
+              return true;
+            });
+            s.resume.metadata.layout[0] = [uniqueMerged];
             return;
           }
 
