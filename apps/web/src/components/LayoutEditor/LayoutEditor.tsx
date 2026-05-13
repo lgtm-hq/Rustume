@@ -26,23 +26,31 @@ function parseColumnIndex(id: string | number): number {
   return Number.isFinite(n) ? n : -1;
 }
 
-/** All known section keys from the constants file. */
-export const ALL_SECTION_IDS = SECTIONS.map((s) => s.key);
+/** All fixed layout section keys. Custom section IDs are added dynamically. */
+export const ALL_SECTION_IDS = SECTIONS.filter((s) => s.key !== "custom").map((s) => s.key);
 
 /**
  * Ensures every known section ID appears in exactly one column.
  * Sections missing from the layout are appended to the last column.
- * Duplicate or unknown IDs are silently removed.
+ * Duplicate IDs are removed. Unknown IDs are removed unless listed in `extraAllowedIds`
+ * (e.g. dynamic custom section keys from `sections.custom`).
  */
-export function normalizeLayout(columns: string[][]): string[][] {
+export function normalizeLayout(
+  columns: string[][],
+  extraAllowedIds: readonly string[] = [],
+): string[][] {
+  const extra = new Set(extraAllowedIds);
   if (columns.length === 0) {
-    return [ALL_SECTION_IDS.slice()];
+    return [[...ALL_SECTION_IDS, ...extraAllowedIds]];
   }
   const seen = new Set<string>();
+  const allowedIds = [...ALL_SECTION_IDS, ...extraAllowedIds];
   const result: string[][] = columns.map((col) => {
     const filtered: string[] = [];
     for (const id of col) {
-      if (ALL_SECTION_IDS.includes(id as (typeof ALL_SECTION_IDS)[number]) && !seen.has(id)) {
+      const allowed =
+        ALL_SECTION_IDS.includes(id as (typeof ALL_SECTION_IDS)[number]) || extra.has(id);
+      if (allowed && !seen.has(id)) {
         seen.add(id);
         filtered.push(id);
       }
@@ -51,7 +59,7 @@ export function normalizeLayout(columns: string[][]): string[][] {
   });
 
   // Append missing sections to the last column
-  const missing = ALL_SECTION_IDS.filter((id) => !seen.has(id));
+  const missing = allowedIds.filter((id) => !seen.has(id));
   if (missing.length > 0) {
     const lastCol = result[result.length - 1] ?? [];
     result[result.length - 1] = [...lastCol, ...missing];
@@ -62,6 +70,12 @@ export function normalizeLayout(columns: string[][]): string[][] {
 
 export function LayoutEditor() {
   const { store, updateLayout } = resumeStore;
+
+  function customSectionIds(): string[] {
+    const custom = store.resume?.sections.custom;
+    if (!custom || typeof custom !== "object") return [];
+    return Object.keys(custom);
+  }
 
   // Local mutable copy of the columns (page 0 only for now).
   // We work with a flat column array and wrap in the page dimension on save.
@@ -83,11 +97,16 @@ export function LayoutEditor() {
       (layout) => {
         if (isPersisting) return; // Skip re-sync caused by our own persist
         if (!layout || layout.length === 0) {
-          setColumns(normalizeLayout([ALL_SECTION_IDS.slice()]));
+          setColumns(normalizeLayout([ALL_SECTION_IDS.slice()], customSectionIds()));
           return;
         }
         const page0 = layout[0] ?? [];
-        setColumns(normalizeLayout(page0.map((col) => [...col])));
+        setColumns(
+          normalizeLayout(
+            page0.map((col) => [...col]),
+            customSectionIds(),
+          ),
+        );
       },
       { defer: false },
     ),
@@ -132,7 +151,9 @@ export function LayoutEditor() {
 
   /** Look up the human-friendly label for a section ID. */
   function sectionLabel(id: string): string {
-    return SECTIONS.find((s) => s.key === id)?.name ?? id;
+    return (
+      SECTIONS.find((s) => s.key === id)?.name ?? store.resume?.sections.custom[id]?.name ?? id
+    );
   }
 
   const sortableIds = () => columns().flat();
@@ -259,9 +280,14 @@ export function LayoutEditor() {
       // Revert to persisted layout
       const layout = store.resume?.metadata.layout;
       if (layout && layout.length > 0 && layout[0]) {
-        setColumns(normalizeLayout(layout[0].map((col) => [...col])));
+        setColumns(
+          normalizeLayout(
+            layout[0].map((col) => [...col]),
+            customSectionIds(),
+          ),
+        );
       } else {
-        setColumns(normalizeLayout([ALL_SECTION_IDS.slice()]));
+        setColumns(normalizeLayout([ALL_SECTION_IDS.slice()], customSectionIds()));
       }
       return;
     }
@@ -292,19 +318,24 @@ export function LayoutEditor() {
       return;
     }
 
+    const droppedOnColumn = parseColumnIndex(droppable.id) >= 0;
+    const originalTargetIdx = droppedOnColumn
+      ? newCols[toCol].length
+      : newCols[toCol].indexOf(droppableId);
+
     const [moved] = newCols[fromCol].splice(sourceIdx, 1);
     if (!moved) {
       persistLayout(currentCols);
       return;
     }
 
-    const droppedOnColumn = parseColumnIndex(droppable.id) >= 0;
     const targetIdx = droppedOnColumn ? newCols[toCol].length : newCols[toCol].indexOf(droppableId);
-    let insertIdx = targetIdx >= 0 ? targetIdx : newCols[toCol].length;
-
-    if (fromCol === toCol && sourceIdx < insertIdx) {
-      insertIdx--;
-    }
+    const insertIdx =
+      fromCol === toCol && !droppedOnColumn
+        ? originalTargetIdx
+        : targetIdx >= 0
+          ? targetIdx
+          : newCols[toCol].length;
 
     newCols[toCol].splice(insertIdx, 0, moved);
 
@@ -337,7 +368,7 @@ export function LayoutEditor() {
       newColumns[newCount - 1] = [...newColumns[newCount - 1], ...overflow];
     }
 
-    const normalized = normalizeLayout(newColumns);
+    const normalized = normalizeLayout(newColumns, customSectionIds());
     setColumns(normalized);
     persistLayout(normalized);
     toast.success(`Layout updated to ${newCount} column${newCount > 1 ? "s" : ""}`);
@@ -396,6 +427,7 @@ export function LayoutEditor() {
                     sectionIds={col}
                     totalColumns={columns().length}
                     kbActiveId={kbDragId()}
+                    getSectionLabel={sectionLabel}
                   />
                 )}
               </For>

@@ -13,6 +13,19 @@ import { parseResume } from "../../api/render";
 
 type ImportFormat = "json-resume" | "rrv3" | "linkedin" | "rustume";
 
+/** Native Rustume resume JSON has `sections.summary`; JSON Resume does not. */
+function isNativeRustumeJson(json: Record<string, unknown>): boolean {
+  const sections = json.sections;
+  const metadata = json.metadata;
+  return (
+    typeof sections === "object" &&
+    sections !== null &&
+    Object.prototype.hasOwnProperty.call(sections, "summary") &&
+    typeof metadata === "object" &&
+    metadata !== null
+  );
+}
+
 function toHexColor(value: string): string {
   const match = value
     .trim()
@@ -110,12 +123,12 @@ export function ImportModal() {
           if (json.basics && json.meta) {
             // Looks like Reactive Resume V3
             parsed = parseReactiveResumeV3(text);
+          } else if (isNativeRustumeJson(json)) {
+            // Native Rustume must be detected before JSON Resume (both have `basics`)
+            parsed = json as ResumeData;
           } else if (json.basics) {
             // JSON Resume format
             parsed = parseJsonResume(text);
-          } else if (json.sections && json.metadata) {
-            // Native Rustume format - validate basic structure
-            parsed = json as ResumeData;
           } else {
             throw new Error("Unrecognized resume format");
           }
@@ -124,7 +137,7 @@ export function ImportModal() {
           let serverFormat: ImportFormat = "json-resume";
           if (json.basics && json.meta) {
             serverFormat = "rrv3";
-          } else if (json.sections) {
+          } else if (isNativeRustumeJson(json)) {
             serverFormat = "rustume";
           }
 

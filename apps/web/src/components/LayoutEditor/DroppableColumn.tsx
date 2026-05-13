@@ -13,6 +13,8 @@ interface DroppableColumnProps {
   totalColumns: number;
   /** ID of the section currently being keyboard-dragged, if any. */
   kbActiveId?: string | null;
+  /** Resolve a section ID to its human-friendly label. */
+  getSectionLabel: (id: string) => string;
 }
 
 const COLUMN_LABELS: Record<number, string[]> = {
@@ -54,7 +56,11 @@ export function DroppableColumn(props: DroppableColumnProps) {
       <div class="space-y-1.5 min-h-[48px]">
         <For each={props.sectionIds}>
           {(sectionId) => (
-            <DraggableSection id={sectionId} kbActive={props.kbActiveId === sectionId} />
+            <DraggableSection
+              id={sectionId}
+              label={props.getSectionLabel(sectionId)}
+              kbActive={props.kbActiveId === sectionId}
+            />
           )}
         </For>
 

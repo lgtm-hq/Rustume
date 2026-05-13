@@ -1,7 +1,7 @@
 import { createStore, produce } from "solid-js/store";
 import { batch } from "solid-js";
 import { toast } from "../components/ui";
-import type { ResumeData, Basics, Sections, Metadata, Section } from "../wasm/types";
+import type { ResumeData, Basics, Sections, Metadata, Section, CustomItem } from "../wasm/types";
 import {
   createEmptyResume,
   createEmptyPicture,
@@ -168,6 +168,18 @@ async function getResume(id: string): Promise<ResumeData> {
 
 export type SectionKey = keyof Omit<Sections, "summary" | "custom">;
 export type LayoutSectionKey = SectionKey | "summary" | "custom";
+
+function createCustomSection(name: string): Section<CustomItem> {
+  const id = crypto.randomUUID();
+  return {
+    id,
+    name,
+    columns: 1,
+    separateLinks: false,
+    visible: true,
+    items: [],
+  };
+}
 
 export interface ResumeStore {
   resume: ResumeData | null;
@@ -358,6 +370,31 @@ export function useResumeStore() {
       markDirty();
     },
 
+    addCustomSection(name: string): string {
+      const section = createCustomSection(name);
+      setStore(
+        produce((s) => {
+          if (!s.resume) return;
+
+          s.resume.sections.custom[section.id] = section;
+          if (s.resume.metadata.layout.length === 0) {
+            s.resume.metadata.layout = [[["summary"], [section.id]]];
+            return;
+          }
+
+          const page = s.resume.metadata.layout[0];
+          if (!page || page.length === 0) {
+            s.resume.metadata.layout[0] = [[section.id]];
+            return;
+          }
+
+          page[page.length - 1].push(section.id);
+        }),
+      );
+      markDirty();
+      return section.id;
+    },
+
     // Metadata updates
     updateMetadata<K extends keyof Metadata>(field: K, value: Metadata[K]) {
       setStore(
@@ -406,12 +443,13 @@ export function useResumeStore() {
 
     // Import resume data
     importResume(data: ResumeData) {
-      // Normalize: ensure basics.picture exists (imported data may lack it)
-      if (!data.basics.picture) {
-        data.basics.picture = createEmptyPicture();
+      // Deep clone so Solid store owns a plain tree (imported objects may be frozen / aliased).
+      const clone = JSON.parse(JSON.stringify(data)) as ResumeData;
+      if (!clone.basics.picture) {
+        clone.basics.picture = createEmptyPicture();
       }
       batch(() => {
-        setStore("resume", data);
+        setStore("resume", clone);
         setStore("isDirty", true);
         setStore("error", null);
       });

@@ -62,6 +62,30 @@ describe("normalizeLayout", () => {
     expect(flat).toContain("experience");
   });
 
+  it("keeps custom section keys when passed as extra allowed ids", () => {
+    const cid = "b4tons2d770gaaa9zl2unwb8";
+    const result = normalizeLayout([["summary", cid, "experience"], ["skills"]], [cid]);
+    expect(result[0]).toContain(cid);
+    expect(result[0]).toContain("summary");
+  });
+
+  it("appends missing custom section keys to the last column", () => {
+    const cid = "ugcxxsscnvbuhbi5yd5rv8i5";
+    const result = normalizeLayout([["summary"], ["skills"]], [cid]);
+    expect(result.at(-1)).toContain(cid);
+  });
+
+  it("includes custom section keys when normalizing an empty layout", () => {
+    const cid = "qi5cmgfnd00p98ndwm53xjwf";
+    const result = normalizeLayout([], [cid]);
+    expect(result[0]).toContain(cid);
+  });
+
+  it("does not include the aggregate custom placeholder as a draggable section", () => {
+    const result = normalizeLayout([["summary"], ["skills"]]);
+    expect(result.flat()).not.toContain("custom");
+  });
+
   it("handles three columns", () => {
     const result = normalizeLayout([["summary"], ["skills"], ["experience"]]);
     const flat = result.flat();
@@ -134,6 +158,20 @@ describe("updateLayout store integration", () => {
       updateLayout(multiPageLayout);
       expect(store.resume!.metadata.layout.length).toBe(2);
       expect(store.resume!.metadata.layout[1]).toEqual([["education"], ["projects"]]);
+      dispose();
+    });
+  });
+
+  it("addCustomSection creates a named section and appends it to page 0", () => {
+    createRoot((dispose) => {
+      const { store, createNewResume, addCustomSection } = useResumeStore();
+      createNewResume("layout-test-custom");
+
+      const id = addCustomSection("API Testing");
+
+      expect(store.resume!.sections.custom[id].name).toBe("API Testing");
+      expect(store.resume!.sections.custom[id].visible).toBe(true);
+      expect(store.resume!.metadata.layout[0].at(-1)).toContain(id);
       dispose();
     });
   });

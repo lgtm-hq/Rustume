@@ -250,7 +250,14 @@
   } else if key == "references" {
     render-item-section(data.sections.references, heading, renderers.references)
   } else if key == "custom" and "custom" in data.sections {
+    // Layout slot "custom" = render every custom section (order follows JSON object order).
     for (_, section) in data.sections.custom {
+      render-item-section(section, heading, renderers.custom)
+    }
+  } else if "custom" in data.sections and key in data.sections.custom {
+    // Layout may reference a single custom block by its id (e.g. imported React-Resume keys).
+    let section = data.sections.custom.at(key)
+    if section != none {
       render-item-section(section, heading, renderers.custom)
     }
   }
