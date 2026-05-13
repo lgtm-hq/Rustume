@@ -179,8 +179,11 @@ export function Preview() {
       <div class="flex items-center justify-between px-4 py-2 border-b border-border bg-paper">
         <div class="flex items-center gap-2">
           <button
+            type="button"
             class="p-1.5 text-stone hover:text-ink hover:bg-surface rounded transition-colors
               disabled:opacity-30 disabled:cursor-not-allowed"
+            aria-label="Previous page"
+            title="Previous page"
             onClick={() => goToPage(ui.previewPage - 1)}
             disabled={ui.previewPage === 0}
           >
@@ -197,8 +200,11 @@ export function Preview() {
             {ui.previewPage + 1} / {totalPages()}
           </span>
           <button
+            type="button"
             class="p-1.5 text-stone hover:text-ink hover:bg-surface rounded transition-colors
               disabled:opacity-30 disabled:cursor-not-allowed"
+            aria-label="Next page"
+            title="Next page"
             onClick={() => goToPage(ui.previewPage + 1)}
             disabled={ui.previewPage >= totalPages() - 1}
           >
