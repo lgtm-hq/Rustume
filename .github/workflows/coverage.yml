@@ -2,7 +2,6 @@
 ---
 name: Coverage Reports
 # Runs Rust and Web coverage and posts separate PR comments.
-# Uses lgtm-ci actions for setup, coverage collection, and PR comments.
 
 "on":
   push:
@@ -15,8 +14,12 @@ name: Coverage Reports
       - "Cargo.lock"
       - "apps/web/**"
       - ".github/workflows/coverage.yml"
+      - "scripts/ci/github/ci-post-pr-comment.sh"
+      - "scripts/ci/testing/ci-coverage-metrics.sh"
       - "scripts/ci/testing/ci-coverage-pr-comment.sh"
       - "scripts/ci/testing/ci-rust-coverage.sh"
+      - "scripts/ci/testing/ci-setup-rust-coverage.sh"
+      - "scripts/ci/testing/ci-setup-web-coverage.sh"
       - "scripts/ci/testing/ci-web-coverage.sh"
       - "scripts/ci/testing/fail-on-coverage.sh"
   pull_request:
@@ -45,46 +48,21 @@ jobs:
       cancel-in-progress: true
 
     steps:
-      - name: Harden Runner
-        # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@7a841708a04853ff21c9874a556ce279d1668f5a # v0
-        with:
-          egress-policy: block
-          allowed-endpoints: >
-            github.com:443
-            api.github.com:443
-            codeload.github.com:443
-            objects.githubusercontent.com:443
-            raw.githubusercontent.com:443
-            release-assets.githubusercontent.com:443
-            static.rust-lang.org:443
-            sh.rustup.rs:443
-            crates.io:443
-            static.crates.io:443
-            index.crates.io:443
-
       - name: Checkout
-        # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@7a841708a04853ff21c9874a556ce279d1668f5a # v0
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Setup Rust
-        # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/setup-rust@7a841708a04853ff21c9874a556ce279d1668f5a # v0
+        run: ./scripts/ci/testing/ci-setup-rust-coverage.sh
 
       - name: Run Rust coverage
         id: rust-coverage
         run: ./scripts/ci/testing/ci-rust-coverage.sh
         continue-on-error: true
 
-      - name: Collect Rust coverage
-        id: rust-collect
+      - name: Collect Rust coverage metrics
+        id: rust-metrics
         if: steps.rust-coverage.outcome == 'success'
-        # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/collect-coverage@7a841708a04853ff21c9874a556ce279d1668f5a # v0
-        with:
-          coverage-files: rust-coverage.lcov
-          input-format: lcov
-          output-format: lcov
+        run: ./scripts/ci/testing/ci-coverage-metrics.sh lcov rust-coverage.lcov
 
       - name: Generate Rust coverage PR comment
         if: github.event_name == 'pull_request'
@@ -97,20 +75,20 @@ jobs:
           COVERAGE_OUTPUT_FILE: rust-coverage-pr-comment.txt
           COVERAGE_TOOL: cargo llvm-cov
           COVERAGE_LOG_FILE: rust-coverage-output.txt
-          COVERAGE_LINES: ${{ steps.rust-collect.outputs.lines-coverage }}
-          COVERAGE_BRANCHES: ${{ steps.rust-collect.outputs.branches-coverage }}
-          COVERAGE_FUNCTIONS: ${{ steps.rust-collect.outputs.functions-coverage }}
+          COVERAGE_LINES: ${{ steps.rust-metrics.outputs.lines-coverage }}
+          COVERAGE_BRANCHES: ${{ steps.rust-metrics.outputs.branches-coverage }}
+          COVERAGE_FUNCTIONS: ${{ steps.rust-metrics.outputs.functions-coverage }}
         run: ./scripts/ci/testing/ci-coverage-pr-comment.sh
 
       - name: Comment PR with Rust coverage
         if: >-
           github.event_name == 'pull_request' &&
           github.event.pull_request.head.repo.fork == false
-        # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/post-pr-comment@7a841708a04853ff21c9874a556ce279d1668f5a # v0
-        with:
-          file: rust-coverage-pr-comment.txt
-          marker: "<!-- rust-coverage-report -->"
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ github.token }}
+          MARKER: "<!-- rust-coverage-report -->"
+        run: ./scripts/ci/github/ci-post-pr-comment.sh rust-coverage-pr-comment.txt
 
       - name: Fail if Rust coverage failed
         if: env.RUST_COVERAGE_EXIT_CODE != '0'
@@ -136,47 +114,24 @@ jobs:
       cancel-in-progress: true
 
     steps:
-      - name: Harden Runner
-        # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@7a841708a04853ff21c9874a556ce279d1668f5a # v0
-        with:
-          egress-policy: block
-          allowed-endpoints: >
-            github.com:443
-            api.github.com:443
-            codeload.github.com:443
-            objects.githubusercontent.com:443
-            raw.githubusercontent.com:443
-            release-assets.githubusercontent.com:443
-            registry.npmjs.org:443
-            nodejs.org:443
-
       - name: Checkout
-        # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@7a841708a04853ff21c9874a556ce279d1668f5a # v0
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Setup Node
-        # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/setup-node@7a841708a04853ff21c9874a556ce279d1668f5a # v0
-        with:
-          cache-dependency-path: apps/web/bun.lock
-          install-dependencies: "false"
-          working-directory: apps/web
+      - name: Setup Web coverage tools
+        run: ./scripts/ci/testing/ci-setup-web-coverage.sh
 
       - name: Run Web coverage
         id: web-coverage
         run: ./scripts/ci/testing/ci-web-coverage.sh
         continue-on-error: true
 
-      - name: Collect Web coverage
-        id: web-collect
+      - name: Collect Web coverage metrics
+        id: web-metrics
         if: steps.web-coverage.outcome == 'success'
-        # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/collect-coverage@7a841708a04853ff21c9874a556ce279d1668f5a # v0
-        with:
-          coverage-files: apps/web/coverage/coverage-summary.json
-          input-format: istanbul
-          output-format: json
+        run: >-
+          ./scripts/ci/testing/ci-coverage-metrics.sh
+          istanbul-summary
+          apps/web/coverage/coverage-summary.json
 
       - name: Generate Web coverage PR comment
         if: github.event_name == 'pull_request'
@@ -187,20 +142,21 @@ jobs:
           COVERAGE_OUTPUT_FILE: web-coverage-pr-comment.txt
           COVERAGE_TOOL: Vitest
           COVERAGE_LOG_FILE: web-coverage-output.txt
-          COVERAGE_LINES: ${{ steps.web-collect.outputs.lines-coverage }}
-          COVERAGE_BRANCHES: ${{ steps.web-collect.outputs.branches-coverage }}
-          COVERAGE_FUNCTIONS: ${{ steps.web-collect.outputs.functions-coverage }}
+          COVERAGE_LINES: ${{ steps.web-metrics.outputs.lines-coverage }}
+          COVERAGE_BRANCHES: ${{ steps.web-metrics.outputs.branches-coverage }}
+          COVERAGE_FUNCTIONS: ${{ steps.web-metrics.outputs.functions-coverage }}
+          COVERAGE_STATEMENTS: ${{ steps.web-metrics.outputs.statements-coverage }}
         run: ./scripts/ci/testing/ci-coverage-pr-comment.sh
 
       - name: Comment PR with Web coverage
         if: >-
           github.event_name == 'pull_request' &&
           github.event.pull_request.head.repo.fork == false
-        # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/post-pr-comment@7a841708a04853ff21c9874a556ce279d1668f5a # v0
-        with:
-          file: web-coverage-pr-comment.txt
-          marker: "<!-- web-coverage-report -->"
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ github.token }}
+          MARKER: "<!-- web-coverage-report -->"
+        run: ./scripts/ci/github/ci-post-pr-comment.sh web-coverage-pr-comment.txt
 
       - name: Fail if Web coverage failed
         if: env.WEB_COVERAGE_EXIT_CODE != '0'

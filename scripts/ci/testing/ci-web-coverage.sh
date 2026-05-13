@@ -11,6 +11,7 @@ esac
 
 set +e
 (
+	set -e
 	cd apps/web || exit 1
 	bun install --frozen-lockfile
 	bun run test:coverage

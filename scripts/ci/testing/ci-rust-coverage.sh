@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Run Rust coverage and write an LCOV report for lgtm-ci collection.
+# Run Rust coverage and write an LCOV report for CI collection.
 
 OUTPUT_FILE="${RUST_COVERAGE_OUTPUT:-rust-coverage.lcov}"
 LOG_FILE="${RUST_COVERAGE_LOG:-rust-coverage-output.txt}"

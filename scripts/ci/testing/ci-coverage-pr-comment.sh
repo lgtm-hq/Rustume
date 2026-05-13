@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Generate a language-specific coverage PR comment from lgtm-ci metrics.
+# Generate a language-specific coverage PR comment from CI metrics.
 
 # shellcheck source=../../utils/utils.sh disable=SC1091
 source "$(dirname "$0")/../../utils/utils.sh"
@@ -33,7 +33,7 @@ add_metric_row() {
 	local label="$1"
 	local value="$2"
 
-	if [[ -n "$value" && "$value" != "0" && "$value" != "0.00" ]]; then
+	if [[ -n "$value" ]]; then
 		coverage_rows="${coverage_rows}| ${label} | ${value}% |
 "
 	fi
@@ -72,7 +72,7 @@ else
 
 **Workflow:**
 1. Ran \`${COVERAGE_COMMAND}\`
-2. Collected coverage metrics with \`lgtm-ci/collect-coverage\`
+2. Collected coverage metrics from the generated report
 
 ### Results:
 | Metric | Coverage |
