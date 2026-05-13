@@ -65,6 +65,7 @@ jobs:
         run: ./scripts/ci/testing/ci-coverage-metrics.sh lcov rust-coverage.lcov
 
       - name: Generate Rust coverage PR comment
+        id: generate-rust-comment
         if: >-
           github.event_name == 'pull_request' &&
           steps.rust-metrics.outcome == 'success'
@@ -85,7 +86,8 @@ jobs:
       - name: Comment PR with Rust coverage
         if: >-
           github.event_name == 'pull_request' &&
-          github.event.pull_request.head.repo.fork == false
+          github.event.pull_request.head.repo.fork == false &&
+          steps.generate-rust-comment.outcome == 'success'
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GITHUB_TOKEN: ${{ github.token }}
@@ -136,6 +138,7 @@ jobs:
           apps/web/coverage/coverage-summary.json
 
       - name: Generate Web coverage PR comment
+        id: generate-web-comment
         if: >-
           github.event_name == 'pull_request' &&
           steps.web-metrics.outcome == 'success'
@@ -155,7 +158,8 @@ jobs:
       - name: Comment PR with Web coverage
         if: >-
           github.event_name == 'pull_request' &&
-          github.event.pull_request.head.repo.fork == false
+          github.event.pull_request.head.repo.fork == false &&
+          steps.generate-web-comment.outcome == 'success'
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GITHUB_TOKEN: ${{ github.token }}
