@@ -1,4 +1,4 @@
-import { createSignal, onMount, Show } from "solid-js";
+import { createMemo, createSignal, onMount, Show } from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
 import { Button, toast, ShortcutsModal } from "../components/ui";
 import { useHotkeys, type Shortcut } from "../hooks/useHotkeys";
@@ -22,6 +22,8 @@ import {
   InterestsEditor,
   VolunteerEditor,
   ReferencesEditor,
+  CustomSectionEditor,
+  CustomSectionsIndex,
 } from "../components/builder";
 import { Preview } from "../components/preview";
 import { TemplatePicker, ThemeEditor } from "../components/templates";
@@ -49,7 +51,11 @@ type EditorTab =
   | "interests"
   | "volunteer"
   | "references"
+  | "custom"
+  | `custom:${string}`
   | "theme";
+
+const CUSTOM_ICON = "M12 4v16m8-8H4";
 
 const TABS: SidebarItem[] = [
   {
@@ -133,6 +139,11 @@ const TABS: SidebarItem[] = [
     icon: "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z",
   },
   {
+    id: "custom",
+    label: "Custom",
+    icon: CUSTOM_ICON,
+  },
+  {
     id: "theme",
     label: "Theme",
     icon: "M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01",
@@ -148,6 +159,17 @@ export default function Editor() {
   const [activeTab, setActiveTab] = createSignal<EditorTab>("basics");
   const [isLoading, setIsLoading] = createSignal(true);
   const [loadError, setLoadError] = createSignal<string | null>(null);
+  const sidebarItems = createMemo<SidebarItem[]>(() =>
+    TABS.map((item) => {
+      if (item.id !== "custom") return item;
+      const children = Object.entries(store.resume?.sections.custom ?? {}).map(([id, section]) => ({
+        id: `custom:${id}`,
+        label: section.name || "Untitled",
+        icon: CUSTOM_ICON,
+      }));
+      return { ...item, children };
+    }),
+  );
 
   const shortcuts: Shortcut[] = [
     {
@@ -287,9 +309,21 @@ export default function Editor() {
         return <VolunteerEditor />;
       case "references":
         return <ReferencesEditor />;
+      case "custom":
+        return (
+          <CustomSectionsIndex
+            onSelectSection={(sectionId) => setActiveTab(`custom:${sectionId}`)}
+          />
+        );
       case "theme":
         return <ThemeEditor />;
       default:
+        if (activeTab().startsWith("custom:")) {
+          const sectionId = activeTab().slice("custom:".length);
+          return (
+            <CustomSectionEditor sectionId={sectionId} onDeleted={() => setActiveTab("custom")} />
+          );
+        }
         return null;
     }
   };
@@ -454,7 +488,7 @@ export default function Editor() {
               <div class="h-full flex">
                 {/* Sidebar Navigation */}
                 <Sidebar
-                  items={TABS}
+                  items={sidebarItems()}
                   activeId={activeTab()}
                   onSelect={(id) => setActiveTab(id as EditorTab)}
                 />

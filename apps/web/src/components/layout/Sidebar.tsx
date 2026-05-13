@@ -5,6 +5,7 @@ export interface SidebarItem {
   id: string;
   label: string;
   icon: string;
+  children?: SidebarItem[];
 }
 
 interface SidebarProps {
@@ -41,6 +42,16 @@ export function Sidebar(props: SidebarProps) {
   onCleanup(() => {
     if (hoverTimeout) clearTimeout(hoverTimeout);
   });
+
+  const isItemActive = (item: SidebarItem): boolean =>
+    props.activeId === item.id ||
+    Boolean(item.children?.some((child) => props.activeId === child.id));
+
+  const renderIcon = (icon: string, className = "w-5 h-5") => (
+    <svg class={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d={icon} />
+    </svg>
+  );
 
   return (
     <div
@@ -96,20 +107,13 @@ export function Sidebar(props: SidebarProps) {
                     aria-label={item.label}
                     class={`w-full p-2.5 flex items-center justify-center rounded-lg transition-colors
                       ${
-                        props.activeId === item.id
+                        isItemActive(item)
                           ? "text-accent bg-accent/10"
                           : "text-stone hover:text-ink hover:bg-paper"
                       }`}
                     onClick={() => props.onSelect(item.id)}
                   >
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="1.5"
-                        d={item.icon}
-                      />
-                    </svg>
+                    {renderIcon(item.icon)}
                   </Tooltip.Trigger>
                   <Tooltip.Portal>
                     <Tooltip.Content class="z-50 px-2.5 py-1.5 bg-ink text-paper text-xs font-medium rounded-lg shadow-lg animate-fade-in">
@@ -120,32 +124,45 @@ export function Sidebar(props: SidebarProps) {
                 </Tooltip>
               }
             >
-              <button
-                type="button"
-                aria-label={item.label}
-                class={`w-full px-2.5 py-2 flex items-center gap-3 rounded-lg transition-colors
-                  ${
-                    props.activeId === item.id
-                      ? "text-accent bg-accent/10"
-                      : "text-stone hover:text-ink hover:bg-paper"
-                  }`}
-                onClick={() => props.onSelect(item.id)}
-              >
-                <svg
-                  class="w-5 h-5 flex-shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+              <div>
+                <button
+                  type="button"
+                  aria-label={item.label}
+                  class={`w-full px-2.5 py-2 flex items-center gap-3 rounded-lg transition-colors
+                    ${
+                      isItemActive(item)
+                        ? "text-accent bg-accent/10"
+                        : "text-stone hover:text-ink hover:bg-paper"
+                    }`}
+                  onClick={() => props.onSelect(item.id)}
                 >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="1.5"
-                    d={item.icon}
-                  />
-                </svg>
-                <span class="text-sm font-body truncate">{item.label}</span>
-              </button>
+                  {renderIcon(item.icon, "w-5 h-5 flex-shrink-0")}
+                  <span class="text-sm font-body truncate">{item.label}</span>
+                </button>
+
+                <Show when={item.children?.length}>
+                  <div class="mt-1 ml-4 pl-2 border-l border-border/70 space-y-1">
+                    <For each={item.children}>
+                      {(child) => (
+                        <button
+                          type="button"
+                          aria-label={child.label}
+                          class={`w-full px-2 py-1.5 flex items-center gap-2 rounded-lg transition-colors
+                            ${
+                              props.activeId === child.id
+                                ? "text-accent bg-accent/10"
+                                : "text-stone hover:text-ink hover:bg-paper"
+                            }`}
+                          onClick={() => props.onSelect(child.id)}
+                        >
+                          {renderIcon(child.icon, "w-4 h-4 flex-shrink-0")}
+                          <span class="text-xs font-body truncate">{child.label}</span>
+                        </button>
+                      )}
+                    </For>
+                  </div>
+                </Show>
+              </div>
             </Show>
           )}
         </For>

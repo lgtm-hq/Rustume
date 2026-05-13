@@ -65,6 +65,21 @@ export function isNotFoundError(error: unknown): boolean {
   return false;
 }
 
+const FIXED_LAYOUT_SECTION_KEYS: (keyof Omit<Sections, "summary" | "custom">)[] = [
+  "experience",
+  "education",
+  "skills",
+  "projects",
+  "profiles",
+  "awards",
+  "certifications",
+  "publications",
+  "languages",
+  "interests",
+  "volunteer",
+  "references",
+];
+
 /** Check if an HTML string is effectively empty (plain empty or TipTap empty editor). */
 export function isHtmlEmpty(html: string): boolean {
   const trimmed = html.trim();
@@ -93,30 +108,48 @@ export function isResumeEmpty(resume: ResumeData): boolean {
     return false;
   }
 
-  // Check if any visible section has items
-  const sectionKeys: (keyof Omit<Sections, "summary" | "custom">)[] = [
-    "experience",
-    "education",
-    "skills",
-    "projects",
-    "profiles",
-    "awards",
-    "certifications",
-    "publications",
-    "languages",
-    "interests",
-    "volunteer",
-    "references",
-  ];
-
-  for (const key of sectionKeys) {
+  for (const key of FIXED_LAYOUT_SECTION_KEYS) {
     const section = resume.sections[key];
     if (section.visible && section.items.length > 0) {
       return false;
     }
   }
 
+  for (const section of Object.values(resume.sections.custom)) {
+    if (section.visible && section.items.length > 0) {
+      return false;
+    }
+  }
+
   return true;
+}
+
+function normalizeResumeForStore(resume: ResumeData): ResumeData {
+  if (!resume.basics.picture) {
+    resume.basics.picture = createEmptyPicture();
+  }
+
+  const customIds = Object.keys(resume.sections.custom ?? {});
+  if (customIds.length === 0) return resume;
+
+  if (resume.metadata.layout.length === 0) {
+    resume.metadata.layout = [[["summary", ...FIXED_LAYOUT_SECTION_KEYS, ...customIds]]];
+    return resume;
+  }
+
+  const page0 = resume.metadata.layout[0];
+  if (!page0 || page0.length === 0) {
+    resume.metadata.layout[0] = [[...customIds]];
+    return resume;
+  }
+
+  const layoutIds = new Set(resume.metadata.layout.flat(2));
+  const missingCustomIds = customIds.filter((id) => !layoutIds.has(id) && !layoutIds.has("custom"));
+  if (missingCustomIds.length > 0) {
+    page0[page0.length - 1].push(...missingCustomIds);
+  }
+
+  return resume;
 }
 
 // Fallback localStorage storage when WASM is not available
@@ -168,6 +201,7 @@ async function getResume(id: string): Promise<ResumeData> {
 
 export type SectionKey = keyof Omit<Sections, "summary" | "custom">;
 export type LayoutSectionKey = SectionKey | "summary" | "custom";
+export type CustomSectionKey = `custom:${string}`;
 
 function createCustomSection(name: string): Section<CustomItem> {
   const id = crypto.randomUUID();
@@ -240,11 +274,7 @@ export function useResumeStore() {
 
     async loadResume(id: string) {
       try {
-        const resume = await getResume(id);
-        // Normalize: ensure basics.picture exists (older resumes may lack it)
-        if (!resume.basics.picture) {
-          resume.basics.picture = createEmptyPicture();
-        }
+        const resume = normalizeResumeForStore(await getResume(id));
         batch(() => {
           setStore("resume", resume);
           setStore("id", id);
@@ -395,6 +425,75 @@ export function useResumeStore() {
       return section.id;
     },
 
+    updateCustomSection(
+      sectionId: string,
+      updates: Partial<Pick<Section<CustomItem>, "name" | "visible">>,
+    ) {
+      setStore(
+        produce((s) => {
+          const section = s.resume?.sections.custom[sectionId];
+          if (!section) return;
+          Object.assign(section, updates);
+        }),
+      );
+      markDirty();
+    },
+
+    removeCustomSection(sectionId: string) {
+      setStore(
+        produce((s) => {
+          if (!s.resume) return;
+          delete s.resume.sections.custom[sectionId];
+          s.resume.metadata.layout = s.resume.metadata.layout.map((page) =>
+            page.map((column) => column.filter((id) => id !== sectionId)),
+          );
+        }),
+      );
+      markDirty();
+    },
+
+    addCustomSectionItem(sectionId: string, item: CustomItem) {
+      setStore(
+        produce((s) => {
+          s.resume?.sections.custom[sectionId]?.items.push(item);
+        }),
+      );
+      markDirty();
+    },
+
+    updateCustomSectionItem(sectionId: string, index: number, updates: Partial<CustomItem>) {
+      setStore(
+        produce((s) => {
+          const item = s.resume?.sections.custom[sectionId]?.items[index];
+          if (!item) return;
+          Object.assign(item, updates);
+        }),
+      );
+      markDirty();
+    },
+
+    removeCustomSectionItem(sectionId: string, index: number) {
+      setStore(
+        produce((s) => {
+          s.resume?.sections.custom[sectionId]?.items.splice(index, 1);
+        }),
+      );
+      markDirty();
+    },
+
+    reorderCustomSectionItem(sectionId: string, fromIndex: number, toIndex: number) {
+      setStore(
+        produce((s) => {
+          const items = s.resume?.sections.custom[sectionId]?.items;
+          if (!items) return;
+          const [item] = items.splice(fromIndex, 1);
+          if (!item) return;
+          items.splice(toIndex, 0, item);
+        }),
+      );
+      markDirty();
+    },
+
     // Metadata updates
     updateMetadata<K extends keyof Metadata>(field: K, value: Metadata[K]) {
       setStore(
@@ -444,10 +543,7 @@ export function useResumeStore() {
     // Import resume data
     importResume(data: ResumeData) {
       // Deep clone so Solid store owns a plain tree (imported objects may be frozen / aliased).
-      const clone = JSON.parse(JSON.stringify(data)) as ResumeData;
-      if (!clone.basics.picture) {
-        clone.basics.picture = createEmptyPicture();
-      }
+      const clone = normalizeResumeForStore(JSON.parse(JSON.stringify(data)) as ResumeData);
       batch(() => {
         setStore("resume", clone);
         setStore("isDirty", true);

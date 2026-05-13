@@ -175,4 +175,39 @@ describe("updateLayout store integration", () => {
       dispose();
     });
   });
+
+  it("importResume appends missing custom section IDs to the persisted layout", () => {
+    createRoot((dispose) => {
+      const { store, importResume } = useResumeStore();
+      const resume = createDefaultResume();
+      resume.metadata.layout = [[["summary"], ["skills"]]];
+      resume.sections.custom["api-testing"] = {
+        id: "api-testing",
+        name: "API Testing",
+        columns: 1,
+        separateLinks: false,
+        visible: true,
+        items: [],
+      };
+
+      importResume(resume);
+
+      expect(store.resume!.metadata.layout[0].at(-1)).toContain("api-testing");
+      dispose();
+    });
+  });
+
+  it("removeCustomSection removes the custom section from metadata layout", () => {
+    createRoot((dispose) => {
+      const { store, createNewResume, addCustomSection, removeCustomSection } = useResumeStore();
+      createNewResume("layout-test-remove-custom");
+      const id = addCustomSection("API Testing");
+
+      removeCustomSection(id);
+
+      expect(store.resume!.sections.custom[id]).toBeUndefined();
+      expect(store.resume!.metadata.layout.flat(2)).not.toContain(id);
+      dispose();
+    });
+  });
 });

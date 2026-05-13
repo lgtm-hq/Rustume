@@ -93,8 +93,12 @@ export function LayoutEditor() {
   let isPersisting = false;
   createEffect(
     on(
-      () => store.resume?.metadata.layout,
-      (layout) => {
+      () =>
+        [
+          store.resume?.metadata.layout,
+          Object.keys(store.resume?.sections.custom ?? {}).join("\u0000"),
+        ] as const,
+      ([layout]) => {
         if (isPersisting) return; // Skip re-sync caused by our own persist
         if (!layout || layout.length === 0) {
           setColumns(normalizeLayout([ALL_SECTION_IDS.slice()], customSectionIds()));

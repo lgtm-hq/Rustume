@@ -3,6 +3,7 @@ export { ImageUpload, type ImageUploadProps } from "./ImageUpload";
 export { SectionList } from "./SectionList";
 export { SectionPanel } from "./SectionPanel";
 export { SummaryEditor } from "./SummaryEditor";
+export { CustomSectionEditor, CustomSectionsIndex } from "./CustomSectionEditor";
 export {
   SectionEditor,
   ExperienceEditor,
