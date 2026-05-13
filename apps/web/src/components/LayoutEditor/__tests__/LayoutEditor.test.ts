@@ -210,4 +210,28 @@ describe("updateLayout store integration", () => {
       dispose();
     });
   });
+
+  it("addCustomSectionItem appends an item to a custom section", () => {
+    createRoot((dispose) => {
+      const { store, createNewResume, addCustomSection, addCustomSectionItem } = useResumeStore();
+      createNewResume("layout-test-custom-item");
+      const id = addCustomSection("API Testing");
+
+      addCustomSectionItem(id, {
+        id: "tooling",
+        visible: true,
+        name: "Tooling",
+        description: "Postman and Playwright",
+        date: "",
+        location: "",
+        summary: "",
+        keywords: [],
+        url: { label: "", href: "" },
+      });
+
+      expect(store.resume!.sections.custom[id].items).toHaveLength(1);
+      expect(store.resume!.sections.custom[id].items[0].name).toBe("Tooling");
+      dispose();
+    });
+  });
 });

@@ -37,13 +37,26 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
     reorderCustomSectionItem,
   } = resumeStore;
   const [expandedIndex, setExpandedIndex] = createSignal<number | null>(null);
+  const [revision, setRevision] = createSignal(0);
 
-  const section = () => store.resume?.sections.custom[props.sectionId] ?? null;
+  const touch = () => setRevision((value) => value + 1);
+  const section = () => {
+    revision();
+    return store.resume?.sections.custom[props.sectionId] ?? null;
+  };
+  const currentSection = () => section()!;
   const items = () => section()?.items ?? [];
 
   const handleAdd = () => {
+    const nextIndex = items().length;
     addCustomSectionItem(props.sectionId, createCustomItem());
-    setExpandedIndex(items().length - 1);
+    touch();
+    setExpandedIndex(nextIndex);
+  };
+
+  const handleUpdateSection = (updates: Parameters<typeof updateCustomSection>[1]) => {
+    updateCustomSection(props.sectionId, updates);
+    touch();
   };
 
   const handleRemoveSection = () => {
@@ -58,6 +71,7 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
   const handleMoveUp = (index: number) => {
     if (index > 0) {
       reorderCustomSectionItem(props.sectionId, index, index - 1);
+      touch();
       setExpandedIndex(index - 1);
     }
   };
@@ -65,12 +79,14 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
   const handleMoveDown = (index: number) => {
     if (index < items().length - 1) {
       reorderCustomSectionItem(props.sectionId, index, index + 1);
+      touch();
       setExpandedIndex(index + 1);
     }
   };
 
   const updateItem = (index: number) => (updates: Partial<CustomItem>) => {
     updateCustomSectionItem(props.sectionId, index, updates);
+    touch();
   };
 
   return (
@@ -82,14 +98,118 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
         </div>
       }
     >
-      {(currentSection) => (
-        <div class="space-y-4">
-          <div class="flex items-start justify-between gap-4 pb-4 border-b border-border">
-            <div class="min-w-0 flex-1 space-y-3">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-accent/10 rounded-lg flex items-center justify-center">
+      <div class="space-y-4">
+        <div class="flex items-start justify-between gap-4 pb-4 border-b border-border">
+          <div class="min-w-0 flex-1 space-y-3">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-accent/10 rounded-lg flex items-center justify-center">
+                <svg
+                  class="w-5 h-5 text-accent"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+              </div>
+              <div class="min-w-0">
+                <h2 class="font-display text-lg font-semibold text-ink truncate">
+                  {currentSection().name || "Untitled"}
+                </h2>
+                <p class="text-sm text-stone">{items().length} items</p>
+              </div>
+            </div>
+            <Input
+              label="Section Name"
+              value={currentSection().name}
+              onInput={(name) => handleUpdateSection({ name })}
+            />
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              class={`w-8 h-5 rounded-full transition-colors relative ${
+                currentSection().visible ? "bg-accent" : "bg-border"
+              }`}
+              title={currentSection().visible ? "Hide section" : "Show section"}
+              aria-label={currentSection().visible ? "Hide section" : "Show section"}
+              aria-pressed={currentSection().visible}
+              onClick={() => handleUpdateSection({ visible: !currentSection().visible })}
+            >
+              <span
+                class={`absolute top-0.5 w-4 h-4 bg-paper rounded-full shadow-sm
+                    transition-transform ${
+                      currentSection().visible ? "translate-x-3.5" : "translate-x-0.5"
+                    }`}
+              />
+            </button>
+            <Button variant="secondary" size="sm" onClick={handleAdd}>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              Add
+            </Button>
+            <button
+              type="button"
+              class="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              title="Delete custom section"
+              aria-label="Delete custom section"
+              onClick={handleRemoveSection}
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <For each={items()}>
+            {(item, index) => (
+              <div class="border border-border rounded-lg overflow-hidden">
+                <button
+                  type="button"
+                  class="w-full px-4 py-3 flex items-center justify-between
+                      bg-surface hover:bg-border/30 transition-colors text-left"
+                  onClick={() => setExpandedIndex(expandedIndex() === index() ? null : index())}
+                >
+                  <div class="flex items-center gap-3 min-w-0">
+                    <div
+                      class={`w-2 h-2 rounded-full flex-shrink-0 ${
+                        item.visible ? "bg-green-500" : "bg-stone/30"
+                      }`}
+                    />
+                    <div class="min-w-0">
+                      <div class="font-body font-medium text-ink truncate">
+                        {item.name || "Untitled"}
+                      </div>
+                      <Show when={item.description || item.keywords.slice(0, 3).join(", ")}>
+                        <div class="text-sm text-stone truncate">
+                          {item.description || item.keywords.slice(0, 3).join(", ")}
+                        </div>
+                      </Show>
+                    </div>
+                  </div>
                   <svg
-                    class="w-5 h-5 text-accent"
+                    class={`w-5 h-5 text-stone transition-transform flex-shrink-0 ${
+                      expandedIndex() === index() ? "rotate-180" : ""
+                    }`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -98,292 +218,183 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
                       stroke-linecap="round"
                       stroke-linejoin="round"
                       stroke-width="2"
-                      d="M12 4v16m8-8H4"
+                      d="M19 9l-7 7-7-7"
                     />
                   </svg>
-                </div>
-                <div class="min-w-0">
-                  <h2 class="font-display text-lg font-semibold text-ink truncate">
-                    {currentSection().name || "Untitled"}
-                  </h2>
-                  <p class="text-sm text-stone">{items().length} items</p>
-                </div>
-              </div>
-              <Input
-                label="Section Name"
-                value={currentSection().name}
-                onInput={(name) => updateCustomSection(props.sectionId, { name })}
-              />
-            </div>
+                </button>
 
-            <div class="flex items-center gap-2">
-              <button
-                type="button"
-                class={`w-8 h-5 rounded-full transition-colors relative ${
-                  currentSection().visible ? "bg-accent" : "bg-border"
-                }`}
-                title={currentSection().visible ? "Hide section" : "Show section"}
-                aria-label={currentSection().visible ? "Hide section" : "Show section"}
-                aria-pressed={currentSection().visible}
-                onClick={() =>
-                  updateCustomSection(props.sectionId, { visible: !currentSection().visible })
-                }
-              >
-                <span
-                  class={`absolute top-0.5 w-4 h-4 bg-paper rounded-full shadow-sm
-                    transition-transform ${
-                      currentSection().visible ? "translate-x-3.5" : "translate-x-0.5"
-                    }`}
-                />
-              </button>
-              <Button variant="secondary" size="sm" onClick={handleAdd}>
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M12 4v16m8-8H4"
-                  />
-                </svg>
-                Add
-              </Button>
-              <button
-                type="button"
-                class="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                title="Delete custom section"
-                aria-label="Delete custom section"
-                onClick={handleRemoveSection}
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <div class="space-y-2">
-            <For each={items()}>
-              {(item, index) => (
-                <div class="border border-border rounded-lg overflow-hidden">
-                  <button
-                    type="button"
-                    class="w-full px-4 py-3 flex items-center justify-between
-                      bg-surface hover:bg-border/30 transition-colors text-left"
-                    onClick={() => setExpandedIndex(expandedIndex() === index() ? null : index())}
-                  >
-                    <div class="flex items-center gap-3 min-w-0">
-                      <div
-                        class={`w-2 h-2 rounded-full flex-shrink-0 ${
-                          item.visible ? "bg-green-500" : "bg-stone/30"
-                        }`}
-                      />
-                      <div class="min-w-0">
-                        <div class="font-body font-medium text-ink truncate">
-                          {item.name || "Untitled"}
-                        </div>
-                        <Show when={item.description || item.keywords.slice(0, 3).join(", ")}>
-                          <div class="text-sm text-stone truncate">
-                            {item.description || item.keywords.slice(0, 3).join(", ")}
-                          </div>
-                        </Show>
+                <Show when={expandedIndex() === index()}>
+                  <div class="px-4 py-4 border-t border-border space-y-4 bg-paper">
+                    <div class="flex items-center justify-between pb-3 border-b border-border">
+                      <div class="flex items-center gap-2">
+                        <button
+                          class="p-1.5 text-stone hover:text-ink hover:bg-surface rounded
+                              disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                          onClick={() => handleMoveUp(index())}
+                          disabled={index() === 0}
+                          title="Move up"
+                        >
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M5 15l7-7 7 7"
+                            />
+                          </svg>
+                        </button>
+                        <button
+                          class="p-1.5 text-stone hover:text-ink hover:bg-surface rounded
+                              disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                          onClick={() => handleMoveDown(index())}
+                          disabled={index() === items().length - 1}
+                          title="Move down"
+                        >
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M19 9l-7 7-7-7"
+                            />
+                          </svg>
+                        </button>
                       </div>
-                    </div>
-                    <svg
-                      class={`w-5 h-5 text-stone transition-transform flex-shrink-0 ${
-                        expandedIndex() === index() ? "rotate-180" : ""
-                      }`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </button>
 
-                  <Show when={expandedIndex() === index()}>
-                    <div class="px-4 py-4 border-t border-border space-y-4 bg-paper">
-                      <div class="flex items-center justify-between pb-3 border-b border-border">
-                        <div class="flex items-center gap-2">
-                          <button
-                            class="p-1.5 text-stone hover:text-ink hover:bg-surface rounded
-                              disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                            onClick={() => handleMoveUp(index())}
-                            disabled={index() === 0}
-                            title="Move up"
+                      <div class="flex items-center gap-3">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                          <span class="text-xs font-mono text-stone">Visible</span>
+                          <div
+                            class={`w-8 h-5 rounded-full transition-colors relative ${
+                              item.visible ? "bg-accent" : "bg-border"
+                            }`}
+                            onClick={() => updateItem(index())({ visible: !item.visible })}
                           >
-                            <svg
-                              class="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M5 15l7-7 7 7"
-                              />
-                            </svg>
-                          </button>
-                          <button
-                            class="p-1.5 text-stone hover:text-ink hover:bg-surface rounded
-                              disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                            onClick={() => handleMoveDown(index())}
-                            disabled={index() === items().length - 1}
-                            title="Move down"
-                          >
-                            <svg
-                              class="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M19 9l-7 7-7-7"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-
-                        <div class="flex items-center gap-3">
-                          <label class="flex items-center gap-2 cursor-pointer">
-                            <span class="text-xs font-mono text-stone">Visible</span>
                             <div
-                              class={`w-8 h-5 rounded-full transition-colors relative ${
-                                item.visible ? "bg-accent" : "bg-border"
-                              }`}
-                              onClick={() => updateItem(index())({ visible: !item.visible })}
-                            >
-                              <div
-                                class={`absolute top-0.5 w-4 h-4 bg-paper rounded-full shadow-sm
+                              class={`absolute top-0.5 w-4 h-4 bg-paper rounded-full shadow-sm
                                   transition-transform ${
                                     item.visible ? "translate-x-3.5" : "translate-x-0.5"
                                   }`}
-                              />
-                            </div>
-                          </label>
+                            />
+                          </div>
+                        </label>
 
-                          <button
-                            class="p-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                            onClick={() => {
-                              removeCustomSectionItem(props.sectionId, index());
-                              setExpandedIndex(null);
-                            }}
-                            title="Remove"
+                        <button
+                          class="p-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                          onClick={() => {
+                            removeCustomSectionItem(props.sectionId, index());
+                            touch();
+                            setExpandedIndex(null);
+                          }}
+                          title="Remove"
+                        >
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
                           >
-                            <svg
-                              class="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-
-                      <div class="space-y-4">
-                        <div class="grid grid-cols-2 gap-4">
-                          <Input
-                            label="Name"
-                            placeholder="Tooling"
-                            value={item.name}
-                            onInput={(name) => updateItem(index())({ name })}
-                          />
-                          <Input
-                            label="Description"
-                            placeholder="Brief description"
-                            value={item.description}
-                            onInput={(description) => updateItem(index())({ description })}
-                          />
-                        </div>
-                        <div class="grid grid-cols-2 gap-4">
-                          <Input
-                            label="Date"
-                            placeholder="2024"
-                            value={item.date}
-                            onInput={(date) => updateItem(index())({ date })}
-                          />
-                          <Input
-                            label="Location"
-                            placeholder="Remote"
-                            value={item.location}
-                            onInput={(location) => updateItem(index())({ location })}
-                          />
-                        </div>
-                        <RichTextEditor
-                          label="Summary"
-                          placeholder="Describe this item..."
-                          value={item.summary}
-                          onInput={(summary) => updateItem(index())({ summary })}
-                        />
-                        <Input
-                          label="Keywords"
-                          placeholder="Playwright, Vitest, Jest (comma separated)"
-                          value={item.keywords.join(", ")}
-                          onInput={(value) =>
-                            updateItem(index())({
-                              keywords: value
-                                .split(",")
-                                .map((keyword) => keyword.trim())
-                                .filter(Boolean),
-                            })
-                          }
-                        />
-                        <div class="grid grid-cols-2 gap-4">
-                          <Input
-                            label="Link Label"
-                            placeholder="Website"
-                            value={item.url.label}
-                            onInput={(label) =>
-                              updateItem(index())({ url: { ...item.url, label } })
-                            }
-                          />
-                          <Input
-                            label="Link URL"
-                            type="url"
-                            placeholder="https://..."
-                            value={item.url.href}
-                            onInput={(href) => updateItem(index())({ url: { ...item.url, href } })}
-                          />
-                        </div>
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
+                          </svg>
+                        </button>
                       </div>
                     </div>
-                  </Show>
-                </div>
-              )}
-            </For>
 
-            <Show when={items().length === 0}>
-              <div class="py-8 text-center">
-                <p class="text-stone text-sm mb-3">No items yet</p>
-                <Button variant="secondary" size="sm" onClick={handleAdd}>
-                  Add your first item
-                </Button>
+                    <div class="space-y-4">
+                      <div class="grid grid-cols-2 gap-4">
+                        <Input
+                          label="Name"
+                          placeholder="Tooling"
+                          value={item.name}
+                          onInput={(name) => updateItem(index())({ name })}
+                        />
+                        <Input
+                          label="Description"
+                          placeholder="Brief description"
+                          value={item.description}
+                          onInput={(description) => updateItem(index())({ description })}
+                        />
+                      </div>
+                      <div class="grid grid-cols-2 gap-4">
+                        <Input
+                          label="Date"
+                          placeholder="2024"
+                          value={item.date}
+                          onInput={(date) => updateItem(index())({ date })}
+                        />
+                        <Input
+                          label="Location"
+                          placeholder="Remote"
+                          value={item.location}
+                          onInput={(location) => updateItem(index())({ location })}
+                        />
+                      </div>
+                      <RichTextEditor
+                        label="Summary"
+                        placeholder="Describe this item..."
+                        value={item.summary}
+                        onInput={(summary) => updateItem(index())({ summary })}
+                      />
+                      <Input
+                        label="Keywords"
+                        placeholder="Playwright, Vitest, Jest (comma separated)"
+                        value={item.keywords.join(", ")}
+                        onInput={(value) =>
+                          updateItem(index())({
+                            keywords: value
+                              .split(",")
+                              .map((keyword) => keyword.trim())
+                              .filter(Boolean),
+                          })
+                        }
+                      />
+                      <div class="grid grid-cols-2 gap-4">
+                        <Input
+                          label="Link Label"
+                          placeholder="Website"
+                          value={item.url.label}
+                          onInput={(label) => updateItem(index())({ url: { ...item.url, label } })}
+                        />
+                        <Input
+                          label="Link URL"
+                          type="url"
+                          placeholder="https://..."
+                          value={item.url.href}
+                          onInput={(href) => updateItem(index())({ url: { ...item.url, href } })}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </Show>
               </div>
-            </Show>
-          </div>
+            )}
+          </For>
+
+          <Show when={items().length === 0}>
+            <div class="py-8 text-center">
+              <p class="text-stone text-sm mb-3">No items yet</p>
+              <Button variant="secondary" size="sm" onClick={handleAdd}>
+                Add your first item
+              </Button>
+            </div>
+          </Show>
         </div>
-      )}
+      </div>
     </Show>
   );
 }

@@ -453,44 +453,41 @@ export function useResumeStore() {
     },
 
     addCustomSectionItem(sectionId: string, item: CustomItem) {
-      setStore(
-        produce((s) => {
-          s.resume?.sections.custom[sectionId]?.items.push(item);
-        }),
-      );
+      const items = store.resume?.sections.custom[sectionId]?.items;
+      if (!items) return;
+      setStore("resume", "sections", "custom", sectionId, "items", items.length, item);
       markDirty();
     },
 
     updateCustomSectionItem(sectionId: string, index: number, updates: Partial<CustomItem>) {
-      setStore(
-        produce((s) => {
-          const item = s.resume?.sections.custom[sectionId]?.items[index];
-          if (!item) return;
-          Object.assign(item, updates);
-        }),
-      );
+      const item = store.resume?.sections.custom[sectionId]?.items[index];
+      if (!item) return;
+      setStore("resume", "sections", "custom", sectionId, "items", index, updates);
       markDirty();
     },
 
     removeCustomSectionItem(sectionId: string, index: number) {
+      const items = store.resume?.sections.custom[sectionId]?.items;
+      if (!items) return;
       setStore(
-        produce((s) => {
-          s.resume?.sections.custom[sectionId]?.items.splice(index, 1);
-        }),
+        "resume",
+        "sections",
+        "custom",
+        sectionId,
+        "items",
+        items.filter((_, itemIndex) => itemIndex !== index),
       );
       markDirty();
     },
 
     reorderCustomSectionItem(sectionId: string, fromIndex: number, toIndex: number) {
-      setStore(
-        produce((s) => {
-          const items = s.resume?.sections.custom[sectionId]?.items;
-          if (!items) return;
-          const [item] = items.splice(fromIndex, 1);
-          if (!item) return;
-          items.splice(toIndex, 0, item);
-        }),
-      );
+      const items = store.resume?.sections.custom[sectionId]?.items;
+      if (!items) return;
+      const nextItems = [...items];
+      const [item] = nextItems.splice(fromIndex, 1);
+      if (!item) return;
+      nextItems.splice(toIndex, 0, item);
+      setStore("resume", "sections", "custom", sectionId, "items", nextItems);
       markDirty();
     },
 
