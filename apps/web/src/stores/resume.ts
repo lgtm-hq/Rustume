@@ -79,6 +79,7 @@ const FIXED_LAYOUT_SECTION_KEYS: (keyof Omit<Sections, "summary" | "custom">)[] 
   "volunteer",
   "references",
 ];
+const FIXED_LAYOUT_SECTION_KEY_SET = new Set<string>(["summary", ...FIXED_LAYOUT_SECTION_KEYS]);
 
 /** Check if an HTML string is effectively empty (plain empty or TipTap empty editor). */
 export function isHtmlEmpty(html: string): boolean {
@@ -139,7 +140,10 @@ function normalizeResumeForStore(resume: ResumeData): ResumeData {
 
   const page0 = resume.metadata.layout[0];
   if (!page0 || page0.length === 0) {
-    resume.metadata.layout[0] = [[...customIds]];
+    const fixedIds = resume.metadata.layout
+      .flat(2)
+      .filter((id) => FIXED_LAYOUT_SECTION_KEY_SET.has(id));
+    resume.metadata.layout[0] = [[...fixedIds, ...customIds]];
     return resume;
   }
 
@@ -408,7 +412,7 @@ export function useResumeStore() {
 
           s.resume.sections.custom[section.id] = section;
           if (s.resume.metadata.layout.length === 0) {
-            s.resume.metadata.layout = [[["summary"], [section.id]]];
+            s.resume.metadata.layout = [[["summary", section.id]]];
             return;
           }
 

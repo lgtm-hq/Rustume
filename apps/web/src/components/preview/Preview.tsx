@@ -254,7 +254,9 @@ export function Preview() {
 
       {/* Preview Area */}
       <div
-        class="flex-1 overflow-auto p-6 flex items-start justify-center focus:outline-none"
+        class="flex-1 overflow-auto p-6 flex items-start justify-center
+          focus:outline-none focus-visible:ring-2 focus-visible:ring-accent
+          focus-visible:ring-offset-2 focus-visible:ring-offset-paper"
         tabIndex={0}
         onWheel={handleWheel}
         onKeyDown={handleKeyDown}

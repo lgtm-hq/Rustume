@@ -122,34 +122,53 @@ export function Sidebar(props: SidebarProps) {
               <Show
                 when={isExpanded()}
                 fallback={
-                  <Tooltip placement="right" openDelay={100} closeDelay={0}>
-                    <Tooltip.Trigger
-                      as="button"
-                      type="button"
-                      aria-label={item.label}
-                      class={`w-full p-2.5 flex items-center justify-center rounded-lg transition-colors
-                        ${
-                          isItemActive(item)
-                            ? "text-accent bg-accent/10"
-                            : "text-stone hover:text-ink hover:bg-paper"
-                        }`}
-                      onClick={() => props.onSelect(item.id)}
-                    >
-                      {renderIcon(item.icon)}
-                    </Tooltip.Trigger>
-                    <Tooltip.Portal>
-                      <Tooltip.Content class="z-50 px-2.5 py-1.5 bg-ink text-paper text-xs font-medium rounded-lg shadow-lg animate-fade-in">
-                        {item.label}
-                        <Tooltip.Arrow />
-                      </Tooltip.Content>
-                    </Tooltip.Portal>
-                  </Tooltip>
+                  <>
+                    <Tooltip placement="right" openDelay={100} closeDelay={0}>
+                      <Tooltip.Trigger
+                        as="button"
+                        type="button"
+                        aria-label={item.label}
+                        aria-expanded={item.children?.length ? isExpanded() : undefined}
+                        class={`w-full p-2.5 flex items-center justify-center rounded-lg transition-colors
+                          ${
+                            isItemActive(item)
+                              ? "text-accent bg-accent/10"
+                              : "text-stone hover:text-ink hover:bg-paper"
+                          }`}
+                        onClick={() => props.onSelect(item.id)}
+                      >
+                        {renderIcon(item.icon)}
+                      </Tooltip.Trigger>
+                      <Tooltip.Portal>
+                        <Tooltip.Content class="z-50 px-2.5 py-1.5 bg-ink text-paper text-xs font-medium rounded-lg shadow-lg animate-fade-in">
+                          {item.label}
+                          <Tooltip.Arrow />
+                        </Tooltip.Content>
+                      </Tooltip.Portal>
+                    </Tooltip>
+                    <Show when={item.children?.length}>
+                      <div class="sr-only" aria-label={`${item.label} subsections`}>
+                        <For each={item.children}>
+                          {(child) => (
+                            <button
+                              type="button"
+                              aria-label={child.label}
+                              onClick={() => props.onSelect(child.id)}
+                            >
+                              {child.label}
+                            </button>
+                          )}
+                        </For>
+                      </div>
+                    </Show>
+                  </>
                 }
               >
                 <div>
                   <button
                     type="button"
                     aria-label={item.label}
+                    aria-expanded={item.children?.length ? isExpanded() : undefined}
                     class={`w-full px-2.5 py-2 flex items-center gap-3 rounded-lg transition-colors
                       ${
                         isItemActive(item)

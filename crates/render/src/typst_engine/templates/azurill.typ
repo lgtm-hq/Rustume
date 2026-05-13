@@ -439,10 +439,10 @@
     renderers: renderers,
     columns: (1fr, 2fr),
     column-gutter: 20pt,
-    left-column: 1,
+    left-column: 0,
     left-fallback: default-sidebar-sections,
     left-heading: sidebar-section-heading,
-    right-column: 0,
+    right-column: 1,
     right-fallback: default-main-sections + ("custom",),
     right-heading: main-section-heading,
   ))

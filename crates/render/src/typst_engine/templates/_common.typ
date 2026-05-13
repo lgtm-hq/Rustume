@@ -142,7 +142,23 @@
   "languages",
 )
 
-#let default-all-sections = default-main-sections + default-sidebar-sections + ("custom",)
+#let unique-section-order(sources) = {
+  let keys = ()
+  for source in sources {
+    for key in source {
+      if not (key in keys) {
+        keys = keys + (key,)
+      }
+    }
+  }
+  keys
+}
+
+#let default-all-sections = unique-section-order((
+  default-main-sections,
+  default-sidebar-sections,
+  ("custom",),
+))
 
 /// Return the section keys configured for a layout column, with a fallback.
 #let layout-column-sections(data, column, fallback) = {

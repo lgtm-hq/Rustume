@@ -274,19 +274,21 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
                       <div class="flex items-center gap-3">
                         <label class="flex items-center gap-2 cursor-pointer">
                           <span class="text-xs font-mono text-stone">Visible</span>
-                          <div
+                          <button
+                            type="button"
+                            aria-pressed={item.visible}
                             class={`w-8 h-5 rounded-full transition-colors relative ${
                               item.visible ? "bg-accent" : "bg-border"
                             }`}
                             onClick={() => updateItem(index())({ visible: !item.visible })}
                           >
-                            <div
+                            <span
                               class={`absolute top-0.5 w-4 h-4 bg-paper rounded-full shadow-sm
                                   transition-transform ${
                                     item.visible ? "translate-x-3.5" : "translate-x-0.5"
                                   }`}
                             />
-                          </div>
+                          </button>
                         </label>
 
                         <button

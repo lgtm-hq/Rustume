@@ -261,6 +261,46 @@ describe("useResumeStore", () => {
     });
   });
 
+  it("importResume preserves fixed sections when normalizing an empty first layout page", () => {
+    createRoot((dispose) => {
+      const { store, importResume } = useResumeStore();
+      const imported = createDefaultResume();
+      imported.sections.custom["custom-speaking"] = {
+        id: "custom-speaking",
+        name: "Speaking",
+        columns: 1,
+        separateLinks: false,
+        visible: true,
+        items: [],
+      };
+      imported.metadata.layout = [
+        [
+          /* empty first page */
+        ],
+        [["experience"]],
+      ];
+
+      importResume(imported);
+
+      expect(store.resume!.metadata.layout[0]).toEqual([["experience", "custom-speaking"]]);
+      dispose();
+    });
+  });
+
+  it("addCustomSection initializes an empty layout as a single summary column", () => {
+    createRoot((dispose) => {
+      const { store, importResume, addCustomSection } = useResumeStore();
+      const imported = createDefaultResume();
+      imported.metadata.layout = [];
+
+      importResume(imported);
+      const sectionId = addCustomSection("Writing");
+
+      expect(store.resume!.metadata.layout).toEqual([[["summary", sectionId]]]);
+      dispose();
+    });
+  });
+
   it("loadResume throws ResumeNotFoundError for missing resumes", async () => {
     await createRoot(async (dispose) => {
       try {
