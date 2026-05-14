@@ -110,6 +110,7 @@ function materializeCustomLayoutSentinels(layout: string[][][], customIds: strin
           expandedCustom = true;
         }
         for (const concreteId of ids) {
+          if (layoutIds.has(concreteId)) continue;
           layoutIds.add(concreteId);
           materialized.push(concreteId);
         }
@@ -182,13 +183,13 @@ function normalizeResumeForStore(resume: ResumeData): ResumeData {
   }
 
   const customIds = Object.keys(resume.sections.custom);
-  if (customIds.length === 0) return resume;
-
   if (resume.metadata.layout.length === 0) {
+    if (customIds.length === 0) return resume;
     resume.metadata.layout = [[["summary", ...FIXED_LAYOUT_SECTION_KEYS, ...customIds]]];
     return resume;
   }
 
+  const layoutIds = materializeCustomLayoutSentinels(resume.metadata.layout, customIds);
   const page0 = resume.metadata.layout[0];
   if (!page0 || page0.length === 0) {
     const fixedIds = uniqueLayoutIds(
@@ -200,7 +201,8 @@ function normalizeResumeForStore(resume: ResumeData): ResumeData {
     return resume;
   }
 
-  const layoutIds = materializeCustomLayoutSentinels(resume.metadata.layout, customIds);
+  if (customIds.length === 0) return resume;
+
   const missingCustomIds = customIds.filter((id) => !layoutIds.has(id));
   if (missingCustomIds.length > 0) {
     const normalizedPage0 = resume.metadata.layout[0] ?? [];
