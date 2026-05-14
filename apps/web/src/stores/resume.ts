@@ -81,6 +81,22 @@ export const FIXED_LAYOUT_SECTION_KEYS: (keyof Omit<Sections, "summary" | "custo
 ];
 const FIXED_LAYOUT_SECTION_KEY_SET = new Set<string>(["summary", ...FIXED_LAYOUT_SECTION_KEYS]);
 
+function uniqueLayoutIds(ids: string[]): string[] {
+  const seen = new Set<string>();
+  return ids.filter((id) => {
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
+function removeLayoutIdsFromLaterPages(layout: string[][][], ids: readonly string[]): void {
+  const movedIds = new Set(ids);
+  for (let pageIndex = 1; pageIndex < layout.length; pageIndex++) {
+    layout[pageIndex] = layout[pageIndex].map((column) => column.filter((id) => !movedIds.has(id)));
+  }
+}
+
 /** Check if an HTML string is effectively empty (plain empty or TipTap empty editor). */
 export function isHtmlEmpty(html: string): boolean {
   const trimmed = html.trim();
@@ -116,7 +132,7 @@ export function isResumeEmpty(resume: ResumeData): boolean {
     }
   }
 
-  for (const section of Object.values(resume.sections.custom)) {
+  for (const section of Object.values(resume.sections.custom ?? {})) {
     if (section.visible && section.items.length > 0) {
       return false;
     }
@@ -143,10 +159,12 @@ function normalizeResumeForStore(resume: ResumeData): ResumeData {
 
   const page0 = resume.metadata.layout[0];
   if (!page0 || page0.length === 0) {
-    const fixedIds = resume.metadata.layout
-      .flat(2)
-      .filter((id) => FIXED_LAYOUT_SECTION_KEY_SET.has(id));
-    resume.metadata.layout[0] = [[...fixedIds, ...customIds]];
+    const fixedIds = uniqueLayoutIds(
+      resume.metadata.layout.flat(2).filter((id) => FIXED_LAYOUT_SECTION_KEY_SET.has(id)),
+    );
+    const page0Ids = uniqueLayoutIds([...fixedIds, ...customIds]);
+    resume.metadata.layout[0] = [page0Ids];
+    removeLayoutIdsFromLaterPages(resume.metadata.layout, page0Ids);
     return resume;
   }
 
@@ -421,17 +439,12 @@ export function useResumeStore() {
 
           const page = s.resume.metadata.layout[0] ?? [];
           if (!page || page.length === 0) {
-            const fixedIds = s.resume.metadata.layout
-              .flat(2)
-              .filter((id) => FIXED_LAYOUT_SECTION_KEY_SET.has(id));
-            const mergedIds = [...fixedIds, section.id];
-            const seen = new Set<string>();
-            const uniqueMerged = mergedIds.filter((id) => {
-              if (seen.has(id)) return false;
-              seen.add(id);
-              return true;
-            });
-            s.resume.metadata.layout[0] = [uniqueMerged];
+            const fixedIds = uniqueLayoutIds(
+              s.resume.metadata.layout.flat(2).filter((id) => FIXED_LAYOUT_SECTION_KEY_SET.has(id)),
+            );
+            const page0Ids = uniqueLayoutIds([...fixedIds, section.id]);
+            s.resume.metadata.layout[0] = [page0Ids];
+            removeLayoutIdsFromLaterPages(s.resume.metadata.layout, page0Ids);
             return;
           }
 

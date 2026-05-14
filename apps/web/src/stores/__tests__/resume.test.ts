@@ -103,6 +103,13 @@ describe("isResumeEmpty", () => {
     ];
     expect(isResumeEmpty(resume)).toBe(false);
   });
+
+  it("returns true when sections.custom is missing at runtime", () => {
+    const resume = createEmptyResumeData();
+    const sections = { ...resume.sections };
+    Reflect.deleteProperty(sections, "custom");
+    expect(isResumeEmpty({ ...resume, sections: sections as ResumeData["sections"] })).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -304,6 +311,9 @@ describe("useResumeStore", () => {
       importResume(imported);
 
       expect(store.resume!.metadata.layout[0]).toEqual([["experience", "custom-speaking"]]);
+      expect(
+        store.resume!.metadata.layout.flat(2).filter((id) => id === "experience"),
+      ).toHaveLength(1);
       dispose();
     });
   });
@@ -334,6 +344,10 @@ describe("useResumeStore", () => {
       const sectionId = addCustomSection("Writing");
 
       expect(store.resume!.metadata.layout[0]).toEqual([["education", "skills", sectionId]]);
+      expect(store.resume!.metadata.layout.flat(2).filter((id) => id === "education")).toHaveLength(
+        1,
+      );
+      expect(store.resume!.metadata.layout.flat(2).filter((id) => id === "skills")).toHaveLength(1);
       dispose();
     });
   });
