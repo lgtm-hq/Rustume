@@ -97,6 +97,26 @@ function removeLayoutIdsFromLaterPages(layout: string[][][], ids: readonly strin
   }
 }
 
+function materializeCustomLayoutSentinels(layout: string[][][], customIds: string[]): Set<string> {
+  const layoutIds = new Set<string>();
+
+  for (let pageIndex = 0; pageIndex < layout.length; pageIndex++) {
+    layout[pageIndex] = layout[pageIndex].map((column) => {
+      const materialized: string[] = [];
+      for (const id of column) {
+        const ids = id === "custom" ? customIds : [id];
+        for (const concreteId of ids) {
+          layoutIds.add(concreteId);
+          materialized.push(concreteId);
+        }
+      }
+      return materialized;
+    });
+  }
+
+  return layoutIds;
+}
+
 /** Check if an HTML string is effectively empty (plain empty or TipTap empty editor). */
 export function isHtmlEmpty(html: string): boolean {
   const trimmed = html.trim();
@@ -146,8 +166,16 @@ function normalizeResumeForStore(resume: ResumeData): ResumeData {
     resume.basics.picture = createEmptyPicture();
   }
 
-  resume.sections.custom ??= {};
-  resume.metadata.layout ??= [];
+  if (
+    typeof resume.sections.custom !== "object" ||
+    resume.sections.custom === null ||
+    Array.isArray(resume.sections.custom)
+  ) {
+    resume.sections.custom = {};
+  }
+  if (!Array.isArray(resume.metadata.layout)) {
+    resume.metadata.layout = [];
+  }
 
   const customIds = Object.keys(resume.sections.custom);
   if (customIds.length === 0) return resume;
@@ -168,8 +196,8 @@ function normalizeResumeForStore(resume: ResumeData): ResumeData {
     return resume;
   }
 
-  const layoutIds = new Set(resume.metadata.layout.flat(2));
-  const missingCustomIds = customIds.filter((id) => !layoutIds.has(id) && !layoutIds.has("custom"));
+  const layoutIds = materializeCustomLayoutSentinels(resume.metadata.layout, customIds);
+  const missingCustomIds = customIds.filter((id) => !layoutIds.has(id));
   if (missingCustomIds.length > 0) {
     page0[page0.length - 1].push(...missingCustomIds);
   }

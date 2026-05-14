@@ -289,6 +289,26 @@ describe("useResumeStore", () => {
     });
   });
 
+  it("importResume replaces malformed custom and layout legacy shapes", () => {
+    createRoot((dispose) => {
+      const { store, importResume } = useResumeStore();
+      const base = createDefaultResume();
+      const legacy = JSON.parse(
+        JSON.stringify({
+          ...base,
+          sections: { ...base.sections, custom: [] },
+          metadata: { ...base.metadata, layout: { page: [["summary"]] } },
+        }),
+      ) as ResumeData;
+
+      importResume(legacy);
+
+      expect(store.resume!.sections.custom).toEqual({});
+      expect(store.resume!.metadata.layout).toEqual([]);
+      dispose();
+    });
+  });
+
   it("importResume preserves fixed sections when normalizing an empty first layout page", () => {
     createRoot((dispose) => {
       const { store, importResume } = useResumeStore();
@@ -314,6 +334,38 @@ describe("useResumeStore", () => {
       expect(
         store.resume!.metadata.layout.flat(2).filter((id) => id === "experience"),
       ).toHaveLength(1);
+      dispose();
+    });
+  });
+
+  it("importResume materializes custom layout sentinel into concrete custom ids", () => {
+    createRoot((dispose) => {
+      const { store, importResume } = useResumeStore();
+      const imported = createDefaultResume();
+      imported.sections.custom["custom-speaking"] = {
+        id: "custom-speaking",
+        name: "Speaking",
+        columns: 1,
+        separateLinks: false,
+        visible: true,
+        items: [],
+      };
+      imported.sections.custom["custom-writing"] = {
+        id: "custom-writing",
+        name: "Writing",
+        columns: 1,
+        separateLinks: false,
+        visible: true,
+        items: [],
+      };
+      imported.metadata.layout = [[["summary", "custom"]]];
+
+      importResume(imported);
+
+      expect(store.resume!.metadata.layout).toEqual([
+        [["summary", "custom-speaking", "custom-writing"]],
+      ]);
+      expect(store.resume!.metadata.layout.flat(2)).not.toContain("custom");
       dispose();
     });
   });
