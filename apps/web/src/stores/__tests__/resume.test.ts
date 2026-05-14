@@ -370,6 +370,30 @@ describe("useResumeStore", () => {
     });
   });
 
+  it("importResume materializes duplicate custom layout sentinels only once", () => {
+    createRoot((dispose) => {
+      const { store, importResume } = useResumeStore();
+      const imported = createDefaultResume();
+      imported.sections.custom["custom-a"] = {
+        id: "custom-a",
+        name: "Custom A",
+        columns: 1,
+        separateLinks: false,
+        visible: true,
+        items: [],
+      };
+      imported.metadata.layout = [[["summary", "custom"], ["custom"]]];
+
+      importResume(imported);
+
+      expect(store.resume!.metadata.layout.flat(2).filter((id) => id === "custom-a")).toHaveLength(
+        1,
+      );
+      expect(store.resume!.metadata.layout.flat(2)).not.toContain("custom");
+      dispose();
+    });
+  });
+
   it("addCustomSection seeds empty layout with summary, fixed sections, and custom id", () => {
     createRoot((dispose) => {
       const { store, importResume, addCustomSection } = useResumeStore();

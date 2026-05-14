@@ -70,7 +70,8 @@ jobs:
         id: generate-rust-comment
         if: >-
           github.event_name == 'pull_request' &&
-          steps.rust-metrics.outcome == 'success'
+          (steps.rust-metrics.outcome == 'success' ||
+          env.RUST_COVERAGE_EXIT_CODE != '0')
         env:
           COVERAGE_NAME: Rust
           COVERAGE_MARKER: "<!-- rust-coverage-report -->"
@@ -179,7 +180,8 @@ jobs:
         id: generate-web-comment
         if: >-
           github.event_name == 'pull_request' &&
-          steps.web-metrics.outcome == 'success'
+          (steps.web-metrics.outcome == 'success' ||
+          env.WEB_COVERAGE_EXIT_CODE != '0')
         env:
           COVERAGE_NAME: Web
           COVERAGE_MARKER: "<!-- web-coverage-report -->"

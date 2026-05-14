@@ -99,12 +99,16 @@ function removeLayoutIdsFromLaterPages(layout: string[][][], ids: readonly strin
 
 function materializeCustomLayoutSentinels(layout: string[][][], customIds: string[]): Set<string> {
   const layoutIds = new Set<string>();
+  let expandedCustom = false;
 
   for (let pageIndex = 0; pageIndex < layout.length; pageIndex++) {
     layout[pageIndex] = layout[pageIndex].map((column) => {
       const materialized: string[] = [];
       for (const id of column) {
-        const ids = id === "custom" ? customIds : [id];
+        const ids = id === "custom" ? (expandedCustom ? [] : customIds) : [id];
+        if (id === "custom") {
+          expandedCustom = true;
+        }
         for (const concreteId of ids) {
           layoutIds.add(concreteId);
           materialized.push(concreteId);
@@ -199,7 +203,13 @@ function normalizeResumeForStore(resume: ResumeData): ResumeData {
   const layoutIds = materializeCustomLayoutSentinels(resume.metadata.layout, customIds);
   const missingCustomIds = customIds.filter((id) => !layoutIds.has(id));
   if (missingCustomIds.length > 0) {
-    page0[page0.length - 1].push(...missingCustomIds);
+    const normalizedPage0 = resume.metadata.layout[0] ?? [];
+    const lastColumn = normalizedPage0.at(-1);
+    if (lastColumn) {
+      lastColumn.push(...missingCustomIds);
+    } else {
+      resume.metadata.layout[0] = [missingCustomIds];
+    }
   }
 
   return resume;
