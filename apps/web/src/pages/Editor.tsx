@@ -1,4 +1,4 @@
-import { createSignal, onMount, Show } from "solid-js";
+import { createMemo, createSignal, onMount, Show } from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
 import { Button, toast, ShortcutsModal } from "../components/ui";
 import { useHotkeys, type Shortcut } from "../hooks/useHotkeys";
@@ -8,7 +8,6 @@ import { Sidebar, type SidebarItem } from "../components/layout/Sidebar";
 import {
   BasicsForm,
   SummaryEditor,
-  SectionList,
   SectionPanel,
   ExperienceEditor,
   EducationEditor,
@@ -22,6 +21,8 @@ import {
   InterestsEditor,
   VolunteerEditor,
   ReferencesEditor,
+  CustomSectionEditor,
+  CustomSectionsIndex,
 } from "../components/builder";
 import { Preview } from "../components/preview";
 import { TemplatePicker, ThemeEditor } from "../components/templates";
@@ -35,7 +36,6 @@ import { isWasmReady } from "../wasm";
 type EditorTab =
   | "basics"
   | "summary"
-  | "sections"
   | "layout"
   | "experience"
   | "education"
@@ -49,7 +49,11 @@ type EditorTab =
   | "interests"
   | "volunteer"
   | "references"
+  | "custom"
+  | `custom:${string}`
   | "theme";
+
+const CUSTOM_ICON = "M12 4v16m8-8H4";
 
 const TABS: SidebarItem[] = [
   {
@@ -61,11 +65,6 @@ const TABS: SidebarItem[] = [
     id: "summary",
     label: "Summary",
     icon: "M4 6h16M4 12h16M4 18h7",
-  },
-  {
-    id: "sections",
-    label: "Sections",
-    icon: "M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z",
   },
   {
     id: "layout",
@@ -133,11 +132,50 @@ const TABS: SidebarItem[] = [
     icon: "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z",
   },
   {
+    id: "custom",
+    label: "Custom",
+    icon: CUSTOM_ICON,
+  },
+  {
     id: "theme",
     label: "Theme",
     icon: "M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01",
   },
 ];
+
+const CONTENT_TAB_IDS = new Set([
+  "basics",
+  "summary",
+  "experience",
+  "education",
+  "skills",
+  "projects",
+  "profiles",
+  "awards",
+  "certifications",
+  "publications",
+  "languages",
+  "interests",
+  "volunteer",
+  "references",
+]);
+const SETTINGS_TAB_IDS = new Set(["layout", "theme"]);
+const SIDEBAR_GROUP_ORDER = new Map([
+  ["Content", 0],
+  ["Custom", 1],
+  ["Settings", 2],
+]);
+
+function withSidebarGroup(item: SidebarItem): SidebarItem {
+  if (CONTENT_TAB_IDS.has(item.id)) return { ...item, group: "Content" };
+  if (item.id === "custom") return { ...item, group: "Custom" };
+  if (SETTINGS_TAB_IDS.has(item.id)) return { ...item, group: "Settings" };
+  return item;
+}
+
+function sidebarGroupOrder(item: SidebarItem): number {
+  return SIDEBAR_GROUP_ORDER.get(item.group ?? "") ?? Number.MAX_SAFE_INTEGER;
+}
 
 export default function Editor() {
   const params = useParams<{ id: string }>();
@@ -148,6 +186,21 @@ export default function Editor() {
   const [activeTab, setActiveTab] = createSignal<EditorTab>("basics");
   const [isLoading, setIsLoading] = createSignal(true);
   const [loadError, setLoadError] = createSignal<string | null>(null);
+  const sidebarItems = createMemo<SidebarItem[]>(() =>
+    TABS.map(withSidebarGroup)
+      .sort((a, b) => sidebarGroupOrder(a) - sidebarGroupOrder(b))
+      .map((item) => {
+        if (item.id !== "custom") return item;
+        const children = Object.entries(store.resume?.sections.custom ?? {}).map(
+          ([id, section]) => ({
+            id: `custom:${id}`,
+            label: section.name || "Untitled",
+            icon: CUSTOM_ICON,
+          }),
+        );
+        return { ...item, children };
+      }),
+  );
 
   const shortcuts: Shortcut[] = [
     {
@@ -259,8 +312,6 @@ export default function Editor() {
         return <BasicsForm />;
       case "summary":
         return <SummaryEditor />;
-      case "sections":
-        return <SectionList />;
       case "layout":
         return <LayoutEditor />;
       case "experience":
@@ -287,9 +338,21 @@ export default function Editor() {
         return <VolunteerEditor />;
       case "references":
         return <ReferencesEditor />;
+      case "custom":
+        return (
+          <CustomSectionsIndex
+            onSelectSection={(sectionId) => setActiveTab(`custom:${sectionId}`)}
+          />
+        );
       case "theme":
         return <ThemeEditor />;
       default:
+        if (activeTab().startsWith("custom:")) {
+          const sectionId = activeTab().slice("custom:".length);
+          return (
+            <CustomSectionEditor sectionId={sectionId} onDeleted={() => setActiveTab("custom")} />
+          );
+        }
         return null;
     }
   };
@@ -454,7 +517,7 @@ export default function Editor() {
               <div class="h-full flex">
                 {/* Sidebar Navigation */}
                 <Sidebar
-                  items={TABS}
+                  items={sidebarItems()}
                   activeId={activeTab()}
                   onSelect={(id) => setActiveTab(id as EditorTab)}
                 />

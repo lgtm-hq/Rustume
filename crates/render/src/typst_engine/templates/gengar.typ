@@ -359,6 +359,23 @@
     v(8pt)
   }
 
+
+  let renderers = (
+    profiles: render-profile,
+    experience: render-experience,
+    education: render-education,
+    awards: render-award,
+    certifications: render-certification,
+    skills: render-skill,
+    interests: render-interest,
+    publications: render-publication,
+    volunteer: render-volunteer,
+    languages: render-language,
+    projects: render-project,
+    references: render-reference,
+    custom: render-custom,
+  )
+
   set page(fill: bg-color, 
     margin: 0pt,
   )
@@ -374,172 +391,52 @@
     justify: false,
   )
 
-  // Two-column grid: sidebar (left) + main (right)
-  grid(
-    columns: (170pt, 1fr),
-    column-gutter: 0pt,
-
-    // ── LEFT SIDEBAR ──
-    box(
-      width: 100%,
-      height: 100%,
-      fill: sidebar-bg,
-      inset: (x: 16pt, y: 28pt),
-      {
-      set text(fill: sidebar-text)
-      [
-        // Header: Name, headline, contact info
-        #text(size: 18pt, weight: "bold", fill: sidebar-text)[#data.basics.name]
-
-        #if data.basics.headline != "" {
-          v(6pt)
-          text(size: 9pt, fill: muted-color)[#data.basics.headline]
-        }
-
-        #v(12pt)
-
-        // Contact info
-        #if data.basics.email != "" {
-          text(size: 8pt, fill: sidebar-text)[#data.basics.email]
-          v(4pt)
-        }
-        #if data.basics.phone != "" {
-          text(size: 8pt, fill: sidebar-text)[#data.basics.phone]
-          v(4pt)
-        }
-        #if data.basics.location != "" {
-          text(size: 8pt, fill: sidebar-text)[#data.basics.location]
-          v(4pt)
-        }
-        #if has-url(data.basics) {
-          link(data.basics.url.href)[#text(size: 8pt, fill: primary-color)[#data.basics.url.href]]
-          v(4pt)
-        }
-
-        // Profiles
-        #if data.sections.profiles.visible {
-          sidebar-section-heading(data.sections.profiles.name)
-          for item in data.sections.profiles.items {
-            render-profile(item)
-          }
-        }
-
-        // Skills
-        #if data.sections.skills.visible {
-          sidebar-section-heading(data.sections.skills.name)
-          for item in data.sections.skills.items {
-            render-skill(item)
-          }
-        }
-
-        // Languages
-        #if data.sections.languages.visible {
-          sidebar-section-heading(data.sections.languages.name)
-          for item in data.sections.languages.items {
-            render-language(item)
-          }
-        }
-
-        // Interests
-        #if data.sections.interests.visible {
-          sidebar-section-heading(data.sections.interests.name)
-          for item in data.sections.interests.items {
-            render-interest(item)
-          }
-        }
-      ]
-      }
-    ),
-
-    // ── RIGHT MAIN ──
-    box(
-      width: 100%,
-      inset: (x: 24pt, y: 28pt),
-      [
-        // Summary
-        #if data.sections.summary.visible {
-          main-section-heading(data.sections.summary.name)
-          render-rich-text(data.sections.summary.content, size: 10pt)
-        }
-
-        // Experience
-        #if data.sections.experience.visible {
-          main-section-heading(data.sections.experience.name)
-          for item in data.sections.experience.items {
-            render-experience(item)
-          }
-        }
-
-        // Education
-        #if data.sections.education.visible {
-          main-section-heading(data.sections.education.name)
-          for item in data.sections.education.items {
-            render-education(item)
-          }
-        }
-
-        // Awards
-        #if data.sections.awards.visible {
-          main-section-heading(data.sections.awards.name)
-          for item in data.sections.awards.items {
-            render-award(item)
-          }
-        }
-
-        // Certifications
-        #if data.sections.certifications.visible {
-          main-section-heading(data.sections.certifications.name)
-          for item in data.sections.certifications.items {
-            render-certification(item)
-          }
-        }
-
-        // Publications
-        #if data.sections.publications.visible {
-          main-section-heading(data.sections.publications.name)
-          for item in data.sections.publications.items {
-            render-publication(item)
-          }
-        }
-
-        // Volunteer
-        #if data.sections.volunteer.visible {
-          main-section-heading(data.sections.volunteer.name)
-          for item in data.sections.volunteer.items {
-            render-volunteer(item)
-          }
-        }
-
-        // Projects
-        #if data.sections.projects.visible {
-          main-section-heading(data.sections.projects.name)
-          for item in data.sections.projects.items {
-            render-project(item)
-          }
-        }
-
-        // References
-        #if data.sections.references.visible {
-          main-section-heading(data.sections.references.name)
-          for item in data.sections.references.items {
-            render-reference(item)
-          }
-        }
-      ]
-    ),
-  )
-
-  // Custom sections (after grid, full-width)
-  if "custom" in data.sections {
-    for (key, section) in data.sections.custom {
-      if section.visible {
-        pad(x: 24pt)[
-          #main-section-heading(section.name)
-          #for item in section.items {
-            render-custom(item)
-          }
-        ]
-      }
-    }
+  let sidebar-wrapper(body) = {
+    set text(fill: sidebar-text)
+    body
   }
+
+  let sidebar-before = () => [
+    // Header: Name, headline, contact info
+    #text(size: 18pt, weight: "bold", fill: sidebar-text)[#data.basics.name]
+
+    #if data.basics.headline != "" {
+      v(6pt)
+      text(size: 9pt, fill: muted-color)[#data.basics.headline]
+    }
+
+    #v(12pt)
+
+    // Contact info
+    #if data.basics.email != "" {
+      text(size: 8pt, fill: sidebar-text)[#data.basics.email]
+      v(4pt)
+    }
+    #if data.basics.phone != "" {
+      text(size: 8pt, fill: sidebar-text)[#data.basics.phone]
+      v(4pt)
+    }
+    #if data.basics.location != "" {
+      text(size: 8pt, fill: sidebar-text)[#data.basics.location]
+      v(4pt)
+    }
+    #if has-url(data.basics) {
+      link(data.basics.url.href)[#text(size: 8pt, fill: primary-color)[#data.basics.url.href]]
+      v(4pt)
+    }
+  ]
+
+  render-resume(data, (
+    layout: "sidebar-left",
+    renderers: renderers,
+    sidebar-width: 170pt,
+    sidebar-bg: sidebar-bg,
+    body-bg: bg-color,
+    sidebar-inset: (x: 16pt, y: 28pt),
+    main-inset: (x: 24pt, y: 28pt),
+    sidebar-heading: sidebar-section-heading,
+    main-heading: main-section-heading,
+    sidebar-before: sidebar-before,
+    sidebar-wrapper: sidebar-wrapper,
+  ))
 }

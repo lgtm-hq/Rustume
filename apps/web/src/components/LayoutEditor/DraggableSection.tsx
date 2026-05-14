@@ -4,6 +4,7 @@ import { SECTIONS, type SectionInfo } from "../builder/constants";
 
 interface DraggableSectionProps {
   id: string;
+  label: string;
   /** Whether this section is currently being keyboard-dragged. */
   kbActive?: boolean;
 }
@@ -67,7 +68,7 @@ export function DraggableSection(props: DraggableSectionProps) {
       </Show>
 
       {/* Section Label */}
-      <span class="text-sm font-body text-ink truncate">{info()?.name ?? props.id}</span>
+      <span class="text-sm font-body text-ink truncate">{props.label}</span>
     </div>
   );
 }

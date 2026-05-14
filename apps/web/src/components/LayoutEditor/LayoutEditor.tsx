@@ -3,6 +3,7 @@ import {
   DragDropProvider,
   DragDropSensors,
   DragOverlay,
+  SortableProvider,
   closestCenter,
 } from "@thisbeyond/solid-dnd";
 import type { DragEvent } from "@thisbeyond/solid-dnd";
@@ -10,7 +11,6 @@ import { resumeStore } from "../../stores/resume";
 import { toast } from "../ui";
 import { SECTIONS } from "../builder/constants";
 import { DroppableColumn } from "./DroppableColumn";
-import { DraggableSection } from "./DraggableSection";
 import { ColumnControls } from "./ColumnControls";
 
 /** Column droppable IDs follow the pattern "col-{index}". */
@@ -26,23 +26,31 @@ function parseColumnIndex(id: string | number): number {
   return Number.isFinite(n) ? n : -1;
 }
 
-/** All known section keys from the constants file. */
-export const ALL_SECTION_IDS = SECTIONS.map((s) => s.key);
+/** All fixed layout section keys. Custom section IDs are added dynamically. */
+export const ALL_SECTION_IDS = SECTIONS.filter((s) => s.key !== "custom").map((s) => s.key);
 
 /**
  * Ensures every known section ID appears in exactly one column.
  * Sections missing from the layout are appended to the last column.
- * Duplicate or unknown IDs are silently removed.
+ * Duplicate IDs are removed. Unknown IDs are removed unless listed in `extraAllowedIds`
+ * (e.g. dynamic custom section keys from `sections.custom`).
  */
-export function normalizeLayout(columns: string[][]): string[][] {
+export function normalizeLayout(
+  columns: string[][],
+  extraAllowedIds: readonly string[] = [],
+): string[][] {
+  const extra = new Set(extraAllowedIds);
   if (columns.length === 0) {
-    return [ALL_SECTION_IDS.slice()];
+    return [[...ALL_SECTION_IDS, ...extraAllowedIds]];
   }
   const seen = new Set<string>();
+  const allowedIds = [...ALL_SECTION_IDS, ...extraAllowedIds];
   const result: string[][] = columns.map((col) => {
     const filtered: string[] = [];
     for (const id of col) {
-      if (ALL_SECTION_IDS.includes(id as (typeof ALL_SECTION_IDS)[number]) && !seen.has(id)) {
+      const allowed =
+        ALL_SECTION_IDS.includes(id as (typeof ALL_SECTION_IDS)[number]) || extra.has(id);
+      if (allowed && !seen.has(id)) {
         seen.add(id);
         filtered.push(id);
       }
@@ -51,7 +59,7 @@ export function normalizeLayout(columns: string[][]): string[][] {
   });
 
   // Append missing sections to the last column
-  const missing = ALL_SECTION_IDS.filter((id) => !seen.has(id));
+  const missing = allowedIds.filter((id) => !seen.has(id));
   if (missing.length > 0) {
     const lastCol = result[result.length - 1] ?? [];
     result[result.length - 1] = [...lastCol, ...missing];
@@ -62,6 +70,12 @@ export function normalizeLayout(columns: string[][]): string[][] {
 
 export function LayoutEditor() {
   const { store, updateLayout } = resumeStore;
+
+  function customSectionIds(): string[] {
+    const custom = store.resume?.sections.custom;
+    if (!custom || typeof custom !== "object") return [];
+    return Object.keys(custom);
+  }
 
   // Local mutable copy of the columns (page 0 only for now).
   // We work with a flat column array and wrap in the page dimension on save.
@@ -79,15 +93,24 @@ export function LayoutEditor() {
   let isPersisting = false;
   createEffect(
     on(
-      () => store.resume?.metadata.layout,
-      (layout) => {
+      () =>
+        [
+          store.resume?.metadata.layout,
+          Object.keys(store.resume?.sections.custom ?? {}).join("\u0000"),
+        ] as const,
+      ([layout]) => {
         if (isPersisting) return; // Skip re-sync caused by our own persist
         if (!layout || layout.length === 0) {
-          setColumns(normalizeLayout([ALL_SECTION_IDS.slice()]));
+          setColumns(normalizeLayout([ALL_SECTION_IDS.slice()], customSectionIds()));
           return;
         }
         const page0 = layout[0] ?? [];
-        setColumns(normalizeLayout(page0.map((col) => [...col])));
+        setColumns(
+          normalizeLayout(
+            page0.map((col) => [...col]),
+            customSectionIds(),
+          ),
+        );
       },
       { defer: false },
     ),
@@ -132,8 +155,12 @@ export function LayoutEditor() {
 
   /** Look up the human-friendly label for a section ID. */
   function sectionLabel(id: string): string {
-    return SECTIONS.find((s) => s.key === id)?.name ?? id;
+    return (
+      SECTIONS.find((s) => s.key === id)?.name ?? store.resume?.sections.custom[id]?.name ?? id
+    );
   }
+
+  const sortableIds = () => columns().flat();
 
   /** Announce a message to screen readers via the live region. */
   function announce(message: string) {
@@ -246,39 +273,8 @@ export function LayoutEditor() {
     setActiveId(String(draggable.id));
   }
 
-  function onDragOver({ draggable, droppable }: DragEvent) {
-    if (!droppable) return;
-
-    const draggableId = String(draggable.id);
-    const fromCol = resolveColumnIndex(draggable.id);
-    const toCol = resolveColumnIndex(droppable.id);
-
-    if (fromCol < 0 || toCol < 0 || fromCol === toCol) return;
-
-    // Move section to the new column (append at the end for now; onDragEnd handles ordering)
-    setColumns((prev) => {
-      const next = prev.map((col) => [...col]);
-      // Remove from source
-      next[fromCol] = next[fromCol].filter((id) => id !== draggableId);
-      // Append to target
-      if (!next[toCol].includes(draggableId)) {
-        // Insert before the droppable section if it's a section, else append
-        const droppableIdx = parseColumnIndex(droppable.id);
-        if (droppableIdx >= 0) {
-          // Dropped on column itself -> append
-          next[toCol].push(draggableId);
-        } else {
-          // Dropped on a sibling section -> insert at that position
-          const targetIdx = next[toCol].indexOf(String(droppable.id));
-          if (targetIdx >= 0) {
-            next[toCol].splice(targetIdx, 0, draggableId);
-          } else {
-            next[toCol].push(draggableId);
-          }
-        }
-      }
-      return next;
-    });
+  function onDragOver() {
+    // Keep drag-over read-only; mutations happen atomically on drag end.
   }
 
   function onDragEnd({ draggable, droppable }: DragEvent) {
@@ -288,9 +284,14 @@ export function LayoutEditor() {
       // Revert to persisted layout
       const layout = store.resume?.metadata.layout;
       if (layout && layout.length > 0 && layout[0]) {
-        setColumns(normalizeLayout(layout[0].map((col) => [...col])));
+        setColumns(
+          normalizeLayout(
+            layout[0].map((col) => [...col]),
+            customSectionIds(),
+          ),
+        );
       } else {
-        setColumns(normalizeLayout([ALL_SECTION_IDS.slice()]));
+        setColumns(normalizeLayout([ALL_SECTION_IDS.slice()], customSectionIds()));
       }
       return;
     }
@@ -315,21 +316,24 @@ export function LayoutEditor() {
     const currentCols = columns();
     const newCols = currentCols.map((col) => [...col]);
 
-    if (fromCol === toCol) {
-      // Reorder within the same column
-      const col = newCols[fromCol];
-      const fromIdx = col.indexOf(draggableId);
-      let toIdx = col.indexOf(droppableId);
-      if (fromIdx >= 0 && toIdx >= 0 && fromIdx !== toIdx) {
-        col.splice(fromIdx, 1);
-        // After removal, indices shift down for items below fromIdx
-        if (fromIdx < toIdx) {
-          toIdx--;
-        }
-        col.splice(toIdx, 0, draggableId);
-      }
+    const sourceIdx = newCols[fromCol].indexOf(draggableId);
+    if (sourceIdx < 0) {
+      persistLayout(currentCols);
+      return;
     }
-    // Cross-column moves are already handled in onDragOver
+
+    const droppedOnColumn = parseColumnIndex(droppable.id) >= 0;
+
+    const [moved] = newCols[fromCol].splice(sourceIdx, 1);
+    if (!moved) {
+      persistLayout(currentCols);
+      return;
+    }
+
+    const targetIdx = droppedOnColumn ? newCols[toCol].length : newCols[toCol].indexOf(droppableId);
+    const insertIdx = targetIdx >= 0 ? targetIdx : newCols[toCol].length;
+
+    newCols[toCol].splice(insertIdx, 0, moved);
 
     setColumns(newCols);
     persistLayout(newCols);
@@ -360,7 +364,7 @@ export function LayoutEditor() {
       newColumns[newCount - 1] = [...newColumns[newCount - 1], ...overflow];
     }
 
-    const normalized = normalizeLayout(newColumns);
+    const normalized = normalizeLayout(newColumns, customSectionIds());
     setColumns(normalized);
     persistLayout(normalized);
     toast.success(`Layout updated to ${newCount} column${newCount > 1 ? "s" : ""}`);
@@ -402,33 +406,36 @@ export function LayoutEditor() {
         >
           <DragDropSensors />
 
-          <div
-            class="flex gap-3"
-            classList={{
-              "flex-col": columns().length === 1,
-              "flex-row": columns().length > 1,
-            }}
-            onKeyDown={handleKeyDown}
-          >
-            <For each={columns()}>
-              {(col, index) => (
-                <DroppableColumn
-                  columnId={columnId(index())}
-                  index={index()}
-                  sectionIds={col}
-                  totalColumns={columns().length}
-                  kbActiveId={kbDragId()}
-                />
-              )}
-            </For>
-          </div>
+          <SortableProvider ids={sortableIds()}>
+            <div
+              class="flex gap-3"
+              classList={{
+                "flex-col": columns().length === 1,
+                "flex-row": columns().length > 1,
+              }}
+              onKeyDown={handleKeyDown}
+            >
+              <For each={columns()}>
+                {(col, index) => (
+                  <DroppableColumn
+                    columnId={columnId(index())}
+                    index={index()}
+                    sectionIds={col}
+                    totalColumns={columns().length}
+                    kbActiveId={kbDragId()}
+                    getSectionLabel={sectionLabel}
+                  />
+                )}
+              </For>
+            </div>
+          </SortableProvider>
 
           {/* Drag Overlay - shows a floating copy of the dragged item */}
           <DragOverlay>
             <Show when={activeId()}>
               {(id) => (
-                <div class="pointer-events-none">
-                  <DraggableSection id={id()} />
+                <div class="pointer-events-none rounded-lg border border-accent bg-paper px-3 py-2 text-sm font-body text-ink shadow-lg">
+                  {sectionLabel(id())}
                 </div>
               )}
             </Show>

@@ -370,6 +370,23 @@
     v(8pt)
   }
 
+
+  let renderers = (
+    profiles: render-profile,
+    experience: render-experience,
+    education: render-education,
+    awards: render-award,
+    certifications: render-certification,
+    skills: render-skill,
+    interests: render-interest,
+    publications: render-publication,
+    volunteer: render-volunteer,
+    languages: render-language,
+    projects: render-project,
+    references: render-reference,
+    custom: render-custom,
+  )
+
   set page(fill: bg-color, 
     margin: 0pt,
   )
@@ -407,144 +424,15 @@
     ]
   )
 
-  // Two-column grid: sidebar (left) + main (right)
-  grid(
-    columns: (160pt, 1fr),
-    column-gutter: 0pt,
-
-    // Left column - sidebar with light teal background
-    box(
-      width: 100%,
-      fill: sidebar-bg,
-      inset: (x: 14pt, y: 12pt),
-      [
-        // Profiles
-        #if data.sections.profiles.visible {
-          sidebar-heading(data.sections.profiles.name)
-          for item in data.sections.profiles.items {
-            render-profile(item)
-          }
-        }
-
-        // Skills
-        #if data.sections.skills.visible {
-          sidebar-heading(data.sections.skills.name)
-          for item in data.sections.skills.items {
-            render-skill(item)
-          }
-        }
-
-        // Languages
-        #if data.sections.languages.visible {
-          sidebar-heading(data.sections.languages.name)
-          for item in data.sections.languages.items {
-            render-language(item)
-          }
-        }
-
-        // Interests
-        #if data.sections.interests.visible {
-          sidebar-heading(data.sections.interests.name)
-          for item in data.sections.interests.items {
-            render-interest(item)
-          }
-        }
-      ]
-    ),
-
-    // Right column - main content with internal padding
-    box(
-      width: 100%,
-      inset: (x: 20pt, y: 12pt),
-      [
-        // Summary
-        #if data.sections.summary.visible {
-          section-heading(data.sections.summary.name)
-          render-rich-text(data.sections.summary.content, size: 9pt)
-        }
-
-        // Experience
-        #if data.sections.experience.visible {
-          section-heading(data.sections.experience.name)
-          for item in data.sections.experience.items {
-            render-experience(item)
-          }
-        }
-
-        // Education
-        #if data.sections.education.visible {
-          section-heading(data.sections.education.name)
-          for item in data.sections.education.items {
-            render-education(item)
-          }
-        }
-
-        // Awards
-        #if data.sections.awards.visible {
-          section-heading(data.sections.awards.name)
-          for item in data.sections.awards.items {
-            render-award(item)
-          }
-        }
-
-        // Certifications
-        #if data.sections.certifications.visible {
-          section-heading(data.sections.certifications.name)
-          for item in data.sections.certifications.items {
-            render-certification(item)
-          }
-        }
-
-        // Publications
-        #if data.sections.publications.visible {
-          section-heading(data.sections.publications.name)
-          for item in data.sections.publications.items {
-            render-publication(item)
-          }
-        }
-
-        // Volunteer
-        #if data.sections.volunteer.visible {
-          section-heading(data.sections.volunteer.name)
-          for item in data.sections.volunteer.items {
-            render-volunteer(item)
-          }
-        }
-
-        // Projects
-        #if data.sections.projects.visible {
-          section-heading(data.sections.projects.name)
-          for item in data.sections.projects.items {
-            render-project(item)
-          }
-        }
-
-        // References
-        #if data.sections.references.visible {
-          section-heading(data.sections.references.name)
-          for item in data.sections.references.items {
-            render-reference(item)
-          }
-        }
-      ]
-    )
-  )
-
-  // Custom sections after grid
-  if "custom" in data.sections {
-    for (key, section) in data.sections.custom {
-      if section.visible {
-        box(
-          width: 100%,
-          inset: (x: 24pt, y: 0pt),
-          [
-            #section-heading(section.name)
-            #for item in section.items {
-              render-custom(item)
-            }
-          ]
-        )
-      }
-    }
-  }
+  render-resume(data, (
+    layout: "full-header-sidebar",
+    renderers: renderers,
+    sidebar-width: 160pt,
+    sidebar-bg: sidebar-bg,
+    body-bg: bg-color,
+    sidebar-inset: (x: 14pt, y: 12pt),
+    main-inset: (x: 20pt, y: 12pt),
+    sidebar-heading: sidebar-heading,
+    main-heading: section-heading,
+  ))
 }

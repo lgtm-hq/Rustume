@@ -1,19 +1,34 @@
 import { For, Show } from "solid-js";
-import { resumeStore, type SectionKey } from "../../stores/resume";
+import { resumeStore, type LayoutSectionKey } from "../../stores/resume";
 import { SECTIONS } from "./constants";
 
 export function SectionList() {
-  const { store, toggleSectionVisibility } = resumeStore;
+  const { store, toggleSectionVisibility, addCustomSection } = resumeStore;
 
-  const getItemCount = (key: SectionKey | "summary"): number => {
+  const handleAddCustomSection = () => {
+    const name = window.prompt("Custom section name", "Custom Section")?.trim();
+    if (!name) return;
+    addCustomSection(name);
+  };
+
+  const getItemCount = (key: LayoutSectionKey): number => {
     if (!store.resume) return 0;
     if (key === "summary") return store.resume.sections.summary.content ? 1 : 0;
+    if (key === "custom") {
+      return Object.values(store.resume.sections.custom).reduce(
+        (total, section) => total + section.items.length,
+        0,
+      );
+    }
     return store.resume.sections[key].items.length;
   };
 
-  const isVisible = (key: SectionKey | "summary"): boolean => {
+  const isVisible = (key: LayoutSectionKey): boolean => {
     if (!store.resume) return false;
     if (key === "summary") return store.resume.sections.summary.visible;
+    if (key === "custom") {
+      return Object.values(store.resume.sections.custom).some((section) => section.visible);
+    }
     return store.resume.sections[key].visible;
   };
 
@@ -35,6 +50,28 @@ export function SectionList() {
           <h2 class="font-display text-lg font-semibold text-ink">Sections</h2>
           <p class="text-sm text-stone">Toggle section visibility</p>
         </div>
+        <button
+          type="button"
+          class="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-stone transition-colors hover:bg-surface hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+          title="Add custom section"
+          aria-label="Add custom section"
+          onClick={handleAddCustomSection}
+        >
+          <svg
+            class="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 4v16m8-8H4"
+            />
+          </svg>
+        </button>
       </div>
 
       {/* Section Toggles */}

@@ -272,6 +272,23 @@
   }
 
   // Page setup - no margin, we'll handle it in the grid
+
+  let renderers = (
+    profiles: render-profile,
+    experience: render-experience,
+    education: render-education,
+    awards: render-award,
+    certifications: render-certification,
+    skills: render-skill,
+    interests: render-interest,
+    publications: render-publication,
+    volunteer: render-volunteer,
+    languages: render-language,
+    projects: render-project,
+    references: render-reference,
+    custom: render-custom,
+  )
+
   set page(fill: bg-color, 
     margin: 0pt,
   )
@@ -287,198 +304,79 @@
     justify: false,
   )
 
-  // Two-column layout with sidebar
-  grid(
-    columns: (180pt, 1fr),
-    column-gutter: 0pt,
+  let sidebar-wrapper(body) = {
+    set text(fill: sidebar-text-color)
+    body
+  }
 
-    // LEFT SIDEBAR
-    box(
-      fill: sidebar-bg,
-      width: 100%,
-      height: 100%,
-      inset: (x: 16pt, y: 32pt),
-      {
-      set text(fill: sidebar-text-color)
-      [
-        // Profile photo placeholder (initials)
-        #align(center)[
-          #box(
-            width: 80pt,
-            height: 80pt,
-            fill: primary-color,
-            radius: 50%,
-            [
-              #align(center + horizon)[
-                #text(size: 28pt, weight: "bold", fill: white)[
-                  #let parts = data.basics.name.split(" ").filter(w => w.len() > 0)
-                  #let initials = if parts.len() > 0 { parts.map(w => w.at(0, default: "")).join("") } else { "" }
-                  #initials
-                ]
-              ]
+  let sidebar-before = () => [
+    // Profile photo placeholder (initials)
+    #align(center)[
+      #box(
+        width: 80pt,
+        height: 80pt,
+        fill: primary-color,
+        radius: 50%,
+        [
+          #align(center + horizon)[
+            #text(size: 28pt, weight: "bold", fill: white)[
+              #let parts = data.basics.name.split(" ").filter(w => w.len() > 0)
+              #let initials = if parts.len() > 0 { parts.map(w => w.at(0, default: "")).join("") } else { "" }
+              #initials
             ]
-          )
+          ]
         ]
+      )
+    ]
 
-        #v(16pt)
+    #v(16pt)
 
-        // Contact
-        #sidebar-section("Contact")
+    // Contact
+    #sidebar-section("Contact")
 
-        #if data.basics.email != "" {
-          text(size: 9pt)[✉ #data.basics.email]
-          v(4pt)
-        }
+    #if data.basics.email != "" {
+      text(size: 9pt)[✉ #data.basics.email]
+      v(4pt)
+    }
 
-        #if data.basics.phone != "" {
-          text(size: 9pt)[☎ #data.basics.phone]
-          v(4pt)
-        }
+    #if data.basics.phone != "" {
+      text(size: 9pt)[☎ #data.basics.phone]
+      v(4pt)
+    }
 
-        #if data.basics.location != "" {
-          text(size: 9pt)[📍 #data.basics.location]
-          v(4pt)
-        }
+    #if data.basics.location != "" {
+      text(size: 9pt)[📍 #data.basics.location]
+      v(4pt)
+    }
 
-        #if has-url(data.basics) {
-          text(size: 9pt)[🔗 #link(data.basics.url.href)[Website]]
-          v(4pt)
-        }
+    #if has-url(data.basics) {
+      text(size: 9pt)[🔗 #link(data.basics.url.href)[Website]]
+      v(4pt)
+    }
+  ]
 
-        // Profiles
-        #if data.sections.profiles.visible {
-          sidebar-section(data.sections.profiles.name)
-          for item in data.sections.profiles.items {
-            render-profile(item)
-          }
-        }
+  let main-before = () => [
+    // Name and headline
+    #text(size: 26pt, weight: "bold")[#data.basics.name]
 
-        // Skills
-        #if data.sections.skills.visible {
-          sidebar-section(data.sections.skills.name)
-          for item in data.sections.skills.items {
-            render-skill(item)
-          }
-        }
+    #if data.basics.headline != "" {
+      v(4pt)
+      text(size: 12pt, fill: primary-color)[#data.basics.headline]
+    }
+  ]
 
-        // Languages
-        #if data.sections.languages.visible {
-          sidebar-section(data.sections.languages.name)
-          for item in data.sections.languages.items {
-            render-language(item)
-          }
-        }
-
-        // Interests
-        #if data.sections.interests.visible {
-          sidebar-section(data.sections.interests.name)
-          for item in data.sections.interests.items {
-            render-interest(item)
-          }
-        }
-      ]
-      }
-    ),
-
-    // MAIN CONTENT
-    box(
-      width: 100%,
-      inset: (x: 24pt, y: 32pt),
-      [
-        // Name and headline
-        #text(size: 26pt, weight: "bold")[#data.basics.name]
-
-        #if data.basics.headline != "" {
-          v(4pt)
-          text(size: 12pt, fill: primary-color)[#data.basics.headline]
-        }
-
-        // Summary
-        #if data.sections.summary.visible {
-          v(12pt)
-          box(
-            stroke: (left: 3pt + primary-color),
-            inset: (left: 12pt, y: 4pt),
-            render-rich-text(data.sections.summary.content, size: 10pt, fill: muted-color)
-          )
-        }
-
-        // Experience
-        #if data.sections.experience.visible {
-          main-section(data.sections.experience.name)
-          for item in data.sections.experience.items {
-            render-experience(item)
-          }
-        }
-
-        // Education
-        #if data.sections.education.visible {
-          main-section(data.sections.education.name)
-          for item in data.sections.education.items {
-            render-education(item)
-          }
-        }
-
-        // Certifications
-        #if data.sections.certifications.visible {
-          main-section(data.sections.certifications.name)
-          for item in data.sections.certifications.items {
-            render-certification(item)
-          }
-        }
-
-        // Awards
-        #if data.sections.awards.visible {
-          main-section(data.sections.awards.name)
-          for item in data.sections.awards.items {
-            render-award(item)
-          }
-        }
-
-        // Publications
-        #if data.sections.publications.visible {
-          main-section(data.sections.publications.name)
-          for item in data.sections.publications.items {
-            render-publication(item)
-          }
-        }
-
-        // Volunteer
-        #if data.sections.volunteer.visible {
-          main-section(data.sections.volunteer.name)
-          for item in data.sections.volunteer.items {
-            render-volunteer(item)
-          }
-        }
-
-        // Projects
-        #if data.sections.projects.visible {
-          main-section(data.sections.projects.name)
-          for item in data.sections.projects.items {
-            render-project(item)
-          }
-        }
-
-        // References
-        #if data.sections.references.visible {
-          main-section(data.sections.references.name)
-          for item in data.sections.references.items {
-            render-reference(item)
-          }
-        }
-
-        // Custom sections
-        #if "custom" in data.sections {
-          for (key, section) in data.sections.custom {
-            if section.visible {
-              main-section(section.name)
-              for item in section.items {
-                render-custom(item)
-              }
-            }
-          }
-        }
-      ]
-    )
-  )
+  render-resume(data, (
+    layout: "sidebar-left",
+    renderers: renderers,
+    sidebar-width: 180pt,
+    sidebar-bg: sidebar-bg,
+    body-bg: bg-color,
+    sidebar-inset: (x: 16pt, y: 32pt),
+    main-inset: (x: 24pt, y: 32pt),
+    sidebar-heading: sidebar-section,
+    main-heading: main-section,
+    sidebar-before: sidebar-before,
+    main-before: main-before,
+    sidebar-wrapper: sidebar-wrapper,
+  ))
 }

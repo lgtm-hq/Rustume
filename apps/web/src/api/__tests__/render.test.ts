@@ -1,9 +1,10 @@
-import { fetchBlob } from "../client";
+import { fetchBlob, fetchBlobWithHeaders } from "../client";
 import { renderPreview, getTemplateThumbnailUrl, clearPreviewCache } from "../render";
 import type { ResumeData } from "../../wasm/types";
 
 vi.mock("../client", () => ({
   fetchBlob: vi.fn(),
+  fetchBlobWithHeaders: vi.fn(),
   get: vi.fn(),
   post: vi.fn(),
 }));
@@ -15,6 +16,13 @@ const originalCreateObjectURL = globalThis.URL.createObjectURL;
 const originalRevokeObjectURL = globalThis.URL.revokeObjectURL;
 globalThis.URL.createObjectURL = mockCreateObjectURL;
 globalThis.URL.revokeObjectURL = mockRevokeObjectURL;
+
+function mockPreviewBlob(blob: Blob, totalPages = "1"): void {
+  vi.mocked(fetchBlobWithHeaders).mockResolvedValue({
+    blob,
+    headers: new Headers({ "X-Total-Pages": totalPages }),
+  });
+}
 
 afterAll(() => {
   globalThis.URL.createObjectURL = originalCreateObjectURL;
@@ -169,56 +177,66 @@ const mockResume: ResumeData = {
 describe("renderPreview", () => {
   beforeEach(() => {
     vi.mocked(fetchBlob).mockReset();
+    vi.mocked(fetchBlobWithHeaders).mockReset();
     mockCreateObjectURL.mockClear();
     mockRevokeObjectURL.mockClear();
     clearPreviewCache();
   });
 
-  it("calls fetchBlob with correct payload", async () => {
+  it("calls fetchBlobWithHeaders with correct payload", async () => {
     const mockBlob = new Blob(["png-content"], { type: "image/png" });
-    vi.mocked(fetchBlob).mockResolvedValue(mockBlob);
+    mockPreviewBlob(mockBlob);
 
     await renderPreview(mockResume, 0);
 
-    expect(fetchBlob).toHaveBeenCalledWith("/render/preview", {
+    expect(fetchBlobWithHeaders).toHaveBeenCalledWith("/render/preview", {
       resume: mockResume,
       template: "rhyhorn",
       page: 0,
     });
   });
 
-  it("returns object URL", async () => {
+  it("returns object URL and total page count", async () => {
     const mockBlob = new Blob(["png-content"], { type: "image/png" });
-    vi.mocked(fetchBlob).mockResolvedValue(mockBlob);
+    mockPreviewBlob(mockBlob, "3");
     mockCreateObjectURL.mockReturnValue("blob:http://localhost/abc123");
 
-    const url = await renderPreview(mockResume, 0);
+    const result = await renderPreview(mockResume, 0);
 
     expect(URL.createObjectURL).toHaveBeenCalledWith(mockBlob);
-    expect(url).toBe("blob:http://localhost/abc123");
+    expect(result).toEqual({ url: "blob:http://localhost/abc123", totalPages: 3 });
+  });
+
+  it("falls back to one page when total page header is invalid", async () => {
+    const mockBlob = new Blob(["png-content"], { type: "image/png" });
+    mockPreviewBlob(mockBlob, "not-a-number");
+    mockCreateObjectURL.mockReturnValue("blob:http://localhost/invalid-pages");
+
+    const result = await renderPreview(mockResume, 0);
+
+    expect(result).toEqual({ url: "blob:http://localhost/invalid-pages", totalPages: 1 });
   });
 
   it("caches result and returns cached URL on repeat call", async () => {
     const mockBlob = new Blob(["png-content"], { type: "image/png" });
-    vi.mocked(fetchBlob).mockResolvedValue(mockBlob);
+    mockPreviewBlob(mockBlob, "2");
     mockCreateObjectURL.mockReturnValue("blob:cached-url");
 
-    const url1 = await renderPreview(mockResume, 0);
-    const url2 = await renderPreview(mockResume, 0);
+    const result1 = await renderPreview(mockResume, 0);
+    const result2 = await renderPreview(mockResume, 0);
 
-    expect(url1).toBe("blob:cached-url");
-    expect(url2).toBe("blob:cached-url");
-    // fetchBlob should only be called once because the second call uses cache
-    expect(fetchBlob).toHaveBeenCalledTimes(1);
+    expect(result1).toEqual({ url: "blob:cached-url", totalPages: 2 });
+    expect(result2).toEqual({ url: "blob:cached-url", totalPages: 2 });
+    expect(fetchBlobWithHeaders).toHaveBeenCalledTimes(1);
   });
 
   it("uses provided template name instead of metadata template", async () => {
     const mockBlob = new Blob(["png-content"], { type: "image/png" });
-    vi.mocked(fetchBlob).mockResolvedValue(mockBlob);
+    mockPreviewBlob(mockBlob);
 
     await renderPreview(mockResume, 0, "gengar");
 
-    expect(fetchBlob).toHaveBeenCalledWith("/render/preview", {
+    expect(fetchBlobWithHeaders).toHaveBeenCalledWith("/render/preview", {
       resume: mockResume,
       template: "gengar",
       page: 0,
@@ -269,6 +287,7 @@ describe("getTemplateThumbnailUrl", () => {
 describe("clearPreviewCache", () => {
   beforeEach(() => {
     vi.mocked(fetchBlob).mockReset();
+    vi.mocked(fetchBlobWithHeaders).mockReset();
     mockCreateObjectURL.mockClear();
     mockRevokeObjectURL.mockClear();
     clearPreviewCache();
@@ -276,7 +295,7 @@ describe("clearPreviewCache", () => {
 
   it("revokes all cached URLs", async () => {
     const mockBlob = new Blob(["png"], { type: "image/png" });
-    vi.mocked(fetchBlob).mockResolvedValue(mockBlob);
+    mockPreviewBlob(mockBlob);
 
     mockCreateObjectURL.mockReturnValueOnce("blob:url-1");
     await renderPreview(mockResume, 0);
@@ -295,14 +314,14 @@ describe("clearPreviewCache", () => {
 
   it("allows fresh fetches after clearing cache", async () => {
     const mockBlob = new Blob(["png"], { type: "image/png" });
-    vi.mocked(fetchBlob).mockResolvedValue(mockBlob);
+    mockPreviewBlob(mockBlob);
 
     await renderPreview(mockResume, 0);
-    expect(fetchBlob).toHaveBeenCalledTimes(1);
+    expect(fetchBlobWithHeaders).toHaveBeenCalledTimes(1);
 
     clearPreviewCache();
 
     await renderPreview(mockResume, 0);
-    expect(fetchBlob).toHaveBeenCalledTimes(2);
+    expect(fetchBlobWithHeaders).toHaveBeenCalledTimes(2);
   });
 });

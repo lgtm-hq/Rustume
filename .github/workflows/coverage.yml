@@ -1,0 +1,228 @@
+# SPDX-License-Identifier: MIT
+---
+name: Coverage Reports
+# Runs Rust and Web coverage and posts separate PR comments.
+
+"on":
+  push:
+    branches: [main]
+    paths:
+      - "**.rs"
+      - "**.ts"
+      - "**.tsx"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "apps/web/**"
+      - ".github/workflows/coverage.yml"
+      - "scripts/ci/testing/ci-rust-coverage.sh"
+      - "scripts/ci/testing/ci-setup-rust-coverage.sh"
+      - "scripts/ci/testing/ci-setup-web-coverage.sh"
+      - "scripts/ci/testing/ci-web-coverage.sh"
+      - "scripts/ci/testing/fail-on-coverage.sh"
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rust-coverage:
+    name: 🦀 Rust Coverage
+    runs-on: ubuntu-24.04
+    outputs:
+      rust_pr_comment_ready: ${{ steps.generate-rust-comment.outcome == 'success' }}
+    permissions:
+      contents: read
+    timeout-minutes: 45
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.draft == false
+    defaults:
+      run:
+        shell: bash
+    concurrency:
+      group: rust-coverage-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Rust
+        run: ./scripts/ci/testing/ci-setup-rust-coverage.sh
+
+      - name: Run Rust coverage
+        id: rust-coverage
+        run: ./scripts/ci/testing/ci-rust-coverage.sh
+        continue-on-error: true
+
+      - name: Generate Rust coverage PR comment
+        id: generate-rust-comment
+        if: >-
+          always() &&
+          github.event_name == 'pull_request'
+        # yamllint disable rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/generate-coverage-comment@d04926e664ce4df045b62e4bb1896f66ba93f8ec # v0.13.0
+        # yamllint enable rule:line-length
+        with:
+          coverage-file: rust-coverage.lcov
+          format: lcov
+          threshold-lines: "0"
+          threshold-branches: "0"
+          threshold-functions: "0"
+
+      - name: Write Rust coverage PR comment artifact
+        if: steps.generate-rust-comment.outcome == 'success'
+        env:
+          COMMENT_BODY: ${{ steps.generate-rust-comment.outputs.comment-body }}
+        run: >-
+          printf '%s\n' "$COMMENT_BODY" |
+          sed '1s/^## Coverage Report$/## Rust Coverage Report/' >
+          rust-coverage-pr-comment.txt
+
+      - name: Upload Rust coverage PR comment artifact
+        if: >-
+          steps.generate-rust-comment.outcome == 'success' &&
+          github.event.pull_request.head.repo.fork == false
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: rust-coverage-pr-comment
+          path: rust-coverage-pr-comment.txt
+
+      - name: Fail if Rust coverage failed
+        if: env.RUST_COVERAGE_EXIT_CODE != '0'
+        env:
+          COVERAGE_NAME: Rust
+        run: ./scripts/ci/testing/fail-on-coverage.sh
+
+  rust-coverage-pr-comment:
+    name: 💬 Rust coverage PR comment
+    runs-on: ubuntu-24.04
+    needs: rust-coverage
+    if: >-
+      always() &&
+      github.event_name == 'pull_request' &&
+      needs.rust-coverage.outputs.rust_pr_comment_ready == 'true'
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    timeout-minutes: 5
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: rust-coverage-pr-comment
+
+      - name: Comment PR with Rust coverage
+        # yamllint disable rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/post-pr-comment@d04926e664ce4df045b62e4bb1896f66ba93f8ec # v0.13.0
+        # yamllint enable rule:line-length
+        with:
+          file: rust-coverage-pr-comment.txt
+          marker: rust-coverage-report
+
+  web-coverage:
+    name: 🌐 Web Coverage
+    runs-on: ubuntu-24.04
+    outputs:
+      web_pr_comment_ready: ${{ steps.generate-web-comment.outcome == 'success' }}
+    permissions:
+      contents: read
+    timeout-minutes: 30
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.draft == false
+    defaults:
+      run:
+        shell: bash
+    concurrency:
+      group: web-coverage-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Web coverage tools
+        run: ./scripts/ci/testing/ci-setup-web-coverage.sh
+
+      - name: Run Web coverage
+        id: web-coverage
+        run: ./scripts/ci/testing/ci-web-coverage.sh
+        continue-on-error: true
+
+      - name: Generate Web coverage PR comment
+        id: generate-web-comment
+        if: >-
+          always() &&
+          github.event_name == 'pull_request'
+        # yamllint disable rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/generate-coverage-comment@d04926e664ce4df045b62e4bb1896f66ba93f8ec # v0.13.0
+        # yamllint enable rule:line-length
+        with:
+          coverage-file: apps/web/coverage/coverage-summary.json
+          format: istanbul
+          threshold-lines: "0"
+          threshold-branches: "0"
+          threshold-functions: "0"
+
+      - name: Write Web coverage PR comment artifact
+        if: steps.generate-web-comment.outcome == 'success'
+        env:
+          COMMENT_BODY: ${{ steps.generate-web-comment.outputs.comment-body }}
+        run: >-
+          printf '%s\n' "$COMMENT_BODY" |
+          sed '1s/^## Coverage Report$/## Web Coverage Report/' >
+          web-coverage-pr-comment.txt
+
+      - name: Upload Web coverage PR comment artifact
+        if: >-
+          steps.generate-web-comment.outcome == 'success' &&
+          github.event.pull_request.head.repo.fork == false
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: web-coverage-pr-comment
+          path: web-coverage-pr-comment.txt
+
+      - name: Fail if Web coverage failed
+        if: env.WEB_COVERAGE_EXIT_CODE != '0'
+        env:
+          COVERAGE_NAME: Web
+        run: ./scripts/ci/testing/fail-on-coverage.sh
+
+  web-coverage-pr-comment:
+    name: 💬 Web coverage PR comment
+    runs-on: ubuntu-24.04
+    needs: web-coverage
+    if: >-
+      always() &&
+      github.event_name == 'pull_request' &&
+      needs.web-coverage.outputs.web_pr_comment_ready == 'true'
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    timeout-minutes: 5
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: web-coverage-pr-comment
+
+      - name: Comment PR with Web coverage
+        # yamllint disable rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/post-pr-comment@d04926e664ce4df045b62e4bb1896f66ba93f8ec # v0.13.0
+        # yamllint enable rule:line-length
+        with:
+          file: web-coverage-pr-comment.txt
+          marker: web-coverage-report

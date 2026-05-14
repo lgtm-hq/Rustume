@@ -1,6 +1,11 @@
 import { fetchBlob, fetchBlobWithHeaders, get, post } from "./client";
 import type { ResumeData, TemplateInfo, ValidationResult } from "../wasm/types";
 
+/** Plain snapshot for HTTP JSON bodies — avoids edge cases with reactive proxies. */
+function cloneResumeForApi(resume: ResumeData): ResumeData {
+  return JSON.parse(JSON.stringify(resume)) as ResumeData;
+}
+
 export interface RenderRequest {
   resume: ResumeData;
   template?: string;
@@ -57,7 +62,8 @@ export async function renderPreview(
   cleanupExpiredCache();
 
   const templateName = template || resume.metadata.template;
-  const cacheKey = getCacheKey(resume, templateName, page);
+  const plain = cloneResumeForApi(resume);
+  const cacheKey = getCacheKey(plain, templateName, page);
 
   // Check cache
   const cached = previewCache.get(cacheKey);
@@ -66,12 +72,14 @@ export async function renderPreview(
   }
 
   const { blob, headers } = await fetchBlobWithHeaders("/render/preview", {
-    resume,
+    resume: plain,
     template: templateName,
     page,
   } satisfies PreviewRequest);
 
-  const totalPages = parseInt(headers.get("X-Total-Pages") || "1", 10);
+  const parsedTotalPages = parseInt(headers.get("X-Total-Pages") || "1", 10);
+  const totalPages =
+    Number.isFinite(parsedTotalPages) && parsedTotalPages > 0 ? parsedTotalPages : 1;
 
   // Revoke old URL if exists
   if (cached) {
@@ -85,9 +93,10 @@ export async function renderPreview(
 }
 
 export async function renderPdf(resume: ResumeData, template?: string): Promise<Blob> {
+  const plain = cloneResumeForApi(resume);
   return fetchBlob("/render/pdf", {
-    resume,
-    template: template || resume.metadata.template,
+    resume: plain,
+    template: template || plain.metadata.template,
   } satisfies RenderRequest);
 }
 
@@ -123,7 +132,7 @@ export function getTemplateThumbnailUrl(templateId: string): string {
 }
 
 export async function validateResumeServer(resume: ResumeData): Promise<ValidationResult> {
-  return post<ValidationResult>("/validate", resume);
+  return post<ValidationResult>("/validate", cloneResumeForApi(resume));
 }
 
 export async function parseResume(request: ParseRequest): Promise<ResumeData> {

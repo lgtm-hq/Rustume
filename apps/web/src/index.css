@@ -142,8 +142,8 @@ body {
 
 /* Selection */
 ::selection {
-  background: var(--color-accent-light);
-  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-accent) 55%, var(--color-paper));
+  color: var(--color-paper);
 }
 
 /* Scrollbar */
@@ -247,6 +247,10 @@ body {
 
 .rich-text-editor .tiptap li {
   margin: 0.125em 0;
+}
+
+.rich-text-editor .tiptap li::marker {
+  color: var(--color-ink);
 }
 
 .rich-text-editor .tiptap a {

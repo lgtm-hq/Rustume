@@ -13,6 +13,53 @@ import { parseResume } from "../../api/render";
 
 type ImportFormat = "json-resume" | "rrv3" | "linkedin" | "rustume";
 
+/** Native Rustume resume JSON has `sections.summary`; JSON Resume does not. */
+function isNativeRustumeJson(json: Record<string, unknown>): boolean {
+  const sections = json.sections;
+  const metadata = json.metadata;
+  return (
+    typeof sections === "object" &&
+    sections !== null &&
+    Object.prototype.hasOwnProperty.call(sections, "summary") &&
+    typeof metadata === "object" &&
+    metadata !== null
+  );
+}
+
+function toHexColor(value: string): string {
+  const match = value
+    .trim()
+    .match(/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*[\d.]+)?\s*\)$/i);
+  if (!match) return value;
+
+  return (
+    "#" +
+    match
+      .slice(1, 4)
+      .map((component) =>
+        Math.max(0, Math.min(255, Number(component)))
+          .toString(16)
+          .padStart(2, "0"),
+      )
+      .join("")
+  );
+}
+
+function normalizeImportedResume(resume: ResumeData): ResumeData {
+  return {
+    ...resume,
+    metadata: {
+      ...resume.metadata,
+      theme: {
+        ...resume.metadata.theme,
+        background: toHexColor(resume.metadata.theme.background),
+        text: toHexColor(resume.metadata.theme.text),
+        primary: toHexColor(resume.metadata.theme.primary),
+      },
+    },
+  };
+}
+
 // Safe base64 encoding for large arrays (avoids call stack overflow)
 function uint8ArrayToBase64(data: Uint8Array): string {
   const CHUNK_SIZE = 0x8000; // 32KB chunks
@@ -53,7 +100,7 @@ export function ImportModal() {
 
         if (isWasmReady()) {
           const resume = parseLinkedInExport(data);
-          importResume(resume);
+          importResume(normalizeImportedResume(resume));
         } else {
           // Use server API with safe chunked base64 encoding
           const base64 = uint8ArrayToBase64(data);
@@ -62,7 +109,7 @@ export function ImportModal() {
             data: base64,
             base64: true,
           });
-          importResume(resume);
+          importResume(normalizeImportedResume(resume));
         }
       } else {
         // JSON formats
@@ -76,12 +123,12 @@ export function ImportModal() {
           if (json.basics && json.meta) {
             // Looks like Reactive Resume V3
             parsed = parseReactiveResumeV3(text);
+          } else if (isNativeRustumeJson(json)) {
+            // Native Rustume must be detected before JSON Resume (both have `basics`)
+            parsed = json as ResumeData;
           } else if (json.basics) {
             // JSON Resume format
             parsed = parseJsonResume(text);
-          } else if (json.sections && json.metadata) {
-            // Native Rustume format - validate basic structure
-            parsed = json as ResumeData;
           } else {
             throw new Error("Unrecognized resume format");
           }
@@ -90,7 +137,7 @@ export function ImportModal() {
           let serverFormat: ImportFormat = "json-resume";
           if (json.basics && json.meta) {
             serverFormat = "rrv3";
-          } else if (json.sections) {
+          } else if (isNativeRustumeJson(json)) {
             serverFormat = "rustume";
           }
 
@@ -100,7 +147,7 @@ export function ImportModal() {
           });
         }
 
-        importResume(parsed);
+        importResume(normalizeImportedResume(parsed));
       }
 
       toast.success("Resume imported successfully");

@@ -2,6 +2,7 @@ import { createRoot } from "solid-js";
 import { createDefaultResume } from "../../wasm/defaults";
 import type { ResumeData } from "../../wasm/types";
 import {
+  FIXED_LAYOUT_SECTION_KEYS,
   isResumeEmpty,
   useResumeStore,
   ResumeNotFoundError,
@@ -101,6 +102,13 @@ describe("isResumeEmpty", () => {
       },
     ];
     expect(isResumeEmpty(resume)).toBe(false);
+  });
+
+  it("returns true when sections.custom is missing at runtime", () => {
+    const resume = createEmptyResumeData();
+    const sections = { ...resume.sections };
+    Reflect.deleteProperty(sections, "custom");
+    expect(isResumeEmpty({ ...resume, sections: sections as ResumeData["sections"] })).toBe(true);
   });
 });
 
@@ -257,6 +265,217 @@ describe("useResumeStore", () => {
       importResume(imported);
       expect(store.resume!.basics.name).toBe("Imported Person");
       expect(store.isDirty).toBe(true);
+      dispose();
+    });
+  });
+
+  it("importResume materializes missing custom and layout from legacy JSON", () => {
+    createRoot((dispose) => {
+      const { store, importResume } = useResumeStore();
+      const base = createDefaultResume();
+      const legacy = JSON.parse(
+        JSON.stringify({
+          ...base,
+          sections: { ...base.sections, custom: undefined },
+          metadata: { ...base.metadata, layout: undefined },
+        }),
+      ) as ResumeData;
+
+      importResume(legacy);
+
+      expect(store.resume!.sections.custom).toEqual({});
+      expect(store.resume!.metadata.layout).toEqual([]);
+      dispose();
+    });
+  });
+
+  it("importResume replaces malformed custom and layout legacy shapes", () => {
+    createRoot((dispose) => {
+      const { store, importResume } = useResumeStore();
+      const base = createDefaultResume();
+      const legacy = JSON.parse(
+        JSON.stringify({
+          ...base,
+          sections: { ...base.sections, custom: [] },
+          metadata: { ...base.metadata, layout: { page: [["summary"]] } },
+        }),
+      ) as ResumeData;
+
+      importResume(legacy);
+
+      expect(store.resume!.sections.custom).toEqual({});
+      expect(store.resume!.metadata.layout).toEqual([]);
+      dispose();
+    });
+  });
+
+  it("importResume preserves fixed sections when normalizing an empty first layout page", () => {
+    createRoot((dispose) => {
+      const { store, importResume } = useResumeStore();
+      const imported = createDefaultResume();
+      imported.sections.custom["custom-speaking"] = {
+        id: "custom-speaking",
+        name: "Speaking",
+        columns: 1,
+        separateLinks: false,
+        visible: true,
+        items: [],
+      };
+      imported.metadata.layout = [
+        [
+          /* empty first page */
+        ],
+        [["experience"]],
+      ];
+
+      importResume(imported);
+
+      expect(store.resume!.metadata.layout[0]).toEqual([["experience", "custom-speaking"]]);
+      expect(
+        store.resume!.metadata.layout.flat(2).filter((id) => id === "experience"),
+      ).toHaveLength(1);
+      dispose();
+    });
+  });
+
+  it("importResume materializes custom layout sentinel into concrete custom ids", () => {
+    createRoot((dispose) => {
+      const { store, importResume } = useResumeStore();
+      const imported = createDefaultResume();
+      imported.sections.custom["custom-speaking"] = {
+        id: "custom-speaking",
+        name: "Speaking",
+        columns: 1,
+        separateLinks: false,
+        visible: true,
+        items: [],
+      };
+      imported.sections.custom["custom-writing"] = {
+        id: "custom-writing",
+        name: "Writing",
+        columns: 1,
+        separateLinks: false,
+        visible: true,
+        items: [],
+      };
+      imported.metadata.layout = [[["summary", "custom"]]];
+
+      importResume(imported);
+
+      expect(store.resume!.metadata.layout).toEqual([
+        [["summary", "custom-speaking", "custom-writing"]],
+      ]);
+      expect(store.resume!.metadata.layout.flat(2)).not.toContain("custom");
+      dispose();
+    });
+  });
+
+  it("importResume materializes duplicate custom layout sentinels only once", () => {
+    createRoot((dispose) => {
+      const { store, importResume } = useResumeStore();
+      const imported = createDefaultResume();
+      imported.sections.custom["custom-a"] = {
+        id: "custom-a",
+        name: "Custom A",
+        columns: 1,
+        separateLinks: false,
+        visible: true,
+        items: [],
+      };
+      imported.metadata.layout = [[["summary", "custom"], ["custom"]]];
+
+      importResume(imported);
+
+      expect(store.resume!.metadata.layout.flat(2).filter((id) => id === "custom-a")).toHaveLength(
+        1,
+      );
+      expect(store.resume!.metadata.layout.flat(2)).not.toContain("custom");
+      dispose();
+    });
+  });
+
+  it("importResume deduplicates concrete custom ids when materializing sentinels", () => {
+    createRoot((dispose) => {
+      const { store, importResume } = useResumeStore();
+      const imported = createDefaultResume();
+      imported.sections.custom["custom-a"] = {
+        id: "custom-a",
+        name: "Custom A",
+        columns: 1,
+        separateLinks: false,
+        visible: true,
+        items: [],
+      };
+      imported.metadata.layout = [[["summary", "custom-a", "custom"]]];
+
+      importResume(imported);
+
+      expect(store.resume!.metadata.layout.flat(2).filter((id) => id === "custom-a")).toHaveLength(
+        1,
+      );
+      expect(store.resume!.metadata.layout.flat(2)).not.toContain("custom");
+      dispose();
+    });
+  });
+
+  it("importResume removes legacy custom sentinel when no custom sections exist", () => {
+    createRoot((dispose) => {
+      const { store, importResume } = useResumeStore();
+      const imported = createDefaultResume();
+      imported.metadata.layout = [[["summary", "custom"]], [["custom"]]];
+
+      importResume(imported);
+
+      expect(store.resume!.metadata.layout).toEqual([[["summary"]], [[]]]);
+      expect(store.resume!.metadata.layout.flat(2)).not.toContain("custom");
+      dispose();
+    });
+  });
+
+  it("importResume removes legacy custom sentinel before normalizing empty first page", () => {
+    createRoot((dispose) => {
+      const { store, importResume } = useResumeStore();
+      const imported = createDefaultResume();
+      imported.metadata.layout = [[], [["custom"]]];
+
+      importResume(imported);
+
+      expect(store.resume!.metadata.layout).toEqual([[[]], [[]]]);
+      expect(store.resume!.metadata.layout.flat(2)).not.toContain("custom");
+      dispose();
+    });
+  });
+
+  it("addCustomSection seeds empty layout with summary, fixed sections, and custom id", () => {
+    createRoot((dispose) => {
+      const { store, importResume, addCustomSection } = useResumeStore();
+      const imported = createDefaultResume();
+      imported.metadata.layout = [];
+
+      importResume(imported);
+      const sectionId = addCustomSection("Writing");
+
+      expect(store.resume!.metadata.layout).toEqual([
+        [["summary", ...FIXED_LAYOUT_SECTION_KEYS, sectionId]],
+      ]);
+      dispose();
+    });
+  });
+
+  it("addCustomSection merges into empty page 0 without dropping fixed sections on other pages", () => {
+    createRoot((dispose) => {
+      const { store, importResume, addCustomSection } = useResumeStore();
+      const imported = createDefaultResume();
+      imported.metadata.layout = [[], [["education", "skills"]]];
+
+      importResume(imported);
+      const sectionId = addCustomSection("Writing");
+
+      expect(store.resume!.metadata.layout[0]).toEqual([["education", "skills", sectionId]]);
+      expect(store.resume!.metadata.layout.flat(2).filter((id) => id === "education")).toHaveLength(
+        1,
+      );
+      expect(store.resume!.metadata.layout.flat(2).filter((id) => id === "skills")).toHaveLength(1);
       dispose();
     });
   });

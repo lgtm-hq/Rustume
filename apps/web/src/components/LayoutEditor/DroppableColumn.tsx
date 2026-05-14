@@ -1,5 +1,5 @@
 import { For, Show } from "solid-js";
-import { SortableProvider, createDroppable } from "@thisbeyond/solid-dnd";
+import { createDroppable } from "@thisbeyond/solid-dnd";
 import { DraggableSection } from "./DraggableSection";
 
 interface DroppableColumnProps {
@@ -13,6 +13,8 @@ interface DroppableColumnProps {
   totalColumns: number;
   /** ID of the section currently being keyboard-dragged, if any. */
   kbActiveId?: string | null;
+  /** Resolve a section ID to its human-friendly label. */
+  getSectionLabel: (id: string) => string;
 }
 
 const COLUMN_LABELS: Record<number, string[]> = {
@@ -52,13 +54,15 @@ export function DroppableColumn(props: DroppableColumnProps) {
 
       {/* Sortable Section List */}
       <div class="space-y-1.5 min-h-[48px]">
-        <SortableProvider ids={props.sectionIds}>
-          <For each={props.sectionIds}>
-            {(sectionId) => (
-              <DraggableSection id={sectionId} kbActive={props.kbActiveId === sectionId} />
-            )}
-          </For>
-        </SortableProvider>
+        <For each={props.sectionIds}>
+          {(sectionId) => (
+            <DraggableSection
+              id={sectionId}
+              label={props.getSectionLabel(sectionId)}
+              kbActive={props.kbActiveId === sectionId}
+            />
+          )}
+        </For>
 
         {/* Empty state */}
         <Show when={props.sectionIds.length === 0}>

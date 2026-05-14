@@ -125,7 +125,8 @@ set_github_env() {
 _TEMP_DIRS=()
 
 _cleanup_temp_dirs() {
-	for dir in "${_TEMP_DIRS[@]}"; do
+	for dir in "${_TEMP_DIRS[@]:-}"; do
+		[[ -z "$dir" ]] && continue
 		rm -rf "$dir"
 	done
 }

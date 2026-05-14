@@ -1,7 +1,7 @@
 import { createStore, produce } from "solid-js/store";
 import { batch } from "solid-js";
 import { toast } from "../components/ui";
-import type { ResumeData, Basics, Sections, Metadata, Section } from "../wasm/types";
+import type { ResumeData, Basics, Sections, Metadata, Section, CustomItem } from "../wasm/types";
 import {
   createEmptyResume,
   createEmptyPicture,
@@ -65,6 +65,63 @@ export function isNotFoundError(error: unknown): boolean {
   return false;
 }
 
+export const FIXED_LAYOUT_SECTION_KEYS: (keyof Omit<Sections, "summary" | "custom">)[] = [
+  "experience",
+  "education",
+  "skills",
+  "projects",
+  "profiles",
+  "awards",
+  "certifications",
+  "publications",
+  "languages",
+  "interests",
+  "volunteer",
+  "references",
+];
+const FIXED_LAYOUT_SECTION_KEY_SET = new Set<string>(["summary", ...FIXED_LAYOUT_SECTION_KEYS]);
+
+function uniqueLayoutIds(ids: string[]): string[] {
+  const seen = new Set<string>();
+  return ids.filter((id) => {
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
+function removeLayoutIdsFromLaterPages(layout: string[][][], ids: readonly string[]): void {
+  const movedIds = new Set(ids);
+  for (let pageIndex = 1; pageIndex < layout.length; pageIndex++) {
+    layout[pageIndex] = layout[pageIndex].map((column) => column.filter((id) => !movedIds.has(id)));
+  }
+}
+
+function materializeCustomLayoutSentinels(layout: string[][][], customIds: string[]): Set<string> {
+  const layoutIds = new Set<string>();
+  let expandedCustom = false;
+
+  for (let pageIndex = 0; pageIndex < layout.length; pageIndex++) {
+    layout[pageIndex] = layout[pageIndex].map((column) => {
+      const materialized: string[] = [];
+      for (const id of column) {
+        const ids = id === "custom" ? (expandedCustom ? [] : customIds) : [id];
+        if (id === "custom") {
+          expandedCustom = true;
+        }
+        for (const concreteId of ids) {
+          if (layoutIds.has(concreteId)) continue;
+          layoutIds.add(concreteId);
+          materialized.push(concreteId);
+        }
+      }
+      return materialized;
+    });
+  }
+
+  return layoutIds;
+}
+
 /** Check if an HTML string is effectively empty (plain empty or TipTap empty editor). */
 export function isHtmlEmpty(html: string): boolean {
   const trimmed = html.trim();
@@ -93,30 +150,71 @@ export function isResumeEmpty(resume: ResumeData): boolean {
     return false;
   }
 
-  // Check if any visible section has items
-  const sectionKeys: (keyof Omit<Sections, "summary" | "custom">)[] = [
-    "experience",
-    "education",
-    "skills",
-    "projects",
-    "profiles",
-    "awards",
-    "certifications",
-    "publications",
-    "languages",
-    "interests",
-    "volunteer",
-    "references",
-  ];
-
-  for (const key of sectionKeys) {
+  for (const key of FIXED_LAYOUT_SECTION_KEYS) {
     const section = resume.sections[key];
     if (section.visible && section.items.length > 0) {
       return false;
     }
   }
 
+  for (const section of Object.values(resume.sections.custom ?? {})) {
+    if (section.visible && section.items.length > 0) {
+      return false;
+    }
+  }
+
   return true;
+}
+
+function normalizeResumeForStore(resume: ResumeData): ResumeData {
+  if (!resume.basics.picture) {
+    resume.basics.picture = createEmptyPicture();
+  }
+
+  if (
+    typeof resume.sections.custom !== "object" ||
+    resume.sections.custom === null ||
+    Array.isArray(resume.sections.custom)
+  ) {
+    resume.sections.custom = {};
+  }
+  if (!Array.isArray(resume.metadata.layout)) {
+    resume.metadata.layout = [];
+  }
+
+  const customIds = Object.keys(resume.sections.custom);
+  if (resume.metadata.layout.length === 0) {
+    if (customIds.length === 0) return resume;
+    resume.metadata.layout = [[["summary", ...FIXED_LAYOUT_SECTION_KEYS, ...customIds]]];
+    return resume;
+  }
+
+  const layoutIds = materializeCustomLayoutSentinels(resume.metadata.layout, customIds);
+  const page0 = resume.metadata.layout[0];
+  if (!page0 || page0.length === 0) {
+    const fixedIds = uniqueLayoutIds(
+      resume.metadata.layout.flat(2).filter((id) => FIXED_LAYOUT_SECTION_KEY_SET.has(id)),
+    );
+    const page0Ids = uniqueLayoutIds([...fixedIds, ...customIds]);
+    resume.metadata.layout[0] = [page0Ids];
+    removeLayoutIdsFromLaterPages(resume.metadata.layout, page0Ids);
+    return resume;
+  }
+
+  if (customIds.length === 0) return resume;
+
+  const missingCustomIds = customIds.filter((id) => !layoutIds.has(id));
+  if (missingCustomIds.length > 0) {
+    const normalizedPage0 = resume.metadata.layout[0] ?? [];
+    const lastColumn = normalizedPage0.at(-1);
+    if (lastColumn) {
+      lastColumn.push(...missingCustomIds);
+    } else {
+      resume.metadata.layout[0] = [missingCustomIds];
+    }
+  }
+
+  return resume;
 }
 
 // Fallback localStorage storage when WASM is not available
@@ -167,6 +265,20 @@ async function getResume(id: string): Promise<ResumeData> {
 }
 
 export type SectionKey = keyof Omit<Sections, "summary" | "custom">;
+export type LayoutSectionKey = SectionKey | "summary" | "custom";
+export type CustomSectionKey = `custom:${string}`;
+
+function createCustomSection(name: string): Section<CustomItem> {
+  const id = crypto.randomUUID();
+  return {
+    id,
+    name,
+    columns: 1,
+    separateLinks: false,
+    visible: true,
+    items: [],
+  };
+}
 
 export interface ResumeStore {
   resume: ResumeData | null;
@@ -227,11 +339,7 @@ export function useResumeStore() {
 
     async loadResume(id: string) {
       try {
-        const resume = await getResume(id);
-        // Normalize: ensure basics.picture exists (older resumes may lack it)
-        if (!resume.basics.picture) {
-          resume.basics.picture = createEmptyPicture();
-        }
+        const resume = normalizeResumeForStore(await getResume(id));
         batch(() => {
           setStore("resume", resume);
           setStore("id", id);
@@ -280,12 +388,18 @@ export function useResumeStore() {
     },
 
     // Section visibility
-    toggleSectionVisibility(sectionKey: SectionKey | "summary") {
+    toggleSectionVisibility(sectionKey: LayoutSectionKey) {
       setStore(
         produce((s) => {
           if (s.resume) {
             if (sectionKey === "summary") {
               s.resume.sections.summary.visible = !s.resume.sections.summary.visible;
+            } else if (sectionKey === "custom") {
+              const sections = Object.values(s.resume.sections.custom);
+              const nextVisible = !sections.some((section) => section.visible);
+              for (const section of sections) {
+                section.visible = nextVisible;
+              }
             } else {
               s.resume.sections[sectionKey].visible = !s.resume.sections[sectionKey].visible;
             }
@@ -351,6 +465,102 @@ export function useResumeStore() {
       markDirty();
     },
 
+    addCustomSection(name: string): string {
+      const section = createCustomSection(name);
+      setStore(
+        produce((s) => {
+          if (!s.resume) return;
+
+          s.resume.sections.custom[section.id] = section;
+          if (s.resume.metadata.layout.length === 0) {
+            s.resume.metadata.layout = [[["summary", ...FIXED_LAYOUT_SECTION_KEYS, section.id]]];
+            return;
+          }
+
+          const page = s.resume.metadata.layout[0] ?? [];
+          if (!page || page.length === 0) {
+            const fixedIds = uniqueLayoutIds(
+              s.resume.metadata.layout.flat(2).filter((id) => FIXED_LAYOUT_SECTION_KEY_SET.has(id)),
+            );
+            const page0Ids = uniqueLayoutIds([...fixedIds, section.id]);
+            s.resume.metadata.layout[0] = [page0Ids];
+            removeLayoutIdsFromLaterPages(s.resume.metadata.layout, page0Ids);
+            return;
+          }
+
+          page[page.length - 1].push(section.id);
+        }),
+      );
+      markDirty();
+      return section.id;
+    },
+
+    updateCustomSection(
+      sectionId: string,
+      updates: Partial<Pick<Section<CustomItem>, "name" | "visible">>,
+    ) {
+      setStore(
+        produce((s) => {
+          const section = s.resume?.sections.custom[sectionId];
+          if (!section) return;
+          Object.assign(section, updates);
+        }),
+      );
+      markDirty();
+    },
+
+    removeCustomSection(sectionId: string) {
+      setStore(
+        produce((s) => {
+          if (!s.resume) return;
+          delete s.resume.sections.custom[sectionId];
+          s.resume.metadata.layout = s.resume.metadata.layout.map((page) =>
+            page.map((column) => column.filter((id) => id !== sectionId)),
+          );
+        }),
+      );
+      markDirty();
+    },
+
+    addCustomSectionItem(sectionId: string, item: CustomItem) {
+      const items = store.resume?.sections.custom[sectionId]?.items;
+      if (!items) return;
+      setStore("resume", "sections", "custom", sectionId, "items", items.length, item);
+      markDirty();
+    },
+
+    updateCustomSectionItem(sectionId: string, index: number, updates: Partial<CustomItem>) {
+      const item = store.resume?.sections.custom[sectionId]?.items[index];
+      if (!item) return;
+      setStore("resume", "sections", "custom", sectionId, "items", index, updates);
+      markDirty();
+    },
+
+    removeCustomSectionItem(sectionId: string, index: number) {
+      const items = store.resume?.sections.custom[sectionId]?.items;
+      if (!items) return;
+      setStore(
+        "resume",
+        "sections",
+        "custom",
+        sectionId,
+        "items",
+        items.filter((_, itemIndex) => itemIndex !== index),
+      );
+      markDirty();
+    },
+
+    reorderCustomSectionItem(sectionId: string, fromIndex: number, toIndex: number) {
+      const items = store.resume?.sections.custom[sectionId]?.items;
+      if (!items) return;
+      const nextItems = [...items];
+      const [item] = nextItems.splice(fromIndex, 1);
+      if (!item) return;
+      nextItems.splice(toIndex, 0, item);
+      setStore("resume", "sections", "custom", sectionId, "items", nextItems);
+      markDirty();
+    },
+
     // Metadata updates
     updateMetadata<K extends keyof Metadata>(field: K, value: Metadata[K]) {
       setStore(
@@ -399,12 +609,10 @@ export function useResumeStore() {
 
     // Import resume data
     importResume(data: ResumeData) {
-      // Normalize: ensure basics.picture exists (imported data may lack it)
-      if (!data.basics.picture) {
-        data.basics.picture = createEmptyPicture();
-      }
+      // Deep clone so Solid store owns a plain tree (imported objects may be frozen / aliased).
+      const clone = normalizeResumeForStore(JSON.parse(JSON.stringify(data)) as ResumeData);
       batch(() => {
-        setStore("resume", data);
+        setStore("resume", clone);
         setStore("isDirty", true);
         setStore("error", null);
       });
