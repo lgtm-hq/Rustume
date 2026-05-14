@@ -113,6 +113,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: rust-coverage
     if: >-
+      always() &&
       github.event_name == 'pull_request' &&
       needs.rust-coverage.outputs.rust_pr_comment_ready == 'true'
     permissions:
@@ -220,6 +221,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: web-coverage
     if: >-
+      always() &&
       github.event_name == 'pull_request' &&
       needs.web-coverage.outputs.web_pr_comment_ready == 'true'
     permissions:
