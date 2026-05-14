@@ -14,10 +14,6 @@ name: Coverage Reports
       - "Cargo.lock"
       - "apps/web/**"
       - ".github/workflows/coverage.yml"
-      - "scripts/ci/github/ci-post-pr-comment.sh"
-      - "scripts/ci/github/ci-set-coverage-pr-comment-ready-output.sh"
-      - "scripts/ci/testing/ci-coverage-metrics.sh"
-      - "scripts/ci/testing/ci-coverage-pr-comment.sh"
       - "scripts/ci/testing/ci-rust-coverage.sh"
       - "scripts/ci/testing/ci-setup-rust-coverage.sh"
       - "scripts/ci/testing/ci-setup-web-coverage.sh"
@@ -35,7 +31,7 @@ jobs:
     name: 🦀 Rust Coverage
     runs-on: ubuntu-24.04
     outputs:
-      rust_pr_comment_ready: ${{ steps.rust-comment-meta.outputs.ready }}
+      rust_pr_comment_ready: ${{ steps.generate-rust-comment.outcome == 'success' }}
     permissions:
       contents: read
     timeout-minutes: 45
@@ -61,43 +57,34 @@ jobs:
         run: ./scripts/ci/testing/ci-rust-coverage.sh
         continue-on-error: true
 
-      - name: Collect Rust coverage metrics
-        id: rust-metrics
-        if: steps.rust-coverage.outcome == 'success'
-        run: ./scripts/ci/testing/ci-coverage-metrics.sh lcov rust-coverage.lcov
-
       - name: Generate Rust coverage PR comment
         id: generate-rust-comment
         if: >-
-          github.event_name == 'pull_request' &&
-          (steps.rust-metrics.outcome == 'success' ||
-          env.RUST_COVERAGE_EXIT_CODE != '0')
-        env:
-          COVERAGE_NAME: Rust
-          COVERAGE_MARKER: "<!-- rust-coverage-report -->"
-          COVERAGE_COMMAND: >-
-            cargo llvm-cov --workspace --all-features --lcov
-            --output-path rust-coverage.lcov
-          COVERAGE_OUTPUT_FILE: rust-coverage-pr-comment.txt
-          COVERAGE_TOOL: cargo llvm-cov
-          COVERAGE_LOG_FILE: rust-coverage-output.txt
-          COVERAGE_LINES: ${{ steps.rust-metrics.outputs.lines-coverage }}
-          COVERAGE_BRANCHES: ${{ steps.rust-metrics.outputs.branches-coverage }}
-          COVERAGE_FUNCTIONS: ${{ steps.rust-metrics.outputs.functions-coverage }}
-        run: ./scripts/ci/testing/ci-coverage-pr-comment.sh
+          always() &&
+          github.event_name == 'pull_request'
+        # yamllint disable rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/generate-coverage-comment@d04926e664ce4df045b62e4bb1896f66ba93f8ec # v0.13.0
+        # yamllint enable rule:line-length
+        with:
+          coverage-file: rust-coverage.lcov
+          format: lcov
+          threshold-lines: "0"
+          threshold-branches: "0"
+          threshold-functions: "0"
 
-      - id: rust-comment-meta
-        if: always()
+      - name: Write Rust coverage PR comment artifact
+        if: steps.generate-rust-comment.outcome == 'success'
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          GENERATE_COMMENT_STEP_OUTCOME: ${{ steps.generate-rust-comment.outcome }}
-          PR_HEAD_REPO_IS_FORK: >-
-            ${{ github.event_name == 'pull_request' &&
-            github.event.pull_request.head.repo.fork || false }}
-        run: ./scripts/ci/github/ci-set-coverage-pr-comment-ready-output.sh
+          COMMENT_BODY: ${{ steps.generate-rust-comment.outputs.comment-body }}
+        run: >-
+          printf '%s\n' "$COMMENT_BODY" |
+          sed '1s/^## Coverage Report$/## Rust Coverage Report/' >
+          rust-coverage-pr-comment.txt
 
       - name: Upload Rust coverage PR comment artifact
-        if: steps.rust-comment-meta.outputs.ready == 'true'
+        if: >-
+          steps.generate-rust-comment.outcome == 'success' &&
+          github.event.pull_request.head.repo.fork == false
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: rust-coverage-pr-comment
@@ -120,6 +107,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      issues: write
     timeout-minutes: 5
     defaults:
       run:
@@ -132,17 +120,18 @@ jobs:
           name: rust-coverage-pr-comment
 
       - name: Comment PR with Rust coverage
-        env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          GITHUB_TOKEN: ${{ github.token }}
-          MARKER: "<!-- rust-coverage-report -->"
-        run: ./scripts/ci/github/ci-post-pr-comment.sh rust-coverage-pr-comment.txt
+        # yamllint disable rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/post-pr-comment@d04926e664ce4df045b62e4bb1896f66ba93f8ec # v0.13.0
+        # yamllint enable rule:line-length
+        with:
+          file: rust-coverage-pr-comment.txt
+          marker: rust-coverage-report
 
   web-coverage:
     name: 🌐 Web Coverage
     runs-on: ubuntu-24.04
     outputs:
-      web_pr_comment_ready: ${{ steps.web-comment-meta.outputs.ready }}
+      web_pr_comment_ready: ${{ steps.generate-web-comment.outcome == 'success' }}
     permissions:
       contents: read
     timeout-minutes: 30
@@ -168,45 +157,34 @@ jobs:
         run: ./scripts/ci/testing/ci-web-coverage.sh
         continue-on-error: true
 
-      - name: Collect Web coverage metrics
-        id: web-metrics
-        if: steps.web-coverage.outcome == 'success'
-        run: >-
-          ./scripts/ci/testing/ci-coverage-metrics.sh
-          istanbul-summary
-          apps/web/coverage/coverage-summary.json
-
       - name: Generate Web coverage PR comment
         id: generate-web-comment
         if: >-
-          github.event_name == 'pull_request' &&
-          (steps.web-metrics.outcome == 'success' ||
-          env.WEB_COVERAGE_EXIT_CODE != '0')
-        env:
-          COVERAGE_NAME: Web
-          COVERAGE_MARKER: "<!-- web-coverage-report -->"
-          COVERAGE_COMMAND: bun run test:coverage
-          COVERAGE_OUTPUT_FILE: web-coverage-pr-comment.txt
-          COVERAGE_TOOL: Vitest
-          COVERAGE_LOG_FILE: web-coverage-output.txt
-          COVERAGE_LINES: ${{ steps.web-metrics.outputs.lines-coverage }}
-          COVERAGE_BRANCHES: ${{ steps.web-metrics.outputs.branches-coverage }}
-          COVERAGE_FUNCTIONS: ${{ steps.web-metrics.outputs.functions-coverage }}
-          COVERAGE_STATEMENTS: ${{ steps.web-metrics.outputs.statements-coverage }}
-        run: ./scripts/ci/testing/ci-coverage-pr-comment.sh
+          always() &&
+          github.event_name == 'pull_request'
+        # yamllint disable rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/generate-coverage-comment@d04926e664ce4df045b62e4bb1896f66ba93f8ec # v0.13.0
+        # yamllint enable rule:line-length
+        with:
+          coverage-file: apps/web/coverage/coverage-summary.json
+          format: istanbul
+          threshold-lines: "0"
+          threshold-branches: "0"
+          threshold-functions: "0"
 
-      - id: web-comment-meta
-        if: always()
+      - name: Write Web coverage PR comment artifact
+        if: steps.generate-web-comment.outcome == 'success'
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          GENERATE_COMMENT_STEP_OUTCOME: ${{ steps.generate-web-comment.outcome }}
-          PR_HEAD_REPO_IS_FORK: >-
-            ${{ github.event_name == 'pull_request' &&
-            github.event.pull_request.head.repo.fork || false }}
-        run: ./scripts/ci/github/ci-set-coverage-pr-comment-ready-output.sh
+          COMMENT_BODY: ${{ steps.generate-web-comment.outputs.comment-body }}
+        run: >-
+          printf '%s\n' "$COMMENT_BODY" |
+          sed '1s/^## Coverage Report$/## Web Coverage Report/' >
+          web-coverage-pr-comment.txt
 
       - name: Upload Web coverage PR comment artifact
-        if: steps.web-comment-meta.outputs.ready == 'true'
+        if: >-
+          steps.generate-web-comment.outcome == 'success' &&
+          github.event.pull_request.head.repo.fork == false
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: web-coverage-pr-comment
@@ -229,6 +207,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      issues: write
     timeout-minutes: 5
     defaults:
       run:
@@ -241,8 +220,9 @@ jobs:
           name: web-coverage-pr-comment
 
       - name: Comment PR with Web coverage
-        env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          GITHUB_TOKEN: ${{ github.token }}
-          MARKER: "<!-- web-coverage-report -->"
-        run: ./scripts/ci/github/ci-post-pr-comment.sh web-coverage-pr-comment.txt
+        # yamllint disable rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/post-pr-comment@d04926e664ce4df045b62e4bb1896f66ba93f8ec # v0.13.0
+        # yamllint enable rule:line-length
+        with:
+          file: web-coverage-pr-comment.txt
+          marker: web-coverage-report
