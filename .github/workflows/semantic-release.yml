@@ -130,7 +130,9 @@ jobs:
             release-bump
 
       - name: Enable auto-merge for Release PR
-        if: steps.cpr.outputs.pull-request-number != ''
+        if: >-
+          steps.cpr.outputs.pull-request-number != ''
+          && steps.semrel.outputs.bump-type == 'patch'
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
