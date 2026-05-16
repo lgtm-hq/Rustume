@@ -63,7 +63,7 @@ jobs:
           always() &&
           github.event_name == 'pull_request'
         # yamllint disable rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/generate-coverage-comment@d04926e664ce4df045b62e4bb1896f66ba93f8ec # v0.13.0
+        uses: lgtm-hq/lgtm-ci/.github/actions/generate-coverage-comment@58be2e8b58936973af5da34f19f5fea7336ba1e5 # v0.13.3
         # yamllint enable rule:line-length
         with:
           coverage-file: rust-coverage.lcov
@@ -121,7 +121,7 @@ jobs:
 
       - name: Comment PR with Rust coverage
         # yamllint disable rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/post-pr-comment@d04926e664ce4df045b62e4bb1896f66ba93f8ec # v0.13.0
+        uses: lgtm-hq/lgtm-ci/.github/actions/post-pr-comment@58be2e8b58936973af5da34f19f5fea7336ba1e5 # v0.13.3
         # yamllint enable rule:line-length
         with:
           file: rust-coverage-pr-comment.txt
@@ -163,7 +163,7 @@ jobs:
           always() &&
           github.event_name == 'pull_request'
         # yamllint disable rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/generate-coverage-comment@d04926e664ce4df045b62e4bb1896f66ba93f8ec # v0.13.0
+        uses: lgtm-hq/lgtm-ci/.github/actions/generate-coverage-comment@58be2e8b58936973af5da34f19f5fea7336ba1e5 # v0.13.3
         # yamllint enable rule:line-length
         with:
           coverage-file: apps/web/coverage/coverage-summary.json
@@ -221,7 +221,7 @@ jobs:
 
       - name: Comment PR with Web coverage
         # yamllint disable rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/post-pr-comment@d04926e664ce4df045b62e4bb1896f66ba93f8ec # v0.13.0
+        uses: lgtm-hq/lgtm-ci/.github/actions/post-pr-comment@58be2e8b58936973af5da34f19f5fea7336ba1e5 # v0.13.3
         # yamllint enable rule:line-length
         with:
           file: web-coverage-pr-comment.txt
