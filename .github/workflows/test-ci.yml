@@ -23,9 +23,9 @@ permissions:
 jobs:
   rust-build:
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-rust.yml@eb2ce465c93ca5408f6a659b19dbeebd1fb5df32
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-rust.yml@375d104f6ca707f4f35344170a42bf901a617a9f # v0.15.0
     with:
-      tooling-ref: eb2ce465c93ca5408f6a659b19dbeebd1fb5df32
+      tooling-ref: "375d104f6ca707f4f35344170a42bf901a617a9f"
       run-build: true
       run-coverage: false
       job-name-build: "🔨 Build Check"
@@ -47,9 +47,9 @@ jobs:
 
   rust-coverage:
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-rust.yml@eb2ce465c93ca5408f6a659b19dbeebd1fb5df32
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-rust.yml@375d104f6ca707f4f35344170a42bf901a617a9f # v0.15.0
     with:
-      tooling-ref: eb2ce465c93ca5408f6a659b19dbeebd1fb5df32
+      tooling-ref: "375d104f6ca707f4f35344170a42bf901a617a9f"
       run-build: false
       run-coverage: true
       job-name-coverage: "🦀 Rust Coverage"
@@ -72,9 +72,9 @@ jobs:
 
   web-coverage:
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-node.yml@eb2ce465c93ca5408f6a659b19dbeebd1fb5df32
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-node.yml@375d104f6ca707f4f35344170a42bf901a617a9f # v0.15.0
     with:
-      tooling-ref: eb2ce465c93ca5408f6a659b19dbeebd1fb5df32
+      tooling-ref: "375d104f6ca707f4f35344170a42bf901a617a9f"
       job-name: "🌐 Web Coverage"
       working-directory: apps/web
       package-manager: bun
