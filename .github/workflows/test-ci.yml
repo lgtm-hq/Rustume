@@ -23,7 +23,7 @@ permissions:
 jobs:
   rust-build:
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-rust.yml@07686fcab641d2c7385b5fa8e718af1cd1c55594
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-rust.yml@232624c406e8c44bdcaa67f0d7da84f19d85e253
     with:
       tooling-ref: "375d104f6ca707f4f35344170a42bf901a617a9f"
       run-build: true
@@ -50,7 +50,7 @@ jobs:
 
   rust-coverage:
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-rust.yml@07686fcab641d2c7385b5fa8e718af1cd1c55594
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-rust.yml@232624c406e8c44bdcaa67f0d7da84f19d85e253
     with:
       tooling-ref: "375d104f6ca707f4f35344170a42bf901a617a9f"
       run-build: false
