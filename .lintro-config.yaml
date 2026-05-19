@@ -42,4 +42,8 @@ defaults:
       - "gcr.io"
       - "ghcr.io"
 
-# All tools auto-detected and enabled by default.
+# Rust workspace builds inside Docker can exceed the 120s clippy default on cold CI.
+tools:
+  clippy:
+    enabled: true
+    timeout: 600
