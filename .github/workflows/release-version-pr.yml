@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: MIT
+---
+name: Release Version PR
+
+"on":
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release-version-pr-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  version-pr:
+    # yamllint disable-line rule:line-length
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-release-version-pr.yml@eb2ce465c93ca5408f6a659b19dbeebd1fb5df32
+    with:
+      tooling-ref: eb2ce465c93ca5408f6a659b19dbeebd1fb5df32
+      max-bump: minor
+      ecosystems: rust
+      auto-merge: true
+      auto-merge-patch-only: true
+      release-branch-prefix: release/
+    secrets:
+      RELEASE_APP_ID: ${{ secrets.RELEASE_APP_ID }}
+      RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+    permissions:
+      contents: write
+      pull-requests: write

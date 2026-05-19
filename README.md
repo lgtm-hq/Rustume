@@ -11,8 +11,7 @@ A privacy-first, offline-first resume builder powered by Rust.
 
 <!-- Badges: Build & Quality -->
 <p align="center">
-<a href="https://github.com/lgtm-hq/Rustume/actions/workflows/coverage.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/lgtm-hq/Rustume/coverage.yml?label=coverage&branch=main&logo=githubactions&logoColor=white" alt="Coverage"></a>
-<a href="https://github.com/lgtm-hq/Rustume/actions/workflows/test-rust.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/lgtm-hq/Rustume/test-rust.yml?label=rust%20build&branch=main&logo=githubactions&logoColor=white" alt="Rust build"></a>
+<a href="https://github.com/lgtm-hq/Rustume/actions/workflows/test-ci.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/lgtm-hq/Rustume/test-ci.yml?label=test%20%26%20coverage&branch=main&logo=githubactions&logoColor=white" alt="Test and coverage"></a>
 <a href="https://github.com/lgtm-hq/Rustume/actions/workflows/ci-lintro-analysis.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/lgtm-hq/Rustume/ci-lintro-analysis.yml?label=lint&branch=main&logo=githubactions&logoColor=white" alt="Lint"></a>
 <a href="https://github.com/lgtm-hq/Rustume/actions/workflows/docker-build-publish.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/lgtm-hq/Rustume/docker-build-publish.yml?label=docker&logo=docker&branch=main" alt="Docker"></a>
 </p>
