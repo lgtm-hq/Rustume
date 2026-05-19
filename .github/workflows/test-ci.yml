@@ -92,6 +92,8 @@ jobs:
       coverage-comment-marker: web-coverage-report
       coverage-comment-title: Web Coverage Report
       draft-pr-skip: true
+      publish-results: false
     permissions:
-      contents: read
+      contents: write
+      pages: write
       pull-requests: write
