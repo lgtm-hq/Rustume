@@ -42,8 +42,4 @@ defaults:
       - "gcr.io"
       - "ghcr.io"
 
-# Rust workspace builds inside Docker can exceed the 120s clippy default on cold CI.
-tools:
-  clippy:
-    enabled: true
-    timeout: 600
+# Per-tool options (e.g. clippy timeout) live in pyproject.toml [tool.lintro.<tool>].
