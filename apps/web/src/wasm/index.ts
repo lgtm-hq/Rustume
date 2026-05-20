@@ -37,9 +37,10 @@ export async function initWasm(): Promise<void> {
   if (wasmInitPromise) return wasmInitPromise;
 
   wasmInitPromise = (async () => {
-    // Keep the generated module out of Vite's import-analysis path so fresh
-    // clones can run the dev server before `make setup` builds WASM.
-    const wasmPath = "../../wasm/rustume_wasm";
+    // Use an absolute public path so the browser resolves the wasm-pack output
+    // regardless of the chunk's location in the Vite bundle. The copy-wasm.js
+    // script (or Dockerfile) places the module at /wasm/rustume_wasm.js.
+    const wasmPath = "/wasm/rustume_wasm.js";
     const wasm = (await import(/* @vite-ignore */ wasmPath)) as unknown as WasmModule;
     await wasm.default();
     wasmModule = wasm;

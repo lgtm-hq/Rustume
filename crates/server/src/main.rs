@@ -777,40 +777,68 @@ fn content_type(path: &FsPath) -> &'static str {
     }
 }
 
-async fn serve_static_file(path: &FsPath) -> Option<Response> {
+fn cache_control(path: &FsPath) -> &'static str {
+    if path.starts_with("assets") {
+        "public, max-age=31536000, immutable"
+    } else {
+        "no-cache"
+    }
+}
+
+async fn serve_static_file(path: &FsPath, relative: &FsPath) -> Option<Response> {
     match tokio::fs::read(path).await {
         Ok(body) => Response::builder()
             .header(header::CONTENT_TYPE, content_type(path))
+            .header(header::CACHE_CONTROL, cache_control(relative))
             .body(axum::body::Body::from(body))
             .ok(),
         Err(_) => None,
     }
 }
 
-async fn spa_fallback(uri: axum::http::Uri) -> Response {
+async fn spa_fallback(method: Method, uri: axum::http::Uri) -> Response {
     let path = uri.path();
     if is_reserved_server_path(path) {
         return ApiError::not_found("Route not found").into_response();
+    }
+
+    if method != Method::GET && method != Method::HEAD {
+        return (StatusCode::METHOD_NOT_ALLOWED, "Method not allowed").into_response();
     }
 
     let Some(relative_path) = sanitize_static_path(path) else {
         return ApiError::not_found("Route not found").into_response();
     };
 
-    let static_dir = static_dir();
-    let asset_path = static_dir.join(relative_path);
-    if let Some(response) = serve_static_file(&asset_path).await {
+    let root = static_dir();
+    let asset_path = root.join(&relative_path);
+
+    // Prevent symlink escape: verify resolved path stays within the static root.
+    if let (Ok(canonical_root), Ok(canonical_asset)) = (
+        tokio::fs::canonicalize(&root).await,
+        tokio::fs::canonicalize(&asset_path).await,
+    ) {
+        if !canonical_asset.starts_with(&canonical_root) {
+            return ApiError::not_found("Route not found").into_response();
+        }
+        if let Some(response) = serve_static_file(&canonical_asset, &relative_path).await {
+            return response;
+        }
+    } else if asset_path.extension().is_some() {
+        // File has an extension but doesn't exist or root missing — skip SPA fallback
+    } else if let Some(response) = serve_static_file(&asset_path, &relative_path).await {
         return response;
     }
 
-    let index_path = static_dir.join("index.html");
-    serve_static_file(&index_path).await.unwrap_or_else(|| {
-        ApiError::not_found(format!(
-            "Web UI assets not found in {}",
-            static_dir.display()
-        ))
-        .into_response()
-    })
+    // SPA fallback: serve index.html for client-side routing
+    let index_path = root.join("index.html");
+    let index_relative = PathBuf::from("index.html");
+    serve_static_file(&index_path, &index_relative)
+        .await
+        .unwrap_or_else(|| {
+            ApiError::not_found(format!("Web UI assets not found in {}", root.display()))
+                .into_response()
+        })
 }
 
 fn create_router() -> Router {
@@ -1223,6 +1251,24 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_post_to_unmatched_route_returns_method_not_allowed() {
+        let app = create_router();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/some-unmatched-path")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
     }
 
     #[test]

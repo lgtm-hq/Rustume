@@ -32,8 +32,8 @@ permissions:
   contents: read
 
 jobs:
-  lintro-analysis:
-    name: 🛠️ Lintro Code Quality & Analysis
+  quality:
+    name: "quality / 🛠️ Lintro Code Quality & Analysis"
     runs-on: ubuntu-24.04
     permissions:
       contents: read

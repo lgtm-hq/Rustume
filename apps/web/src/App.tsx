@@ -3,9 +3,18 @@ import { AppShell } from "./components/layout/AppShell";
 import { Button, ToastRegion } from "./components/ui";
 import { initWasm } from "./wasm";
 
+const WASM_NOTICE_KEY = "wasmNoticeDismissed";
+
 const App: ParentComponent = (props) => {
   const [wasmError, setWasmError] = createSignal<string | null>(null);
-  const [showWasmNotice, setShowWasmNotice] = createSignal(true);
+  const [showWasmNotice, setShowWasmNotice] = createSignal(
+    localStorage.getItem(WASM_NOTICE_KEY) !== "true",
+  );
+
+  const dismissNotice = () => {
+    setShowWasmNotice(false);
+    localStorage.setItem(WASM_NOTICE_KEY, "true");
+  };
 
   onMount(async () => {
     try {
@@ -13,7 +22,6 @@ const App: ParentComponent = (props) => {
     } catch (e) {
       console.error("Failed to initialize WASM:", e);
       setWasmError(e instanceof Error ? e.message : "Failed to load");
-      // Continue anyway - server API can still work
     }
   });
 
@@ -27,7 +35,7 @@ const App: ParentComponent = (props) => {
               load. Run <code class="font-mono">make setup</code> in development, or continue if you
               are using the hosted app.
             </p>
-            <Button variant="ghost" size="sm" onClick={() => setShowWasmNotice(false)}>
+            <Button variant="ghost" size="sm" onClick={dismissNotice}>
               Dismiss
             </Button>
           </div>

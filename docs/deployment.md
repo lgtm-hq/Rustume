@@ -44,7 +44,7 @@ For unreleased changes from the default branch, use `main`.
 | --- | --- | --- |
 | `PORT` | `3000` | HTTP listen port inside the container. |
 | `RUST_LOG` | `info` | Rust tracing filter. Use `debug` for more server logs. |
-| `CORS_ORIGIN` | `*` | Comma-separated allowed origins for API requests. |
+| `CORS_ORIGIN` | `*` | Comma-separated allowed origins for API requests. Set explicitly in production (e.g. `https://your-domain.com`). |
 | `RUSTUME_STATIC_DIR` | `/app/web` | Directory containing the built web app. |
 
 ## Reverse Proxy

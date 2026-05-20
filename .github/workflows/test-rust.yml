@@ -20,8 +20,8 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    name: 🔨 Build Check
+  rust-build:
+    name: "rust-build / 🔨 Build Check"
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     if: >-

@@ -22,7 +22,6 @@ name: Release - Automated PR Creation
       - "docs/**"
       - "scripts/**"
       - "docker/**"
-      - "**.rs"
       - "**.md"
       - "renovate.json"
       - ".github/**"

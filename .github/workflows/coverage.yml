@@ -28,7 +28,7 @@ permissions:
 
 jobs:
   rust-coverage:
-    name: 🦀 Rust Coverage
+    name: "rust-coverage / 🦀 Rust Coverage"
     runs-on: ubuntu-24.04
     outputs:
       rust_pr_comment_ready: ${{ steps.generate-rust-comment.outcome == 'success' }}
@@ -128,7 +128,7 @@ jobs:
           marker: rust-coverage-report
 
   web-coverage:
-    name: 🌐 Web Coverage
+    name: "web-coverage / 🌐 Web Coverage"
     runs-on: ubuntu-24.04
     outputs:
       web_pr_comment_ready: ${{ steps.generate-web-comment.outcome == 'success' }}

@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "build": "vite build && cp -R wasm dist/wasm",
+    "build": "vite build && node scripts/copy-wasm.js",
     "preview": "vite preview",
     "build:wasm": "cd ../../bindings/wasm && wasm-pack build --target web --out-dir ../../apps/web/wasm",
     "test": "vitest run",
