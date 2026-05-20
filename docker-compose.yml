@@ -1,9 +1,6 @@
 ---
 services:
   rustume:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
     image: ghcr.io/lgtm-hq/rustume:latest
     container_name: rustume
     ports:

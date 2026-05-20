@@ -32,6 +32,7 @@ use rustume_schema::ResumeData;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::num::NonZeroUsize;
+use std::path::{Component, Path as FsPath, PathBuf};
 use std::sync::OnceLock;
 use tokio::signal;
 use tokio::sync::Mutex;
@@ -51,6 +52,9 @@ const MAX_BODY_SIZE: usize = 10 * 1024 * 1024;
 
 /// Default server port
 const DEFAULT_PORT: u16 = 3000;
+
+/// Default location for the production web bundle in the container image.
+const DEFAULT_STATIC_DIR: &str = "/app/web";
 
 // ============================================================================
 // OpenAPI Documentation
@@ -723,6 +727,92 @@ async fn security_headers(req: axum::extract::Request, next: middleware::Next) -
     response
 }
 
+fn static_dir() -> PathBuf {
+    std::env::var("RUSTUME_STATIC_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from(DEFAULT_STATIC_DIR))
+}
+
+fn is_reserved_server_path(path: &str) -> bool {
+    path == "/api"
+        || path.starts_with("/api/")
+        || path == "/api-docs"
+        || path.starts_with("/api-docs/")
+        || path == "/swagger-ui"
+        || path.starts_with("/swagger-ui/")
+        || path == "/health"
+}
+
+fn sanitize_static_path(path: &str) -> Option<PathBuf> {
+    let relative = path.trim_start_matches('/');
+    let relative = if relative.is_empty() {
+        "index.html"
+    } else {
+        relative
+    };
+
+    let mut safe = PathBuf::new();
+    for component in FsPath::new(relative).components() {
+        match component {
+            Component::Normal(part) => safe.push(part),
+            _ => return None,
+        }
+    }
+
+    Some(safe)
+}
+
+fn content_type(path: &FsPath) -> &'static str {
+    match path.extension().and_then(|extension| extension.to_str()) {
+        Some("css") => "text/css; charset=utf-8",
+        Some("html") => "text/html; charset=utf-8",
+        Some("js") => "text/javascript; charset=utf-8",
+        Some("json") => "application/json; charset=utf-8",
+        Some("png") => "image/png",
+        Some("svg") => "image/svg+xml",
+        Some("wasm") => "application/wasm",
+        Some("webmanifest") => "application/manifest+json; charset=utf-8",
+        Some("woff2") => "font/woff2",
+        _ => "application/octet-stream",
+    }
+}
+
+async fn serve_static_file(path: &FsPath) -> Option<Response> {
+    match tokio::fs::read(path).await {
+        Ok(body) => Response::builder()
+            .header(header::CONTENT_TYPE, content_type(path))
+            .body(axum::body::Body::from(body))
+            .ok(),
+        Err(_) => None,
+    }
+}
+
+async fn spa_fallback(uri: axum::http::Uri) -> Response {
+    let path = uri.path();
+    if is_reserved_server_path(path) {
+        return ApiError::not_found("Route not found").into_response();
+    }
+
+    let Some(relative_path) = sanitize_static_path(path) else {
+        return ApiError::not_found("Route not found").into_response();
+    };
+
+    let static_dir = static_dir();
+    let asset_path = static_dir.join(relative_path);
+    if let Some(response) = serve_static_file(&asset_path).await {
+        return response;
+    }
+
+    let index_path = static_dir.join("index.html");
+    serve_static_file(&index_path).await.unwrap_or_else(|| {
+        ApiError::not_found(format!(
+            "Web UI assets not found in {}",
+            static_dir.display()
+        ))
+        .into_response()
+    })
+}
+
 fn create_router() -> Router {
     // CORS configuration: restrict origins via CORS_ORIGIN env var, default to "*"
     let cors = {
@@ -755,6 +845,7 @@ fn create_router() -> Router {
         .route("/api/render/pdf", post(render_pdf))
         .route("/api/render/preview", post(render_preview))
         .route("/api/validate", post(validate))
+        .fallback(spa_fallback)
         // Middleware
         .layer(middleware::from_fn(security_headers))
         .layer(CompressionLayer::new())
@@ -863,7 +954,10 @@ async fn main() -> anyhow::Result<()> {
         addr.ip(),
         port
     );
-    info!("Web UI available at http://localhost:5173 (run 'make web' or 'make dev')");
+    info!(
+        "Serving web UI assets from {} (set RUSTUME_STATIC_DIR to override)",
+        static_dir().display()
+    );
     info!(
         "CORS origin: {}",
         std::env::var("CORS_ORIGIN").unwrap_or_else(|_| "*".to_string())
@@ -1112,6 +1206,30 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_unknown_api_route_returns_not_found() {
+        let app = create_router();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/missing")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn test_static_path_rejects_traversal() {
+        assert!(sanitize_static_path("/assets/app.js").is_some());
+        assert!(sanitize_static_path("/../Cargo.toml").is_none());
+        assert!(sanitize_static_path("/assets/../Cargo.toml").is_none());
     }
 
     #[tokio::test]
