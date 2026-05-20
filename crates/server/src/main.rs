@@ -825,7 +825,7 @@ async fn spa_fallback(method: Method, uri: axum::http::Uri) -> Response {
             return response;
         }
     } else if asset_path.extension().is_some() {
-        // File has an extension but doesn't exist or root missing — skip SPA fallback
+        return (StatusCode::NOT_FOUND, "Not Found").into_response();
     } else if let Some(response) = serve_static_file(&asset_path, &relative_path).await {
         return response;
     }
