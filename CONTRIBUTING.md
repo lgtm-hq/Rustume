@@ -13,11 +13,23 @@ guidelines and information for contributors.
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
   ```
 
+- **wasm-pack**: Required to build browser WASM bindings
+
+  ```bash
+  cargo install wasm-pack
+  ```
+
+- **bun**: Required for the SolidJS web app
+
+  ```bash
+  curl -fsSL https://bun.sh/install | bash
+  ```
+
 - **Python 3.11+**: Required for `lintro` linting tool
 - **uv**: Python package manager for `lintro`
 
   ```bash
-  pip install uv
+  curl -LsSf https://astral.sh/uv/install.sh | sh
   ```
 
 ### Building
@@ -27,18 +39,21 @@ guidelines and information for contributors.
 git clone https://github.com/lgtm-hq/Rustume.git
 cd Rustume
 
-# Build all crates
-cargo build
+# Verify prerequisites, install web dependencies, and build WASM
+make setup
 
-# Build in release mode
-cargo build --release
+# Start the API and web app
+make dev
 ```
+
+The API listens on <http://localhost:3000>. The Vite dev server listens on
+<http://localhost:5173> and proxies API calls to the server.
 
 ### Running Tests
 
 ```bash
 # Run all workspace tests
-cargo test --workspace
+make test
 
 # Run tests for a specific crate
 cargo test -p rustume-schema
@@ -61,10 +76,12 @@ uv run lintro chk
 uv run lintro fmt
 ```
 
-Additionally, run Clippy for Rust-specific lints:
+Use the Makefile for common build flows:
 
 ```bash
-cargo clippy --workspace -- -D warnings
+make build       # Build WASM, server, and web bundle
+make preview     # Preview production assets locally
+docker compose up # Run the published container image
 ```
 
 ## Architecture Overview
@@ -74,9 +91,9 @@ Rustume follows a modular crate architecture:
 ```text
 ┌─────────────────────────────────────────────────────────────┐
 │                    Rust Core (rustume-*)                     │
-│  ┌────────┐  ┌────────┐  ┌────────┐                         │
-│  │  WASM  │  │  CLI   │  │ Server │                         │
-│  └────────┘  └────────┘  └────────┘                         │
+│  ┌────────┐  ┌────────┐  ┌────────┐  ┌────────┐             │
+│  │  WASM  │  │  CLI   │  │ Server │  │  Web   │             │
+│  └────────┘  └────────┘  └────────┘  └────────┘             │
 │                                                              │
 │  Crates: schema | parser | render | storage | utils          │
 └─────────────────────────────────────────────────────────────┘
@@ -94,6 +111,7 @@ Rustume follows a modular crate architecture:
 | `rustume-cli`     | Command-line interface binary                              |
 | `rustume-server`  | REST API with OpenAPI documentation                        |
 | `rustume-wasm`    | WebAssembly bindings for browser usage                     |
+| `apps/web`        | SolidJS resume builder served by Vite or the Rust server   |
 
 ### Dependency Flow
 
@@ -167,8 +185,7 @@ docs: update README with deployment instructions
 3. **Run checks locally**:
 
    ```bash
-   cargo test --workspace
-   cargo clippy --workspace
+   make test
    uv run lintro chk
    ```
 
