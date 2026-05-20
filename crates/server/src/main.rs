@@ -1254,6 +1254,23 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_asset_miss_returns_404() {
+        let app = create_router();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/assets/missing.js")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
     async fn test_post_to_unmatched_route_returns_method_not_allowed() {
         let app = create_router();
 
