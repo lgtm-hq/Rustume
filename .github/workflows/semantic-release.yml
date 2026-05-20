@@ -5,10 +5,10 @@ name: Release - Automated PR Creation
 # Uses lgtm-ci calculate-version action for version computation.
 
 "on":
-  # Gate releases on CI passing: only trigger after the Rust test suite
+  # Gate releases on CI passing: only trigger after the Rust build workflow
   # completes on main. The job condition below rejects failed runs.
   workflow_run:
-    workflows: ["Test - Rust Test Suite"]
+    workflows: ["Rust Build (workspace)"]
     branches: [main]
     types: [completed]
   # For commits that don't touch Rust source (docs, scripts, Docker, etc.)
@@ -22,6 +22,7 @@ name: Release - Automated PR Creation
       - "docs/**"
       - "scripts/**"
       - "docker/**"
+      - "**.rs"
       - "**.md"
       - "renovate.json"
       - ".github/**"
