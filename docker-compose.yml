@@ -1,17 +1,12 @@
-# Local development build — builds from source instead of pulling from GHCR.
-# For the published-image version, use the root docker-compose.yml.
 ---
 services:
   rustume:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-    image: rustume:local
-    container_name: rustume-dev
+    image: ghcr.io/lgtm-hq/rustume:latest
+    container_name: rustume
     ports:
       - "3000:3000"
     environment:
-      RUST_LOG: debug
+      RUST_LOG: info
       PORT: "3000"
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
     restart: unless-stopped

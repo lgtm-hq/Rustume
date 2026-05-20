@@ -10,6 +10,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- Serve the web app from the Docker image for a single-container deployment.
+- Add root Docker Compose and deployment documentation.
+
+### Fixed
+
+- Publish release Docker images with semantic and `latest` tags.
+- Trigger release automation from the current Rust build workflow.
+- Include the LinkedIn ZIP fixture required by parser integration tests.
+
 ## [0.11.0] - 2026-04-01
 
 ### Added

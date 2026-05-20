@@ -2,8 +2,10 @@
 target/
 *.rs.bk
 
-# Web frontend (not built by this Dockerfile — API server only)
-apps/
+# Web frontend local artifacts
+apps/web/dist/
+apps/web/node_modules/
+apps/web/wasm/
 
 # IDE
 .idea/

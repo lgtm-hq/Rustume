@@ -18,7 +18,7 @@ static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
 use anyhow::Context;
 use axum::{
-    extract::{DefaultBodyLimit, Path},
+    extract::{DefaultBodyLimit, Path, State},
     http::{header, HeaderValue, Method, StatusCode},
     middleware,
     response::{IntoResponse, Response},
@@ -32,7 +32,8 @@ use rustume_schema::ResumeData;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::num::NonZeroUsize;
-use std::sync::OnceLock;
+use std::path::{Component, Path as FsPath, PathBuf};
+use std::sync::{Arc, OnceLock};
 use tokio::signal;
 use tokio::sync::Mutex;
 use tower_http::{
@@ -51,6 +52,9 @@ const MAX_BODY_SIZE: usize = 10 * 1024 * 1024;
 
 /// Default server port
 const DEFAULT_PORT: u16 = 3000;
+
+/// Default location for the production web bundle in the container image.
+const DEFAULT_STATIC_DIR: &str = "/app/web";
 
 // ============================================================================
 // OpenAPI Documentation
@@ -723,7 +727,129 @@ async fn security_headers(req: axum::extract::Request, next: middleware::Next) -
     response
 }
 
+fn static_dir() -> PathBuf {
+    std::env::var("RUSTUME_STATIC_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from(DEFAULT_STATIC_DIR))
+}
+
+fn is_reserved_server_path(path: &str) -> bool {
+    path == "/api"
+        || path.starts_with("/api/")
+        || path == "/api-docs"
+        || path.starts_with("/api-docs/")
+        || path == "/swagger-ui"
+        || path.starts_with("/swagger-ui/")
+        || path == "/health"
+}
+
+fn sanitize_static_path(path: &str) -> Option<PathBuf> {
+    let relative = path.trim_start_matches('/');
+    let relative = if relative.is_empty() {
+        "index.html"
+    } else {
+        relative
+    };
+
+    let mut safe = PathBuf::new();
+    for component in FsPath::new(relative).components() {
+        match component {
+            Component::Normal(part) => safe.push(part),
+            _ => return None,
+        }
+    }
+
+    Some(safe)
+}
+
+fn content_type(path: &FsPath) -> &'static str {
+    match path.extension().and_then(|extension| extension.to_str()) {
+        Some("css") => "text/css; charset=utf-8",
+        Some("html") => "text/html; charset=utf-8",
+        Some("js") => "text/javascript; charset=utf-8",
+        Some("json") => "application/json; charset=utf-8",
+        Some("png") => "image/png",
+        Some("svg") => "image/svg+xml",
+        Some("wasm") => "application/wasm",
+        Some("webmanifest") => "application/manifest+json; charset=utf-8",
+        Some("woff2") => "font/woff2",
+        _ => "application/octet-stream",
+    }
+}
+
+fn cache_control(path: &FsPath) -> &'static str {
+    if path.starts_with("assets") {
+        "public, max-age=31536000, immutable"
+    } else {
+        "no-cache"
+    }
+}
+
+async fn serve_static_file(path: &FsPath, relative: &FsPath) -> Option<Response> {
+    match tokio::fs::read(path).await {
+        Ok(body) => Response::builder()
+            .header(header::CONTENT_TYPE, content_type(path))
+            .header(header::CACHE_CONTROL, cache_control(relative))
+            .body(axum::body::Body::from(body))
+            .ok(),
+        Err(_) => None,
+    }
+}
+
+async fn spa_fallback(
+    State(static_root): State<Arc<PathBuf>>,
+    method: Method,
+    uri: axum::http::Uri,
+) -> Response {
+    let path = uri.path();
+    if is_reserved_server_path(path) {
+        return ApiError::not_found("Route not found").into_response();
+    }
+
+    if method != Method::GET && method != Method::HEAD {
+        return (StatusCode::METHOD_NOT_ALLOWED, "Method not allowed").into_response();
+    }
+
+    let Some(relative_path) = sanitize_static_path(path) else {
+        return ApiError::not_found("Route not found").into_response();
+    };
+
+    let root = static_root.as_path();
+    let asset_path = root.join(&relative_path);
+
+    // Prevent symlink escape: verify resolved path stays within the static root.
+    if let (Ok(canonical_root), Ok(canonical_asset)) = (
+        tokio::fs::canonicalize(&root).await,
+        tokio::fs::canonicalize(&asset_path).await,
+    ) {
+        if !canonical_asset.starts_with(&canonical_root) {
+            return ApiError::not_found("Route not found").into_response();
+        }
+        if let Some(response) = serve_static_file(&canonical_asset, &relative_path).await {
+            return response;
+        }
+    } else if asset_path.extension().is_some() {
+        return (StatusCode::NOT_FOUND, "Not Found").into_response();
+    } else if let Some(response) = serve_static_file(&asset_path, &relative_path).await {
+        return response;
+    }
+
+    // SPA fallback: serve index.html for client-side routing
+    let index_path = root.join("index.html");
+    let index_relative = PathBuf::from("index.html");
+    serve_static_file(&index_path, &index_relative)
+        .await
+        .unwrap_or_else(|| {
+            ApiError::not_found(format!("Web UI assets not found in {}", root.display()))
+                .into_response()
+        })
+}
+
 fn create_router() -> Router {
+    create_router_with_static_dir(static_dir())
+}
+
+fn create_router_with_static_dir(dir: PathBuf) -> Router {
     // CORS configuration: restrict origins via CORS_ORIGIN env var, default to "*"
     let cors = {
         let base = CorsLayer::new()
@@ -755,6 +881,8 @@ fn create_router() -> Router {
         .route("/api/render/pdf", post(render_pdf))
         .route("/api/render/preview", post(render_preview))
         .route("/api/validate", post(validate))
+        .fallback(spa_fallback)
+        .with_state(Arc::new(dir))
         // Middleware
         .layer(middleware::from_fn(security_headers))
         .layer(CompressionLayer::new())
@@ -863,7 +991,10 @@ async fn main() -> anyhow::Result<()> {
         addr.ip(),
         port
     );
-    info!("Web UI available at http://localhost:5173 (run 'make web' or 'make dev')");
+    info!(
+        "Serving web UI assets from {} (set RUSTUME_STATIC_DIR to override)",
+        static_dir().display()
+    );
     info!(
         "CORS origin: {}",
         std::env::var("CORS_ORIGIN").unwrap_or_else(|_| "*".to_string())
@@ -1112,6 +1243,67 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_unknown_api_route_returns_not_found() {
+        let app = create_router();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/missing")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_asset_miss_returns_404() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("index.html"), "<html></html>").unwrap();
+        let app = create_router_with_static_dir(tmp.path().to_path_buf());
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/assets/missing.js")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_post_to_unmatched_route_returns_method_not_allowed() {
+        let app = create_router();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/some-unmatched-path")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
+    }
+
+    #[test]
+    fn test_static_path_rejects_traversal() {
+        assert!(sanitize_static_path("/assets/app.js").is_some());
+        assert!(sanitize_static_path("/../Cargo.toml").is_none());
+        assert!(sanitize_static_path("/assets/../Cargo.toml").is_none());
     }
 
     #[tokio::test]

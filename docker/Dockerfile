@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1@sha256:2780b5c3bab67f1f76c781860de469442999ed1a0d7992a5efdf2cffc0e3d769
-# Rustume API Server Dockerfile
+# Rustume Dockerfile
 # Multi-stage build with cargo-chef dependency caching + BuildKit registry cache
-# Stages: chef → planner → builder → runtime
+# Stages: chef → planner → builder → web-builder → runtime
 
 # =============================================================================
 # Stage 1: Chef base (shared toolchain for planner + builder)
@@ -75,7 +75,35 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,id=rustume-registry-${TA
     cp "target/${RUST_TARGET}/release/rustume-server" /app/rustume-server
 
 # =============================================================================
-# Stage 4: Runtime (distroless/static — no libc, no CVEs)
+# Stage 4: Web builder (WASM bindings + Vite static bundle)
+# =============================================================================
+FROM chef AS web-builder
+
+SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
+
+ENV BUN_INSTALL=/usr/local/bun
+ENV PATH="${BUN_INSTALL}/bin:${PATH}"
+
+RUN apk add --no-cache bash unzip ca-certificates && \
+    rustup target add wasm32-unknown-unknown && \
+    cargo install wasm-pack --locked && \
+    curl -fsSL https://bun.sh/install | bash
+
+COPY apps/web/package.json apps/web/bun.lock ./apps/web/
+WORKDIR /app/apps/web
+RUN bun install --frozen-lockfile
+
+WORKDIR /app
+COPY Cargo.toml Cargo.lock ./
+COPY crates ./crates
+COPY bindings ./bindings
+COPY apps ./apps
+WORKDIR /app/apps/web
+RUN bun run build:wasm && \
+    bun run build
+
+# =============================================================================
+# Stage 5: Runtime (distroless/static — no libc, no CVEs)
 # =============================================================================
 FROM gcr.io/distroless/static:nonroot@sha256:963fa6c544fe5ce420f1f54fb88b6fb01479f054c8056d0f74cc2c6000df5240 AS runtime
 
@@ -84,6 +112,9 @@ WORKDIR /app
 # Copy binary from builder
 COPY --from=builder /app/rustume-server /app/rustume-server
 
+# Copy web app from web-builder
+COPY --from=web-builder /app/apps/web/dist /app/web
+
 # Copy font files from builder (needed for PDF rendering)
 COPY --from=builder /usr/share/fonts/liberation /usr/share/fonts/truetype/liberation
 COPY --from=builder /usr/share/fonts/dejavu /usr/share/fonts/truetype/dejavu
@@ -91,6 +122,7 @@ COPY --from=builder /usr/share/fonts/dejavu /usr/share/fonts/truetype/dejavu
 # Environment variables
 ENV RUST_LOG=info
 ENV PORT=3000
+ENV RUSTUME_STATIC_DIR=/app/web
 
 # Expose port
 EXPOSE 3000

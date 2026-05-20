@@ -34,15 +34,35 @@ A privacy-first, offline-first resume builder powered by Rust.
 ## 🚀 Quick Start
 
 ```bash
+# One-command local setup
+make setup
+
+# Start the API and web dev server
+make dev
+```
+
+Open <http://localhost:5173> to use the web app during development.
+
+For Docker:
+
+```bash
+docker run -p 3000:3000 ghcr.io/lgtm-hq/rustume:latest
+```
+
+Open <http://localhost:3000> for the full resume builder UI.
+
+CLI commands are also available:
+
+```bash
 # Build all crates
-cargo build --workspace --all-features
+make build
 
 # Run the CLI
 cargo run -p rustume-cli -- parse resume.json -o rustume.json
 cargo run -p rustume-cli -- render rustume.json -o resume.pdf
 
 # Run tests
-cargo test --workspace
+make test
 ```
 
 ## ✨ Why Rustume?
@@ -77,24 +97,35 @@ rustume init -o my-resume.json
 ## 🐳 Docker
 
 ```bash
-# Build
-docker build -t rustume-server -f docker/Dockerfile .
+# Pull and run the published image
+docker run -p 3000:3000 ghcr.io/lgtm-hq/rustume:latest
 
-# Run
-docker run -p 3000:3000 rustume-server
+# Or use Compose from the repository root
+docker compose up
+
+# Build locally
+docker build -t rustume -f docker/Dockerfile .
+
+# Run a local build
+docker run -p 3000:3000 rustume
 
 # Health check
 curl http://localhost:3000/health
 ```
 
-Swagger UI is available at `/swagger-ui/` and the OpenAPI spec at
-`/api-docs/openapi.json`.
+The container serves the SolidJS web app at `/`, Swagger UI at `/swagger-ui/`,
+and the OpenAPI spec at `/api-docs/openapi.json`.
+
+See [Deployment](docs/deployment.md) for environment variables and production
+deployment notes.
 
 ## 🔨 Development
 
 ### Prerequisites
 
 - **Rust** (stable) - [Install via rustup](https://rustup.rs/)
+- **wasm-pack** - install with `cargo install wasm-pack`
+- **bun** - [Install from bun.sh](https://bun.sh/)
 - **Python** 3.11+ with uv (for lintro)
 
 ### Setup
@@ -103,17 +134,19 @@ Swagger UI is available at `/swagger-ui/` and the OpenAPI spec at
 git clone https://github.com/lgtm-hq/Rustume.git
 cd Rustume
 
-# Build all crates
-cargo build --workspace
+# Verify prerequisites, install web dependencies, and build WASM
+make setup
 
-# Run tests
-cargo test --workspace
+# Start API + web dev servers
+make dev
+```
 
-# Build CLI in release mode
-cargo build -p rustume-cli --release
+Useful targets:
 
-# Build WASM bindings
-cd bindings/wasm && wasm-pack build
+```bash
+make build       # Build WASM, server, and web bundle
+make test        # Run Rust and web tests
+make preview     # Preview production build locally
 ```
 
 ### Linting
@@ -121,7 +154,6 @@ cd bindings/wasm && wasm-pack build
 ```bash
 uv run lintro chk        # Check for issues
 uv run lintro fmt        # Auto-fix formatting
-cargo clippy --workspace # Rust-specific lints
 ```
 
 ## 🙏 Acknowledgements

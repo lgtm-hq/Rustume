@@ -37,9 +37,11 @@ export async function initWasm(): Promise<void> {
   if (wasmInitPromise) return wasmInitPromise;
 
   wasmInitPromise = (async () => {
-    // Dynamic import - will fail gracefully if WASM not built
-    // @ts-ignore TS2307 - WASM build output is gitignored; module may not exist
-    const wasm = (await import("../../wasm/rustume_wasm")) as unknown as WasmModule;
+    // Use an absolute public path so the browser resolves the wasm-pack output
+    // regardless of the chunk's location in the Vite bundle. The copy-wasm.js
+    // script (or Dockerfile) places the module at /wasm/rustume_wasm.js.
+    const wasmPath = "/wasm/rustume_wasm.js";
+    const wasm = (await import(/* @vite-ignore */ wasmPath)) as unknown as WasmModule;
     await wasm.default();
     wasmModule = wasm;
   })()
