@@ -1,10 +1,11 @@
 import { onMount, createSignal, Show, type ParentComponent } from "solid-js";
 import { AppShell } from "./components/layout/AppShell";
-import { ToastRegion } from "./components/ui";
+import { Button, ToastRegion } from "./components/ui";
 import { initWasm } from "./wasm";
 
 const App: ParentComponent = (props) => {
   const [wasmError, setWasmError] = createSignal<string | null>(null);
+  const [showWasmNotice, setShowWasmNotice] = createSignal(true);
 
   onMount(async () => {
     try {
@@ -17,10 +18,19 @@ const App: ParentComponent = (props) => {
   });
 
   return (
-    <div class={wasmError() ? "pt-10" : ""}>
-      <Show when={wasmError()}>
-        <div class="fixed top-0 left-0 right-0 h-10 bg-amber-100 px-4 py-2 text-center text-sm text-amber-800 z-50">
-          Some features unavailable (WASM): {wasmError()}
+    <div class={wasmError() && showWasmNotice() ? "pt-16" : ""}>
+      <Show when={wasmError() && showWasmNotice()}>
+        <div class="fixed top-0 left-0 right-0 z-50 border-b border-amber-300 bg-amber-100 px-4 py-3 text-sm text-amber-950 shadow-soft">
+          <div class="mx-auto flex max-w-6xl items-center justify-between gap-4">
+            <p>
+              Browser import features are using the server fallback because the WASM module did not
+              load. Run <code class="font-mono">make setup</code> in development, or continue if you
+              are using the hosted app.
+            </p>
+            <Button variant="ghost" size="sm" onClick={() => setShowWasmNotice(false)}>
+              Dismiss
+            </Button>
+          </div>
         </div>
       </Show>
       <AppShell>{props.children}</AppShell>

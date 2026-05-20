@@ -82,7 +82,7 @@ test:
 	cargo test --workspace
 	@echo "Running web tests..."
 	@if grep -q '"test"' apps/web/package.json 2>/dev/null; then \
-		cd apps/web && bun test; \
+		cd apps/web && bun run test; \
 	else \
 		echo "Skipping web tests (no test script configured)"; \
 	fi

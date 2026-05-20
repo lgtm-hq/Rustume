@@ -6,6 +6,7 @@ import "./index.css";
 
 const Home = lazy(() => import("./pages/Home"));
 const Editor = lazy(() => import("./pages/Editor"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const root = document.getElementById("root");
 
@@ -18,6 +19,7 @@ render(
     <Router root={App}>
       <Route path="/" component={Home} />
       <Route path="/edit/:id" component={Editor} />
+      <Route path="*404" component={NotFound} />
     </Router>
   ),
   root,
