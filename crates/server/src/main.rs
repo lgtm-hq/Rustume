@@ -18,7 +18,7 @@ static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
 use anyhow::Context;
 use axum::{
-    extract::{DefaultBodyLimit, Path},
+    extract::{DefaultBodyLimit, Path, State},
     http::{header, HeaderValue, Method, StatusCode},
     middleware,
     response::{IntoResponse, Response},
@@ -33,7 +33,7 @@ use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::num::NonZeroUsize;
 use std::path::{Component, Path as FsPath, PathBuf};
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 use tokio::signal;
 use tokio::sync::Mutex;
 use tower_http::{
@@ -796,7 +796,11 @@ async fn serve_static_file(path: &FsPath, relative: &FsPath) -> Option<Response>
     }
 }
 
-async fn spa_fallback(method: Method, uri: axum::http::Uri) -> Response {
+async fn spa_fallback(
+    State(static_root): State<Arc<PathBuf>>,
+    method: Method,
+    uri: axum::http::Uri,
+) -> Response {
     let path = uri.path();
     if is_reserved_server_path(path) {
         return ApiError::not_found("Route not found").into_response();
@@ -810,7 +814,7 @@ async fn spa_fallback(method: Method, uri: axum::http::Uri) -> Response {
         return ApiError::not_found("Route not found").into_response();
     };
 
-    let root = static_dir();
+    let root = static_root.as_path();
     let asset_path = root.join(&relative_path);
 
     // Prevent symlink escape: verify resolved path stays within the static root.
@@ -842,6 +846,10 @@ async fn spa_fallback(method: Method, uri: axum::http::Uri) -> Response {
 }
 
 fn create_router() -> Router {
+    create_router_with_static_dir(static_dir())
+}
+
+fn create_router_with_static_dir(dir: PathBuf) -> Router {
     // CORS configuration: restrict origins via CORS_ORIGIN env var, default to "*"
     let cors = {
         let base = CorsLayer::new()
@@ -874,6 +882,7 @@ fn create_router() -> Router {
         .route("/api/render/preview", post(render_preview))
         .route("/api/validate", post(validate))
         .fallback(spa_fallback)
+        .with_state(Arc::new(dir))
         // Middleware
         .layer(middleware::from_fn(security_headers))
         .layer(CompressionLayer::new())
@@ -1255,7 +1264,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_asset_miss_returns_404() {
-        let app = create_router();
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("index.html"), "<html></html>").unwrap();
+        let app = create_router_with_static_dir(tmp.path().to_path_buf());
 
         let response = app
             .oneshot(
