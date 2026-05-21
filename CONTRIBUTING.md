@@ -223,6 +223,29 @@ The PR title becomes the merge commit message (squash merge). Follow the same co
 - Use descriptive test names: `test_parse_json_resume_with_empty_basics`
 - Test both success and error paths
 
+## Troubleshooting
+
+### `make build` fails downloading Swagger UI
+
+The server crate uses `utoipa-swagger-ui` with the `reqwest` feature so Swagger
+UI is downloaded at compile time using system TLS (not `curl` with a hardcoded
+CA path). If the error persists, ensure network access to GitHub releases and
+run `cargo clean -p utoipa-swagger-ui` before rebuilding.
+
+### `docker build` fails installing bun (SSL error)
+
+The Dockerfile runs `update-ca-certificates` before any `curl` to GitHub. If
+you are behind a corporate proxy, add your organization's CA to Docker Desktop
+(**Settings → Docker Engine** or trusted certs) and retry.
+
+### `docker pull ghcr.io/lgtm-hq/rustume:latest` not found
+
+Release images are published on `v*.*.*` tag push, not on every `main` merge.
+Check Actions → “Build - Docker Image & Registry” for the release tag workflow.
+Until then, build locally with `docker build -t rustume -f docker/Dockerfile .`
+or pull `:main` for the latest main-branch image. See
+[docs/deployment.md](docs/deployment.md).
+
 ## Getting Help
 
 - Open an issue for bugs or feature requests

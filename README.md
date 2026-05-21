@@ -43,13 +43,9 @@ make dev
 
 Open <http://localhost:5173> to use the web app during development.
 
-For Docker:
-
-```bash
-docker run -p 3000:3000 ghcr.io/lgtm-hq/rustume:latest
-```
-
-Open <http://localhost:3000> for the full resume builder UI.
+For self-hosting with Docker, see [Deployment](docs/deployment.md). The
+published image (`ghcr.io/lgtm-hq/rustume:latest`) requires a public GHCR package;
+if pull fails, build from source per the deployment guide.
 
 CLI commands are also available:
 
@@ -96,28 +92,14 @@ rustume init -o my-resume.json
 
 ## 🐳 Docker
 
+See [Deployment](docs/deployment.md) for pull-from-GHCR, build-from-source,
+compose layouts, environment variables, and troubleshooting.
+
+Quick check after the container is running:
+
 ```bash
-# Pull and run the published image
-docker run -p 3000:3000 ghcr.io/lgtm-hq/rustume:latest
-
-# Or use Compose from the repository root
-docker compose up
-
-# Build locally
-docker build -t rustume -f docker/Dockerfile .
-
-# Run a local build
-docker run -p 3000:3000 rustume
-
-# Health check
-curl http://localhost:3000/health
+curl -sf http://localhost:3000/health
 ```
-
-The container serves the SolidJS web app at `/`, Swagger UI at `/swagger-ui/`,
-and the OpenAPI spec at `/api-docs/openapi.json`.
-
-See [Deployment](docs/deployment.md) for environment variables and production
-deployment notes.
 
 ## 🔨 Development
 

@@ -79,20 +79,21 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,id=rustume-registry-${TA
 # Pinned to amd64: wasm-pack/wasm-bindgen produce arch-independent output and
 # the toolchain is more reliable on x86_64 (avoids arm64 wasm-bindgen crashes).
 # =============================================================================
-# DL3029: intentional — WASM output is arch-independent; arm64 wasm-bindgen crashes (exit 255)
-# hadolint ignore=DL3029
-FROM --platform=linux/amd64 rust:1.95-alpine@sha256:606fd313a0f49743ee2a7bd49a0914bab7deedb12791f3a846a34a4711db7ed2 AS web-builder
+ARG BUILDPLATFORM=linux/amd64
+ARG BUN_VERSION=1.3.13
+FROM --platform=${BUILDPLATFORM} rust:1.95-alpine@sha256:606fd313a0f49743ee2a7bd49a0914bab7deedb12791f3a846a34a4711db7ed2 AS web-builder
 
 WORKDIR /app
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 
-ENV BUN_INSTALL=/usr/local/bun
-ENV PATH="${BUN_INSTALL}/bin:${PATH}"
-
 RUN apk add --no-cache musl-dev bash unzip ca-certificates curl && \
+    update-ca-certificates && \
     rustup target add wasm32-unknown-unknown && \
     cargo install wasm-pack --locked && \
-    curl -fsSL https://bun.sh/install | bash
+    curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/bun-linux-x64-musl.zip" -o /tmp/bun.zip && \
+    unzip -q /tmp/bun.zip -d /tmp/bun && \
+    install -m 755 /tmp/bun/bun-linux-x64-musl/bun /usr/local/bin/bun && \
+    rm -rf /tmp/bun /tmp/bun.zip
 
 COPY apps/web/package.json apps/web/bun.lock ./apps/web/
 WORKDIR /app/apps/web

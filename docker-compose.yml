@@ -1,3 +1,5 @@
+# Requires a published GHCR image (ghcr.io/lgtm-hq/rustume:latest).
+# If pull fails, build from source — see docs/deployment.md.
 ---
 services:
   rustume:

@@ -94,6 +94,15 @@ jobs:
           path: artifacts
           merge-multiple: true
 
+      - name: Create GitHub App installation token
+        id: app-token
+        # yamllint disable-line rule:line-length
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
       - name: Create GitHub Release
         # yamllint disable-line rule:line-length
         uses: lgtm-hq/lgtm-ci/.github/actions/create-github-release@58be2e8b58936973af5da34f19f5fea7336ba1e5 # v0
@@ -101,3 +110,5 @@ jobs:
           tag: ${{ github.ref_name }}
           generate-notes: "true"
           files: artifacts/*
+          # App token so release:published can trigger downstream workflows
+          token: ${{ steps.app-token.outputs.token }}
