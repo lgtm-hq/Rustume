@@ -76,15 +76,20 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,id=rustume-registry-${TA
 
 # =============================================================================
 # Stage 4: Web builder (WASM bindings + Vite static bundle)
+# Pinned to amd64: wasm-pack/wasm-bindgen produce arch-independent output and
+# the toolchain is more reliable on x86_64 (avoids arm64 wasm-bindgen crashes).
 # =============================================================================
-FROM chef AS web-builder
+# DL3029: intentional — WASM output is arch-independent; arm64 wasm-bindgen crashes (exit 255)
+# hadolint ignore=DL3029
+FROM --platform=linux/amd64 rust:1.95-alpine@sha256:606fd313a0f49743ee2a7bd49a0914bab7deedb12791f3a846a34a4711db7ed2 AS web-builder
 
+WORKDIR /app
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 
 ENV BUN_INSTALL=/usr/local/bun
 ENV PATH="${BUN_INSTALL}/bin:${PATH}"
 
-RUN apk add --no-cache bash unzip ca-certificates && \
+RUN apk add --no-cache musl-dev bash unzip ca-certificates && \
     rustup target add wasm32-unknown-unknown && \
     cargo install wasm-pack --locked && \
     curl -fsSL https://bun.sh/install | bash
