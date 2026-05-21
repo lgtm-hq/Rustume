@@ -89,7 +89,7 @@ SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 ENV BUN_INSTALL=/usr/local/bun
 ENV PATH="${BUN_INSTALL}/bin:${PATH}"
 
-RUN apk add --no-cache musl-dev bash unzip ca-certificates && \
+RUN apk add --no-cache musl-dev bash unzip ca-certificates curl && \
     rustup target add wasm32-unknown-unknown && \
     cargo install wasm-pack --locked && \
     curl -fsSL https://bun.sh/install | bash
