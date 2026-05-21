@@ -4,6 +4,7 @@ vi.mock("@lgtm-hq/turbo-themes", () => ({
   flavors: [
     {
       id: "catppuccin-mocha",
+      label: "Mocha",
       appearance: "dark",
       tokens: {
         background: { base: "#1e1e2e", surface: "#313244", overlay: "#45475a" },
@@ -17,6 +18,7 @@ vi.mock("@lgtm-hq/turbo-themes", () => ({
     },
     {
       id: "catppuccin-latte",
+      label: "Latte",
       appearance: "light",
       tokens: {
         background: { base: "#eff1f5", surface: "#ccd0da", overlay: "#9ca0b0" },
@@ -31,7 +33,6 @@ vi.mock("@lgtm-hq/turbo-themes", () => ({
   ],
 }));
 
-// Import AFTER the mock is set up so the module uses the mocked flavors
 import { useEditorTheme } from "../editorTheme";
 
 describe("useEditorTheme", () => {
@@ -47,9 +48,10 @@ describe("useEditorTheme", () => {
     });
   });
 
-  it("setTheme with invalid ID does not change themeId", () => {
-    createRoot((dispose) => {
-      const { state, setTheme } = useEditorTheme();
+  it("setTheme with invalid ID does not change themeId", async () => {
+    await createRoot(async (dispose) => {
+      const { state, setTheme, ensureFlavorsLoaded } = useEditorTheme();
+      await ensureFlavorsLoaded();
       const before = state.themeId;
 
       setTheme("non-existent-theme");
@@ -58,10 +60,11 @@ describe("useEditorTheme", () => {
     });
   });
 
-  it("setTheme with valid ID updates themeId and saves to localStorage", () => {
-    createRoot((dispose) => {
-      const { state, setTheme } = useEditorTheme();
+  it("setTheme with valid ID updates themeId and saves to localStorage", async () => {
+    await createRoot(async (dispose) => {
+      const { state, setTheme, ensureFlavorsLoaded } = useEditorTheme();
 
+      await ensureFlavorsLoaded();
       setTheme("catppuccin-latte");
       expect(state.themeId).toBe("catppuccin-latte");
       expect(localStorage.getItem("rustume-editor-theme")).toBe("catppuccin-latte");

@@ -87,9 +87,26 @@ export default defineConfig({
   },
   build: {
     target: "esnext",
+    chunkSizeWarningLimit: 500,
     rollupOptions: {
       // Handle dynamic WASM import - will fail gracefully at runtime if not present
       external: (id) => /\/wasm\/rustume_wasm/.test(id),
+      output: {
+        manualChunks(id) {
+          if (id.includes("@tiptap/") || id.includes("prosemirror")) {
+            return "tiptap";
+          }
+          if (id.includes("@thisbeyond/solid-dnd")) {
+            return "solid-dnd";
+          }
+          if (id.includes("@kobalte/")) {
+            return "kobalte";
+          }
+          if (id.includes("@lgtm-hq/turbo-themes")) {
+            return "turbo-themes";
+          }
+        },
+      },
     },
   },
   optimizeDeps: {

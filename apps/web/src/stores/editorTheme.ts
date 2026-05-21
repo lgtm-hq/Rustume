@@ -1,74 +1,85 @@
 import { createStore } from "solid-js/store";
-import { flavors as turboFlavors, type ThemeFlavor, type ThemeTokens } from "@lgtm-hq/turbo-themes";
+import type { ThemeFlavor, ThemeTokens } from "@lgtm-hq/turbo-themes";
 import { toast } from "../components/ui";
 
 const STORAGE_KEY = "rustume-editor-theme";
+const DEFAULT_THEME_ID = "catppuccin-mocha";
 
-// Re-export types from turbo-themes
 export type { ThemeFlavor, ThemeTokens };
 
-// Use flavors directly from turbo-themes package
-export const flavors: readonly ThemeFlavor[] = turboFlavors;
+let flavorsCache: readonly ThemeFlavor[] | null = null;
+let flavorsLoad: Promise<readonly ThemeFlavor[]> | null = null;
+
+/** Load theme flavors on demand so the home route avoids the full turbo-themes bundle. */
+export async function loadThemeFlavors(): Promise<readonly ThemeFlavor[]> {
+  if (flavorsCache) {
+    return flavorsCache;
+  }
+  if (!flavorsLoad) {
+    flavorsLoad = import("@lgtm-hq/turbo-themes").then((module) => {
+      flavorsCache = module.flavors;
+      return flavorsCache;
+    });
+  }
+  return flavorsLoad;
+}
 
 export interface EditorThemeState {
   themeId: string;
   savedThemeLoadFailed: boolean;
+  flavorsReady: boolean;
 }
 
-// Get initial theme from localStorage or default to catppuccin-mocha
-function getInitialTheme(): { themeId: string; failed: boolean } {
-  if (typeof window === "undefined") return { themeId: "catppuccin-mocha", failed: false };
+function getInitialThemeId(): { themeId: string; failed: boolean } {
+  if (typeof window === "undefined") {
+    return { themeId: DEFAULT_THEME_ID, failed: false };
+  }
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved && flavors.some((f) => f.id === saved)) {
+    if (saved) {
       return { themeId: saved, failed: false };
     }
   } catch {
     console.error("Failed to read theme from localStorage");
-    return { themeId: "catppuccin-mocha", failed: true };
+    return { themeId: DEFAULT_THEME_ID, failed: true };
   }
-  return { themeId: "catppuccin-mocha", failed: false };
+  return { themeId: DEFAULT_THEME_ID, failed: false };
 }
 
-const initialTheme = getInitialTheme();
+const initialTheme = getInitialThemeId();
 const [state, setState] = createStore<EditorThemeState>({
   themeId: initialTheme.themeId,
   savedThemeLoadFailed: initialTheme.failed,
+  flavorsReady: false,
 });
 
-// Apply CSS variables to document root
 function applyTheme(theme: ThemeFlavor) {
   const root = document.documentElement;
   const { tokens } = theme;
 
-  // Background colors
   root.style.setProperty("--turbo-bg-base", tokens.background.base);
   root.style.setProperty("--turbo-bg-surface", tokens.background.surface);
   root.style.setProperty("--turbo-bg-overlay", tokens.background.overlay);
-
-  // Text colors
   root.style.setProperty("--turbo-text-primary", tokens.text.primary);
   root.style.setProperty("--turbo-text-secondary", tokens.text.secondary);
   root.style.setProperty("--turbo-text-inverse", tokens.text.inverse);
-
-  // Brand/accent colors
   root.style.setProperty("--turbo-brand-primary", tokens.brand.primary);
   root.style.setProperty("--turbo-accent-link", tokens.accent.link);
-
-  // State colors
   root.style.setProperty("--turbo-state-info", tokens.state.info);
   root.style.setProperty("--turbo-state-success", tokens.state.success);
   root.style.setProperty("--turbo-state-warning", tokens.state.warning);
   root.style.setProperty("--turbo-state-danger", tokens.state.danger);
-
-  // Border
   root.style.setProperty("--turbo-border-default", tokens.border.default);
-
-  // Content/selection colors
   root.style.setProperty("--turbo-selection-bg", tokens.content.selection.bg);
-
-  // Set appearance attribute for light/dark mode
   root.setAttribute("data-theme-appearance", theme.appearance);
+}
+
+function resolveTheme(flavors: readonly ThemeFlavor[], themeId: string): ThemeFlavor | undefined {
+  const theme = flavors.find((flavor) => flavor.id === themeId);
+  if (theme) {
+    return theme;
+  }
+  return flavors.find((flavor) => flavor.id === DEFAULT_THEME_ID);
 }
 
 export function useEditorTheme() {
@@ -76,12 +87,41 @@ export function useEditorTheme() {
     state,
 
     get currentTheme(): ThemeFlavor | undefined {
-      return flavors.find((f) => f.id === state.themeId);
+      if (!flavorsCache) {
+        return undefined;
+      }
+      return resolveTheme(flavorsCache, state.themeId);
+    },
+
+    async ensureFlavorsLoaded(): Promise<readonly ThemeFlavor[]> {
+      const flavors = await loadThemeFlavors();
+      setState("flavorsReady", true);
+
+      if (state.savedThemeLoadFailed) {
+        toast.warning("Could not load saved theme preference");
+        setState("savedThemeLoadFailed", false);
+      }
+
+      const savedExists = flavors.some((flavor) => flavor.id === state.themeId);
+      if (!savedExists) {
+        setState("themeId", DEFAULT_THEME_ID);
+      }
+
+      const theme = resolveTheme(flavors, state.themeId);
+      if (theme) {
+        applyTheme(theme);
+      }
+      return flavors;
     },
 
     setTheme(themeId: string) {
-      const theme = flavors.find((f) => f.id === themeId);
-      if (!theme) return;
+      if (!flavorsCache) {
+        return;
+      }
+      const theme = flavorsCache.find((flavor) => flavor.id === themeId);
+      if (!theme) {
+        return;
+      }
 
       setState("themeId", themeId);
       try {
@@ -92,24 +132,7 @@ export function useEditorTheme() {
       }
       applyTheme(theme);
     },
-
-    // Initialize theme on app start
-    init() {
-      if (state.savedThemeLoadFailed) {
-        toast.warning("Could not load saved theme preference");
-        setState("savedThemeLoadFailed", false);
-      }
-      const theme = flavors.find((f) => f.id === state.themeId);
-      if (theme) {
-        applyTheme(theme);
-      }
-    },
   };
 }
 
 export const editorThemeStore = useEditorTheme();
-
-// Initialize theme immediately when module loads (client-side only)
-if (typeof window !== "undefined") {
-  editorThemeStore.init();
-}
