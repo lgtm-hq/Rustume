@@ -102,11 +102,11 @@ RUN apk add --no-cache musl-dev bash unzip ca-certificates curl && \
     BUN_ZIP="bun-linux-${BUN_ARCH}.zip" && \
     curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/${BUN_ZIP}" -o "/tmp/${BUN_ZIP}" && \
     curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/SHASUMS256.txt" -o /tmp/SHASUMS256.txt && \
-    grep "${BUN_ZIP}" /tmp/SHASUMS256.txt > "/tmp/${BUN_ZIP}.sha256" && \
-    (cd /tmp && sha256sum -c "${BUN_ZIP}.sha256") && \
+    HASH="$(grep "${BUN_ZIP}" /tmp/SHASUMS256.txt | awk '{print $1}')" && \
+    echo "${HASH}  /tmp/${BUN_ZIP}" | sha256sum -c - && \
     unzip -q "/tmp/${BUN_ZIP}" -d /tmp/bun && \
     install -m 755 "/tmp/bun/bun-linux-${BUN_ARCH}/bun" /usr/local/bin/bun && \
-    rm -rf /tmp/bun "/tmp/${BUN_ZIP}" /tmp/SHASUMS256.txt "/tmp/${BUN_ZIP}.sha256"
+    rm -rf /tmp/bun "/tmp/${BUN_ZIP}" /tmp/SHASUMS256.txt
 
 COPY apps/web/package.json apps/web/bun.lock ./apps/web/
 WORKDIR /app/apps/web
