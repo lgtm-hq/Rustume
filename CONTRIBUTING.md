@@ -243,6 +243,17 @@ UI is downloaded at compile time using system TLS (not `curl` with a hardcoded
 CA path). If the error persists, ensure network access to GitHub releases and
 run `cargo clean -p utoipa-swagger-ui` before rebuilding.
 
+Behind TLS-intercepting proxies, the download may still fail with
+`InvalidCertificate(UnknownIssuer)`. Point the build at a local copy of the
+Swagger UI zip instead (see the
+[swagger-ui releases](https://github.com/swagger-api/swagger-ui/tags) for the
+version pinned in `utoipa-swagger-ui`):
+
+```bash
+export SWAGGER_UI_DOWNLOAD_URL="file:///path/to/swagger-ui-5.17.14.zip"
+cargo build -p rustume-server
+```
+
 ### `docker build` fails installing bun (SSL or Rosetta)
 
 The Dockerfile runs `update-ca-certificates` before any `curl` to GitHub. If
