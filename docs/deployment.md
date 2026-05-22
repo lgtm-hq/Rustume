@@ -71,7 +71,7 @@ Published release images are signed with Sigstore keyless signing via the
 ```bash
 cosign verify ghcr.io/lgtm-hq/rustume:latest \
   --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
-  --certificate-identity-regexp="github.com/lgtm-hq/"
+  --certificate-identity-regexp="github.com/lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml"
 ```
 
 SLSA provenance and SBOM attestations are attached during publish. Verify
@@ -80,7 +80,7 @@ provenance with:
 ```bash
 cosign verify-attestation --type https://slsa.dev/provenance/v1 ghcr.io/lgtm-hq/rustume:latest \
   --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
-  --certificate-identity-regexp="github.com/lgtm-hq/"
+  --certificate-identity-regexp="github.com/lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml"
 ```
 
 ## Image Tags

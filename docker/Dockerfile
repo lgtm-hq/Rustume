@@ -76,8 +76,9 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,id=rustume-registry-${TA
 
 # =============================================================================
 # Stage 4: Web builder (WASM bindings + Vite static bundle)
-# Uses TARGETPLATFORM so bun/wasm tools match the image arch (buildx sets this per
-# matrix leg). Local builds: pass --platform linux/arm64 on Apple Silicon.
+# Buildx sets the target platform per matrix leg; explicit --platform=$TARGETPLATFORM
+# is redundant (BuildKit RedundantTargetPlatform) because it matches the default.
+# Local builds: pass --platform linux/arm64 on Apple Silicon.
 # =============================================================================
 FROM rust:1.95-alpine@sha256:606fd313a0f49743ee2a7bd49a0914bab7deedb12791f3a846a34a4711db7ed2 AS web-builder
 
