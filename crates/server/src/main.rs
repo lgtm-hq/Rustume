@@ -64,7 +64,7 @@ const DEFAULT_STATIC_DIR: &str = "/app/web";
 #[openapi(
     info(
         title = "Rustume API",
-        version = "0.1.0",
+        version = env!("CARGO_PKG_VERSION"),
         description = "REST API for resume parsing, rendering, and validation.\n\n## Features\n\n- **Parse**: Import resumes from JSON Resume, LinkedIn exports, or Reactive Resume v3\n- **Render**: Generate PDF or PNG previews of resumes\n- **Validate**: Check resume data against the schema\n- **Templates**: List available resume templates with theme colors",
         license(name = "MIT", url = "https://opensource.org/licenses/MIT"),
         contact(name = "Rustume", url = "https://github.com/lgtm-hq/Rustume")
@@ -1328,6 +1328,7 @@ mod tests {
         let spec: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
         assert_eq!(spec["info"]["title"], "Rustume API");
+        assert_eq!(spec["info"]["version"], env!("CARGO_PKG_VERSION"));
         assert!(spec["paths"].as_object().unwrap().contains_key("/health"));
         assert!(spec["paths"]
             .as_object()
