@@ -6,7 +6,7 @@
       "name": "@rustume/web",
       "dependencies": {
         "@kobalte/core": "^0.13.11",
-        "@lgtm-hq/turbo-themes": "^0.20.0",
+        "@lgtm-hq/turbo-themes": "^0.21.0",
         "@solidjs/router": "^0.16.0",
         "@tailwindcss/typography": "^0.5.19",
         "@tailwindcss/vite": "^4.2.2",
@@ -295,7 +295,7 @@
 
     "@kobalte/utils": ["@kobalte/utils@0.9.1", "", { "dependencies": { "@solid-primitives/event-listener": "^2.2.14", "@solid-primitives/keyed": "^1.2.0", "@solid-primitives/map": "^0.4.7", "@solid-primitives/media": "^2.2.4", "@solid-primitives/props": "^3.1.8", "@solid-primitives/refs": "^1.0.5", "@solid-primitives/utils": "^6.2.1" }, "peerDependencies": { "solid-js": "^1.8.8" } }, "sha512-eeU60A3kprIiBDAfv9gUJX1tXGLuZiKMajUfSQURAF2pk4ZoMYiqIzmrMBvzcxP39xnYttgTyQEVLwiTZnrV4w=="],
 
-    "@lgtm-hq/turbo-themes": ["@lgtm-hq/turbo-themes@0.20.49", "", {}, "sha512-2q+cxcr2tiGaPMK0uHRMC8a3NGjY9fq8weq3HNtAMNtA8WVCGHOO2T9fOIsgRbOTHDEJv/xafM92nqHScokfVA=="],
+    "@lgtm-hq/turbo-themes": ["@lgtm-hq/turbo-themes@0.21.0", "", {}, "sha512-3ZIvkVvw6aZPnuTDoCtrLt/Otrhp0uoSE2GO/WUdjBKZvbDtVmZM4hpG7wRhPkSj0WPcyUWf2Vus2VBXTgMRnw=="],
 
     "@napi-rs/wasm-runtime": ["@napi-rs/wasm-runtime@1.1.4", "", { "dependencies": { "@tybys/wasm-util": "^0.10.1" }, "peerDependencies": { "@emnapi/core": "^1.7.1", "@emnapi/runtime": "^1.7.1" } }, "sha512-3NQNNgA1YSlJb/kMH1ildASP9HW7/7kYnRI2szWJaofaS1hWmbGI4H+d3+22aGzXXN9IJ+n+GiFVcGipJP18ow=="],
 
