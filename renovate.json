@@ -1,6 +1,40 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["local>lgtm-hq/.github:renovate-config"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": [
+        "docker/Dockerfile",
+        "scripts/ci/testing/ci-setup-web-coverage.sh"
+      ],
+      "matchStrings": [
+        "ARG BUN_VERSION=(?<currentValue>\\S+)",
+        "BUN_VERSION=\"\\$\\{BUN_VERSION:-(?<currentValue>\\S+)\\}\""
+      ],
+      "depNameTemplate": "oven-sh/bun",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^bun-v(?<version>.+)$"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["docker/Dockerfile"],
+      "matchStrings": [
+        "cargo install cargo-chef@(?<currentValue>\\S+) --locked"
+      ],
+      "depNameTemplate": "cargo-chef",
+      "datasourceTemplate": "crate"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["docker/Dockerfile"],
+      "matchStrings": [
+        "cargo install wasm-bindgen-cli --version (?<currentValue>\\S+) --locked"
+      ],
+      "depNameTemplate": "wasm-bindgen-cli",
+      "datasourceTemplate": "crate"
+    }
+  ],
   "packageRules": [
     {
       "matchCategories": ["docker"],
