@@ -16,10 +16,15 @@ export async function loadThemeFlavors(): Promise<readonly ThemeFlavor[]> {
     return flavorsCache;
   }
   if (!flavorsLoad) {
-    flavorsLoad = import("@lgtm-hq/turbo-themes").then((module) => {
-      flavorsCache = module.flavors;
-      return flavorsCache;
-    });
+    flavorsLoad = import("@lgtm-hq/turbo-themes")
+      .then((module) => {
+        flavorsCache = module.flavors;
+        return flavorsCache;
+      })
+      .catch((error) => {
+        flavorsLoad = null;
+        throw error;
+      });
   }
   return flavorsLoad;
 }

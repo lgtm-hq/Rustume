@@ -99,6 +99,9 @@ RUN apk add --no-cache musl-dev bash unzip ca-certificates curl && \
       *) echo "unsupported TARGETARCH for bun: ${TARGETARCH}" >&2 && exit 1 ;; \
     esac && \
     curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/bun-linux-${BUN_ARCH}.zip" -o /tmp/bun.zip && \
+    curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/SHASUMS256.txt" -o /tmp/SHASUMS256.txt && \
+    grep "bun-linux-${BUN_ARCH}.zip" /tmp/SHASUMS256.txt > /tmp/bun.zip.sha256 && \
+    (cd /tmp && sha256sum -c bun.zip.sha256) && \
     unzip -q /tmp/bun.zip -d /tmp/bun && \
     install -m 755 "/tmp/bun/bun-linux-${BUN_ARCH}/bun" /usr/local/bin/bun && \
     rm -rf /tmp/bun /tmp/bun.zip
