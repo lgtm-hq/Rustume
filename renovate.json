@@ -4,9 +4,13 @@
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": ["docker/Dockerfile"],
+      "fileMatch": [
+        "docker/Dockerfile",
+        "scripts/ci/testing/ci-setup-web-coverage.sh"
+      ],
       "matchStrings": [
-        "ARG BUN_VERSION=(?<currentValue>\\S+)"
+        "ARG BUN_VERSION=(?<currentValue>\\S+)",
+        "BUN_VERSION=\"\\$\\{BUN_VERSION:-(?<currentValue>\\S+)\\}\""
       ],
       "depNameTemplate": "oven-sh/bun",
       "datasourceTemplate": "github-releases",
