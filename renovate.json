@@ -16,17 +16,6 @@
       "customType": "regex",
       "fileMatch": ["docker/Dockerfile"],
       "matchStrings": [
-        "ARG BUN_SHA256_X64=(?<currentDigest>\\S+)\\nARG BUN_SHA256_ARM64="
-      ],
-      "depNameTemplate": "oven-sh/bun",
-      "datasourceTemplate": "github-releases",
-      "currentValueTemplate": "1.3.14",
-      "extractVersionTemplate": "^bun-v(?<version>.+)$"
-    },
-    {
-      "customType": "regex",
-      "fileMatch": ["docker/Dockerfile"],
-      "matchStrings": [
         "cargo install cargo-chef@(?<currentValue>\\S+) --locked"
       ],
       "depNameTemplate": "cargo-chef",
@@ -36,7 +25,7 @@
       "customType": "regex",
       "fileMatch": ["docker/Dockerfile"],
       "matchStrings": [
-        "cargo install wasm-bindgen-cli@(?<currentValue>\\S+) --locked"
+        "cargo install wasm-bindgen-cli --version (?<currentValue>\\S+) --locked"
       ],
       "depNameTemplate": "wasm-bindgen-cli",
       "datasourceTemplate": "crate"

@@ -81,14 +81,19 @@ Use the Makefile for common build flows:
 ```bash
 make build       # Build WASM, server, and web bundle
 make preview     # Preview production assets locally
+docker compose up          # Pull and run the published GHCR image
+docker compose up --build  # Build locally and run (no GHCR access required)
 ```
 
-To run the published GHCR image with Compose (requires `latest` or a semver tag
-from a release — see [docs/deployment.md](docs/deployment.md)):
+## Docker
 
-```bash
-docker compose up
-```
+The root `docker-compose.yml` is the single entry point for container workflows:
+
+- `docker compose up` — pulls `ghcr.io/lgtm-hq/rustume:latest` and starts the server
+- `docker compose up --build` — builds from `docker/Dockerfile` when GHCR is
+  unavailable or you need local changes
+
+After startup, verify the server with `curl http://localhost:3000/health`.
 
 ## Architecture Overview
 

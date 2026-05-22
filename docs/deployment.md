@@ -56,24 +56,29 @@ A successful response confirms the API is listening.
 
 ## Docker Compose
 
-Two compose files serve different purposes:
-
-| File | Image | Use when |
-| --- | --- | --- |
-| Root `docker-compose.yml` | `ghcr.io/lgtm-hq/rustume:latest` | Running the published release |
-| `docker/docker-compose.yml` | `rustume:local` (build from source) | Testing Dockerfile changes locally |
-
-From the repository root (published image):
+The root `docker-compose.yml` supports both pull and local build:
 
 ```bash
-docker compose up
+docker compose up          # Pull ghcr.io/lgtm-hq/rustume:latest
+docker compose up --build  # Build from docker/Dockerfile when GHCR is unavailable
 ```
 
-From `docker/` (local build):
+## Verifying Image Signatures
+
+Published release images are signed with Sigstore keyless signing via the
+`lgtm-ci` reusable Docker workflow. Verify a pulled image with:
 
 ```bash
-cd docker
-docker compose up --build
+cosign verify ghcr.io/lgtm-hq/rustume:latest \
+  --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp="github.com/lgtm-hq/Rustume"
+```
+
+SLSA provenance and SBOM attestations are attached during publish. Verify
+provenance with:
+
+```bash
+cosign verify-attestation --type slsaprovenance ghcr.io/lgtm-hq/rustume:latest
 ```
 
 ## Image Tags
