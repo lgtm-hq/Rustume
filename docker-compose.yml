@@ -4,6 +4,9 @@
 services:
   rustume:
     image: ghcr.io/lgtm-hq/rustume:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
     container_name: rustume
     ports:
       - "3000:3000"
