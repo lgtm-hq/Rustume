@@ -1,5 +1,5 @@
 import { Show } from "solid-js";
-import { RichTextEditor } from "../ui";
+import { LazyRichTextEditor as RichTextEditor } from "../ui/LazyRichTextEditor";
 import { resumeStore } from "../../stores/resume";
 
 export function SummaryEditor() {

@@ -76,23 +76,37 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,id=rustume-registry-${TA
 
 # =============================================================================
 # Stage 4: Web builder (WASM bindings + Vite static bundle)
-# Pinned to amd64: wasm-pack/wasm-bindgen produce arch-independent output and
-# the toolchain is more reliable on x86_64 (avoids arm64 wasm-bindgen crashes).
+# Follows BUILDPLATFORM so local arm64 builds avoid Rosetta + musl bun failures.
+# WASM output is arch-independent; CI multi-arch builds set platform per matrix leg.
 # =============================================================================
-# DL3029: intentional — WASM output is arch-independent; arm64 wasm-bindgen crashes (exit 255)
-# hadolint ignore=DL3029
-FROM --platform=linux/amd64 rust:1.95-alpine@sha256:606fd313a0f49743ee2a7bd49a0914bab7deedb12791f3a846a34a4711db7ed2 AS web-builder
+ARG BUILDPLATFORM
+FROM --platform=${BUILDPLATFORM} rust:1.95-alpine@sha256:606fd313a0f49743ee2a7bd49a0914bab7deedb12791f3a846a34a4711db7ed2 AS web-builder
+
+# Re-declare — ARGs do not cross FROM boundaries
+ARG TARGETARCH
+ARG BUN_VERSION=1.3.14
 
 WORKDIR /app
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 
-ENV BUN_INSTALL=/usr/local/bun
-ENV PATH="${BUN_INSTALL}/bin:${PATH}"
-
 RUN apk add --no-cache musl-dev bash unzip ca-certificates curl && \
+    update-ca-certificates && \
     rustup target add wasm32-unknown-unknown && \
     cargo install wasm-pack --locked && \
-    curl -fsSL https://bun.sh/install | bash
+    cargo install wasm-bindgen-cli --version 0.2.121 --locked && \
+    case "${TARGETARCH}" in \
+      amd64) BUN_ARCH=x64-musl ;; \
+      arm64) BUN_ARCH=aarch64-musl ;; \
+      *) echo "unsupported TARGETARCH for bun: ${TARGETARCH}" >&2 && exit 1 ;; \
+    esac && \
+    BUN_ZIP="bun-linux-${BUN_ARCH}.zip" && \
+    curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/${BUN_ZIP}" -o "/tmp/${BUN_ZIP}" && \
+    curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/SHASUMS256.txt" -o /tmp/SHASUMS256.txt && \
+    HASH="$(grep "${BUN_ZIP}" /tmp/SHASUMS256.txt | awk '{print $1}')" && \
+    echo "${HASH}  /tmp/${BUN_ZIP}" | sha256sum -c - && \
+    unzip -q "/tmp/${BUN_ZIP}" -d /tmp/bun && \
+    install -m 755 "/tmp/bun/bun-linux-${BUN_ARCH}/bun" /usr/local/bin/bun && \
+    rm -rf /tmp/bun "/tmp/${BUN_ZIP}" /tmp/SHASUMS256.txt
 
 COPY apps/web/package.json apps/web/bun.lock ./apps/web/
 WORKDIR /app/apps/web

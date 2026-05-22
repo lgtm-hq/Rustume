@@ -1,13 +1,12 @@
-import { createMemo, createSignal, onMount, Show } from "solid-js";
+import { createMemo, createSignal, lazy, onMount, Show, Suspense } from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
-import { Button, toast, ShortcutsModal } from "../components/ui";
+import { Button, toast, ShortcutsModal, Spinner } from "../components/ui";
 import { useHotkeys, type Shortcut } from "../hooks/useHotkeys";
 import { useNavigationGuard } from "../hooks/useNavigationGuard";
 import { SplitPane } from "../components/layout/SplitPane";
 import { Sidebar, type SidebarItem } from "../components/layout/Sidebar";
 import {
   BasicsForm,
-  SummaryEditor,
   SectionPanel,
   ExperienceEditor,
   EducationEditor,
@@ -24,14 +23,45 @@ import {
   CustomSectionEditor,
   CustomSectionsIndex,
 } from "../components/builder";
-import { Preview } from "../components/preview";
-import { TemplatePicker, ThemeEditor } from "../components/templates";
-import { ImportModal } from "../components/import";
-import { ExportModal } from "../components/export";
-import { LayoutEditor } from "../components/LayoutEditor";
 import { resumeStore, isNotFoundError } from "../stores/resume";
 import { uiStore } from "../stores/ui";
 import { isWasmReady } from "../wasm";
+
+const Preview = lazy(() =>
+  import("../components/preview").then((module) => ({ default: module.Preview })),
+);
+const LayoutEditor = lazy(() =>
+  import("../components/LayoutEditor").then((module) => ({ default: module.LayoutEditor })),
+);
+const SummaryEditor = lazy(() =>
+  import("../components/builder/SummaryEditor").then((module) => ({
+    default: module.SummaryEditor,
+  })),
+);
+const ThemeEditor = lazy(() =>
+  import("../components/templates/ThemeEditor").then((module) => ({
+    default: module.ThemeEditor,
+  })),
+);
+const TemplatePicker = lazy(() =>
+  import("../components/templates/TemplatePicker").then((module) => ({
+    default: module.TemplatePicker,
+  })),
+);
+const ImportModal = lazy(() =>
+  import("../components/import/ImportModal").then((module) => ({ default: module.ImportModal })),
+);
+const ExportModal = lazy(() =>
+  import("../components/export/ExportModal").then((module) => ({ default: module.ExportModal })),
+);
+
+function TabFallback() {
+  return (
+    <div class="flex min-h-[200px] items-center justify-center">
+      <Spinner />
+    </div>
+  );
+}
 
 type EditorTab =
   | "basics"
@@ -311,9 +341,17 @@ export default function Editor() {
       case "basics":
         return <BasicsForm />;
       case "summary":
-        return <SummaryEditor />;
+        return (
+          <Suspense fallback={<TabFallback />}>
+            <SummaryEditor />
+          </Suspense>
+        );
       case "layout":
-        return <LayoutEditor />;
+        return (
+          <Suspense fallback={<TabFallback />}>
+            <LayoutEditor />
+          </Suspense>
+        );
       case "experience":
         return <ExperienceEditor />;
       case "education":
@@ -345,7 +383,11 @@ export default function Editor() {
           />
         );
       case "theme":
-        return <ThemeEditor />;
+        return (
+          <Suspense fallback={<TabFallback />}>
+            <ThemeEditor />
+          </Suspense>
+        );
       default:
         if (activeTab().startsWith("custom:")) {
           const sectionId = activeTab().slice("custom:".length);
@@ -528,7 +570,9 @@ export default function Editor() {
             }
             right={
               <div class="h-full relative">
-                <Preview />
+                <Suspense fallback={<TabFallback />}>
+                  <Preview />
+                </Suspense>
                 <SectionPanel />
               </div>
             }
@@ -536,10 +580,22 @@ export default function Editor() {
         </Show>
       </div>
 
-      {/* Modals */}
-      <TemplatePicker />
-      <ImportModal />
-      <ExportModal />
+      {/* Modals — loaded on demand to keep the editor chunk smaller */}
+      <Show when={ui.modal === "template"}>
+        <Suspense fallback={null}>
+          <TemplatePicker />
+        </Suspense>
+      </Show>
+      <Show when={ui.modal === "import"}>
+        <Suspense fallback={null}>
+          <ImportModal />
+        </Suspense>
+      </Show>
+      <Show when={ui.modal === "export"}>
+        <Suspense fallback={null}>
+          <ExportModal />
+        </Suspense>
+      </Show>
       <ShortcutsModal shortcuts={shortcuts} />
     </div>
   );

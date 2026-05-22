@@ -3,9 +3,22 @@
 Rustume ships as a single container that serves both the SolidJS resume builder
 and the Rust API.
 
-## Docker
+## Prerequisites
+
+- **Docker** with BuildKit enabled (Docker Desktop or Docker Engine 20.10+)
+- For building from source: network access to GitHub (Rust crates, bun release,
+  wasm-pack)
+
+Native development (without Docker) requires Rust, wasm-pack, bun, and the
+`wasm32-unknown-unknown` target — see [CONTRIBUTING.md](../CONTRIBUTING.md).
+
+## Option A: Pull from GHCR
+
+Published release images are pushed when a `v*.*.*` tag is created (same tag
+that triggers binary releases). Use `latest` or a semver tag:
 
 ```bash
+docker pull ghcr.io/lgtm-hq/rustume:latest
 docker run -p 3000:3000 ghcr.io/lgtm-hq/rustume:latest
 ```
 
@@ -15,28 +28,64 @@ Open <http://localhost:3000>. The same process also exposes:
 - `/swagger-ui/` for API documentation
 - `/api-docs/openapi.json` for the OpenAPI document
 
+If `docker pull` returns `manifest unknown`, the release image may not be
+published yet (wait for the Docker workflow on the tag, or use Option B).
+
+## Option B: Build from source
+
+When GHCR is unavailable or you need a custom build:
+
+```bash
+git clone https://github.com/lgtm-hq/Rustume.git
+cd Rustume
+docker build -t rustume -f docker/Dockerfile .
+docker run -p 3000:3000 rustume
+```
+
+Behind corporate TLS inspection, ensure Docker trusts your proxy CA. The
+Dockerfile runs `update-ca-certificates` before downloading bun; you may still
+need to add custom CAs to Docker Desktop.
+
+## Verify installation
+
+```bash
+curl -sf http://localhost:3000/health
+```
+
+A successful response confirms the API is listening.
+
 ## Docker Compose
 
-From the repository root:
+Two compose files serve different purposes:
+
+| File | Image | Use when |
+| --- | --- | --- |
+| Root `docker-compose.yml` | `ghcr.io/lgtm-hq/rustume:latest` | Running the published release |
+| `docker/docker-compose.yml` | `rustume:local` (build from source) | Testing Dockerfile changes locally |
+
+From the repository root (published image):
 
 ```bash
 docker compose up
 ```
 
-The root `docker-compose.yml` uses the published GHCR image. To test a local
-image instead:
+From `docker/` (local build):
 
 ```bash
-docker build -t rustume -f docker/Dockerfile .
-docker run -p 3000:3000 rustume
+cd docker
+docker compose up --build
 ```
 
 ## Image Tags
 
-Use `latest` for the most recent published release. Release events also publish
-semantic tags such as `0.14.1`, `0.14`, and `0`.
+| Tag | When published | Use for |
+| --- | --- | --- |
+| `latest`, `0.15.0`, `0.15`, `0` | `v*.*.*` git tag push | Production self-hosting |
+| `main`, `sha-<commit>` | `main` branch push (path-filtered) | Bleeding-edge / CI |
+| `build-<run>-<arch>` | CI staging only | Internal; not for pulls |
 
-For unreleased changes from the default branch, use `main`.
+CI publishes `latest` and semver tags only when the workflow runs on a version
+tag and receives the tag name as `version` (for example `v0.15.0`).
 
 ## Environment Variables
 
@@ -46,6 +95,9 @@ For unreleased changes from the default branch, use `main`.
 | `RUST_LOG` | `info` | Rust tracing filter. Use `debug` for more server logs. |
 | `CORS_ORIGIN` | `*` | Comma-separated allowed origins for API requests. Set explicitly in production (e.g. `https://your-domain.com`). |
 | `RUSTUME_STATIC_DIR` | `/app/web` | Directory containing the built web app. |
+
+The root `docker-compose.yml` sets `CORS_ORIGIN` to `http://localhost:3000`.
+The server binary defaults to `*` when unset.
 
 ## Reverse Proxy
 

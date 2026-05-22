@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: MIT
 ---
 name: Build - Docker Image & Registry
-# Builds and tests Docker image. Publishes to GHCR on main and release events.
+# Builds and publishes Docker images to GHCR.
+# - push main (path-filtered): :main and :sha-* for bleeding-edge
+# - push v*.*.* tags: :latest and semver tags for releases
 # Uses lgtm-ci reusable Docker workflow.
 
 "on":
@@ -16,6 +18,8 @@ name: Build - Docker Image & Registry
       - "Cargo.lock"
       - ".dockerignore"
       - ".github/workflows/docker-build-publish.yml"
+    tags:
+      - "v*.*.*"
   release:
     types: [published]
   workflow_dispatch:
@@ -37,9 +41,15 @@ jobs:
     with:
       file: docker/Dockerfile
       image-name: lgtm-hq/rustume
-      version: ${{ github.event_name == 'release' && github.event.release.tag_name || '' }}
-      push: ${{ github.ref == 'refs/heads/main' || github.event_name == 'release' }}
+      version: >-
+        ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name
+        || (github.event_name == 'release' && github.event.release.tag_name || '') }}
+      push: >-
+        ${{ github.ref == 'refs/heads/main'
+        || startsWith(github.ref, 'refs/tags/v')
+        || github.event_name == 'release' }}
       platforms: linux/amd64,linux/arm64
       scan: true
       provenance: true
       sbom: true
+      smoke-test: --health

@@ -1,5 +1,6 @@
 import { For, Show, createSignal } from "solid-js";
-import { Button, Input, RichTextEditor } from "../ui";
+import { Button, Input } from "../ui";
+import { LazyRichTextEditor as RichTextEditor } from "../ui/LazyRichTextEditor";
 import { resumeStore } from "../../stores/resume";
 import { createEmptyUrl, generateId, type CustomItem } from "../../wasm/types";
 
