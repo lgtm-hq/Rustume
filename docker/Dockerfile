@@ -76,11 +76,10 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,id=rustume-registry-${TA
 
 # =============================================================================
 # Stage 4: Web builder (WASM bindings + Vite static bundle)
-# Follows BUILDPLATFORM so local arm64 builds avoid Rosetta + musl bun failures.
-# WASM output is arch-independent; CI multi-arch builds set platform per matrix leg.
+# Uses TARGETPLATFORM so bun/wasm tools match the image arch (buildx sets this per
+# matrix leg). Local builds: pass --platform linux/arm64 on Apple Silicon.
 # =============================================================================
-ARG BUILDPLATFORM
-FROM --platform=${BUILDPLATFORM} rust:1.95-alpine@sha256:606fd313a0f49743ee2a7bd49a0914bab7deedb12791f3a846a34a4711db7ed2 AS web-builder
+FROM --platform=$TARGETPLATFORM rust:1.95-alpine@sha256:606fd313a0f49743ee2a7bd49a0914bab7deedb12791f3a846a34a4711db7ed2 AS web-builder
 
 # Re-declare — ARGs do not cross FROM boundaries
 ARG TARGETARCH
