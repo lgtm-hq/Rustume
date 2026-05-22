@@ -60,5 +60,7 @@ jobs:
       cosign-sign: true
       cache-registry-ref: ghcr.io/lgtm-hq/rustume:cache
       no-cache: ${{ startsWith(github.ref, 'refs/tags/v') }}
-      provenance: true
-      sbom: true
+      # SBOM/provenance attestations produce manifest lists incompatible with
+      # --load used during PR validation (validate-on-pr + scan).
+      provenance: ${{ github.event_name != 'pull_request' }}
+      sbom: ${{ github.event_name != 'pull_request' }}
