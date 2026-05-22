@@ -92,7 +92,8 @@ SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 RUN apk add --no-cache musl-dev bash unzip ca-certificates curl && \
     update-ca-certificates && \
     rustup target add wasm32-unknown-unknown && \
-    cargo install wasm-pack wasm-bindgen-cli --version 0.2.121 --locked && \
+    cargo install wasm-pack --locked && \
+    cargo install wasm-bindgen-cli --version 0.2.121 --locked && \
     case "${TARGETARCH}" in \
       amd64) BUN_ARCH=x64-musl ;; \
       arm64) BUN_ARCH=aarch64-musl ;; \
