@@ -13,6 +13,7 @@ set -euo pipefail
 #   GHCR_PRUNE_DRY_RUN           Set to "1" for dry run (default: 0)
 #   GHCR_MAIN_RETENTION_DAYS     Retention for main/sha-* tags (default: 30)
 #   GHCR_PRERELEASE_RETENTION_DAYS Retention for pre-release tags (default: 90)
+#   GHCR_PACKAGE_NAME            GHCR package name (default: rustume)
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
 	cat <<'EOF'
@@ -32,7 +33,7 @@ fi
 DRY_RUN="${GHCR_PRUNE_DRY_RUN:-0}"
 MAIN_RETENTION_DAYS="${GHCR_MAIN_RETENTION_DAYS:-30}"
 PRERELEASE_RETENTION_DAYS="${GHCR_PRERELEASE_RETENTION_DAYS:-90}"
-PACKAGE_NAME="rustume"
+PACKAGE_NAME="${GHCR_PACKAGE_NAME:-rustume}"
 
 main_cutoff=$(date -u -d "-${MAIN_RETENTION_DAYS} days" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null ||
 	date -u -v "-${MAIN_RETENTION_DAYS}d" +%Y-%m-%dT%H:%M:%SZ)
@@ -74,21 +75,27 @@ while IFS=$'\t' read -r version_id created_at tags_json; do
 	[[ -n "$version_id" ]] || continue
 	mapfile -t tags < <(echo "$tags_json" | jq -r '.[]')
 
+	all_deletable=true
 	for tag in "${tags[@]}"; do
-		if should_delete_tag "$tag" "$created_at"; then
-			if [[ "$DRY_RUN" == "1" ]]; then
-				echo "[dry-run] Would delete version ${version_id} (tag ${tag}, created ${created_at})"
-			else
-				echo "Deleting version ${version_id} (tag ${tag}, created ${created_at})"
-				gh api --method DELETE "${api_path}/${version_id}" || {
-					echo "Failed to delete version ${version_id}" >&2
-					exit 1
-				}
-			fi
-			deleted=$((deleted + 1))
-			continue 2
+		if ! should_delete_tag "$tag" "$created_at"; then
+			all_deletable=false
+			break
 		fi
 	done
+
+	if [[ "$all_deletable" == "true" ]]; then
+		if [[ "$DRY_RUN" == "1" ]]; then
+			echo "[dry-run] Would delete version ${version_id} (tags: ${tags[*]}, created ${created_at})"
+		else
+			echo "Deleting version ${version_id} (tags: ${tags[*]}, created ${created_at})"
+			gh api --method DELETE "${api_path}/${version_id}" || {
+				echo "Failed to delete version ${version_id}" >&2
+				exit 1
+			}
+		fi
+		deleted=$((deleted + 1))
+		continue
+	fi
 	skipped=$((skipped + 1))
 done < <(
 	gh api "$api_path" --paginate --jq \

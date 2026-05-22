@@ -78,7 +78,9 @@ SLSA provenance and SBOM attestations are attached during publish. Verify
 provenance with:
 
 ```bash
-cosign verify-attestation --type slsaprovenance ghcr.io/lgtm-hq/rustume:latest
+cosign verify-attestation --type slsaprovenance ghcr.io/lgtm-hq/rustume:latest \
+  --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp="github.com/lgtm-hq/Rustume"
 ```
 
 ## Image Tags

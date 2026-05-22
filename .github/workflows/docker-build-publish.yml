@@ -20,6 +20,7 @@ name: Build - Docker Image & Registry
       - ".github/workflows/docker-build-publish.yml"
       - "scripts/ci/docker/**"
   pull_request:
+    branches: [main]
     paths: *docker-paths
   release:
     types: [published]

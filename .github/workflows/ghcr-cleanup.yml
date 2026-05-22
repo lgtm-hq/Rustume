@@ -29,6 +29,10 @@ name: Maintenance - GHCR Registry Cleanup
         default: 90
         type: number
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -95,4 +99,5 @@ jobs:
             ${{ format('{0}', inputs.main_retention_days) || '30' }}
           GHCR_PRERELEASE_RETENTION_DAYS: >-
             ${{ format('{0}', inputs.prerelease_retention_days) || '90' }}
+          GHCR_PACKAGE_NAME: rustume
         run: ./scripts/ci/maintenance/ghcr-prune-tags.sh

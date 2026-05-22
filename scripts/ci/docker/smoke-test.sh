@@ -30,6 +30,7 @@ Environment:
   PLATFORM  Target platform for pull/run (optional)
   PORT      Host port (default: 3000)
   TIMEOUT   Health wait timeout in seconds (default: 30)
+  CURL_TIMEOUT  Per-request HTTP timeout in seconds (default: 5)
 EOF
 	exit 0
 fi
@@ -38,6 +39,7 @@ IMAGE="${1:-${IMAGE:-}}"
 PLATFORM="${PLATFORM:-}"
 PORT="${PORT:-3000}"
 TIMEOUT="${TIMEOUT:-30}"
+CURL_TIMEOUT="${CURL_TIMEOUT:-5}"
 CONTAINER_NAME="rustume-smoke-${GITHUB_RUN_ID:-local}-$$"
 
 if [[ -z "$IMAGE" ]]; then
@@ -71,7 +73,7 @@ docker run -d --name "$CONTAINER_NAME" \
 
 echo "Waiting for /health (timeout ${TIMEOUT}s)"
 deadline=$((SECONDS + TIMEOUT))
-until curl -sf "http://127.0.0.1:${PORT}/health" >/dev/null; do
+until curl -sf --max-time "$CURL_TIMEOUT" "http://127.0.0.1:${PORT}/health" >/dev/null; do
 	if ((SECONDS >= deadline)); then
 		echo "Timed out waiting for /health" >&2
 		docker logs "$CONTAINER_NAME" >&2 || true
@@ -81,19 +83,19 @@ until curl -sf "http://127.0.0.1:${PORT}/health" >/dev/null; do
 done
 
 echo "Checking web UI"
-if ! curl -sf "http://127.0.0.1:${PORT}/" | grep -qi "rustume"; then
+if ! curl -sf --max-time "$CURL_TIMEOUT" "http://127.0.0.1:${PORT}/" | grep -qi "rustume"; then
 	echo "Expected home page to contain 'Rustume'" >&2
 	exit 1
 fi
 
 echo "Checking Swagger UI"
-if ! curl -sf "http://127.0.0.1:${PORT}/swagger-ui/" | grep -qi "swagger"; then
+if ! curl -sf --max-time "$CURL_TIMEOUT" "http://127.0.0.1:${PORT}/swagger-ui/" | grep -qi "swagger"; then
 	echo "Expected Swagger UI to load" >&2
 	exit 1
 fi
 
 echo "Checking OpenAPI document"
-if ! curl -sf "http://127.0.0.1:${PORT}/api-docs/openapi.json" | jq -e '.info.version' >/dev/null; then
+if ! curl -sf --max-time "$CURL_TIMEOUT" "http://127.0.0.1:${PORT}/api-docs/openapi.json" | jq -e '.info.version' >/dev/null; then
 	echo "Expected valid OpenAPI JSON at /api-docs/openapi.json" >&2
 	exit 1
 fi
