@@ -110,6 +110,12 @@ export function useEditorTheme() {
       const savedExists = flavors.some((flavor) => flavor.id === state.themeId);
       if (!savedExists) {
         setState("themeId", DEFAULT_THEME_ID);
+        try {
+          localStorage.setItem(STORAGE_KEY, DEFAULT_THEME_ID);
+        } catch {
+          console.error("Failed to save theme to localStorage");
+          toast.warning("Could not save theme preference");
+        }
       }
 
       const theme = resolveTheme(flavors, state.themeId);

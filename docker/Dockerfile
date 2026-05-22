@@ -92,19 +92,20 @@ SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 RUN apk add --no-cache musl-dev bash unzip ca-certificates curl && \
     update-ca-certificates && \
     rustup target add wasm32-unknown-unknown && \
-    cargo install wasm-pack wasm-bindgen-cli --locked && \
+    cargo install wasm-pack wasm-bindgen-cli --version 0.2.121 --locked && \
     case "${TARGETARCH}" in \
       amd64) BUN_ARCH=x64-musl ;; \
       arm64) BUN_ARCH=aarch64-musl ;; \
       *) echo "unsupported TARGETARCH for bun: ${TARGETARCH}" >&2 && exit 1 ;; \
     esac && \
-    curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/bun-linux-${BUN_ARCH}.zip" -o /tmp/bun.zip && \
+    BUN_ZIP="bun-linux-${BUN_ARCH}.zip" && \
+    curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/${BUN_ZIP}" -o "/tmp/${BUN_ZIP}" && \
     curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/SHASUMS256.txt" -o /tmp/SHASUMS256.txt && \
-    grep "bun-linux-${BUN_ARCH}.zip" /tmp/SHASUMS256.txt > /tmp/bun.zip.sha256 && \
-    (cd /tmp && sha256sum -c bun.zip.sha256) && \
-    unzip -q /tmp/bun.zip -d /tmp/bun && \
+    grep "${BUN_ZIP}" /tmp/SHASUMS256.txt > "/tmp/${BUN_ZIP}.sha256" && \
+    (cd /tmp && sha256sum -c "${BUN_ZIP}.sha256") && \
+    unzip -q "/tmp/${BUN_ZIP}" -d /tmp/bun && \
     install -m 755 "/tmp/bun/bun-linux-${BUN_ARCH}/bun" /usr/local/bin/bun && \
-    rm -rf /tmp/bun /tmp/bun.zip
+    rm -rf /tmp/bun "/tmp/${BUN_ZIP}" /tmp/SHASUMS256.txt "/tmp/${BUN_ZIP}.sha256"
 
 COPY apps/web/package.json apps/web/bun.lock ./apps/web/
 WORKDIR /app/apps/web

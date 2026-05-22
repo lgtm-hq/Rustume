@@ -1,6 +1,7 @@
 import { createRoot } from "solid-js";
 
-vi.mock("@lgtm-hq/turbo-themes", () => ({
+const turboThemesMock = vi.hoisted(() => ({
+  failImport: false,
   flavors: [
     {
       id: "catppuccin-mocha",
@@ -30,7 +31,16 @@ vi.mock("@lgtm-hq/turbo-themes", () => ({
         content: { selection: { bg: "#acb0be" } },
       },
     },
-  ],
+  ] as const,
+}));
+
+vi.mock("@lgtm-hq/turbo-themes", () => ({
+  get flavors() {
+    if (turboThemesMock.failImport) {
+      throw new Error("network error");
+    }
+    return turboThemesMock.flavors;
+  },
 }));
 
 import { useEditorTheme } from "../editorTheme";
@@ -38,6 +48,7 @@ import { useEditorTheme } from "../editorTheme";
 describe("useEditorTheme", () => {
   beforeEach(() => {
     localStorage.clear();
+    turboThemesMock.failImport = false;
   });
 
   it('initial themeId is "catppuccin-mocha"', () => {
@@ -56,6 +67,30 @@ describe("useEditorTheme", () => {
 
       setTheme("non-existent-theme");
       expect(state.themeId).toBe(before);
+      dispose();
+    });
+  });
+
+  it("retries loading flavors after import failure", async () => {
+    turboThemesMock.failImport = true;
+    vi.resetModules();
+    const { loadThemeFlavors: loadFlavors } = await import("../editorTheme");
+    await expect(loadFlavors()).rejects.toThrow("network error");
+
+    turboThemesMock.failImport = false;
+    const flavors = await loadFlavors();
+    expect(flavors).toHaveLength(2);
+  });
+
+  it("resets stale saved theme to default in localStorage", async () => {
+    localStorage.setItem("rustume-editor-theme", "removed-theme");
+    vi.resetModules();
+    const { useEditorTheme: useTheme } = await import("../editorTheme");
+    await createRoot(async (dispose) => {
+      const { state, ensureFlavorsLoaded } = useTheme();
+      await ensureFlavorsLoaded();
+      expect(state.themeId).toBe("catppuccin-mocha");
+      expect(localStorage.getItem("rustume-editor-theme")).toBe("catppuccin-mocha");
       dispose();
     });
   });
