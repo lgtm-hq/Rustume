@@ -73,13 +73,9 @@ jobs:
       contents: read
       pull-requests: write
 
-  # reusable-test-node @ v0.15.0 hardcodes harden-runner egress-policy: audit and
-  # does not expose egress-policy / allowed-endpoints workflow_call inputs (unlike
-  # reusable-test-rust). Accepted until lgtm-ci adds those inputs; rust jobs above
-  # use egress-policy: block with an explicit endpoint allowlist.
   web-coverage:
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-node.yml@375d104f6ca707f4f35344170a42bf901a617a9f # v0.15.0
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-node.yml@5282c1d080324874705496bd6af5f11b4acb49ef # v0.17.0
     with:
       tooling-ref: "375d104f6ca707f4f35344170a42bf901a617a9f"
       job-name: "🌐 Web Coverage"
@@ -93,7 +89,13 @@ jobs:
       coverage-comment-title: Web Coverage Report
       draft-pr-skip: true
       publish-results: false
+      egress-policy: block
+      allowed-endpoints: >
+        github.com:443
+        api.github.com:443
+        codeload.github.com:443
+        objects.githubusercontent.com:443
+        registry.npmjs.org:443
     permissions:
-      contents: write
-      pages: write
+      contents: read
       pull-requests: write
