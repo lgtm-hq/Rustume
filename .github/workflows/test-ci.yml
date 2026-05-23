@@ -83,7 +83,7 @@ jobs:
       package-manager: bun
       node-version: "20"
       coverage: true
-      test-command: bun run test:coverage
+      coverage-format: json
       coverage-pr-comment: true
       coverage-comment-marker: web-coverage-report
       coverage-comment-title: Web Coverage Report
