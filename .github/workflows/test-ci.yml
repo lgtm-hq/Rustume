@@ -89,7 +89,7 @@ jobs:
       coverage-comment-title: Web Coverage Report
       draft-pr-skip: true
       publish-results: false
-      egress-policy: block
+      egress-policy: audit
       allowed-endpoints: >
         github.com:443
         api.github.com:443
