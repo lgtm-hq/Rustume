@@ -22,3 +22,7 @@ tool_order = "priority"
 
 [tool.lintro.post_checks]
 enabled = false
+
+# Cold CI Docker runs need more than the 120s clippy default.
+[tool.lintro.clippy]
+timeout = 600

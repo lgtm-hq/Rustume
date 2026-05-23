@@ -42,4 +42,4 @@ defaults:
       - "gcr.io"
       - "ghcr.io"
 
-# All tools auto-detected and enabled by default.
+# Per-tool options (e.g. clippy timeout) live in pyproject.toml [tool.lintro.<tool>].
