@@ -31,7 +31,7 @@ export interface CreateResumePayload {
 
 export interface UpdateResumePayload {
   title?: string;
-  data: ResumeData;
+  data?: ResumeData;
 }
 
 export async function listCloudResumes(): Promise<CloudResumeSummary[]> {

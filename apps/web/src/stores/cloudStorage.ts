@@ -57,12 +57,8 @@ export async function removeCloudResume(id: string): Promise<void> {
   await deleteCloudResume(id);
 }
 
-export async function renameCloudResume(
-  id: string,
-  title: string,
-  data: ResumeData,
-): Promise<void> {
-  await updateCloudResume(id, { title, data });
+export async function renameCloudResume(id: string, title: string): Promise<void> {
+  await updateCloudResume(id, { title });
 }
 
 export async function duplicateCloudResume(

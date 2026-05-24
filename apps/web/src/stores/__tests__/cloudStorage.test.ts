@@ -222,15 +222,13 @@ describe("renameCloudResume", () => {
     vi.clearAllMocks();
   });
 
-  it("updates title and data via updateCloudResume", async () => {
-    const data = testResume("Renamed");
+  it("updates title without sending resume data", async () => {
     resumeApiMocks.updateCloudResume.mockResolvedValue(mockRow({ title: "New Title" }));
 
-    await renameCloudResume("abc", "New Title", data);
+    await renameCloudResume("abc", "New Title");
 
     expect(resumeApiMocks.updateCloudResume).toHaveBeenCalledWith("abc", {
       title: "New Title",
-      data,
     });
   });
 });

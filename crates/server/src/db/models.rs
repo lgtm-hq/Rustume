@@ -89,7 +89,7 @@ pub struct CreateResumeRequest {
 pub struct UpdateResumeRequest {
     pub title: Option<String>,
     #[schema(value_type = Object)]
-    pub data: serde_json::Value,
+    pub data: Option<serde_json::Value>,
 }
 
 /// Single resume payload within an import batch.

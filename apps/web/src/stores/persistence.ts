@@ -434,8 +434,7 @@ export function useResumeList() {
         if (!(await resumeExists(id))) return;
 
         if (isCloudAuthenticated()) {
-          const data = await getResume(id);
-          await renameCloudResume(id, trimmed, data);
+          await renameCloudResume(id, trimmed);
           await refetch();
           return;
         }

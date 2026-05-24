@@ -127,27 +127,51 @@ pub async fn update_resume(
     Path(id): Path<Uuid>,
     Json(body): Json<UpdateResumeRequest>,
 ) -> Result<Json<ResumeRow>, ApiError> {
+    if body.title.is_none() && body.data.is_none() {
+        return Err(ApiError::new("At least one of title or data is required"));
+    }
+
     let cloud = state.cloud()?;
     let existing = fetch_owned_resume(&state, user.id, id).await?;
-    let title = body.title.unwrap_or_else(|| existing.title.clone());
+    let title = body.title.unwrap_or(existing.title);
 
-    let row = sqlx::query_as::<_, ResumeRow>(
-        r#"
-        UPDATE resumes
-        SET title = $1,
-            data = $2,
-            version = version + 1,
-            updated_at = now()
-        WHERE id = $3 AND user_id = $4
-        RETURNING id, user_id, title, data, is_public, public_slug, password_hash, version, created_at, updated_at
-        "#,
-    )
-    .bind(title)
-    .bind(body.data)
-    .bind(id)
-    .bind(user.id)
-    .fetch_one(&cloud.db)
-    .await
+    let row = match body.data {
+        Some(data) => {
+            sqlx::query_as::<_, ResumeRow>(
+                r#"
+                UPDATE resumes
+                SET title = $1,
+                    data = $2,
+                    version = version + 1,
+                    updated_at = now()
+                WHERE id = $3 AND user_id = $4
+                RETURNING id, user_id, title, data, is_public, public_slug, password_hash, version, created_at, updated_at
+                "#,
+            )
+            .bind(&title)
+            .bind(data)
+            .bind(id)
+            .bind(user.id)
+            .fetch_one(&cloud.db)
+            .await
+        }
+        None => {
+            sqlx::query_as::<_, ResumeRow>(
+                r#"
+                UPDATE resumes
+                SET title = $1,
+                    updated_at = now()
+                WHERE id = $2 AND user_id = $3
+                RETURNING id, user_id, title, data, is_public, public_slug, password_hash, version, created_at, updated_at
+                "#,
+            )
+            .bind(&title)
+            .bind(id)
+            .bind(user.id)
+            .fetch_one(&cloud.db)
+            .await
+        }
+    }
     .map_err(map_resume_db_error)?;
 
     Ok(Json(row))
