@@ -12,6 +12,17 @@ use crate::error::ApiError;
 use crate::middleware::auth::AuthUser;
 use crate::state::AppState;
 
+/// List resumes for the authenticated user.
+#[utoipa::path(
+    get,
+    path = "/api/resumes",
+    tag = "Resumes",
+    responses(
+        (status = 200, description = "Resume summaries", body = [ResumeSummary]),
+        (status = 401, description = "Not authenticated", body = ApiError),
+    ),
+    security(("cookieAuth" = []))
+)]
 pub async fn list_resumes(
     AuthUser(user): AuthUser,
     State(state): State<AppState>,
@@ -33,6 +44,19 @@ pub async fn list_resumes(
     Ok(Json(rows.into_iter().map(ResumeSummary::from).collect()))
 }
 
+/// Fetch a resume owned by the authenticated user.
+#[utoipa::path(
+    get,
+    path = "/api/resumes/{id}",
+    tag = "Resumes",
+    params(("id" = String, Path, description = "Resume ID")),
+    responses(
+        (status = 200, description = "Resume record", body = ResumeRow),
+        (status = 401, description = "Not authenticated", body = ApiError),
+        (status = 404, description = "Resume not found", body = ApiError),
+    ),
+    security(("cookieAuth" = []))
+)]
 pub async fn get_resume(
     AuthUser(user): AuthUser,
     State(state): State<AppState>,
@@ -41,6 +65,18 @@ pub async fn get_resume(
     fetch_owned_resume(&state, user.id, id).await.map(Json)
 }
 
+/// Create a resume for the authenticated user.
+#[utoipa::path(
+    post,
+    path = "/api/resumes",
+    tag = "Resumes",
+    request_body = CreateResumeRequest,
+    responses(
+        (status = 201, description = "Resume created", body = ResumeRow),
+        (status = 401, description = "Not authenticated", body = ApiError),
+    ),
+    security(("cookieAuth" = []))
+)]
 pub async fn create_resume(
     AuthUser(user): AuthUser,
     State(state): State<AppState>,
@@ -48,24 +84,40 @@ pub async fn create_resume(
 ) -> Result<(StatusCode, Json<ResumeRow>), ApiError> {
     let cloud = state.cloud()?;
     let title = body.title.unwrap_or_else(|| "Untitled".to_string());
+    let resume_id = body.id.unwrap_or_else(Uuid::new_v4);
 
     let row = sqlx::query_as::<_, ResumeRow>(
         r#"
-        INSERT INTO resumes (user_id, title, data)
-        VALUES ($1, $2, $3)
+        INSERT INTO resumes (id, user_id, title, data)
+        VALUES ($1, $2, $3, $4)
         RETURNING id, user_id, title, data, is_public, public_slug, password_hash, version, created_at, updated_at
         "#,
     )
+    .bind(resume_id)
     .bind(user.id)
     .bind(title)
     .bind(body.data)
     .fetch_one(&cloud.db)
     .await
-    .map_err(|err| ApiError::internal(err.to_string()))?;
+    .map_err(map_resume_db_error)?;
 
     Ok((StatusCode::CREATED, Json(row)))
 }
 
+/// Update a resume owned by the authenticated user.
+#[utoipa::path(
+    put,
+    path = "/api/resumes/{id}",
+    tag = "Resumes",
+    params(("id" = String, Path, description = "Resume ID")),
+    request_body = UpdateResumeRequest,
+    responses(
+        (status = 200, description = "Resume updated", body = ResumeRow),
+        (status = 401, description = "Not authenticated", body = ApiError),
+        (status = 404, description = "Resume not found", body = ApiError),
+    ),
+    security(("cookieAuth" = []))
+)]
 pub async fn update_resume(
     AuthUser(user): AuthUser,
     State(state): State<AppState>,
@@ -73,9 +125,8 @@ pub async fn update_resume(
     Json(body): Json<UpdateResumeRequest>,
 ) -> Result<Json<ResumeRow>, ApiError> {
     let cloud = state.cloud()?;
-    let _existing = fetch_owned_resume(&state, user.id, id).await?;
-
-    let title = body.title.unwrap_or_else(|| _existing.title.clone());
+    let existing = fetch_owned_resume(&state, user.id, id).await?;
+    let title = body.title.unwrap_or_else(|| existing.title.clone());
 
     let row = sqlx::query_as::<_, ResumeRow>(
         r#"
@@ -94,11 +145,24 @@ pub async fn update_resume(
     .bind(user.id)
     .fetch_one(&cloud.db)
     .await
-    .map_err(|err| ApiError::internal(err.to_string()))?;
+    .map_err(map_resume_db_error)?;
 
     Ok(Json(row))
 }
 
+/// Delete a resume owned by the authenticated user.
+#[utoipa::path(
+    delete,
+    path = "/api/resumes/{id}",
+    tag = "Resumes",
+    params(("id" = String, Path, description = "Resume ID")),
+    responses(
+        (status = 204, description = "Resume deleted"),
+        (status = 401, description = "Not authenticated", body = ApiError),
+        (status = 404, description = "Resume not found", body = ApiError),
+    ),
+    security(("cookieAuth" = []))
+)]
 pub async fn delete_resume(
     AuthUser(user): AuthUser,
     State(state): State<AppState>,
@@ -119,33 +183,65 @@ pub async fn delete_resume(
     Ok(StatusCode::NO_CONTENT)
 }
 
+/// Import local resumes into the authenticated user's cloud account.
+#[utoipa::path(
+    post,
+    path = "/api/resumes/import",
+    tag = "Resumes",
+    request_body = ImportResumesRequest,
+    responses(
+        (status = 200, description = "Imported resume summaries", body = [ResumeSummary]),
+        (status = 401, description = "Not authenticated", body = ApiError),
+    ),
+    security(("cookieAuth" = []))
+)]
 pub async fn import_resumes(
     AuthUser(user): AuthUser,
     State(state): State<AppState>,
     Json(body): Json<ImportResumesRequest>,
 ) -> Result<Json<Vec<ResumeSummary>>, ApiError> {
     let cloud = state.cloud()?;
+    let mut tx = cloud
+        .db
+        .begin()
+        .await
+        .map_err(|err| ApiError::internal(err.to_string()))?;
     let mut imported = Vec::new();
 
     for item in body.resumes {
         let title = item.title.unwrap_or_else(|| "Untitled".to_string());
+        let resume_id = item.id.unwrap_or_else(Uuid::new_v4);
         let row = sqlx::query_as::<_, ResumeRow>(
             r#"
-            INSERT INTO resumes (user_id, title, data)
-            VALUES ($1, $2, $3)
+            INSERT INTO resumes (id, user_id, title, data)
+            VALUES ($1, $2, $3, $4)
             RETURNING id, user_id, title, data, is_public, public_slug, password_hash, version, created_at, updated_at
             "#,
         )
+        .bind(resume_id)
         .bind(user.id)
         .bind(title)
         .bind(item.data)
-        .fetch_one(&cloud.db)
+        .fetch_one(&mut *tx)
         .await
-        .map_err(|err| ApiError::internal(err.to_string()))?;
+        .map_err(map_resume_db_error)?;
         imported.push(ResumeSummary::from(row));
     }
 
+    tx.commit()
+        .await
+        .map_err(|err| ApiError::internal(err.to_string()))?;
+
     Ok(Json(imported))
+}
+
+fn map_resume_db_error(err: sqlx::Error) -> ApiError {
+    if let sqlx::Error::Database(db_err) = &err {
+        if db_err.code().as_deref() == Some("23505") {
+            return ApiError::conflict("A resume with this ID already exists");
+        }
+    }
+    ApiError::internal(err.to_string())
 }
 
 async fn fetch_owned_resume(

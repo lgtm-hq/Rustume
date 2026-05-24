@@ -125,3 +125,13 @@ axum-extra = { version = "0.10", features = ["cookie"] }
 # Metrics
 metrics = "0.24"
 metrics-exporter-prometheus = "0.16"
+
+# Error tracking
+sentry = { version = "0.48.2", default-features = false, features = [
+  "backtrace",
+  "contexts",
+  "panic",
+] }
+sentry-tower = { version = "0.48.2", default-features = false, features = [
+  "http",
+] }

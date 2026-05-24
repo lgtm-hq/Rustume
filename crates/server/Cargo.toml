@@ -58,6 +58,8 @@ axum-extra.workspace = true
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
 chrono.workspace = true
+sentry.workspace = true
+sentry-tower.workspace = true
 
 # Use jemalloc on musl to avoid musl's slower default allocator
 [target.'cfg(target_env = "musl")'.dependencies]

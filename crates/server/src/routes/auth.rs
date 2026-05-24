@@ -59,9 +59,13 @@ pub async fn callback(
         .map_err(|err| ApiError::internal(err.to_string()))?;
 
     let mut response = Redirect::to("/").into_response();
+    let header_value = cookie
+        .to_string()
+        .parse::<header::HeaderValue>()
+        .map_err(|err| ApiError::internal(format!("invalid session cookie header: {err}")))?;
     response
         .headers_mut()
-        .append(header::SET_COOKIE, cookie.to_string().parse().unwrap());
+        .append(header::SET_COOKIE, header_value);
     Ok(response)
 }
 
@@ -77,12 +81,28 @@ pub async fn logout(State(state): State<AppState>, jar: CookieJar) -> Result<Res
 
     let clear = cloud.sessions.clear_cookie();
     let mut response = (StatusCode::NO_CONTENT, ()).into_response();
+    let header_value = clear
+        .to_string()
+        .parse::<header::HeaderValue>()
+        .map_err(|err| ApiError::internal(format!("invalid clear-cookie header: {err}")))?;
     response
         .headers_mut()
-        .append(header::SET_COOKIE, clear.to_string().parse().unwrap());
+        .append(header::SET_COOKIE, header_value);
     Ok(response)
 }
 
+/// Return the currently authenticated user (requires session cookie).
+#[utoipa::path(
+    get,
+    path = "/auth/me",
+    tag = "Auth",
+    responses(
+        (status = 200, description = "Authenticated user", body = AuthUserResponse),
+        (status = 401, description = "Not authenticated", body = ApiError),
+        (status = 404, description = "Cloud auth not enabled", body = ApiError),
+    ),
+    security(("cookieAuth" = []))
+)]
 pub async fn me(AuthUser(user): AuthUser) -> Json<AuthUserResponse> {
     Json(user.into())
 }

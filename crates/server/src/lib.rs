@@ -20,6 +20,7 @@ pub mod db;
 pub mod dto;
 pub mod error;
 pub mod middleware;
+pub mod observability;
 pub mod openapi;
 pub mod routes;
 pub mod run;
@@ -353,6 +354,12 @@ mod tests {
             .as_object()
             .unwrap()
             .contains_key("/api/templates"));
+        assert!(spec["paths"].as_object().unwrap().contains_key("/auth/me"));
+        assert!(spec["paths"]
+            .as_object()
+            .unwrap()
+            .contains_key("/api/resumes"));
+        assert!(spec["components"]["securitySchemes"]["cookieAuth"].is_object());
     }
 
     #[tokio::test]

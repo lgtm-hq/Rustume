@@ -22,6 +22,8 @@ pub enum ApiErrorKind {
     Unauthorized,
     /// Forbidden (403)
     Forbidden,
+    /// Conflict (409) - resource already exists
+    Conflict,
 }
 
 impl ApiErrorKind {
@@ -33,6 +35,7 @@ impl ApiErrorKind {
             ApiErrorKind::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
             ApiErrorKind::Unauthorized => StatusCode::UNAUTHORIZED,
             ApiErrorKind::Forbidden => StatusCode::FORBIDDEN,
+            ApiErrorKind::Conflict => StatusCode::CONFLICT,
         }
     }
 }
@@ -98,6 +101,14 @@ impl ApiError {
             error: error.into(),
             details: None,
             kind: ApiErrorKind::Forbidden,
+        }
+    }
+
+    pub fn conflict(error: impl Into<String>) -> Self {
+        Self {
+            error: error.into(),
+            details: None,
+            kind: ApiErrorKind::Conflict,
         }
     }
 }

@@ -1,23 +1,43 @@
+use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
+use utoipa::Modify;
 use utoipa::OpenApi;
 
+use crate::db::{
+    AuthUserResponse, CreateResumeRequest, ImportResumeItem, ImportResumesRequest, ResumeRow,
+    ResumeSummary, UpdateResumeRequest,
+};
 use crate::dto::{
     ParseFormat, ParseRequest, RenderPdfRequest, RenderPreviewRequest, TemplateInfo, ThemeInfo,
     ValidationResponse,
 };
 use crate::error::ApiError;
 
+struct CookieAuthAddon;
+
+impl Modify for CookieAuthAddon {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        if let Some(components) = openapi.components.as_mut() {
+            components.add_security_scheme(
+                "cookieAuth",
+                SecurityScheme::ApiKey(ApiKey::Cookie(ApiKeyValue::new("rustume_session"))),
+            );
+        }
+    }
+}
+
 #[derive(OpenApi)]
 #[openapi(
     info(
         title = "Rustume API",
         version = env!("CARGO_PKG_VERSION"),
-        description = "REST API for resume parsing, rendering, and validation.\n\n## Features\n\n- **Parse**: Import resumes from JSON Resume, LinkedIn exports, or Reactive Resume v3\n- **Render**: Generate PDF or PNG previews of resumes\n- **Validate**: Check resume data against the schema\n- **Templates**: List available resume templates with theme colors",
+        description = "REST API for resume parsing, rendering, validation, and Rustume Cloud storage.\n\n## Features\n\n- **Parse**: Import resumes from JSON Resume, LinkedIn exports, or Reactive Resume v3\n- **Render**: Generate PDF or PNG previews of resumes\n- **Validate**: Check resume data against the schema\n- **Templates**: List available resume templates with theme colors\n- **Cloud** (when enabled): WorkOS auth and authenticated resume CRUD",
         license(name = "MIT", url = "https://opensource.org/licenses/MIT"),
         contact(name = "Rustume", url = "https://github.com/lgtm-hq/Rustume")
     ),
     servers(
         (url = "/", description = "Local server")
     ),
+    modifiers(&CookieAuthAddon),
     paths(
         crate::routes::health::health,
         crate::routes::templates::list_templates,
@@ -25,7 +45,14 @@ use crate::error::ApiError;
         crate::routes::parse::parse,
         crate::routes::render::render_pdf,
         crate::routes::render::render_preview,
-        crate::routes::validate::validate
+        crate::routes::validate::validate,
+        crate::routes::auth::me,
+        crate::routes::resumes::list_resumes,
+        crate::routes::resumes::get_resume,
+        crate::routes::resumes::create_resume,
+        crate::routes::resumes::update_resume,
+        crate::routes::resumes::delete_resume,
+        crate::routes::resumes::import_resumes,
     ),
     components(
         schemas(
@@ -37,6 +64,13 @@ use crate::error::ApiError;
             TemplateInfo,
             ThemeInfo,
             ValidationResponse,
+            AuthUserResponse,
+            ResumeSummary,
+            ResumeRow,
+            CreateResumeRequest,
+            UpdateResumeRequest,
+            ImportResumesRequest,
+            ImportResumeItem,
             rustume_schema::ResumeData
         )
     ),
@@ -45,7 +79,9 @@ use crate::error::ApiError;
         (name = "Templates", description = "Template management"),
         (name = "Parse", description = "Resume parsing from various formats"),
         (name = "Render", description = "Resume rendering to PDF/PNG"),
-        (name = "Validate", description = "Resume validation")
+        (name = "Validate", description = "Resume validation"),
+        (name = "Auth", description = "Rustume Cloud authentication (cloud mode only)"),
+        (name = "Resumes", description = "Authenticated resume storage (cloud mode only)")
     )
 )]
 pub struct ApiDoc;

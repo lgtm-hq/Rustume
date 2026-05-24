@@ -18,6 +18,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use crate::config::MAX_BODY_SIZE;
 use crate::middleware::security::security_headers;
+use crate::observability::apply_sentry_layers;
 use crate::openapi::ApiDoc;
 use crate::routes::{
     callback, create_resume, delete_resume, get_resume, health, import_resumes, list_resumes,
@@ -69,14 +70,16 @@ pub fn create_router_with_state(state: AppState) -> Router {
             );
     }
 
-    router
+    let router = router
         .with_state(state)
         .layer(middleware::from_fn(security_headers))
         .layer(CompressionLayer::new())
         .layer(cors)
         .layer(TraceLayer::new_for_http())
         .layer(DefaultBodyLimit::disable())
-        .layer(RequestBodyLimitLayer::new(MAX_BODY_SIZE))
+        .layer(RequestBodyLimitLayer::new(MAX_BODY_SIZE));
+
+    apply_sentry_layers(router)
 }
 
 fn build_cors_layer() -> CorsLayer {
