@@ -10,8 +10,6 @@ const { mockAuthState, resumeApiMocks } = vi.hoisted(() => ({
     cloudEnabled: true,
     user: {
       id: "user-1",
-      email: "test@example.com",
-      name: null,
       plan: "free",
     },
   },
@@ -75,8 +73,6 @@ describe("isCloudAuthenticated", () => {
     mockAuthState.cloudEnabled = true;
     mockAuthState.user = {
       id: "user-1",
-      email: "test@example.com",
-      name: null,
       plan: "free",
     };
   });

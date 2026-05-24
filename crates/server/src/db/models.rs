@@ -7,16 +7,15 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 /// Authenticated user record stored in PostgreSQL.
+///
+/// Privacy: we store NO personal information (no email, no name). The only
+/// link to the authentication provider is the opaque `workos_id`.
 #[derive(Debug, Clone, FromRow, Serialize)]
 pub struct User {
     /// Primary key.
     pub id: Uuid,
-    /// WorkOS user identifier (`user_…`).
+    /// WorkOS user identifier (`user_…`) — opaque, non-personal.
     pub workos_id: String,
-    /// Primary email from WorkOS.
-    pub email: String,
-    /// Display name, when available.
-    pub name: Option<String>,
     /// Subscription tier (`free`, `pro`, `team`).
     pub plan: String,
     /// Paddle customer ID, set after first paid subscription.
@@ -109,12 +108,12 @@ pub struct ImportResumesRequest {
 }
 
 /// Authenticated user profile returned by `GET /auth/me`.
+///
+/// Privacy: contains NO personal information — only account ID and plan tier.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct AuthUserResponse {
     #[schema(value_type = String, format = "uuid")]
     pub id: Uuid,
-    pub email: String,
-    pub name: Option<String>,
     pub plan: String,
 }
 
@@ -122,8 +121,6 @@ impl From<User> for AuthUserResponse {
     fn from(user: User) -> Self {
         Self {
             id: user.id,
-            email: user.email,
-            name: user.name,
             plan: user.plan,
         }
     }

@@ -1,8 +1,6 @@
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     workos_id TEXT UNIQUE NOT NULL,
-    email TEXT NOT NULL,
-    name TEXT,
     plan TEXT NOT NULL DEFAULT 'free',
     paddle_customer_id TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

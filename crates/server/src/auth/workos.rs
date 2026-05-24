@@ -93,24 +93,18 @@ struct AuthenticateResponse {
 }
 
 /// Normalized WorkOS user returned after code exchange.
+///
+/// We only use `id` to link the auth session; personal fields are deserialized
+/// by serde but immediately discarded — never stored.
 #[derive(Debug, Clone, Deserialize)]
 pub struct WorkOsUser {
     pub id: String,
-    pub email: String,
-    pub first_name: Option<String>,
-    pub last_name: Option<String>,
-}
-
-impl WorkOsUser {
-    /// Combine first and last name into a single display string.
-    pub fn display_name(&self) -> Option<String> {
-        match (&self.first_name, &self.last_name) {
-            (Some(first), Some(last)) => Some(format!("{first} {last}")),
-            (Some(first), None) => Some(first.clone()),
-            (None, Some(last)) => Some(last.clone()),
-            (None, None) => None,
-        }
-    }
+    #[allow(dead_code)]
+    email: String,
+    #[allow(dead_code)]
+    first_name: Option<String>,
+    #[allow(dead_code)]
+    last_name: Option<String>,
 }
 
 /// Errors returned when communicating with WorkOS.
@@ -123,24 +117,22 @@ pub enum WorkOsAuthError {
 }
 
 /// Insert or update a user row from a WorkOS profile.
+///
+/// Privacy: we only persist the opaque `workos_id` — no email, name, or other PII.
 pub async fn upsert_user(
     pool: &sqlx::PgPool,
     workos_user: &WorkOsUser,
 ) -> Result<User, sqlx::Error> {
     sqlx::query_as::<_, User>(
         r#"
-        INSERT INTO users (workos_id, email, name, plan)
-        VALUES ($1, $2, $3, 'free')
+        INSERT INTO users (workos_id, plan)
+        VALUES ($1, 'free')
         ON CONFLICT (workos_id) DO UPDATE
-        SET email = EXCLUDED.email,
-            name = EXCLUDED.name,
-            updated_at = now()
-        RETURNING id, workos_id, email, name, plan, paddle_customer_id, created_at, updated_at
+        SET updated_at = now()
+        RETURNING id, workos_id, plan, paddle_customer_id, created_at, updated_at
         "#,
     )
     .bind(&workos_user.id)
-    .bind(&workos_user.email)
-    .bind(workos_user.display_name())
     .fetch_one(pool)
     .await
 }

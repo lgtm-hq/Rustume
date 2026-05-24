@@ -16,11 +16,9 @@ export function AuthMenu() {
             </Button>
           }
         >
-          {(user) => (
+          {(_user) => (
             <div class="flex items-center gap-3">
-              <span class="hidden sm:inline text-xs font-mono text-stone truncate max-w-[12rem]">
-                {user().name ?? user().email}
-              </span>
+              <span class="hidden sm:inline text-xs font-mono text-stone">Signed in</span>
               <Button variant="ghost" size="sm" onClick={() => void signOut()}>
                 Sign out
               </Button>
