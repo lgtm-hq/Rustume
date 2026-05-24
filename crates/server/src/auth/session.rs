@@ -3,10 +3,14 @@
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use chrono::{Duration, Utc};
 use cookie::time;
+use hmac::{Hmac, Mac};
+use sha2::Sha256;
 use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::db::{Session, User};
+
+type HmacSha256 = Hmac<Sha256>;
 
 /// Name of the session cookie set on login.
 pub const SESSION_COOKIE: &str = "rustume_session";
@@ -58,9 +62,9 @@ impl SessionService {
 
     /// Resolve a session token to the owning user, if valid and unexpired.
     pub async fn user_for_token(&self, token: &str) -> Result<Option<User>, sqlx::Error> {
-        let session_id = match Uuid::parse_str(token) {
-            Ok(id) => id,
-            Err(_) => return Ok(None),
+        let session_id = match self.parse_session_token(token) {
+            Some(id) => id,
+            None => return Ok(None),
         };
 
         let row = sqlx::query_as::<_, User>(
@@ -78,9 +82,9 @@ impl SessionService {
         Ok(row)
     }
 
-    /// Delete a session by token (no-op when the token is not a UUID).
+    /// Delete a session by token (no-op when the token is invalid).
     pub async fn delete(&self, token: &str) -> Result<(), sqlx::Error> {
-        if let Ok(session_id) = Uuid::parse_str(token) {
+        if let Some(session_id) = self.parse_session_token(token) {
             sqlx::query("DELETE FROM sessions WHERE id = $1")
                 .bind(session_id)
                 .execute(&self.db)
@@ -96,8 +100,9 @@ impl SessionService {
     ) -> Cookie<'static> {
         let secure = cookie_secure();
         let max_age = (expires_at - Utc::now()).num_seconds().max(0);
+        let signed_token = self.format_signed_token(session_id);
 
-        Cookie::build((SESSION_COOKIE, session_id.to_string()))
+        Cookie::build((SESSION_COOKIE, signed_token))
             .http_only(true)
             .same_site(SameSite::Lax)
             .path("/")
@@ -106,14 +111,81 @@ impl SessionService {
             .into()
     }
 
-    #[allow(dead_code)]
-    pub fn secret(&self) -> &str {
-        &self.secret
+    fn format_signed_token(&self, session_id: &Uuid) -> String {
+        format_signed_session_token(session_id, &self.secret)
     }
+
+    fn parse_session_token(&self, token: &str) -> Option<Uuid> {
+        parse_signed_session_token(token, &self.secret)
+    }
+
+    fn sign_session_id(&self, session_id: &Uuid) -> String {
+        sign_session_id(session_id, &self.secret)
+    }
+}
+
+fn format_signed_session_token(session_id: &Uuid, secret: &str) -> String {
+    format!("{session_id}.{}", sign_session_id(session_id, secret))
+}
+
+fn parse_signed_session_token(token: &str, secret: &str) -> Option<Uuid> {
+    let (session_id, signature) = token.rsplit_once('.')?;
+    let session_id = Uuid::parse_str(session_id).ok()?;
+    let expected = sign_session_id(&session_id, secret);
+    if !constant_time_eq(signature.as_bytes(), expected.as_bytes()) {
+        return None;
+    }
+    Some(session_id)
+}
+
+fn sign_session_id(session_id: &Uuid, secret: &str) -> String {
+    let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
+        .expect("HMAC accepts arbitrary key lengths");
+    mac.update(session_id.as_bytes());
+    hex_encode(&mac.finalize().into_bytes())
 }
 
 fn cookie_secure() -> bool {
     std::env::var("WORKOS_REDIRECT_URI")
         .map(|uri| uri.starts_with("https://"))
         .unwrap_or(false)
+}
+
+fn hex_encode(bytes: &[u8]) -> String {
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
+    if left.len() != right.len() {
+        return false;
+    }
+
+    left.iter()
+        .zip(right.iter())
+        .fold(0u8, |acc, (a, b)| acc | (a ^ b))
+        == 0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const TEST_SECRET: &str = "test-secret-at-least-32-characters-long";
+
+    #[test]
+    fn signed_session_token_round_trips() {
+        let session_id = Uuid::new_v4();
+        let token = format_signed_session_token(&session_id, TEST_SECRET);
+        assert_eq!(
+            parse_signed_session_token(&token, TEST_SECRET),
+            Some(session_id)
+        );
+    }
+
+    #[test]
+    fn rejects_tampered_session_token() {
+        let session_id = Uuid::new_v4();
+        let token = format!("{session_id}.{}", "0".repeat(64));
+        assert_eq!(parse_signed_session_token(&token, TEST_SECRET), None);
+    }
 }

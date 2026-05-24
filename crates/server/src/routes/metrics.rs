@@ -1,12 +1,24 @@
 //! Prometheus metrics endpoint for Rustume Cloud observability.
 
-use axum::response::IntoResponse;
+use axum::{
+    extract::Query,
+    http::{header, HeaderMap, StatusCode},
+    response::{IntoResponse, Response},
+};
+use serde::Deserialize;
 use std::sync::OnceLock;
 use tracing::warn;
 
 use metrics_exporter_prometheus::PrometheusHandle;
 
+use crate::error::ApiError;
+
 static PROMETHEUS: OnceLock<PrometheusHandle> = OnceLock::new();
+
+#[derive(Debug, Deserialize)]
+pub struct MetricsQuery {
+    token: Option<String>,
+}
 
 /// Install the global Prometheus metrics recorder (idempotent).
 pub fn init_metrics() {
@@ -23,9 +35,38 @@ pub fn init_metrics() {
 }
 
 /// Render all recorded metrics in Prometheus text format.
-pub async fn metrics() -> impl IntoResponse {
-    PROMETHEUS
+pub async fn metrics(
+    headers: HeaderMap,
+    Query(query): Query<MetricsQuery>,
+) -> Result<Response, ApiError> {
+    if !metrics_authorized(&headers, query.token.as_deref()) {
+        return Err(ApiError::unauthorized("Unauthorized"));
+    }
+
+    let body = PROMETHEUS
         .get()
         .map(PrometheusHandle::render)
-        .unwrap_or_default()
+        .unwrap_or_default();
+
+    Ok((StatusCode::OK, body).into_response())
+}
+
+fn metrics_authorized(headers: &HeaderMap, query_token: Option<&str>) -> bool {
+    let expected = match std::env::var("METRICS_TOKEN") {
+        Ok(token) if !token.is_empty() => token,
+        _ => return false,
+    };
+
+    if let Some(auth) = headers
+        .get(header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+    {
+        if let Some(bearer) = auth.strip_prefix("Bearer ") {
+            if bearer == expected {
+                return true;
+            }
+        }
+    }
+
+    query_token == Some(expected.as_str())
 }

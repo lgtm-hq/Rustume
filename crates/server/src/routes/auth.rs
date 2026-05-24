@@ -56,7 +56,7 @@ pub async fn callback(
         _ => return Err(ApiError::unauthorized("Invalid OAuth state")),
     }
 
-    let ip = client_ip(&headers);
+    let ip = trusted_client_ip(&headers);
     let user_agent = headers
         .get(header::USER_AGENT)
         .and_then(|value| value.to_str().ok());
@@ -116,16 +116,17 @@ pub async fn me(AuthUser(user): AuthUser) -> Json<AuthUserResponse> {
     Json(user.into())
 }
 
-fn client_ip(headers: &HeaderMap) -> Option<&str> {
+fn trusted_client_ip(headers: &HeaderMap) -> Option<&str> {
+    if !matches!(std::env::var("TRUSTED_PROXY").as_deref(), Ok("true" | "1")) {
+        return None;
+    }
+
     headers
         .get("x-forwarded-for")
         .and_then(|value| value.to_str().ok())
         .and_then(|value| value.split(',').next())
-        .or_else(|| {
-            headers
-                .get(header::FORWARDED)
-                .and_then(|value| value.to_str().ok())
-        })
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
 }
 
 fn oauth_cookie_secure() -> bool {

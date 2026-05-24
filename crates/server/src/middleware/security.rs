@@ -19,5 +19,10 @@ pub async fn security_headers(req: Request, next: Next) -> Response {
     headers
         .entry("referrer-policy")
         .or_insert(HeaderValue::from_static("strict-origin-when-cross-origin"));
+    headers.entry("content-security-policy").or_insert(
+        HeaderValue::from_static(
+            "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+        ),
+    );
     response
 }
