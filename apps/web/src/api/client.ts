@@ -1,14 +1,8 @@
 const API_BASE = "/api";
 
-export class ApiError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-  ) {
-    super(message);
-    this.name = "ApiError";
-  }
-}
+const defaultFetchOptions: RequestInit = {
+  credentials: "include",
+};
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
@@ -23,6 +17,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   }
 
   const response = await fetch(url, {
+    ...defaultFetchOptions,
     ...options,
     headers,
   });
@@ -42,6 +37,16 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   return (await response.text()) as unknown as T;
 }
 
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 export async function get<T>(endpoint: string): Promise<T> {
   return request<T>(endpoint, { method: "GET" });
 }
@@ -51,6 +56,17 @@ export async function post<T>(endpoint: string, body?: unknown): Promise<T> {
     method: "POST",
     body: body !== undefined && body !== null ? JSON.stringify(body) : undefined,
   });
+}
+
+export async function put<T>(endpoint: string, body?: unknown): Promise<T> {
+  return request<T>(endpoint, {
+    method: "PUT",
+    body: body !== undefined && body !== null ? JSON.stringify(body) : undefined,
+  });
+}
+
+export async function del(endpoint: string): Promise<void> {
+  await request<void>(endpoint, { method: "DELETE" });
 }
 
 export async function fetchBlob(endpoint: string, body?: unknown): Promise<Blob> {
@@ -69,6 +85,7 @@ export async function fetchBlobWithHeaders(
 ): Promise<BlobResponse> {
   const url = `${API_BASE}${endpoint}`;
   const response = await fetch(url, {
+    ...defaultFetchOptions,
     method: "POST",
     headers: {
       "Content-Type": "application/json",

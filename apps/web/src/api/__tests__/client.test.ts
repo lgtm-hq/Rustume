@@ -28,7 +28,7 @@ describe("get", () => {
 
     expect(mockFetch).toHaveBeenCalledWith(
       "/api/templates",
-      expect.objectContaining({ method: "GET" }),
+      expect.objectContaining({ method: "GET", credentials: "include" }),
     );
   });
 

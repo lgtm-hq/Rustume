@@ -371,3 +371,13 @@ export function useResumeList() {
     },
   };
 }
+
+/** List resume IDs from local storage (WASM or localStorage fallback). */
+export async function listStoredResumeIds(): Promise<string[]> {
+  return listResumes();
+}
+
+/** Load a resume from local storage (WASM or localStorage fallback). */
+export async function getStoredResume(id: string): Promise<ResumeData> {
+  return getResume(id);
+}

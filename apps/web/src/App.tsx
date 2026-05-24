@@ -1,6 +1,8 @@
 import { onMount, createSignal, Show, type ParentComponent } from "solid-js";
 import { AppShell } from "./components/layout/AppShell";
+import { CloudImportPrompt } from "./components/Auth/CloudImportPrompt";
 import { Button, ToastRegion } from "./components/ui";
+import { authStore } from "./stores/auth";
 import { initWasm } from "./wasm";
 
 const WASM_NOTICE_KEY = "wasmNoticeDismissed";
@@ -17,6 +19,7 @@ const App: ParentComponent = (props) => {
   };
 
   onMount(async () => {
+    void authStore.refresh();
     try {
       await initWasm();
     } catch (e) {
@@ -42,6 +45,7 @@ const App: ParentComponent = (props) => {
         </div>
       </Show>
       <AppShell>{props.children}</AppShell>
+      <CloudImportPrompt />
       <ToastRegion />
     </div>
   );
