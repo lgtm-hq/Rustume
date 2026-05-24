@@ -1,21 +1,31 @@
+//! Database row types and cloud API request/response DTOs.
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+/// Authenticated user record stored in PostgreSQL.
 #[derive(Debug, Clone, FromRow, Serialize)]
 pub struct User {
+    /// Primary key.
     pub id: Uuid,
+    /// WorkOS user identifier (`user_…`).
     pub workos_id: String,
+    /// Primary email from WorkOS.
     pub email: String,
+    /// Display name, when available.
     pub name: Option<String>,
+    /// Subscription tier (`free`, `pro`, `team`).
     pub plan: String,
-    pub stripe_customer_id: Option<String>,
+    /// Paddle customer ID, set after first paid subscription.
+    pub paddle_customer_id: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
+/// Server-side session row backing the `rustume_session` cookie.
 #[derive(Debug, Clone, FromRow)]
 pub struct Session {
     pub id: Uuid,
@@ -24,6 +34,7 @@ pub struct Session {
     pub created_at: DateTime<Utc>,
 }
 
+/// Full resume row as stored in PostgreSQL.
 #[derive(Debug, Clone, FromRow, Serialize, ToSchema)]
 pub struct ResumeRow {
     #[schema(value_type = String, format = "uuid")]
@@ -43,6 +54,7 @@ pub struct ResumeRow {
     pub updated_at: DateTime<Utc>,
 }
 
+/// Lightweight resume summary for list endpoints.
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct ResumeSummary {
     #[schema(value_type = String, format = "uuid")]
@@ -62,6 +74,7 @@ impl From<ResumeRow> for ResumeSummary {
     }
 }
 
+/// Request body for `POST /api/resumes`.
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateResumeRequest {
     #[schema(value_type = Option<String>, format = "uuid")]
@@ -71,6 +84,7 @@ pub struct CreateResumeRequest {
     pub data: serde_json::Value,
 }
 
+/// Request body for `PUT /api/resumes/{id}`.
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdateResumeRequest {
     pub title: Option<String>,
@@ -78,6 +92,7 @@ pub struct UpdateResumeRequest {
     pub data: serde_json::Value,
 }
 
+/// Single resume payload within an import batch.
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct ImportResumeItem {
     #[schema(value_type = Option<String>, format = "uuid")]
@@ -87,11 +102,13 @@ pub struct ImportResumeItem {
     pub data: serde_json::Value,
 }
 
+/// Request body for `POST /api/resumes/import`.
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct ImportResumesRequest {
     pub resumes: Vec<ImportResumeItem>,
 }
 
+/// Authenticated user profile returned by `GET /auth/me`.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct AuthUserResponse {
     #[schema(value_type = String, format = "uuid")]

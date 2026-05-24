@@ -1,3 +1,5 @@
+//! WorkOS AuthKit OAuth client and user persistence helpers.
+
 use reqwest::Client;
 use serde::Deserialize;
 
@@ -5,6 +7,7 @@ use crate::db::User;
 
 const WORKOS_API_BASE: &str = "https://api.workos.com";
 
+/// HTTP client for WorkOS User Management API calls.
 #[derive(Clone)]
 pub struct WorkOsClient {
     http: Client,
@@ -13,6 +16,7 @@ pub struct WorkOsClient {
 }
 
 impl WorkOsClient {
+    /// Create a client with the given WorkOS application credentials.
     pub fn new(client_id: String, api_key: String) -> Self {
         Self {
             http: Client::new(),
@@ -21,10 +25,12 @@ impl WorkOsClient {
         }
     }
 
+    /// WorkOS client ID exposed for diagnostics and tests.
     pub fn client_id(&self) -> &str {
         &self.client_id
     }
 
+    /// Build the AuthKit authorization URL for the OAuth redirect.
     pub fn authorize_url(&self, redirect_uri: &str, state: &str) -> String {
         format!(
             "{WORKOS_API_BASE}/user_management/authorize?response_type=code&client_id={}&redirect_uri={}&provider=authkit&state={}",
@@ -34,6 +40,7 @@ impl WorkOsClient {
         )
     }
 
+    /// Exchange an authorization code for a WorkOS user profile.
     pub async fn authenticate_with_code(
         &self,
         code: &str,
@@ -85,6 +92,7 @@ struct AuthenticateResponse {
     user: WorkOsUser,
 }
 
+/// Normalized WorkOS user returned after code exchange.
 #[derive(Debug, Clone, Deserialize)]
 pub struct WorkOsUser {
     pub id: String,
@@ -94,6 +102,7 @@ pub struct WorkOsUser {
 }
 
 impl WorkOsUser {
+    /// Combine first and last name into a single display string.
     pub fn display_name(&self) -> Option<String> {
         match (&self.first_name, &self.last_name) {
             (Some(first), Some(last)) => Some(format!("{first} {last}")),
@@ -104,6 +113,7 @@ impl WorkOsUser {
     }
 }
 
+/// Errors returned when communicating with WorkOS.
 #[derive(Debug, thiserror::Error)]
 pub enum WorkOsAuthError {
     #[error("WorkOS request failed: {0}")]
@@ -112,6 +122,7 @@ pub enum WorkOsAuthError {
     Api { status: u16, body: String },
 }
 
+/// Insert or update a user row from a WorkOS profile.
 pub async fn upsert_user(
     pool: &sqlx::PgPool,
     workos_user: &WorkOsUser,
@@ -124,7 +135,7 @@ pub async fn upsert_user(
         SET email = EXCLUDED.email,
             name = EXCLUDED.name,
             updated_at = now()
-        RETURNING id, workos_id, email, name, plan, stripe_customer_id, created_at, updated_at
+        RETURNING id, workos_id, email, name, plan, paddle_customer_id, created_at, updated_at
         "#,
     )
     .bind(&workos_user.id)

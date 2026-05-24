@@ -4,7 +4,7 @@ CREATE TABLE users (
     email TEXT NOT NULL,
     name TEXT,
     plan TEXT NOT NULL DEFAULT 'free',
-    stripe_customer_id TEXT,
+    paddle_customer_id TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -47,8 +47,8 @@ CREATE INDEX resume_versions_resume_id_idx ON resume_versions (resume_id);
 CREATE TABLE subscriptions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-    stripe_subscription_id TEXT UNIQUE NOT NULL,
-    stripe_price_id TEXT NOT NULL,
+    paddle_subscription_id TEXT UNIQUE NOT NULL,
+    paddle_price_id TEXT NOT NULL,
     plan TEXT NOT NULL,
     status TEXT NOT NULL,
     current_period_end TIMESTAMPTZ,
