@@ -236,7 +236,7 @@ pub async fn import_resumes(
         .bind(item.data)
         .fetch_one(&mut *tx)
         .await
-        .map_err(map_resume_db_error)?;
+        .map_err(map_import_db_error)?;
         imported.push(ResumeSummary::from(row));
     }
 
@@ -248,6 +248,13 @@ pub async fn import_resumes(
 fn internal_db_error(err: impl std::fmt::Display + Send + Sync + 'static) -> ApiError {
     error!("database error: {err}");
     ApiError::internal("internal server error")
+}
+
+fn map_import_db_error(err: sqlx::Error) -> ApiError {
+    if matches!(err, sqlx::Error::RowNotFound) {
+        return ApiError::conflict("Import resume ID already exists for another user");
+    }
+    map_resume_db_error(err)
 }
 
 fn map_resume_db_error(err: sqlx::Error) -> ApiError {
