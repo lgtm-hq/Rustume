@@ -5,6 +5,10 @@ edition.workspace = true
 license.workspace = true
 description = "HTTP API server for Rustume resume builder"
 
+[lib]
+name = "rustume_server"
+path = "src/lib.rs"
+
 [[bin]]
 name = "rustume-server"
 path = "src/main.rs"
@@ -46,6 +50,15 @@ lru.workspace = true
 utoipa.workspace = true
 utoipa-swagger-ui = { version = "9", features = ["axum", "reqwest"] }
 
+# Cloud mode
+sqlx.workspace = true
+uuid.workspace = true
+reqwest.workspace = true
+axum-extra.workspace = true
+metrics.workspace = true
+metrics-exporter-prometheus.workspace = true
+chrono.workspace = true
+
 # Use jemalloc on musl to avoid musl's slower default allocator
 [target.'cfg(target_env = "musl")'.dependencies]
 tikv-jemallocator = { version = "0.6", features = [
@@ -53,7 +66,7 @@ tikv-jemallocator = { version = "0.6", features = [
 ] }
 
 [dev-dependencies]
-reqwest = { version = "0.13", features = ["json"] }
+reqwest = { workspace = true, features = ["json"] }
 tempfile = "3"
 tower = { workspace = true, features = ["util"] }
 http-body-util = "0.1"
