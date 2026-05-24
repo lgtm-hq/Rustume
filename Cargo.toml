@@ -101,7 +101,7 @@ utoipa = { version = "5", features = ["axum_extras"] }
 lru = "0.18"
 
 # Cloud / database
-sqlx = { version = "0.8", default-features = false, features = [
+sqlx = { version = "0.9", default-features = false, features = [
   "runtime-tokio",
   "postgres",
   "macros",
