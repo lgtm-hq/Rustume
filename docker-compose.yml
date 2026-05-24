@@ -21,7 +21,7 @@ services:
       PORT: "3000"
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       RUSTUME_CLOUD: ${RUSTUME_CLOUD:-false}
-      DATABASE_URL: ${DATABASE_URL:-postgresql://rustume:rustume@postgres:5432/rustume}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-rustume}:${POSTGRES_PASSWORD:-rustume}@postgres:5432/${POSTGRES_DB:-rustume}}
       WORKOS_CLIENT_ID: ${WORKOS_CLIENT_ID:-}
       WORKOS_API_KEY: ${WORKOS_API_KEY:-}
       WORKOS_REDIRECT_URI: ${WORKOS_REDIRECT_URI:-http://localhost:3000/auth/callback}
@@ -39,15 +39,15 @@ services:
     image: postgres:16-alpine
     container_name: rustume-postgres
     environment:
-      POSTGRES_USER: rustume
-      POSTGRES_PASSWORD: rustume
-      POSTGRES_DB: rustume
+      POSTGRES_USER: ${POSTGRES_USER:-rustume}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rustume}
+      POSTGRES_DB: ${POSTGRES_DB:-rustume}
     ports:
       - "5432:5432"
     volumes:
       - rustume_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U rustume -d rustume"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 3s
       retries: 5
