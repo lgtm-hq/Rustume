@@ -71,7 +71,14 @@ export async function upsertCloudResume(
     return await updateCloudResume(id, payload);
   } catch (error: unknown) {
     if (error instanceof ApiError && error.status === 404) {
-      return createCloudResume({ id, ...payload });
+      try {
+        return await createCloudResume({ id, ...payload });
+      } catch (createError: unknown) {
+        if (createError instanceof ApiError && createError.status === 409) {
+          return getCloudResume(id);
+        }
+        throw createError;
+      }
     }
     throw error;
   }

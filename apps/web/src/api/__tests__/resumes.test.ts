@@ -96,6 +96,30 @@ describe("upsertCloudResume", () => {
       ApiError,
     );
   });
+
+  it("fetches the existing row when create returns 409 after a 404 update", async () => {
+    const existing = mockRow({ id: "abc", title: "Existing" });
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        statusText: "Not Found",
+        text: () => Promise.resolve("Resume not found"),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 409,
+        statusText: "Conflict",
+        text: () => Promise.resolve("A resume with this ID already exists"),
+      })
+      .mockResolvedValueOnce(jsonFetch(existing));
+
+    const result = await upsertCloudResume("abc", testResume("Test"), "Test");
+
+    expect(result).toEqual(existing);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(3);
+  });
 });
 
 describe("resume API helpers", () => {
