@@ -6,7 +6,7 @@ use axum::{
     response::{IntoResponse, Redirect, Response},
     Json,
 };
-use axum_extra::extract::cookie::CookieJar;
+use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -17,31 +17,45 @@ use crate::error::ApiError;
 use crate::middleware::auth::AuthUser;
 use crate::state::AppState;
 
+const OAUTH_STATE_COOKIE: &str = "rustume_oauth_state";
+const OAUTH_STATE_TTL_MINUTES: i64 = 10;
+
 /// OAuth query parameters returned by WorkOS on `/auth/callback`.
 #[derive(Debug, Deserialize)]
 pub struct CallbackQuery {
     code: String,
-    #[allow(dead_code)]
     state: Option<String>,
 }
 
 /// Redirect the browser to WorkOS AuthKit for sign-in.
-pub async fn login(State(state): State<AppState>) -> Result<Redirect, ApiError> {
+pub async fn login(State(state): State<AppState>) -> Result<Response, ApiError> {
     let cloud = state.cloud()?;
     let redirect_uri = std::env::var("WORKOS_REDIRECT_URI")
         .map_err(|_| ApiError::internal("WORKOS_REDIRECT_URI is not configured"))?;
     let oauth_state = Uuid::new_v4().to_string();
     let url = cloud.workos.authorize_url(&redirect_uri, &oauth_state);
-    Ok(Redirect::temporary(&url))
+
+    let state_cookie = build_oauth_state_cookie(&oauth_state);
+    let mut response = Redirect::temporary(&url).into_response();
+    append_set_cookie(&mut response, state_cookie)?;
+    Ok(response)
 }
 
 /// Handle the WorkOS OAuth callback, upsert the user, and set the session cookie.
 pub async fn callback(
     State(state): State<AppState>,
+    jar: CookieJar,
     Query(query): Query<CallbackQuery>,
     headers: HeaderMap,
 ) -> Result<Response, ApiError> {
     let cloud = state.cloud()?;
+
+    let stored_state = jar.get(OAUTH_STATE_COOKIE).map(|cookie| cookie.value());
+    match (stored_state, query.state.as_deref()) {
+        (Some(stored), Some(provided)) if stored == provided => {}
+        _ => return Err(ApiError::unauthorized("Invalid OAuth state")),
+    }
+
     let ip = client_ip(&headers);
     let user_agent = headers
         .get(header::USER_AGENT)
@@ -64,13 +78,8 @@ pub async fn callback(
         .map_err(|err| ApiError::internal(err.to_string()))?;
 
     let mut response = Redirect::to("/").into_response();
-    let header_value = cookie
-        .to_string()
-        .parse::<header::HeaderValue>()
-        .map_err(|err| ApiError::internal(format!("invalid session cookie header: {err}")))?;
-    response
-        .headers_mut()
-        .append(header::SET_COOKIE, header_value);
+    append_set_cookie(&mut response, cookie)?;
+    append_set_cookie(&mut response, clear_oauth_state_cookie())?;
     Ok(response)
 }
 
@@ -87,13 +96,7 @@ pub async fn logout(State(state): State<AppState>, jar: CookieJar) -> Result<Res
 
     let clear = cloud.sessions.clear_cookie();
     let mut response = (StatusCode::NO_CONTENT, ()).into_response();
-    let header_value = clear
-        .to_string()
-        .parse::<header::HeaderValue>()
-        .map_err(|err| ApiError::internal(format!("invalid clear-cookie header: {err}")))?;
-    response
-        .headers_mut()
-        .append(header::SET_COOKIE, header_value);
+    append_set_cookie(&mut response, clear)?;
     Ok(response)
 }
 
@@ -123,4 +126,41 @@ fn client_ip(headers: &HeaderMap) -> Option<&str> {
                 .get(header::FORWARDED)
                 .and_then(|value| value.to_str().ok())
         })
+}
+
+fn oauth_cookie_secure() -> bool {
+    std::env::var("WORKOS_REDIRECT_URI")
+        .map(|uri| uri.starts_with("https://"))
+        .unwrap_or(false)
+}
+
+fn build_oauth_state_cookie(oauth_state: &str) -> Cookie<'static> {
+    Cookie::build((OAUTH_STATE_COOKIE, oauth_state.to_string()))
+        .http_only(true)
+        .same_site(SameSite::Lax)
+        .path("/")
+        .max_age(cookie::time::Duration::minutes(OAUTH_STATE_TTL_MINUTES))
+        .secure(oauth_cookie_secure())
+        .into()
+}
+
+fn clear_oauth_state_cookie() -> Cookie<'static> {
+    Cookie::build((OAUTH_STATE_COOKIE, ""))
+        .http_only(true)
+        .same_site(SameSite::Lax)
+        .path("/")
+        .max_age(cookie::time::Duration::ZERO)
+        .secure(oauth_cookie_secure())
+        .into()
+}
+
+fn append_set_cookie(response: &mut Response, cookie: Cookie<'static>) -> Result<(), ApiError> {
+    let header_value = cookie
+        .to_string()
+        .parse::<header::HeaderValue>()
+        .map_err(|err| ApiError::internal(format!("invalid cookie header: {err}")))?;
+    response
+        .headers_mut()
+        .append(header::SET_COOKIE, header_value);
+    Ok(())
 }

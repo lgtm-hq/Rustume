@@ -2,6 +2,7 @@
 
 use axum::response::IntoResponse;
 use std::sync::OnceLock;
+use tracing::warn;
 
 use metrics_exporter_prometheus::PrometheusHandle;
 
@@ -9,11 +10,16 @@ static PROMETHEUS: OnceLock<PrometheusHandle> = OnceLock::new();
 
 /// Install the global Prometheus metrics recorder (idempotent).
 pub fn init_metrics() {
-    let _ = PROMETHEUS.get_or_init(|| {
-        metrics_exporter_prometheus::PrometheusBuilder::new()
-            .install_recorder()
-            .expect("failed to install Prometheus recorder")
-    });
+    if PROMETHEUS.get().is_some() {
+        return;
+    }
+
+    match metrics_exporter_prometheus::PrometheusBuilder::new().install_recorder() {
+        Ok(handle) => {
+            let _ = PROMETHEUS.set(handle);
+        }
+        Err(err) => warn!("failed to install Prometheus recorder: {err}"),
+    }
 }
 
 /// Render all recorded metrics in Prometheus text format.

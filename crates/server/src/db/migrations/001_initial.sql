@@ -37,7 +37,8 @@ CREATE TABLE resume_versions (
     resume_id UUID NOT NULL REFERENCES resumes (id) ON DELETE CASCADE,
     version INT NOT NULL,
     data JSONB NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (resume_id, version)
 );
 
 CREATE INDEX resume_versions_resume_id_idx ON resume_versions (resume_id);

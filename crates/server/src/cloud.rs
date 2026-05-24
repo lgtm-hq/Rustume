@@ -27,12 +27,22 @@ pub struct CloudConfig {
 impl CloudConfig {
     /// Load required cloud settings from the process environment.
     pub fn from_env() -> anyhow::Result<Self> {
+        let database_url = required_env("DATABASE_URL")?;
+        if database_url.trim().is_empty() {
+            anyhow::bail!("DATABASE_URL must not be empty");
+        }
+
+        let session_secret = required_env("SESSION_SECRET")?;
+        if session_secret.len() < 32 {
+            anyhow::bail!("SESSION_SECRET must be at least 32 characters");
+        }
+
         Ok(Self {
-            database_url: required_env("DATABASE_URL")?,
+            database_url,
             workos_client_id: required_env("WORKOS_CLIENT_ID")?,
             workos_api_key: required_env("WORKOS_API_KEY")?,
             workos_redirect_uri: required_env("WORKOS_REDIRECT_URI")?,
-            session_secret: required_env("SESSION_SECRET")?,
+            session_secret,
         })
     }
 }
@@ -44,7 +54,9 @@ fn required_env(key: &str) -> anyhow::Result<String> {
 /// Returns `true` when `RUSTUME_CLOUD` is enabled and `DATABASE_URL` is set.
 pub fn cloud_enabled() -> bool {
     matches!(std::env::var("RUSTUME_CLOUD").as_deref(), Ok("true" | "1"))
-        && std::env::var("DATABASE_URL").is_ok()
+        && std::env::var("DATABASE_URL")
+            .ok()
+            .is_some_and(|url| !url.trim().is_empty())
 }
 
 /// Shared cloud services (database, auth providers).

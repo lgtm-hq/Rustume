@@ -2,6 +2,7 @@
 
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use chrono::{Duration, Utc};
+use cookie::time;
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -44,10 +45,14 @@ impl SessionService {
 
     /// Build a cookie that clears the client session.
     pub fn clear_cookie(&self) -> Cookie<'static> {
+        let secure = cookie_secure();
+
         Cookie::build((SESSION_COOKIE, ""))
             .http_only(true)
             .same_site(SameSite::Lax)
             .path("/")
+            .max_age(time::Duration::ZERO)
+            .secure(secure)
             .into()
     }
 
@@ -87,16 +92,16 @@ impl SessionService {
     fn build_cookie(
         &self,
         session_id: &Uuid,
-        _expires_at: chrono::DateTime<Utc>,
+        expires_at: chrono::DateTime<Utc>,
     ) -> Cookie<'static> {
-        let secure = std::env::var("WORKOS_REDIRECT_URI")
-            .map(|uri| uri.starts_with("https://"))
-            .unwrap_or(false);
+        let secure = cookie_secure();
+        let max_age = (expires_at - Utc::now()).num_seconds().max(0);
 
         Cookie::build((SESSION_COOKIE, session_id.to_string()))
             .http_only(true)
             .same_site(SameSite::Lax)
             .path("/")
+            .max_age(time::Duration::seconds(max_age))
             .secure(secure)
             .into()
     }
@@ -105,4 +110,10 @@ impl SessionService {
     pub fn secret(&self) -> &str {
         &self.secret
     }
+}
+
+fn cookie_secure() -> bool {
+    std::env::var("WORKOS_REDIRECT_URI")
+        .map(|uri| uri.starts_with("https://"))
+        .unwrap_or(false)
 }

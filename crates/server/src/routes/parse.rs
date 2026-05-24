@@ -17,7 +17,7 @@ use crate::error::ApiError;
     tag = "Parse",
     request_body = ParseRequest,
     responses(
-        (status = 200, description = "Successfully parsed resume", body = serde_json::Value),
+        (status = 200, description = "Successfully parsed resume", body = ResumeData),
         (status = 400, description = "Failed to parse resume", body = ApiError)
     )
 )]

@@ -1,5 +1,5 @@
 use axum::{
-    http::{header, StatusCode},
+    http::{header, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
     Json,
 };
@@ -86,8 +86,10 @@ pub async fn render_preview(Json(req): Json<RenderPreviewRequest>) -> Result<Res
         .map_err(|e| ApiError::internal(format!("Failed to render preview: {}", e)))?;
 
     let mut response = (StatusCode::OK, [(header::CONTENT_TYPE, "image/png")], png).into_response();
+    let total_pages_header = HeaderValue::from_str(&total_pages.to_string())
+        .map_err(|err| ApiError::internal(format!("invalid X-Total-Pages header: {err}")))?;
     response
         .headers_mut()
-        .insert("X-Total-Pages", total_pages.to_string().parse().unwrap());
+        .insert("X-Total-Pages", total_pages_header);
     Ok(response)
 }

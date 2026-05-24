@@ -45,6 +45,7 @@ pub struct ResumeRow {
     pub data: serde_json::Value,
     pub is_public: bool,
     pub public_slug: Option<String>,
+    #[serde(skip_serializing)]
     pub password_hash: Option<String>,
     pub version: i32,
     #[schema(value_type = String, format = "date-time")]
@@ -54,7 +55,7 @@ pub struct ResumeRow {
 }
 
 /// Lightweight resume summary for list endpoints.
-#[derive(Debug, Clone, Serialize, ToSchema)]
+#[derive(Debug, Clone, FromRow, Serialize, ToSchema)]
 pub struct ResumeSummary {
     #[schema(value_type = String, format = "uuid")]
     pub id: Uuid,

@@ -2,6 +2,7 @@ use axum::{
     extract::State,
     response::{IntoResponse, Response},
 };
+use tracing::error;
 
 use crate::error::ApiError;
 use crate::state::AppState;
@@ -22,7 +23,10 @@ pub async fn health(State(state): State<AppState>) -> Result<&'static str, Respo
         sqlx::query("SELECT 1")
             .execute(&cloud.db)
             .await
-            .map_err(|err| ApiError::internal(err.to_string()).into_response())?;
+            .map_err(|err| {
+                error!("health check database ping failed: {err}");
+                ApiError::internal("health check failed").into_response()
+            })?;
     }
     Ok("ok")
 }

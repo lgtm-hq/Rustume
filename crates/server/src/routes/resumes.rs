@@ -5,6 +5,7 @@ use axum::{
     http::StatusCode,
     Json,
 };
+use tracing::error;
 use uuid::Uuid;
 
 use crate::db::{
@@ -30,9 +31,9 @@ pub async fn list_resumes(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<ResumeSummary>>, ApiError> {
     let cloud = state.cloud()?;
-    let rows = sqlx::query_as::<_, ResumeRow>(
+    let rows = sqlx::query_as::<_, ResumeSummary>(
         r#"
-        SELECT id, user_id, title, data, is_public, public_slug, password_hash, version, created_at, updated_at
+        SELECT id, title, updated_at
         FROM resumes
         WHERE user_id = $1
         ORDER BY updated_at DESC
@@ -41,9 +42,9 @@ pub async fn list_resumes(
     .bind(user.id)
     .fetch_all(&cloud.db)
     .await
-    .map_err(|err| ApiError::internal(err.to_string()))?;
+    .map_err(internal_db_error)?;
 
-    Ok(Json(rows.into_iter().map(ResumeSummary::from).collect()))
+    Ok(Json(rows))
 }
 
 /// Fetch a resume owned by the authenticated user.
@@ -176,7 +177,7 @@ pub async fn delete_resume(
         .bind(user.id)
         .execute(&cloud.db)
         .await
-        .map_err(|err| ApiError::internal(err.to_string()))?;
+        .map_err(internal_db_error)?;
 
     if result.rows_affected() == 0 {
         return Err(ApiError::not_found("Resume not found"));
@@ -203,11 +204,7 @@ pub async fn import_resumes(
     Json(body): Json<ImportResumesRequest>,
 ) -> Result<Json<Vec<ResumeSummary>>, ApiError> {
     let cloud = state.cloud()?;
-    let mut tx = cloud
-        .db
-        .begin()
-        .await
-        .map_err(|err| ApiError::internal(err.to_string()))?;
+    let mut tx = cloud.db.begin().await.map_err(internal_db_error)?;
     let mut imported = Vec::new();
 
     for item in body.resumes {
@@ -230,11 +227,14 @@ pub async fn import_resumes(
         imported.push(ResumeSummary::from(row));
     }
 
-    tx.commit()
-        .await
-        .map_err(|err| ApiError::internal(err.to_string()))?;
+    tx.commit().await.map_err(internal_db_error)?;
 
     Ok(Json(imported))
+}
+
+fn internal_db_error(err: impl std::fmt::Display + Send + Sync + 'static) -> ApiError {
+    error!("database error: {err}");
+    ApiError::internal("internal server error")
 }
 
 fn map_resume_db_error(err: sqlx::Error) -> ApiError {
@@ -243,7 +243,7 @@ fn map_resume_db_error(err: sqlx::Error) -> ApiError {
             return ApiError::conflict("A resume with this ID already exists");
         }
     }
-    ApiError::internal(err.to_string())
+    internal_db_error(err)
 }
 
 async fn fetch_owned_resume(
@@ -263,6 +263,6 @@ async fn fetch_owned_resume(
     .bind(user_id)
     .fetch_optional(&cloud.db)
     .await
-    .map_err(|err| ApiError::internal(err.to_string()))?
+    .map_err(internal_db_error)?
     .ok_or_else(|| ApiError::not_found("Resume not found"))
 }
