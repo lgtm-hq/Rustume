@@ -1,5 +1,11 @@
 # Requires a published GHCR image (ghcr.io/lgtm-hq/rustume:latest).
 # If pull fails, build from source — see docs/deployment.md.
+#
+# Self-hosted (default):
+#   docker compose up
+#
+# Rustume Cloud local dev:
+#   docker compose --profile cloud up
 ---
 services:
   rustume:
@@ -14,6 +20,12 @@ services:
       RUST_LOG: info
       PORT: "3000"
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      RUSTUME_CLOUD: ${RUSTUME_CLOUD:-false}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://rustume:rustume@postgres:5432/rustume}
+      WORKOS_CLIENT_ID: ${WORKOS_CLIENT_ID:-}
+      WORKOS_API_KEY: ${WORKOS_API_KEY:-}
+      WORKOS_REDIRECT_URI: ${WORKOS_REDIRECT_URI:-http://localhost:3000/auth/callback}
+      SESSION_SECRET: ${SESSION_SECRET:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "/app/rustume-server", "--health"]
@@ -21,3 +33,24 @@ services:
       timeout: 3s
       start_period: 5s
       retries: 3
+
+  postgres:
+    profiles: [cloud]
+    image: postgres:16-alpine
+    container_name: rustume-postgres
+    environment:
+      POSTGRES_USER: rustume
+      POSTGRES_PASSWORD: rustume
+      POSTGRES_DB: rustume
+    ports:
+      - "5432:5432"
+    volumes:
+      - rustume_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rustume -d rustume"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  rustume_pgdata:
