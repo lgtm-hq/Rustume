@@ -186,6 +186,8 @@ pub async fn delete_resume(
     Ok(StatusCode::NO_CONTENT)
 }
 
+const MAX_IMPORT_BATCH: usize = 100;
+
 /// Import local resumes into the authenticated user's cloud account.
 #[utoipa::path(
     post,
@@ -203,6 +205,12 @@ pub async fn import_resumes(
     State(state): State<AppState>,
     Json(body): Json<ImportResumesRequest>,
 ) -> Result<Json<Vec<ResumeSummary>>, ApiError> {
+    if body.resumes.len() > MAX_IMPORT_BATCH {
+        return Err(ApiError::new(format!(
+            "Import batch exceeds maximum of {MAX_IMPORT_BATCH} resumes"
+        )));
+    }
+
     let cloud = state.cloud()?;
     let mut tx = cloud.db.begin().await.map_err(internal_db_error)?;
     let mut imported = Vec::new();
@@ -214,6 +222,11 @@ pub async fn import_resumes(
             r#"
             INSERT INTO resumes (id, user_id, title, data)
             VALUES ($1, $2, $3, $4)
+            ON CONFLICT (id) DO UPDATE SET
+                title = EXCLUDED.title,
+                data = EXCLUDED.data,
+                updated_at = now()
+            WHERE resumes.user_id = EXCLUDED.user_id
             RETURNING id, user_id, title, data, is_public, public_slug, password_hash, version, created_at, updated_at
             "#,
         )

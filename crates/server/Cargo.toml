@@ -59,6 +59,7 @@ cookie = "0.18"
 hmac = "0.12"
 metrics.workspace = true
 sha2 = "0.10"
+subtle = "2"
 metrics-exporter-prometheus.workspace = true
 chrono.workspace = true
 sentry.workspace = true

@@ -139,8 +139,8 @@ fn parse_signed_session_token(token: &str, secret: &str) -> Option<Uuid> {
 }
 
 fn sign_session_id(session_id: &Uuid, secret: &str) -> String {
-    let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
-        .expect("HMAC accepts arbitrary key lengths");
+    let mut mac =
+        HmacSha256::new_from_slice(secret.as_bytes()).expect("HMAC accepts arbitrary key lengths");
     mac.update(session_id.as_bytes());
     hex_encode(&mac.finalize().into_bytes())
 }

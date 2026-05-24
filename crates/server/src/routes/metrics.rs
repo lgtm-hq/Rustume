@@ -7,6 +7,7 @@ use axum::{
 };
 use serde::Deserialize;
 use std::sync::OnceLock;
+use subtle::ConstantTimeEq;
 use tracing::warn;
 
 use metrics_exporter_prometheus::PrometheusHandle;
@@ -62,11 +63,15 @@ fn metrics_authorized(headers: &HeaderMap, query_token: Option<&str>) -> bool {
         .and_then(|value| value.to_str().ok())
     {
         if let Some(bearer) = auth.strip_prefix("Bearer ") {
-            if bearer == expected {
+            if constant_time_eq(bearer, &expected) {
                 return true;
             }
         }
     }
 
-    query_token == Some(expected.as_str())
+    query_token.is_some_and(|token| constant_time_eq(token, &expected))
+}
+
+fn constant_time_eq(left: &str, right: &str) -> bool {
+    left.as_bytes().ct_eq(right.as_bytes()).into()
 }
