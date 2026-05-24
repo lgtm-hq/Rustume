@@ -42,9 +42,15 @@ function jsonFetch(body: unknown) {
   };
 }
 
+const originalFetch = globalThis.fetch;
+
 describe("upsertCloudResume", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
   });
 
   it("returns the updated row when the resume already exists", async () => {
@@ -95,6 +101,10 @@ describe("upsertCloudResume", () => {
 describe("resume API helpers", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
   });
 
   it("listCloudResumes calls GET /api/resumes", async () => {

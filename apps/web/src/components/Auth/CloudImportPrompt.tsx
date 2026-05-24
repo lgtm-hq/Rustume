@@ -50,14 +50,26 @@ export function CloudImportPrompt() {
     try {
       const ids = await listStoredResumeIds();
       const metaMap = getMetaMap();
-      const resumes = await Promise.all(
-        ids.map(async (id) => {
+      const resumes: {
+        id: string;
+        title: string;
+        data: Awaited<ReturnType<typeof getStoredResume>>;
+      }[] = [];
+      for (const id of ids) {
+        try {
           const data = await getStoredResume(id);
           const meta = metaMap[id] ?? getResumeMeta(id);
-          const title = meta?.title ?? deriveTitleFromResume(data);
-          return { id, title, data };
-        }),
-      );
+          const title = meta?.title?.trim() ? meta.title : deriveTitleFromResume(data);
+          resumes.push({ id, title, data });
+        } catch (error: unknown) {
+          console.error("Skipping local resume during cloud import:", id, error);
+        }
+      }
+
+      if (resumes.length === 0) {
+        toast.error("No local resumes could be imported");
+        return;
+      }
 
       const imported = await importResumes(resumes);
       localStorage.setItem(IMPORT_DISMISSED_KEY, "true");

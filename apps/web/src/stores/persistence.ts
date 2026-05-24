@@ -116,6 +116,24 @@ export function deriveTitleFromResume(data: ResumeData): string {
   return "Untitled Resume";
 }
 
+function resolveResumeTitle(id: string, data: ResumeData): string {
+  const existing = getResumeMeta(id);
+  const existingTitle = existing?.title?.trim();
+  if (existingTitle) return existingTitle;
+  return deriveTitleFromResume(data);
+}
+
+function maybeUpdateResumeMeta(id: string, title: string): void {
+  const existing = getResumeMeta(id);
+  if (existing?.title === title) return;
+  try {
+    setResumeMeta(id, title);
+  } catch (e) {
+    console.error("Failed to update resume metadata:", e);
+    toast.warning("Resume saved but metadata could not be updated — storage may be full");
+  }
+}
+
 // ---------------------------------------------------------------------------
 // LocalStorage resume CRUD
 // ---------------------------------------------------------------------------
@@ -244,27 +262,14 @@ async function getResume(id: string): Promise<ResumeData> {
 
 async function saveResume(id: string, data: ResumeData): Promise<void> {
   if (isCloudAuthenticated()) {
-    const existing = getResumeMeta(id);
-    const title = existing?.title ?? deriveTitleFromResume(data);
+    const title = resolveResumeTitle(id, data);
     await saveCloudResume(id, data, title);
-    try {
-      setResumeMeta(id, title);
-    } catch (e) {
-      console.error("Failed to update resume metadata:", e);
-      toast.warning("Resume saved but metadata could not be updated — storage may be full");
-    }
+    maybeUpdateResumeMeta(id, title);
     return;
   }
   if (isWasmReady()) {
     await saveToWasmStorage(id, data);
-    const existing = getResumeMeta(id);
-    const title = existing?.title ?? deriveTitleFromResume(data);
-    try {
-      setResumeMeta(id, title);
-    } catch (e) {
-      console.error("Failed to update resume metadata:", e);
-      toast.warning("Resume saved but metadata could not be updated — storage may be full");
-    }
+    maybeUpdateResumeMeta(id, resolveResumeTitle(id, data));
     return;
   }
   if (!saveLocalResume(id, data)) {
@@ -452,10 +457,16 @@ export function useResumeList() {
 
 /** List resume IDs from local storage (WASM or localStorage fallback). */
 export async function listStoredResumeIds(): Promise<string[]> {
-  return listResumes();
+  if (isWasmReady()) {
+    return listWasmResumes();
+  }
+  return listLocalResumes();
 }
 
 /** Load a resume from local storage (WASM or localStorage fallback). */
 export async function getStoredResume(id: string): Promise<ResumeData> {
-  return getResume(id);
+  if (isWasmReady()) {
+    return getFromWasmStorage(id);
+  }
+  return getLocalResume(id);
 }
