@@ -238,6 +238,9 @@ fn internal_db_error(err: impl std::fmt::Display + Send + Sync + 'static) -> Api
 }
 
 fn map_resume_db_error(err: sqlx::Error) -> ApiError {
+    if matches!(err, sqlx::Error::RowNotFound) {
+        return ApiError::not_found("Resume not found");
+    }
     if let sqlx::Error::Database(db_err) = &err {
         if db_err.code().as_deref() == Some("23505") {
             return ApiError::conflict("A resume with this ID already exists");
