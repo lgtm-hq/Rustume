@@ -57,8 +57,18 @@ export async function deleteCloudResume(id: string): Promise<void> {
   await del(`/resumes/${id}`);
 }
 
+export const MAX_IMPORT_BATCH = 100;
+
 export async function importResumes(resumes: ImportResumeItem[]): Promise<CloudResumeSummary[]> {
-  return post<CloudResumeSummary[]>("/resumes/import", { resumes });
+  const imported: CloudResumeSummary[] = [];
+
+  for (let offset = 0; offset < resumes.length; offset += MAX_IMPORT_BATCH) {
+    const batch = resumes.slice(offset, offset + MAX_IMPORT_BATCH);
+    const batchResult = await post<CloudResumeSummary[]>("/resumes/import", { resumes: batch });
+    imported.push(...batchResult);
+  }
+
+  return imported;
 }
 
 export async function upsertCloudResume(

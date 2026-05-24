@@ -217,4 +217,30 @@ describe("resume API helpers", () => {
       }),
     );
   });
+
+  it("importResumes chunks large batches to the server limit", async () => {
+    const payload: ImportResumeItem[] = Array.from({ length: 101 }, (_, index) => ({
+      id: `resume-${index}`,
+      title: `Resume ${index}`,
+      data: createDefaultResume(),
+    }));
+    const mockFetch = vi.fn().mockResolvedValue(jsonFetch([]));
+    globalThis.fetch = mockFetch;
+
+    await importResumes(payload);
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(mockFetch.mock.calls[0]?.[1]).toEqual(
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ resumes: payload.slice(0, 100) }),
+      }),
+    );
+    expect(mockFetch.mock.calls[1]?.[1]).toEqual(
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ resumes: payload.slice(100) }),
+      }),
+    );
+  });
 });
