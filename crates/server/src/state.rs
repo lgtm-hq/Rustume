@@ -11,6 +11,7 @@ pub struct AppState {
 }
 
 impl AppState {
+    /// Return cloud services or a 404-style error when cloud mode is disabled.
     pub fn cloud(&self) -> Result<&CloudState, crate::error::ApiError> {
         self.cloud.as_deref().ok_or_else(|| {
             crate::error::ApiError::new("Cloud features are not enabled on this server")

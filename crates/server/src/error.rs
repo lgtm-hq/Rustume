@@ -56,6 +56,7 @@ pub struct ApiError {
 }
 
 impl ApiError {
+    /// Create a 400 Bad Request error.
     pub fn new(error: impl Into<String>) -> Self {
         Self {
             error: error.into(),
@@ -64,6 +65,7 @@ impl ApiError {
         }
     }
 
+    /// Create a 422 Unprocessable Entity error with validation details.
     pub fn with_details(error: impl Into<String>, details: Vec<String>) -> Self {
         Self {
             error: error.into(),
@@ -72,6 +74,7 @@ impl ApiError {
         }
     }
 
+    /// Create a 404 Not Found error.
     pub fn not_found(error: impl Into<String>) -> Self {
         Self {
             error: error.into(),
@@ -80,6 +83,7 @@ impl ApiError {
         }
     }
 
+    /// Create a 500 Internal Server Error.
     pub fn internal(error: impl Into<String>) -> Self {
         Self {
             error: error.into(),
@@ -88,6 +92,7 @@ impl ApiError {
         }
     }
 
+    /// Create a 401 Unauthorized error.
     pub fn unauthorized(error: impl Into<String>) -> Self {
         Self {
             error: error.into(),
@@ -96,6 +101,7 @@ impl ApiError {
         }
     }
 
+    /// Create a 403 Forbidden error.
     pub fn forbidden(error: impl Into<String>) -> Self {
         Self {
             error: error.into(),
@@ -104,6 +110,7 @@ impl ApiError {
         }
     }
 
+    /// Create a 409 Conflict error.
     pub fn conflict(error: impl Into<String>) -> Self {
         Self {
             error: error.into(),

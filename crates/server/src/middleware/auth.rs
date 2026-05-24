@@ -1,3 +1,5 @@
+//! Session cookie authentication extractor for cloud routes.
+
 use axum::{extract::FromRequestParts, http::request::Parts};
 use axum_extra::extract::CookieJar;
 
@@ -6,6 +8,7 @@ use crate::db::User;
 use crate::error::{ApiError, ApiErrorKind};
 use crate::state::AppState;
 
+/// Authenticated user extracted from a valid `rustume_session` cookie.
 pub struct AuthUser(pub User);
 
 impl FromRequestParts<AppState> for AuthUser {

@@ -11,6 +11,17 @@
 //! - `POST /api/render/preview` - Render resume to PNG preview
 //! - `POST /api/validate` - Validate resume data
 //! - `GET /swagger-ui` - Swagger UI documentation
+//!
+//! # Cloud endpoints (when `RUSTUME_CLOUD=true`)
+//!
+//! - `GET /auth/login` - Redirect to WorkOS AuthKit
+//! - `GET /auth/callback` - OAuth callback
+//! - `POST /auth/logout` - Clear session
+//! - `GET /auth/me` - Current user profile
+//! - `GET/POST /api/resumes` - List and create resumes
+//! - `GET/PUT/DELETE /api/resumes/{id}` - Resume CRUD
+//! - `POST /api/resumes/import` - Bulk import from local storage
+//! - `GET /metrics` - Prometheus metrics
 
 pub mod app;
 pub mod auth;

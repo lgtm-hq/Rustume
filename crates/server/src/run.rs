@@ -11,6 +11,7 @@ use crate::routes::{init_metrics, static_dir};
 use crate::shutdown::{health_probe, shutdown_signal};
 use crate::state::AppState;
 
+/// Start the HTTP server, optionally initializing Rustume Cloud when configured.
 pub async fn run() -> anyhow::Result<()> {
     if std::env::args().any(|a| a == "--health") {
         std::process::exit(health_probe());

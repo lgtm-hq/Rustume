@@ -1,3 +1,5 @@
+//! WorkOS AuthKit login, callback, logout, and session probe routes.
+
 use axum::{
     extract::{Query, State},
     http::{header, HeaderMap, StatusCode},
@@ -15,6 +17,7 @@ use crate::error::ApiError;
 use crate::middleware::auth::AuthUser;
 use crate::state::AppState;
 
+/// OAuth query parameters returned by WorkOS on `/auth/callback`.
 #[derive(Debug, Deserialize)]
 pub struct CallbackQuery {
     code: String,
@@ -22,6 +25,7 @@ pub struct CallbackQuery {
     state: Option<String>,
 }
 
+/// Redirect the browser to WorkOS AuthKit for sign-in.
 pub async fn login(State(state): State<AppState>) -> Result<Redirect, ApiError> {
     let cloud = state.cloud()?;
     let redirect_uri = std::env::var("WORKOS_REDIRECT_URI")
@@ -31,6 +35,7 @@ pub async fn login(State(state): State<AppState>) -> Result<Redirect, ApiError> 
     Ok(Redirect::temporary(&url))
 }
 
+/// Handle the WorkOS OAuth callback, upsert the user, and set the session cookie.
 pub async fn callback(
     State(state): State<AppState>,
     Query(query): Query<CallbackQuery>,
@@ -69,6 +74,7 @@ pub async fn callback(
     Ok(response)
 }
 
+/// Clear the session cookie and delete the server-side session row.
 pub async fn logout(State(state): State<AppState>, jar: CookieJar) -> Result<Response, ApiError> {
     let cloud = state.cloud()?;
     if let Some(cookie) = jar.get(SESSION_COOKIE) {

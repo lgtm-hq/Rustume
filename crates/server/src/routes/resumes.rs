@@ -1,3 +1,5 @@
+//! Authenticated resume CRUD routes for Rustume Cloud.
+
 use axum::{
     extract::{Path, State},
     http::StatusCode,

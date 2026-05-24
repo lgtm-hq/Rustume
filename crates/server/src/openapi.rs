@@ -1,3 +1,5 @@
+//! OpenAPI specification for the Rustume HTTP API.
+
 use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 use utoipa::Modify;
 use utoipa::OpenApi;
@@ -84,4 +86,5 @@ impl Modify for CookieAuthAddon {
         (name = "Resumes", description = "Authenticated resume storage (cloud mode only)")
     )
 )]
+/// Generated OpenAPI document served at `/api-docs/openapi.json`.
 pub struct ApiDoc;

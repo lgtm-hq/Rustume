@@ -21,6 +21,7 @@ pub fn init_sentry() -> Option<sentry::ClientInitGuard> {
     Some(guard)
 }
 
+/// Returns `true` when Sentry is configured via a non-empty `SENTRY_DSN`.
 pub fn sentry_enabled() -> bool {
     std::env::var("SENTRY_DSN")
         .ok()
