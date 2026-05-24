@@ -33,7 +33,7 @@ export function CloudImportPrompt() {
           if (ids.length === 0) return;
           setCount(ids.length);
           setOpen(true);
-        } catch (error) {
+        } catch (error: unknown) {
           console.error("Failed to inspect local resumes:", error);
         }
       },
@@ -55,17 +55,18 @@ export function CloudImportPrompt() {
           const data = await getStoredResume(id);
           const meta = metaMap[id] ?? getResumeMeta(id);
           const title = meta?.title ?? deriveTitleFromResume(data);
-          return { title, data };
+          return { id, title, data };
         }),
       );
 
       const imported = await importResumes(resumes);
       localStorage.setItem(IMPORT_DISMISSED_KEY, "true");
       setOpen(false);
+      window.dispatchEvent(new CustomEvent("rustume:resumes-changed"));
       toast.success(
         `Imported ${imported.length} resume${imported.length === 1 ? "" : "s"} to the cloud`,
       );
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Cloud import failed:", error);
       toast.error(error instanceof Error ? error.message : "Failed to import resumes");
     } finally {

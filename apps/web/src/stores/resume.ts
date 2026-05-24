@@ -9,6 +9,7 @@ import {
   getResume as getFromWasmStorage,
   isWasmReady,
 } from "../wasm";
+import { isCloudAuthenticated, loadCloudResume, saveCloudResume } from "./cloudStorage";
 
 /** Thrown when the requested resume does not exist in storage. */
 export class ResumeNotFoundError extends Error {
@@ -251,6 +252,10 @@ function getFromLocalStorage(id: string): ResumeData {
 }
 
 async function saveResume(id: string, data: ResumeData): Promise<void> {
+  if (isCloudAuthenticated()) {
+    await saveCloudResume(id, data);
+    return;
+  }
   if (isWasmReady()) {
     return saveToWasmStorage(id, data);
   }
@@ -258,6 +263,9 @@ async function saveResume(id: string, data: ResumeData): Promise<void> {
 }
 
 async function getResume(id: string): Promise<ResumeData> {
+  if (isCloudAuthenticated()) {
+    return loadCloudResume(id);
+  }
   if (isWasmReady()) {
     return getFromWasmStorage(id);
   }
