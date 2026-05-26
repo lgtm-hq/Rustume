@@ -56,7 +56,7 @@ jobs:
     steps:
       - name: Harden Runner
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@e5c325f71b137eb7e9dc546a441662e8b7488d21 # v0
+        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@dfd52172e5ee817cb1b1baf24895209c5e18d5ad # v0
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -67,7 +67,7 @@ jobs:
 
       - name: Checkout
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@e5c325f71b137eb7e9dc546a441662e8b7488d21 # v0
+        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@dfd52172e5ee817cb1b1baf24895209c5e18d5ad # v0
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -76,7 +76,7 @@ jobs:
       - name: Calculate next version
         id: semrel
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/calculate-version@e5c325f71b137eb7e9dc546a441662e8b7488d21 # v0
+        uses: lgtm-hq/lgtm-ci/.github/actions/calculate-version@dfd52172e5ee817cb1b1baf24895209c5e18d5ad # v0
         with:
           max-bump: minor
 
