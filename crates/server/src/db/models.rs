@@ -8,15 +8,17 @@ use uuid::Uuid;
 
 /// Authenticated user record stored in PostgreSQL.
 ///
-/// Privacy: we store NO personal information (no email, no name). The only
-/// link to the authentication provider is the opaque `workos_id`.
+/// Privacy: account identity metadata is minimized — we store no email or name.
+/// The only link to the authentication provider is the opaque `workos_id`.
+/// Resume documents (stored separately) may contain sensitive personal data.
 #[derive(Debug, Clone, FromRow, Serialize)]
 pub struct User {
     /// Primary key.
     pub id: Uuid,
     /// WorkOS user identifier (`user_…`) — opaque, non-personal.
     pub workos_id: String,
-    /// Subscription tier (`free`, `pro`, `team`).
+    /// Hosted-service subscription status for billing (`free`, `pro`, `team`).
+    /// Tracks Paddle subscription — not feature entitlements.
     pub plan: String,
     /// Paddle customer ID, set after first paid subscription.
     pub paddle_customer_id: Option<String>,
@@ -110,11 +112,13 @@ pub struct ImportResumesRequest {
 
 /// Authenticated user profile returned by `GET /auth/me`.
 ///
-/// Privacy: contains NO personal information — only account ID and plan tier.
+/// Privacy: returns only account ID and hosted-service subscription status.
+/// Resume content is not included and may contain personal data when fetched separately.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct AuthUserResponse {
     #[schema(value_type = String, format = "uuid")]
     pub id: Uuid,
+    /// Hosted-service subscription status for billing — not feature entitlements.
     pub plan: String,
 }
 
