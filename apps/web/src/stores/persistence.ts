@@ -402,7 +402,12 @@ export function useResumeList() {
         if (isCloudAuthenticated()) {
           await duplicateCloudResume(id, newId, structuredClone(original), copyTitle);
           saveCompleted = true;
-          setResumeMeta(newId, copyTitle);
+          try {
+            setResumeMeta(newId, copyTitle);
+          } catch (e) {
+            console.error("Failed to cache resume metadata locally:", e);
+            toast.warning("Resume duplicated but metadata could not be cached — storage may be full");
+          }
           await refetch();
           return newId;
         }
