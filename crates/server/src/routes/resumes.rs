@@ -1,7 +1,7 @@
 //! Authenticated resume CRUD routes for Rustume Cloud.
 
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     Json,
 };
@@ -9,7 +9,9 @@ use tracing::error;
 use uuid::Uuid;
 
 use crate::db::{
-    CreateResumeRequest, ImportResumesRequest, ResumeRow, ResumeSummary, UpdateResumeRequest,
+    CreateResumeRequest, ImportFailure, ImportResumeItem, ImportResumesRequest,
+    ImportResumesResponse, PaginatedResumeSummaries, ResumeListQuery, ResumeRow, ResumeSummary,
+    UpdateResumeRequest,
 };
 use crate::error::ApiError;
 use crate::middleware::auth::AuthUser;
@@ -20,8 +22,9 @@ use crate::state::AppState;
     get,
     path = "/api/resumes",
     tag = "Resumes",
+    params(ResumeListQuery),
     responses(
-        (status = 200, description = "Resume summaries", body = [ResumeSummary]),
+        (status = 200, description = "Paginated resume summaries", body = PaginatedResumeSummaries),
         (status = 401, description = "Not authenticated", body = ApiError),
     ),
     security(("cookieAuth" = []))
@@ -29,22 +32,45 @@ use crate::state::AppState;
 pub async fn list_resumes(
     AuthUser(user): AuthUser,
     State(state): State<AppState>,
-) -> Result<Json<Vec<ResumeSummary>>, ApiError> {
+    Query(query): Query<ResumeListQuery>,
+) -> Result<Json<PaginatedResumeSummaries>, ApiError> {
     let cloud = state.cloud()?;
-    let rows = sqlx::query_as::<_, ResumeSummary>(
+    let (page, per_page, offset) = query.normalized();
+
+    let total = sqlx::query_scalar::<_, i64>(
+        r#"
+        SELECT COUNT(*)
+        FROM resumes
+        WHERE user_id = $1
+        "#,
+    )
+    .bind(user.id)
+    .fetch_one(&cloud.db)
+    .await
+    .map_err(internal_db_error)?;
+
+    let items = sqlx::query_as::<_, ResumeSummary>(
         r#"
         SELECT id, title, updated_at
         FROM resumes
         WHERE user_id = $1
         ORDER BY updated_at DESC
+        LIMIT $2 OFFSET $3
         "#,
     )
     .bind(user.id)
+    .bind(i64::from(per_page))
+    .bind(offset)
     .fetch_all(&cloud.db)
     .await
     .map_err(internal_db_error)?;
 
-    Ok(Json(rows))
+    Ok(Json(PaginatedResumeSummaries {
+        items,
+        total,
+        page,
+        per_page,
+    }))
 }
 
 /// Fetch a resume owned by the authenticated user.
@@ -219,7 +245,7 @@ const MAX_IMPORT_BATCH: usize = 100;
     tag = "Resumes",
     request_body = ImportResumesRequest,
     responses(
-        (status = 200, description = "Imported resume summaries", body = [ResumeSummary]),
+        (status = 200, description = "Import results with per-item failures", body = ImportResumesResponse),
         (status = 401, description = "Not authenticated", body = ApiError),
     ),
     security(("cookieAuth" = []))
@@ -228,7 +254,7 @@ pub async fn import_resumes(
     AuthUser(user): AuthUser,
     State(state): State<AppState>,
     Json(body): Json<ImportResumesRequest>,
-) -> Result<Json<Vec<ResumeSummary>>, ApiError> {
+) -> Result<Json<ImportResumesResponse>, ApiError> {
     if body.resumes.len() > MAX_IMPORT_BATCH {
         return Err(ApiError::new(format!(
             "Import batch exceeds maximum of {MAX_IMPORT_BATCH} resumes"
@@ -236,37 +262,56 @@ pub async fn import_resumes(
     }
 
     let cloud = state.cloud()?;
-    let mut tx = cloud.db.begin().await.map_err(internal_db_error)?;
     let mut imported = Vec::new();
+    let mut failed = Vec::new();
 
     for item in body.resumes {
-        let title = item.title.unwrap_or_else(|| "Untitled".to_string());
-        let resume_id = item.id.unwrap_or_else(Uuid::new_v4);
-        let row = sqlx::query_as::<_, ResumeRow>(
-            r#"
-            INSERT INTO resumes (id, user_id, title, data)
-            VALUES ($1, $2, $3, $4)
-            ON CONFLICT (id) DO UPDATE SET
-                title = EXCLUDED.title,
-                data = EXCLUDED.data,
-                updated_at = now()
-            WHERE resumes.user_id = EXCLUDED.user_id
-            RETURNING id, user_id, title, data, is_public, public_slug, password_hash, version, created_at, updated_at
-            "#,
-        )
-        .bind(resume_id)
-        .bind(user.id)
-        .bind(title)
-        .bind(item.data)
-        .fetch_one(&mut *tx)
-        .await
-        .map_err(|err| map_import_db_error(err, resume_id))?;
-        imported.push(ResumeSummary::from(row));
+        let resume_id = item.id;
+        match import_single_resume(&cloud.db, user.id, item).await {
+            Ok(row) => imported.push(ResumeSummary::from(row)),
+            Err(err) => failed.push(ImportFailure {
+                id: resume_id,
+                error: err.error,
+            }),
+        }
     }
 
-    tx.commit().await.map_err(internal_db_error)?;
+    Ok(Json(ImportResumesResponse { imported, failed }))
+}
 
-    Ok(Json(imported))
+struct ImportItemError {
+    error: String,
+}
+
+async fn import_single_resume(
+    db: &sqlx::PgPool,
+    user_id: Uuid,
+    item: ImportResumeItem,
+) -> Result<ResumeRow, ImportItemError> {
+    let title = item.title.unwrap_or_else(|| "Untitled".to_string());
+    let resume_id = item.id.unwrap_or_else(Uuid::new_v4);
+
+    sqlx::query_as::<_, ResumeRow>(
+        r#"
+        INSERT INTO resumes (id, user_id, title, data)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (id) DO UPDATE SET
+            title = EXCLUDED.title,
+            data = EXCLUDED.data,
+            updated_at = now()
+        WHERE resumes.user_id = EXCLUDED.user_id
+        RETURNING id, user_id, title, data, is_public, public_slug, password_hash, version, created_at, updated_at
+        "#,
+    )
+    .bind(resume_id)
+    .bind(user_id)
+    .bind(title)
+    .bind(item.data)
+    .fetch_one(db)
+    .await
+    .map_err(|err| ImportItemError {
+        error: map_import_db_error(err, resume_id).error,
+    })
 }
 
 fn internal_db_error(err: impl std::fmt::Display + Send + Sync + 'static) -> ApiError {

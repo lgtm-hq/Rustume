@@ -3,8 +3,65 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
+
+const DEFAULT_LIST_PAGE: u32 = 1;
+const DEFAULT_LIST_PER_PAGE: u32 = 100;
+const MAX_LIST_PER_PAGE: u32 = 100;
+
+/// Pagination query parameters for resume list endpoints.
+#[derive(Debug, Deserialize, IntoParams, ToSchema)]
+pub struct ResumeListQuery {
+    /// Page number (1-based).
+    #[serde(default = "default_list_page")]
+    pub page: u32,
+    /// Page size (capped at 100).
+    #[serde(default = "default_list_per_page")]
+    pub per_page: u32,
+}
+
+fn default_list_page() -> u32 {
+    DEFAULT_LIST_PAGE
+}
+
+fn default_list_per_page() -> u32 {
+    DEFAULT_LIST_PER_PAGE
+}
+
+impl ResumeListQuery {
+    /// Normalized pagination values with safe bounds.
+    pub fn normalized(&self) -> (u32, u32, i64) {
+        let page = self.page.max(1);
+        let per_page = self.per_page.clamp(1, MAX_LIST_PER_PAGE);
+        let offset = i64::from(page - 1) * i64::from(per_page);
+        (page, per_page, offset)
+    }
+}
+
+/// Paginated resume list response.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct PaginatedResumeSummaries {
+    pub items: Vec<ResumeSummary>,
+    pub total: i64,
+    pub page: u32,
+    pub per_page: u32,
+}
+
+/// Failed import item within a batch response.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ImportFailure {
+    #[schema(value_type = Option<String>, format = "uuid")]
+    pub id: Option<Uuid>,
+    pub error: String,
+}
+
+/// Import batch response with per-item failures.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ImportResumesResponse {
+    pub imported: Vec<ResumeSummary>,
+    pub failed: Vec<ImportFailure>,
+}
 
 /// Authenticated user record stored in PostgreSQL.
 ///

@@ -5,8 +5,9 @@ use utoipa::Modify;
 use utoipa::OpenApi;
 
 use crate::db::{
-    AuthUserResponse, CreateResumeRequest, ImportResumeItem, ImportResumesRequest, ResumeRow,
-    ResumeSummary, UpdateResumeRequest,
+    AuthUserResponse, CreateResumeRequest, ImportFailure, ImportResumeItem, ImportResumesRequest,
+    ImportResumesResponse, PaginatedResumeSummaries, ResumeListQuery, ResumeRow, ResumeSummary,
+    UpdateResumeRequest,
 };
 use crate::dto::{
     ParseFormat, ParseRequest, RenderPdfRequest, RenderPreviewRequest, TemplateInfo, ThemeInfo,
@@ -68,10 +69,14 @@ impl Modify for CookieAuthAddon {
             ValidationResponse,
             AuthUserResponse,
             ResumeSummary,
+            PaginatedResumeSummaries,
+            ResumeListQuery,
             ResumeRow,
             CreateResumeRequest,
             UpdateResumeRequest,
             ImportResumesRequest,
+            ImportResumesResponse,
+            ImportFailure,
             ImportResumeItem,
             rustume_schema::ResumeData
         )
