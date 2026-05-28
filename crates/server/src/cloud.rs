@@ -10,7 +10,7 @@ use crate::auth::session::SessionService;
 use crate::auth::workos::WorkOsClient;
 
 /// Cloud-specific configuration loaded from environment variables.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct CloudConfig {
     /// PostgreSQL connection string (`DATABASE_URL`).
     pub database_url: String,
@@ -31,25 +31,36 @@ pub struct CloudConfig {
 impl CloudConfig {
     /// Load required cloud settings from the process environment.
     pub fn from_env() -> anyhow::Result<Self> {
-        let database_url = required_env("DATABASE_URL")?;
-        if database_url.trim().is_empty() {
-            anyhow::bail!("DATABASE_URL must not be empty");
-        }
+        let database_url = required_non_empty_env("DATABASE_URL")?;
 
-        let session_secret = required_env("SESSION_SECRET")?;
+        let session_secret = required_non_empty_env("SESSION_SECRET")?;
         if session_secret.len() < 32 {
             anyhow::bail!("SESSION_SECRET must be at least 32 characters");
         }
 
         Ok(Self {
             database_url,
-            workos_client_id: required_env("WORKOS_CLIENT_ID")?,
-            workos_api_key: required_env("WORKOS_API_KEY")?,
-            workos_redirect_uri: required_env("WORKOS_REDIRECT_URI")?,
+            workos_client_id: required_non_empty_env("WORKOS_CLIENT_ID")?,
+            workos_api_key: required_non_empty_env("WORKOS_API_KEY")?,
+            workos_redirect_uri: required_non_empty_env("WORKOS_REDIRECT_URI")?,
             session_secret,
             db_max_connections: optional_env_u32("DB_MAX_CONNECTIONS", 10)?,
             db_acquire_timeout_secs: optional_env_u64("DB_ACQUIRE_TIMEOUT_SECS", 5)?,
         })
+    }
+}
+
+impl std::fmt::Debug for CloudConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CloudConfig")
+            .field("database_url", &"<redacted>")
+            .field("workos_client_id", &self.workos_client_id)
+            .field("workos_api_key", &"<redacted>")
+            .field("workos_redirect_uri", &self.workos_redirect_uri)
+            .field("session_secret", &"<redacted>")
+            .field("db_max_connections", &self.db_max_connections)
+            .field("db_acquire_timeout_secs", &self.db_acquire_timeout_secs)
+            .finish()
     }
 }
 
@@ -82,6 +93,14 @@ fn optional_env_u64(key: &str, default: u64) -> anyhow::Result<u64> {
 
 fn required_env(key: &str) -> anyhow::Result<String> {
     std::env::var(key).map_err(|_| anyhow::anyhow!("Missing required environment variable: {key}"))
+}
+
+fn required_non_empty_env(key: &str) -> anyhow::Result<String> {
+    let value = required_env(key)?;
+    if value.trim().is_empty() {
+        anyhow::bail!("{key} must not be empty");
+    }
+    Ok(value)
 }
 
 /// Returns `true` when `RUSTUME_CLOUD` is enabled and `DATABASE_URL` is set.
