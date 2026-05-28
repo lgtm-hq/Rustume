@@ -97,8 +97,8 @@ describe("upsertCloudResume", () => {
     );
   });
 
-  it("fetches the existing row when create returns 409 after a 404 update", async () => {
-    const existing = mockRow({ id: "abc", title: "Existing" });
+  it("retries update when create returns 409 after a 404 update", async () => {
+    const updated = mockRow({ id: "abc", title: "Test" });
     globalThis.fetch = vi
       .fn()
       .mockResolvedValueOnce({
@@ -113,12 +113,16 @@ describe("upsertCloudResume", () => {
         statusText: "Conflict",
         text: () => Promise.resolve("A resume with this ID already exists"),
       })
-      .mockResolvedValueOnce(jsonFetch(existing));
+      .mockResolvedValueOnce(jsonFetch(updated));
 
     const result = await upsertCloudResume("abc", testResume("Test"), "Test");
 
-    expect(result).toEqual(existing);
+    expect(result).toEqual(updated);
     expect(globalThis.fetch).toHaveBeenCalledTimes(3);
+    expect(globalThis.fetch).toHaveBeenLastCalledWith(
+      "/api/resumes/abc",
+      expect.objectContaining({ method: "PUT" }),
+    );
   });
 });
 
