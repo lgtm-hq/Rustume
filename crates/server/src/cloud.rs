@@ -111,7 +111,8 @@ pub async fn init_cloud(config: CloudConfig) -> anyhow::Result<Arc<CloudState>> 
     info!("PostgreSQL migrations applied");
 
     let workos = WorkOsClient::new(config.workos_client_id, config.workos_api_key);
-    let sessions = SessionService::new(db.clone(), config.session_secret);
+    let cookie_secure = config.workos_redirect_uri.starts_with("https://");
+    let sessions = SessionService::new(db.clone(), config.session_secret, cookie_secure);
     let workos_redirect_uri = config.workos_redirect_uri;
 
     Ok(Arc::new(CloudState {

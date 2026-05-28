@@ -1,6 +1,7 @@
 use axum::Json;
 use rustume_parser::{JsonResumeParser, LinkedInParser, Parser, ReactiveResumeV3Parser};
 use rustume_schema::ResumeData;
+use tracing::error;
 
 use crate::dto::{ParseFormat, ParseRequest};
 use crate::error::ApiError;
@@ -27,24 +28,32 @@ pub async fn parse(Json(req): Json<ParseRequest>) -> Result<Json<ResumeData>, Ap
         use base64::Engine;
         base64::engine::general_purpose::STANDARD
             .decode(&req.data)
-            .map_err(|e| ApiError::new(format!("Invalid base64: {}", e)))?
+            .map_err(|err| {
+                error!("base64 decode failed: {err}");
+                ApiError::new("Invalid base64 input")
+            })?
     } else {
         req.data.into_bytes()
     };
 
     // Parse based on format
     let resume = match req.format {
-        ParseFormat::JsonResume => JsonResumeParser
-            .parse(&data)
-            .map_err(|e| ApiError::new(format!("Failed to parse JSON Resume: {}", e)))?,
-        ParseFormat::LinkedIn => LinkedInParser
-            .parse(&data)
-            .map_err(|e| ApiError::new(format!("Failed to parse LinkedIn export: {}", e)))?,
-        ParseFormat::Rrv3 => ReactiveResumeV3Parser
-            .parse(&data)
-            .map_err(|e| ApiError::new(format!("Failed to parse Reactive Resume v3: {}", e)))?,
-        ParseFormat::Rustume => serde_json::from_slice(&data)
-            .map_err(|e| ApiError::new(format!("Failed to parse Rustume JSON: {}", e)))?,
+        ParseFormat::JsonResume => JsonResumeParser.parse(&data).map_err(|err| {
+            error!("JSON Resume parse failed: {err}");
+            ApiError::new("Failed to parse JSON Resume input")
+        })?,
+        ParseFormat::LinkedIn => LinkedInParser.parse(&data).map_err(|err| {
+            error!("LinkedIn export parse failed: {err}");
+            ApiError::new("Failed to parse LinkedIn export")
+        })?,
+        ParseFormat::Rrv3 => ReactiveResumeV3Parser.parse(&data).map_err(|err| {
+            error!("Reactive Resume v3 parse failed: {err}");
+            ApiError::new("Failed to parse Reactive Resume v3 input")
+        })?,
+        ParseFormat::Rustume => serde_json::from_slice(&data).map_err(|err| {
+            error!("Rustume JSON parse failed: {err}");
+            ApiError::new("Failed to parse Rustume JSON input")
+        })?,
     };
 
     Ok(Json(resume))

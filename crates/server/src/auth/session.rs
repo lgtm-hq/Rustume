@@ -6,6 +6,7 @@ use cookie::time;
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 use sqlx::PgPool;
+use subtle::ConstantTimeEq;
 use uuid::Uuid;
 
 use crate::db::{Session, User};
@@ -21,12 +22,17 @@ const SESSION_TTL_DAYS: i64 = 30;
 pub struct SessionService {
     db: PgPool,
     secret: String,
+    cookie_secure: bool,
 }
 
 impl SessionService {
     /// Create a session service bound to the given pool and signing secret.
-    pub fn new(db: PgPool, secret: String) -> Self {
-        Self { db, secret }
+    pub fn new(db: PgPool, secret: String, cookie_secure: bool) -> Self {
+        Self {
+            db,
+            secret,
+            cookie_secure,
+        }
     }
 
     /// Persist a new session and return the row plus `Set-Cookie` value.
@@ -49,14 +55,12 @@ impl SessionService {
 
     /// Build a cookie that clears the client session.
     pub fn clear_cookie(&self) -> Cookie<'static> {
-        let secure = cookie_secure();
-
         Cookie::build((SESSION_COOKIE, ""))
             .http_only(true)
             .same_site(SameSite::Lax)
             .path("/")
             .max_age(time::Duration::ZERO)
-            .secure(secure)
+            .secure(self.cookie_secure)
             .into()
     }
 
@@ -98,7 +102,6 @@ impl SessionService {
         session_id: &Uuid,
         expires_at: chrono::DateTime<Utc>,
     ) -> Cookie<'static> {
-        let secure = cookie_secure();
         let max_age = (expires_at - Utc::now()).num_seconds().max(0);
         let signed_token = self.format_signed_token(session_id);
 
@@ -107,7 +110,7 @@ impl SessionService {
             .same_site(SameSite::Lax)
             .path("/")
             .max_age(time::Duration::seconds(max_age))
-            .secure(secure)
+            .secure(self.cookie_secure)
             .into()
     }
 
@@ -117,10 +120,6 @@ impl SessionService {
 
     fn parse_session_token(&self, token: &str) -> Option<Uuid> {
         parse_signed_session_token(token, &self.secret)
-    }
-
-    fn sign_session_id(&self, session_id: &Uuid) -> String {
-        sign_session_id(session_id, &self.secret)
     }
 }
 
@@ -145,25 +144,12 @@ fn sign_session_id(session_id: &Uuid, secret: &str) -> String {
     hex_encode(&mac.finalize().into_bytes())
 }
 
-fn cookie_secure() -> bool {
-    std::env::var("WORKOS_REDIRECT_URI")
-        .map(|uri| uri.starts_with("https://"))
-        .unwrap_or(false)
-}
-
 fn hex_encode(bytes: &[u8]) -> String {
     bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
 fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
-    if left.len() != right.len() {
-        return false;
-    }
-
-    left.iter()
-        .zip(right.iter())
-        .fold(0u8, |acc, (a, b)| acc | (a ^ b))
-        == 0
+    left.ct_eq(right).into()
 }
 
 #[cfg(test)]
