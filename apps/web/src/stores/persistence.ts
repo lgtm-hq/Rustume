@@ -402,6 +402,7 @@ export function useResumeList() {
         if (isCloudAuthenticated()) {
           await duplicateCloudResume(id, newId, structuredClone(original), copyTitle);
           saveCompleted = true;
+          setResumeMeta(newId, copyTitle);
           await refetch();
           return newId;
         }
