@@ -27,7 +27,6 @@ function mockRow(overrides: Partial<CloudResumeRow> = {}): CloudResumeRow {
     data: testResume("Test"),
     is_public: false,
     public_slug: null,
-    password_hash: null,
     version: 1,
     created_at: "2026-01-01T00:00:00Z",
     ...overrides,
@@ -135,16 +134,32 @@ describe("resume API helpers", () => {
     globalThis.fetch = originalFetch;
   });
 
-  it("listCloudResumes calls GET /api/resumes", async () => {
-    const mockFetch = vi.fn().mockResolvedValue(jsonFetch([]));
+  it("listCloudResumes follows paginated responses", async () => {
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonFetch({
+          items: [{ id: "1", title: "One", updated_at: "2026-01-01T00:00:00Z" }],
+          total: 2,
+          page: 1,
+          per_page: 100,
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonFetch({
+          items: [{ id: "2", title: "Two", updated_at: "2026-01-02T00:00:00Z" }],
+          total: 2,
+          page: 2,
+          per_page: 100,
+        }),
+      );
     globalThis.fetch = mockFetch;
 
-    await listCloudResumes();
+    const result = await listCloudResumes();
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      "/api/resumes",
-      expect.objectContaining({ method: "GET", credentials: "include" }),
-    );
+    expect(result).toHaveLength(2);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(mockFetch.mock.calls[0]?.[0]).toContain("/api/resumes?page=1&per_page=100");
   });
 
   it("getCloudResume calls GET /api/resumes/:id", async () => {
@@ -208,11 +223,14 @@ describe("resume API helpers", () => {
 
   it("importResumes posts the import payload", async () => {
     const payload: ImportResumeItem[] = [{ title: "One", data: createDefaultResume() }];
-    const mockFetch = vi.fn().mockResolvedValue(jsonFetch([{ id: "1", title: "One" }]));
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValue(jsonFetch({ imported: [{ id: "1", title: "One" }], failed: [] }));
     globalThis.fetch = mockFetch;
 
-    await importResumes(payload);
+    const result = await importResumes(payload);
 
+    expect(result.imported).toHaveLength(1);
     expect(mockFetch).toHaveBeenCalledWith(
       "/api/resumes/import",
       expect.objectContaining({
@@ -222,13 +240,29 @@ describe("resume API helpers", () => {
     );
   });
 
+  it("importResumes collects batch failures without stopping", async () => {
+    const payload: ImportResumeItem[] = [{ title: "One", data: createDefaultResume() }];
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      statusText: "Internal Server Error",
+      text: () => Promise.resolve("boom"),
+    });
+    globalThis.fetch = mockFetch;
+
+    const result = await importResumes(payload);
+
+    expect(result.imported).toEqual([]);
+    expect(result.failures).toHaveLength(1);
+  });
+
   it("importResumes chunks large batches to the server limit", async () => {
     const payload: ImportResumeItem[] = Array.from({ length: 101 }, (_, index) => ({
       id: `resume-${index}`,
       title: `Resume ${index}`,
       data: createDefaultResume(),
     }));
-    const mockFetch = vi.fn().mockResolvedValue(jsonFetch([]));
+    const mockFetch = vi.fn().mockResolvedValue(jsonFetch({ imported: [], failed: [] }));
     globalThis.fetch = mockFetch;
 
     await importResumes(payload);

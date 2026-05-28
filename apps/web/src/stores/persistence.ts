@@ -351,8 +351,8 @@ export function useResumeList() {
     on(
       () => [authStore.state.loading, authStore.state.user?.id] as const,
       ([loading, userId], previous) => {
-        if (loading) return;
-        const prevUserId = previous?.[1];
+        if (loading || previous === undefined) return;
+        const prevUserId = previous[1];
         if (userId !== prevUserId) {
           void refetch();
         }

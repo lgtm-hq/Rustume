@@ -71,10 +71,24 @@ export function CloudImportPrompt() {
         return;
       }
 
-      const imported = await importResumes(resumes);
+      const { imported, failures } = await importResumes(resumes);
+
+      if (imported.length === 0) {
+        toast.error(failures[0]?.message ?? "No local resumes could be imported");
+        return;
+      }
+
       localStorage.setItem(IMPORT_DISMISSED_KEY, "true");
       setOpen(false);
       window.dispatchEvent(new CustomEvent("rustume:resumes-changed"));
+
+      if (failures.length > 0) {
+        toast.error(
+          `Imported ${imported.length} resume${imported.length === 1 ? "" : "s"}, but ${failures.length} batch${failures.length === 1 ? "" : "es"} failed`,
+        );
+        return;
+      }
+
       toast.success(
         `Imported ${imported.length} resume${imported.length === 1 ? "" : "s"} to the cloud`,
       );

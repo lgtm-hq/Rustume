@@ -35,7 +35,7 @@ export async function logout(): Promise<void> {
     credentials: "include",
   });
 
-  if (!response.ok && response.status !== 204) {
+  if (!response.ok) {
     throw new Error(`Logout failed (${response.status})`);
   }
 }
