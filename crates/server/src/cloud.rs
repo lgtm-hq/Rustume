@@ -22,6 +22,10 @@ pub struct CloudConfig {
     pub workos_redirect_uri: String,
     /// Secret used to sign session cookies.
     pub session_secret: String,
+    /// Maximum PostgreSQL pool connections (`DB_MAX_CONNECTIONS`, default 10).
+    pub db_max_connections: u32,
+    /// Pool acquire timeout in seconds (`DB_ACQUIRE_TIMEOUT_SECS`, default 5).
+    pub db_acquire_timeout_secs: u64,
 }
 
 impl CloudConfig {
@@ -43,7 +47,29 @@ impl CloudConfig {
             workos_api_key: required_env("WORKOS_API_KEY")?,
             workos_redirect_uri: required_env("WORKOS_REDIRECT_URI")?,
             session_secret,
+            db_max_connections: optional_env_u32("DB_MAX_CONNECTIONS", 10)?,
+            db_acquire_timeout_secs: optional_env_u64("DB_ACQUIRE_TIMEOUT_SECS", 5)?,
         })
+    }
+}
+
+fn optional_env_u32(key: &str, default: u32) -> anyhow::Result<u32> {
+    match std::env::var(key) {
+        Ok(value) if value.trim().is_empty() => Ok(default),
+        Ok(value) => value
+            .parse()
+            .map_err(|_| anyhow::anyhow!("{key} must be a positive integer")),
+        Err(_) => Ok(default),
+    }
+}
+
+fn optional_env_u64(key: &str, default: u64) -> anyhow::Result<u64> {
+    match std::env::var(key) {
+        Ok(value) if value.trim().is_empty() => Ok(default),
+        Ok(value) => value
+            .parse()
+            .map_err(|_| anyhow::anyhow!("{key} must be a positive integer")),
+        Err(_) => Ok(default),
     }
 }
 
@@ -68,13 +94,15 @@ pub struct CloudState {
     pub workos: WorkOsClient,
     /// Session cookie persistence and validation.
     pub sessions: SessionService,
+    /// OAuth redirect URI validated at startup.
+    pub workos_redirect_uri: String,
 }
 
 /// Connect to PostgreSQL, run migrations, and wire cloud auth services.
 pub async fn init_cloud(config: CloudConfig) -> anyhow::Result<Arc<CloudState>> {
     let db = PgPoolOptions::new()
-        .max_connections(10)
-        .acquire_timeout(Duration::from_secs(5))
+        .max_connections(config.db_max_connections)
+        .acquire_timeout(Duration::from_secs(config.db_acquire_timeout_secs))
         .connect(&config.database_url)
         .await?;
 
@@ -84,10 +112,12 @@ pub async fn init_cloud(config: CloudConfig) -> anyhow::Result<Arc<CloudState>> 
 
     let workos = WorkOsClient::new(config.workos_client_id, config.workos_api_key);
     let sessions = SessionService::new(db.clone(), config.session_secret);
+    let workos_redirect_uri = config.workos_redirect_uri;
 
     Ok(Arc::new(CloudState {
         db,
         workos,
         sessions,
+        workos_redirect_uri,
     }))
 }

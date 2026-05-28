@@ -31,12 +31,12 @@ pub struct CallbackQuery {
 /// Redirect the browser to WorkOS AuthKit for sign-in.
 pub async fn login(State(state): State<AppState>) -> Result<Response, ApiError> {
     let cloud = state.cloud()?;
-    let redirect_uri = std::env::var("WORKOS_REDIRECT_URI")
-        .map_err(|_| ApiError::internal("WORKOS_REDIRECT_URI is not configured"))?;
     let oauth_state = Uuid::new_v4().to_string();
-    let url = cloud.workos.authorize_url(&redirect_uri, &oauth_state);
+    let url = cloud
+        .workos
+        .authorize_url(&cloud.workos_redirect_uri, &oauth_state);
 
-    let state_cookie = build_oauth_state_cookie(&oauth_state);
+    let state_cookie = build_oauth_state_cookie(&oauth_state, &cloud.workos_redirect_uri);
     let mut response = Redirect::temporary(&url).into_response();
     append_set_cookie(&mut response, state_cookie)?;
     Ok(response)
@@ -83,7 +83,10 @@ pub async fn callback(
 
     let mut response = Redirect::to("/").into_response();
     append_set_cookie(&mut response, cookie)?;
-    append_set_cookie(&mut response, clear_oauth_state_cookie())?;
+    append_set_cookie(
+        &mut response,
+        clear_oauth_state_cookie(&cloud.workos_redirect_uri),
+    )?;
     Ok(response)
 }
 
@@ -132,29 +135,27 @@ fn trusted_client_ip(headers: &HeaderMap) -> Option<&str> {
         .filter(|value| !value.is_empty())
 }
 
-fn oauth_cookie_secure() -> bool {
-    std::env::var("WORKOS_REDIRECT_URI")
-        .map(|uri| uri.starts_with("https://"))
-        .unwrap_or(false)
+fn oauth_cookie_secure(redirect_uri: &str) -> bool {
+    redirect_uri.starts_with("https://")
 }
 
-fn build_oauth_state_cookie(oauth_state: &str) -> Cookie<'static> {
+fn build_oauth_state_cookie(oauth_state: &str, redirect_uri: &str) -> Cookie<'static> {
     Cookie::build((OAUTH_STATE_COOKIE, oauth_state.to_string()))
         .http_only(true)
         .same_site(SameSite::Lax)
         .path("/")
         .max_age(cookie::time::Duration::minutes(OAUTH_STATE_TTL_MINUTES))
-        .secure(oauth_cookie_secure())
+        .secure(oauth_cookie_secure(redirect_uri))
         .into()
 }
 
-fn clear_oauth_state_cookie() -> Cookie<'static> {
+fn clear_oauth_state_cookie(redirect_uri: &str) -> Cookie<'static> {
     Cookie::build((OAUTH_STATE_COOKIE, ""))
         .http_only(true)
         .same_site(SameSite::Lax)
         .path("/")
         .max_age(cookie::time::Duration::ZERO)
-        .secure(oauth_cookie_secure())
+        .secure(oauth_cookie_secure(redirect_uri))
         .into()
 }
 
