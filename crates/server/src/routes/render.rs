@@ -1,15 +1,36 @@
 use axum::{
+    extract::State,
     http::{header, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
     Json,
 };
-use rustume_render::{Renderer, TypstRenderer};
+use rustume_render::Renderer;
 use rustume_schema::ResumeData;
 use validator::Validate;
 
 use crate::dto::{RenderPdfRequest, RenderPreviewRequest};
 use crate::error::ApiError;
 use crate::routes::validate::validation_errors;
+use crate::state::AppState;
+
+/// Deserialize resume JSON, apply an optional template override, and validate.
+fn prepare_resume(
+    resume: serde_json::Value,
+    template: Option<String>,
+) -> Result<ResumeData, ApiError> {
+    let mut resume: ResumeData =
+        serde_json::from_value(resume).map_err(|_| ApiError::new("Invalid resume data format"))?;
+
+    if let Some(template) = template {
+        resume.metadata.template = template;
+    }
+
+    resume
+        .validate()
+        .map_err(|e| ApiError::with_details("Validation failed", validation_errors(&e)))?;
+
+    Ok(resume)
+}
 
 /// Render resume to PDF
 ///
@@ -24,25 +45,21 @@ use crate::routes::validate::validation_errors;
         (status = 400, description = "Failed to render PDF", body = ApiError)
     )
 )]
-pub async fn render_pdf(Json(req): Json<RenderPdfRequest>) -> Result<Response, ApiError> {
-    let mut resume: ResumeData = serde_json::from_value(req.resume)
-        .map_err(|_| ApiError::new("Invalid resume data format"))?;
+pub async fn render_pdf(
+    State(state): State<AppState>,
+    Json(req): Json<RenderPdfRequest>,
+) -> Result<Response, ApiError> {
+    let resume = prepare_resume(req.resume, req.template)?;
+    let renderer = state.renderer.clone();
 
-    // Set template if provided
-    if let Some(template) = req.template {
-        resume.metadata.template = template;
-    }
-
-    // Validate
-    resume
-        .validate()
-        .map_err(|e| ApiError::with_details("Validation failed", validation_errors(&e)))?;
-
-    // Render
-    let renderer = TypstRenderer::new();
-    let pdf = renderer
-        .render_pdf(&resume)
-        .map_err(|e| ApiError::internal(format!("Failed to render PDF: {}", e)))?;
+    let pdf = tokio::task::spawn_blocking(move || {
+        renderer
+            .render_pdf(&resume)
+            .map_err(|err| format!("Failed to render PDF: {err}"))
+    })
+    .await
+    .map_err(|err| ApiError::internal(format!("Render task failed: {err}")))?
+    .map_err(ApiError::internal)?;
 
     Ok((
         StatusCode::OK,
@@ -65,25 +82,22 @@ pub async fn render_pdf(Json(req): Json<RenderPdfRequest>) -> Result<Response, A
         (status = 400, description = "Failed to render preview", body = ApiError)
     )
 )]
-pub async fn render_preview(Json(req): Json<RenderPreviewRequest>) -> Result<Response, ApiError> {
-    let mut resume: ResumeData = serde_json::from_value(req.resume)
-        .map_err(|_| ApiError::new("Invalid resume data format"))?;
+pub async fn render_preview(
+    State(state): State<AppState>,
+    Json(req): Json<RenderPreviewRequest>,
+) -> Result<Response, ApiError> {
+    let resume = prepare_resume(req.resume, req.template)?;
+    let page = req.page;
+    let renderer = state.renderer.clone();
 
-    // Set template if provided
-    if let Some(template) = req.template {
-        resume.metadata.template = template;
-    }
-
-    // Validate
-    resume
-        .validate()
-        .map_err(|e| ApiError::with_details("Validation failed", validation_errors(&e)))?;
-
-    // Render
-    let renderer = TypstRenderer::new();
-    let (png, total_pages) = renderer
-        .render_preview(&resume, req.page)
-        .map_err(|e| ApiError::internal(format!("Failed to render preview: {}", e)))?;
+    let (png, total_pages) = tokio::task::spawn_blocking(move || {
+        renderer
+            .render_preview(&resume, page)
+            .map_err(|err| format!("Failed to render preview: {err}"))
+    })
+    .await
+    .map_err(|err| ApiError::internal(format!("Render task failed: {err}")))?
+    .map_err(ApiError::internal)?;
 
     let mut response = (StatusCode::OK, [(header::CONTENT_TYPE, "image/png")], png).into_response();
     let total_pages_header = HeaderValue::from_str(&total_pages.to_string())

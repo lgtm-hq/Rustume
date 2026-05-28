@@ -1,11 +1,11 @@
 use axum::{
-    extract::Path,
+    extract::{Path, State},
     http::{header, StatusCode},
     response::{IntoResponse, Response},
     Json,
 };
 use lru::LruCache;
-use rustume_render::{get_template_theme, Renderer, TypstRenderer, TEMPLATES};
+use rustume_render::{get_template_theme, Renderer, TEMPLATES};
 use rustume_schema::ResumeData;
 use std::num::NonZeroUsize;
 use std::sync::OnceLock;
@@ -13,6 +13,7 @@ use tokio::sync::Mutex as AsyncMutex;
 
 use crate::dto::{TemplateInfo, ThemeInfo};
 use crate::error::ApiError;
+use crate::state::AppState;
 
 /// Maximum number of template thumbnails to cache
 const THUMBNAIL_CACHE_CAPACITY: usize = 32;
@@ -153,7 +154,10 @@ pub async fn list_templates() -> Json<Vec<TemplateInfo>> {
         (status = 404, description = "Template not found", body = ApiError)
     )
 )]
-pub async fn template_thumbnail(Path(id): Path<String>) -> Result<Response, ApiError> {
+pub async fn template_thumbnail(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Response, ApiError> {
     // Verify template exists
     if !TEMPLATES.contains(&id.as_str()) {
         return Err(ApiError::not_found(format!("Template '{}' not found", id)));
@@ -184,7 +188,7 @@ pub async fn template_thumbnail(Path(id): Path<String>) -> Result<Response, ApiE
     resume.metadata.theme.text = theme.text.clone();
     resume.metadata.theme.background = theme.background.clone();
 
-    let renderer = TypstRenderer::new();
+    let renderer = state.renderer.clone();
     let (png, _total_pages) = tokio::task::spawn_blocking(move || {
         renderer
             .render_preview(&resume, 0)

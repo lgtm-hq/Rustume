@@ -38,10 +38,7 @@ pub async fn run() -> anyhow::Result<()> {
         None
     };
 
-    let app = create_router_with_state(AppState {
-        static_dir: static_root.clone(),
-        cloud,
-    });
+    let app = create_router_with_state(AppState::new(static_root.clone(), cloud));
 
     let port: u16 = std::env::var("PORT")
         .ok()

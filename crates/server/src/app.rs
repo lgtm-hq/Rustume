@@ -29,18 +29,12 @@ use crate::state::AppState;
 
 /// Build the default router in self-hosted (stateless) mode.
 pub fn create_router() -> Router {
-    create_router_with_state(AppState {
-        static_dir: Arc::new(static_dir()),
-        cloud: None,
-    })
+    create_router_with_state(AppState::new(Arc::new(static_dir()), None))
 }
 
 /// Build a router with a custom static asset directory (used in tests).
 pub fn create_router_with_static_dir(dir: PathBuf) -> Router {
-    create_router_with_state(AppState {
-        static_dir: Arc::new(dir),
-        cloud: None,
-    })
+    create_router_with_state(AppState::new(Arc::new(dir), None))
 }
 
 /// Build the full Axum router, registering cloud routes when `state.cloud` is set.
