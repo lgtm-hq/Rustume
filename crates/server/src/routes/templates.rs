@@ -185,9 +185,14 @@ pub async fn template_thumbnail(Path(id): Path<String>) -> Result<Response, ApiE
     resume.metadata.theme.background = theme.background.clone();
 
     let renderer = TypstRenderer::new();
-    let (png, _total_pages) = renderer
-        .render_preview(&resume, 0)
-        .map_err(|e| ApiError::internal(format!("Failed to render thumbnail: {}", e)))?;
+    let (png, _total_pages) = tokio::task::spawn_blocking(move || {
+        renderer
+            .render_preview(&resume, 0)
+            .map_err(|e| format!("Failed to render thumbnail: {e}"))
+    })
+    .await
+    .map_err(|err| ApiError::internal(format!("Render task failed: {err}")))?
+    .map_err(ApiError::internal)?;
 
     // Cache the result
     {

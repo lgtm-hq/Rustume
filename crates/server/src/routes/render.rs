@@ -26,7 +26,7 @@ use crate::routes::validate::validation_errors;
 )]
 pub async fn render_pdf(Json(req): Json<RenderPdfRequest>) -> Result<Response, ApiError> {
     let mut resume: ResumeData = serde_json::from_value(req.resume)
-        .map_err(|e| ApiError::new(format!("Invalid resume data: {}", e)))?;
+        .map_err(|_| ApiError::new("Invalid resume data format"))?;
 
     // Set template if provided
     if let Some(template) = req.template {
@@ -67,7 +67,7 @@ pub async fn render_pdf(Json(req): Json<RenderPdfRequest>) -> Result<Response, A
 )]
 pub async fn render_preview(Json(req): Json<RenderPreviewRequest>) -> Result<Response, ApiError> {
     let mut resume: ResumeData = serde_json::from_value(req.resume)
-        .map_err(|e| ApiError::new(format!("Invalid resume data: {}", e)))?;
+        .map_err(|_| ApiError::new("Invalid resume data format"))?;
 
     // Set template if provided
     if let Some(template) = req.template {

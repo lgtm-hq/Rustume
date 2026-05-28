@@ -114,8 +114,6 @@ pub async fn spa_fallback(
         }
     } else if asset_path.extension().is_some() {
         return (StatusCode::NOT_FOUND, "Not Found").into_response();
-    } else if let Some(response) = serve_static_file(&asset_path, &relative_path).await {
-        return response;
     }
 
     let index_path = root.join("index.html");
