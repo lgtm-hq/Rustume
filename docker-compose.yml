@@ -5,7 +5,8 @@
 #   docker compose up
 #
 # Rustume Cloud local dev:
-#   cp .env.example .env   # set POSTGRES_PASSWORD and DATABASE_URL
+#   cp .env.example .env   # required: POSTGRES_PASSWORD, DATABASE_URL,
+#                          # SESSION_SECRET (32+ chars), WORKOS_CLIENT_ID, WORKOS_API_KEY
 #   docker compose --profile cloud up
 ---
 services:
@@ -26,7 +27,7 @@ services:
       WORKOS_CLIENT_ID: ${WORKOS_CLIENT_ID:-}
       WORKOS_API_KEY: ${WORKOS_API_KEY:-}
       WORKOS_REDIRECT_URI: ${WORKOS_REDIRECT_URI:-http://localhost:3000/auth/callback}
-      SESSION_SECRET: ${SESSION_SECRET:-}
+      SESSION_SECRET: ${SESSION_SECRET}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "/app/rustume-server", "--health"]

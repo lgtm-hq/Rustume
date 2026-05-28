@@ -2,6 +2,7 @@
 
 use axum::{extract::FromRequestParts, http::request::Parts};
 use axum_extra::extract::CookieJar;
+use tracing::error;
 
 use crate::auth::session::SESSION_COOKIE;
 use crate::db::User;
@@ -32,7 +33,10 @@ impl FromRequestParts<AppState> for AuthUser {
             .sessions
             .user_for_token(&token)
             .await
-            .map_err(|err| ApiError::internal(err.to_string()))?
+            .map_err(|err| {
+                error!("session lookup failed: {err}");
+                ApiError::internal("internal server error")
+            })?
             .ok_or_else(|| unauthorized("Invalid or expired session"))?;
 
         Ok(AuthUser(user))

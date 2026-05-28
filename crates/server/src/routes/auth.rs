@@ -8,6 +8,7 @@ use axum::{
 };
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 use serde::Deserialize;
+use tracing::error;
 use uuid::Uuid;
 
 use crate::auth::session::SESSION_COOKIE;
@@ -65,17 +66,20 @@ pub async fn callback(
         .workos
         .authenticate_with_code(&query.code, ip, user_agent)
         .await
-        .map_err(|err| ApiError::new(err.to_string()))?;
+        .map_err(|err| {
+            error!("WorkOS authentication failed: {err}");
+            ApiError::new("Authentication failed")
+        })?;
 
-    let user = upsert_user(&cloud.db, &workos_user)
-        .await
-        .map_err(|err| ApiError::internal(err.to_string()))?;
+    let user = upsert_user(&cloud.db, &workos_user).await.map_err(|err| {
+        error!("user upsert failed: {err}");
+        ApiError::internal("internal server error")
+    })?;
 
-    let (_session, cookie) = cloud
-        .sessions
-        .create(user.id)
-        .await
-        .map_err(|err| ApiError::internal(err.to_string()))?;
+    let (_session, cookie) = cloud.sessions.create(user.id).await.map_err(|err| {
+        error!("session creation failed: {err}");
+        ApiError::internal("internal server error")
+    })?;
 
     let mut response = Redirect::to("/").into_response();
     append_set_cookie(&mut response, cookie)?;
@@ -87,11 +91,10 @@ pub async fn callback(
 pub async fn logout(State(state): State<AppState>, jar: CookieJar) -> Result<Response, ApiError> {
     let cloud = state.cloud()?;
     if let Some(cookie) = jar.get(SESSION_COOKIE) {
-        cloud
-            .sessions
-            .delete(cookie.value())
-            .await
-            .map_err(|err| ApiError::internal(err.to_string()))?;
+        cloud.sessions.delete(cookie.value()).await.map_err(|err| {
+            error!("session deletion failed: {err}");
+            ApiError::internal("internal server error")
+        })?;
     }
 
     let clear = cloud.sessions.clear_cookie();
