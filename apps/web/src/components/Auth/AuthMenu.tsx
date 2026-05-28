@@ -6,7 +6,10 @@ export function AuthMenu() {
   const { state, signIn, signOut } = authStore;
 
   return (
-    <Show when={!state.loading} fallback={<Spinner class="w-4 h-4 text-stone" />}>
+    <Show
+      when={!state.loading}
+      fallback={<Spinner class="w-4 h-4 text-stone" ariaLabel="Loading authentication" />}
+    >
       <Show when={state.cloudEnabled} fallback={null}>
         <Show
           when={state.user}

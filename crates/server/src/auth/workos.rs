@@ -71,7 +71,15 @@ impl WorkOsClient {
 
         if !response.status().is_success() {
             let status = response.status();
-            let body = response.text().await.unwrap_or_default();
+            let body = response
+                .text()
+                .await
+                .unwrap_or_else(|e| format!("failed to read response: {e}"));
+            let body = if body.len() > 200 {
+                format!("{}… (truncated)", &body[..200])
+            } else {
+                body
+            };
             return Err(WorkOsAuthError::Api {
                 status: status.as_u16(),
                 body,

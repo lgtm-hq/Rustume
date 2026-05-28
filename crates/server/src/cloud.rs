@@ -65,7 +65,7 @@ where
             } else {
                 trimmed
                     .parse::<T>()
-                    .map_err(|_| anyhow::anyhow!("{key} must be a positive integer"))
+                    .map_err(|_| anyhow::anyhow!("failed to parse env var {key}"))
             }
         }
         Err(_) => Ok(default),

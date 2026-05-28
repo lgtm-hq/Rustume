@@ -36,8 +36,11 @@ function createAuthStore() {
 
   async function signOut() {
     if (!state.cloudEnabled) return;
-    await logout();
-    setState("user", null);
+    try {
+      await logout();
+    } finally {
+      setState("user", null);
+    }
   }
 
   return {
