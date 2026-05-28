@@ -75,8 +75,9 @@ impl WorkOsClient {
                 .text()
                 .await
                 .unwrap_or_else(|e| format!("failed to read response: {e}"));
-            let body = if body.len() > 200 {
-                format!("{}… (truncated)", &body[..200])
+            let body = if body.chars().count() > 200 {
+                let truncated: String = body.chars().take(200).collect();
+                format!("{truncated}… (truncated)")
             } else {
                 body
             };
