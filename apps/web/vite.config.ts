@@ -38,6 +38,15 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,woff2,wasm}"],
+        // Auth/API routes are server-handled; do not serve index.html for them.
+        navigateFallbackDenylist: [
+          /^\/auth(?:\/|$)/,
+          /^\/api(?:\/|$)/,
+          /^\/health$/,
+          /^\/metrics$/,
+          /^\/swagger-ui(?:\/|$)/,
+          /^\/api-docs(?:\/|$)/,
+        ],
         runtimeCaching: [
           {
             urlPattern: /\.wasm$/,
@@ -80,6 +89,10 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+      },
+      "/auth": {
         target: "http://localhost:3000",
         changeOrigin: true,
       },

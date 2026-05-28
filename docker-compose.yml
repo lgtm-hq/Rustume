@@ -1,5 +1,13 @@
 # Requires a published GHCR image (ghcr.io/lgtm-hq/rustume:latest).
 # If pull fails, build from source — see docs/deployment.md.
+#
+# Self-hosted (default):
+#   docker compose up
+#
+# Rustume Cloud local dev:
+#   cp .env.example .env   # required: POSTGRES_PASSWORD, DATABASE_URL,
+#                          # SESSION_SECRET (32+ chars), WORKOS_CLIENT_ID, WORKOS_API_KEY
+#   docker compose --profile cloud up
 ---
 services:
   rustume:
@@ -14,10 +22,41 @@ services:
       RUST_LOG: info
       PORT: "3000"
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      RUSTUME_CLOUD: ${RUSTUME_CLOUD:-false}
+      DATABASE_URL: ${DATABASE_URL:-}
+      WORKOS_CLIENT_ID: ${WORKOS_CLIENT_ID:-}
+      WORKOS_API_KEY: ${WORKOS_API_KEY:-}
+      WORKOS_REDIRECT_URI: ${WORKOS_REDIRECT_URI:-http://localhost:3000/auth/callback}
+      SESSION_SECRET: ${SESSION_SECRET:-}
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
     healthcheck:
       test: ["CMD", "/app/rustume-server", "--health"]
       interval: 30s
       timeout: 3s
       start_period: 5s
       retries: 3
+
+  postgres:
+    profiles: [cloud]
+    image: postgres:16-alpine
+    container_name: rustume-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - rustume_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  rustume_pgdata:

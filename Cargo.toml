@@ -99,3 +99,42 @@ utoipa = { version = "5", features = ["axum_extras"] }
 
 # Caching
 lru = "0.18"
+
+# Cloud / database
+sqlx = { version = "0.9", default-features = false, features = [
+  "runtime-tokio",
+  "postgres",
+  "macros",
+  "migrate",
+  "uuid",
+  "chrono",
+  "json",
+  "derive",
+  "tls-rustls-ring",
+] }
+uuid = { version = "1", features = ["v4", "serde"] }
+
+# HTTP client (WorkOS)
+reqwest = { version = "0.12", default-features = false, features = [
+  "json",
+  "rustls-tls",
+] }
+
+# Cookies / sessions
+axum-extra = { version = "0.10", features = ["cookie"] }
+
+# Metrics
+metrics = "0.24"
+metrics-exporter-prometheus = "0.16"
+
+# Error tracking
+sentry = { version = "0.48.2", default-features = false, features = [
+  "backtrace",
+  "contexts",
+  "panic",
+  "reqwest",
+  "rustls",
+] }
+sentry-tower = { version = "0.48.2", default-features = false, features = [
+  "http",
+] }

@@ -3,6 +3,7 @@ import { A, useLocation } from "@solidjs/router";
 import { useOnline } from "../../hooks/useOnline";
 import { resumeStore } from "../../stores/resume";
 import { EditorThemeSelector } from "../ui/EditorThemeSelector";
+import { AuthMenu } from "../Auth/AuthMenu";
 
 export const AppShell: ParentComponent = (props) => {
   const isOnline = useOnline();
@@ -30,6 +31,8 @@ export const AppShell: ParentComponent = (props) => {
 
           {/* Status Indicators */}
           <div class="flex items-center gap-4">
+            <AuthMenu />
+
             {/* Editor Theme Selector */}
             <EditorThemeSelector />
 

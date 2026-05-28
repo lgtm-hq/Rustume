@@ -1,4 +1,4 @@
-import { createResource } from "solid-js";
+import { createResource, createEffect, on, onCleanup, onMount } from "solid-js";
 import { toast } from "../components/ui";
 import {
   listResumes as listWasmResumes,
@@ -11,6 +11,17 @@ import {
 import { generateId } from "../wasm/types";
 import type { ResumeData } from "../wasm/types";
 import { ResumeNotFoundError, ResumeCorruptedError, validateResumeData } from "./resume";
+import { authStore } from "./auth";
+import {
+  isCloudAuthenticated,
+  listCloudResumeSummaries,
+  loadCloudResume,
+  removeCloudResume,
+  renameCloudResume,
+  duplicateCloudResume,
+  cloudResumeExists,
+  saveCloudResume,
+} from "./cloudStorage";
 
 export interface ResumeListItem {
   id: string;
@@ -105,6 +116,24 @@ export function deriveTitleFromResume(data: ResumeData): string {
   return "Untitled Resume";
 }
 
+function resolveResumeTitle(id: string, data: ResumeData): string {
+  const existing = getResumeMeta(id);
+  const existingTitle = existing?.title?.trim();
+  if (existingTitle) return existingTitle;
+  return deriveTitleFromResume(data);
+}
+
+function maybeUpdateResumeMeta(id: string, title: string): void {
+  const existing = getResumeMeta(id);
+  if (existing?.title === title) return;
+  try {
+    setResumeMeta(id, title);
+  } catch (e) {
+    console.error("Failed to update resume metadata:", e);
+    toast.warning("Resume saved but metadata could not be updated — storage may be full");
+  }
+}
+
 // ---------------------------------------------------------------------------
 // LocalStorage resume CRUD
 // ---------------------------------------------------------------------------
@@ -190,6 +219,10 @@ function saveLocalResume(id: string, data: ResumeData): boolean {
 // ---------------------------------------------------------------------------
 
 async function listResumes(): Promise<string[]> {
+  if (isCloudAuthenticated()) {
+    const rows = await listCloudResumeSummaries();
+    return rows.map((row) => row.id);
+  }
   if (isWasmReady()) {
     return listWasmResumes();
   }
@@ -197,16 +230,20 @@ async function listResumes(): Promise<string[]> {
 }
 
 async function deleteResume(id: string): Promise<void> {
-  if (isWasmReady()) {
+  if (isCloudAuthenticated()) {
+    await removeCloudResume(id);
+  } else if (isWasmReady()) {
     await deleteFromWasmStorage(id);
   } else {
     deleteLocalResume(id);
   }
-  // Always clean up metadata (stored in localStorage regardless of backend)
   deleteResumeMeta(id);
 }
 
 async function resumeExists(id: string): Promise<boolean> {
+  if (isCloudAuthenticated()) {
+    return cloudResumeExists(id);
+  }
   if (isWasmReady()) {
     return wasmResumeExists(id);
   }
@@ -214,6 +251,9 @@ async function resumeExists(id: string): Promise<boolean> {
 }
 
 async function getResume(id: string): Promise<ResumeData> {
+  if (isCloudAuthenticated()) {
+    return loadCloudResume(id);
+  }
   if (isWasmReady()) {
     return getFromWasmStorage(id);
   }
@@ -221,17 +261,15 @@ async function getResume(id: string): Promise<ResumeData> {
 }
 
 async function saveResume(id: string, data: ResumeData): Promise<void> {
+  if (isCloudAuthenticated()) {
+    const title = resolveResumeTitle(id, data);
+    await saveCloudResume(id, data, title);
+    maybeUpdateResumeMeta(id, title);
+    return;
+  }
   if (isWasmReady()) {
     await saveToWasmStorage(id, data);
-    // Update metadata in localStorage even for WASM backend
-    const existing = getResumeMeta(id);
-    const title = existing?.title ?? deriveTitleFromResume(data);
-    try {
-      setResumeMeta(id, title);
-    } catch (e) {
-      console.error("Failed to update resume metadata:", e);
-      toast.warning("Resume saved but metadata could not be updated — storage may be full");
-    }
+    maybeUpdateResumeMeta(id, resolveResumeTitle(id, data));
     return;
   }
   if (!saveLocalResume(id, data)) {
@@ -245,6 +283,15 @@ async function saveResume(id: string, data: ResumeData): Promise<void> {
 
 async function fetchResumeList(): Promise<ResumeListItem[]> {
   try {
+    if (isCloudAuthenticated()) {
+      const rows = await listCloudResumeSummaries();
+      return rows.map((row) => ({
+        id: row.id,
+        name: row.title,
+        updatedAt: new Date(row.updated_at),
+      }));
+    }
+
     const ids = await listResumes();
     const metaMap = getMetaMap();
 
@@ -300,6 +347,27 @@ async function fetchResumeList(): Promise<ResumeListItem[]> {
 export function useResumeList() {
   const [resumes, { refetch }] = createResource(fetchResumeList);
 
+  createEffect(
+    on(
+      () => [authStore.state.loading, authStore.state.user?.id] as const,
+      ([loading, userId], previous) => {
+        if (loading || previous === undefined) return;
+        const prevUserId = previous[1];
+        if (userId !== prevUserId) {
+          void refetch();
+        }
+      },
+    ),
+  );
+
+  onMount(() => {
+    const refresh = () => {
+      void refetch();
+    };
+    window.addEventListener("rustume:resumes-changed", refresh);
+    onCleanup(() => window.removeEventListener("rustume:resumes-changed", refresh));
+  });
+
   return {
     resumes,
     loading: () => resumes.loading,
@@ -327,11 +395,26 @@ export function useResumeList() {
         const original = await getResume(id);
         newId = generateId();
 
-        // Set metadata with "(Copy)" suffix before saving so saveResume
-        // sees existing metadata and doesn't overwrite it.
         const originalMeta = getResumeMeta(id);
         const baseName = originalMeta?.title ?? deriveTitleFromResume(original);
-        setResumeMeta(newId, `${baseName} (Copy)`);
+        const copyTitle = `${baseName} (Copy)`;
+
+        if (isCloudAuthenticated()) {
+          await duplicateCloudResume(id, newId, structuredClone(original), copyTitle);
+          saveCompleted = true;
+          try {
+            setResumeMeta(newId, copyTitle);
+          } catch (e) {
+            console.error("Failed to cache resume metadata locally:", e);
+            toast.warning(
+              "Resume duplicated but metadata could not be cached — storage may be full",
+            );
+          }
+          await refetch();
+          return newId;
+        }
+
+        setResumeMeta(newId, copyTitle);
 
         await saveResume(newId, structuredClone(original));
         saveCompleted = true;
@@ -357,6 +440,14 @@ export function useResumeList() {
         const trimmed = newTitle.trim();
         if (!trimmed) return;
         if (!(await resumeExists(id))) return;
+
+        if (isCloudAuthenticated()) {
+          await renameCloudResume(id, trimmed);
+          setResumeMeta(id, trimmed);
+          await refetch();
+          return;
+        }
+
         setResumeMeta(id, trimmed);
         await refetch();
       } catch (e) {
@@ -370,4 +461,20 @@ export function useResumeList() {
       return resumeExists(id);
     },
   };
+}
+
+/** List resume IDs from local storage (WASM or localStorage fallback). */
+export async function listStoredResumeIds(): Promise<string[]> {
+  if (isWasmReady()) {
+    return listWasmResumes();
+  }
+  return listLocalResumes();
+}
+
+/** Load a resume from local storage (WASM or localStorage fallback). */
+export async function getStoredResume(id: string): Promise<ResumeData> {
+  if (isWasmReady()) {
+    return getFromWasmStorage(id);
+  }
+  return getLocalResume(id);
 }
