@@ -30,7 +30,7 @@ function createAuthStore() {
       applyProbe(await probeAuth());
     } catch (error) {
       console.error("Failed to probe auth:", error);
-      setState("loading", false);
+      setState({ cloudEnabled: false, user: null, loading: false });
     }
   }
 
