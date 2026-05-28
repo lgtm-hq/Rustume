@@ -23,11 +23,11 @@ services:
       PORT: "3000"
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       RUSTUME_CLOUD: ${RUSTUME_CLOUD:-false}
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: ${DATABASE_URL:-}
       WORKOS_CLIENT_ID: ${WORKOS_CLIENT_ID:-}
       WORKOS_API_KEY: ${WORKOS_API_KEY:-}
       WORKOS_REDIRECT_URI: ${WORKOS_REDIRECT_URI:-http://localhost:3000/auth/callback}
-      SESSION_SECRET: ${SESSION_SECRET}
+      SESSION_SECRET: ${SESSION_SECRET:-}
     restart: unless-stopped
     depends_on:
       postgres:

@@ -58,10 +58,16 @@ where
     T: std::str::FromStr + Clone,
 {
     match std::env::var(key) {
-        Ok(value) if value.trim().is_empty() => Ok(default),
-        Ok(value) => value
-            .parse::<T>()
-            .map_err(|_| anyhow::anyhow!("{key} must be a positive integer")),
+        Ok(value) => {
+            let trimmed = value.trim();
+            if trimmed.is_empty() {
+                Ok(default)
+            } else {
+                trimmed
+                    .parse::<T>()
+                    .map_err(|_| anyhow::anyhow!("{key} must be a positive integer"))
+            }
+        }
         Err(_) => Ok(default),
     }
 }
