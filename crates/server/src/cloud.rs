@@ -55,7 +55,7 @@ impl CloudConfig {
 
 fn optional_env<T>(key: &str, default: T) -> anyhow::Result<T>
 where
-    T: std::str::FromStr + Clone,
+    T: std::str::FromStr,
 {
     match std::env::var(key) {
         Ok(value) => {
