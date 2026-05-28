@@ -435,6 +435,7 @@ export function useResumeList() {
 
         if (isCloudAuthenticated()) {
           await renameCloudResume(id, trimmed);
+          setResumeMeta(id, trimmed);
           await refetch();
           return;
         }

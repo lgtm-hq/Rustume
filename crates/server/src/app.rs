@@ -50,8 +50,7 @@ pub fn create_router_with_state(state: AppState) -> Router {
         .route("/api/parse", post(parse))
         .route("/api/render/pdf", post(render_pdf))
         .route("/api/render/preview", post(render_preview))
-        .route("/api/validate", post(validate))
-        .fallback(spa_fallback);
+        .route("/api/validate", post(validate));
 
     if state.cloud.is_some() {
         router = router
@@ -68,6 +67,7 @@ pub fn create_router_with_state(state: AppState) -> Router {
     }
 
     let router = router
+        .fallback(spa_fallback)
         .with_state(state)
         .layer(middleware::from_fn(security_headers))
         .layer(CompressionLayer::new())

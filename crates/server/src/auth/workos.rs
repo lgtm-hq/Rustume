@@ -33,7 +33,7 @@ impl WorkOsClient {
     /// Build the AuthKit authorization URL for the OAuth redirect.
     pub fn authorize_url(&self, redirect_uri: &str, state: &str) -> String {
         format!(
-            "{WORKOS_API_BASE}/user_management/authorize?response_type=code&client_id={}&redirect_uri={}&provider=authkit&state={}",
+            "{WORKOS_API_BASE}/user_management/authorize?response_type=code&client_id={}&redirect_uri={}&provider=authkit&state={}&prompt=login",
             url_encode(&self.client_id),
             url_encode(redirect_uri),
             url_encode(state),

@@ -1,4 +1,4 @@
-import { onMount, createSignal, Show, type ParentComponent } from "solid-js";
+import { onCleanup, onMount, createSignal, Show, type ParentComponent } from "solid-js";
 import { AppShell } from "./components/layout/AppShell";
 import { CloudImportPrompt } from "./components/Auth/CloudImportPrompt";
 import { Button, ToastRegion } from "./components/ui";
@@ -20,6 +20,14 @@ const App: ParentComponent = (props) => {
 
   onMount(async () => {
     void authStore.refresh();
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        void authStore.refresh();
+      }
+    };
+    window.addEventListener("pageshow", onPageShow);
+    onCleanup(() => window.removeEventListener("pageshow", onPageShow));
+
     try {
       await initWasm();
     } catch (e) {

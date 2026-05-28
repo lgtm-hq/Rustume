@@ -53,24 +53,25 @@ impl CloudConfig {
     }
 }
 
-fn optional_env_u32(key: &str, default: u32) -> anyhow::Result<u32> {
+fn optional_env<T>(key: &str, default: T) -> anyhow::Result<T>
+where
+    T: std::str::FromStr + Clone,
+{
     match std::env::var(key) {
         Ok(value) if value.trim().is_empty() => Ok(default),
         Ok(value) => value
-            .parse()
+            .parse::<T>()
             .map_err(|_| anyhow::anyhow!("{key} must be a positive integer")),
         Err(_) => Ok(default),
     }
 }
 
+fn optional_env_u32(key: &str, default: u32) -> anyhow::Result<u32> {
+    optional_env(key, default)
+}
+
 fn optional_env_u64(key: &str, default: u64) -> anyhow::Result<u64> {
-    match std::env::var(key) {
-        Ok(value) if value.trim().is_empty() => Ok(default),
-        Ok(value) => value
-            .parse()
-            .map_err(|_| anyhow::anyhow!("{key} must be a positive integer")),
-        Err(_) => Ok(default),
-    }
+    optional_env(key, default)
 }
 
 fn required_env(key: &str) -> anyhow::Result<String> {

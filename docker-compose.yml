@@ -29,6 +29,10 @@ services:
       WORKOS_REDIRECT_URI: ${WORKOS_REDIRECT_URI:-http://localhost:3000/auth/callback}
       SESSION_SECRET: ${SESSION_SECRET}
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
     healthcheck:
       test: ["CMD", "/app/rustume-server", "--health"]
       interval: 30s

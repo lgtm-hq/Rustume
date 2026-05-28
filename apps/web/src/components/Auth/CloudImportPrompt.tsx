@@ -10,23 +10,27 @@ import {
 } from "../../stores/persistence";
 import { authStore } from "../../stores/auth";
 
-const IMPORT_DISMISSED_KEY = "rustume:cloud-import-dismissed";
+const dismissedKey = (userId: string) => `rustume:cloud-import-dismissed:${userId}`;
 
 export function CloudImportPrompt() {
   const [open, setOpen] = createSignal(false);
   const [count, setCount] = createSignal(0);
   const [importing, setImporting] = createSignal(false);
-  const [checked, setChecked] = createSignal(false);
+  const [checkedUserId, setCheckedUserId] = createSignal<string | null>(null);
 
   createEffect(
     on(
       () =>
         [authStore.state.loading, authStore.state.cloudEnabled, authStore.state.user?.id] as const,
       async ([loading, cloudEnabled, userId]) => {
-        if (loading || !cloudEnabled || !userId || checked()) return;
-        setChecked(true);
+        if (loading || !cloudEnabled || !userId) {
+          setCheckedUserId(null);
+          return;
+        }
+        if (checkedUserId() === userId) return;
+        setCheckedUserId(userId);
 
-        if (localStorage.getItem(IMPORT_DISMISSED_KEY) === "true") return;
+        if (localStorage.getItem(dismissedKey(userId)) === "true") return;
 
         try {
           const ids = await listStoredResumeIds();
@@ -40,12 +44,12 @@ export function CloudImportPrompt() {
     ),
   );
 
-  const dismiss = () => {
-    localStorage.setItem(IMPORT_DISMISSED_KEY, "true");
+  const dismiss = (userId: string) => {
+    localStorage.setItem(dismissedKey(userId), "true");
     setOpen(false);
   };
 
-  const handleImport = async () => {
+  const handleImport = async (userId: string) => {
     setImporting(true);
     try {
       const ids = await listStoredResumeIds();
@@ -78,7 +82,7 @@ export function CloudImportPrompt() {
         return;
       }
 
-      localStorage.setItem(IMPORT_DISMISSED_KEY, "true");
+      localStorage.setItem(dismissedKey(userId), "true");
       setOpen(false);
       window.dispatchEvent(new CustomEvent("rustume:resumes-changed"));
 
@@ -101,32 +105,40 @@ export function CloudImportPrompt() {
   };
 
   return (
-    <Modal
-      open={open()}
-      onOpenChange={(value) => {
-        if (!value) dismiss();
-        else setOpen(value);
-      }}
-      title="Import local resumes?"
-      description="We found resumes saved on this device. Import them to your Rustume Cloud account?"
-      size="md"
-    >
-      <div class="px-6 py-5 space-y-4">
-        <p class="text-sm text-stone">
-          {count()} local resume{count() === 1 ? "" : "s"} can be copied to cloud storage. Your
-          local copies will remain on this device.
-        </p>
-        <div class="flex justify-end gap-3">
-          <Button variant="ghost" onClick={dismiss} disabled={importing()}>
-            Not now
-          </Button>
-          <Button onClick={() => void handleImport()} loading={importing()} disabled={importing()}>
-            <Show when={!importing()} fallback="Importing...">
-              Import to cloud
-            </Show>
-          </Button>
-        </div>
-      </div>
-    </Modal>
+    <Show when={authStore.state.user?.id}>
+      {(userId) => (
+        <Modal
+          open={open()}
+          onOpenChange={(value) => {
+            if (!value) dismiss(userId());
+            else setOpen(value);
+          }}
+          title="Import local resumes?"
+          description="We found resumes saved on this device. Import them to your Rustume Cloud account?"
+          size="md"
+        >
+          <div class="px-6 py-5 space-y-4">
+            <p class="text-sm text-stone">
+              {count()} local resume{count() === 1 ? "" : "s"} can be copied to cloud storage. Your
+              local copies will remain on this device.
+            </p>
+            <div class="flex justify-end gap-3">
+              <Button variant="ghost" onClick={() => dismiss(userId())} disabled={importing()}>
+                Not now
+              </Button>
+              <Button
+                onClick={() => void handleImport(userId())}
+                loading={importing()}
+                disabled={importing()}
+              >
+                <Show when={!importing()} fallback="Importing...">
+                  Import to cloud
+                </Show>
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </Show>
   );
 }
