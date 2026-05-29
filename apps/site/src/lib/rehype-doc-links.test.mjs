@@ -53,6 +53,26 @@ describe("rehypeDocLinks", () => {
     expect(output).not.toContain("smart-link");
   });
 
+  it("leaves hash-only anchors unchanged", async () => {
+    const output = await transform('<p><a href="#section">Section</a></p>');
+
+    expect(output).toContain('href="#section"');
+  });
+
+  it("leaves mailto links unchanged", async () => {
+    const output = await transform('<p><a href="mailto:hi@example.com">Email</a></p>');
+
+    expect(output).toContain('href="mailto:hi@example.com"');
+  });
+
+  it("normalizes parent segments in internal paths", async () => {
+    const output = await transform(
+      '<p><a href="/docs/foo/../getting-started/quickstart/">Quickstart</a></p>',
+    );
+
+    expect(output).toContain('href="/Rustume/docs/getting-started/quickstart/"');
+  });
+
   it("unwraps links inside headings to plain text", async () => {
     const file = await rehype()
       .data("settings", { fragment: true })

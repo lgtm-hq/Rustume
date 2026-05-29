@@ -11,7 +11,7 @@ function escapeRegExp(value) {
 const escapedPrefix = escapeRegExp(SITE_IMAGES_PREFIX);
 // Case-insensitive src= matching handles nonstandard HTML from markdown/rehype output.
 const SRC_ATTR_PATTERN = new RegExp(
-  String.raw`src\s*=\s*(["'])${escapedPrefix}([^"']*)\1|src\s*=\s*${escapedPrefix}([^\s>]+)`,
+  String.raw`src\s*=\s*(["'])${escapedPrefix}((?:\\.|[^'"\\])*)\1|src\s*=\s*${escapedPrefix}([^\s>]+)`,
   "gi",
 );
 

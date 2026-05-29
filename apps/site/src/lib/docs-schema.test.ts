@@ -63,7 +63,9 @@ describe("docs frontmatter", () => {
 
   it.each(files)("uses plain-text headings in %s", (filePath) => {
     const source = readFileSync(filePath, "utf8");
-    const bodyWithoutInlineCode = markdownBody(source).replace(/`[^`\n]+`/g, "");
+    const bodyWithoutInlineCode = markdownBody(source)
+      .replace(/`[^`\n]+`/g, "")
+      .replace(/```[\s\S]*?```/g, "");
     const linkedHeading = bodyWithoutInlineCode
       .split("\n")
       .find((line) => LINKED_HEADING.test(line));

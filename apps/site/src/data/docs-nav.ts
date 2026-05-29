@@ -138,7 +138,7 @@ export function buildMainNav(base: string, docs: DocNavEntry[]): MainNavItem[] {
       groups: [
         {
           label: "Reference",
-          items: [{ label: "All 12 templates", href: `${base}docs/getting-started/templates/` }],
+          items: [{ label: "All templates", href: `${base}docs/getting-started/templates/` }],
         },
       ],
     },

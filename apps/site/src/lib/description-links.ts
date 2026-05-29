@@ -6,15 +6,19 @@ import { visit } from "unist-util-visit";
 
 const UNSAFE_HREF = /^(javascript:|data:)/i;
 
-function hrefValue(node: Element): string | undefined {
-  const raw = node.properties?.href;
-  if (typeof raw === "string") {
-    return raw;
+/** Normalize hast href properties (string or string[]). */
+export function hrefFromProperties(href: unknown): string | undefined {
+  if (typeof href === "string") {
+    return href;
   }
-  if (Array.isArray(raw) && typeof raw[0] === "string") {
-    return raw[0];
+  if (Array.isArray(href) && typeof href[0] === "string") {
+    return href[0];
   }
   return undefined;
+}
+
+function hrefValue(node: Element): string | undefined {
+  return hrefFromProperties(node.properties?.href);
 }
 
 function setHref(node: Element, href: string): void {

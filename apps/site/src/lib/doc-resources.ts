@@ -1,6 +1,7 @@
 import rehypeParse from "rehype-parse";
 import remarkParse from "remark-parse";
 import { unified } from "unified";
+import { hrefFromProperties } from "./description-links";
 
 export interface DocResource {
   label: string;
@@ -65,8 +66,8 @@ function extractHtmlResources(html: string): DocResource[] {
     }
 
     if (node.tagName === "a" && isRecord(node.properties)) {
-      const href = node.properties.href;
-      if (typeof href === "string") {
+      const href = hrefFromProperties(node.properties.href);
+      if (href) {
         const resource = createResource(linkText(node), href);
         if (resource) links.push(resource);
       }

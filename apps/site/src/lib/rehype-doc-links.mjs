@@ -1,3 +1,5 @@
+import { posix } from "node:path";
+
 /** @typedef {import('hast').Root} Root */
 /** @typedef {import('hast').Element} Element */
 /** @typedef {import('hast').Text} Text */
@@ -115,6 +117,15 @@ function isInternal(href, baseNoSlash) {
 function withBase(href, baseNoSlash) {
   if (href.startsWith(`${baseNoSlash}/`) || href === baseNoSlash) {
     return href;
+  }
+
+  const joined = href.startsWith("/")
+    ? posix.join(baseNoSlash, href)
+    : posix.join(baseNoSlash, href.replace(/^\//, ""));
+
+  const normalized = posix.normalize(joined);
+  if (normalized === baseNoSlash || normalized.startsWith(`${baseNoSlash}/`)) {
+    return normalized;
   }
 
   if (href.startsWith("/")) {
