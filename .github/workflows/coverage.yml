@@ -188,7 +188,9 @@ jobs:
       pull-requests: write
     with:
       tooling-ref: f96f88353ccf669dacb7c9e2bd3b5d4410d859fd # v0.24.0
-      job-name: "web-coverage / 🌐 Web Coverage"
+      # Caller job id is web-coverage; inner name must not repeat it or the
+      # required check context becomes web-coverage / web-coverage / …
+      job-name: "🌐 Web Coverage"
       node-version: "22"
       working-directory: apps/web
       package-manager: bun
