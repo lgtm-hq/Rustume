@@ -42,7 +42,14 @@ function markdownBody(source: string): string {
   return source.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
 }
 
-const LINKED_HEADING = /^#{1,6}\s+.*\[[^\]]+\]\([^)]+\)/m;
+const LINKED_HEADING = /^#{1,6}\s+.*\[[^\]]+\]\([^)]+\)/;
+
+function stripCodeFromMarkdown(body: string): string {
+  return body
+    .replace(/^```[\w-]*\r?\n[\s\S]*?^```/gm, "")
+    .replace(/``[^`\n]+``/g, "")
+    .replace(/`[^`\n]+`/g, "");
+}
 
 describe("docs frontmatter", () => {
   const files = listMarkdownFiles(DOCS_ROOT);
@@ -63,9 +70,7 @@ describe("docs frontmatter", () => {
 
   it.each(files)("uses plain-text headings in %s", (filePath) => {
     const source = readFileSync(filePath, "utf8");
-    const bodyWithoutInlineCode = markdownBody(source)
-      .replace(/`[^`\n]+`/g, "")
-      .replace(/```[\s\S]*?```/g, "");
+    const bodyWithoutInlineCode = stripCodeFromMarkdown(markdownBody(source));
     const linkedHeading = bodyWithoutInlineCode
       .split("\n")
       .find((line) => LINKED_HEADING.test(line));

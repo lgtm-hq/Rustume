@@ -12,7 +12,7 @@
 ## Astro base path
 
 [`defaults.env`](defaults.env) defines `ASTRO_BASE_DEFAULT` (currently `/Rustume/`).
-[`build.sh`](build.sh) and the root [`Makefile`](../../Makefile) `SITE_ASTRO_BASE` target read
+[`build.sh`](build.sh) and the root [`Makefile`](../../../Makefile) `SITE_ASTRO_BASE` target read
 that value — do not duplicate the path elsewhere.
 
 | Context | `ASTRO_BASE` |
