@@ -24,7 +24,7 @@ withheld from self-hosted deployments.
 Start PostgreSQL with the Cloud compose profile and set the variables consumed by the server:
 
 ```bash
-docker compose --profile cloud up postgres
+docker compose --profile cloud up -d postgres
 export RUSTUME_CLOUD=true
 export DATABASE_URL=postgres://user:password@localhost:5432/rustume
 export WORKOS_CLIENT_ID=client_...

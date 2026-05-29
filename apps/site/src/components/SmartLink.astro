@@ -21,7 +21,7 @@ const base = import.meta.env.BASE_URL;
 const isHttpAbsolute = /^https?:\/\//i.test(href);
 const isProtocolRelative = href.startsWith("//");
 const isSchemeUrl = hasUriScheme(href);
-const isAbsoluteUrl = isSchemeUrl;
+const isAbsoluteUrl = isSchemeUrl || isProtocolRelative;
 const opensInNewTab = isHttpAbsolute || isProtocolRelative;
 const external = externalProp ?? opensInNewTab;
 

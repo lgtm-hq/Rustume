@@ -5,14 +5,14 @@ import { PRICING_HEADERS, PRICING_OPTIONS } from '../data/pricing-tiers.mjs';
 <table class="plans-table">
   <thead>
     <tr>
-      <th>Feature</th>
-      <th>
+      <th scope="col">Feature</th>
+      <th scope="col">
         {PRICING_HEADERS.selfHosted.label}
         <span class="plan-price">
           {PRICING_HEADERS.selfHosted.price}
         </span>
       </th>
-      <th>
+      <th scope="col">
         {PRICING_HEADERS.cloud.label}
         <span class="plan-price">
           {PRICING_HEADERS.cloud.price}

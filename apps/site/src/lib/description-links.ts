@@ -4,7 +4,7 @@ import rehypeStringify from "rehype-stringify";
 import { unified } from "unified";
 import { visit } from "unist-util-visit";
 
-const UNSAFE_HREF = /^(javascript:|data:)/i;
+const UNSAFE_HREF = /^\s*(?:javascript:|data:)/i;
 
 /** Normalize hast href properties (string or string[]). */
 export function hrefFromProperties(href: unknown): string | undefined {

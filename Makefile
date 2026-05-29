@@ -152,7 +152,7 @@ site-test:
 	./scripts/ci/site/check.sh
 	./scripts/ci/site/test.sh
 
-site-preview:
+site-preview: site-build
 	cd apps/site && ASTRO_BASE="$(SITE_ASTRO_BASE)" bun run preview
 
 # Quick start for new developers

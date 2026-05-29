@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-DOCS = Path(__file__).resolve().parents[1] / "src/content/docs"
+DOCS = Path(__file__).resolve().parents[2] / "src/content/docs"
 
 
 # Policy-level operations frontmatter (single source for enrich + disclosure tests).

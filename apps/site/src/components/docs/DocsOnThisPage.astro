@@ -141,15 +141,25 @@ const { enabled = true } = Astro.props;
     };
   }
 
-  const onPageLoad = (): void => {
-    initDocsToc();
+  type DocsTocHandlers = {
+    onPageLoad: () => void;
+    onBeforeSwap: () => void;
   };
 
-  const onBeforeSwap = (): void => {
-    tocCleanup?.();
-    tocCleanup = null;
-  };
+  const w = window as Window & { __docsToc?: DocsTocHandlers };
+  if (!w.__docsToc) {
+    w.__docsToc = {
+      onPageLoad: (): void => {
+        initDocsToc();
+      },
+      onBeforeSwap: (): void => {
+        tocCleanup?.();
+        tocCleanup = null;
+      },
+    };
+  }
 
+  const { onPageLoad, onBeforeSwap } = w.__docsToc;
   document.removeEventListener("astro:page-load", onPageLoad);
   document.removeEventListener("astro:before-swap", onBeforeSwap);
   document.addEventListener("astro:page-load", onPageLoad);

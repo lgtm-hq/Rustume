@@ -71,7 +71,6 @@ describe("public Cloud disclosure boundary", () => {
     const publicProductText = [
       readSource("pages/cloud/index.astro"),
       readSource("content/docs/pricing/plans.md"),
-      readSource("content/docs/pricing/plans-body.md"),
       readSource("content/docs/pricing/checkout.md"),
       readSource("data/faq.ts"),
     ].join("\n");

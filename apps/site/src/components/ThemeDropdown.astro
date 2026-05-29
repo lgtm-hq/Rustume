@@ -84,6 +84,16 @@ const defaultLabel = themeTriggerLabels[DEFAULT_THEME] ?? 'Craft';
     const panel = document.getElementById('theme-picker-panel');
     if (!picker || !trigger || !panel || !picker.classList.contains('is-open')) return;
 
+    const activeEl = document.activeElement;
+    if (
+      activeEl &&
+      activeEl !== trigger &&
+      !picker.contains(activeEl) &&
+      !trigger.contains(activeEl)
+    ) {
+      return;
+    }
+
     const options = Array.from(picker.querySelectorAll<HTMLButtonElement>('.theme-picker-option'));
     const activeId = panel.getAttribute('aria-activedescendant');
     let activeIndex = options.findIndex((option) => option.id === activeId);
@@ -137,10 +147,11 @@ const defaultLabel = themeTriggerLabels[DEFAULT_THEME] ?? 'Craft';
     }
 
     if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
       const active = options[activeIndex];
-      const themeId = active?.dataset.themeId;
-      if (themeId) active?.click();
+      if (!active) return;
+      event.preventDefault();
+      const themeId = active.dataset.themeId;
+      if (themeId) active.click();
     }
   }
 

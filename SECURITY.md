@@ -6,7 +6,7 @@
 
 | Version   | Supported |
 | --------- | --------- |
-| `v0.16.x` | ✅        |
+| `0.16.x`  | ✅        |
 | `< 0.16`  | ❌        |
 
 <!-- markdownlint-enable MD060 -->

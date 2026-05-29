@@ -26,4 +26,5 @@ enabled = false
 
 [tool.bandit]
 exclude_dirs = [".venv", "venv"]
-skips = ["B101", "B404", "B603", "B607", "B108"]
+# B101: assert in tests; B108: hardcoded /tmp in test fixtures only
+skips = ["B101", "B108"]

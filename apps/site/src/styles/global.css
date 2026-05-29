@@ -2,7 +2,7 @@
 @import './craft-theme.css';
 
 :root {
-  --font-display: 'Fraunces', Georgia, serif;
+  --font-display: 'Fraunces', georgia, serif;
   --font-body: 'Archivo', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
