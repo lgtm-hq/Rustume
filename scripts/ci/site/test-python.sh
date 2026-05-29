@@ -8,7 +8,11 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "${ROOT}"
 
 if command -v uv >/dev/null 2>&1; then
-	uv sync --group test --frozen 2>/dev/null || uv sync --group test
+	if [[ -n "${CI:-}" || -n "${GITHUB_ACTIONS:-}" ]]; then
+		uv sync --group test --frozen
+	else
+		uv sync --group test --frozen 2>/dev/null || uv sync --group test
+	fi
 	uv run --group test pytest tests/scripts/ci -q
 	exit 0
 fi

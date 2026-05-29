@@ -14,12 +14,10 @@ TEMPLATES=(
 mkdir -p "${OUT_DIR}"
 
 cd "${ROOT}"
-cargo run -p rustume-cli -- init --sample -o "${SAMPLE}" >/dev/null
+cargo run -p rustume-cli -- init --sample -o "${SAMPLE}" &>/dev/null
 
 for template in "${TEMPLATES[@]}"; do
 	cargo run -p rustume-cli -- preview "${SAMPLE}" -t "${template}" \
-		-o "${OUT_DIR}/${template}.png" >/dev/null
+		-o "${OUT_DIR}/${template}.png" &>/dev/null
 	echo "Generated ${template}.png"
 done
-
-rm -f "${SAMPLE}"

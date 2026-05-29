@@ -8,7 +8,9 @@ import sys
 from pathlib import Path
 
 LINE_LENGTH = 100
-DOCS_ROOT = Path(__file__).resolve().parents[3] / "apps" / "site" / "src" / "content" / "docs"
+DOCS_ROOT = (
+    Path(__file__).resolve().parents[3] / "apps" / "site" / "src" / "content" / "docs"
+)
 MARKDOWN_LINK = re.compile(
     r"(\[[^\]]*\]\([^)]*\)|\[[^\]]*\]\[[^\]]*\])",
 )
@@ -102,7 +104,7 @@ def fix_frontmatter_description(frontmatter: str) -> str:
     if not match:
         return frontmatter
 
-    prefix, quote, value = match.groups()
+    prefix, _quote, value = match.groups()
     if len(f"{prefix}{value}") <= LINE_LENGTH:
         return frontmatter
 
@@ -131,7 +133,7 @@ def normalize_fence_lines(lines: list[str]) -> list[str]:
             index += 1
             while index < len(lines):
                 candidate = lines[index].strip()
-                if candidate == "```" or candidate == "```text":
+                if candidate in {"```", "```text"}:
                     break
                 block_lines.append(lines[index])
                 index += 1
@@ -211,7 +213,11 @@ def is_standalone_bold_line(stripped: str) -> bool:
     Returns:
         True for ``**title**``; false for ``****``, ``***x***``, or empty bold.
     """
-    if len(stripped) < 4 or not stripped.startswith("**") or not stripped.endswith("**"):
+    if (
+        len(stripped) < 4
+        or not stripped.startswith("**")
+        or not stripped.endswith("**")
+    ):
         return False
     inner = stripped[2:-2]
     return bool(inner.strip()) and "*" not in inner
@@ -234,8 +240,10 @@ def fix_emphasis_headings(lines: list[str]) -> list[str]:
             fixed.append(line)
             continue
 
+        prev = lines[index - 1].strip() if index > 0 else ""
         if is_standalone_bold_line(stripped) and (
-            index == 0 or not lines[index - 1].strip().startswith("-")
+            index == 0
+            or not (prev.startswith(("- ", "* ", "+ ")) or re.match(r"^\d+\.", prev))
         ):
             title = stripped[2:-2].strip()
             fixed.append(f"#### {title}")
@@ -274,7 +282,7 @@ def wrap_prose_lines(lines: list[str]) -> list[str]:
             output.append(line)
             continue
 
-        if stripped.startswith("- ") or stripped.startswith("* ") or re.match(r"^\d+\.", stripped):
+        if stripped.startswith(("- ", "* ")) or re.match(r"^\d+\.", stripped):
             output.append(line)
             continue
 
@@ -284,7 +292,9 @@ def wrap_prose_lines(lines: list[str]) -> list[str]:
 
         indent = line[: len(line) - len(line.lstrip())]
         wrap_width = max(20, LINE_LENGTH - len(indent))
-        output.extend(f"{indent}{wrapped}" for wrapped in wrap_line(line.strip(), wrap_width))
+        output.extend(
+            f"{indent}{wrapped}" for wrapped in wrap_line(line.strip(), wrap_width)
+        )
 
     return output
 

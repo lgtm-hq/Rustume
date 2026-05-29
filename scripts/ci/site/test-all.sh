@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run Astro check, Vitest, and site script pytest for the documentation site.
+# Run Vitest and site script pytest for the documentation site.
 # SPDX-License-Identifier: MIT
 set -euo pipefail
 

@@ -6,7 +6,14 @@ set -euo pipefail
 : "${RAW_ARGS:?RAW_ARGS is required}"
 : "${GITHUB_OUTPUT:?GITHUB_OUTPUT is required}"
 
-ROOT_DIR="${LYCHEE_ROOT_DIR:-${GITHUB_WORKSPACE}/apps/site/dist}"
+if [[ -n "${LYCHEE_ROOT_DIR:-}" ]]; then
+	ROOT_DIR="${LYCHEE_ROOT_DIR}"
+elif [[ -n "${GITHUB_WORKSPACE:-}" ]]; then
+	ROOT_DIR="${GITHUB_WORKSPACE}/apps/site/dist"
+else
+	echo "prepare-lychee-action-args: set LYCHEE_ROOT_DIR or GITHUB_WORKSPACE" >&2
+	exit 1
+fi
 
 read -r -a tokens <<<"$RAW_ARGS"
 filtered=()
