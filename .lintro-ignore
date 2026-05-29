@@ -53,3 +53,9 @@ htmlcov/
 coverage/
 .coverage
 *.cover
+
+# Astro docs site generated artifacts (copied from node_modules at build time)
+apps/site/.astro/
+apps/site/public/assets/
+apps/site/dist/
+apps/site/coverage/
