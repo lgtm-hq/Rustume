@@ -222,7 +222,7 @@ jobs:
     if: >-
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
-      needs.web-coverage.outputs.passed == 'true'
+      needs.web-coverage.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
