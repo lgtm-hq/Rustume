@@ -1,0 +1,37 @@
+---
+import { PRICING_HEADERS, PRICING_OPTIONS } from '../data/pricing-tiers.mjs';
+---
+
+<table class="plans-table">
+  <thead>
+    <tr>
+      <th scope="col">Feature</th>
+      <th scope="col">
+        {PRICING_HEADERS.selfHosted.label}
+        <span class="plan-price">
+          {PRICING_HEADERS.selfHosted.price}
+        </span>
+      </th>
+      <th scope="col">
+        {PRICING_HEADERS.cloud.label}
+        <span class="plan-price">
+          {PRICING_HEADERS.cloud.price}
+        </span>
+      </th>
+    </tr>
+  </thead>
+  <tbody>
+    {
+      PRICING_OPTIONS.map((row) => (
+        <tr>
+          <td>{row.feature}</td>
+          {[row.selfHosted, row.cloud].map((cell) => (
+            <td>
+              {cell.accent ? <strong class="plan-unlimited">{cell.text}</strong> : cell.text}
+            </td>
+          ))}
+        </tr>
+      ))
+    }
+  </tbody>
+</table>

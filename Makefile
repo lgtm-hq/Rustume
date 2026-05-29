@@ -1,4 +1,4 @@
-.PHONY: all build dev dev-watch clean clean-all install wasm server server-build web web-build test lint fmt help check-deps preview setup
+.PHONY: all build dev dev-watch clean clean-all install wasm server server-build web web-build test lint fmt help check-deps preview setup site-dev site-build site-test site-preview
 
 # Ensure rustup's toolchain is used (prioritize over Homebrew)
 export PATH := $(HOME)/.cargo/bin:$(PATH)
@@ -138,6 +138,23 @@ preview: build
 		cargo run --release --bin rustume-server & \
 		sleep 2 && cd apps/web && bun run preview
 
+# Documentation site (Astro + Pagefind)
+include scripts/ci/site/defaults.env
+SITE_ASTRO_BASE ?= $(ASTRO_BASE_DEFAULT)
+
+site-dev:
+	cd apps/site && bun install && ASTRO_BASE="$(SITE_ASTRO_BASE)" bun run dev
+
+site-build:
+	./scripts/ci/site/build.sh
+
+site-test:
+	./scripts/ci/site/check.sh
+	./scripts/ci/site/test.sh
+
+site-preview: site-build
+	cd apps/site && ASTRO_BASE="$(SITE_ASTRO_BASE)" bun run preview
+
 # Quick start for new developers
 setup: check-deps install wasm
 	@echo ""
@@ -169,6 +186,12 @@ help:
 	@echo "  server           Run only the Rust server"
 	@echo "  web              Run only the web dev server"
 	@echo "  preview          Preview production build"
+	@echo ""
+	@echo "Documentation Site:"
+	@echo "  site-dev         Astro docs site dev server (http://localhost:4321/Rustume/)"
+	@echo "  site-build       Build docs site (+ Pagefind index)"
+	@echo "  site-test        Run docs site tests with coverage"
+	@echo "  site-preview     Preview built docs site (http://localhost:4321/Rustume/)"
 	@echo ""
 	@echo "Other:"
 	@echo "  install          Install dependencies"

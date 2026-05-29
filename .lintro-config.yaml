@@ -42,4 +42,18 @@ defaults:
       - "gcr.io"
       - "ghcr.io"
 
+# Tool enable/disable settings.
+tools:
+  # tsc: disabled — plain tsc cannot resolve Astro virtual modules (astro:content).
+  # Type-check the docs site via scripts/ci/site/check.sh instead.
+  # See lgtm-hq/py-lintro#803 for monorepo tsc limitations.
+  tsc:
+    enabled: false
+
+  astro-check:
+    enabled: false
+    # Type-check via scripts/ci/site/check.sh (site-quality CI + make site-test).
+    # Direct `bun run check` in apps/site is reliable; lintro's astro-check wrapper
+    # can hang on bunx when run in parallel or before deps are installed.
+
 # All tools auto-detected and enabled by default.

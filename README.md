@@ -9,6 +9,10 @@
 A privacy-first, offline-first resume builder powered by Rust.
 </p>
 
+<p align="center">
+<a href="https://lgtm-hq.github.io/Rustume/">Documentation site</a>
+</p>
+
 <!-- Badges: Build & Quality -->
 <p align="center">
 <a href="https://github.com/lgtm-hq/Rustume/actions/workflows/coverage.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/lgtm-hq/Rustume/coverage.yml?label=coverage&branch=main&logo=githubactions&logoColor=white" alt="Coverage"></a>
@@ -43,9 +47,8 @@ make dev
 
 Open <http://localhost:5173> to use the web app during development.
 
-For self-hosting with Docker, see [Deployment](docs/deployment.md). The
-published image (`ghcr.io/lgtm-hq/rustume:latest`) requires a public GHCR package;
-if pull fails, build from source per the deployment guide.
+For self-hosting with Docker, see [Deployment](docs/deployment.md) or the
+[documentation site](https://lgtm-hq.github.io/Rustume/docs/deployment/docker/).
 
 CLI commands are also available:
 

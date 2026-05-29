@@ -1,0 +1,89 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PageHeader from '../../components/ui/PageHeader.astro';
+import Section from '../../components/ui/Section.astro';
+import Card from '../../components/ui/Card.astro';
+import LinkCard from '../../components/ui/LinkCard.astro';
+import { stripHtml } from '../../data/landing';
+import {
+  CATEGORY_LABELS,
+  CORE_DOC_CATEGORIES,
+  STANDALONE_DOC_CATEGORIES,
+} from '../../data/docs-nav';
+
+const base = import.meta.env.BASE_URL;
+const docs = await getCollection('docs', ({ data }) => !data.draft);
+
+const coreGrouped = CORE_DOC_CATEGORIES.map((key) => ({
+  key,
+  label: CATEGORY_LABELS[key],
+  docs: docs.filter((d) => d.data.category === key).sort((a, b) => a.data.order - b.data.order),
+})).filter((g) => g.docs.length > 0);
+
+const standaloneSections = [
+  ...STANDALONE_DOC_CATEGORIES.map((key) => {
+    const sectionDocs = docs
+      .filter((d) => d.data.category === key)
+      .sort((a, b) => a.data.order - b.data.order);
+    const entry = sectionDocs[0];
+    return {
+      key,
+      label: CATEGORY_LABELS[key],
+      href: entry ? `${base}docs/${entry.id}/` : `${base}docs/`,
+      docs: sectionDocs,
+    };
+  }),
+  {
+    key: "templates",
+    label: "Templates",
+    href: `${base}docs/getting-started/templates/`,
+    docs: [],
+  },
+];
+---
+
+<BaseLayout title="Documentation" description="Rustume documentation — self-hosting, CLI, API, and Rustume Cloud.">
+  <div class="container content">
+    <PageHeader
+      kicker="Guides · Reference · Cloud"
+      title="Documentation"
+      description="Build resumes, deploy with Docker, integrate via API, or use the hosted Cloud service."
+    />
+
+    <Section class="standalone-links">
+      <h2 class="section-heading">Reference</h2>
+      <div class="standalone-grid">
+        {
+          standaloneSections.map(({ label, href, docs: sectionDocs }) => (
+            <LinkCard
+              href={href}
+              title={label}
+              subtitle={sectionDocs.length > 0 ? `${sectionDocs.length} guides` : "Gallery"}
+            />
+          ))
+        }
+      </div>
+    </Section>
+
+    <div class="doc-categories">
+      {
+        coreGrouped.map(({ label, docs: catDocs }, i) => (
+          <Card feature number={String(i + 1).padStart(2, '0')} class="doc-category">
+            <h2>{label}</h2>
+            <ul>
+              {
+                catDocs.map((doc) => (
+                  <li>
+                    <a href={`${base}docs/${doc.id}/`}>{doc.data.title}</a>
+                    {doc.data.description && <span> — {stripHtml(doc.data.description)}</span>}
+                  </li>
+                ))
+              }
+            </ul>
+          </Card>
+        ))
+      }
+    </div>
+  </div>
+</BaseLayout>

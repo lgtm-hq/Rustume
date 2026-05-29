@@ -12,6 +12,9 @@ and this project adheres to
 
 ### Added
 
+- Add Astro documentation site at `apps/site/` with GitHub Pages deployment.
+- Add Pagefind search, turbo-themes theme selector, and structured docs content.
+- Add `site-quality` CI workflow for build, test, and link-check gates.
 - Serve the web app from the Docker image for a single-container deployment.
 - Add root Docker Compose and deployment documentation.
 

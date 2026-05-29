@@ -1,0 +1,117 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import DocsResources from '../../components/docs/DocsResources.astro';
+import PageHeader from '../../components/ui/PageHeader.astro';
+import Section from '../../components/ui/Section.astro';
+import {
+  FAQ_CATEGORIES,
+  FAQ_CATEGORY_LABELS,
+  FAQ_ITEMS,
+  faqByCategory,
+} from '../../data/faq';
+import { dedupeResources } from '../../lib/doc-resources';
+
+const base = import.meta.env.BASE_URL;
+const docs = await getCollection('docs', ({ data }) => !data.draft);
+const docsTitles = new Map(docs.map((doc) => [`docs/${doc.id}/`, doc.data.title]));
+const faqResources = dedupeResources([
+  ...FAQ_ITEMS.flatMap((item) =>
+    item.learnMore
+      ? [{ label: docsTitles.get(item.learnMore) ?? item.question, href: `${base}${item.learnMore}` }]
+      : [],
+  ),
+  { label: 'All docs', href: `${base}docs/` },
+  { label: 'GitHub issues', href: 'https://github.com/lgtm-hq/Rustume/issues' },
+  { label: 'Cloud getting started', href: `${base}docs/cloud/getting-started/` },
+]);
+---
+
+<BaseLayout
+  title="FAQ"
+  description="Common questions about Rustume, self-hosting, Rustume Cloud, pricing, privacy, and imports."
+>
+  <div class="container content faq-page">
+    <PageHeader
+      kicker="Help"
+      title="Frequently asked questions"
+      description="Answers about local use, self-hosted connected deployments, and the ready-to-use hosted Cloud service."
+    />
+
+    {
+      FAQ_CATEGORIES.map((category) => {
+        const items = faqByCategory(category);
+        if (items.length === 0) return null;
+        return (
+          <Section>
+            <h2>{FAQ_CATEGORY_LABELS[category]}</h2>
+            <dl class="faq-list">
+              {items.map((item) => (
+                <>
+                  <dt id={item.id}>{item.question}</dt>
+                  <dd>
+                    <p>{item.answer}</p>
+                    {item.learnMore && (
+                      <p class="faq-learn-more">
+                        <a href={`${base}${item.learnMore}`}>Read more in the docs &rarr;</a>
+                      </p>
+                    )}
+                  </dd>
+                </>
+              ))}
+            </dl>
+          </Section>
+        );
+      })
+    }
+
+    <Section>
+      <h2>Still stuck?</h2>
+      <p>
+        Browse the <a href={`${base}docs/`}>full documentation</a>, open a{' '}
+        <a href="https://github.com/lgtm-hq/Rustume/issues" target="_blank" rel="noopener noreferrer">
+          GitHub issue
+        </a>
+        , or see <a href={`${base}docs/cloud/getting-started/`}>Getting started with Cloud</a>{' '}
+        to begin using hosted Cloud or configure connected mode yourself.
+      </p>
+    </Section>
+    <DocsResources resources={faqResources} />
+  </div>
+</BaseLayout>
+
+<style>
+  .faq-page {
+    max-width: 48rem;
+  }
+
+  .faq-list {
+    margin: 0;
+  }
+
+  .faq-list dt {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-top: 1.5rem;
+    scroll-margin-top: calc(var(--header-height) + 1rem);
+  }
+
+  .faq-list dt:first-of-type {
+    margin-top: 0;
+  }
+
+  .faq-list dd {
+    margin: 0.5rem 0 0;
+    color: var(--turbo-body-secondary, var(--turbo-text-secondary));
+  }
+
+  .faq-list dd p {
+    margin: 0;
+  }
+
+  .faq-learn-more {
+    margin-top: 0.75rem !important;
+    font-size: 0.9rem;
+  }
+</style>
