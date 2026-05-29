@@ -1,0 +1,155 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Kicker from '../components/ui/Kicker.astro';
+import Figure from '../components/ui/Figure.astro';
+import SmartLink from '../components/SmartLink.astro';
+import DocLink from '../components/DocLink.astro';
+import HomeFeatureCards from '../components/HomeFeatureCards.astro';
+import ZigZagSection from '../components/ZigZagSection.astro';
+import { asset } from '../data/landing';
+import { docs, docHref, external } from '../data/site-links';
+
+const base = import.meta.env.BASE_URL;
+const img = (path: string) => asset(base, path);
+---
+
+<BaseLayout title="Rustume">
+  <div class="container">
+    <section class="craft-hero">
+      <div>
+        <Kicker class="craft-kicker">Craft · Forge · Ship</Kicker>
+        <h1>Forge resumes with <em>quiet craft</em></h1>
+        <p class="craft-lead">
+          Privacy-first, offline-first, powered by{' '}
+          <SmartLink name={external.rust.label} href={external.rust.href} /> and{' '}
+          <SmartLink name={external.typst.label} href={external.typst.href} />.
+          Build like a workshop — warm, precise, entirely yours.
+          Self-host, or use account-backed <DocLink href={docs.cloud}>Rustume Cloud</DocLink>.
+        </p>
+        <div class="craft-actions">
+          <a href={docHref(base, docs.quickstart)} class="btn btn-primary">Start building</a>
+          <SmartLink
+            name={external.github.label}
+            href={external.github.href}
+            class="btn btn-secondary"
+          />
+        </div>
+      </div>
+      <Figure
+        class="craft-hero-visual"
+        src={img('hero-editor.png')}
+        alt="Rustume editor with live PDF preview"
+        caption="Live editor · instant Typst preview"
+        width={960}
+        height={540}
+        loading="eager"
+      />
+    </section>
+
+    <section class="craft-privacy craft-privacy-first">
+      <div class="craft-privacy-copy">
+        <Kicker class="craft-kicker">Privacy by design</Kicker>
+        <h2>Your resume never needs your identity</h2>
+        <p>
+          Self-hosted mode keeps everything in your browser — no account, no server-side storage.{' '}
+          Hosted <DocLink href={docs.cloud}>Rustume Cloud</DocLink> adds ready-to-use synchronized
+          storage: account records use an opaque auth ID rather than profile fields, while saved
+          resumes are handled as sensitive data.
+        </p>
+        <a href={docHref(base, docs.cloudEncryption)} class="craft-link">Cloud encryption →</a>
+      </div>
+      <ul class="craft-privacy-points">
+        <li>
+          <span class="craft-privacy-num">01</span>
+          <span class="craft-privacy-text">
+            Offline-first —{' '}
+            <DocLink href={docs.selfHosting}>IndexedDB</DocLink> and{' '}
+            <DocLink href={docs.architectureOverview}>WASM</DocLink>, no cloud required
+          </span>
+        </li>
+        <li>
+          <span class="craft-privacy-num">02</span>
+          <span class="craft-privacy-text">
+            Identity boundary — connected accounts store an opaque auth ID, not profile fields
+          </span>
+        </li>
+        <li>
+          <span class="craft-privacy-num">03</span>
+          <span class="craft-privacy-text">
+            Protected storage —{' '}
+            <DocLink href={docs.cloudEncryption}>encryption options</DocLink> for connected resumes
+          </span>
+        </li>
+        <li>
+          <span class="craft-privacy-num">04</span>
+          <span class="craft-privacy-text">
+            Self-host forever — <DocLink href={docs.docker}>Docker</DocLink> image stays free and unchanged
+          </span>
+        </li>
+      </ul>
+    </section>
+
+    <div class="craft-zigzag-stack">
+      <ZigZagSection
+        imageSrc={img('templates-showcase.png')}
+        imageAlt="Twelve resume template layouts"
+        imageFirst={true}
+      >
+        <h2>Twelve templates, hand-finished</h2>
+        <p>
+          <SmartLink name={external.typst.label} href={external.typst.href} /> layouts from minimalist
+          to executive — each tuned for print and screen. No headless Chrome, no print hacks.
+        </p>
+        <a href={docHref(base, docs.templates)} class="craft-link">Browse templates →</a>
+      </ZigZagSection>
+
+      <ZigZagSection
+        imageSrc={img('editorial-hero.png')}
+        imageAlt="Resume on a craft desk ready to print"
+        imageFirst={false}
+      >
+        <h2>Print-ready exports</h2>
+        <p>
+          Compile straight to PDF with native <SmartLink name={external.typst.label} href={external.typst.href} /> —
+          crisp typography, predictable page breaks, and output you can hand to a recruiter or send
+          to a printer without workarounds.
+        </p>
+        <a href={docHref(base, docs.architectureOverview)} class="craft-link">Render pipeline →</a>
+      </ZigZagSection>
+
+      <ZigZagSection
+        imageSrc={img('cli-terminal.png')}
+        imageAlt="CLI export in terminal"
+        imageFirst={true}
+      >
+        <h2>CLI &amp; automation</h2>
+        <p>
+          The same Rust engine behind the web app, available from your shell — parse, validate, render
+          PDFs, and generate previews without opening a browser. Ideal for CI pipelines and batch
+          exports.
+        </p>
+        <a href={docHref(base, docs.cliUsage)} class="craft-link">CLI usage →</a>
+      </ZigZagSection>
+
+      <ZigZagSection
+        imageSrc={img('cloud-sync-devices.png')}
+        imageAlt="Illustration of synchronized Rustume Cloud resumes across devices"
+        imageFirst={false}
+        imageWidth={700}
+        imageHeight={400}
+      >
+        <Kicker class="craft-kicker">
+          <a href={docHref(base, docs.cloud)} class="kicker-link">Rustume Cloud</a>
+        </Kicker>
+        <h2>Cloud sync, ready to use</h2>
+        <p>
+          Sign in for hosted synchronization across devices without running infrastructure.
+          The same connected capabilities remain available when you self-host.
+        </p>
+        <a href={docHref(base, docs.cloud)} class="btn btn-primary">Explore Cloud</a>
+      </ZigZagSection>
+    </div>
+
+    <HomeFeatureCards />
+  </div>
+</BaseLayout>

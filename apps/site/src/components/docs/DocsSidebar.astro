@@ -1,0 +1,41 @@
+---
+import { getCollection } from "astro:content";
+import { CATEGORY_LABELS, CORE_DOC_CATEGORIES } from "../../data/docs-nav";
+
+interface Props {
+  currentSlug: string;
+}
+
+const { currentSlug } = Astro.props;
+const base = import.meta.env.BASE_URL;
+
+const allDocs = await getCollection("docs", ({ data }) => !data.draft);
+const grouped = CORE_DOC_CATEGORIES.map((key) => ({
+  key,
+  label: CATEGORY_LABELS[key],
+  docs: allDocs
+    .filter((d) => d.data.category === key && d.data.sidebar !== false)
+    .sort((a, b) => a.data.order - b.data.order),
+})).filter((g) => g.docs.length > 0);
+---
+
+<aside class="docs-sidebar" data-pagefind-ignore>
+  {
+    grouped.map(({ label, docs }) => (
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">{label}</div>
+        {
+          docs.map((doc) => (
+            <a
+              href={`${base}docs/${doc.id}/`}
+              class:list={["sidebar-link", { active: doc.id === currentSlug }]}
+              aria-current={doc.id === currentSlug ? "page" : undefined}
+            >
+              {doc.data.title}
+            </a>
+          ))
+        }
+      </div>
+    ))
+  }
+</aside>

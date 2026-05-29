@@ -1,0 +1,116 @@
+---
+import SmartLink from "./SmartLink.astro";
+import { services, type ServiceLink } from "../data/services";
+import { asset } from "../data/landing";
+
+interface StackRow {
+  layer: string;
+  service: ServiceLink;
+  role: string;
+  secondary?: ServiceLink;
+}
+
+const base = import.meta.env.BASE_URL;
+const img = (path: string) => asset(base, path);
+
+const stack: StackRow[] = [
+  {
+    layer: "Hosting",
+    service: services.railway,
+    role: "Docker deploy of Axum server + SPA",
+  },
+  {
+    layer: "Database",
+    service: services.neon,
+    role: "Managed PostgreSQL — users, resumes, subscriptions",
+  },
+  {
+    layer: "Storage",
+    service: services.cloudflareR2,
+    role: "PDF exports, OG images, avatars, backups",
+  },
+  {
+    layer: "Auth",
+    service: services.workos,
+    role: "Social login, email, MFA, passkeys",
+  },
+  {
+    layer: "Billing",
+    service: services.paddle,
+    role: "Checkout, portal, webhooks, EU VAT",
+  },
+  {
+    layer: "Monitoring",
+    service: services.grafana,
+    role: "Prometheus metrics and error tracking",
+    secondary: services.sentry,
+  },
+  {
+    layer: "IaC / CI",
+    service: services.terraform,
+    role: "Infrastructure and deploy pipelines",
+    secondary: services.lgtmCi,
+  },
+];
+---
+
+<figure class="cloud-arch-figure">
+  <img
+    src={img("cloud-architecture.png")}
+    alt="Rustume Cloud architecture — Web App, Railway, Neon, WorkOS, Paddle, and R2"
+    width="960"
+    height="540"
+    loading="lazy"
+  />
+</figure>
+
+<table class="cloud-stack-table">
+  <caption>Cloud architecture stack layers, services, and roles</caption>
+  <thead>
+    <tr>
+      <th>Layer</th>
+      <th>Service</th>
+      <th>Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    {
+      stack.map((row) => (
+        <tr>
+          <td>{row.layer}</td>
+          <td>
+            <SmartLink name={row.service.name} href={row.service.url} external />
+            {row.secondary && (
+              <>
+                {" · "}
+                <SmartLink name={row.secondary.name} href={row.secondary.url} external />
+              </>
+            )}
+          </td>
+          <td>{row.role}</td>
+        </tr>
+      ))
+    }
+  </tbody>
+</table>
+
+<style>
+  .cloud-arch-figure {
+    margin: 1.75rem 0 2.25rem;
+  }
+
+  .cloud-arch-figure img {
+    width: 100%;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--turbo-border-default);
+    box-shadow: var(--rust-warm-shadow);
+  }
+
+  .cloud-stack-table {
+    margin-top: 1.5rem;
+  }
+
+  .cloud-stack-table :global(.smart-link) {
+    margin-right: 0.15rem;
+  }
+</style>

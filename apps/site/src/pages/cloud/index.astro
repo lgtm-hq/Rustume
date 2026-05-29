@@ -1,0 +1,181 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PageHeader from '../../components/ui/PageHeader.astro';
+import Callout from '../../components/ui/Callout.astro';
+import Section from '../../components/ui/Section.astro';
+import Figure from '../../components/ui/Figure.astro';
+import DocsResources from '../../components/docs/DocsResources.astro';
+import { asset } from '../../data/landing';
+import type { DocResource } from '../../lib/doc-resources';
+
+const base = import.meta.env.BASE_URL;
+const img = (path: string) => asset(base, path);
+const cloudLinks = {
+  overview: { label: 'Cloud overview', href: `${base}docs/cloud/overview/` },
+  gettingStarted: { label: 'Cloud getting started', href: `${base}docs/cloud/getting-started/` },
+  selfHosting: { label: 'Self-hosting', href: `${base}docs/deployment/self-hosting/` },
+  authentication: { label: 'Authentication', href: `${base}docs/cloud/auth/` },
+  storage: { label: 'Cloud storage', href: `${base}docs/cloud/storage/` },
+  cloudEndpoints: { label: 'Cloud endpoints', href: `${base}docs/api/cloud-endpoints/` },
+  encryption: { label: 'Encryption', href: `${base}docs/cloud/encryption/` },
+  sync: { label: 'Sync', href: `${base}docs/cloud/sync/` },
+  publicPages: { label: 'Public pages', href: `${base}docs/cloud/public-pages/` },
+  history: { label: 'Version history', href: `${base}docs/cloud/version-history/` },
+  apiKeys: { label: 'API keys', href: `${base}docs/api/api-keys/` },
+  pricing: { label: 'Hosting options', href: `${base}docs/pricing/plans/` },
+  environment: { label: 'Environment variables', href: `${base}docs/deployment/env-reference/` },
+  stack: { label: 'Cloud stack', href: `${base}docs/architecture/cloud-stack/` },
+} satisfies Record<string, DocResource>;
+---
+
+<BaseLayout
+  title="Rustume Cloud"
+  description="Ready-to-use hosted Rustume with account-backed sync, sharing, and history, backed by the same capabilities available to self-hosted operators."
+>
+  <div class="container content cloud-page">
+    <PageHeader
+      kicker="Hosted · Ready to use · Open-source parity"
+      title="Rustume Cloud"
+    />
+    <p class="lead">
+      Rustume Cloud is the operated, account-backed way to use Rustume. Sign in, keep resumes
+      synchronized across devices, and leave deployment and data-service operations to the hosted
+      service. The <a href={cloudLinks.overview.href}>open-source connected application</a> provides
+      the same functional capabilities when you run it yourself.
+    </p>
+
+    <Callout title="Hosting, not a feature paywall" variant="info" class="callout-banner">
+      <p>
+        Hosted access buys an already deployed application, operated storage, synchronization,
+        backups, and monitoring. It does not reserve product functionality for paying users:
+        a <a href={cloudLinks.selfHosting.href}>self-hosted</a> connected deployment can provide
+        the same sync, sharing, history, and API workflows.
+      </p>
+      <p>
+        <a href={cloudLinks.pricing.href} class="doc-link">Compare hosting options</a>
+        <a href={cloudLinks.gettingStarted.href} class="doc-link">Get started with Cloud</a>
+      </p>
+    </Callout>
+
+    <Figure
+      class="content-hero-img"
+      src={img('cloud-sync-devices.png')}
+      alt="A resume synchronized across signed-in devices with Rustume Cloud"
+      caption="Sign in once, then continue working with synchronized resumes across devices."
+      width={800}
+      height={450}
+      loading="eager"
+    />
+
+    <Section>
+      <h2>Connected capabilities</h2>
+      <p>
+        Rustume Cloud operates the connected application for users. Operators can expose the same
+        functionality by enabling Cloud mode on their own deployment:
+      </p>
+      <ul>
+        <li>
+          <a href={cloudLinks.authentication.href}>WorkOS AuthKit sign-in and session cookies</a>
+        </li>
+        <li>
+          <a href={cloudLinks.storage.href}>Account-backed storage</a> and
+          <a href={cloudLinks.sync.href}>cross-device synchronization</a>
+        </li>
+        <li>
+          <a href={cloudLinks.publicPages.href}>Public pages and password-protected sharing</a>
+        </li>
+        <li>
+          <a href={cloudLinks.history.href}>Version history and restore</a> plus
+          <a href={cloudLinks.apiKeys.href}>scoped API keys</a>
+        </li>
+      </ul>
+    </Section>
+
+    <Section>
+      <h2>Protection and API access</h2>
+      <p>
+        Account records use an opaque identity link rather than copied profile fields. Resume
+        content can still contain personal information, so connected deployments use
+        <a href={cloudLinks.encryption.href}>encrypted storage</a> and require careful backup
+        controls. Application workflows are available through the
+        <a href={cloudLinks.cloudEndpoints.href}>Cloud API</a>.
+      </p>
+    </Section>
+
+    <Figure
+      src={img('cloud-sync-upload.png')}
+      alt="Illustration of encrypted cloud storage and synchronization"
+      caption="Connected storage, encrypted protection, and synchronized editing."
+      width={640}
+      height={360}
+    />
+
+    <Section>
+      <h2>Architecture</h2>
+      <p>
+        Rustume Cloud runs the same connected application as self-hosted deployments, operated on
+        managed infrastructure. The public
+        <a href={cloudLinks.stack.href}>cloud stack overview</a> describes hosting, database,
+        object storage, authentication, billing, and observability at a high level without
+        deployment-specific runbooks.
+      </p>
+      <p>
+        <a href={cloudLinks.environment.href} class="doc-link">Environment variables</a>
+        <a href={cloudLinks.stack.href} class="doc-link">Stack overview</a>
+      </p>
+    </Section>
+
+    <Section>
+      <h2>Billing and Merchant of Record</h2>
+      <p>
+        Hosted access is billed through
+        <a href={`${base}docs/pricing/checkout/`}>Paddle checkout</a>. Paddle acts as Merchant of
+        Record: it handles payment collection, invoicing, and applicable tax requirements so
+        Rustume does not need to operate as a merchant of record for hosted subscriptions.
+      </p>
+      <p>
+        Checkout purchases access to the operated deployment, not feature entitlements. See
+        <a href={cloudLinks.pricing.href} class="doc-link">hosting comparison</a>
+        and <a href={`${base}docs/pricing/management/`} class="doc-link">subscription management</a>.
+      </p>
+    </Section>
+
+    <Section>
+      <h2>Hosting options</h2>
+      <p>
+        Run the open-source connected application yourself at no software cost, or subscribe to
+        hosted Rustume Cloud for a ready-to-use deployment and operated synchronization service.
+        The choice is operational; the capability set is shared.
+      </p>
+      <p>
+        <a href={cloudLinks.pricing.href} class="doc-link">View hosting comparison</a>
+      </p>
+    </Section>
+
+    <Callout title="For operators and contributors" variant="info">
+      <p>
+        A self-hosted connected deployment needs PostgreSQL, WorkOS credentials, and a session
+        signing secret. Set an explicit CORS origin when the web app is served from a different
+        origin. Rustume Cloud runs the hosted infrastructure and billing stack for its users.
+      </p>
+      <p>
+        <a href={cloudLinks.environment.href} class="doc-link">Environment variables</a>
+        <a href={cloudLinks.stack.href} class="doc-link">Hosted stack</a>
+      </p>
+    </Callout>
+
+    <DocsResources resources={Object.values(cloudLinks)} />
+  </div>
+</BaseLayout>
+
+<style>
+  .cloud-page :global(h3) {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    margin: 1.5rem 0 0.75rem;
+  }
+
+  .cloud-page :global(.message-body .doc-link + .doc-link) {
+    margin-left: 0.45rem;
+  }
+</style>

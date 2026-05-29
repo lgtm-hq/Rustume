@@ -1,0 +1,60 @@
+/* Native Craftforge theme — warm workshop palette without turbo theme CSS files. */
+
+[data-theme="craft"] {
+  --turbo-bg-base: #14110e;
+  --turbo-bg-surface: #1a1612;
+  --turbo-bg-overlay: #221c17;
+  --turbo-text-primary: #f0ebe3;
+  --turbo-text-secondary: #b8aa98;
+  --turbo-text-inverse: #14110e;
+  --turbo-brand-primary: #e8622a;
+  --turbo-accent-link: #e8622a;
+  --turbo-state-info: #83a598;
+  --turbo-state-success: #a3be8c;
+  --turbo-state-warning: #d4a017;
+  --turbo-state-danger: #c44e1a;
+  --turbo-border-default: #3d342a;
+  --turbo-heading-h1: #f0ebe3;
+  --turbo-heading-h2: #e8dcc8;
+  --turbo-heading-h3: #d4b86a;
+  --turbo-heading-h4: #e8622a;
+  --turbo-heading-h5: #b8943f;
+  --turbo-heading-h6: #c4b8a8;
+  --turbo-body-primary: #f0ebe3;
+  --turbo-body-secondary: #b8aa98;
+  --turbo-link-default: #e8622a;
+  --turbo-code-inline-fg: #d4b86a;
+  --turbo-code-inline-bg: #2a2318;
+  --turbo-code-block-fg: #f0ebe3;
+  --turbo-code-block-bg: #221c17;
+  --turbo-table-border: #3d342a;
+  --turbo-table-stripe: #1f1a15;
+  --turbo-table-thead-bg: #221c17;
+  --turbo-table-cell-bg: #1a1612;
+  --turbo-table-header-fg: #d4b86a;
+  --turbo-card-bg: #1a1612;
+  --turbo-card-border: #3d342a;
+  --turbo-card-header-bg: #14110e;
+  --turbo-card-footer-bg: #1a1612;
+  --turbo-message-bg: #1a1612;
+  --turbo-message-header-bg: #221c17;
+  --turbo-message-border: #3d342a;
+  --turbo-message-body-fg: #f0ebe3;
+  --turbo-panel-bg: #1a1612;
+  --turbo-panel-header-bg: #14110e;
+  --turbo-panel-header-fg: #f0ebe3;
+  --turbo-panel-border: #3d342a;
+  --turbo-dropdown-bg: #1a1612;
+  --turbo-dropdown-border: #3d342a;
+  --turbo-dropdown-item-hover: #221c17;
+  --gradient-primary: linear-gradient(135deg, #e8622a 0%, #c44e1a 100%);
+  --shadow-md: 0 4px 16px rgba(20, 16, 10, 0.35);
+  --shadow-lg: 0 8px 32px rgba(20, 16, 10, 0.45);
+  --shadow-glow: 0 0 0 3px color-mix(in srgb, #e8622a 30%, transparent);
+
+  --site-accent: #e8622a;
+  --site-accent-light: #d4b86a;
+  --font-display: "Fraunces", georgia, serif;
+  --font-body: "Archivo", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}

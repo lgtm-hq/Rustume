@@ -1,0 +1,297 @@
+---
+import { publicAsset } from "../data/landing";
+import { layoutLabels, templates } from "../data/templates";
+
+const base = import.meta.env.BASE_URL;
+const thumb = (id: string) => publicAsset(base, `templates/${id}.png`);
+---
+
+<section class="template-gallery" aria-label="Template previews">
+  <div class="template-grid">
+    {
+      templates.map((template) => (
+        <button
+          type="button"
+          class="template-card"
+          data-template-id={template.id}
+          data-template-name={template.id}
+          data-template-layout={layoutLabels[template.layout]}
+          data-template-accent={template.accentLabel}
+          data-template-src={thumb(template.id)}
+          aria-label={`Preview ${template.id} template`}
+        >
+          <img
+            src={thumb(template.id)}
+            alt=""
+            width="180"
+            height="255"
+            loading="lazy"
+          />
+          <span class="template-card-body">
+            <strong>{template.id}</strong>
+            <span>{layoutLabels[template.layout]}</span>
+          </span>
+          <span class="template-card-accent" style={`background: ${template.accent}`} />
+        </button>
+      ))
+    }
+  </div>
+</section>
+
+<div class="template-modal" id="template-modal" hidden role="dialog" aria-modal="true" aria-labelledby="template-modal-title">
+  <div class="template-modal-backdrop" data-close-modal></div>
+  <div class="template-modal-panel">
+    <header class="template-modal-header">
+      <div>
+        <h2 id="template-modal-title" class="template-modal-title"></h2>
+        <p class="template-modal-meta"></p>
+      </div>
+      <button type="button" class="template-modal-close" data-close-modal aria-label="Close preview">
+        ×
+      </button>
+    </header>
+    <div class="template-modal-body">
+      <img id="template-modal-image" alt="" width="595" height="842" />
+    </div>
+  </div>
+</div>
+
+<script is:inline>
+  (function () {
+    var modal = document.getElementById("template-modal");
+    var titleEl = document.getElementById("template-modal-title");
+    var metaEl = modal?.querySelector(".template-modal-meta");
+    var imageEl = document.getElementById("template-modal-image");
+    var closeBtn = modal?.querySelector(".template-modal-close");
+    if (!modal || !titleEl || !metaEl || !imageEl || !closeBtn) return;
+
+    var image = /** @type {HTMLImageElement} */ (imageEl);
+    var lastFocused = null;
+    if (modal.parentElement !== document.body) {
+      document.body.appendChild(modal);
+    }
+
+    function pageRoots() {
+      return document.querySelectorAll("header, main, footer");
+    }
+
+    function focusableInModal() {
+      return Array.from(
+        modal.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter(function (el) {
+        return !el.hasAttribute("disabled");
+      });
+    }
+
+    /** @param {HTMLElement} card */
+    function openModal(card) {
+      lastFocused = document.activeElement;
+      titleEl.textContent = card.getAttribute("data-template-name") || "Template";
+      metaEl.textContent =
+        (card.getAttribute("data-template-layout") || "") +
+        " · " +
+        (card.getAttribute("data-template-accent") || "");
+      image.src = card.getAttribute("data-template-src") || "";
+      image.alt = titleEl.textContent + " resume template preview";
+      modal.hidden = false;
+      document.body.style.overflow = "hidden";
+      pageRoots().forEach(function (root) {
+        root.setAttribute("aria-hidden", "true");
+        root.setAttribute("inert", "");
+      });
+      closeBtn.focus();
+    }
+
+    function closeModal() {
+      modal.hidden = true;
+      image.src = "";
+      document.body.style.overflow = "";
+      pageRoots().forEach(function (root) {
+        root.removeAttribute("aria-hidden");
+        root.removeAttribute("inert");
+      });
+      if (lastFocused && "focus" in lastFocused) lastFocused.focus();
+    }
+
+    document.querySelectorAll(".template-card").forEach(function (card) {
+      card.addEventListener("click", function () {
+        openModal(/** @type {HTMLElement} */ (card));
+      });
+    });
+
+    modal.querySelectorAll("[data-close-modal]").forEach(function (el) {
+      el.addEventListener("click", closeModal);
+    });
+
+    modal.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") {
+        closeModal();
+        return;
+      }
+
+      if (e.key !== "Tab") return;
+      var focusable = focusableInModal();
+      if (!focusable.length) return;
+      var first = focusable[0];
+      var last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    });
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !modal.hidden) closeModal();
+    });
+  })();
+</script>
+
+<style>
+  .template-gallery {
+    margin: 1.75rem 0 2.5rem;
+  }
+
+  .template-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+    gap: 1rem;
+  }
+
+  .template-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0;
+    border: 1px solid var(--turbo-border-default);
+    border-radius: var(--radius-lg);
+    background: var(--turbo-bg-surface);
+    cursor: pointer;
+    overflow: hidden;
+    text-align: left;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  }
+
+  .template-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--rust-warm-shadow);
+  }
+
+  .template-card img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-bottom: 1px solid var(--turbo-border-default);
+    background: #fff;
+  }
+
+  .template-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.65rem 0.75rem 0.85rem;
+    font-size: 0.75rem;
+    color: var(--turbo-text-muted);
+  }
+
+  .template-card-body strong {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--turbo-text-primary);
+    text-transform: lowercase;
+  }
+
+  .template-card-accent {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: var(--radius-full);
+    border: 2px solid rgba(255, 255, 255, 0.85);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  }
+
+  .template-modal[hidden] {
+    display: none;
+  }
+
+  .template-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: grid;
+    place-items: center;
+    padding: 1.5rem;
+  }
+
+  .template-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 8, 6, 0.72);
+  }
+
+  .template-modal-panel {
+    position: relative;
+    width: min(42rem, 100%);
+    max-height: calc(100dvh - 3rem);
+    display: flex;
+    flex-direction: column;
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--turbo-border-default);
+    background: var(--turbo-bg-surface);
+    box-shadow: var(--rust-warm-shadow);
+    overflow: hidden;
+  }
+
+  .template-modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--turbo-border-default);
+  }
+
+  .template-modal-title {
+    font-size: 1.25rem;
+    margin: 0;
+  }
+
+  .template-modal-meta {
+    margin: 0.25rem 0 0;
+    font-size: 0.875rem;
+    color: var(--turbo-text-muted);
+  }
+
+  .template-modal-close {
+    border: none;
+    background: transparent;
+    color: var(--turbo-text-secondary);
+    font-size: 1.75rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 0.25rem;
+  }
+
+  .template-modal-body {
+    overflow: auto;
+    padding: 1rem;
+    background: color-mix(in srgb, var(--turbo-bg-overlay) 80%, #fff 20%);
+  }
+
+  .template-modal-body img {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin: 0 auto;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--turbo-border-default);
+    background: #fff;
+  }
+</style>

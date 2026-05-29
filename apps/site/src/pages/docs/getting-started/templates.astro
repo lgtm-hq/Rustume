@@ -1,0 +1,109 @@
+---
+import DocsStandaloneLayout from '../../../layouts/DocsStandaloneLayout.astro';
+import TemplateGallery from '../../../components/TemplateGallery.astro';
+import { layoutLabels, templates } from '../../../data/templates';
+
+const base = import.meta.env.BASE_URL;
+---
+
+<DocsStandaloneLayout
+  title="Templates"
+  description="Overview of all 12 Typst resume templates, their layouts, and accent colors."
+  slug="getting-started/templates"
+  category="getting-started"
+  resources={[
+    { label: "Typst", href: "https://typst.app/" },
+    { label: "Quickstart", href: `${base}docs/getting-started/quickstart/` },
+  ]}
+  showSectionNav={false}
+>
+  <p>
+    Rustume renders resumes with <a href="https://typst.app/">Typst</a> — no browser or headless
+    Chrome required. Each template is a self-contained <code>.typ</code> file with a distinct layout
+    and accent color. All templates are available whether resumes are local, synchronized through
+    hosted Rustume Cloud, or synchronized from a self-hosted connected deployment.
+  </p>
+
+  <h2>Preview gallery</h2>
+  <p>Click a thumbnail to open a larger preview.</p>
+  <TemplateGallery />
+
+  <h2>Template list</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Layout</th>
+        <th>Accent color</th>
+      </tr>
+    </thead>
+    <tbody>
+      {
+        templates.map((template) => (
+          <tr>
+            <td><code>{template.id}</code></td>
+            <td>{layoutLabels[template.layout]}</td>
+            <td>
+              {template.accentLabel} <code>{template.accent}</code>
+            </td>
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+
+  <p>
+    The default template is <strong>rhyhorn</strong>. Set <code>metadata.template</code> in your
+    resume JSON to switch templates.
+  </p>
+
+  <h2>Choosing a template</h2>
+  <p>
+    <strong>Single-column</strong> templates (<code>rhyhorn</code>, <code>nosepass</code>,
+    <code>bronzor</code>, <code>kakuna</code>, <code>onyx</code>) work well for ATS-friendly,
+    text-dense resumes.
+  </p>
+  <p>
+    <strong>Sidebar</strong> templates (<code>azurill</code>, <code>pikachu</code>, <code>ditto</code>,
+    <code>gengar</code>, <code>glalie</code>, <code>chikorita</code>) give visual hierarchy — skills
+    and contact info in the sidebar, experience in the main column.
+  </p>
+  <p>
+    <strong>Two-column</strong> (<code>leafish</code>) balances content across equal-width columns
+    below a full-width header.
+  </p>
+
+  <h2>Previewing templates</h2>
+  <p>In the web editor, open the template picker to see live PNG previews. Via the API:</p>
+
+  <pre class="astro-code"><code>{`curl http://localhost:3000/api/templates
+curl http://localhost:3000/api/templates/rhyhorn/thumbnail -o preview.png`}</code></pre>
+
+  <p>Via the CLI:</p>
+
+  <pre class="astro-code"><code>{`rustume templates           # list all template IDs
+rustume templates -v      # include theme colors
+rustume preview resume.json -t azurill -o preview.png`}</code></pre>
+
+  <h2>Customizing theme colors</h2>
+  <p>
+    Each template has default background, text, and primary (accent) colors. Override them in
+    <code>metadata.theme</code>:
+  </p>
+
+  <pre class="astro-code"><code>{`{
+  "metadata": {
+    "template": "onyx",
+    "theme": {
+      "background": "#ffffff",
+      "text": "#111827",
+      "primary": "#dc2626"
+    }
+  }
+}`}</code></pre>
+
+  <p>
+    The web editor includes a visual theme editor for adjusting colors without editing JSON directly.
+    See also: <a href={`${base}docs/getting-started/quickstart/`}>Quickstart</a>.
+  </p>
+</DocsStandaloneLayout>

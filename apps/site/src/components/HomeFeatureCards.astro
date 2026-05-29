@@ -1,0 +1,92 @@
+---
+import Kicker from './ui/Kicker.astro';
+import FeatureTile from './FeatureTile.astro';
+import { docs, docHref, external } from '../data/site-links';
+
+const base = import.meta.env.BASE_URL;
+---
+
+<section class="feature-tiles-section">
+  <header class="feature-tiles-header">
+    <Kicker class="craft-kicker">Capabilities</Kicker>
+    <h2>Everything in the workshop</h2>
+    <p class="feature-tiles-lead">
+      Privacy, offline editing, Typst rendering, imports, and hosted Cloud sync — pick what you
+      need, skip what you do not.
+    </p>
+  </header>
+
+  <div class="feature-tiles-grid">
+    <FeatureTile
+      name="Privacy-first"
+      description="Run fully self-hosted and keep everything in your browser, or use connected storage with an opaque account identifier and explicit document protection."
+      icon="privacy"
+      tags={['Self-hosted', 'Local-first', 'Protected']}
+      badge="Core"
+      actions={[
+        { label: 'Encryption', href: docHref(base, docs.cloudEncryption) },
+        { label: 'Self-hosting', href: docHref(base, docs.selfHosting), primary: true },
+      ]}
+    />
+
+    <FeatureTile
+      name="Offline-first"
+      description="Build and export without a network connection. Install as a progressive web app on desktop and mobile."
+      icon="offline"
+      tags={['PWA', 'IndexedDB', 'WASM']}
+      badge="Local"
+      actions={[
+        { label: 'PWA', href: external.pwa.href, external: true },
+        { label: 'Web app', href: docHref(base, docs.webApp), primary: true },
+      ]}
+    />
+
+    <FeatureTile
+      name="12 templates"
+      description="Layouts from minimalist to executive — professionally tuned for print and screen. Built on Typst, not HTML-to-PDF hacks."
+      icon="templates"
+      tags={['Typst', 'Print', 'Screen']}
+      badge="12 layouts"
+      actions={[
+        { label: 'Typst', href: external.typst.href, external: true },
+        { label: 'Browse templates', href: docHref(base, docs.templates), primary: true },
+      ]}
+    />
+
+    <FeatureTile
+      name="Typst PDF export"
+      description="Native PDF generation with no headless Chrome and no print workarounds — compile straight from your resume data."
+      icon="pdf"
+      tags={['Typst', 'PDF', 'Native']}
+      badge="No Chrome"
+      actions={[
+        { label: 'Render pipeline', href: docHref(base, docs.architectureOverview) },
+        { label: 'Quickstart', href: docHref(base, docs.quickstart), primary: true },
+      ]}
+    />
+
+    <FeatureTile
+      name="Import anything"
+      description="Bring your existing resume from the tools you already use. Most imports complete in seconds, not hours."
+      icon="import"
+      tags={['JSON Resume', 'LinkedIn', 'Reactive Resume']}
+      badge="Fast"
+      actions={[
+        { label: 'JSON Resume', href: external.jsonResume.href, external: true },
+        { label: 'Import formats', href: docHref(base, docs.importFormats), primary: true },
+      ]}
+    />
+
+    <FeatureTile
+      name="Rustume Cloud"
+      description="Sign in to an operated deployment for synchronized resumes without setup. Self-hosted connected mode exposes the same capabilities."
+      icon="cloud"
+      tags={['Auth', 'Sync', 'Hosted']}
+      badge="Ready"
+      actions={[
+        { label: 'Overview', href: docHref(base, docs.cloudOverview) },
+        { label: 'Explore Cloud', href: docHref(base, docs.cloud), primary: true },
+      ]}
+    />
+  </div>
+</section>
