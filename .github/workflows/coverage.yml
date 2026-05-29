@@ -44,6 +44,22 @@ jobs:
       cancel-in-progress: true
 
     steps:
+      - name: Harden runner
+        # yamllint disable-line rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@f96f88353ccf669dacb7c9e2bd3b5d4410d859fd # v0.24.0
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            static.rust-lang.org:443
+            crates.io:443
+
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
       - name: Checkout lgtm-ci tooling
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -54,20 +70,6 @@ jobs:
             .github/actions/
             scripts/ci/
           sparse-checkout-cone-mode: true
-          persist-credentials: false
-
-      - name: Harden runner
-        uses: ./.lgtm-ci-tooling/.github/actions/harden-runner
-        with:
-          egress-policy: block
-          allowed-endpoints: >
-            github.com:443
-            static.rust-lang.org:443
-            crates.io:443
-
-      - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
           persist-credentials: false
 
       - name: Setup Rust coverage toolchain
@@ -108,7 +110,8 @@ jobs:
       - name: Generate coverage PR comment
         id: generate-comment
         if: always() && github.event_name == 'pull_request'
-        uses: ./.lgtm-ci-tooling/.github/actions/generate-coverage-comment
+        # yamllint disable-line rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/generate-coverage-comment@f96f88353ccf669dacb7c9e2bd3b5d4410d859fd # v0.24.0
         with:
           coverage-file: rust-coverage.lcov
           format: lcov
@@ -200,6 +203,11 @@ jobs:
       egress-policy: block
       allowed-endpoints: >
         github.com:443
+        api.github.com:443
+        codeload.github.com:443
+        objects.githubusercontent.com:443
+        release-assets.githubusercontent.com:443
+        actions.githubusercontent.com:443
         registry.npmjs.org:443
         bun.sh:443
       runner-image: ubuntu-24.04
