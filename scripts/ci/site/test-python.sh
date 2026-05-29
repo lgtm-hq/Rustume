@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Run pytest for site-related maintenance scripts.
+# SPDX-License-Identifier: MIT
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+
+cd "${ROOT}"
+
+if command -v uv >/dev/null 2>&1; then
+	uv sync --group test --frozen 2>/dev/null || uv sync --group test
+	uv run --group test pytest tests/scripts/ci -q
+	exit 0
+fi
+
+python3 -m pip install --disable-pip-version-check -q -U "pytest>=8.3"
+python3 -m pytest tests/scripts/ci -q

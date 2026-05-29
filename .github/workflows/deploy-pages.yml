@@ -1,0 +1,34 @@
+---
+name: Deploy - GitHub Pages
+
+"on":
+  push:
+    branches: [main]
+    paths:
+      - 'apps/site/**'
+      - 'docs/**'
+      - 'scripts/ci/site/**'
+      - '.github/workflows/deploy-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pages:
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    # yamllint disable-line rule:line-length
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-deploy-pages.yml@fc77ab6ea10f84236e4b897835665e8b0a57fe11 # v0.19.2
+    with:
+      build-command: bash scripts/ci/site/build.sh
+      package-manager: bun
+      source-path: apps/site/dist
+      node-version: '22'
+      working-directory: apps/site
