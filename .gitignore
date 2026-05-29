@@ -28,6 +28,9 @@ node_modules/
 htmlcov/
 coverage/
 coverage.xml
+rust-coverage-html/
+rust-coverage.lcov
+rust-coverage-output.txt
 *.cover
 *.py,cover
 .coverage

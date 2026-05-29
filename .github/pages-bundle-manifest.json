@@ -1,0 +1,19 @@
+{
+  "strict": false,
+  "bundles": [
+    {
+      "id": "rust-coverage",
+      "workflow": "Coverage Reports",
+      "artifact": "rust-coverage-html",
+      "dest": "coverage-rust",
+      "require_success": true
+    },
+    {
+      "id": "web-coverage",
+      "workflow": "Coverage Reports",
+      "artifact": "web-coverage-html",
+      "dest": "coverage-web",
+      "require_success": true
+    }
+  ]
+}

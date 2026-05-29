@@ -51,6 +51,8 @@ test_samples/
 # Coverage reports
 htmlcov/
 coverage/
+rust-coverage-html/
+rust-coverage.lcov
 .coverage
 *.cover
 
