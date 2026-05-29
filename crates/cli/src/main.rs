@@ -302,15 +302,23 @@ fn cmd_parse(
     Ok(())
 }
 
+/// Apply template ID and matching theme colors (mirrors server thumbnail rendering).
+fn apply_template(resume: &mut ResumeData, template: &str) {
+    resume.metadata.template = template.to_string();
+    let theme = get_template_theme(template);
+    resume.metadata.theme.primary = theme.primary;
+    resume.metadata.theme.text = theme.text;
+    resume.metadata.theme.background = theme.background;
+}
+
 /// Render command
 fn cmd_render(input: &str, template: Option<&str>, output: Option<PathBuf>) -> Result<()> {
     let data = read_input(input)?;
     let mut resume: ResumeData =
         serde_json::from_slice(&data).context("Failed to parse resume JSON")?;
 
-    // Override template only if explicitly specified
     if let Some(t) = template {
-        resume.metadata.template = t.to_string();
+        apply_template(&mut resume, t);
     }
 
     // Validate before rendering
@@ -338,9 +346,9 @@ fn cmd_preview(
     let mut resume: ResumeData =
         serde_json::from_slice(&data).context("Failed to parse resume JSON")?;
 
-    // Override template only if explicitly specified
+    // Override template and theme when explicitly specified
     if let Some(t) = template {
-        resume.metadata.template = t.to_string();
+        apply_template(&mut resume, t);
     }
 
     // Validate before rendering

@@ -40,7 +40,7 @@ Describe the changes and why.
 - [ ] Title follows Conventional Commits
 - [ ] Tests added/updated
 - [ ] Docs updated if user-facing
-- [ ] Local CI passed (`cargo test && cargo clippy`)
+- [ ] Local CI passed (`make test` and `uv run lintro chk`)
 
 ## Related Issues
 

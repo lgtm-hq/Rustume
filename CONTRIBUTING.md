@@ -81,6 +81,9 @@ Use the Makefile for common build flows:
 ```bash
 make build       # Build WASM, server, and web bundle
 make preview     # Preview production assets locally
+make site-dev    # Astro docs site dev server
+make site-build  # Production docs site build (GitHub Pages base path)
+make site-test   # Vitest for docs site TypeScript
 docker compose up          # Pull and run the published GHCR image
 docker compose up --build  # Build locally and run (no GHCR access required)
 ```
@@ -96,6 +99,11 @@ The root `docker-compose.yml` is the single entry point for container workflows:
 After startup, verify the server with `curl http://localhost:3000/health`.
 
 ## Architecture Overview
+
+Full architecture documentation lives on the published docs site:
+
+- Local preview: `make site-dev` then open <http://localhost:4321/Rustume/>
+- Published: <https://lgtm-hq.github.io/Rustume/docs/architecture/overview/>
 
 Rustume follows a modular crate architecture:
 

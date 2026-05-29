@@ -2,6 +2,13 @@
 
 SolidJS web application for Rustume — the privacy-first resume builder.
 
+> **Documentation:** [Docs site](https://lgtm-hq.github.io/Rustume/) ·
+> [Web app guide](https://lgtm-hq.github.io/Rustume/docs/contributing/web-app/) ·
+> [Architecture](https://lgtm-hq.github.io/Rustume/docs/architecture/overview/) ·
+> [Docker deployment](https://lgtm-hq.github.io/Rustume/docs/deployment/docker/) ·
+> [CLI](https://lgtm-hq.github.io/Rustume/docs/cli/usage/) ·
+> [Rustume Cloud](https://lgtm-hq.github.io/Rustume/cloud/)
+
 ## Tech Stack
 
 - **Framework**: SolidJS 1.9
@@ -67,6 +74,11 @@ src/
   stores/       # SolidJS stores (resume, ui, persistence, editorTheme)
   wasm/         # WASM integration layer with fallbacks
 ```
+
+See also:
+[Web app contribution guide](https://lgtm-hq.github.io/Rustume/docs/contributing/web-app/) ·
+[Architecture overview](https://lgtm-hq.github.io/Rustume/docs/architecture/overview/) ·
+[Deployment](https://lgtm-hq.github.io/Rustume/docs/deployment/docker/)
 
 ## Key Design Decisions
 
