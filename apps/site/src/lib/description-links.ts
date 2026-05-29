@@ -27,9 +27,7 @@ function setHref(node: Element, href: string): void {
 
 function mergeRel(node: Element): void {
   const target = node.properties?.target;
-  const hasTarget =
-    target === "_blank" ||
-    (Array.isArray(target) && target.includes("_blank"));
+  const hasTarget = target === "_blank" || (Array.isArray(target) && target.includes("_blank"));
   if (!hasTarget) {
     return;
   }
@@ -37,9 +35,15 @@ function mergeRel(node: Element): void {
   const existing = node.properties?.rel;
   const tokens = new Set<string>();
   if (typeof existing === "string") {
-    existing.split(/\s+/).filter(Boolean).forEach((t) => tokens.add(t));
+    existing
+      .split(/\s+/)
+      .filter(Boolean)
+      .forEach((t) => tokens.add(t));
   } else if (Array.isArray(existing)) {
-    existing.flatMap((v) => String(v).split(/\s+/)).filter(Boolean).forEach((t) => tokens.add(t));
+    existing
+      .flatMap((v) => String(v).split(/\s+/))
+      .filter(Boolean)
+      .forEach((t) => tokens.add(t));
   }
   tokens.add("noopener");
   tokens.add("noreferrer");
@@ -62,9 +66,7 @@ function transformFormatAnchors(tree: Root, base: string): void {
     if (/^https?:\/\//i.test(href)) {
       setHref(node, href);
       const target = node.properties?.target;
-      const hasTarget =
-        target === "_blank" ||
-        (Array.isArray(target) && target.includes("_blank"));
+      const hasTarget = target === "_blank" || (Array.isArray(target) && target.includes("_blank"));
       if (hasTarget) {
         mergeRel(node);
       } else {

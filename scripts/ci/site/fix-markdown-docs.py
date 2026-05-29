@@ -8,9 +8,7 @@ import sys
 from pathlib import Path
 
 LINE_LENGTH = 100
-DOCS_ROOT = (
-    Path(__file__).resolve().parents[3] / "apps" / "site" / "src" / "content" / "docs"
-)
+DOCS_ROOT = Path(__file__).resolve().parents[3] / "apps" / "site" / "src" / "content" / "docs"
 MARKDOWN_LINK = re.compile(
     r"(\[[^\]]*\]\([^)]*\)|\[[^\]]*\]\[[^\]]*\])",
 )
@@ -213,11 +211,7 @@ def is_standalone_bold_line(stripped: str) -> bool:
     Returns:
         True for ``**title**``; false for ``****``, ``***x***``, or empty bold.
     """
-    if (
-        len(stripped) < 4
-        or not stripped.startswith("**")
-        or not stripped.endswith("**")
-    ):
+    if len(stripped) < 4 or not stripped.startswith("**") or not stripped.endswith("**"):
         return False
     inner = stripped[2:-2]
     return bool(inner.strip()) and "*" not in inner
@@ -242,8 +236,7 @@ def fix_emphasis_headings(lines: list[str]) -> list[str]:
 
         prev = lines[index - 1].strip() if index > 0 else ""
         if is_standalone_bold_line(stripped) and (
-            index == 0
-            or not (prev.startswith(("- ", "* ", "+ ")) or re.match(r"^\d+\.", prev))
+            index == 0 or not (prev.startswith(("- ", "* ", "+ ")) or re.match(r"^\d+\.", prev))
         ):
             title = stripped[2:-2].strip()
             fixed.append(f"#### {title}")
@@ -292,9 +285,7 @@ def wrap_prose_lines(lines: list[str]) -> list[str]:
 
         indent = line[: len(line) - len(line.lstrip())]
         wrap_width = max(20, LINE_LENGTH - len(indent))
-        output.extend(
-            f"{indent}{wrapped}" for wrapped in wrap_line(line.strip(), wrap_width)
-        )
+        output.extend(f"{indent}{wrapped}" for wrapped in wrap_line(line.strip(), wrap_width))
 
     return output
 

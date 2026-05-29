@@ -7,7 +7,7 @@ ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 SITE_DIR="${ROOT}/apps/site"
 
 set -a
-# shellcheck source=defaults.env
+# shellcheck disable=SC1091 # defaults.env is resolved via SCRIPT_DIR; not a static shellcheck input
 source "${SCRIPT_DIR}/defaults.env"
 set +a
 

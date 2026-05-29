@@ -45,9 +45,7 @@ def _operations_description_is_compliant(content: str) -> bool:
 def set_description(content: str, rel_path: str, new_desc: str) -> str:
     if rel_path not in DESCRIPTIONS:
         return content
-    if rel_path.startswith("operations/") and _operations_description_is_compliant(
-        content
-    ):
+    if rel_path.startswith("operations/") and _operations_description_is_compliant(content):
         return content
     frontmatter, body = _split_frontmatter(content)
     if frontmatter is None:
