@@ -15,6 +15,7 @@ dependencies = []
 
 [dependency-groups]
 lint = ["lintro>=0.51.4"]
+test = ["pytest>=8.3"]
 
 [tool.lintro]
 line_length = 100
@@ -22,3 +23,7 @@ tool_order = "priority"
 
 [tool.lintro.post_checks]
 enabled = false
+
+[tool.bandit]
+exclude_dirs = [".venv", "venv"]
+skips = ["B101", "B404", "B603", "B607", "B108"]
