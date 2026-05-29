@@ -8,10 +8,7 @@ import { collectDocResources } from '../../lib/doc-resources';
 import type { DocCategory } from '../../data/docs-nav';
 
 export async function getStaticPaths() {
-  const docs = await getCollection(
-    'docs',
-    ({ data, id }) => !data.draft && id !== 'pricing/plans-body',
-  );
+  const docs = await getCollection('docs', ({ data }) => !data.draft);
   return docs.map((doc) => ({
     params: { slug: doc.id },
     props: { doc },
@@ -28,7 +25,7 @@ const resourceMarkdown: string[] = doc.body ? [doc.body] : [];
 let TailContent: Awaited<ReturnType<typeof render>>['Content'] | null = null;
 if (isPricingPlans) {
   const tail = await getEntry('docs', 'pricing/plans-body');
-  if (tail && !tail.data.draft) {
+  if (tail) {
     if (tail.body) resourceMarkdown.push(tail.body);
     ({ Content: TailContent } = await render(tail));
   }

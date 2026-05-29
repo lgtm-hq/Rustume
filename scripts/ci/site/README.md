@@ -24,7 +24,7 @@ that value — do not duplicate the path elsewhere.
 ## GitHub Pages and repository About URL
 
 1. **Pages** (already enabled): **Settings → Pages → Build and deployment → Source:
-   GitHub Actions**. The [`deploy-pages.yml`](../../.github/workflows/deploy-pages.yml)
+   GitHub Actions**. The [`deploy-pages.yml`](../../../.github/workflows/deploy-pages.yml)
    workflow publishes `apps/site/dist`.
 2. **About URL** (manual, one-time): On the repository home page, click **About** (gear) →
    set **Website** to `https://lgtm-hq.github.io/Rustume/`. This is the link shown on the

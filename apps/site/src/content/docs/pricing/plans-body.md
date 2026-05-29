@@ -4,6 +4,7 @@ description: "Billing and hosting details continued from the access comparison."
 category: pricing
 order: 11
 sidebar: false
+draft: true
 ---
 
 ## What hosted access pays for

@@ -16,7 +16,28 @@ const { enabled = true } = Astro.props;
 )}
 
 <script>
-  let tocCleanup: (() => void) | null = null;
+  type DocsTocApi = {
+    onPageLoad: () => void;
+    onBeforeSwap: () => void;
+    cleanup: (() => void) | null;
+  };
+
+  const w = window as Window & { __docsToc?: DocsTocApi };
+
+  if (!w.__docsToc) {
+    w.__docsToc = {
+      onPageLoad: (): void => {
+        initDocsToc();
+      },
+      onBeforeSwap: (): void => {
+        w.__docsToc?.cleanup?.();
+        if (w.__docsToc) {
+          w.__docsToc.cleanup = null;
+        }
+      },
+      cleanup: null,
+    };
+  }
 
   function slugify(text: string): string {
     return text
@@ -43,8 +64,10 @@ const { enabled = true } = Astro.props;
   }
 
   function initDocsToc(): void {
-    tocCleanup?.();
-    tocCleanup = null;
+    w.__docsToc?.cleanup?.();
+    if (w.__docsToc) {
+      w.__docsToc.cleanup = null;
+    }
 
     const prose = document.querySelector<HTMLElement>(".docs-content .prose");
     const list = document.getElementById("docs-toc-list");
@@ -135,28 +158,12 @@ const { enabled = true } = Astro.props;
     window.addEventListener("resize", onResize, { passive: true });
     syncActiveFromScroll();
 
-    tocCleanup = () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onResize);
-    };
-  }
-
-  type DocsTocHandlers = {
-    onPageLoad: () => void;
-    onBeforeSwap: () => void;
-  };
-
-  const w = window as Window & { __docsToc?: DocsTocHandlers };
-  if (!w.__docsToc) {
-    w.__docsToc = {
-      onPageLoad: (): void => {
-        initDocsToc();
-      },
-      onBeforeSwap: (): void => {
-        tocCleanup?.();
-        tocCleanup = null;
-      },
-    };
+    if (w.__docsToc) {
+      w.__docsToc.cleanup = () => {
+        window.removeEventListener("scroll", onScroll);
+        window.removeEventListener("resize", onResize);
+      };
+    }
   }
 
   const { onPageLoad, onBeforeSwap } = w.__docsToc;

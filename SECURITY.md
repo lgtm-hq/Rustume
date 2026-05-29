@@ -9,6 +9,8 @@
 | `0.16.x`  | ✅        |
 | `< 0.16`  | ❌        |
 
+Current release line matches the workspace version in `Cargo.toml` (currently `0.16.1`).
+
 <!-- markdownlint-enable MD060 -->
 
 ## Reporting Security Issues
