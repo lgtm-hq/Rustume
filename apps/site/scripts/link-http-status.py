@@ -26,9 +26,22 @@ def replace_backtick_status(text: str) -> str:
 
     result_lines: list[str] = []
     in_fence = False
+    in_frontmatter = False
+    frontmatter_closed = False
 
     for line in text.splitlines(keepends=True):
         stripped = line.strip()
+        if not frontmatter_closed and stripped == "---":
+            in_frontmatter = not in_frontmatter
+            if not in_frontmatter:
+                frontmatter_closed = True
+            result_lines.append(line)
+            continue
+
+        if in_frontmatter:
+            result_lines.append(line)
+            continue
+
         if stripped.startswith("```"):
             in_fence = not in_fence
             result_lines.append(line)
