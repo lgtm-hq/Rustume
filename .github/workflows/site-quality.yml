@@ -37,7 +37,7 @@ jobs:
     steps:
       - name: Harden Runner
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@fc77ab6ea10f84236e4b897835665e8b0a57fe11 # v0.19.2
+        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@3aa7280fd586e3293849b88a9790187ebc110061 # v0.32.1
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -51,11 +51,11 @@ jobs:
 
       - name: Checkout
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@fc77ab6ea10f84236e4b897835665e8b0a57fe11 # v0.19.2
+        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@3aa7280fd586e3293849b88a9790187ebc110061 # v0.32.1
 
       - name: Setup Node and Bun
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/setup-node@fc77ab6ea10f84236e4b897835665e8b0a57fe11 # v0.19.2
+        uses: lgtm-hq/lgtm-ci/.github/actions/setup-node@3aa7280fd586e3293849b88a9790187ebc110061 # v0.32.1
         with:
           node-version: '22'
           working-directory: apps/site
@@ -72,7 +72,7 @@ jobs:
         with:
           repository: lgtm-hq/lgtm-ci
           path: .lgtm-ci-tooling
-          ref: fc77ab6ea10f84236e4b897835665e8b0a57fe11 # v0.19.2
+          ref: 3aa7280fd586e3293849b88a9790187ebc110061 # v0.32.1
           sparse-checkout: scripts/ci/
           sparse-checkout-cone-mode: true
           persist-credentials: false
@@ -109,10 +109,8 @@ jobs:
           path: apps/site/dist
           retention-days: 1
 
-  # Reusable-test-node caller needs pull-requests: write at job level (startup_failure
-  # without it). Full delegation blocked on lgtm-ci v0.19.2: test-custom wipes tooling
-  # when test-command is set; default vitest parse fails on Vitest JSON (TESTS_TOTAL
-  # unset).
+  # Site tests stay inline (not reusable-test-node): custom Vitest JSON layout and
+  # scripts/ci/site/test-all.sh do not match default Node reusable parsing.
   test:
     name: Test documentation site
     runs-on: ubuntu-24.04
@@ -120,7 +118,7 @@ jobs:
     steps:
       - name: Harden Runner
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@fc77ab6ea10f84236e4b897835665e8b0a57fe11 # v0.19.2
+        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@3aa7280fd586e3293849b88a9790187ebc110061 # v0.32.1
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -137,18 +135,18 @@ jobs:
 
       - name: Checkout
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@fc77ab6ea10f84236e4b897835665e8b0a57fe11 # v0.19.2
+        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@3aa7280fd586e3293849b88a9790187ebc110061 # v0.32.1
 
       - name: Setup Python and uv
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/setup-python@fc77ab6ea10f84236e4b897835665e8b0a57fe11 # v0.19.2
+        uses: lgtm-hq/lgtm-ci/.github/actions/setup-python@3aa7280fd586e3293849b88a9790187ebc110061 # v0.32.1
         with:
           python-version: '3.12'
           install-dependencies: false
 
       - name: Setup Node and Bun
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/setup-node@fc77ab6ea10f84236e4b897835665e8b0a57fe11 # v0.19.2
+        uses: lgtm-hq/lgtm-ci/.github/actions/setup-node@3aa7280fd586e3293849b88a9790187ebc110061 # v0.32.1
         with:
           node-version: '22'
           working-directory: apps/site

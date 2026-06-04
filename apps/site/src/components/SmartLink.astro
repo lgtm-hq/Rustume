@@ -1,5 +1,6 @@
 ---
 import { joinBase } from "../data/landing";
+import { remoteFaviconUrl } from "../lib/favicon";
 import { hasUriScheme } from "../lib/url-utils";
 
 interface Props {
@@ -32,7 +33,9 @@ if (!isAbsoluteUrl && !href.startsWith("#")) {
   }
 }
 
-const favicon = joinBase(base, "favicon.svg");
+const fallbackIcon = joinBase(base, "assets/smart-link-fallback.svg");
+const remoteIcon = remoteFaviconUrl(url);
+const iconSrc = remoteIcon ?? fallbackIcon;
 ---
 
 <a
@@ -40,4 +43,14 @@ const favicon = joinBase(base, "favicon.svg");
   href={url}
   target={external && opensInNewTab ? "_blank" : undefined}
   rel={external && opensInNewTab ? "noopener noreferrer" : undefined}
-><img class="smart-link-icon" src={favicon} alt="" width="16" height="16" loading="lazy" decoding="async" /><span class="smart-link-label">{name}</span>{showArrow && <span class="smart-link-arrow" aria-hidden="true">↗</span>}</a>
+><img
+  class="smart-link-icon"
+  src={iconSrc}
+  data-fallback={fallbackIcon}
+  alt=""
+  width="16"
+  height="16"
+  loading="lazy"
+  decoding="async"
+  onerror="this.onerror=null;this.src=this.dataset.fallback||'';"
+/><span class="smart-link-label">{name}</span>{showArrow && <span class="smart-link-arrow" aria-hidden="true">↗</span>}</a>

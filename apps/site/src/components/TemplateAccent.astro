@@ -1,0 +1,21 @@
+---
+interface Props {
+  accent: string;
+  accentLabel: string;
+}
+
+const { accent, accentLabel } = Astro.props;
+---
+
+<span class="template-accent-cell">
+  <span
+    class="template-accent-swatch"
+    style={`background: ${accent}`}
+    title={accentLabel}
+    aria-hidden="true"
+  ></span>
+  <span class="template-accent-meta">
+    <span class="template-accent-label">{accentLabel}</span>
+    <code>{accent}</code>
+  </span>
+</span>

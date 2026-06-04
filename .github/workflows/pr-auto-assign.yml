@@ -22,7 +22,7 @@ jobs:
     steps:
       - name: Harden Runner
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@fc77ab6ea10f84236e4b897835665e8b0a57fe11 # v0.19.2
+        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@3aa7280fd586e3293849b88a9790187ebc110061 # v0.32.1
         with:
           egress-policy: block
           allowed-endpoints: >
