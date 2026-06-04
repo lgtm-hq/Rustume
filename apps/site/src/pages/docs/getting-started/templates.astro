@@ -1,5 +1,6 @@
 ---
 import DocsStandaloneLayout from '../../../layouts/DocsStandaloneLayout.astro';
+import TemplateAccent from '../../../components/TemplateAccent.astro';
 import TemplateGallery from '../../../components/TemplateGallery.astro';
 import { layoutLabels, templates } from '../../../data/templates';
 
@@ -44,7 +45,7 @@ const base = import.meta.env.BASE_URL;
             <td><code>{template.id}</code></td>
             <td>{layoutLabels[template.layout]}</td>
             <td>
-              {template.accentLabel} <code>{template.accent}</code>
+              <TemplateAccent accent={template.accent} accentLabel={template.accentLabel} />
             </td>
           </tr>
         ))
