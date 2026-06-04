@@ -153,7 +153,7 @@ site-test:
 	./scripts/ci/site/test.sh
 
 site-preview: site-build
-	cd apps/site && ASTRO_BASE="$(SITE_ASTRO_BASE)" bun run preview
+	./scripts/ci/site/preview-serve.sh
 
 # Quick start for new developers
 setup: check-deps install wasm

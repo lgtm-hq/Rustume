@@ -8,6 +8,7 @@
 | `test-python.sh` | Pytest for `tests/scripts/ci/` |
 | `test-all.sh` | `test.sh` + `test-python.sh` |
 | `prepare-lychee-action-args.sh` | Strip duplicate lychee flags for `lychee-action` |
+| `preview-serve.sh` | `astro preview` with `ASTRO_BASE` from `defaults.env` (required for `/Rustume/`) |
 | `preview-pages-local.sh` | Build dist + optional local coverage bundles for manual Pages preview |
 
 ## Astro base path
@@ -58,8 +59,11 @@ PREVIEW_INCLUDE_RUST=0 PREVIEW_INCLUDE_WEB=0 ./scripts/ci/site/preview-pages-loc
 PREVIEW_SERVE=0 ./scripts/ci/site/preview-pages-local.sh
 ```
 
-Open the URL from `astro preview` (serves with `/Rustume/` base). Coverage trees appear
-under `/Rustume/coverage-rust/` and `/Rustume/coverage-web/` when generated.
+Open **http://127.0.0.1:4321/Rustume/** (not `/` — root serves unstyled HTML if the build
+used `/Rustume/`). Use `make site-preview`, `bun run preview` in `apps/site`, or
+`preview-pages-local.sh`; all load `ASTRO_BASE` via `preview-serve.sh`.
+
+Coverage trees appear under `/Rustume/coverage-rust/` and `/Rustume/coverage-web/` when generated.
 
 ## CI scripts (site quality)
 

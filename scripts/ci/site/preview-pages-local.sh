@@ -88,5 +88,4 @@ if [[ "${PREVIEW_SERVE:-1}" == "0" ]]; then
 fi
 
 echo "==> Starting astro preview (Ctrl+C to stop)"
-cd "${SITE_DIR}"
-exec bun run preview -- --host 127.0.0.1
+exec "${SCRIPT_DIR}/preview-serve.sh" --host 127.0.0.1
