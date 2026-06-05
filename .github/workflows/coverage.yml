@@ -24,12 +24,12 @@ permissions:
 jobs:
   rust-coverage:
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-rust-test.yml@3aa7280fd586e3293849b88a9790187ebc110061 # v0.32.1
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-rust-test.yml@f469f4d5c187f0700ccec4c023152fb68ee3dc89 # v0.32.3
     permissions:
       contents: read
       pull-requests: write # publish-test-summary on PRs
     with:
-      tooling-ref: 3aa7280fd586e3293849b88a9790187ebc110061 # v0.32.1
+      tooling-ref: f469f4d5c187f0700ccec4c023152fb68ee3dc89 # v0.32.3
       job-name: "🦀 Rust Coverage"
       coverage: true
       upload-pages-coverage-html: true
@@ -41,12 +41,12 @@ jobs:
 
   web-coverage:
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-node.yml@3aa7280fd586e3293849b88a9790187ebc110061 # v0.32.1
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-node.yml@f469f4d5c187f0700ccec4c023152fb68ee3dc89 # v0.32.3
     permissions:
       contents: read
       pull-requests: write # publish-test-summary on PRs
     with:
-      tooling-ref: 3aa7280fd586e3293849b88a9790187ebc110061 # v0.32.1
+      tooling-ref: f469f4d5c187f0700ccec4c023152fb68ee3dc89 # v0.32.3
       job-name: "🌐 Web Coverage"
       node-version: "22"
       working-directory: apps/web
