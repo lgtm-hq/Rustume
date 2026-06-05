@@ -16,10 +16,6 @@ permissions:
   contents: read
   actions: read
 
-concurrency:
-  group: pages-${{ github.repository }}-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   deploy:
     if: >-
