@@ -37,7 +37,7 @@ jobs:
     steps:
       - name: Harden Runner
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@69d5990a1d877f752ecd47bd961851b5f6feea36 # v0.32.4
+        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@0c9b946ff6bb93e3e67ce1d1f4a3c419266dc79e # v0.33.0
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -51,11 +51,11 @@ jobs:
 
       - name: Checkout
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@69d5990a1d877f752ecd47bd961851b5f6feea36 # v0.32.4
+        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@0c9b946ff6bb93e3e67ce1d1f4a3c419266dc79e # v0.33.0
 
       - name: Setup Node and Bun
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/setup-node@69d5990a1d877f752ecd47bd961851b5f6feea36 # v0.32.4
+        uses: lgtm-hq/lgtm-ci/.github/actions/setup-node@0c9b946ff6bb93e3e67ce1d1f4a3c419266dc79e # v0.33.0
         with:
           node-version: '22'
           working-directory: apps/site
@@ -72,7 +72,7 @@ jobs:
         with:
           repository: lgtm-hq/lgtm-ci
           path: .lgtm-ci-tooling
-          ref: '69d5990a1d877f752ecd47bd961851b5f6feea36' # v0.32.4
+          ref: '0c9b946ff6bb93e3e67ce1d1f4a3c419266dc79e' # v0.33.0
           sparse-checkout: scripts/ci/
           sparse-checkout-cone-mode: true
           persist-credentials: false
@@ -118,7 +118,7 @@ jobs:
     steps:
       - name: Harden Runner
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@69d5990a1d877f752ecd47bd961851b5f6feea36 # v0.32.4
+        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@0c9b946ff6bb93e3e67ce1d1f4a3c419266dc79e # v0.33.0
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -135,18 +135,18 @@ jobs:
 
       - name: Checkout
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@69d5990a1d877f752ecd47bd961851b5f6feea36 # v0.32.4
+        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@0c9b946ff6bb93e3e67ce1d1f4a3c419266dc79e # v0.33.0
 
       - name: Setup Python and uv
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/setup-python@69d5990a1d877f752ecd47bd961851b5f6feea36 # v0.32.4
+        uses: lgtm-hq/lgtm-ci/.github/actions/setup-python@0c9b946ff6bb93e3e67ce1d1f4a3c419266dc79e # v0.33.0
         with:
           python-version: '3.12'
           install-dependencies: false
 
       - name: Setup Node and Bun
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/setup-node@69d5990a1d877f752ecd47bd961851b5f6feea36 # v0.32.4
+        uses: lgtm-hq/lgtm-ci/.github/actions/setup-node@0c9b946ff6bb93e3e67ce1d1f4a3c419266dc79e # v0.33.0
         with:
           node-version: '22'
           working-directory: apps/site
