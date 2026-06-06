@@ -41,6 +41,9 @@ jobs:
   prune-untagged:
     # yamllint disable-line rule:line-length
     uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-ghcr-cleanup.yml@69d5990a1d877f752ecd47bd961851b5f6feea36 # v0.32.4
+    permissions:
+      contents: read
+      packages: write
     with:
       package-name: rustume
       min-age-days: ${{ inputs.min_age_days || 7 }}
