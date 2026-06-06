@@ -29,7 +29,7 @@ jobs:
       contents: read
       pull-requests: write # publish-test-summary on PRs
     with:
-      tooling-ref: f469f4d5c187f0700ccec4c023152fb68ee3dc89 # v0.32.3
+      tooling-ref: '69d5990a1d877f752ecd47bd961851b5f6feea36' # v0.32.4
       job-name: "🦀 Rust Coverage"
       coverage: true
       upload-pages-coverage-html: true
@@ -46,7 +46,7 @@ jobs:
       contents: read
       pull-requests: write # publish-test-summary on PRs
     with:
-      tooling-ref: f469f4d5c187f0700ccec4c023152fb68ee3dc89 # v0.32.3
+      tooling-ref: '69d5990a1d877f752ecd47bd961851b5f6feea36' # v0.32.4
       job-name: "🌐 Web Coverage"
       node-version: "22"
       working-directory: apps/web

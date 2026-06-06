@@ -41,7 +41,7 @@ jobs:
       attestations: write
       security-events: write
     with:
-      tooling-ref: f469f4d5c187f0700ccec4c023152fb68ee3dc89 # v0.32.3
+      tooling-ref: '69d5990a1d877f752ecd47bd961851b5f6feea36' # v0.32.4
       file: docker/Dockerfile
       image-name: lgtm-hq/rustume
       version: >-
