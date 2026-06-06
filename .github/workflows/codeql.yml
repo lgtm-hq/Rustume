@@ -3,8 +3,8 @@
 name: Security - CodeQL Code Scanning
 # GitHub CodeQL static analysis for security vulnerabilities.
 # Scans Rust and GitHub Actions code, uploads results to Security tab.
-# Rust endpoints are allowed so the extractor can download dependencies
-# for type resolution and macro expansion.
+# Inline (not reusable-codeql): reusable passes build-mode to init, which fails
+# when actions and rust are combined (actions does not support autobuild).
 
 "on":
   push:
@@ -19,6 +19,10 @@ name: Security - CodeQL Code Scanning
 
 permissions: {}
 
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   analyze:
     name: 🔬 CodeQL Analysis
@@ -27,14 +31,11 @@ jobs:
       security-events: write
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    concurrency:
-      group: codeql-${{ github.ref }}
-      cancel-in-progress: true
 
     steps:
       - name: Harden Runner
         # yamllint disable-line rule:line-length
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@69d5990a1d877f752ecd47bd961851b5f6feea36 # v0.32.4
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -52,7 +53,7 @@ jobs:
 
       - name: Checkout
         # yamllint disable-line rule:line-length
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@69d5990a1d877f752ecd47bd961851b5f6feea36 # v0.32.4
 
       - name: Initialize CodeQL
         # yamllint disable-line rule:line-length
