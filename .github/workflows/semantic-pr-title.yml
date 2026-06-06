@@ -27,7 +27,7 @@ jobs:
     steps:
       - name: Harden Runner
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@f469f4d5c187f0700ccec4c023152fb68ee3dc89 # v0.32.3
+        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@69d5990a1d877f752ecd47bd961851b5f6feea36 # v0.32.4
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -37,7 +37,7 @@ jobs:
       - name: Validate PR title
         id: semantic
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/semantic-pr-title@f469f4d5c187f0700ccec4c023152fb68ee3dc89 # v0.32.3
+        uses: lgtm-hq/lgtm-ci/.github/actions/semantic-pr-title@69d5990a1d877f752ecd47bd961851b5f6feea36 # v0.32.4
         with:
           types: >-
             chore,ci,docs,feat,fix,perf,refactor,revert,style,test,build
@@ -45,7 +45,7 @@ jobs:
       - name: Post failure comment
         if: steps.semantic.outputs.valid != 'true'
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/post-pr-comment@f469f4d5c187f0700ccec4c023152fb68ee3dc89 # v0.32.3
+        uses: lgtm-hq/lgtm-ci/.github/actions/post-pr-comment@69d5990a1d877f752ecd47bd961851b5f6feea36 # v0.32.4
         with:
           marker: "<!-- semantic-pr-title -->"
           body: |
