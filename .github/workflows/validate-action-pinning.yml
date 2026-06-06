@@ -7,36 +7,20 @@ name: Quality Check - Action Pinning Validation
   pull_request:
   workflow_dispatch:
 
-permissions:
-  contents: read
+permissions: {}
+
+concurrency:
+  group: validate-pinning-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check-pinning:
-    name: 📌 Validate Action Pinning
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    defaults:
-      run:
-        shell: bash
-    concurrency:
-      group: validate-pinning-${{ github.ref }}
-      cancel-in-progress: true
-
-    steps:
-      - name: Harden Runner
-        # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@69d5990a1d877f752ecd47bd961851b5f6feea36 # v0.32.4
-        with:
-          egress-policy: block
-          allowed-endpoints: >
-            github.com:443
-            api.github.com:443
-            codeload.github.com:443
-            objects.githubusercontent.com:443
-
-      - name: Checkout
-        # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@69d5990a1d877f752ecd47bd961851b5f6feea36 # v0.32.4
-
-      - name: Scan workflows for non-pinned actions
-        run: ENFORCE=1 bash scripts/ci/maintenance/validate-action-pinning.sh
+    # yamllint disable-line rule:line-length
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-validate-action-pinning.yml@69d5990a1d877f752ecd47bd961851b5f6feea36 # v0.32.4
+    with:
+      tooling-ref: '69d5990a1d877f752ecd47bd961851b5f6feea36' # v0.32.4
+      egress-policy: block
+      egress-preset: github-tooling
+      fail-on-error: true
+    permissions:
+      contents: read
