@@ -168,7 +168,8 @@ cd apps/web && bun run test
 ```
 
 Tests cover stores (persistence, auth, cloud storage), API client, hooks, and key components.
-Coverage reports generated in CI via `ci-web-coverage.sh`.
+Coverage reports are generated in CI by the **Coverage Reports** workflow
+(`reusable-test-node` with `coverage: true`).
 
 ## See also
 
