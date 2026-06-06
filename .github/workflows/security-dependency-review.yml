@@ -33,6 +33,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Harden Runner
+        if: ${{ !env.ACT }}
         # yamllint disable-line rule:line-length
         uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@69d5990a1d877f752ecd47bd961851b5f6feea36 # v0.32.4
         with:
@@ -85,6 +86,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Harden Runner
+        if: ${{ !env.ACT }}
         # yamllint disable-line rule:line-length
         uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@69d5990a1d877f752ecd47bd961851b5f6feea36 # v0.32.4
         with:
