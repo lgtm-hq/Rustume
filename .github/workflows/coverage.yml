@@ -13,7 +13,6 @@ name: Coverage Reports
       - "Cargo.lock"
       - "apps/web/**"
       - ".github/workflows/coverage.yml"
-      - "scripts/ci/testing/**"
   pull_request:
     branches: [main]
   workflow_dispatch:

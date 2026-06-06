@@ -5,8 +5,7 @@
     {
       "customType": "regex",
       "fileMatch": [
-        "docker/Dockerfile",
-        "scripts/ci/testing/ci-setup-web-coverage.sh"
+        "docker/Dockerfile"
       ],
       "matchStrings": [
         "ARG BUN_VERSION=(?<currentValue>\\S+)",

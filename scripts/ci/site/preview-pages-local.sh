@@ -70,9 +70,18 @@ fi
 
 if [[ "${INCLUDE_RUST}" == "1" ]]; then
 	echo "==> Running Rust coverage + HTML (workspace; may take several minutes)"
-	./scripts/ci/testing/ci-setup-rust-coverage.sh
-	./scripts/ci/testing/ci-rust-coverage.sh
-	cargo llvm-cov report --html --output-dir rust-coverage-html
+	rustup toolchain install stable --profile minimal 2>/dev/null || true
+	CARGO_LLVM_COV_VERSION="${CARGO_LLVM_COV_VERSION:-0.8.6}"
+	if ! command -v cargo-llvm-cov >/dev/null 2>&1; then
+		cargo install cargo-llvm-cov \
+			--locked \
+			--version "${CARGO_LLVM_COV_VERSION}"
+	fi
+	cargo llvm-cov \
+		--workspace \
+		--all-features \
+		--html \
+		--output-dir rust-coverage-html
 	copy_tree "${ROOT}/rust-coverage-html" "${DIST_DIR}/coverage-rust"
 fi
 
