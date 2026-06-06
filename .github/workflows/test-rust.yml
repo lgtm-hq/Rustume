@@ -28,10 +28,10 @@ jobs:
     # ruleset check name stays rust-build / 🔨 Build Check — an extra nesting
     # hop would prefix build / and break required-status matching.
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-rust-build.yml@69d5990a1d877f752ecd47bd961851b5f6feea36 # v0.32.4
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-rust-build.yml@0c9b946ff6bb93e3e67ce1d1f4a3c419266dc79e # v0.33.0
     with:
       job-name: "🔨 Build Check"
-      tooling-ref: '69d5990a1d877f752ecd47bd961851b5f6feea36' # v0.32.4
+      tooling-ref: '0c9b946ff6bb93e3e67ce1d1f4a3c419266dc79e' # v0.33.0
       draft-pr-skip: true
       egress-policy: block
       egress-preset: quality
