@@ -31,7 +31,7 @@ jobs:
     steps:
       - name: Harden Runner
         # yamllint disable-line rule:line-length
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@69d5990a1d877f752ecd47bd961851b5f6feea36 # v0.32.4
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -44,7 +44,7 @@ jobs:
 
       - name: Checkout
         # yamllint disable-line rule:line-length
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@69d5990a1d877f752ecd47bd961851b5f6feea36 # v0.32.4
 
       - name: Install osv-scanner
         run: scripts/utils/install-osv-scanner.sh

@@ -3,8 +3,6 @@
 name: Security - CodeQL Code Scanning
 # GitHub CodeQL static analysis for security vulnerabilities.
 # Scans Rust and GitHub Actions code, uploads results to Security tab.
-# Rust endpoints are allowed so the extractor can download dependencies
-# for type resolution and macro expansion.
 
 "on":
   push:
@@ -19,53 +17,29 @@ name: Security - CodeQL Code Scanning
 
 permissions: {}
 
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  analyze:
-    name: 🔬 CodeQL Analysis
+  codeql:
+    # yamllint disable-line rule:line-length
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-codeql.yml@69d5990a1d877f752ecd47bd961851b5f6feea36 # v0.32.4
+    with:
+      languages: actions,rust
+      build-mode: autobuild
+      category: "/language:all"
+      job-name: "🔬 CodeQL Analysis"
+      tooling-ref: '69d5990a1d877f752ecd47bd961851b5f6feea36' # v0.32.4
+      egress-policy: block
+      egress-preset: github-tooling
+      allowed-endpoints-mode: append
+      allowed-endpoints: >
+        static.rust-lang.org:443
+        sh.rustup.rs:443
+        crates.io:443
+        static.crates.io:443
+        index.crates.io:443
     permissions:
       contents: read
       security-events: write
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    concurrency:
-      group: codeql-${{ github.ref }}
-      cancel-in-progress: true
-
-    steps:
-      - name: Harden Runner
-        # yamllint disable-line rule:line-length
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
-        with:
-          egress-policy: block
-          allowed-endpoints: >
-            github.com:443
-            api.github.com:443
-            codeload.github.com:443
-            raw.githubusercontent.com:443
-            release-assets.githubusercontent.com:443
-            objects.githubusercontent.com:443
-            static.rust-lang.org:443
-            sh.rustup.rs:443
-            crates.io:443
-            static.crates.io:443
-            index.crates.io:443
-
-      - name: Checkout
-        # yamllint disable-line rule:line-length
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Initialize CodeQL
-        # yamllint disable-line rule:line-length
-        uses: github/codeql-action/init@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4
-        with:
-          languages: actions, rust
-
-      - name: Autobuild
-        # yamllint disable-line rule:line-length
-        uses: github/codeql-action/autobuild@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4
-
-      - name: Perform CodeQL Analysis
-        # yamllint disable-line rule:line-length
-        uses: github/codeql-action/analyze@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4
-        with:
-          category: "/language:all"
