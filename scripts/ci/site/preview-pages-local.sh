@@ -71,14 +71,13 @@ fi
 if [[ "${INCLUDE_RUST}" == "1" ]]; then
 	echo "==> Running Rust coverage + HTML (workspace; may take several minutes)"
 	rustup toolchain install stable --profile minimal 2>/dev/null || true
-	rustup override set stable
 	CARGO_LLVM_COV_VERSION="${CARGO_LLVM_COV_VERSION:-0.8.6}"
-	if ! command -v cargo-llvm-cov >/dev/null 2>&1; then
-		cargo install cargo-llvm-cov \
+	if ! rustup run stable cargo llvm-cov --version >/dev/null 2>&1; then
+		rustup run stable cargo install cargo-llvm-cov \
 			--locked \
 			--version "${CARGO_LLVM_COV_VERSION}"
 	fi
-	cargo llvm-cov \
+	rustup run stable cargo llvm-cov \
 		--workspace \
 		--all-features \
 		--html \

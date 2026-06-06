@@ -32,6 +32,15 @@
       ],
       "depNameTemplate": "wasm-bindgen-cli",
       "datasourceTemplate": "crate"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["scripts/ci/site/preview-pages-local.sh"],
+      "matchStrings": [
+        "CARGO_LLVM_COV_VERSION=\"\\$\\{CARGO_LLVM_COV_VERSION:-(?<currentValue>\\S+)\\}\""
+      ],
+      "depNameTemplate": "cargo-llvm-cov",
+      "datasourceTemplate": "crate"
     }
   ],
   "packageRules": [
