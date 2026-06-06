@@ -41,7 +41,7 @@ jobs:
       bundle-manifest: .github/pages-bundle-manifest.json
       commit-sha: ${{ github.event.workflow_run.head_sha || github.sha }}
       fallback-ref: main
-      tooling-ref: f469f4d5c187f0700ccec4c023152fb68ee3dc89 # v0.32.3
+      tooling-ref: '69d5990a1d877f752ecd47bd961851b5f6feea36' # v0.32.4
       build-job-name: Build site and bundle reports
       deploy-job-name: Deploy to GitHub Pages
       runner-image: ubuntu-24.04
