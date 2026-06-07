@@ -72,6 +72,7 @@ fi
 if [[ "${INCLUDE_RUST}" == "1" ]]; then
 	echo "==> Running Rust coverage + HTML (workspace; may take several minutes)"
 	rustup toolchain install stable --profile minimal 2>/dev/null || true
+	rustup component add llvm-tools-preview --toolchain stable
 	CARGO_LLVM_COV_VERSION="${CARGO_LLVM_COV_VERSION:-0.8.6}"
 	installed_llvm_cov_version=""
 	if llvm_cov_version_out="$(rustup run stable cargo llvm-cov --version 2>/dev/null)"; then
