@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-only
 # Purpose: Install cargo-nextest and optional cargo-llvm-cov for Rust CI.
 # Workaround: pass --force on cargo install when reinstalling a pinned version
 # (lgtm-ci v0.33.0 setup-rust-nextest.sh omits --force; see CI run 27070245152).
@@ -15,7 +15,7 @@ _install_cargo_crate() {
 	local version="$2"
 
 	if command -v "$crate" >/dev/null 2>&1; then
-		if "$crate" --version 2>/dev/null | grep -qE "^${crate} ${version}(\$| )"; then
+		if "$crate" --version 2>/dev/null | grep -qxF "${crate} ${version}"; then
 			return 0
 		fi
 		echo "Found ${crate} but not pinned ${version}; reinstalling..."
@@ -25,6 +25,7 @@ _install_cargo_crate() {
 	if command -v cargo-binstall >/dev/null 2>&1; then
 		cargo binstall "$crate" \
 			--version "$version" \
+			--force \
 			--no-confirm ||
 			cargo install "$crate" \
 				--locked \

@@ -34,7 +34,7 @@ impl Modify for CookieAuthAddon {
         title = "Rustume API",
         version = env!("CARGO_PKG_VERSION"),
         description = "REST API for resume parsing, rendering, validation, and Rustume Cloud storage.\n\n## Features\n\n- **Parse**: Import resumes from JSON Resume, LinkedIn exports, or Reactive Resume v3\n- **Render**: Generate PDF or PNG previews of resumes\n- **Validate**: Check resume data against the schema\n- **Templates**: List available resume templates with theme colors\n- **Cloud** (when enabled): WorkOS auth and authenticated resume CRUD",
-        license(name = "MIT", url = "https://opensource.org/licenses/MIT"),
+        license(name = "AGPL-3.0-only", url = "https://www.gnu.org/licenses/agpl-3.0.en.html"),
         contact(name = "Rustume", url = "https://github.com/lgtm-hq/Rustume")
     ),
     servers(

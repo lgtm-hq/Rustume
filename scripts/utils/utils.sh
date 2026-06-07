@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
 
 # Shared utilities for workflow scripts
 # This file contains common functions and variables used across multiple scripts

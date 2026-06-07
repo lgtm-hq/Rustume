@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
 # Run osv-scanner via lintro in Docker and generate a security PR comment.
 set -euo pipefail
 

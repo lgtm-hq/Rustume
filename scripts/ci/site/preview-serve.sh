@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
 # Serve apps/site/dist with the same ASTRO_BASE used at build time (GitHub Pages subpath).
 set -euo pipefail
 

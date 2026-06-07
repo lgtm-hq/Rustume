@@ -7,6 +7,10 @@ describe("site-links", () => {
     expect(docs.cloudOverview).toMatch(/^docs\//);
   });
 
+  it("exposes non-doc internal paths like license", () => {
+    expect(docs.license).toBe("license/");
+  });
+
   it("exposes home and external link metadata", () => {
     expect(home.href).toBe("/");
     expect(external.rust.href).toMatch(/^https:\/\//);

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Prepare lychee-action CLI args from lgtm-ci build-lychee-args output.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-only
 set -euo pipefail
 
 : "${RAW_ARGS:?RAW_ARGS is required}"

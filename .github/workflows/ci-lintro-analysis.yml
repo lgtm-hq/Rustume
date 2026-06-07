@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-only
 ---
 name: Quality - Lint & Format
 # Runs lintro quality analysis on PRs and pushes using Docker.

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-only
 """Format lintro osv-scanner JSON output as a markdown PR comment body.
 
 Adapted from py-lintro's format-security-comment.py to parse lintro's

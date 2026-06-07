@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-only
 #
 # check-vuln-suppressions.sh — Detect stale or expired vulnerability
 # suppressions in .osv-scanner.toml and open a cleanup PR removing them.

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
 set -euo pipefail
 
 # Functional smoke test for Rustume container images.
@@ -81,6 +82,17 @@ until curl -sf --max-time "$CURL_TIMEOUT" "http://127.0.0.1:${PORT}/health" >/de
 	fi
 	sleep 1
 done
+
+echo "Checking bundled license texts"
+legal_staging="$(mktemp -d)"
+for legal_file in LICENSE NOTICE THIRD_PARTY_NOTICES; do
+	if ! docker cp "${CONTAINER_NAME}:/app/legal/${legal_file}" "${legal_staging}/${legal_file}" 2>/dev/null; then
+		echo "Missing /app/legal/${legal_file}" >&2
+		rm -rf "$legal_staging"
+		exit 1
+	fi
+done
+rm -rf "$legal_staging"
 
 echo "Checking web UI"
 if ! curl -sf --max-time "$CURL_TIMEOUT" "http://127.0.0.1:${PORT}/" | grep -qi "rustume"; then

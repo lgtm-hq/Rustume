@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
 set -euo pipefail
 
 # package-unix.sh
@@ -53,7 +54,7 @@ fi
 mkdir -p "$STAGING"
 cp "$CLI_BIN" "$STAGING/"
 cp "$SRV_BIN" "$STAGING/"
-cp README.md LICENSE "$STAGING/" 2>/dev/null || true
+cp README.md LICENSE NOTICE THIRD_PARTY_NOTICES "$STAGING/"
 tar czf "${STAGING}.tar.gz" "$STAGING"
 shasum -a 256 "${STAGING}.tar.gz" >"${STAGING}.tar.gz.sha256"
 rm -rf "$STAGING"
