@@ -5,6 +5,7 @@ describe("site-links", () => {
   it("exposes internal doc paths under docs/", () => {
     expect(docs.quickstart).toMatch(/^docs\//);
     expect(docs.cloudOverview).toMatch(/^docs\//);
+    expect(docs.license).toBe("license/");
   });
 
   it("exposes home and external link metadata", () => {

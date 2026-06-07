@@ -14,6 +14,7 @@ export const docs = {
   cloudPublicPages: "docs/cloud/public-pages/",
   pricingPlans: "docs/pricing/plans/",
   faq: "faq/",
+  license: "license/",
   importFormats: "docs/getting-started/import-formats/",
   cliUsage: "docs/cli/usage/",
   apiKeys: "docs/api/api-keys/",

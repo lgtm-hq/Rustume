@@ -25,6 +25,18 @@ if (existsSync(favicon)) {
   console.log("Copied favicon.svg");
 }
 
+const legalDir = join(publicDir, "legal");
+mkdirSync(legalDir, { recursive: true });
+for (const name of ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES"]) {
+  const src = join(repoRoot, name);
+  if (existsSync(src)) {
+    cpSync(src, join(legalDir, name));
+    console.log(`Copied ${name}`);
+  } else {
+    throw new Error(`Missing required legal file: ${name}`);
+  }
+}
+
 const turboCssRoot = join(
   siteRoot,
   "node_modules",

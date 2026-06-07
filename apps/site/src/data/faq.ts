@@ -175,6 +175,14 @@ export const FAQ_ITEMS: FaqItem[] = [
     learnMore: "docs/getting-started/import-formats/",
   },
   {
+    id: "license-agpl",
+    category: "privacy",
+    question: "Why is Rustume licensed under AGPL-3.0?",
+    answer:
+      "AGPL keeps Rustume Cloud transparent: self-hosting and local CLI use are unrestricted, but offering Rustume as a network service requires sharing modifications under the same license. Template designs adapted from Reactive Resume remain MIT-attributed in THIRD_PARTY_NOTICES.",
+    learnMore: "license/",
+  },
+  {
     id: "api-keys-scope",
     category: "data",
     question: "What can API keys do?",

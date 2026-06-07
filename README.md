@@ -24,7 +24,7 @@ A privacy-first, offline-first resume builder powered by Rust.
 <!-- Badges: Security & License -->
 <p align="center">
 <a href="https://github.com/lgtm-hq/Rustume/actions/workflows/scorecards.yml?query=branch%3Amain"><img src="https://github.com/lgtm-hq/Rustume/actions/workflows/scorecards.yml/badge.svg?branch=main" alt="OpenSSF Scorecard"></a>
-<a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="License"></a>
 </p>
 
 <!-- Badges: Tech Stack -->
@@ -147,7 +147,8 @@ uv run lintro fmt        # Auto-fix formatting
 
 Rustume is heavily inspired by and builds upon the work of Reactive Resume by
 Amruth Pillai. The template designs in particular are adapted from Reactive
-Resume's originals.
+Resume's originals. See [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES) for the
+required MIT attribution.
 
 <p>
 <a href="https://rxresu.me/"><img src="https://img.shields.io/badge/Inspired_by-Reactive_Resume-6c47ff?logo=github&logoColor=white" alt="Reactive Resume"></a>
@@ -163,4 +164,20 @@ Resume's originals.
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) for details.
+Rustume is licensed under the [GNU Affero General Public License v3.0
+(AGPL-3.0-only)](LICENSE).
+
+**What this means in practice:**
+
+- **Self-hosting** for personal or internal use: fully permitted
+- **Offering Rustume as a network service**: you must share your modifications under AGPL
+- **CLI and library use locally**: no network interaction, so AGPL network provisions do not apply
+- **Template designs**: adapted from
+  [Reactive Resume](https://github.com/AmruthPillai/Reactive-Resume) (MIT); see
+  [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES)
+
+Prior commits were released under MIT; AGPL applies from the relicense forward.
+See also [NOTICE](NOTICE).
+
+Rustume follows the same licensing approach as projects like Plausible, Cal.com,
+Signal, and Standard Notes.

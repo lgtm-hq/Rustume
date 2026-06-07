@@ -1,0 +1,99 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PageHeader from '../../components/ui/PageHeader.astro';
+import Callout from '../../components/ui/Callout.astro';
+import Section from '../../components/ui/Section.astro';
+import DocsResources from '../../components/docs/DocsResources.astro';
+import { docHref, docs, external } from '../../data/site-links';
+
+const base = import.meta.env.BASE_URL;
+const legal = (name: string) => `${base}legal/${name}`;
+const licenseResources = [
+  { label: 'Full AGPL-3.0 text', href: legal('LICENSE') },
+  { label: 'NOTICE', href: legal('NOTICE') },
+  { label: 'Third-party notices', href: legal('THIRD_PARTY_NOTICES') },
+  { label: 'FAQ', href: docHref(base, docs.faq) },
+  { label: 'Contributing guide', href: `${external.github.href}/blob/main/CONTRIBUTING.md` },
+];
+---
+
+<BaseLayout
+  title="License"
+  description="Rustume is licensed under AGPL-3.0-only. Self-hosting and local CLI use are unrestricted; network services must share modifications."
+>
+  <div class="container content license-page">
+    <PageHeader
+      kicker="Legal"
+      title="License"
+      description="Rustume is licensed under the GNU Affero General Public License v3.0 only (AGPL-3.0-only)."
+    />
+
+    <Callout title="What this means in practice" variant="info" class="callout-banner">
+      <ul>
+        <li>
+          <strong>Self-hosting</strong> for personal or internal use is fully permitted.
+        </li>
+        <li>
+          <strong>Rustume Cloud</strong> and other hosted offerings may charge for operation;
+          AGPL does not restrict paid hosting of unmodified software.
+        </li>
+        <li>
+          <strong>Offering Rustume as a network service</strong> after modifying the software
+          requires sharing those modifications under AGPL.
+        </li>
+        <li>
+          <strong>CLI and library use locally</strong> does not trigger AGPL network provisions.
+        </li>
+      </ul>
+    </Callout>
+
+    <Section>
+      <h2>Template attribution</h2>
+      <p>
+        Resume template designs are adapted from{' '}
+        <a href={external.reactiveResume.href} target="_blank" rel="noopener noreferrer">
+          Reactive Resume
+        </a>{' '}
+        (MIT). See{' '}
+        <a href={legal('THIRD_PARTY_NOTICES')}>THIRD_PARTY_NOTICES</a> for the required copyright
+        and permission notice.
+      </p>
+    </Section>
+
+    <Section>
+      <h2>Prior licensing</h2>
+      <p>
+        Earlier commits were released under MIT. AGPL-3.0-only applies from the relicense forward.
+      </p>
+    </Section>
+
+    <Section>
+      <h2>Full license texts</h2>
+      <ul>
+        <li><a href={legal('LICENSE')}>LICENSE</a> — GNU AGPL-3.0</li>
+        <li><a href={legal('NOTICE')}>NOTICE</a> — Rustume copyright header</li>
+        <li>
+          <a href={legal('THIRD_PARTY_NOTICES')}>THIRD_PARTY_NOTICES</a> — Reactive Resume MIT
+          attribution
+        </li>
+      </ul>
+    </Section>
+
+    <DocsResources resources={licenseResources} />
+  </div>
+</BaseLayout>
+
+<style>
+  .license-page {
+    max-width: 48rem;
+  }
+
+  .callout-banner ul {
+    margin: 0;
+    padding-left: 1.25rem;
+  }
+
+  .callout-banner li + li {
+    margin-top: 0.5rem;
+  }
+</style>
