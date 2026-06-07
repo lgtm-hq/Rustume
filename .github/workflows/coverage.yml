@@ -31,6 +31,7 @@ jobs:
     with:
       tooling-ref: '0c9b946ff6bb93e3e67ce1d1f4a3c419266dc79e' # v0.33.0
       job-name: "🦀 Rust Coverage"
+      # reusable-rust-test.yml sets INSTALL_COVERAGE_TOOLS from coverage: true for setup-script.
       setup-script: scripts/ci/testing/rust/setup-rust-nextest.sh
       coverage: true
       upload-pages-coverage-html: true
