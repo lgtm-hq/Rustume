@@ -2,6 +2,7 @@
   "name": "@rustume/web",
   "version": "0.1.0",
   "type": "module",
+  "license": "AGPL-3.0-only",
   "private": true,
   "scripts": {
     "dev": "vite",

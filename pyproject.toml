@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Linting configuration for Rustume"
 requires-python = ">=3.11"
 readme = "README.md"
-license = { text = "MIT" }
+license = "AGPL-3.0-only"
 
 # No Python dependencies - this is just for lintro tooling
 dependencies = []

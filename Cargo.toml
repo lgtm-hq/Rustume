@@ -5,7 +5,7 @@ members = ["crates/*", "bindings/*"]
 [workspace.package]
 version = "0.17.0"
 edition = "2021"
-license = "MIT"
+license = "AGPL-3.0-only"
 repository = "https://github.com/lgtm-hq/Rustume"
 
 [workspace.dependencies]
