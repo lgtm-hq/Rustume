@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-only
 """Classify vulnerability suppressions as active, stale, or expired.
 
 Standalone version — does not depend on the lintro Python package.

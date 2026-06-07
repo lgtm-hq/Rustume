@@ -112,6 +112,9 @@ COPY --from=web-builder /app/apps/web/dist /app/web
 COPY --from=builder /usr/share/fonts/liberation /usr/share/fonts/truetype/liberation
 COPY --from=builder /usr/share/fonts/dejavu /usr/share/fonts/truetype/dejavu
 
+# License texts (AGPL distribution compliance for self-hosted images)
+COPY LICENSE NOTICE THIRD_PARTY_NOTICES /app/legal/
+
 ENV RUST_LOG=info
 ENV PORT=3000
 ENV RUSTUME_STATIC_DIR=/app/web

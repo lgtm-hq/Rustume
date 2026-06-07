@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-only
 ---
 name: Quality Check - Action Pinning Validation
 # Validates that external GitHub Actions are pinned to SHA commits.

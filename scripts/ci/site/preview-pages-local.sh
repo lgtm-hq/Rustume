@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
 # Build the docs site and optionally merge local coverage HTML for a Pages-like preview.
 set -euo pipefail
 

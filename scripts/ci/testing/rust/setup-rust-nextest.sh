@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-only
 # Purpose: Install cargo-nextest and optional cargo-llvm-cov for Rust CI.
 # Workaround: pass --force on cargo install when reinstalling a pinned version
 # (lgtm-ci v0.33.0 setup-rust-nextest.sh omits --force; see CI run 27070245152).
