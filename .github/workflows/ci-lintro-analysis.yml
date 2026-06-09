@@ -68,7 +68,8 @@ jobs:
       contents: read
       pull-requests: write
     with:
-      exit-code: ${{ needs.quality.outputs.exit-code }}
+      exit-code: >-
+        ${{ needs.quality.outputs.exit-code != '' && needs.quality.outputs.exit-code || '1' }}
       tooling-ref: 'cecca744299be6a34f3b4ea4f18c00262081ab61' # v0.41.0
       job-name: "🛠️ Lintro Code Quality & Analysis PR Comment"
       egress-policy: block
