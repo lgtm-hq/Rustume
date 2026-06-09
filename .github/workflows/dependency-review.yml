@@ -21,7 +21,7 @@ jobs:
       fail-on-severity: high
       tooling-ref: 'cecca744299be6a34f3b4ea4f18c00262081ab61' # v0.41.0
       egress-policy: block
-      egress-preset: scorecard
+      egress-preset: github-tooling
     permissions:
       contents: read
       pull-requests: read
