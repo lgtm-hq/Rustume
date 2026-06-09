@@ -38,18 +38,18 @@ jobs:
       tooling-ref: 'cecca744299be6a34f3b4ea4f18c00262081ab61' # v0.41.0
       job-name: Build and check documentation site
       test-job-name: Test documentation site
+      node-version: '22'
+      package-manager: bun
+      site-working-directory: apps/site
+      cache-dependency-path: apps/site/bun.lock
       build-command: ./scripts/ci/site/build.sh
       build-env: |
         ASTRO_BASE=/
       check-command: ./scripts/ci/site/check.sh
       test-command: ./scripts/ci/site/test-all.sh
-      site-working-directory: apps/site
-      cache-dependency-path: apps/site/bun.lock
       python-version: '3.12'
-      install-python-dependencies: false
       lychee-paths: apps/site/dist
       lychee-file-extensions: html
-      check-external: false
       lychee-root-dir: apps/site/dist
       upload-site-artifact: true
       site-artifact-name: site-dist
@@ -57,3 +57,14 @@ jobs:
       runner-image: ubuntu-24.04
       egress-policy: block
       egress-preset: github-pages
+      test-allowed-endpoints: |
+        github.com:443
+        api.github.com:443
+        codeload.github.com:443
+        objects.githubusercontent.com:443
+        release-assets.githubusercontent.com:443
+        raw.githubusercontent.com:443
+        registry.npmjs.org:443
+        bun.sh:443
+        pypi.org:443
+        files.pythonhosted.org:443
