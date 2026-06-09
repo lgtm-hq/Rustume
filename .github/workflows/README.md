@@ -3,7 +3,7 @@
 This repository uses GitHub Actions for quality gates, coverage, release automation,
 and publishing. Most workflows are thin callers to
 [lgtm-ci](https://github.com/lgtm-hq/lgtm-ci) reusable workflows pinned at
-`0c9b946ff6bb93e3e67ce1d1f4a3c419266dc79e` (**v0.33.0**). All workflow SHA pins include
+`b620af6996fc59f8de7fba1d451f76c67d788339` (**v0.41.0**). All workflow SHA pins include
 trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enforced by
 [lgtm-ci validate-action-pinning](https://github.com/lgtm-hq/lgtm-ci/pull/221) (via
 `validate-action-pinning.yml`) and automated by the
@@ -18,10 +18,10 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
   (ruleset gate: `rust-build / 🔨 Build Check`)
 - **coverage.yml** — Rust + web coverage via `reusable-rust-test` and
   `reusable-test-node`; uploads Pages coverage HTML artifacts and PR test summaries
-- **ci-lintro-analysis.yml** — Lintro quality in Docker (inline exception: custom image
-  pin + fork-safe PR comment scripts)
-- **site-quality.yml** — Docs site build, link check, Astro check, Vitest (inline by
-  design: custom Vitest JSON layout)
+- **ci-lintro-analysis.yml** — Lintro quality in Docker via `reusable-quality-lint` and
+  `reusable-publish-quality-summary`
+- **site-quality.yml** — Docs site build, link check, Astro check, Vitest + pytest via
+  `reusable-site-quality`
 
 ## Deploy
 
@@ -32,11 +32,10 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
 
 ## Release
 
-- **semantic-release.yml** — Opens version bump PR (inline exception: dual
-  `workflow_run` + `push` triggers; `calculate-version` composite + local release
-  scripts)
+- **semantic-release.yml** — Opens version bump PR via `reusable-release-version-pr`
+  (dual `workflow_run` + `push` triggers for non-Rust commits)
 - **auto-tag-on-main.yml** — Creates tags when `Cargo.toml` version changes on `main`
-  (inline; lgtm-ci composites)
+  via `reusable-release-auto-tag` (`version-source: cargo`, `create-release: false`)
 - **publish-release-on-tag.yml** — GitHub Release on tag push (inline;
   `create-github-release` composite)
 - **build-binary.yml** — Cross-platform release binaries (inline; Windows
@@ -48,18 +47,16 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
   `reusable-semantic-pr-title`
 - **pr-labeler.yml** — Auto-label PRs via `reusable-pr-labeler`
 - **pr-auto-assign.yml** — Auto-assign reviewers via `reusable-pr-auto-assign`
-- **dependency-review.yml** — PR dependency review (inline exception; hardened audit
-  path in `security-dependency-review.yml`)
+- **dependency-review.yml** — PR dependency review via `reusable-dependency-review`
 
 ## Security & maintenance
 
-- **security-dependency-review.yml** — Cargo audit + PR comment (lgtm-ci composites +
-  upstream `post-pr-comment` action)
-- **codeql.yml** — CodeQL analysis (inline exception: multi-language `build-mode`
-  conflict with `reusable-codeql`)
+- **security-dependency-review.yml** — Cargo audit via `reusable-security-audit` and
+  `reusable-publish-security-audit-comment`
+- **codeql.yml** — CodeQL analysis via `reusable-codeql` (per-language build modes)
 - **scorecards.yml** — OpenSSF Scorecard via `reusable-scorecards`
-- **vuln-suppression-check.yml** — Validates `vuln-suppressions.toml` (lgtm-ci
-  composites + local script)
+- **vuln-suppression-check.yml** — Stale OSV suppression cleanup via
+  `reusable-vuln-suppression-check`
 - **validate-action-pinning.yml** — SHA pin policy via `reusable-validate-action-pinning`
 - **ghcr-cleanup.yml** — GHCR prune (hybrid: `reusable-ghcr-cleanup` for untagged +
   inline tagged retention)
@@ -70,9 +67,9 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
 Use the **release commit SHA**, not the annotated tag object SHA:
 
 ```yaml
-uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@0c9b946ff6bb93e3e67ce1d1f4a3c419266dc79e # v0.33.0
+uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@b620af6996fc59f8de7fba1d451f76c67d788339 # v0.41.0
 with:
-  tooling-ref: '0c9b946ff6bb93e3e67ce1d1f4a3c419266dc79e' # v0.33.0
+  tooling-ref: 'b620af6996fc59f8de7fba1d451f76c67d788339' # v0.41.0
 ```
 
 Sparse `lgtm-hq` tooling checkouts may use `actions/checkout` when `ref:` is quoted and
@@ -94,6 +91,6 @@ in-progress runs on `main`.
 
 ## Local scripts
 
-Repo-local scripts under `scripts/ci/` remain only for documented inline workflow
-exceptions (lintro Docker, semantic release, site quality, GHCR tagged prune, etc.).
-Coverage and PR-hygiene paths are handled by lgtm-ci reusables.
+Repo-local scripts under `scripts/ci/` remain for site build/test, release binary
+packaging, and GHCR tagged prune. Quality, security audit, release automation, and
+vulnerability suppression paths are handled by lgtm-ci reusables.

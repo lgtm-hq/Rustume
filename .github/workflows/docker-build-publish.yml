@@ -33,7 +33,7 @@ jobs:
   docker:
     name: 🐳 Docker Build & Publish
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@0c9b946ff6bb93e3e67ce1d1f4a3c419266dc79e # v0.33.0
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@b620af6996fc59f8de7fba1d451f76c67d788339 # v0.41.0
     permissions:
       contents: read
       packages: write
@@ -41,7 +41,7 @@ jobs:
       attestations: write
       security-events: write
     with:
-      tooling-ref: '0c9b946ff6bb93e3e67ce1d1f4a3c419266dc79e' # v0.33.0
+      tooling-ref: 'b620af6996fc59f8de7fba1d451f76c67d788339' # v0.41.0
       file: docker/Dockerfile
       image-name: lgtm-hq/rustume
       version: >-

@@ -2,7 +2,6 @@
 ---
 name: Release - Automated PR Creation
 # Computes next semantic version using conventional commits and opens release PR.
-# Uses lgtm-ci calculate-version action for version computation.
 
 "on":
   # Gate releases on CI passing: only trigger after the Rust build workflow
@@ -13,9 +12,6 @@ name: Release - Automated PR Creation
     types: [completed]
   # For commits that don't touch Rust source (docs, scripts, Docker, etc.)
   # the test suite never runs, so fall back to a direct push trigger.
-  # Using an explicit include list (paths) ensures Rust-only commits never
-  # fire this trigger. Mixed commits may still fire both paths, but the
-  # branch protection required-checks gate auto-merge on the release PR.
   push:
     branches: [main]
     paths:
@@ -28,110 +24,31 @@ name: Release - Automated PR Creation
       - "Makefile"
   workflow_dispatch:
 
-permissions:
-  contents: read
+permissions: {}
+
+concurrency:
+  group: release-pr-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   open-release-pr:
-    name: Compute next version and open Release PR
-    runs-on: ubuntu-24.04
-    # When triggered by workflow_run, only proceed if the test suite passed.
-    # Push and workflow_dispatch triggers always proceed (no Rust CI to gate on).
     if: >-
       github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success')
+    # yamllint disable-line rule:line-length
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-release-version-pr.yml@b620af6996fc59f8de7fba1d451f76c67d788339 # v0.41.0
+    with:
+      ecosystems: rust
+      auto-merge: true
+      max-bump: minor
+      tooling-ref: 'b620af6996fc59f8de7fba1d451f76c67d788339' # v0.41.0
+      egress-policy: block
+      egress-preset: github-tooling
+    secrets:
+      RELEASE_APP_ID: ${{ secrets.RELEASE_APP_ID }}
+      RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
     permissions:
       contents: write
       pull-requests: write
-    timeout-minutes: 20
-    concurrency:
-      group: release-pr-${{ github.ref }}
-      cancel-in-progress: true
-    defaults:
-      run:
-        shell: bash
-
-    steps:
-      - name: Harden Runner
-        # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@0c9b946ff6bb93e3e67ce1d1f4a3c419266dc79e # v0.33.0
-        with:
-          egress-policy: block
-          allowed-endpoints: >
-            github.com:443
-            api.github.com:443
-            codeload.github.com:443
-            objects.githubusercontent.com:443
-
-      - name: Checkout
-        # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@0c9b946ff6bb93e3e67ce1d1f4a3c419266dc79e # v0.33.0
-        with:
-          fetch-depth: 0
-          fetch-tags: true
-          persist-credentials: true
-
-      - name: Calculate next version
-        id: semrel
-        # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/calculate-version@0c9b946ff6bb93e3e67ce1d1f4a3c419266dc79e # v0.33.0
-        with:
-          max-bump: minor
-
-      - name: Read current version from Cargo.toml
-        id: current
-        run: ./scripts/ci/maintenance/auto-tag.sh read-version
-
-      - name: Check if version bump needed
-        id: needs_bump
-        env:
-          NEXT_VERSION: ${{ steps.semrel.outputs.next-version }}
-          CURRENT_VERSION: ${{ steps.current.outputs.version }}
-        run: ./scripts/ci/release/check-bump-needed.sh
-
-      - name: Create GitHub App installation token
-        if: steps.needs_bump.outputs.required == 'true'
-        id: app-token
-        # yamllint disable-line rule:line-length
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
-        with:
-          app-id: ${{ secrets.RELEASE_APP_ID }}
-          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-
-      - name: Update Cargo.toml version
-        if: steps.needs_bump.outputs.required == 'true'
-        run: >
-          ./scripts/ci/maintenance/update-cargo-version.sh
-          "${{ steps.semrel.outputs.next-version }}"
-
-      - name: Create Release PR
-        if: steps.needs_bump.outputs.required == 'true'
-        id: cpr
-        # yamllint disable-line rule:line-length
-        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
-        with:
-          token: ${{ steps.app-token.outputs.token }}
-          commit-message: >-
-            chore(release): cut ${{ steps.semrel.outputs.next-version }}
-          title: >-
-            chore(release): prepare ${{ steps.semrel.outputs.next-version }}
-          body: |
-            Automated version bump to `${{ steps.semrel.outputs.next-version }}`.
-
-            - Updates `Cargo.toml` workspace version
-            - Respects branch protection (no direct push to `main`)
-            - Upon merge, tag and publish workflows run automatically
-          branch: release/${{ steps.semrel.outputs.next-version }}
-          base: main
-          labels: |
-            release-bump
-
-      - name: Enable auto-merge for Release PR
-        if: steps.cpr.outputs.pull-request-number != ''
-        env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
-        run: ./scripts/ci/release/enable-auto-merge.sh
