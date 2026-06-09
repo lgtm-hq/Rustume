@@ -28,7 +28,7 @@ jobs:
       tooling-ref: 'cecca744299be6a34f3b4ea4f18c00262081ab61' # v0.41.0
       job-name: "🔬 CodeQL Analysis"
       languages: actions,rust
-      language-build-modes: '{"rust":"autobuild","actions":"none"}'
+      language-build-modes: '{"rust":"none","actions":"none"}'
       egress-policy: block
       egress-preset: quality
     permissions:
