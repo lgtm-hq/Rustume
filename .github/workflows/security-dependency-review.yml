@@ -22,12 +22,12 @@ concurrency:
 jobs:
   security-audit:
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-security-audit.yml@b620af6996fc59f8de7fba1d451f76c67d788339 # v0.41.0
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-security-audit.yml@cecca744299be6a34f3b4ea4f18c00262081ab61 # v0.41.0
     permissions:
       contents: read
       packages: read
     with:
-      tooling-ref: 'b620af6996fc59f8de7fba1d451f76c67d788339' # v0.41.0
+      tooling-ref: 'cecca744299be6a34f3b4ea4f18c00262081ab61' # v0.41.0
       job-name: "🔐 Security Audit"
       runner-image: ubuntu-24.04
       # yamllint disable-line rule:line-length
@@ -37,19 +37,18 @@ jobs:
       egress-preset: quality
 
   post-pr-comment:
-    name: "💬 Post PR Comment"
     if: >-
       always() &&
       github.event_name == 'pull_request' &&
       github.event.pull_request.head.repo.full_name == github.repository
     needs: security-audit
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-publish-security-audit-comment.yml@b620af6996fc59f8de7fba1d451f76c67d788339 # v0.41.0
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-publish-security-audit-comment.yml@cecca744299be6a34f3b4ea4f18c00262081ab61 # v0.41.0
     permissions:
       contents: read
       pull-requests: write
     with:
-      tooling-ref: 'b620af6996fc59f8de7fba1d451f76c67d788339' # v0.41.0
+      tooling-ref: 'cecca744299be6a34f3b4ea4f18c00262081ab61' # v0.41.0
       job-name: "💬 Post PR Comment"
       runner-image: ubuntu-24.04
       egress-policy: block

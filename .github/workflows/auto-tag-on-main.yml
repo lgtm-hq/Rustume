@@ -18,9 +18,9 @@ concurrency:
 jobs:
   auto-tag:
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-release-auto-tag.yml@b620af6996fc59f8de7fba1d451f76c67d788339 # v0.41.0
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-release-auto-tag.yml@cecca744299be6a34f3b4ea4f18c00262081ab61 # v0.41.0
     with:
-      tooling-ref: 'b620af6996fc59f8de7fba1d451f76c67d788339' # v0.41.0
+      tooling-ref: 'cecca744299be6a34f3b4ea4f18c00262081ab61' # v0.41.0
       job-name: "🏷️ Create Release Tag"
       version-source: cargo
       create-release: false
