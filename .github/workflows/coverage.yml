@@ -88,5 +88,5 @@ jobs:
       job-result: ${{ needs.web-coverage.result }}
       rich-coverage-comment: true
       coverage-artifact-name: node-coverage-22
-      coverage-file: node-coverage-22/apps/web/coverage/coverage-summary.json
+      coverage-file: apps/web/coverage/coverage-summary.json
       coverage-format: istanbul
