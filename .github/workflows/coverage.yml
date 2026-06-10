@@ -65,9 +65,9 @@ jobs:
   publish-web-coverage:
     needs: web-coverage
     if: >-
-      !cancelled()
+      always()
       && github.event_name == 'pull_request'
-      && github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.pull_request.head.repo.fork == false
     # yamllint disable-line rule:line-length
     uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-publish-test-summary.yml@617df664f7ff0b4c2b85126e3c183ad744617dee # v0.44.0
     permissions:
@@ -75,17 +75,16 @@ jobs:
       pull-requests: write # post or update the web coverage summary comment
     with:
       tooling-ref: '617df664f7ff0b4c2b85126e3c183ad744617dee' # v0.44.0
-      runner-image: ubuntu-24.04
       egress-policy: block
       egress-preset: github-tooling
       test-suite-name: "🌐 Web Coverage"
       comment-marker: web-coverage-report
-      tests-passed: ${{ needs.web-coverage.outputs.tests-passed }}
-      tests-failed: ${{ needs.web-coverage.outputs.tests-failed }}
-      tests-total: ${{ needs.web-coverage.outputs.tests-total }}
-      coverage-percent: ${{ needs.web-coverage.outputs.coverage-percent }}
+      tests-passed: ${{ needs.web-coverage.outputs['tests-passed'] }}
+      tests-failed: ${{ needs.web-coverage.outputs['tests-failed'] }}
+      tests-total: ${{ needs.web-coverage.outputs['tests-total'] }}
+      coverage-percent: ${{ needs.web-coverage.outputs['coverage-percent'] }}
       coverage-threshold: "0"
-      job-result: ${{ needs.web-coverage.outputs.passed == 'true' && 'success' || 'failure' }}
+      job-result: ${{ needs.web-coverage.result }}
       rich-coverage-comment: true
       coverage-artifact-name: node-coverage-22
       coverage-file: node-coverage-22/apps/web/coverage/coverage-summary.json
