@@ -3,7 +3,7 @@
 This repository uses GitHub Actions for quality gates, coverage, release automation,
 and publishing. Most workflows are thin callers to
 [lgtm-ci](https://github.com/lgtm-hq/lgtm-ci) reusable workflows pinned at
-`cecca744299be6a34f3b4ea4f18c00262081ab61` (**v0.41.0** release commit; not the annotated
+`617df664f7ff0b4c2b85126e3c183ad744617dee` (**v0.44.0** release commit; not the annotated
 tag object SHA). All workflow SHA pins include
 trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enforced by
 [lgtm-ci validate-action-pinning](https://github.com/lgtm-hq/lgtm-ci/pull/221) (via
@@ -17,8 +17,10 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
 
 - **test-rust.yml** — Rust workspace compile check via `reusable-test-rust-build`
   (ruleset gate: `rust-build / 🔨 Build Check`)
-- **coverage.yml** — Rust + web coverage via `reusable-rust-test` and
-  `reusable-test-node`; uploads Pages coverage HTML artifacts and PR test summaries
+- **coverage.yml** — Single-runtime coverage mode (lgtm-ci v0.44 compat/coverage contract): `rust-coverage` and
+  `web-coverage` each use one canonical runtime, `coverage: true`, and
+  `publish-test-summary: true`; uploads Pages coverage HTML artifacts and distinct
+  PR coverage comments (suite name in heading)
 - **ci-lintro-analysis.yml** — Lintro quality in Docker via `reusable-quality-lint` and
   `reusable-publish-quality-summary`
 - **site-quality.yml** — Docs site build, link check, Astro check, Vitest + pytest via
@@ -68,9 +70,9 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
 Use the **release commit SHA**, not the annotated tag object SHA:
 
 ```yaml
-uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@cecca744299be6a34f3b4ea4f18c00262081ab61 # v0.41.0
+uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@617df664f7ff0b4c2b85126e3c183ad744617dee # v0.44.0
 with:
-  tooling-ref: 'cecca744299be6a34f3b4ea4f18c00262081ab61' # v0.41.0 release commit
+  tooling-ref: '617df664f7ff0b4c2b85126e3c183ad744617dee' # v0.44.0 release commit
 ```
 
 Sparse `lgtm-hq` tooling checkouts may use `actions/checkout` when `ref:` is quoted and
