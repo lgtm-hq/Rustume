@@ -46,6 +46,7 @@ jobs:
       tooling-ref: '617df664f7ff0b4c2b85126e3c183ad744617dee' # v0.44.0
       egress-policy: block
       egress-preset: github-tooling
+      runner-image: ubuntu-24.04
     secrets:
       RELEASE_APP_ID: ${{ secrets.RELEASE_APP_ID }}
       RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}

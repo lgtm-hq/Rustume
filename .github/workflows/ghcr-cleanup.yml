@@ -50,6 +50,7 @@ jobs:
       dry-run: ${{ inputs.dry_run == true }}
       tooling-ref: '617df664f7ff0b4c2b85126e3c183ad744617dee' # v0.44.0
       egress-policy: audit
+      runner-image: ubuntu-24.04
     secrets:
       token: ${{ secrets.GITHUB_TOKEN }}
 

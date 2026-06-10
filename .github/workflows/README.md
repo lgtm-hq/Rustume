@@ -78,6 +78,11 @@ with:
 Sparse `lgtm-hq` tooling checkouts may use `actions/checkout` when `ref:` is quoted and
 Renovate-tracked.
 
+Pass `runner-image: ubuntu-24.04` on reusables that expose the input (lgtm-ci #338).
+Action-only wrappers (`reusable-codeql`, `reusable-dependency-review`, etc.) and
+multi-arch Docker (`runner-map`) follow the exceptions in
+[lgtm-ci workflow-contract](https://github.com/lgtm-hq/lgtm-ci/blob/main/docs/workflow-contract.md#runner-pinning-exceptions).
+
 ## Token patterns
 
 - **`secrets.GITHUB_TOKEN`** — CI, PR comments, artifacts, Pages deploy
