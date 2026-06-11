@@ -12,14 +12,35 @@ and this project adheres to
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.18.1] - 2026-06-11
+
+### Added
+
 - Add Astro documentation site at `apps/site/` with GitHub Pages deployment.
 - Add Pagefind search, turbo-themes theme selector, and structured docs content.
 - Add `site-quality` CI workflow for build, test, and link-check gates.
 - Serve the web app from the Docker image for a single-container deployment.
 - Add root Docker Compose and deployment documentation.
 
+### Changed
+
+- **ci**: trigger fresh docker build after cosign 409 conflict (33d0fc1)
+
 ### Fixed
 
+- **ci**: grant actions:read and issues:write for reusable failure-notify job (a360f0e)
+- **ci**: move permissions to workflow level for reusable caller (0b30e2c)
+- **ci**: adopt lgtm-ci v0.44.1 and complete reusable workflow migration (#281) (76fade2)
 - Publish release Docker images with semantic and `latest` tags.
 - Trigger release automation from the current Rust build workflow.
 - Include the LinkedIn ZIP fixture required by parser integration tests.
@@ -159,7 +180,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.18.1...HEAD
+[0.18.1]: https://github.com/lgtm-hq/Rustume/compare/v0.18.0...v0.18.1
 [0.11.0]: https://github.com/lgtm-hq/Rustume/compare/v0.10.2...v0.11.0
 [0.10.2]: https://github.com/lgtm-hq/Rustume/compare/v0.10.1...v0.10.2
 [0.10.1]: https://github.com/lgtm-hq/Rustume/compare/v0.10.0...v0.10.1

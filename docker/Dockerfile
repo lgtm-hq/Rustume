@@ -89,11 +89,15 @@ ARG BUN_VERSION=1.3.14
 WORKDIR /app
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 
+COPY Cargo.lock /tmp/Cargo.lock
+
 RUN apk add --no-cache musl-dev bash unzip ca-certificates curl && \
     update-ca-certificates && \
     rustup target add wasm32-unknown-unknown && \
     cargo install wasm-pack --locked && \
-    cargo install wasm-bindgen-cli --version 0.2.122 --locked && \
+    WASM_BINDGEN_VERSION=$(grep 'name = "wasm-bindgen"' /tmp/Cargo.lock -A 1 | grep version | head -1 | cut -d '"' -f 2) && \
+    cargo install "wasm-bindgen-cli@${WASM_BINDGEN_VERSION}" --locked && \
+    rm /tmp/Cargo.lock && \
     case "${TARGETARCH}" in \
       amd64) BUN_ARCH=x64-musl ;; \
       arm64) BUN_ARCH=aarch64-musl ;; \
