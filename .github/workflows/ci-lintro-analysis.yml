@@ -2,7 +2,6 @@
 ---
 name: Quality - Lint & Format
 # Runs lintro quality analysis on PRs and pushes using Docker.
-# Uses lgtm-ci actions for hardening and PR comments.
 
 "on":
   push:
@@ -30,77 +29,49 @@ name: Quality - Lint & Format
   pull_request:
     branches: [main]
 
-permissions:
-  contents: read
+permissions: {}
+
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   quality:
-    name: "quality / 🛠️ Lintro Code Quality & Analysis"
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-      pull-requests: write
-    timeout-minutes: 30
     if: >-
       github.event_name != 'pull_request' ||
       github.event.pull_request.draft == false
-    defaults:
-      run:
-        shell: bash
-    concurrency:
-      group: lint-${{ github.ref }}
-      cancel-in-progress: true
+    # yamllint disable-line rule:line-length
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-quality-lint.yml@ba485556d3d4605b825347c2fe431ad4395b1c63 # v0.44.1
+    permissions:
+      contents: read # checkout repository sources for lintro analysis
+      packages: read # pull the pinned lintro image from GHCR
+    with:
+      tooling-ref: 'ba485556d3d4605b825347c2fe431ad4395b1c63' # v0.44.1
+      job-name: "🛠️ Lintro Code Quality & Analysis"
+      lintro-tool-options: clippy:timeout=300
+      timeout-minutes: 30
+      runner-image: ubuntu-24.04
+      # yamllint disable-line rule:line-length
+      lintro-image: ghcr.io/lgtm-hq/py-lintro:0.61.0@sha256:95b9fd9d62c3ca1227447467767ec915e78a7eef62282dd18c0b1c02ee4d3887
+      egress-policy: block
+      egress-preset: quality
 
-    steps:
-      - name: Harden Runner
-        # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@0c9b946ff6bb93e3e67ce1d1f4a3c419266dc79e # v0.33.0
-        with:
-          egress-policy: block
-          allowed-endpoints: >
-            github.com:443
-            api.github.com:443
-            codeload.github.com:443
-            objects.githubusercontent.com:443
-            ghcr.io:443
-            pkg-containers.githubusercontent.com:443
-            index.crates.io:443
-            static.crates.io:443
-            registry.npmjs.org:443
-            semgrep.dev:443
-
-      - name: Checkout
-        # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@0c9b946ff6bb93e3e67ce1d1f4a3c419266dc79e # v0.33.0
-        with:
-          fetch-depth: 0
-
-      - name: Run Lintro Analysis
-        id: lintro
-        env:
-          # yamllint disable-line rule:line-length
-          LINTRO_IMAGE: ghcr.io/lgtm-hq/py-lintro:0.61.0@sha256:95b9fd9d62c3ca1227447467767ec915e78a7eef62282dd18c0b1c02ee4d3887
-          WORKSPACE: ${{ github.workspace }}
-        run: ./scripts/ci/lintro/run-lintro-docker.sh
-
-      - name: Generate PR Comment
-        if: >-
-          github.event_name == 'pull_request' &&
-          github.event.pull_request.head.repo.fork == false
-        run: ./scripts/ci/ci-pr-comment.sh
-
-      - name: Comment PR with Lintro Results
-        if: >-
-          github.event_name == 'pull_request' &&
-          github.event.pull_request.head.repo.fork == false
-        # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/post-pr-comment@0c9b946ff6bb93e3e67ce1d1f4a3c419266dc79e # v0.33.0
-        with:
-          file: pr-comment.txt
-          marker: "<!-- lintro-report -->"
-
-      - name: Fail on Linting Issues
-        if: >-
-          (success() || failure()) &&
-          env.CHK_EXIT_CODE != '0'
-        run: ./scripts/ci/fail-on-lint.sh
+  publish-pr-comment:
+    needs: quality
+    if: >-
+      always() &&
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.draft == false
+    # yamllint disable-line rule:line-length
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-publish-quality-summary.yml@ba485556d3d4605b825347c2fe431ad4395b1c63 # v0.44.1
+    permissions:
+      contents: read # read quality job outputs and artifacts
+      pull-requests: write # post or update the quality summary comment
+    with:
+      exit-code: >-
+        ${{ needs.quality.outputs.exit-code != '' && needs.quality.outputs.exit-code || '1' }}
+      tooling-ref: 'ba485556d3d4605b825347c2fe431ad4395b1c63' # v0.44.1
+      job-name: "🛠️ Lintro Code Quality & Analysis PR Comment"
+      runner-image: ubuntu-24.04
+      egress-policy: block

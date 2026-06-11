@@ -7,7 +7,6 @@
 | `test.sh` | Vitest with coverage |
 | `test-python.sh` | Pytest for `tests/scripts/ci/` |
 | `test-all.sh` | `test.sh` + `test-python.sh` |
-| `prepare-lychee-action-args.sh` | Strip duplicate lychee flags for `lychee-action` |
 | `preview-serve.sh` | `astro preview` with `ASTRO_BASE` from `defaults.env` (required for `/Rustume/`) |
 | `preview-pages-local.sh` | Build dist + optional local coverage bundles for manual Pages preview |
 
@@ -20,7 +19,7 @@ that value — do not duplicate the path elsewhere.
 | Context | `ASTRO_BASE` |
 | --- | --- |
 | Local `make site-dev` / `site-build` | `ASTRO_BASE_DEFAULT` from `defaults.env` |
-| `site-quality.yml` link check build | `/` (root-relative hrefs under `dist/`) |
+| `site-quality.yml` link check build | `/` (root-relative hrefs under `dist/`; lychee via `reusable-site-quality`) |
 | `deploy-pages.yml` production deploy | `ASTRO_BASE_DEFAULT` via `build.sh` |
 
 ## GitHub Pages (Model B: site + bundled reports)

@@ -101,17 +101,15 @@ Prefer `uv run lintro chk/fmt` for parity with CI. Use
 [Makefile](https://github.com/lgtm-hq/Rustume/blob/main/Makefile) targets only for fast iteration on
 [Rust](https://www.rust-lang.org/)-only changes.
 
-## Docker-based lintro
+## CI parity
 
-CI runs [lintro](https://github.com/lgtm-hq/py-lintro) in [Docker](https://www.docker.com/) for
-reproducibility:
+CI runs [lintro](https://github.com/lgtm-hq/py-lintro) in Docker via
+[`reusable-quality-lint`](https://github.com/lgtm-hq/lgtm-ci). Match it locally with:
 
 ```bash
-scripts/ci/lintro/run-lintro-docker.sh
-
+uv run lintro chk
+uv run lintro fmt
 ```
-
-Useful when local tool versions differ from CI.
 
 ## Common fixes
 

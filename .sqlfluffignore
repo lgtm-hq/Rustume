@@ -1,0 +1,2 @@
+# sqlx migrations: transactional DDL; PG01 (CREATE INDEX CONCURRENTLY) does not apply.
+crates/server/src/db/migrations/
