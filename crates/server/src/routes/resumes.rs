@@ -144,6 +144,7 @@ pub async fn create_resume(
         (status = 200, description = "Resume updated", body = ResumeRow),
         (status = 401, description = "Not authenticated", body = ApiError),
         (status = 404, description = "Resume not found", body = ApiError),
+        (status = 409, description = "Resume version conflict", body = ApiError),
     ),
     security(("cookieAuth" = []))
 )]
@@ -161,44 +162,7 @@ pub async fn update_resume(
     let existing = fetch_owned_resume(&state, user.id, id).await?;
     let title = body.title.unwrap_or(existing.title);
 
-    let row = match body.data {
-        Some(data) => {
-            sqlx::query_as::<_, ResumeRow>(
-                r#"
-                UPDATE resumes
-                SET title = $1,
-                    data = $2,
-                    version = version + 1,
-                    updated_at = now()
-                WHERE id = $3 AND user_id = $4
-                RETURNING id, user_id, title, data, is_public, public_slug, password_hash, version, created_at, updated_at
-                "#,
-            )
-            .bind(&title)
-            .bind(data)
-            .bind(id)
-            .bind(user.id)
-            .fetch_one(&cloud.db)
-            .await
-        }
-        None => {
-            sqlx::query_as::<_, ResumeRow>(
-                r#"
-                UPDATE resumes
-                SET title = $1,
-                    updated_at = now()
-                WHERE id = $2 AND user_id = $3
-                RETURNING id, user_id, title, data, is_public, public_slug, password_hash, version, created_at, updated_at
-                "#,
-            )
-            .bind(&title)
-            .bind(id)
-            .bind(user.id)
-            .fetch_one(&cloud.db)
-            .await
-        }
-    }
-    .map_err(map_resume_db_error)?;
+    let row = apply_resume_update(&cloud.db, user.id, id, &title, body.data, body.version).await?;
 
     Ok(Json(row))
 }
@@ -338,6 +302,126 @@ fn map_resume_db_error(err: sqlx::Error) -> ApiError {
         }
     }
     internal_db_error(err)
+}
+
+async fn apply_resume_update(
+    db: &sqlx::PgPool,
+    user_id: Uuid,
+    resume_id: Uuid,
+    title: &str,
+    data: Option<serde_json::Value>,
+    expected_version: Option<i32>,
+) -> Result<ResumeRow, ApiError> {
+    let row = match (data, expected_version) {
+        (Some(data), Some(version)) => {
+            sqlx::query_as::<_, ResumeRow>(
+                r#"
+                UPDATE resumes
+                SET title = $1,
+                    data = $2,
+                    version = version + 1,
+                    updated_at = now()
+                WHERE id = $3 AND user_id = $4 AND version = $5
+                RETURNING id, user_id, title, data, is_public, public_slug, password_hash, version, created_at, updated_at
+                "#,
+            )
+            .bind(title)
+            .bind(data)
+            .bind(resume_id)
+            .bind(user_id)
+            .bind(version)
+            .fetch_optional(db)
+            .await
+        }
+        (Some(data), None) => {
+            sqlx::query_as::<_, ResumeRow>(
+                r#"
+                UPDATE resumes
+                SET title = $1,
+                    data = $2,
+                    version = version + 1,
+                    updated_at = now()
+                WHERE id = $3 AND user_id = $4
+                RETURNING id, user_id, title, data, is_public, public_slug, password_hash, version, created_at, updated_at
+                "#,
+            )
+            .bind(title)
+            .bind(data)
+            .bind(resume_id)
+            .bind(user_id)
+            .fetch_optional(db)
+            .await
+        }
+        (None, Some(version)) => {
+            sqlx::query_as::<_, ResumeRow>(
+                r#"
+                UPDATE resumes
+                SET title = $1,
+                    version = version + 1,
+                    updated_at = now()
+                WHERE id = $2 AND user_id = $3 AND version = $4
+                RETURNING id, user_id, title, data, is_public, public_slug, password_hash, version, created_at, updated_at
+                "#,
+            )
+            .bind(title)
+            .bind(resume_id)
+            .bind(user_id)
+            .bind(version)
+            .fetch_optional(db)
+            .await
+        }
+        (None, None) => {
+            sqlx::query_as::<_, ResumeRow>(
+                r#"
+                UPDATE resumes
+                SET title = $1,
+                    version = version + 1,
+                    updated_at = now()
+                WHERE id = $2 AND user_id = $3
+                RETURNING id, user_id, title, data, is_public, public_slug, password_hash, version, created_at, updated_at
+                "#,
+            )
+            .bind(title)
+            .bind(resume_id)
+            .bind(user_id)
+            .fetch_optional(db)
+            .await
+        }
+    }
+    .map_err(map_resume_db_error)?;
+
+    match row {
+        Some(row) => Ok(row),
+        None => map_update_miss(db, user_id, resume_id, expected_version).await,
+    }
+}
+
+async fn map_update_miss(
+    db: &sqlx::PgPool,
+    user_id: Uuid,
+    resume_id: Uuid,
+    expected_version: Option<i32>,
+) -> Result<ResumeRow, ApiError> {
+    let current = sqlx::query_scalar::<_, i32>(
+        r#"
+        SELECT version
+        FROM resumes
+        WHERE id = $1 AND user_id = $2
+        "#,
+    )
+    .bind(resume_id)
+    .bind(user_id)
+    .fetch_optional(db)
+    .await
+    .map_err(internal_db_error)?;
+
+    match (current, expected_version) {
+        (Some(current_version), Some(_)) => Err(ApiError::version_conflict(
+            "Resume was modified by another session",
+            current_version,
+        )),
+        _ => Err(ApiError::not_found("Resume not found")),
+    }
 }
 
 async fn fetch_owned_resume(

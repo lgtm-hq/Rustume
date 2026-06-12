@@ -6,7 +6,7 @@ use tracing::error;
 
 use crate::auth::session::SESSION_COOKIE;
 use crate::db::User;
-use crate::error::{ApiError, ApiErrorKind};
+use crate::error::ApiError;
 use crate::state::AppState;
 
 /// Authenticated user extracted from a valid `rustume_session` cookie.
@@ -44,9 +44,5 @@ impl FromRequestParts<AppState> for AuthUser {
 }
 
 fn unauthorized(message: &str) -> ApiError {
-    ApiError {
-        error: message.to_string(),
-        details: None,
-        kind: ApiErrorKind::Unauthorized,
-    }
+    ApiError::unauthorized(message)
 }

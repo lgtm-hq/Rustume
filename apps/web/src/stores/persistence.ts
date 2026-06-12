@@ -14,6 +14,8 @@ import { ResumeNotFoundError, ResumeCorruptedError, validateResumeData } from ".
 import { authStore } from "./auth";
 import {
   isCloudAuthenticated,
+  isCloudWriteBlockedError,
+  isResumeVersionConflictError,
   listCloudResumeSummaries,
   loadCloudResume,
   removeCloudResume,
@@ -21,6 +23,7 @@ import {
   duplicateCloudResume,
   cloudResumeExists,
   saveCloudResume,
+  showResumeVersionConflictToast,
 } from "./cloudStorage";
 
 export interface ResumeListItem {
@@ -263,7 +266,14 @@ async function getResume(id: string): Promise<ResumeData> {
 async function saveResume(id: string, data: ResumeData): Promise<void> {
   if (isCloudAuthenticated()) {
     const title = resolveResumeTitle(id, data);
-    await saveCloudResume(id, data, title);
+    try {
+      await saveCloudResume(id, data, title);
+    } catch (error: unknown) {
+      if (isResumeVersionConflictError(error)) {
+        showResumeVersionConflictToast(id);
+      }
+      throw error;
+    }
     maybeUpdateResumeMeta(id, title);
     return;
   }
@@ -442,7 +452,14 @@ export function useResumeList() {
         if (!(await resumeExists(id))) return;
 
         if (isCloudAuthenticated()) {
-          await renameCloudResume(id, trimmed);
+          try {
+            await renameCloudResume(id, trimmed);
+          } catch (error: unknown) {
+            if (isResumeVersionConflictError(error)) {
+              showResumeVersionConflictToast(id);
+            }
+            throw error;
+          }
           setResumeMeta(id, trimmed);
           await refetch();
           return;
@@ -452,7 +469,9 @@ export function useResumeList() {
         await refetch();
       } catch (e) {
         console.error("Failed to rename resume:", e);
-        toast.error("Failed to rename resume");
+        if (!isResumeVersionConflictError(e) && !isCloudWriteBlockedError(e)) {
+          toast.error("Failed to rename resume");
+        }
         throw e;
       }
     },

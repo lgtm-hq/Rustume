@@ -149,6 +149,8 @@ pub struct UpdateResumeRequest {
     pub title: Option<String>,
     #[schema(value_type = Object)]
     pub data: Option<serde_json::Value>,
+    /// Expected resume version for optimistic concurrency control.
+    pub version: Option<i32>,
 }
 
 /// Single resume payload within an import batch.

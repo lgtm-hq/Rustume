@@ -49,6 +49,51 @@ export interface CreateResumePayload {
 export interface UpdateResumePayload {
   title?: string;
   data?: ResumeData;
+  version?: number;
+}
+
+export interface ApiErrorBody {
+  error: string;
+  current_version?: number;
+}
+
+/** Thrown when a resume update fails due to optimistic concurrency control. */
+export class ResumeVersionConflictError extends Error {
+  constructor(
+    message: string,
+    public currentVersion: number,
+  ) {
+    super(message);
+    this.name = "ResumeVersionConflictError";
+  }
+}
+
+export function parseApiErrorBody(message: string): ApiErrorBody | null {
+  try {
+    const parsed: unknown = JSON.parse(message);
+    if (typeof parsed !== "object" || parsed === null) return null;
+    const body = parsed as Record<string, unknown>;
+    if (typeof body.error !== "string") return null;
+    return {
+      error: body.error,
+      current_version: typeof body.current_version === "number" ? body.current_version : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function upgradeOrRethrow409(error: ApiError): never {
+  if (error.status !== 409) {
+    throw error;
+  }
+
+  const body = parseApiErrorBody(error.message);
+  if (body?.current_version !== undefined) {
+    throw new ResumeVersionConflictError(body.error, body.current_version);
+  }
+
+  throw error;
 }
 
 export async function listCloudResumesPage(
@@ -93,7 +138,14 @@ export async function updateCloudResume(
   id: string,
   payload: UpdateResumePayload,
 ): Promise<CloudResumeRow> {
-  return put<CloudResumeRow>(`/resumes/${id}`, payload);
+  try {
+    return await put<CloudResumeRow>(`/resumes/${id}`, payload);
+  } catch (error: unknown) {
+    if (error instanceof ApiError) {
+      upgradeOrRethrow409(error);
+    }
+    throw error;
+  }
 }
 
 export async function deleteCloudResume(id: string): Promise<void> {
@@ -139,14 +191,22 @@ export async function upsertCloudResume(
   id: string,
   data: ResumeData,
   title?: string,
+  version?: number,
 ): Promise<CloudResumeRow> {
-  const payload = { title, data };
+  const payload: UpdateResumePayload = { title, data };
+  if (version !== undefined) {
+    payload.version = version;
+  }
+
   try {
     return await updateCloudResume(id, payload);
   } catch (error: unknown) {
+    if (error instanceof ResumeVersionConflictError) {
+      throw error;
+    }
     if (error instanceof ApiError && error.status === 404) {
       try {
-        return await createCloudResume({ id, ...payload });
+        return await createCloudResume({ id, title, data });
       } catch (createError: unknown) {
         if (createError instanceof ApiError && createError.status === 409) {
           return updateCloudResume(id, payload);
