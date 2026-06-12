@@ -42,11 +42,14 @@ vi.mock("../../api/resumes", async (importOriginal) => {
 
 import {
   clearCloudResumeVersion,
+  clearCloudWriteBlock,
   cloudResumeExists,
+  CloudWriteBlockedError,
   createCloudResumeWithId,
   duplicateCloudResume,
   getCloudResumeVersion,
   isCloudAuthenticated,
+  isCloudWriteBlocked,
   listCloudResumeSummaries,
   loadCloudResume,
   removeCloudResume,
@@ -161,6 +164,7 @@ describe("saveCloudResume", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     clearCloudResumeVersion("abc");
+    clearCloudWriteBlock("abc");
   });
 
   it("upserts with the provided title", async () => {
@@ -206,7 +210,7 @@ describe("saveCloudResume", () => {
     expect(getCloudResumeVersion("abc")).toBe(5);
   });
 
-  it("propagates version conflict errors", async () => {
+  it("propagates version conflict errors without updating cached version", async () => {
     const data = testResume("Conflict");
     setCloudResumeVersion("abc", 2);
     resumeApiMocks.upsertCloudResume.mockRejectedValue(
@@ -215,6 +219,20 @@ describe("saveCloudResume", () => {
 
     await expect(saveCloudResume("abc", data)).rejects.toBeInstanceOf(ResumeVersionConflictError);
     expect(getCloudResumeVersion("abc")).toBe(2);
+    expect(isCloudWriteBlocked("abc")).toBe(true);
+  });
+
+  it("blocks subsequent writes after a version conflict until reload", async () => {
+    const data = testResume("Blocked");
+    setCloudResumeVersion("abc", 2);
+    resumeApiMocks.upsertCloudResume.mockRejectedValue(
+      new ResumeVersionConflictError("Resume was modified by another session", 5),
+    );
+
+    await expect(saveCloudResume("abc", data)).rejects.toBeInstanceOf(ResumeVersionConflictError);
+
+    await expect(saveCloudResume("abc", data)).rejects.toBeInstanceOf(CloudWriteBlockedError);
+    expect(resumeApiMocks.upsertCloudResume).toHaveBeenCalledTimes(1);
   });
 });
 

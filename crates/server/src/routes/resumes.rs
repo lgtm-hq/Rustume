@@ -375,6 +375,7 @@ async fn apply_resume_update(
                 r#"
                 UPDATE resumes
                 SET title = $1,
+                    version = version + 1,
                     updated_at = now()
                 WHERE id = $2 AND user_id = $3
                 RETURNING id, user_id, title, data, is_public, public_slug, password_hash, version, created_at, updated_at

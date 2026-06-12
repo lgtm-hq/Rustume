@@ -11,6 +11,7 @@ import {
 } from "../wasm";
 import {
   isCloudAuthenticated,
+  isCloudWriteBlockedError,
   isResumeVersionConflictError,
   loadCloudResume,
   saveCloudResume,
@@ -331,8 +332,13 @@ async function persistResume() {
     });
   } catch (e) {
     if (isResumeVersionConflictError(e) && store.id) {
-      showResumeVersionConflictToast(store.id, e.currentVersion);
+      showResumeVersionConflictToast(store.id);
       setStore("error", e.message);
+      setStore("isSaving", false);
+      return;
+    }
+    if (isCloudWriteBlockedError(e)) {
+      setStore("error", "Reload required to sync latest changes");
       setStore("isSaving", false);
       return;
     }

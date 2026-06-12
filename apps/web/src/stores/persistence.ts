@@ -269,7 +269,7 @@ async function saveResume(id: string, data: ResumeData): Promise<void> {
       await saveCloudResume(id, data, title);
     } catch (error: unknown) {
       if (isResumeVersionConflictError(error)) {
-        showResumeVersionConflictToast(id, error.currentVersion);
+        showResumeVersionConflictToast(id);
       }
       throw error;
     }
@@ -455,7 +455,7 @@ export function useResumeList() {
             await renameCloudResume(id, trimmed);
           } catch (error: unknown) {
             if (isResumeVersionConflictError(error)) {
-              showResumeVersionConflictToast(id, error.currentVersion);
+              showResumeVersionConflictToast(id);
             }
             throw error;
           }

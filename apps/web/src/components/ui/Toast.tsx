@@ -89,10 +89,13 @@ const ToastContent: Component<ToastContentProps> = (props) => {
           {props.action && (
             <button
               type="button"
-              class="mt-2 text-sm font-medium text-[var(--turbo-brand-primary)] hover:underline"
-              onClick={() => {
-                props.action?.onClick();
-                ToastPrimitive.toaster.dismiss(props.toastId);
+              class="mt-2 text-sm font-medium text-[var(--turbo-brand-primary)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--turbo-brand-primary)]"
+              onClick={async () => {
+                try {
+                  await Promise.resolve(props.action?.onClick());
+                } finally {
+                  ToastPrimitive.toaster.dismiss(props.toastId);
+                }
               }}
             >
               {props.action.label}

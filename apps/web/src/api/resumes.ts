@@ -83,7 +83,7 @@ export function parseApiErrorBody(message: string): ApiErrorBody | null {
   }
 }
 
-function throwIfVersionConflict(error: ApiError): never {
+function upgradeOrRethrow409(error: ApiError): never {
   if (error.status !== 409) {
     throw error;
   }
@@ -142,7 +142,7 @@ export async function updateCloudResume(
     return await put<CloudResumeRow>(`/resumes/${id}`, payload);
   } catch (error: unknown) {
     if (error instanceof ApiError) {
-      throwIfVersionConflict(error);
+      upgradeOrRethrow409(error);
     }
     throw error;
   }
