@@ -42,12 +42,12 @@ jobs:
       (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success')
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-release-version-pr.yml@ba485556d3d4605b825347c2fe431ad4395b1c63 # v0.44.1
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-release-version-pr.yml@96a42109637efd4c019d176e0902e3be23295716 # v0.45.1
     with:
       ecosystems: rust
       auto-merge: true
       max-bump: minor
-      tooling-ref: 'ba485556d3d4605b825347c2fe431ad4395b1c63' # v0.44.1
+      tooling-ref: '96a42109637efd4c019d176e0902e3be23295716' # v0.45.1
       egress-policy: block
       egress-preset: github-tooling
       runner-image: ubuntu-24.04

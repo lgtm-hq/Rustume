@@ -23,9 +23,9 @@ concurrency:
 jobs:
   analyze:
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-codeql.yml@ba485556d3d4605b825347c2fe431ad4395b1c63 # v0.44.1
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-codeql.yml@96a42109637efd4c019d176e0902e3be23295716 # v0.45.1
     with:
-      tooling-ref: 'ba485556d3d4605b825347c2fe431ad4395b1c63' # v0.44.1
+      tooling-ref: '96a42109637efd4c019d176e0902e3be23295716' # v0.45.1
       job-name: "🔬 CodeQL Analysis"
       languages: actions,rust
       language-build-modes: '{"rust":"none","actions":"none"}'
