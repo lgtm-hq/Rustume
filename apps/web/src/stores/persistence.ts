@@ -468,7 +468,9 @@ export function useResumeList() {
         await refetch();
       } catch (e) {
         console.error("Failed to rename resume:", e);
-        toast.error("Failed to rename resume");
+        if (!isResumeVersionConflictError(e)) {
+          toast.error("Failed to rename resume");
+        }
         throw e;
       }
     },

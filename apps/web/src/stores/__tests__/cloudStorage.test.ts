@@ -1,5 +1,6 @@
 import { ApiError } from "../../api/client";
 import type { CloudResumeRow, CloudResumeSummary } from "../../api/resumes";
+import { ResumeVersionConflictError } from "../../api/resumes";
 import { createDefaultResume } from "../../wasm/defaults";
 import type { ResumeData } from "../../wasm/types";
 import { ResumeCorruptedError, ResumeNotFoundError } from "../resume";
@@ -206,7 +207,6 @@ describe("saveCloudResume", () => {
   });
 
   it("propagates version conflict errors", async () => {
-    const { ResumeVersionConflictError } = await import("../../api/resumes");
     const data = testResume("Conflict");
     setCloudResumeVersion("abc", 2);
     resumeApiMocks.upsertCloudResume.mockRejectedValue(
@@ -214,6 +214,7 @@ describe("saveCloudResume", () => {
     );
 
     await expect(saveCloudResume("abc", data)).rejects.toBeInstanceOf(ResumeVersionConflictError);
+    expect(getCloudResumeVersion("abc")).toBe(2);
   });
 });
 

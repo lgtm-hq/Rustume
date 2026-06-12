@@ -277,6 +277,19 @@ describe("resume API helpers", () => {
     );
   });
 
+  it("rethrows generic 409 ApiError when current_version is absent", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      statusText: "Conflict",
+      text: () => Promise.resolve("A resume with this ID already exists"),
+    });
+
+    await expect(
+      updateCloudResume("abc", { data: createDefaultResume(), version: 3 }),
+    ).rejects.toBeInstanceOf(ApiError);
+  });
+
   it("updateCloudResume throws ResumeVersionConflictError on version mismatch", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,
