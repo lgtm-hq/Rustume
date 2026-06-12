@@ -14,6 +14,7 @@ import { ResumeNotFoundError, ResumeCorruptedError, validateResumeData } from ".
 import { authStore } from "./auth";
 import {
   isCloudAuthenticated,
+  isCloudWriteBlockedError,
   isResumeVersionConflictError,
   listCloudResumeSummaries,
   loadCloudResume,
@@ -468,7 +469,7 @@ export function useResumeList() {
         await refetch();
       } catch (e) {
         console.error("Failed to rename resume:", e);
-        if (!isResumeVersionConflictError(e)) {
+        if (!isResumeVersionConflictError(e) && !isCloudWriteBlockedError(e)) {
           toast.error("Failed to rename resume");
         }
         throw e;
