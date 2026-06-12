@@ -6,6 +6,8 @@ import {
   getCloudResume,
   importResumes,
   listCloudResumes,
+  parseApiErrorBody,
+  ResumeVersionConflictError,
   updateCloudResume,
   upsertCloudResume,
 } from "../resumes";
@@ -94,6 +96,44 @@ describe("upsertCloudResume", () => {
     await expect(upsertCloudResume("abc", testResume("Test"), "Test")).rejects.toBeInstanceOf(
       ApiError,
     );
+  });
+
+  it("passes version through to update requests", async () => {
+    const resumeData = testResume("Test");
+    const row = mockRow({ id: "abc", version: 4 });
+    const mockFetch = vi.fn().mockResolvedValue(jsonFetch(row));
+    globalThis.fetch = mockFetch;
+
+    const result = await upsertCloudResume("abc", resumeData, "Test", 3);
+
+    expect(result).toEqual(row);
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/api/resumes/abc",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({ title: "Test", data: resumeData, version: 3 }),
+      }),
+    );
+  });
+
+  it("propagates ResumeVersionConflictError without retrying create", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      statusText: "Conflict",
+      text: () =>
+        Promise.resolve(
+          JSON.stringify({
+            error: "Resume was modified by another session",
+            current_version: 5,
+          }),
+        ),
+    });
+
+    await expect(upsertCloudResume("abc", testResume("Test"), "Test", 3)).rejects.toBeInstanceOf(
+      ResumeVersionConflictError,
+    );
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
   });
 
   it("retries update when create returns 409 after a 404 update", async () => {
@@ -221,6 +261,41 @@ describe("resume API helpers", () => {
     );
   });
 
+  it("updateCloudResume sends version when provided", async () => {
+    const resumeData = createDefaultResume();
+    const mockFetch = vi.fn().mockResolvedValue(jsonFetch(mockRow({ version: 4 })));
+    globalThis.fetch = mockFetch;
+
+    await updateCloudResume("abc", { data: resumeData, version: 3 });
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/api/resumes/abc",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({ data: resumeData, version: 3 }),
+      }),
+    );
+  });
+
+  it("updateCloudResume throws ResumeVersionConflictError on version mismatch", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      statusText: "Conflict",
+      text: () =>
+        Promise.resolve(
+          JSON.stringify({
+            error: "Resume was modified by another session",
+            current_version: 5,
+          }),
+        ),
+    });
+
+    await expect(
+      updateCloudResume("abc", { data: createDefaultResume(), version: 3 }),
+    ).rejects.toBeInstanceOf(ResumeVersionConflictError);
+  });
+
   it("importResumes posts the import payload", async () => {
     const payload: ImportResumeItem[] = [{ title: "One", data: createDefaultResume() }];
     const mockFetch = vi
@@ -280,5 +355,25 @@ describe("resume API helpers", () => {
         body: JSON.stringify({ resumes: payload.slice(100) }),
       }),
     );
+  });
+});
+
+describe("parseApiErrorBody", () => {
+  it("parses version conflict payloads", () => {
+    expect(
+      parseApiErrorBody(
+        JSON.stringify({
+          error: "Resume was modified by another session",
+          current_version: 5,
+        }),
+      ),
+    ).toEqual({
+      error: "Resume was modified by another session",
+      current_version: 5,
+    });
+  });
+
+  it("returns null for non-json bodies", () => {
+    expect(parseApiErrorBody("plain text")).toBeNull();
   });
 });

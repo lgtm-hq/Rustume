@@ -50,6 +50,9 @@ pub struct ApiError {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(example = json!(["basics.email: invalid email format"]))]
     pub details: Option<Vec<String>>,
+    /// Current resource version returned on optimistic concurrency conflicts.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub current_version: Option<i32>,
     /// Error kind for HTTP status mapping (not serialized)
     #[serde(skip)]
     pub kind: ApiErrorKind,
@@ -61,6 +64,7 @@ impl ApiError {
         Self {
             error: error.into(),
             details: None,
+            current_version: None,
             kind: ApiErrorKind::BadRequest,
         }
     }
@@ -70,6 +74,7 @@ impl ApiError {
         Self {
             error: error.into(),
             details: Some(details),
+            current_version: None,
             kind: ApiErrorKind::UnprocessableEntity,
         }
     }
@@ -79,6 +84,7 @@ impl ApiError {
         Self {
             error: error.into(),
             details: None,
+            current_version: None,
             kind: ApiErrorKind::NotFound,
         }
     }
@@ -88,6 +94,7 @@ impl ApiError {
         Self {
             error: error.into(),
             details: None,
+            current_version: None,
             kind: ApiErrorKind::InternalError,
         }
     }
@@ -97,6 +104,7 @@ impl ApiError {
         Self {
             error: error.into(),
             details: None,
+            current_version: None,
             kind: ApiErrorKind::Unauthorized,
         }
     }
@@ -106,6 +114,7 @@ impl ApiError {
         Self {
             error: error.into(),
             details: None,
+            current_version: None,
             kind: ApiErrorKind::Forbidden,
         }
     }
@@ -115,6 +124,17 @@ impl ApiError {
         Self {
             error: error.into(),
             details: None,
+            current_version: None,
+            kind: ApiErrorKind::Conflict,
+        }
+    }
+
+    /// Create a 409 Conflict error with the current resource version.
+    pub fn version_conflict(error: impl Into<String>, current_version: i32) -> Self {
+        Self {
+            error: error.into(),
+            details: None,
+            current_version: Some(current_version),
             kind: ApiErrorKind::Conflict,
         }
     }

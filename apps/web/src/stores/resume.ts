@@ -9,7 +9,13 @@ import {
   getResume as getFromWasmStorage,
   isWasmReady,
 } from "../wasm";
-import { isCloudAuthenticated, loadCloudResume, saveCloudResume } from "./cloudStorage";
+import {
+  isCloudAuthenticated,
+  isResumeVersionConflictError,
+  loadCloudResume,
+  saveCloudResume,
+  showResumeVersionConflictToast,
+} from "./cloudStorage";
 
 /** Thrown when the requested resume does not exist in storage. */
 export class ResumeNotFoundError extends Error {
@@ -324,6 +330,12 @@ async function persistResume() {
       setStore("isSaving", false);
     });
   } catch (e) {
+    if (isResumeVersionConflictError(e) && store.id) {
+      showResumeVersionConflictToast(store.id, e.currentVersion);
+      setStore("error", e.message);
+      setStore("isSaving", false);
+      return;
+    }
     setStore("error", e instanceof Error ? e.message : "Failed to save");
     setStore("isSaving", false);
   }

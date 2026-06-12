@@ -39,12 +39,18 @@ const DEFAULT_DURATION: Record<ToastVariant, number> = {
   info: 4000,
 };
 
+interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 interface ToastContentProps {
   toastId: number;
   variant: ToastVariant;
   title?: string;
   description: string;
   duration: number;
+  action?: ToastAction;
 }
 
 const ToastContent: Component<ToastContentProps> = (props) => {
@@ -80,6 +86,18 @@ const ToastContent: Component<ToastContentProps> = (props) => {
           <ToastPrimitive.Description class="text-sm text-stone">
             {props.description}
           </ToastPrimitive.Description>
+          {props.action && (
+            <button
+              type="button"
+              class="mt-2 text-sm font-medium text-[var(--turbo-brand-primary)] hover:underline"
+              onClick={() => {
+                props.action?.onClick();
+                ToastPrimitive.toaster.dismiss(props.toastId);
+              }}
+            >
+              {props.action.label}
+            </button>
+          )}
         </div>
 
         <ToastPrimitive.CloseButton
@@ -126,6 +144,7 @@ interface ShowOptions {
   description: string;
   title?: string;
   duration?: number;
+  action?: ToastAction;
 }
 
 function show(options: ShowOptions) {
@@ -137,15 +156,18 @@ function show(options: ShowOptions) {
       title={options.title}
       description={options.description}
       duration={duration}
+      action={options.action}
     />
   ));
 }
 
 export const toast = {
-  success: (description: string, title?: string) =>
-    show({ variant: "success", description, title }),
-  error: (description: string, title?: string) => show({ variant: "error", description, title }),
-  warning: (description: string, title?: string) =>
-    show({ variant: "warning", description, title }),
-  info: (description: string, title?: string) => show({ variant: "info", description, title }),
+  success: (description: string, title?: string, action?: ToastAction) =>
+    show({ variant: "success", description, title, action }),
+  error: (description: string, title?: string, action?: ToastAction) =>
+    show({ variant: "error", description, title, action }),
+  warning: (description: string, title?: string, action?: ToastAction) =>
+    show({ variant: "warning", description, title, action }),
+  info: (description: string, title?: string, action?: ToastAction) =>
+    show({ variant: "info", description, title, action }),
 };

@@ -31,18 +31,27 @@ vi.mock("../auth", () => ({
   },
 }));
 
-vi.mock("../../api/resumes", () => resumeApiMocks);
+vi.mock("../../api/resumes", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/resumes")>();
+  return {
+    ...actual,
+    ...resumeApiMocks,
+  };
+});
 
 import {
+  clearCloudResumeVersion,
   cloudResumeExists,
   createCloudResumeWithId,
   duplicateCloudResume,
+  getCloudResumeVersion,
   isCloudAuthenticated,
   listCloudResumeSummaries,
   loadCloudResume,
   removeCloudResume,
   renameCloudResume,
   saveCloudResume,
+  setCloudResumeVersion,
 } from "../cloudStorage";
 
 function testResume(name: string): ResumeData {
@@ -118,13 +127,14 @@ describe("loadCloudResume", () => {
   });
 
   it("returns validated resume data from the cloud row", async () => {
-    const row = mockRow({ id: "abc", data: testResume("Loaded Name") });
+    const row = mockRow({ id: "abc", data: testResume("Loaded Name"), version: 7 });
     resumeApiMocks.getCloudResume.mockResolvedValue(row);
 
     const data = await loadCloudResume("abc");
 
     expect(resumeApiMocks.getCloudResume).toHaveBeenCalledWith("abc");
     expect(data.basics.name).toBe("Loaded Name");
+    expect(getCloudResumeVersion("abc")).toBe(7);
   });
 
   it("maps 404 ApiError to ResumeNotFoundError", async () => {
@@ -149,24 +159,61 @@ describe("loadCloudResume", () => {
 describe("saveCloudResume", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearCloudResumeVersion("abc");
   });
 
   it("upserts with the provided title", async () => {
     const data = testResume("Save Me");
-    resumeApiMocks.upsertCloudResume.mockResolvedValue(mockRow({ title: "Custom Title" }));
+    resumeApiMocks.upsertCloudResume.mockResolvedValue(
+      mockRow({ title: "Custom Title", version: 2 }),
+    );
 
     await saveCloudResume("abc", data, "Custom Title");
 
-    expect(resumeApiMocks.upsertCloudResume).toHaveBeenCalledWith("abc", data, "Custom Title");
+    expect(resumeApiMocks.upsertCloudResume).toHaveBeenCalledWith(
+      "abc",
+      data,
+      "Custom Title",
+      undefined,
+    );
+    expect(getCloudResumeVersion("abc")).toBe(2);
   });
 
   it("derives title from resume data when title is omitted", async () => {
     const data = testResume("Derived Name");
-    resumeApiMocks.upsertCloudResume.mockResolvedValue(mockRow());
+    resumeApiMocks.upsertCloudResume.mockResolvedValue(mockRow({ version: 3 }));
 
     await saveCloudResume("abc", data);
 
-    expect(resumeApiMocks.upsertCloudResume).toHaveBeenCalledWith("abc", data, "Derived Name");
+    expect(resumeApiMocks.upsertCloudResume).toHaveBeenCalledWith(
+      "abc",
+      data,
+      "Derived Name",
+      undefined,
+    );
+    expect(getCloudResumeVersion("abc")).toBe(3);
+  });
+
+  it("sends tracked version on save", async () => {
+    const data = testResume("Versioned");
+    setCloudResumeVersion("abc", 4);
+    resumeApiMocks.upsertCloudResume.mockResolvedValue(mockRow({ version: 5 }));
+
+    await saveCloudResume("abc", data, "Versioned");
+
+    expect(resumeApiMocks.upsertCloudResume).toHaveBeenCalledWith("abc", data, "Versioned", 4);
+    expect(getCloudResumeVersion("abc")).toBe(5);
+  });
+
+  it("propagates version conflict errors", async () => {
+    const { ResumeVersionConflictError } = await import("../../api/resumes");
+    const data = testResume("Conflict");
+    setCloudResumeVersion("abc", 2);
+    resumeApiMocks.upsertCloudResume.mockRejectedValue(
+      new ResumeVersionConflictError("Resume was modified by another session", 5),
+    );
+
+    await expect(saveCloudResume("abc", data)).rejects.toBeInstanceOf(ResumeVersionConflictError);
   });
 });
 
@@ -222,13 +269,16 @@ describe("renameCloudResume", () => {
   });
 
   it("updates title without sending resume data", async () => {
-    resumeApiMocks.updateCloudResume.mockResolvedValue(mockRow({ title: "New Title" }));
+    setCloudResumeVersion("abc", 2);
+    resumeApiMocks.updateCloudResume.mockResolvedValue(mockRow({ title: "New Title", version: 3 }));
 
     await renameCloudResume("abc", "New Title");
 
     expect(resumeApiMocks.updateCloudResume).toHaveBeenCalledWith("abc", {
       title: "New Title",
+      version: 2,
     });
+    expect(getCloudResumeVersion("abc")).toBe(3);
   });
 });
 
