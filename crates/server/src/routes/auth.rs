@@ -48,13 +48,25 @@ pub async fn callback(
     jar: CookieJar,
     Query(query): Query<CallbackQuery>,
     headers: HeaderMap,
-) -> Result<Response, ApiError> {
-    let cloud = state.cloud()?;
+) -> Response {
+    match callback_inner(state, jar, query, headers).await {
+        Ok(response) => response,
+        Err(code) => oauth_error_redirect(code),
+    }
+}
+
+async fn callback_inner(
+    state: AppState,
+    jar: CookieJar,
+    query: CallbackQuery,
+    headers: HeaderMap,
+) -> Result<Response, &'static str> {
+    let cloud = state.cloud().map_err(|_| "server_error")?;
 
     let stored_state = jar.get(OAUTH_STATE_COOKIE).map(|cookie| cookie.value());
     match (stored_state, query.state.as_deref()) {
         (Some(stored), Some(provided)) if stored == provided => {}
-        _ => return Err(ApiError::unauthorized("Invalid OAuth state")),
+        _ => return Err("invalid_state"),
     }
 
     let ip = trusted_client_ip(&headers);
@@ -68,25 +80,26 @@ pub async fn callback(
         .await
         .map_err(|err| {
             error!("WorkOS authentication failed: {err}");
-            ApiError::new("Authentication failed")
+            "authentication_failed"
         })?;
 
     let user = upsert_user(&cloud.db, &workos_user).await.map_err(|err| {
         error!("user upsert failed: {err}");
-        ApiError::internal("internal server error")
+        "server_error"
     })?;
 
     let (_session, cookie) = cloud.sessions.create(user.id).await.map_err(|err| {
         error!("session creation failed: {err}");
-        ApiError::internal("internal server error")
+        "server_error"
     })?;
 
-    let mut response = Redirect::to("/").into_response();
-    append_set_cookie(&mut response, cookie)?;
+    let mut response = Redirect::to("/?signed_in=1").into_response();
+    append_set_cookie(&mut response, cookie).map_err(|_| "server_error")?;
     append_set_cookie(
         &mut response,
         clear_oauth_state_cookie(&cloud.workos_redirect_uri),
-    )?;
+    )
+    .map_err(|_| "server_error")?;
     Ok(response)
 }
 
@@ -120,6 +133,16 @@ pub async fn logout(State(state): State<AppState>, jar: CookieJar) -> Result<Res
 )]
 pub async fn me(AuthUser(user): AuthUser) -> Json<AuthUserResponse> {
     Json(user.into())
+}
+
+fn oauth_error_redirect(code: &'static str) -> Response {
+    let path = match code {
+        "invalid_state" => "/?auth_error=invalid_state",
+        "authentication_failed" => "/?auth_error=authentication_failed",
+        "server_error" => "/?auth_error=server_error",
+        _ => "/?auth_error=server_error",
+    };
+    Redirect::to(path).into_response()
 }
 
 fn trusted_client_ip(headers: &HeaderMap) -> Option<&str> {
@@ -168,4 +191,22 @@ fn append_set_cookie(response: &mut Response, cookie: Cookie<'static>) -> Result
         .headers_mut()
         .append(header::SET_COOKIE, header_value);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn oauth_error_redirect_uses_safe_query_code() {
+        let response = oauth_error_redirect("invalid_state");
+        assert_eq!(response.status(), StatusCode::SEE_OTHER);
+        assert_eq!(
+            response
+                .headers()
+                .get(header::LOCATION)
+                .and_then(|value| value.to_str().ok()),
+            Some("/?auth_error=invalid_state")
+        );
+    }
 }

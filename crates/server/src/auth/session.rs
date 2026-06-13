@@ -73,7 +73,16 @@ impl SessionService {
 
         let row = sqlx::query_as::<_, User>(
             r#"
-            SELECT u.id, u.workos_id, u.plan, u.paddle_customer_id, u.created_at, u.updated_at
+            SELECT
+                u.id,
+                u.workos_id,
+                u.plan,
+                u.paddle_customer_id,
+                u.email,
+                u.first_name,
+                u.last_name,
+                u.created_at,
+                u.updated_at
             FROM sessions s
             JOIN users u ON u.id = s.user_id
             WHERE s.id = $1 AND s.expires_at > now()
