@@ -23,13 +23,7 @@ export function AuthMenu() {
         <Show
           when={state.user}
           fallback={
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleSignIn}
-              loading={signingIn()}
-              disabled={signingIn()}
-            >
+            <Button variant="secondary" size="sm" onClick={handleSignIn} loading={signingIn()}>
               Sign in to Cloud
             </Button>
           }

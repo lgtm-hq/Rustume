@@ -64,7 +64,7 @@ export default function Account() {
           when={!state.loading}
           fallback={
             <div class="flex justify-center py-16">
-              <Spinner class="w-6 h-6 text-accent" />
+              <Spinner class="w-6 h-6 text-accent" ariaLabel="Loading account information" />
             </div>
           }
         >
@@ -90,7 +90,7 @@ export default function Account() {
                     Sync resumes across devices with your Rustume Cloud account. Your local copies
                     stay on this device until you choose to import them.
                   </p>
-                  <Button onClick={handleSignIn} loading={signingIn()} disabled={signingIn()}>
+                  <Button onClick={handleSignIn} loading={signingIn()}>
                     Sign in to Cloud
                   </Button>
                   <p class="mt-4 text-xs text-stone">
@@ -152,7 +152,6 @@ export default function Account() {
                       variant="secondary"
                       onClick={() => void handleSignOut()}
                       loading={signingOut()}
-                      disabled={signingOut()}
                     >
                       Sign out
                     </Button>

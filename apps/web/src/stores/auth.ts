@@ -50,7 +50,7 @@ function createAuthStore() {
     }
   }
 
-  function displayName(user: AuthUser = state.user!): string {
+  function displayName(user: AuthUser): string {
     return userDisplayName(user);
   }
 

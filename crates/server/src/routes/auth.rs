@@ -61,7 +61,10 @@ async fn callback_inner(
     query: CallbackQuery,
     headers: HeaderMap,
 ) -> Result<Response, &'static str> {
-    let cloud = state.cloud().map_err(|_| "server_error")?;
+    let cloud = state.cloud().map_err(|err| {
+        error!("cloud configuration unavailable: {:?}", err);
+        "server_error"
+    })?;
 
     let stored_state = jar.get(OAUTH_STATE_COOKIE).map(|cookie| cookie.value());
     match (stored_state, query.state.as_deref()) {

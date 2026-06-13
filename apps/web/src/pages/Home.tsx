@@ -135,7 +135,6 @@ export default function Home() {
               class="flex-shrink-0"
               onClick={handleCloudSignIn}
               loading={signingIn()}
-              disabled={signingIn()}
               data-testid="home-cloud-sign-in"
             >
               Sign in to Cloud

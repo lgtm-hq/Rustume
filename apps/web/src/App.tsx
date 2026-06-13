@@ -20,7 +20,11 @@ const App: ParentComponent = (props) => {
   };
 
   onMount(async () => {
-    await authStore.refresh();
+    try {
+      await authStore.refresh();
+    } catch (error) {
+      console.error("Failed to refresh auth state:", error);
+    }
     handleAuthQueryParams();
     const onPageShow = (event: PageTransitionEvent) => {
       if (event.persisted) {
