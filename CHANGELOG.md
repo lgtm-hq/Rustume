@@ -22,28 +22,21 @@ and this project adheres to
 
 ### Security
 
-## [0.18.1] - 2026-06-11
-
-### Added
-
-- Add Astro documentation site at `apps/site/` with GitHub Pages deployment.
-- Add Pagefind search, turbo-themes theme selector, and structured docs content.
-- Add `site-quality` CI workflow for build, test, and link-check gates.
-- Serve the web app from the Docker image for a single-container deployment.
-- Add root Docker Compose and deployment documentation.
+## [0.18.1] - 2026-06-12
 
 ### Changed
 
+- **deps**: update actions/checkout to v6.0.3 (#282) (1c7a420)
+- **release**: version 0.18.1 (#283) (e33cd66)
 - **ci**: trigger fresh docker build after cosign 409 conflict (33d0fc1)
 
 ### Fixed
 
+- **server**: optimistic concurrency control on resume updates (#286) (5d384da)
+- **docker**: sync wasm-bindgen dynamic versioning to Railway Dockerfile (95b3825)
 - **ci**: grant actions:read and issues:write for reusable failure-notify job (a360f0e)
 - **ci**: move permissions to workflow level for reusable caller (0b30e2c)
 - **ci**: adopt lgtm-ci v0.44.1 and complete reusable workflow migration (#281) (76fade2)
-- Publish release Docker images with semantic and `latest` tags.
-- Trigger release automation from the current Rust build workflow.
-- Include the LinkedIn ZIP fixture required by parser integration tests.
 
 ## [0.11.0] - 2026-04-01
 
