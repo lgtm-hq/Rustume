@@ -65,25 +65,27 @@ pub struct ImportResumesResponse {
 
 /// Authenticated user record stored in PostgreSQL.
 ///
-/// Profile fields (`email`, `first_name`, `last_name`) are synced from WorkOS on
-/// sign-in for display in the account UI. Resume documents (stored separately) may
-/// contain sensitive personal data.
+/// Profile fields (`email`, `first_name`, `last_name`) are synced from WorkOS
+/// on each sign-in. WorkOS requires an email for every user and may receive
+/// name fields from the identity provider (Google, GitHub, SSO, etc.).
+/// Rustume stores these so the account UI can greet the user by name.
+///
+/// Resume documents (stored separately) may contain additional personal data.
 #[derive(Debug, Clone, FromRow, Serialize)]
 pub struct User {
     /// Primary key.
     pub id: Uuid,
-    /// WorkOS user identifier (`user_…`) — opaque, non-personal.
+    /// WorkOS user identifier (`user_…`).
     pub workos_id: String,
     /// Hosted-service subscription status for billing (`free`, `pro`, `team`).
-    /// Tracks Paddle subscription — not feature entitlements.
     pub plan: String,
     /// Paddle customer ID, set after first paid subscription.
     pub paddle_customer_id: Option<String>,
-    /// WorkOS account email, when available.
+    /// Account email synced from WorkOS on sign-in.
     pub email: Option<String>,
-    /// WorkOS given name, when available.
+    /// Given name synced from WorkOS on sign-in, when available.
     pub first_name: Option<String>,
-    /// WorkOS family name, when available.
+    /// Family name synced from WorkOS on sign-in, when available.
     pub last_name: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -177,13 +179,13 @@ pub struct ImportResumesRequest {
 
 /// Authenticated user profile returned by `GET /auth/me`.
 ///
-/// Returns account identity and display-friendly profile fields from WorkOS.
-/// Resume content is not included and may contain personal data when fetched separately.
+/// Includes account identity and display-friendly profile fields synced from
+/// WorkOS. Resume content is not included.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct AuthUserResponse {
     #[schema(value_type = String, format = "uuid")]
     pub id: Uuid,
-    /// Hosted-service subscription status for billing — not feature entitlements.
+    /// Hosted-service subscription status for billing.
     pub plan: String,
     /// Account email from WorkOS, when available.
     #[serde(skip_serializing_if = "Option::is_none")]

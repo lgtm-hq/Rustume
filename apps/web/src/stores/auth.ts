@@ -62,7 +62,6 @@ function createAuthStore() {
     signIn: login,
     signOut,
     displayName,
-    userDisplayName,
   };
 }
 

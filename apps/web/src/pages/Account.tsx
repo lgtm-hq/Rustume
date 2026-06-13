@@ -136,6 +136,25 @@ export default function Account() {
                     </p>
                   </section>
 
+                  <section class="rounded-2xl border border-border bg-paper p-6 shadow-card">
+                    <h2 class="font-display text-lg font-semibold text-ink mb-2">
+                      Privacy and data
+                    </h2>
+                    <p class="text-sm text-stone">
+                      Rustume Cloud uses{" "}
+                      <a
+                        href="https://workos.com/docs/user-management/authkit"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-accent hover:underline"
+                      >
+                        WorkOS AuthKit
+                      </a>{" "}
+                      for authentication. Your email and name are stored by both WorkOS and Rustume
+                      to identify your account.
+                    </p>
+                  </section>
+
                   <section class="rounded-2xl border border-border bg-paper px-6 py-2 shadow-card">
                     <ComingSoonRow
                       title="Billing"

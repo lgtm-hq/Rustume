@@ -24,8 +24,9 @@ const OAUTH_STATE_TTL_MINUTES: i64 = 10;
 /// OAuth query parameters returned by WorkOS on `/auth/callback`.
 #[derive(Debug, Deserialize)]
 pub struct CallbackQuery {
-    code: String,
+    code: Option<String>,
     state: Option<String>,
+    error: Option<String>,
 }
 
 /// Redirect the browser to WorkOS AuthKit for sign-in.
@@ -46,19 +47,51 @@ pub async fn login(State(state): State<AppState>) -> Result<Response, ApiError> 
 pub async fn callback(
     State(state): State<AppState>,
     jar: CookieJar,
-    Query(query): Query<CallbackQuery>,
+    query: Result<Query<CallbackQuery>, axum::extract::rejection::QueryRejection>,
     headers: HeaderMap,
 ) -> Response {
-    match callback_inner(state, jar, query, headers).await {
+    let query = match query {
+        Ok(Query(query)) => query,
+        Err(rejection) => {
+            error!("OAuth callback query rejected: {rejection}");
+            return oauth_error_redirect("authentication_failed");
+        }
+    };
+
+    if let Some(code) = oauth_callback_error_code(&query) {
+        if query.error.is_some() {
+            error!("WorkOS OAuth callback returned error");
+        }
+        return oauth_error_redirect(code);
+    }
+
+    let code = query
+        .code
+        .as_deref()
+        .expect("callback validated before inner handler");
+
+    match callback_inner(state, jar, code, query.state.as_deref(), headers).await {
         Ok(response) => response,
         Err(code) => oauth_error_redirect(code),
+    }
+}
+
+fn oauth_callback_error_code(query: &CallbackQuery) -> Option<&'static str> {
+    if query.error.is_some() {
+        return Some("authentication_failed");
+    }
+
+    match query.code.as_deref() {
+        Some(code) if !code.is_empty() => None,
+        _ => Some("authentication_failed"),
     }
 }
 
 async fn callback_inner(
     state: AppState,
     jar: CookieJar,
-    query: CallbackQuery,
+    code: &str,
+    oauth_state: Option<&str>,
     headers: HeaderMap,
 ) -> Result<Response, &'static str> {
     let cloud = state.cloud().map_err(|err| {
@@ -67,7 +100,7 @@ async fn callback_inner(
     })?;
 
     let stored_state = jar.get(OAUTH_STATE_COOKIE).map(|cookie| cookie.value());
-    match (stored_state, query.state.as_deref()) {
+    match (stored_state, oauth_state) {
         (Some(stored), Some(provided)) if stored == provided => {}
         _ => return Err("invalid_state"),
     }
@@ -79,7 +112,7 @@ async fn callback_inner(
 
     let workos_user = cloud
         .workos
-        .authenticate_with_code(&query.code, ip, user_agent)
+        .authenticate_with_code(code, ip, user_agent)
         .await
         .map_err(|err| {
             error!("WorkOS authentication failed: {err}");
@@ -211,5 +244,44 @@ mod tests {
                 .and_then(|value| value.to_str().ok()),
             Some("/?auth_error=invalid_state")
         );
+    }
+
+    #[test]
+    fn oauth_callback_error_code_when_workos_returns_error() {
+        let query = CallbackQuery {
+            code: None,
+            state: Some("state".to_string()),
+            error: Some("access_denied".to_string()),
+        };
+
+        assert_eq!(
+            oauth_callback_error_code(&query),
+            Some("authentication_failed")
+        );
+    }
+
+    #[test]
+    fn oauth_callback_error_code_when_code_is_missing() {
+        let query = CallbackQuery {
+            code: None,
+            state: Some("state".to_string()),
+            error: None,
+        };
+
+        assert_eq!(
+            oauth_callback_error_code(&query),
+            Some("authentication_failed")
+        );
+    }
+
+    #[test]
+    fn oauth_callback_error_code_none_when_code_present() {
+        let query = CallbackQuery {
+            code: Some("auth_code".to_string()),
+            state: Some("state".to_string()),
+            error: None,
+        };
+
+        assert_eq!(oauth_callback_error_code(&query), None);
     }
 }

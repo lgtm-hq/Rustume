@@ -82,6 +82,10 @@ describe("Account page", () => {
     expect(screen.getByText("dev@example.com")).toBeInTheDocument();
     expect(screen.getByText("Plan: free")).toBeInTheDocument();
     expect(screen.getByText(/Resumes saved to your Rustume Cloud account/i)).toBeInTheDocument();
+    expect(screen.getByText(/WorkOS AuthKit/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/email and name are stored by both WorkOS and Rustume/i),
+    ).toBeInTheDocument();
     expect(screen.getByText("Billing")).toBeInTheDocument();
     expect(screen.getByText("End-to-end encryption")).toBeInTheDocument();
     expect(screen.getAllByText("Coming soon").length).toBeGreaterThan(0);

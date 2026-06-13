@@ -22,15 +22,35 @@ The `rustume_session` cookie is signed, `HttpOnly`, and `SameSite=Lax`. It is ma
 the configured redirect URL uses HTTPS. OAuth state is kept in a short-lived cookie and checked
 during callback.
 
-## Account data boundary
+## Account data stored by Rustume
 
-Rustume records an opaque `workos_id` for identity linkage rather than persisting WorkOS profile
-details such as email, name, avatar, or OAuth tokens as separate account fields. Hosted billing
-metadata identifies service access; it does not decide whether product functionality is exposed.
+WorkOS AuthKit requires an email address for every user and may receive first/last name from the
+identity provider (Google, GitHub, SAML SSO, etc.). Rustume syncs these fields into its own database
+on each sign-in so the account UI can greet the user by name.
 
-Resume data is different from identity metadata: a saved document can contain contact and employment
-information. Read [Cloud Storage](/docs/cloud/storage/) and [Encryption](/docs/cloud/encryption/)
-before operating a connected deployment.
+| Field | Source | Stored in Rustume DB | Shown in UI |
+| --- | --- | --- | --- |
+| `workos_id` | WorkOS | Yes | No |
+| `email` | WorkOS | Yes | Yes |
+| `first_name` | WorkOS / IdP | Yes (when available) | Yes |
+| `last_name` | WorkOS / IdP | Yes (when available) | Yes |
+| `plan` | Paddle / internal | Yes | Yes |
+
+**WorkOS itself also retains these fields** in its User Management dashboard. Deployment operators
+with WorkOS dashboard access can view and manage user profiles there.
+
+### What is _not_ stored as account data
+
+OAuth tokens, passwords, and WorkOS session metadata are never persisted by Rustume. The session
+cookie references an opaque server-side session ID — not identity claims.
+
+## Resume data boundary
+
+Resume data is separate from account identity: a saved document can contain contact and employment
+information authored by the user. Read [Cloud Storage](/docs/cloud/storage/) and
+[Encryption](/docs/cloud/encryption/) before operating a connected deployment.
+
+End-to-end encryption of resume content is planned for a future release.
 
 ## Operator configuration
 
