@@ -61,14 +61,15 @@ pub async fn callback(
     if let Some(code) = oauth_callback_error_code(&query) {
         if query.error.is_some() {
             error!("WorkOS OAuth callback returned error");
+        } else {
+            error!("OAuth callback missing authorization code");
         }
         return oauth_error_redirect(code);
     }
 
-    let code = query
-        .code
-        .as_deref()
-        .expect("callback validated before inner handler");
+    let Some(code) = query.code.as_deref() else {
+        return oauth_error_redirect("authentication_failed");
+    };
 
     match callback_inner(state, jar, code, query.state.as_deref(), headers).await {
         Ok(response) => response,

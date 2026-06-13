@@ -11,7 +11,11 @@ export function AuthMenu() {
 
   const handleSignIn = () => {
     setSigningIn(true);
-    signIn();
+    try {
+      signIn();
+    } catch {
+      setSigningIn(false);
+    }
   };
 
   return (
