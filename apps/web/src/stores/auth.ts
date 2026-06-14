@@ -1,6 +1,13 @@
 import { createRoot } from "solid-js";
 import { createStore } from "solid-js/store";
-import { type AuthProbeResult, type AuthUser, login, logout, probeAuth } from "../api/auth";
+import {
+  type AuthProbeResult,
+  type AuthUser,
+  login,
+  logout,
+  probeAuth,
+  userDisplayName,
+} from "../api/auth";
 
 interface AuthState {
   loading: boolean;
@@ -43,6 +50,10 @@ function createAuthStore() {
     }
   }
 
+  function displayName(user: AuthUser): string {
+    return userDisplayName(user);
+  }
+
   return {
     get state() {
       return state;
@@ -50,6 +61,7 @@ function createAuthStore() {
     refresh,
     signIn: login,
     signOut,
+    displayName,
   };
 }
 

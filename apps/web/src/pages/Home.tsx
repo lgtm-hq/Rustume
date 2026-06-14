@@ -2,6 +2,7 @@ import { For, Show, createSignal } from "solid-js";
 import { A, useNavigate } from "@solidjs/router";
 import { Button, Spinner, toast } from "../components/ui";
 import { useResumeList } from "../stores/persistence";
+import { authStore } from "../stores/auth";
 import { generateId } from "../wasm/types";
 
 /** Format a Date as a human-readable relative or absolute string. */
@@ -33,12 +34,21 @@ function formatUpdatedAt(date: Date): string {
 
 export default function Home() {
   const navigate = useNavigate();
+  const { state: authState, signIn } = authStore;
   const { resumes, loading, deleteResume, duplicateResume, renameResume, refresh } =
     useResumeList();
   const [deletingId, setDeletingId] = createSignal<string | null>(null);
   const [duplicatingId, setDuplicatingId] = createSignal<string | null>(null);
   const [renamingId, setRenamingId] = createSignal<string | null>(null);
   const [renameValue, setRenameValue] = createSignal("");
+  const [signingIn, setSigningIn] = createSignal(false);
+
+  const showCloudSignInCta = () => authState.cloudEnabled && !authState.loading && !authState.user;
+
+  const handleCloudSignIn = () => {
+    setSigningIn(true);
+    signIn();
+  };
 
   const handleNew = () => {
     const id = generateId();
@@ -109,6 +119,30 @@ export default function Home() {
 
   return (
     <div class="min-h-[calc(100vh-3.5rem)] bg-paper">
+      <Show when={showCloudSignInCta()}>
+        <div class="border-b border-border bg-surface/60">
+          <div class="max-w-4xl mx-auto px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <p class="text-sm font-medium text-ink">Working locally on this device</p>
+              <p class="text-sm text-stone mt-1">
+                Sign in to Rustume Cloud to sync resumes across devices. Local copies stay here
+                until you import them.
+              </p>
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              class="flex-shrink-0"
+              onClick={handleCloudSignIn}
+              loading={signingIn()}
+              data-testid="home-cloud-sign-in"
+            >
+              Sign in to Cloud
+            </Button>
+          </div>
+        </div>
+      </Show>
+
       {/* Hero Section */}
       <div class="py-16 px-4">
         <div class="max-w-4xl mx-auto text-center">

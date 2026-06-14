@@ -102,18 +102,12 @@ struct AuthenticateResponse {
 }
 
 /// Normalized WorkOS user returned after code exchange.
-///
-/// We only use `id` to link the auth session; personal fields are deserialized
-/// by serde but immediately discarded — never stored.
 #[derive(Debug, Clone, Deserialize)]
 pub struct WorkOsUser {
     pub id: String,
-    #[allow(dead_code)]
-    email: String,
-    #[allow(dead_code)]
-    first_name: Option<String>,
-    #[allow(dead_code)]
-    last_name: Option<String>,
+    pub email: String,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
 }
 
 /// Errors returned when communicating with WorkOS.
@@ -126,22 +120,36 @@ pub enum WorkOsAuthError {
 }
 
 /// Insert or update a user row from a WorkOS profile.
-///
-/// Privacy: we only persist the opaque `workos_id` — no email, name, or other PII.
 pub async fn upsert_user(
     pool: &sqlx::PgPool,
     workos_user: &WorkOsUser,
 ) -> Result<User, sqlx::Error> {
     sqlx::query_as::<_, User>(
         r#"
-        INSERT INTO users (workos_id, plan)
-        VALUES ($1, 'free')
+        INSERT INTO users (workos_id, plan, email, first_name, last_name)
+        VALUES ($1, 'free', $2, $3, $4)
         ON CONFLICT (workos_id) DO UPDATE
-        SET updated_at = now()
-        RETURNING id, workos_id, plan, paddle_customer_id, created_at, updated_at
+        SET
+            email = EXCLUDED.email,
+            first_name = EXCLUDED.first_name,
+            last_name = EXCLUDED.last_name,
+            updated_at = now()
+        RETURNING
+            id,
+            workos_id,
+            plan,
+            paddle_customer_id,
+            email,
+            first_name,
+            last_name,
+            created_at,
+            updated_at
         "#,
     )
     .bind(&workos_user.id)
+    .bind(&workos_user.email)
+    .bind(&workos_user.first_name)
+    .bind(&workos_user.last_name)
     .fetch_one(pool)
     .await
 }

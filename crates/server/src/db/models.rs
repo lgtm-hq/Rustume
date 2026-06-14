@@ -65,20 +65,28 @@ pub struct ImportResumesResponse {
 
 /// Authenticated user record stored in PostgreSQL.
 ///
-/// Privacy: account identity metadata is minimized — we store no email or name.
-/// The only link to the authentication provider is the opaque `workos_id`.
-/// Resume documents (stored separately) may contain sensitive personal data.
+/// Profile fields (`email`, `first_name`, `last_name`) are synced from WorkOS
+/// on each sign-in. WorkOS requires an email for every user and may receive
+/// name fields from the identity provider (Google, GitHub, SSO, etc.).
+/// Rustume stores these so the account UI can greet the user by name.
+///
+/// Resume documents (stored separately) may contain additional personal data.
 #[derive(Debug, Clone, FromRow, Serialize)]
 pub struct User {
     /// Primary key.
     pub id: Uuid,
-    /// WorkOS user identifier (`user_…`) — opaque, non-personal.
+    /// WorkOS user identifier (`user_…`).
     pub workos_id: String,
     /// Hosted-service subscription status for billing (`free`, `pro`, `team`).
-    /// Tracks Paddle subscription — not feature entitlements.
     pub plan: String,
     /// Paddle customer ID, set after first paid subscription.
     pub paddle_customer_id: Option<String>,
+    /// Account email synced from WorkOS on sign-in.
+    pub email: Option<String>,
+    /// Given name synced from WorkOS on sign-in, when available.
+    pub first_name: Option<String>,
+    /// Family name synced from WorkOS on sign-in, when available.
+    pub last_name: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -171,14 +179,23 @@ pub struct ImportResumesRequest {
 
 /// Authenticated user profile returned by `GET /auth/me`.
 ///
-/// Privacy: returns only account ID and hosted-service subscription status.
-/// Resume content is not included and may contain personal data when fetched separately.
+/// Includes account identity and display-friendly profile fields synced from
+/// WorkOS. Resume content is not included.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct AuthUserResponse {
     #[schema(value_type = String, format = "uuid")]
     pub id: Uuid,
-    /// Hosted-service subscription status for billing — not feature entitlements.
+    /// Hosted-service subscription status for billing.
     pub plan: String,
+    /// Account email from WorkOS, when available.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+    /// Given name from WorkOS, when available.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_name: Option<String>,
+    /// Family name from WorkOS, when available.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_name: Option<String>,
 }
 
 impl From<User> for AuthUserResponse {
@@ -186,6 +203,60 @@ impl From<User> for AuthUserResponse {
         Self {
             id: user.id,
             plan: user.plan,
+            email: user.email,
+            first_name: user.first_name,
+            last_name: user.last_name,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+
+    #[test]
+    fn auth_user_response_includes_profile_fields() {
+        let user = User {
+            id: Uuid::nil(),
+            workos_id: "user_01".to_string(),
+            plan: "free".to_string(),
+            paddle_customer_id: None,
+            email: Some("dev@example.com".to_string()),
+            first_name: Some("Ada".to_string()),
+            last_name: Some("Lovelace".to_string()),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+
+        let response = AuthUserResponse::from(user);
+        let json = serde_json::to_value(&response).unwrap();
+
+        assert_eq!(json["id"], Uuid::nil().to_string());
+        assert_eq!(json["plan"], "free");
+        assert_eq!(json["email"], "dev@example.com");
+        assert_eq!(json["first_name"], "Ada");
+        assert_eq!(json["last_name"], "Lovelace");
+    }
+
+    #[test]
+    fn auth_user_response_omits_empty_profile_fields() {
+        let user = User {
+            id: Uuid::nil(),
+            workos_id: "user_01".to_string(),
+            plan: "free".to_string(),
+            paddle_customer_id: None,
+            email: None,
+            first_name: None,
+            last_name: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+
+        let json = serde_json::to_value(AuthUserResponse::from(user)).unwrap();
+
+        assert!(json.get("email").is_none());
+        assert!(json.get("first_name").is_none());
+        assert!(json.get("last_name").is_none());
     }
 }

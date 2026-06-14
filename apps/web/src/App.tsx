@@ -3,6 +3,7 @@ import { AppShell } from "./components/layout/AppShell";
 import { CloudImportPrompt } from "./components/Auth/CloudImportPrompt";
 import { Button, ToastRegion } from "./components/ui";
 import { authStore } from "./stores/auth";
+import { handleAuthQueryParams } from "./lib/authFeedback";
 import { initWasm } from "./wasm";
 
 const WASM_NOTICE_KEY = "wasmNoticeDismissed";
@@ -19,10 +20,17 @@ const App: ParentComponent = (props) => {
   };
 
   onMount(async () => {
-    void authStore.refresh();
+    try {
+      await authStore.refresh();
+    } catch (error) {
+      console.error("Failed to refresh auth state:", error);
+    }
+    handleAuthQueryParams();
     const onPageShow = (event: PageTransitionEvent) => {
       if (event.persisted) {
-        void authStore.refresh();
+        authStore.refresh().catch((err: unknown) => {
+          console.error("Failed to refresh auth on page restore:", err);
+        });
       }
     };
     window.addEventListener("pageshow", onPageShow);
