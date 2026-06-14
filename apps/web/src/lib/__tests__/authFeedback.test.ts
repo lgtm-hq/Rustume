@@ -48,6 +48,16 @@ describe("handleAuthQueryParams", () => {
     handleAuthQueryParams();
 
     expect(toastMock.error).toHaveBeenCalledWith("Sign-in failed. Please try again.");
+    expect(window.location.search).toBe("");
+  });
+
+  it("preserves unrelated query parameters when removing auth params", () => {
+    window.history.replaceState({}, "", "/?foo=bar&signed_in=1");
+
+    handleAuthQueryParams();
+
+    expect(toastMock.success).toHaveBeenCalledWith("You're signed in to Rustume Cloud.");
+    expect(window.location.search).toBe("?foo=bar");
   });
 });
 

@@ -54,11 +54,7 @@ export default function Account() {
 
   const handleSignIn = () => {
     setSigningIn(true);
-    try {
-      signIn();
-    } catch {
-      setSigningIn(false);
-    }
+    signIn();
   };
 
   return (

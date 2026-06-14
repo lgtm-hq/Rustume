@@ -47,11 +47,7 @@ export default function Home() {
 
   const handleCloudSignIn = () => {
     setSigningIn(true);
-    try {
-      signIn();
-    } catch {
-      setSigningIn(false);
-    }
+    signIn();
   };
 
   const handleNew = () => {

@@ -26,6 +26,7 @@ vi.mock("../../stores/auth", () => ({
     },
     signIn: signInMock,
     signOut: signOutMock,
+    // Mirrors userDisplayName — vi.mock hoisting prevents importing the real function.
     displayName: (user: { email?: string; first_name?: string; last_name?: string }) => {
       const parts = [user.first_name, user.last_name].filter(Boolean);
       if (parts.length > 0) return parts.join(" ");

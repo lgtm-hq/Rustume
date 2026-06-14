@@ -28,7 +28,9 @@ const App: ParentComponent = (props) => {
     handleAuthQueryParams();
     const onPageShow = (event: PageTransitionEvent) => {
       if (event.persisted) {
-        void authStore.refresh();
+        authStore.refresh().catch((err: unknown) => {
+          console.error("Failed to refresh auth on page restore:", err);
+        });
       }
     };
     window.addEventListener("pageshow", onPageShow);
