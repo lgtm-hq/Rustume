@@ -46,8 +46,7 @@ Do **not** set `RAILWAY_DOCKERFILE_PATH`, `source_repo`, or `config_path` when u
 
 If Railway cannot pull `ghcr.io/lgtm-hq/rustume` without auth, create a GitHub PAT with
 `read:packages`, set `ghcr_username` to your GitHub username, and pass the PAT as
-`ghcr_read_token`. Railway accepts GHCR tokens in the registry password field; see the
-registry password field; see
+`ghcr_read_token`. Railway accepts GHCR tokens in the registry password field; see
 [Railway private registries](https://docs.railway.com/builds/private-registries).
 
 ## Migration from source builds
@@ -55,5 +54,5 @@ registry password field; see
 1. Merge a CI image for the target ref (`main` or release tag).
 2. Switch the Railway service source to the GHCR image (dashboard or this module).
 3. Add GHCR credentials if pulls fail.
-4. Remove `RAILWAY_DOCKERFILE_PATH` and delete `docker/Dockerfile.railway`.
+4. Remove `RAILWAY_DOCKERFILE_PATH` and any source-repo deploy settings.
 5. Redeploy and run staging smoke tests (health, WorkOS login, resume CRUD).

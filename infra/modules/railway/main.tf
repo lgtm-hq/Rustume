@@ -14,6 +14,13 @@ resource "railway_service" "rustume" {
 
   source_image_registry_username = var.ghcr_read_token == null ? null : var.ghcr_username
   source_image_registry_password = var.ghcr_read_token
+
+  lifecycle {
+    precondition {
+      condition     = var.ghcr_read_token == null || var.ghcr_username != null
+      error_message = "ghcr_username is required when ghcr_read_token is set."
+    }
+  }
 }
 
 resource "railway_variable" "runtime" {

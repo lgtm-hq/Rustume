@@ -14,7 +14,8 @@ merge to main / push v*.*.* tag
 ```
 
 Canonical build definition: `docker/Dockerfile` only. The interim
-`docker/Dockerfile.railway` source-build workaround is removed once Railway uses GHCR.
+`docker/Dockerfile.railway` source-build workaround has been removed now that Railway
+deploys from GHCR.
 
 ## Image tags
 

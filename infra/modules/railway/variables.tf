@@ -35,6 +35,7 @@ variable "ghcr_username" {
 variable "environment_variables" {
   description = "Runtime env vars for the Rustume server (RUSTUME_CLOUD, DATABASE_URL, WorkOS, etc.)."
   type        = map(string)
+  sensitive   = true
   default     = {}
 }
 
