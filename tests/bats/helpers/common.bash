@@ -86,7 +86,14 @@ fi
 setup_temp_dir() {
 	if [[ -z "${BATS_TEST_TMPDIR:-}" ]]; then
 		local tmpdir
-		tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/bats-test.XXXXXXXXXX")"
+		if ! tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/bats-test.XXXXXXXXXX")"; then
+			echo "# Failed to create BATS temp directory" >&2
+			return 1
+		fi
+		if [[ -z "${tmpdir}" ]]; then
+			echo "# Failed to create BATS temp directory: empty path" >&2
+			return 1
+		fi
 		export BATS_TEST_TMPDIR="${tmpdir}"
 	fi
 }

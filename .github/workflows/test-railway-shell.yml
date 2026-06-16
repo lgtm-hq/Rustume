@@ -35,7 +35,7 @@ jobs:
       job-name: Railway Shell Tests
       test-path: tests/bats/unit/railway
       coverage: true
-      coverage-threshold: 0
+      coverage-threshold: 0 # kcov reports 0% for bash via BATS; non-zero fails CI until measurement fixed
       upload-coverage: false
       egress-policy: block
       egress-preset: github-tooling
