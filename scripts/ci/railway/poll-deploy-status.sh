@@ -21,8 +21,26 @@ DEPLOYMENT_ID="${RAILWAY_DEPLOYMENT_ID:-}"
 TIMEOUT_SECONDS="${DEPLOY_POLL_TIMEOUT:-300}"
 POLL_INTERVAL="${DEPLOY_POLL_INTERVAL:-10}"
 
+validate_positive_int() {
+	local name="$1"
+	local value="$2"
+	if ! [[ "${value}" =~ ^[1-9][0-9]*$ ]]; then
+		echo "${name} must be a positive integer, got: ${value}" >&2
+		exit 1
+	fi
+}
+
+validate_positive_int "DEPLOY_POLL_TIMEOUT" "${TIMEOUT_SECONDS}"
+validate_positive_int "DEPLOY_POLL_INTERVAL" "${POLL_INTERVAL}"
+
+CURL_CONNECT_TIMEOUT="${RAILWAY_CURL_CONNECT_TIMEOUT:-10}"
+CURL_MAX_TIME="${RAILWAY_CURL_MAX_TIME:-30}"
+
 graphql() {
 	curl -fsSL \
+		--connect-timeout "${CURL_CONNECT_TIMEOUT}" \
+		--max-time "${CURL_MAX_TIME}" \
+		--retry 2 \
 		-H "Authorization: Bearer ${RAILWAY_TOKEN}" \
 		-H "Content-Type: application/json" \
 		-d "$1" \
@@ -57,6 +75,7 @@ else
     }')"
 fi
 
+status="UNKNOWN"
 elapsed=0
 while ((elapsed < TIMEOUT_SECONDS)); do
 	response="$(graphql "${query_payload}")"

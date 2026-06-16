@@ -44,17 +44,66 @@ ENVIRONMENT_ID="${RAILWAY_ENVIRONMENT_ID:-78af5529-02bd-42b6-8436-99f6d0e39114}"
 SERVICE_ID="${RAILWAY_SERVICE_ID:-d222fc2e-8318-453f-839f-869521b87c7a}"
 IMAGE="${RAILWAY_IMAGE:-ghcr.io/lgtm-hq/rustume:main}"
 
+CURL_CONNECT_TIMEOUT="${RAILWAY_CURL_CONNECT_TIMEOUT:-10}"
+CURL_MAX_TIME="${RAILWAY_CURL_MAX_TIME:-30}"
+
 graphql() {
 	local payload="$1"
 	curl -fsSL \
+		--connect-timeout "${CURL_CONNECT_TIMEOUT}" \
+		--max-time "${CURL_MAX_TIME}" \
+		--retry 2 \
 		-H "Authorization: Bearer ${RAILWAY_TOKEN}" \
 		-H "Content-Type: application/json" \
 		-d "${payload}" \
 		"https://backboard.railway.com/graphql/v2"
 }
 
+latest_deployment_lookup_payload="$(jq -nc \
+	--arg env "${ENVIRONMENT_ID}" \
+	--arg svc "${SERVICE_ID}" \
+	'{
+    query: "query latestDeploy($serviceId: String!, $environmentId: String!) { deployments(first: 1, input: { serviceId: $serviceId, environmentId: $environmentId }) { edges { node { id status } } } }",
+    variables: { serviceId: $svc, environmentId: $env }
+  }')"
+
+fetch_latest_deployment_id() {
+	local response deployment_id
+	response="$(graphql "${latest_deployment_lookup_payload}")"
+	if echo "${response}" | jq -e '.errors' >/dev/null 2>&1; then
+		echo "Failed to query latest deployment:" >&2
+		echo "${response}" | jq . >&2
+		return 1
+	fi
+	deployment_id="$(echo "${response}" | jq -r '.data.deployments.edges[0].node.id // empty')"
+	printf '%s' "${deployment_id}"
+}
+
+wait_for_new_deployment_id() {
+	local previous_id="$1"
+	local register_timeout="${DEPLOY_ID_REGISTER_TIMEOUT:-60}"
+	local register_interval="${DEPLOY_ID_REGISTER_INTERVAL:-2}"
+	local elapsed=0
+	local deployment_id=""
+
+	while ((elapsed < register_timeout)); do
+		deployment_id="$(fetch_latest_deployment_id || true)"
+		if [[ -n "${deployment_id}" && "${deployment_id}" != "${previous_id}" ]]; then
+			printf '%s' "${deployment_id}"
+			return 0
+		fi
+		sleep "${register_interval}"
+		elapsed=$((elapsed + register_interval))
+	done
+
+	echo "Timed out waiting for a new Railway deployment ID." >&2
+	return 1
+}
+
 deploy_via_graphql() {
 	echo "Deploying ${SERVICE_ID} from ${IMAGE} via GraphQL API..."
+
+	previous_deployment_id="$(fetch_latest_deployment_id || true)"
 
 	# CAUTION: Railway's serviceInstanceUpdate resets numReplicas to 1 if omitted.
 	# Current config: 1 replica. If scaling up, include numReplicas in the input.
@@ -94,29 +143,7 @@ deploy_via_graphql() {
 		exit 1
 	fi
 
-	register_delay="${DEPLOY_REGISTER_DELAY:-5}"
-	echo "Waiting ${register_delay}s for Railway to register the new deployment..."
-	sleep "${register_delay}"
-
-	lookup_payload="$(jq -nc \
-		--arg env "${ENVIRONMENT_ID}" \
-		--arg svc "${SERVICE_ID}" \
-		'{
-      query: "query latestDeploy($serviceId: String!, $environmentId: String!) { deployments(first: 1, input: { serviceId: $serviceId, environmentId: $environmentId }) { edges { node { id status } } } }",
-      variables: { serviceId: $svc, environmentId: $env }
-    }')"
-	lookup_response="$(graphql "${lookup_payload}")"
-	if echo "${lookup_response}" | jq -e '.errors' >/dev/null 2>&1; then
-		echo "Failed to resolve deployment ID after trigger:" >&2
-		echo "${lookup_response}" | jq . >&2
-		exit 1
-	fi
-
-	deployment_id="$(echo "${lookup_response}" | jq -r '.data.deployments.edges[0].node.id // empty')"
-	if [[ -z "${deployment_id}" ]]; then
-		echo "No deployment ID returned after trigger." >&2
-		exit 1
-	fi
+	deployment_id="$(wait_for_new_deployment_id "${previous_deployment_id}")"
 
 	if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
 		echo "deployment_id=${deployment_id}" >>"${GITHUB_OUTPUT}"
