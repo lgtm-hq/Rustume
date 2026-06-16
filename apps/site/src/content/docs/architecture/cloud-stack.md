@@ -15,7 +15,7 @@ maintain themselves.
 
 | Layer | Hosted service | Purpose |
 | --- | --- | --- |
-| Hosting | Railway | Run the web application and API |
+| Hosting | Railway | Run pre-built GHCR images (CI publish, not source compiles) |
 | Database | Neon PostgreSQL | Account-backed resumes, history, and service data |
 | Authentication | WorkOS AuthKit | Sign-in and account sessions |
 | Object storage | Cloudflare R2 | Exports, public assets, and backup artifacts |
