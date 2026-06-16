@@ -2,8 +2,11 @@
 ---
 name: Deploy - Rustume Cloud (Railway)
 
-# After a successful GHCR publish on main, point Railway at :main and redeploy.
+# After a successful GHCR publish on main, deploy to Railway via GraphQL API.
 # Requires repository secret: RAILWAY_API_TOKEN (or RAILWAY_TOKEN).
+#
+# Environment IDs target the current single Railway service (production).
+# If a dedicated staging environment is created later, update the IDs below.
 
 "on":
   workflow_run:
@@ -14,12 +17,24 @@ name: Deploy - Rustume Cloud (Railway)
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (log actions without deploying)"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
+  deployments: write
+
+concurrency:
+  group: deploy-railway-${{ github.repository }}
+  cancel-in-progress: false
 
 jobs:
   deploy:
+    name: 🚀 Deploy to Railway
     if: >-
       (github.event_name == 'workflow_dispatch' &&
       github.ref == 'refs/heads/main') ||
@@ -34,14 +49,73 @@ jobs:
       RAILWAY_SERVICE_ID: d222fc2e-8318-453f-839f-869521b87c7a
       RAILWAY_IMAGE: ghcr.io/lgtm-hq/rustume:main
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      - name: Harden Runner
+        # yamllint disable-line rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@96a42109637efd4c019d176e0902e3be23295716 # v0.45.1
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            backboard.railway.com:443
+            api.github.com:443
 
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli@5.4.2
+      - name: Checkout
+        # yamllint disable-line rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@96a42109637efd4c019d176e0902e3be23295716 # v0.45.1
+        with:
+          persist-credentials: false
+
+      - name: Create GitHub Deployment
+        id: deployment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DEPLOY_ID=$(gh api repos/${{ github.repository }}/deployments \
+            -f ref="${{ github.event.workflow_run.head_sha || github.sha }}" \
+            -f environment="production" \
+            -f description="Railway deploy from ghcr.io/lgtm-hq/rustume:main" \
+            -F auto_merge=false \
+            -f required_contexts='[]' \
+            --jq '.id')
+          echo "id=${DEPLOY_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Deploy GHCR image to Railway
+        if: inputs.dry_run != true && inputs.dry_run != 'true'
         env:
-          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: bash scripts/ci/railway/deploy-ghcr.sh
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_API_TOKEN || secrets.RAILWAY_TOKEN }}
+        run: bash scripts/ci/railway/deploy-ghcr.sh --graphql-only
+
+      - name: Dry run
+        if: inputs.dry_run == true || inputs.dry_run == 'true'
+        run: |
+          echo "DRY RUN — would deploy ${RAILWAY_IMAGE} to service ${RAILWAY_SERVICE_ID}"
+          echo "Environment: ${RAILWAY_ENVIRONMENT_ID}"
+          echo "Project: ${RAILWAY_PROJECT_ID}"
+
+      - name: Poll deployment status
+        if: inputs.dry_run != true && inputs.dry_run != 'true'
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_API_TOKEN || secrets.RAILWAY_TOKEN }}
+        run: bash scripts/ci/railway/poll-deploy-status.sh
+
+      - name: Update GitHub Deployment (success)
+        if: success() && steps.deployment.outputs.id
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEPLOY_ID: ${{ steps.deployment.outputs.id }}
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/deployments/${DEPLOY_ID}/statuses" \
+            -f state="success" \
+            -f environment="production" \
+            -f environment_url="https://app.rustume.com" \
+            -f description="Deployed to Railway"
+
+      - name: Update GitHub Deployment (failure)
+        if: failure() && steps.deployment.outputs.id
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEPLOY_ID: ${{ steps.deployment.outputs.id }}
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/deployments/${DEPLOY_ID}/statuses" \
+            -f state="failure" \
+            -f environment="production" \
+            -f description="Railway deployment failed — investigate and rollback manually"
