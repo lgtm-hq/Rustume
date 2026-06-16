@@ -69,16 +69,21 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          DEPLOY_ID=$(gh api repos/${{ github.repository }}/deployments \
-            -f ref="${{ github.event.workflow_run.head_sha || github.sha }}" \
-            -f environment="production" \
-            -f description="Railway deploy from ghcr.io/lgtm-hq/rustume:main" \
-            -F auto_merge=false \
-            -f required_contexts='[]' \
-            --jq '.id')
+          set -euo pipefail
+          DEPLOY_ID=$(jq -nc \
+            --arg ref "${{ github.event.workflow_run.head_sha || github.sha }}" \
+            '{
+              ref: $ref,
+              environment: "production",
+              description: "Railway deploy from ghcr.io/lgtm-hq/rustume:main",
+              auto_merge: false,
+              required_contexts: []
+            }' \
+            | gh api "repos/${GITHUB_REPOSITORY}/deployments" --input - --jq '.id')
           echo "id=${DEPLOY_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Deploy GHCR image to Railway
+        id: railway_deploy
         if: inputs.dry_run != true && inputs.dry_run != 'true'
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_API_TOKEN || secrets.RAILWAY_TOKEN }}
@@ -95,6 +100,7 @@ jobs:
         if: inputs.dry_run != true && inputs.dry_run != 'true'
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_API_TOKEN || secrets.RAILWAY_TOKEN }}
+          RAILWAY_DEPLOYMENT_ID: ${{ steps.railway_deploy.outputs.deployment_id }}
         run: bash scripts/ci/railway/poll-deploy-status.sh
 
       - name: Update GitHub Deployment (success)

@@ -22,7 +22,7 @@ GRAPHQL_ONLY=false
 while (($# > 0)); do
 	case "$1" in
 	--help | -h)
-		sed -n '1,22p' "$0"
+		sed -n '1,18p' "$0"
 		exit 0
 		;;
 	--graphql-only)
@@ -94,7 +94,35 @@ deploy_via_graphql() {
 		exit 1
 	fi
 
-	echo "Railway deploy triggered for ${IMAGE}"
+	register_delay="${DEPLOY_REGISTER_DELAY:-5}"
+	echo "Waiting ${register_delay}s for Railway to register the new deployment..."
+	sleep "${register_delay}"
+
+	lookup_payload="$(jq -nc \
+		--arg env "${ENVIRONMENT_ID}" \
+		--arg svc "${SERVICE_ID}" \
+		'{
+      query: "query latestDeploy($serviceId: String!, $environmentId: String!) { deployments(first: 1, input: { serviceId: $serviceId, environmentId: $environmentId }) { edges { node { id status } } } }",
+      variables: { serviceId: $svc, environmentId: $env }
+    }')"
+	lookup_response="$(graphql "${lookup_payload}")"
+	if echo "${lookup_response}" | jq -e '.errors' >/dev/null 2>&1; then
+		echo "Failed to resolve deployment ID after trigger:" >&2
+		echo "${lookup_response}" | jq . >&2
+		exit 1
+	fi
+
+	deployment_id="$(echo "${lookup_response}" | jq -r '.data.deployments.edges[0].node.id // empty')"
+	if [[ -z "${deployment_id}" ]]; then
+		echo "No deployment ID returned after trigger." >&2
+		exit 1
+	fi
+
+	if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
+		echo "deployment_id=${deployment_id}" >>"${GITHUB_OUTPUT}"
+	fi
+
+	echo "Railway deploy triggered for ${IMAGE} (deployment ${deployment_id})"
 	# Auto-rollback is intentionally omitted. On failure, investigate the root cause
 	# and use `railway rollback` or redeploy a known-good digest manually.
 	# Rationale: rollback can mask problems and is unsafe if DB migrations ran.

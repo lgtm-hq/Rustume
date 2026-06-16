@@ -2,8 +2,10 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 set -euo pipefail
 
-# Poll Railway for the latest deployment status after triggering a deploy.
+# Poll Railway for deployment status after triggering a deploy.
 # Exits 0 on SUCCESS, non-zero on FAILED/CRASHED/timeout.
+#
+# Prefer RAILWAY_DEPLOYMENT_ID from deploy-ghcr.sh to avoid matching a stale SUCCESS.
 #
 # Auto-rollback is intentionally omitted. On failure, investigate the cause
 # and use `railway rollback` or redeploy a known-good image manually.
@@ -14,6 +16,7 @@ RAILWAY_TOKEN="${RAILWAY_TOKEN:-${RAILWAY_API_TOKEN:-}}"
 
 SERVICE_ID="${RAILWAY_SERVICE_ID:?RAILWAY_SERVICE_ID is required}"
 ENVIRONMENT_ID="${RAILWAY_ENVIRONMENT_ID:?RAILWAY_ENVIRONMENT_ID is required}"
+DEPLOYMENT_ID="${RAILWAY_DEPLOYMENT_ID:-}"
 
 TIMEOUT_SECONDS="${DEPLOY_POLL_TIMEOUT:-300}"
 POLL_INTERVAL="${DEPLOY_POLL_INTERVAL:-10}"
@@ -26,18 +29,44 @@ graphql() {
 		"https://backboard.railway.com/graphql/v2"
 }
 
-query_payload="$(jq -nc \
-	--arg env "${ENVIRONMENT_ID}" \
-	--arg svc "${SERVICE_ID}" \
-	'{
-    query: "query latestDeploy($serviceId: String!, $environmentId: String!) { deployments(first: 1, input: { serviceId: $serviceId, environmentId: $environmentId }) { edges { node { id status } } } }",
-    variables: { serviceId: $svc, environmentId: $env }
-  }')"
+parse_graphql_response() {
+	local response="$1"
+	if echo "${response}" | jq -e '.errors' >/dev/null 2>&1; then
+		echo "GraphQL query failed:" >&2
+		echo "${response}" | jq . >&2
+		exit 1
+	fi
+}
+
+if [[ -n "${DEPLOYMENT_ID}" ]]; then
+	query_payload="$(jq -nc \
+		--arg id "${DEPLOYMENT_ID}" \
+		'{
+      query: "query deploymentStatus($id: String!) { deployment(id: $id) { status } }",
+      variables: { id: $id }
+    }')"
+else
+	echo "RAILWAY_DEPLOYMENT_ID not set; polling latest deployment for service." >&2
+	sleep "${DEPLOY_REGISTER_DELAY:-5}"
+	query_payload="$(jq -nc \
+		--arg env "${ENVIRONMENT_ID}" \
+		--arg svc "${SERVICE_ID}" \
+		'{
+      query: "query latestDeploy($serviceId: String!, $environmentId: String!) { deployments(first: 1, input: { serviceId: $serviceId, environmentId: $environmentId }) { edges { node { id status } } } }",
+      variables: { serviceId: $svc, environmentId: $env }
+    }')"
+fi
 
 elapsed=0
 while ((elapsed < TIMEOUT_SECONDS)); do
 	response="$(graphql "${query_payload}")"
-	status="$(echo "${response}" | jq -r '.data.deployments.edges[0].node.status // "UNKNOWN"')"
+	parse_graphql_response "${response}"
+
+	if [[ -n "${DEPLOYMENT_ID}" ]]; then
+		status="$(echo "${response}" | jq -r '.data.deployment.status // "UNKNOWN"')"
+	else
+		status="$(echo "${response}" | jq -r '.data.deployments.edges[0].node.status // "UNKNOWN"')"
+	fi
 
 	echo "[${elapsed}s] Deployment status: ${status}"
 
