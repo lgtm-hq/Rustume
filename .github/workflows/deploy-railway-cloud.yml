@@ -55,8 +55,10 @@ jobs:
         with:
           egress-policy: block
           allowed-endpoints: >
-            backboard.railway.com:443
+            github.com:443
             api.github.com:443
+            codeload.github.com:443
+            backboard.railway.com:443
 
       - name: Checkout
         # yamllint disable-line rule:line-length
