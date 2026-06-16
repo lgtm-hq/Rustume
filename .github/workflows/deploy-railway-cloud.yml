@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+---
+name: Deploy - Rustume Cloud (Railway)
+
+# After a successful GHCR publish on main, point Railway at :main and redeploy.
+# Requires repository secret: RAILWAY_TOKEN (project or account token).
+
+"on":
+  workflow_run:
+    workflows:
+      - Build - Docker Image & Registry
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: >-
+      (github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main') ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      RAILWAY_PROJECT_ID: 83fe27c6-ab4b-444e-97bb-f7773c92c87a
+      RAILWAY_ENVIRONMENT_ID: 78af5529-02bd-42b6-8436-99f6d0e39114
+      RAILWAY_SERVICE_ID: d222fc2e-8318-453f-839f-869521b87c7a
+      RAILWAY_IMAGE: ghcr.io/lgtm-hq/rustume:main
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli@5.4.2
+
+      - name: Deploy GHCR image to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: bash scripts/ci/railway/deploy-ghcr.sh

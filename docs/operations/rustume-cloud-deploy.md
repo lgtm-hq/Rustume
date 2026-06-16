@@ -10,7 +10,7 @@ the GitHub repository.
 merge to main / push v*.*.* tag
   -> .github/workflows/docker-build-publish.yml
   -> ghcr.io/lgtm-hq/rustume (signed, scanned, multi-arch)
-  -> Railway redeploy (image pull)
+  -> .github/workflows/deploy-railway-cloud.yml (staging: :main + redeploy)
 ```
 
 Canonical build definition: `docker/Dockerfile` only. The interim
@@ -32,7 +32,24 @@ Published by [lgtm-ci reusable-docker](https://github.com/lgtm-hq/lgtm-ci) metad
 
 - **Default:** `ghcr.io/lgtm-hq/rustume:main`
 - **Pinned:** `ghcr.io/lgtm-hq/rustume:sha-<commit>` from the merge commit under test
-- After each `main` publish, redeploy staging (Railway watches the tag or trigger manually)
+- After each `main` publish, `deploy-railway-cloud.yml` redeploys staging from `:main`
+
+### CI automation
+
+Repository secret `RAILWAY_TOKEN` (project or account token) enables
+`.github/workflows/deploy-railway-cloud.yml`. After each successful
+`docker-build-publish` on `main`, it runs `scripts/ci/railway/deploy-ghcr.sh` to:
+
+1. Connect the service source to `ghcr.io/lgtm-hq/rustume:main`
+2. Deploy with `railway redeploy --from-source` (pull latest `:main` digest)
+
+Manual one-off (same as CI):
+
+```bash
+RAILWAY_TOKEN=... scripts/ci/railway/deploy-ghcr.sh
+```
+
+Trigger CI manually: **Actions → Deploy - Rustume Cloud (Railway) → Run workflow**.
 
 ### Production
 
