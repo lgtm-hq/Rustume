@@ -20,22 +20,21 @@ variable "source_image" {
 }
 
 variable "ghcr_read_token" {
-  description = "GitHub PAT with read:packages for private ghcr.io/lgtm-hq/rustume pulls."
+  description = "GitHub PAT with read:packages for private ghcr.io/lgtm-hq/rustume pulls. Must be set together with ghcr_username, or both left null; setting only one fails plan validation."
   type        = string
   sensitive   = true
   default     = null
 }
 
 variable "ghcr_username" {
-  description = "GitHub username for GHCR auth. Omit when Railway supplies GHCR username."
+  description = "GitHub username for GHCR auth. Must be set together with ghcr_read_token, or both left null; setting only one fails plan validation."
   type        = string
   default     = null
 }
 
 variable "environment_variables" {
-  description = "Runtime env vars for the Rustume server (RUSTUME_CLOUD, DATABASE_URL, WorkOS, etc.)."
+  description = "Runtime env vars for the Rustume server (RUSTUME_CLOUD, DATABASE_URL, WorkOS, etc.). Values are redacted in plan/state via railway_variable.value sensitivity; do not mark this map sensitive or for_each will fail."
   type        = map(string)
-  sensitive   = true
   default     = {}
 }
 
@@ -46,7 +45,7 @@ variable "regions" {
     num_replicas = optional(number, 1)
   }))
   default = [{
-    region       = "us-west1"
+    region       = "us-west2"
     num_replicas = 1
   }]
 }

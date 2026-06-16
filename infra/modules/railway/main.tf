@@ -17,8 +17,8 @@ resource "railway_service" "rustume" {
 
   lifecycle {
     precondition {
-      condition     = var.ghcr_read_token == null || var.ghcr_username != null
-      error_message = "ghcr_username is required when ghcr_read_token is set."
+      condition     = (var.ghcr_read_token == null) == (var.ghcr_username == null)
+      error_message = "ghcr_read_token and ghcr_username must both be set or both omitted."
     }
   }
 }
