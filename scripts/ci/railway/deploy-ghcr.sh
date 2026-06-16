@@ -4,8 +4,8 @@ set -euo pipefail
 
 # Point a Railway service at a GHCR image and deploy from that source.
 #
-# Required:
-#   RAILWAY_TOKEN
+# Required (either name):
+#   RAILWAY_TOKEN or RAILWAY_API_TOKEN
 #
 # Optional (defaults for rustume-cloud production):
 #   RAILWAY_PROJECT_ID      83fe27c6-ab4b-444e-97bb-f7773c92c87a
@@ -15,13 +15,15 @@ set -euo pipefail
 #
 # Usage:
 #   RAILWAY_TOKEN=... scripts/ci/railway/deploy-ghcr.sh
+#   RAILWAY_API_TOKEN=... scripts/ci/railway/deploy-ghcr.sh
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
 	sed -n '1,20p' "$0"
 	exit 0
 fi
 
-: "${RAILWAY_TOKEN:?RAILWAY_TOKEN is required}"
+RAILWAY_TOKEN="${RAILWAY_TOKEN:-${RAILWAY_API_TOKEN:-}}"
+: "${RAILWAY_TOKEN:?RAILWAY_TOKEN or RAILWAY_API_TOKEN is required}"
 
 PROJECT_ID="${RAILWAY_PROJECT_ID:-83fe27c6-ab4b-444e-97bb-f7773c92c87a}"
 ENVIRONMENT_ID="${RAILWAY_ENVIRONMENT_ID:-78af5529-02bd-42b6-8436-99f6d0e39114}"
