@@ -99,7 +99,10 @@ wait_for_new_deployment_id() {
 	validate_positive_int "DEPLOY_ID_REGISTER_INTERVAL" "${register_interval}"
 
 	while ((elapsed < register_timeout)); do
-		deployment_id="$(fetch_latest_deployment_id)"
+		if ! deployment_id="$(fetch_latest_deployment_id)"; then
+			echo "Failed to query deployment status during polling." >&2
+			return 1
+		fi
 		if [[ -n "${deployment_id}" && "${deployment_id}" != "${previous_id}" ]]; then
 			printf '%s' "${deployment_id}"
 			return 0
@@ -115,7 +118,15 @@ wait_for_new_deployment_id() {
 deploy_via_graphql() {
 	echo "Deploying ${SERVICE_ID} from ${IMAGE} via GraphQL API..."
 
-	previous_deployment_id="$(fetch_latest_deployment_id)"
+	local register_timeout="${DEPLOY_ID_REGISTER_TIMEOUT:-60}"
+	local register_interval="${DEPLOY_ID_REGISTER_INTERVAL:-2}"
+	validate_positive_int "DEPLOY_ID_REGISTER_TIMEOUT" "${register_timeout}"
+	validate_positive_int "DEPLOY_ID_REGISTER_INTERVAL" "${register_interval}"
+
+	previous_deployment_id="$(fetch_latest_deployment_id)" || {
+		echo "Failed to query latest deployment before deploy." >&2
+		exit 1
+	}
 
 	# CAUTION: Railway's serviceInstanceUpdate resets numReplicas to 1 if omitted.
 	# Current config: 1 replica. If scaling up, include numReplicas in the input.
@@ -155,7 +166,9 @@ deploy_via_graphql() {
 		exit 1
 	fi
 
-	deployment_id="$(wait_for_new_deployment_id "${previous_deployment_id}")"
+	if ! deployment_id="$(wait_for_new_deployment_id "${previous_deployment_id}")"; then
+		exit 1
+	fi
 
 	if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
 		echo "deployment_id=${deployment_id}" >>"${GITHUB_OUTPUT}"

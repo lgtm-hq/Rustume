@@ -76,13 +76,30 @@ Project: `rustume-cloud` (service historically named `responsible-celebration`).
 3. Set image to `ghcr.io/lgtm-hq/rustume:main`.
 4. Under **Registry credentials**, add a GitHub PAT with `read:packages` if pulls fail.
    Railway accepts GHCR tokens per [private registry docs](https://docs.railway.com/builds/private-registries).
+   Use the `lgtm-hq/railway` machine account (or equivalent) username and store the PAT
+   **only in Railway** — never in GitHub Actions or the repository.
 5. Remove source-build settings:
-   - `RAILWAY_DOCKERFILE_PATH` (and any `Dockerfile.railway` reference)
+   - `RAILWAY_DOCKERFILE_PATH` (and any `Dockerfile.railway` reference) — delete from
+     the service if still present (dashboard or Terraform `environment_variables`)
    - GitHub repo / branch deploy hooks used only for source builds
 6. **Disconnect GitHub source:** Settings → Source → Disconnect GitHub repo. The
    deploy workflow is the single deploy authority.
 7. Keep runtime variables unchanged (`RUSTUME_CLOUD`, `DATABASE_URL`, WorkOS, `SESSION_SECRET`,
    `CORS_ORIGIN`, observability secrets, etc.).
+
+### Post-merge CI validation
+
+After merging the deploy egress fix and configuring registry credentials:
+
+1. **Actions → Deploy - Rustume Cloud (Railway) → Run workflow** on `main` with
+   `dry_run: true` (logs only; no deploy).
+2. Re-run with `dry_run: false` to deploy `:main` via GraphQL.
+3. Confirm a GitHub Deployment for environment `rustume-cloud` / `production` on the
+   commit with status `success`.
+4. Verify `GET /health` returns 200 on the Railway URL.
+
+The `workflow_run` chain (docker publish → deploy) fires only when
+`docker-build-publish.yml` completes on `main` with path-filtered changes.
 
 ### Terraform
 
