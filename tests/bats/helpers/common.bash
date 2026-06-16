@@ -84,8 +84,9 @@ if ! _load_bats_library "assert"; then
 fi
 
 setup_temp_dir() {
-	BATS_TEST_TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/bats-test.XXXXXXXXXX")"
-	export BATS_TEST_TMPDIR
+	if [[ -z "${BATS_TEST_TMPDIR:-}" ]]; then
+		export BATS_TEST_TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/bats-test.XXXXXXXXXX")"
+	fi
 }
 
 teardown_temp_dir() {
@@ -96,7 +97,7 @@ teardown_temp_dir() {
 
 get_github_output() {
 	local key="$1"
-	grep "^${key}=" "${GITHUB_OUTPUT}" | cut -d= -f2-
+	grep -m1 "^${key}=" "${GITHUB_OUTPUT}" | cut -d= -f2-
 }
 
 clear_railway_tokens() {

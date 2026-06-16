@@ -99,3 +99,40 @@ EOF
 	assert_failure
 	assert_output --partial "serviceInstanceUpdate failed"
 }
+
+@test "deploy-ghcr: graphql-only fails when serviceInstanceDeployV2 returns errors" {
+	local mock_bin="${BATS_TEST_TMPDIR}/bin"
+	mkdir -p "${mock_bin}"
+
+	cat >"${mock_bin}/curl" <<'EOF'
+#!/usr/bin/env bash
+payload=""
+while (($# > 0)); do
+	if [[ "$1" == "-d" && $# -ge 2 ]]; then
+		payload="$2"
+		shift 2
+	else
+		shift
+	fi
+done
+if [[ "${payload}" == *"deployments"* ]]; then
+	echo '{"data":{"deployments":{"edges":[{"node":{"id":"old-deploy","status":"SUCCESS"}}]}}}'
+elif [[ "${payload}" == *"serviceInstanceUpdate"* ]]; then
+	echo '{"data":{"serviceInstanceUpdate":true}}'
+elif [[ "${payload}" == *"serviceInstanceDeployV2"* ]]; then
+	echo '{"errors":[{"message":"deploy failed"}]}'
+else
+	echo '{"data":{}}'
+fi
+EOF
+	chmod +x "${mock_bin}/curl"
+
+	run bash -c "
+		PATH='${mock_bin}:'\"\${PATH}\" \
+		RAILWAY_TOKEN='test-token' \
+		bash '${RAILWAY_SCRIPTS_DIR}/deploy-ghcr.sh' --graphql-only
+	"
+
+	assert_failure
+	assert_output --partial "serviceInstanceDeployV2 failed"
+}

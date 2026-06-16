@@ -11,6 +11,11 @@ while (($# > 0)); do
 	fi
 done
 
+if [[ -z "${COUNTER_FILE:-}" ]]; then
+	echo "COUNTER_FILE must be set" >&2
+	exit 1
+fi
+
 count="$(cat "${COUNTER_FILE}")"
 count=$((count + 1))
 echo "${count}" >"${COUNTER_FILE}"

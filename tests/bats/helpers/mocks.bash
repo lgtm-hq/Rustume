@@ -6,6 +6,11 @@ mock_command() {
 	local cmd_name="$1"
 	local output="${2:-}"
 	local exit_code="${3:-0}"
+
+	[[ -n "${BATS_TEST_TMPDIR:-}" ]] || {
+		echo "Error: BATS_TEST_TMPDIR not set" >&2
+		return 1
+	}
 	local mock_bin="${BATS_TEST_TMPDIR}/bin"
 
 	mkdir -p "${mock_bin}"
@@ -25,6 +30,11 @@ EOF
 mock_command_script() {
 	local cmd_name="$1"
 	local script_body="$2"
+
+	[[ -n "${BATS_TEST_TMPDIR:-}" ]] || {
+		echo "Error: BATS_TEST_TMPDIR not set" >&2
+		return 1
+	}
 	local mock_bin="${BATS_TEST_TMPDIR}/bin"
 
 	mkdir -p "${mock_bin}"

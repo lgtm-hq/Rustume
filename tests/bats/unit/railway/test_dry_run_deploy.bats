@@ -6,6 +6,7 @@ load "../../helpers/common"
 
 setup() {
 	setup_temp_dir
+	clear_railway_tokens
 }
 
 teardown() {
