@@ -22,6 +22,27 @@ and this project adheres to
 
 ### Security
 
+## [0.19.0] - 2026-06-14
+
+### Added
+
+- add cloud login and account UX (Phase 1 MVP) (#287) (a3051f6)
+
+### Changed
+
+- **release**: version 0.18.1 (#284) (a042863)
+- **deps**: update actions/checkout to v6.0.3 (#282) (1c7a420)
+- **release**: version 0.18.1 (#283) (e33cd66)
+- **ci**: trigger fresh docker build after cosign 409 conflict (33d0fc1)
+
+### Fixed
+
+- **server**: optimistic concurrency control on resume updates (#286) (5d384da)
+- **docker**: sync wasm-bindgen dynamic versioning to Railway Dockerfile (95b3825)
+- **ci**: grant actions:read and issues:write for reusable failure-notify job (a360f0e)
+- **ci**: move permissions to workflow level for reusable caller (0b30e2c)
+- **ci**: adopt lgtm-ci v0.44.1 and complete reusable workflow migration (#281) (76fade2)
+
 ## [0.18.1] - 2026-06-12
 
 ### Changed
@@ -173,7 +194,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.18.1...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/lgtm-hq/Rustume/compare/v0.18.0...v0.19.0
 [0.18.1]: https://github.com/lgtm-hq/Rustume/compare/v0.18.0...v0.18.1
 [0.11.0]: https://github.com/lgtm-hq/Rustume/compare/v0.10.2...v0.11.0
 [0.10.2]: https://github.com/lgtm-hq/Rustume/compare/v0.10.1...v0.10.2
