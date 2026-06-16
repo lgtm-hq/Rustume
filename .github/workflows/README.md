@@ -31,8 +31,12 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
 - **deploy-pages.yml** — Docs site + bundled coverage reports via
   `reusable-deploy-site-with-reports` (triggered after **Coverage Reports** or
   **Quality - Documentation Site** on `main`, or `workflow_dispatch`)
+- **deploy-railway-cloud.yml** — Deploy - Rustume Cloud (Railway). Deploys to Railway
+  after successful Docker publish on `main`. Uses GraphQL API to update image source and
+  trigger deploy. Polls for success. Creates GitHub Deployment entry. Requires
+  `RAILWAY_API_TOKEN` (or `RAILWAY_TOKEN`).
 - **docker-build-publish.yml** — Multi-arch GHCR publish via `reusable-docker`
-  (Rustume Cloud staging: `ghcr.io/lgtm-hq/rustume:main`; production: semver/digest — see
+  (Rustume Cloud production: `ghcr.io/lgtm-hq/rustume:main` — see
   `docs/operations/rustume-cloud-deploy.md`)
 
 ## Release

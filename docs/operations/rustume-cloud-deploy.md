@@ -10,7 +10,7 @@ the GitHub repository.
 merge to main / push v*.*.* tag
   -> .github/workflows/docker-build-publish.yml
   -> ghcr.io/lgtm-hq/rustume (signed, scanned, multi-arch)
-  -> Railway redeploy (image pull)
+  -> .github/workflows/deploy-railway-cloud.yml (production: :main + GraphQL deploy)
 ```
 
 Canonical build definition: `docker/Dockerfile` only. The interim
@@ -23,45 +23,65 @@ Published by [lgtm-ci reusable-docker](https://github.com/lgtm-hq/lgtm-ci) metad
 
 | Tag | Trigger | Rustume Cloud use |
 | --- | --- | --- |
-| `main` | Path-filtered push to `main` | **Staging** floating deploy |
-| `sha-<commit>` | Same build as `main` / release | **Staging/production pin** (reproducible) |
-| `<semver>`, `latest` | `v*.*.*` git tag | **Production** release deploy |
+| `main` | Path-filtered push to `main` | **Production** floating deploy (single env) |
+| `sha-<commit>` | Same build as `main` / release | **Pin** (reproducible rollback target) |
+| `<semver>`, `latest` | `v*.*.*` git tag | Release deploy (future semver pinning) |
 | `cache` | CI registry cache | Internal only — do not deploy |
 
-### Staging (`rustume-cloud` Railway project)
+### Production (`rustume-cloud` Railway project)
 
 - **Default:** `ghcr.io/lgtm-hq/rustume:main`
 - **Pinned:** `ghcr.io/lgtm-hq/rustume:sha-<commit>` from the merge commit under test
-- After each `main` publish, redeploy staging (Railway watches the tag or trigger manually)
+- After each `main` publish, `deploy-railway-cloud.yml` deploys production from `:main`
 
-### Production
+### CI automation
 
-- **Default:** `ghcr.io/lgtm-hq/rustume:<semver>` matching the released version
-- **Preferred:** digest pin `ghcr.io/lgtm-hq/rustume@sha256:…` from the release workflow run
-- Do not deploy `:main` to production
+Repository secret `RAILWAY_API_TOKEN` (or `RAILWAY_TOKEN`) enables
+`.github/workflows/deploy-railway-cloud.yml`. After each successful
+`docker-build-publish` on `main`, CI:
 
-Resolve digest from the workflow run or:
+1. Creates a GitHub Deployment entry for the commit
+2. Runs `scripts/ci/railway/deploy-ghcr.sh --graphql-only` (GraphQL only — no Railway CLI)
+3. Polls Railway deployment status via `scripts/ci/railway/poll-deploy-status.sh`
+   (5-minute timeout, 10-second interval; fails on `FAILED`/`CRASHED`)
+4. Updates the GitHub Deployment status to `success` or `failure`
+
+**No auto-rollback:** On deploy failure, CI fails red. Investigate the root cause and
+recover manually with `railway rollback` or by redeploying a known-good digest. Auto-rollback
+can mask problems and is unsafe if database migrations ran.
+
+Manual one-off (local — uses Railway CLI when installed, otherwise GraphQL):
 
 ```bash
-docker buildx imagetools inspect ghcr.io/lgtm-hq/rustume:sha-<commit> \
-  --format '{{json .Manifest}}'
+RAILWAY_TOKEN=... scripts/ci/railway/deploy-ghcr.sh
 ```
+
+Force GraphQL (same path as CI):
+
+```bash
+RAILWAY_TOKEN=... scripts/ci/railway/deploy-ghcr.sh --graphql-only
+```
+
+Trigger CI manually: **Actions → Deploy - Rustume Cloud (Railway) → Run workflow**
+(use `dry_run: true` to log without deploying).
 
 ## Railway service configuration
 
-Project: `rustume-cloud` (staging service historically named `responsible-celebration`).
+Project: `rustume-cloud` (service historically named `responsible-celebration`).
 
 ### Switch source to GHCR
 
 1. Open the service **Settings → Source**.
 2. Change source from **GitHub repository** to **Docker image**.
-3. Set image to `ghcr.io/lgtm-hq/rustume:main` (staging) or the release tag/digest.
+3. Set image to `ghcr.io/lgtm-hq/rustume:main`.
 4. Under **Registry credentials**, add a GitHub PAT with `read:packages` if pulls fail.
    Railway accepts GHCR tokens per [private registry docs](https://docs.railway.com/builds/private-registries).
 5. Remove source-build settings:
    - `RAILWAY_DOCKERFILE_PATH` (and any `Dockerfile.railway` reference)
    - GitHub repo / branch deploy hooks used only for source builds
-6. Keep runtime variables unchanged (`RUSTUME_CLOUD`, `DATABASE_URL`, WorkOS, `SESSION_SECRET`,
+6. **Disconnect GitHub source:** Settings → Source → Disconnect GitHub repo. The
+   deploy workflow is the single deploy authority.
+7. Keep runtime variables unchanged (`RUSTUME_CLOUD`, `DATABASE_URL`, WorkOS, `SESSION_SECRET`,
    `CORS_ORIGIN`, observability secrets, etc.).
 
 ### Terraform
@@ -71,12 +91,13 @@ Use `infra/modules/railway/` with `source_image` and `environment_variables`. Do
 
 ## Verification
 
-After switching staging to GHCR:
+After switching to GHCR:
 
 1. Confirm the latest `main` workflow published `ghcr.io/lgtm-hq/rustume:main`.
-2. Trigger a Railway redeploy; build logs should show **image pull**, not Rust compile.
+2. Trigger a deploy (CI or manual); build logs should show **image pull**, not Rust compile.
 3. Deploy time should drop from ~20–30+ minutes (source build) to a few minutes (pull + start).
-4. Smoke test:
+4. Confirm a GitHub Deployment entry appears on the commit with status `success`.
+5. Smoke test:
    - `GET /health` returns success
    - WorkOS login completes
    - Resume create / read / update / delete via the UI or API
@@ -84,5 +105,6 @@ After switching staging to GHCR:
 ## Related
 
 - [Deployment](../deployment.md) — self-hosting and GHCR tags for operators
-- [Issue #252](https://github.com/lgtm-hq/Rustume/issues/252) — migration tracking
-- [Issue #243](https://github.com/lgtm-hq/Rustume/issues/243) — Phase 1 Terraform stack
+- [Issue #252](https://github.com/lgtm-hq/Rustume/issues/252) — GHCR migration (closed)
+- [Issue #299](https://github.com/lgtm-hq/Rustume/issues/299) — CI deploy automation
+- [Issue #243](https://github.com/lgtm-hq/Rustume/issues/243) — Rustume Cloud parent epic
