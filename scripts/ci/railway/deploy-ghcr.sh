@@ -87,7 +87,7 @@ wait_for_new_deployment_id() {
 	local deployment_id=""
 
 	while ((elapsed < register_timeout)); do
-		deployment_id="$(fetch_latest_deployment_id || true)"
+		deployment_id="$(fetch_latest_deployment_id)"
 		if [[ -n "${deployment_id}" && "${deployment_id}" != "${previous_id}" ]]; then
 			printf '%s' "${deployment_id}"
 			return 0
@@ -103,7 +103,7 @@ wait_for_new_deployment_id() {
 deploy_via_graphql() {
 	echo "Deploying ${SERVICE_ID} from ${IMAGE} via GraphQL API..."
 
-	previous_deployment_id="$(fetch_latest_deployment_id || true)"
+	previous_deployment_id="$(fetch_latest_deployment_id)"
 
 	# CAUTION: Railway's serviceInstanceUpdate resets numReplicas to 1 if omitted.
 	# Current config: 1 replica. If scaling up, include numReplicas in the input.

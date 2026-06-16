@@ -9,7 +9,7 @@ set -euo pipefail
 #   GITHUB_OUTPUT    GitHub Actions output file path
 #
 # Optional:
-#   GITHUB_REPOSITORY  defaults to gh repo context when unset
+#   GITHUB_REPOSITORY  required in GitHub Actions
 
 : "${DEPLOY_REF:?DEPLOY_REF is required}"
 : "${GITHUB_OUTPUT:?GITHUB_OUTPUT is required}"
