@@ -25,6 +25,8 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
   `reusable-publish-quality-summary`
 - **site-quality.yml** — Docs site build, link check, Astro check, Vitest + pytest via
   `reusable-site-quality`
+- **test-railway-shell.yml** — BATS tests for `scripts/ci/railway/` via
+  `reusable-test-shell`
 
 ## Deploy
 
@@ -106,5 +108,6 @@ in-progress runs on `main`.
 ## Local scripts
 
 Repo-local scripts under `scripts/ci/` remain for site build/test, release binary
-packaging, and GHCR tagged prune. Quality, security audit, release automation, and
-vulnerability suppression paths are handled by lgtm-ci reusables.
+packaging, Railway deploy automation tests, and GHCR tagged prune. Quality,
+security audit, release automation, and vulnerability suppression paths are
+handled by lgtm-ci reusables.
