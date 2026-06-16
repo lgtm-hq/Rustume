@@ -66,21 +66,10 @@ jobs:
 
       - name: Create GitHub Deployment
         id: deployment
+        if: inputs.dry_run != true && inputs.dry_run != 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          DEPLOY_ID=$(jq -nc \
-            --arg ref "${{ github.event.workflow_run.head_sha || github.sha }}" \
-            '{
-              ref: $ref,
-              environment: "production",
-              description: "Railway deploy from ghcr.io/lgtm-hq/rustume:main",
-              auto_merge: false,
-              required_contexts: []
-            }' \
-            | gh api "repos/${GITHUB_REPOSITORY}/deployments" --input - --jq '.id')
-          echo "id=${DEPLOY_ID}" >> "$GITHUB_OUTPUT"
+          DEPLOY_REF: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: bash scripts/ci/railway/create-github-deployment.sh
 
       - name: Deploy GHCR image to Railway
         id: railway_deploy
@@ -91,10 +80,7 @@ jobs:
 
       - name: Dry run
         if: inputs.dry_run == true || inputs.dry_run == 'true'
-        run: |
-          echo "DRY RUN — would deploy ${RAILWAY_IMAGE} to service ${RAILWAY_SERVICE_ID}"
-          echo "Environment: ${RAILWAY_ENVIRONMENT_ID}"
-          echo "Project: ${RAILWAY_PROJECT_ID}"
+        run: bash scripts/ci/railway/dry-run-deploy.sh
 
       - name: Poll deployment status
         if: inputs.dry_run != true && inputs.dry_run != 'true'
@@ -104,24 +90,26 @@ jobs:
         run: bash scripts/ci/railway/poll-deploy-status.sh
 
       - name: Update GitHub Deployment (success)
-        if: success() && steps.deployment.outputs.id
+        if: >-
+          success() &&
+          steps.deployment.outputs.id &&
+          inputs.dry_run != true &&
+          inputs.dry_run != 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DEPLOY_ID: ${{ steps.deployment.outputs.id }}
-        run: |
-          gh api "repos/${GITHUB_REPOSITORY}/deployments/${DEPLOY_ID}/statuses" \
-            -f state="success" \
-            -f environment="production" \
-            -f environment_url="https://app.rustume.com" \
-            -f description="Deployed to Railway"
+          DEPLOY_STATE: success
+          DEPLOY_ENVIRONMENT_URL: https://app.rustume.com
+          DEPLOY_DESCRIPTION: Deployed to Railway
+        run: bash scripts/ci/railway/update-github-deployment-status.sh
 
       - name: Update GitHub Deployment (failure)
-        if: failure() && steps.deployment.outputs.id
+        if: >-
+          failure() &&
+          steps.deployment.outputs.id &&
+          inputs.dry_run != true &&
+          inputs.dry_run != 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DEPLOY_ID: ${{ steps.deployment.outputs.id }}
-        run: |
-          gh api "repos/${GITHUB_REPOSITORY}/deployments/${DEPLOY_ID}/statuses" \
-            -f state="failure" \
-            -f environment="production" \
-            -f description="Railway deployment failed — investigate and rollback manually"
+          DEPLOY_STATE: failure
+          DEPLOY_DESCRIPTION: Railway deployment failed — investigate and rollback manually
+        run: bash scripts/ci/railway/update-github-deployment-status.sh
