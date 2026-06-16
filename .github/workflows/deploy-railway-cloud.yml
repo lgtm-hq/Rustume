@@ -108,7 +108,7 @@ jobs:
 
       - name: Update GitHub Deployment (failure)
         if: >-
-          failure() &&
+          (failure() || cancelled()) &&
           steps.deployment.outputs.id &&
           inputs.dry_run != true &&
           inputs.dry_run != 'true'
