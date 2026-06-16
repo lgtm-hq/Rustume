@@ -25,6 +25,8 @@ if [[ "${payload}" == *"serviceInstanceUpdate"* ]]; then
 elif [[ "${payload}" == *"serviceInstanceDeployV2"* ]]; then
 	echo '{"data":{"serviceInstanceDeployV2":true}}'
 elif [[ "${payload}" == *"deployments"* ]]; then
+	# Call order in deploy_via_graphql(): 1=pre-deploy fetch, 2=update, 3=deploy,
+	# 4+=poll. count<=1 returns old-deploy; count>=2 returns new-deploy.
 	if [[ "${count}" -le 1 ]]; then
 		echo '{"data":{"deployments":{"edges":[{"node":{"id":"old-deploy","status":"SUCCESS"}}]}}}'
 	else

@@ -49,7 +49,6 @@ echo "{\"data\":{\"deployment\":{\"status\":\"SUCCESS\"}}}"
 '
 
 	run env \
-		PATH="${BATS_TEST_TMPDIR}/bin:${PATH}" \
 		RAILWAY_TOKEN="test-token" \
 		RAILWAY_DEPLOYMENT_ID="deploy-1" \
 		DEPLOY_POLL_TIMEOUT="30" \
@@ -75,7 +74,6 @@ echo "{\"data\":{\"deployment\":{\"status\":\"FAILED\"}}}"
 '
 
 	run env \
-		PATH="${BATS_TEST_TMPDIR}/bin:${PATH}" \
 		RAILWAY_TOKEN="test-token" \
 		RAILWAY_DEPLOYMENT_ID="deploy-1" \
 		DEPLOY_POLL_TIMEOUT="30" \
@@ -101,7 +99,6 @@ echo "{\"data\":{\"deployment\":{\"status\":\"BUILDING\"}}}"
 '
 
 	run env \
-		PATH="${BATS_TEST_TMPDIR}/bin:${PATH}" \
 		RAILWAY_TOKEN="test-token" \
 		RAILWAY_DEPLOYMENT_ID="deploy-1" \
 		DEPLOY_POLL_TIMEOUT="2" \

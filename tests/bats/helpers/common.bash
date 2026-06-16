@@ -85,7 +85,9 @@ fi
 
 setup_temp_dir() {
 	if [[ -z "${BATS_TEST_TMPDIR:-}" ]]; then
-		export BATS_TEST_TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/bats-test.XXXXXXXXXX")"
+		local tmpdir
+		tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/bats-test.XXXXXXXXXX")"
+		export BATS_TEST_TMPDIR="${tmpdir}"
 	fi
 }
 

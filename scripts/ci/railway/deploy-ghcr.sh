@@ -118,8 +118,8 @@ wait_for_new_deployment_id() {
 deploy_via_graphql() {
 	echo "Deploying ${SERVICE_ID} from ${IMAGE} via GraphQL API..."
 
-	register_timeout="${DEPLOY_ID_REGISTER_TIMEOUT:-60}"
-	register_interval="${DEPLOY_ID_REGISTER_INTERVAL:-2}"
+	local register_timeout="${DEPLOY_ID_REGISTER_TIMEOUT:-60}"
+	local register_interval="${DEPLOY_ID_REGISTER_INTERVAL:-2}"
 	validate_positive_int "DEPLOY_ID_REGISTER_TIMEOUT" "${register_timeout}"
 	validate_positive_int "DEPLOY_ID_REGISTER_INTERVAL" "${register_interval}"
 

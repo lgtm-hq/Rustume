@@ -136,3 +136,89 @@ EOF
 	assert_failure
 	assert_output --partial "serviceInstanceDeployV2 failed"
 }
+
+@test "deploy-ghcr: graphql-only fails when pre-deploy deployment query returns errors" {
+	local mock_bin="${BATS_TEST_TMPDIR}/bin"
+	mkdir -p "${mock_bin}"
+
+	cat >"${mock_bin}/curl" <<'EOF'
+#!/usr/bin/env bash
+payload=""
+while (($# > 0)); do
+	if [[ "$1" == "-d" && $# -ge 2 ]]; then
+		payload="$2"
+		shift 2
+	else
+		shift
+	fi
+done
+if [[ "${payload}" == *"deployments"* ]]; then
+	echo '{"errors":[{"message":"deployments query failed"}]}'
+else
+	echo '{"data":{}}'
+fi
+EOF
+	chmod +x "${mock_bin}/curl"
+
+	run bash -c "
+		PATH='${mock_bin}:'\"\${PATH}\" \
+		RAILWAY_TOKEN='test-token' \
+		bash '${RAILWAY_SCRIPTS_DIR}/deploy-ghcr.sh' --graphql-only
+	"
+
+	assert_failure
+	assert_output --partial "Failed to query latest deployment before deploy"
+}
+
+@test "deploy-ghcr: graphql-only fails when polling deployment query returns errors" {
+	local mock_bin="${BATS_TEST_TMPDIR}/bin"
+	local counter_file="${BATS_TEST_TMPDIR}/curl_calls"
+	mkdir -p "${mock_bin}"
+	echo "0" >"${counter_file}"
+
+	cat >"${mock_bin}/curl" <<'EOF'
+#!/usr/bin/env bash
+payload=""
+while (($# > 0)); do
+	if [[ "$1" == "-d" && $# -ge 2 ]]; then
+		payload="$2"
+		shift 2
+	else
+		shift
+	fi
+done
+if [[ -z "${COUNTER_FILE:-}" ]]; then
+	echo "COUNTER_FILE must be set" >&2
+	exit 1
+fi
+count="$(cat "${COUNTER_FILE}")"
+count=$((count + 1))
+echo "${count}" >"${COUNTER_FILE}"
+if [[ "${payload}" == *"serviceInstanceUpdate"* ]]; then
+	echo '{"data":{"serviceInstanceUpdate":true}}'
+elif [[ "${payload}" == *"serviceInstanceDeployV2"* ]]; then
+	echo '{"data":{"serviceInstanceDeployV2":true}}'
+elif [[ "${payload}" == *"deployments"* ]]; then
+	if [[ "${count}" -le 1 ]]; then
+		echo '{"data":{"deployments":{"edges":[{"node":{"id":"old-deploy","status":"SUCCESS"}}]}}}'
+	else
+		echo '{"errors":[{"message":"polling query failed"}]}'
+	fi
+else
+	echo '{"data":{}}'
+fi
+EOF
+	chmod +x "${mock_bin}/curl"
+
+	run bash -c "
+		PATH='${mock_bin}:'\"\${PATH}\" \
+		COUNTER_FILE='${counter_file}' \
+		RAILWAY_TOKEN='test-token' \
+		DEPLOY_ID_REGISTER_TIMEOUT='5' \
+		DEPLOY_ID_REGISTER_INTERVAL='1' \
+		bash '${RAILWAY_SCRIPTS_DIR}/deploy-ghcr.sh' --graphql-only
+	"
+
+	assert_failure
+	assert_output --partial "Failed to query deployment status during polling"
+}
