@@ -4,6 +4,13 @@ name: Build - Docker Image & Registry
 # Builds and publishes Docker images to GHCR via lgtm-ci reusable-docker.
 # - PRs: native multi-arch validation (build + smoke + blocking scan, no push)
 # - main/tags/release: publish, cosign sign, SBOM, provenance, registry cache
+#
+# Rustume Cloud deploy tags (reusable-docker metadata-action):
+#   main push  -> ghcr.io/lgtm-hq/rustume:main, :sha-<commit>
+#   v*.*.* tag -> ghcr.io/lgtm-hq/rustume:<semver>, :latest, :sha-<commit>
+# Staging should track :main (or digest-pin sha-<commit> from the same build).
+# Production should track release semver tags (prefer digest-pinned sha-<commit>).
+# See docs/operations/rustume-cloud-deploy.md.
 
 "on":
   push:

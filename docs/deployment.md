@@ -87,12 +87,19 @@ cosign verify-attestation --type https://slsa.dev/provenance/v1 ghcr.io/lgtm-hq/
 
 | Tag | When published | Use for |
 | --- | --- | --- |
-| `latest`, `0.15.0`, `0.15`, `0` | `v*.*.*` git tag push | Production self-hosting |
-| `main`, `sha-<commit>` | `main` branch push (path-filtered) | Bleeding-edge / CI |
+| `latest`, `0.15.0`, `0.15`, `0` | `v*.*.*` git tag push | Production self-hosting and Rustume Cloud production |
+| `main`, `sha-<commit>` | `main` branch push (path-filtered) | Rustume Cloud staging / bleeding-edge self-hosting |
 | `build-<run>-<arch>` | CI staging only | Internal; not for pulls |
 
 CI publishes `latest` and semver tags only when the workflow runs on a version
 tag and receives the tag name as `version` (for example `v0.15.0`).
+
+## Rustume Cloud (operated hosting)
+
+Operated Rustume Cloud deploys the same GHCR images CI builds for releases — Railway pulls
+the image instead of compiling from GitHub source. Staging tracks `:main` (or a pinned
+`:sha-<commit>`); production tracks release semver tags or a digest pin. Full runbook:
+[docs/operations/rustume-cloud-deploy.md](operations/rustume-cloud-deploy.md).
 
 ## Environment Variables
 

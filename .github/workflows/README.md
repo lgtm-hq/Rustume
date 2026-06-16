@@ -32,6 +32,8 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
   `reusable-deploy-site-with-reports` (triggered after **Coverage Reports** or
   **Quality - Documentation Site** on `main`, or `workflow_dispatch`)
 - **docker-build-publish.yml** — Multi-arch GHCR publish via `reusable-docker`
+  (Rustume Cloud staging: `ghcr.io/lgtm-hq/rustume:main`; production: semver/digest — see
+  `docs/operations/rustume-cloud-deploy.md`)
 
 ## Release
 

@@ -17,6 +17,11 @@ Terraform configuration for the operated deployment covers:
 - Monitoring integrations and operational secrets
 - Environment separation and controlled deployment changes
 - Recovery-oriented infrastructure configuration
+- CI-built container image references (GHCR) for application deploys instead of on-platform compiles
+
+Application images are published by GitHub Actions (`docker-build-publish.yml`). Staging
+environments track the `main` branch artifact; production environments track release tags or
+digest-pinned builds from the same pipeline.
 
 ## Self-hosted choice
 
