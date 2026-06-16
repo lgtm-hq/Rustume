@@ -1,3 +1,8 @@
+locals {
+  ghcr_token_provided = var.ghcr_read_token != null && trimspace(var.ghcr_read_token) != ""
+  ghcr_user_provided  = var.ghcr_username != null && trimspace(var.ghcr_username) != ""
+}
+
 resource "railway_service" "rustume" {
   name       = var.service_name
   project_id = var.project_id
@@ -12,13 +17,13 @@ resource "railway_service" "rustume" {
     }
   }
 
-  source_image_registry_username = var.ghcr_read_token == null ? null : var.ghcr_username
-  source_image_registry_password = var.ghcr_read_token
+  source_image_registry_username = local.ghcr_token_provided ? var.ghcr_username : null
+  source_image_registry_password = local.ghcr_token_provided ? var.ghcr_read_token : null
 
   lifecycle {
     precondition {
-      condition     = (var.ghcr_read_token == null) == (var.ghcr_username == null)
-      error_message = "ghcr_read_token and ghcr_username must both be set or both omitted."
+      condition     = local.ghcr_token_provided == local.ghcr_user_provided
+      error_message = "ghcr_read_token and ghcr_username must both be set to non-empty values or both omitted."
     }
   }
 }
