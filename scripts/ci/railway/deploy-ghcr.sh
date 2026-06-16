@@ -44,6 +44,15 @@ ENVIRONMENT_ID="${RAILWAY_ENVIRONMENT_ID:-78af5529-02bd-42b6-8436-99f6d0e39114}"
 SERVICE_ID="${RAILWAY_SERVICE_ID:-d222fc2e-8318-453f-839f-869521b87c7a}"
 IMAGE="${RAILWAY_IMAGE:-ghcr.io/lgtm-hq/rustume:main}"
 
+validate_positive_int() {
+	local name="$1"
+	local value="$2"
+	if ! [[ "${value}" =~ ^[1-9][0-9]*$ ]]; then
+		echo "${name} must be a positive integer, got: ${value}" >&2
+		exit 1
+	fi
+}
+
 CURL_CONNECT_TIMEOUT="${RAILWAY_CURL_CONNECT_TIMEOUT:-10}"
 CURL_MAX_TIME="${RAILWAY_CURL_MAX_TIME:-30}"
 
@@ -85,6 +94,9 @@ wait_for_new_deployment_id() {
 	local register_interval="${DEPLOY_ID_REGISTER_INTERVAL:-2}"
 	local elapsed=0
 	local deployment_id=""
+
+	validate_positive_int "DEPLOY_ID_REGISTER_TIMEOUT" "${register_timeout}"
+	validate_positive_int "DEPLOY_ID_REGISTER_INTERVAL" "${register_interval}"
 
 	while ((elapsed < register_timeout)); do
 		deployment_id="$(fetch_latest_deployment_id)"
