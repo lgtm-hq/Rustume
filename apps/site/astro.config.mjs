@@ -4,15 +4,21 @@ import sitemap from "@astrojs/sitemap";
 import { rehypeSiteImages } from "./src/lib/rehype-site-images.mjs";
 import { rehypeDocLinks, rehypeUnwrapHeadingLinks } from "./src/lib/rehype-doc-links.mjs";
 
-const base = process.env.ASTRO_BASE || "/";
+/** @param {string | undefined} value */
+function trimmedEnv(value) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+const base = trimmedEnv(process.env.ASTRO_BASE) ?? "/";
 const cloudAppUrl =
-  process.env.PUBLIC_CLOUD_APP_URL ||
-  process.env.PUBLIC_CLOUD_APP_URL_DEFAULT ||
+  trimmedEnv(process.env.PUBLIC_CLOUD_APP_URL) ??
+  trimmedEnv(process.env.PUBLIC_CLOUD_APP_URL_DEFAULT) ??
   "https://app.rustume.com";
 
 /** @type {import('astro').AstroUserConfig} */
 export default defineConfig({
-  site: "https://lgtm-hq.github.io",
+  site: "https://rustume.com",
   env: {
     schema: {
       PUBLIC_CLOUD_APP_URL: envField.string({

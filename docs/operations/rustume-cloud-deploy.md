@@ -151,9 +151,10 @@ Point the apex at GitHub Pages using one of:
   or
 - **CNAME flattening** at the apex to `<org>.github.io` when your DNS provider supports it.
 
-For this repository, the GitHub Pages project path is `/Rustume/` until the custom domain is
-active; after `rustume.com` is verified, set production `ASTRO_BASE=/` and update
-`astro.config.mjs` `site` to `https://rustume.com` (see `scripts/ci/site/defaults.env`).
+Production builds use `ASTRO_BASE_DEFAULT=/` in `scripts/ci/site/defaults.env` and
+`site: "https://rustume.com"` in `apps/site/astro.config.mjs`. Merge and deploy only
+when Cloudflare apex DNS and the GitHub Pages custom domain are ready — the legacy
+`lgtm-hq.github.io/Rustume/` project URL will no longer match the built base path.
 
 ### GitHub Pages — custom domain
 
