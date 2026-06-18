@@ -667,7 +667,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_ne!(response.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(response.status(), StatusCode::OK);
     }
 
     #[tokio::test]

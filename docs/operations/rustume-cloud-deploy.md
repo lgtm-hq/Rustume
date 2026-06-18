@@ -194,7 +194,9 @@ Update on the `responsible-celebration` service:
 When `RUSTUME_REQUIRE_AUTH=true` and cloud mode is enabled, billable API routes
 (`/api/render/*`, `/api/parse`, `/api/validate`, `/api/templates*`) require a session cookie.
 The web app redirects signed-out users to `/auth/login`. Self-hosted deployments leave this
-unset so local IndexedDB use and optional anonymous API access continue to work.
+unset so local IndexedDB use and optional anonymous API access continue to work. The `/auth/me`
+endpoint returns HTTP 200 or 401 with a `require_auth` boolean so the frontend can discover the
+requirement before sign-in.
 
 Redeploy after changing env vars so the process picks up the new origin and callback.
 
@@ -210,10 +212,13 @@ that URL.
 ### Post-cutover verification
 
 1. `GET https://app.rustume.com/health` returns **200**.
-2. Anonymous requests to billable APIs return **401** when `RUSTUME_REQUIRE_AUTH=true`.
-3. WorkOS AuthKit sign-in completes on `app.rustume.com` (callback hits the new redirect URI).
-4. Docs site loads at `https://rustume.com` with valid HTTPS.
-5. GitHub **Deploy - GitHub Pages** workflow reports success against the custom domain URL.
+2. `GET https://app.rustume.com/auth/me` without session cookies returns **401** with
+   `require_auth: true` in the response body.
+3. Anonymous requests (no session cookie) to billable APIs return **401** when
+   `RUSTUME_REQUIRE_AUTH=true`.
+4. WorkOS AuthKit sign-in completes on `app.rustume.com` (callback hits the new redirect URI).
+5. Docs site loads at `https://rustume.com` with valid HTTPS.
+6. GitHub **Deploy - GitHub Pages** workflow reports success against the custom domain URL.
 
 ### Railway default domain
 

@@ -221,6 +221,8 @@ impl AuthUserResponse {
     }
 }
 
+/// NOTE: `require_auth` is always `false` here. Prefer [`AuthUserResponse::from_user`] when the
+/// hosted require-auth flag must be propagated to the client.
 impl From<User> for AuthUserResponse {
     fn from(user: User) -> Self {
         Self::from_user(user, false)

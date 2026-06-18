@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from "@solidjs/router";
-import { createEffect, type ParentComponent } from "solid-js";
+import { createEffect, Show, type ParentComponent } from "solid-js";
 import { authStore } from "../../stores/auth";
+import { Spinner } from "../ui";
 
 const AUTH_PATH_PREFIX = "/auth/";
 
@@ -9,7 +10,7 @@ function isProtectedPath(pathname: string): boolean {
     return false;
   }
 
-  if (pathname === "/account") {
+  if (pathname === "/account" || pathname.startsWith("/account/")) {
     return false;
   }
 
@@ -38,5 +39,9 @@ export const RequireAuthGuard: ParentComponent = (props) => {
     navigate("/auth/login", { replace: true });
   });
 
-  return props.children;
+  return (
+    <Show when={!state.loading} fallback={<Spinner class="w-6 h-6 text-accent mx-auto mt-24" />}>
+      {props.children}
+    </Show>
+  );
 };
