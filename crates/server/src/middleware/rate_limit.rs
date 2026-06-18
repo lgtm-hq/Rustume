@@ -221,6 +221,39 @@ fn remote_addr_from_request(request: &Request) -> Option<SocketAddr> {
         .map(|ConnectInfo(addr)| *addr)
 }
 
+async fn enforce_ip_rate_limit(
+    rate_limits: &RateLimitState,
+    group: RateLimitGroup,
+    headers: &HeaderMap,
+    remote_addr: Option<SocketAddr>,
+    request: Request,
+    next: Next,
+) -> Result<Response, RateLimitExceeded> {
+    let key = ip_rate_limit_key(headers, remote_addr, rate_limits.trusted_proxy);
+    rate_limits.check(group, &key)?;
+    Ok(next.run(request).await)
+}
+
+async fn enforce_session_rate_limit(
+    state: &AppState,
+    rate_limits: &RateLimitState,
+    group: RateLimitGroup,
+    headers: &HeaderMap,
+    remote_addr: Option<SocketAddr>,
+    request: Request,
+    next: Next,
+) -> Result<Response, RateLimitExceeded> {
+    let trusted_proxy = rate_limits.trusted_proxy;
+    let ip_key = ip_rate_limit_key(headers, remote_addr, trusted_proxy);
+    rate_limits.check(group, &ip_key)?;
+
+    let session_key = session_rate_limit_key(state, headers, remote_addr, trusted_proxy).await;
+    if session_key != ip_key {
+        rate_limits.check(group, &session_key)?;
+    }
+    Ok(next.run(request).await)
+}
+
 async fn enforce_rate_limit(
     state: &AppState,
     group: RateLimitGroup,
@@ -232,26 +265,29 @@ async fn enforce_rate_limit(
     };
 
     let remote_addr = remote_addr_from_request(&request);
-    let headers = request.headers();
-    let trusted_proxy = rate_limits.trusted_proxy;
+    let headers = request.headers().clone();
 
-    let key = match group {
+    match group {
         RateLimitGroup::Health | RateLimitGroup::Metrics | RateLimitGroup::Unauthenticated => {
-            ip_rate_limit_key(headers, remote_addr, trusted_proxy)
+            enforce_ip_rate_limit(rate_limits, group, &headers, remote_addr, request, next).await
         }
-        RateLimitGroup::Auth => {
-            session_rate_limit_key(state, headers, remote_addr, trusted_proxy).await
-        }
-        RateLimitGroup::ResumeCrud
+        RateLimitGroup::Auth
+        | RateLimitGroup::ResumeCrud
         | RateLimitGroup::Import
         | RateLimitGroup::Preview
         | RateLimitGroup::Pdf => {
-            session_rate_limit_key(state, headers, remote_addr, trusted_proxy).await
+            enforce_session_rate_limit(
+                state,
+                rate_limits,
+                group,
+                &headers,
+                remote_addr,
+                request,
+                next,
+            )
+            .await
         }
-    };
-
-    rate_limits.check(group, &key)?;
-    Ok(next.run(request).await)
+    }
 }
 
 macro_rules! rate_limit_middleware {
@@ -275,6 +311,30 @@ rate_limit_middleware!(rate_limit_auth, RateLimitGroup::Auth);
 rate_limit_middleware!(rate_limit_health, RateLimitGroup::Health);
 rate_limit_middleware!(rate_limit_metrics, RateLimitGroup::Metrics);
 rate_limit_middleware!(rate_limit_unauthenticated, RateLimitGroup::Unauthenticated);
+
+/// Per-user rate limiting for auth-protected billable routes (templates, parse, validate).
+pub async fn rate_limit_billable(
+    State(state): State<AppState>,
+    request: Request,
+    next: Next,
+) -> Result<Response, RateLimitExceeded> {
+    let Some(rate_limits) = state.rate_limits.as_ref() else {
+        return Ok(next.run(request).await);
+    };
+
+    let remote_addr = remote_addr_from_request(&request);
+    let headers = request.headers().clone();
+    enforce_session_rate_limit(
+        &state,
+        rate_limits,
+        RateLimitGroup::Unauthenticated,
+        &headers,
+        remote_addr,
+        request,
+        next,
+    )
+    .await
+}
 
 #[cfg(test)]
 mod tests {

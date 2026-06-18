@@ -719,6 +719,28 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_resumes_anonymous_401_when_require_auth_enabled() {
+        let state = state::AppState::with_require_auth(
+            std::sync::Arc::new(routes::static_dir()),
+            Some(test_cloud_state()),
+            true,
+        );
+        let app = create_router_with_state(state);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/resumes")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
     async fn test_auth_me_includes_require_auth_when_signed_out() {
         let state = state::AppState::with_require_auth(
             std::sync::Arc::new(routes::static_dir()),
@@ -750,8 +772,10 @@ mod tests {
     #[tokio::test]
     async fn test_self_hosted_health_has_no_rate_limit() {
         let app = create_router();
+        let default_health_quota = config::RateLimitConfig::default().health_per_min;
+        let request_count = default_health_quota as usize + 1;
 
-        for _ in 0..5 {
+        for _ in 0..request_count {
             let response = app
                 .clone()
                 .oneshot(
@@ -817,6 +841,16 @@ mod tests {
             .and_then(|value| value.to_str().ok())
             .and_then(|value| value.parse::<u64>().ok())
             .is_some_and(|retry_after| retry_after >= 1));
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        assert!(response
+            .headers()
+            .get("X-RateLimit-Reset")
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.parse::<u64>().ok())
+            .is_some_and(|reset| reset >= now));
 
         let body = axum::body::to_bytes(response.into_body(), usize::MAX)
             .await

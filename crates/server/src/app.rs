@@ -19,8 +19,8 @@ use utoipa_swagger_ui::SwaggerUi;
 use crate::config::MAX_BODY_SIZE;
 use crate::middleware::auth::require_auth_when_enabled;
 use crate::middleware::rate_limit::{
-    rate_limit_auth, rate_limit_health, rate_limit_import, rate_limit_metrics, rate_limit_pdf,
-    rate_limit_preview, rate_limit_resume_crud, rate_limit_unauthenticated,
+    rate_limit_auth, rate_limit_billable, rate_limit_health, rate_limit_import, rate_limit_metrics,
+    rate_limit_pdf, rate_limit_preview, rate_limit_resume_crud,
 };
 use crate::middleware::security::security_headers;
 use crate::observability::apply_sentry_layers;
@@ -60,7 +60,7 @@ pub fn create_router_with_state(state: AppState) -> Router {
     if cloud_rate_limits {
         billable_core = billable_core.route_layer(middleware::from_fn_with_state(
             state_for_layers.clone(),
-            rate_limit_unauthenticated,
+            rate_limit_billable,
         ));
     }
 
@@ -125,23 +125,35 @@ pub fn create_router_with_state(state: AppState) -> Router {
                 rate_limit_auth,
             ));
 
-        let resume_routes = Router::new()
+        let mut resume_routes = Router::new()
             .route("/api/resumes", get(list_resumes).post(create_resume))
             .route(
                 "/api/resumes/{id}",
                 get(get_resume).put(update_resume).delete(delete_resume),
             )
             .route_layer(middleware::from_fn_with_state(
+                state.clone(),
+                require_auth_when_enabled,
+            ));
+        if cloud_rate_limits {
+            resume_routes = resume_routes.route_layer(middleware::from_fn_with_state(
                 state_for_layers.clone(),
                 rate_limit_resume_crud,
             ));
+        }
 
-        let import_routes = Router::new()
+        let mut import_routes = Router::new()
             .route("/api/resumes/import", post(import_resumes))
             .route_layer(middleware::from_fn_with_state(
+                state.clone(),
+                require_auth_when_enabled,
+            ));
+        if cloud_rate_limits {
+            import_routes = import_routes.route_layer(middleware::from_fn_with_state(
                 state_for_layers.clone(),
                 rate_limit_import,
             ));
+        }
 
         router = router
             .merge(auth_routes)
