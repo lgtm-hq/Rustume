@@ -152,9 +152,17 @@ Point the apex at GitHub Pages using one of:
 - **CNAME flattening** at the apex to `<org>.github.io` when your DNS provider supports it.
 
 Production builds use `ASTRO_BASE_DEFAULT=/` in `scripts/ci/site/defaults.env` and
-`site: "https://rustume.com"` in `apps/site/astro.config.mjs`. Merge and deploy only
-when Cloudflare apex DNS and the GitHub Pages custom domain are ready — the legacy
-`lgtm-hq.github.io/Rustume/` project URL will no longer match the built base path.
+`site: "https://rustume.com"` in `apps/site/astro.config.mjs`. Public docs URLs use
+`https://rustume.com/` (not the legacy GitHub Pages project path).
+
+### Cloudflare — SSL/TLS mode
+
+When the apex or `www` records are **proxied** (orange cloud), set **SSL/TLS → Overview
+→ Encryption mode** to **Full** (or **Full (strict)** once the origin certificate is
+valid). **Flexible** encrypts browser→Cloudflare only and talks HTTP to the origin,
+which breaks GitHub Pages and can cause redirect loops. **Full** uses HTTPS end-to-end;
+GitHub Pages presents a valid certificate for the custom domain, so **Full (strict)** is
+preferred after DNS verification succeeds.
 
 ### GitHub Pages — custom domain
 
