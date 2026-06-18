@@ -14,6 +14,7 @@ use governor::{
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::time::{Duration, UNIX_EPOCH};
+use tracing::warn;
 
 use crate::auth::session::SESSION_COOKIE;
 use crate::config::RateLimitConfig;
@@ -37,6 +38,7 @@ pub enum RateLimitGroup {
 
 /// Shared in-memory keyed rate limiters for cloud mode.
 pub struct RateLimitState {
+    trusted_proxy: bool,
     resume_crud: KeyedRateLimiter,
     import: KeyedRateLimiter,
     preview: KeyedRateLimiter,
@@ -51,6 +53,7 @@ impl RateLimitState {
     /// Build limiters from configuration.
     pub fn new(config: RateLimitConfig) -> Self {
         Self {
+            trusted_proxy: config.trusted_proxy,
             resume_crud: RateLimiter::dashmap(config.resume_crud_quota()),
             import: RateLimiter::dashmap(config.import_quota()),
             preview: RateLimiter::dashmap(config.preview_quota()),
@@ -144,22 +147,29 @@ fn set_rate_limit_headers(headers: &mut HeaderMap, retry_after: u64, reset_times
     }
 }
 
-fn trusted_client_ip(headers: &HeaderMap) -> Option<String> {
-    if !matches!(std::env::var("TRUSTED_PROXY").as_deref(), Ok("true" | "1")) {
+fn trusted_client_ip(headers: &HeaderMap, trusted_proxy: bool) -> Option<String> {
+    if !trusted_proxy {
         return None;
     }
 
     headers
         .get("x-forwarded-for")
         .and_then(|value| value.to_str().ok())
-        .and_then(|value| value.split(',').next())
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
+        .and_then(|value| {
+            value
+                .split(',')
+                .map(str::trim)
+                .rfind(|part| !part.is_empty())
+        })
         .map(str::to_string)
 }
 
-fn ip_rate_limit_key(headers: &HeaderMap, remote_addr: Option<SocketAddr>) -> String {
-    if let Some(ip) = trusted_client_ip(headers) {
+fn ip_rate_limit_key(
+    headers: &HeaderMap,
+    remote_addr: Option<SocketAddr>,
+    trusted_proxy: bool,
+) -> String {
+    if let Some(ip) = trusted_client_ip(headers, trusted_proxy) {
         return format!("ip:{ip}");
     }
     if let Some(addr) = remote_addr {
@@ -184,20 +194,24 @@ async fn session_rate_limit_key(
     state: &AppState,
     headers: &HeaderMap,
     remote_addr: Option<SocketAddr>,
+    trusted_proxy: bool,
 ) -> String {
     let Ok(cloud) = state.cloud() else {
-        return ip_rate_limit_key(headers, remote_addr);
+        return ip_rate_limit_key(headers, remote_addr, trusted_proxy);
     };
 
     let Some(token) = session_token_from_headers(headers) else {
-        return ip_rate_limit_key(headers, remote_addr);
+        return ip_rate_limit_key(headers, remote_addr, trusted_proxy);
     };
 
-    if let Ok(Some(user)) = cloud.sessions.user_for_token(&token).await {
-        return format!("user:{}", user.id);
+    match cloud.sessions.user_for_token(&token).await {
+        Ok(Some(user)) => format!("user:{}", user.id),
+        Ok(None) => ip_rate_limit_key(headers, remote_addr, trusted_proxy),
+        Err(err) => {
+            warn!("session lookup failed during rate limiting: {err}");
+            ip_rate_limit_key(headers, remote_addr, trusted_proxy)
+        }
     }
-
-    format!("session:{token}")
 }
 
 fn remote_addr_from_request(request: &Request) -> Option<SocketAddr> {
@@ -219,16 +233,21 @@ async fn enforce_rate_limit(
 
     let remote_addr = remote_addr_from_request(&request);
     let headers = request.headers();
+    let trusted_proxy = rate_limits.trusted_proxy;
 
     let key = match group {
         RateLimitGroup::Health | RateLimitGroup::Metrics | RateLimitGroup::Unauthenticated => {
-            ip_rate_limit_key(headers, remote_addr)
+            ip_rate_limit_key(headers, remote_addr, trusted_proxy)
         }
-        RateLimitGroup::Auth => session_rate_limit_key(state, headers, remote_addr).await,
+        RateLimitGroup::Auth => {
+            session_rate_limit_key(state, headers, remote_addr, trusted_proxy).await
+        }
         RateLimitGroup::ResumeCrud
         | RateLimitGroup::Import
         | RateLimitGroup::Preview
-        | RateLimitGroup::Pdf => session_rate_limit_key(state, headers, remote_addr).await,
+        | RateLimitGroup::Pdf => {
+            session_rate_limit_key(state, headers, remote_addr, trusted_proxy).await
+        }
     };
 
     rate_limits.check(group, &key)?;
@@ -283,9 +302,15 @@ mod tests {
         let limits = test_rate_limits(2);
         let key = "ip:test";
 
-        assert!(limits.check(RateLimitGroup::Health, &key.to_string()).is_ok());
-        assert!(limits.check(RateLimitGroup::Health, &key.to_string()).is_ok());
-        assert!(limits.check(RateLimitGroup::Health, &key.to_string()).is_err());
+        assert!(limits
+            .check(RateLimitGroup::Health, &key.to_string())
+            .is_ok());
+        assert!(limits
+            .check(RateLimitGroup::Health, &key.to_string())
+            .is_ok());
+        assert!(limits
+            .check(RateLimitGroup::Health, &key.to_string())
+            .is_err());
     }
 
     #[test]
@@ -293,8 +318,12 @@ mod tests {
         let limits = test_rate_limits(1);
         let key = "ip:test";
 
-        assert!(limits.check(RateLimitGroup::Health, &key.to_string()).is_ok());
-        assert!(limits.check(RateLimitGroup::Metrics, &key.to_string()).is_ok());
+        assert!(limits
+            .check(RateLimitGroup::Health, &key.to_string())
+            .is_ok());
+        assert!(limits
+            .check(RateLimitGroup::Metrics, &key.to_string())
+            .is_ok());
     }
 
     #[test]
@@ -308,5 +337,19 @@ mod tests {
             "0"
         );
         assert!(response.headers().get("X-RateLimit-Reset").is_some());
+    }
+
+    #[test]
+    fn trusted_client_ip_uses_rightmost_forwarded_value() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "x-forwarded-for",
+            HeaderValue::from_static("203.0.113.1, 198.51.100.2"),
+        );
+
+        assert_eq!(
+            trusted_client_ip(&headers, true).as_deref(),
+            Some("198.51.100.2")
+        );
     }
 }

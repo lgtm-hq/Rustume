@@ -69,9 +69,9 @@ pub async fn run() -> anyhow::Result<()> {
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
-        .with_graceful_shutdown(shutdown_signal())
-        .await
-        .context("Server error")?;
+    .with_graceful_shutdown(shutdown_signal())
+    .await
+    .context("Server error")?;
 
     info!("Server stopped");
     Ok(())

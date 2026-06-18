@@ -47,6 +47,13 @@ function isPreviewEndpoint(endpoint: string): boolean {
   return endpoint.includes("/render/preview");
 }
 
+function shouldRetryOnRateLimit(endpoint: string, method: string): boolean {
+  if (isPreviewEndpoint(endpoint)) {
+    return false;
+  }
+  return isSaveMethod(method);
+}
+
 async function maybeShowRateLimitToast(endpoint: string, method: string): Promise<void> {
   const willShow = isPreviewEndpoint(endpoint) || isSaveMethod(method);
   if (!willShow) {
@@ -90,7 +97,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}, attempt =
     const text = await response.text();
     const retryAfterMs = parseRetryAfterSeconds(response, text) * 1000;
 
-    if (isSaveMethod(method) && attempt < MAX_RATE_LIMIT_RETRIES) {
+    if (shouldRetryOnRateLimit(endpoint, method) && attempt < MAX_RATE_LIMIT_RETRIES) {
       await sleep(retryAfterMs);
       return request<T>(endpoint, options, attempt + 1);
     }
@@ -173,6 +180,12 @@ export async function fetchBlobWithHeaders(
 
   if (response.status === 429) {
     const text = await response.text();
+
+    if (isPreviewEndpoint(endpoint)) {
+      await maybeShowRateLimitToast(endpoint, "POST");
+      throw new ApiError(response.status, text || response.statusText);
+    }
+
     const retryAfterMs = parseRetryAfterSeconds(response, text) * 1000;
 
     if (attempt < MAX_RATE_LIMIT_RETRIES) {

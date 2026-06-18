@@ -34,6 +34,8 @@ pub struct RateLimitConfig {
     pub metrics_per_min: u32,
     /// Other unauthenticated requests (per IP).
     pub unauthenticated_per_min: u32,
+    /// Whether to trust `X-Forwarded-For` for client IP extraction.
+    pub trusted_proxy: bool,
 }
 
 impl Default for RateLimitConfig {
@@ -48,6 +50,7 @@ impl Default for RateLimitConfig {
             health_per_min: 60,
             metrics_per_min: 60,
             unauthenticated_per_min: 30,
+            trusted_proxy: false,
         }
     }
 }
@@ -72,6 +75,7 @@ impl RateLimitConfig {
                 "RATE_LIMIT_UNAUTHENTICATED_PER_MIN",
                 defaults.unauthenticated_per_min,
             ),
+            trusted_proxy: trusted_proxy_from_env(),
         }
     }
 
@@ -131,9 +135,27 @@ impl RateLimitConfig {
 
 fn env_u32(key: &str, default: u32) -> u32 {
     match std::env::var(key) {
-        Ok(value) => value.trim().parse().unwrap_or(default),
+        Ok(value) => {
+            let trimmed = value.trim();
+            if trimmed.is_empty() {
+                return default;
+            }
+            match trimmed.parse::<u32>() {
+                Ok(parsed) => parsed,
+                Err(_) => {
+                    tracing::warn!(
+                        "{key}={trimmed:?} is invalid; using default rate limit {default}"
+                    );
+                    default
+                }
+            }
+        }
         Err(_) => default,
     }
+}
+
+fn trusted_proxy_from_env() -> bool {
+    matches!(std::env::var("TRUSTED_PROXY").as_deref(), Ok("true" | "1"))
 }
 
 #[cfg(test)]
@@ -152,5 +174,6 @@ mod tests {
         assert_eq!(config.health_per_min, 60);
         assert_eq!(config.metrics_per_min, 60);
         assert_eq!(config.unauthenticated_per_min, 30);
+        assert!(!config.trusted_proxy);
     }
 }
