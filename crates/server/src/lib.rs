@@ -746,4 +746,77 @@ mod tests {
         assert!(payload.require_auth);
         assert_eq!(payload.error, "Not authenticated");
     }
+
+    #[tokio::test]
+    async fn test_self_hosted_health_has_no_rate_limit() {
+        let app = create_router();
+
+        for _ in 0..5 {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri("/health")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::OK);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_cloud_auth_rate_limit_returns_429() {
+        let config = config::RateLimitConfig {
+            auth_per_min: 2,
+            ..Default::default()
+        };
+
+        let state = state::AppState::with_options(
+            std::sync::Arc::new(routes::static_dir()),
+            Some(test_cloud_state()),
+            false,
+            config,
+        );
+        let app = create_router_with_state(state);
+
+        for _ in 0..2 {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri("/auth/login")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT);
+        }
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/auth/login")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+        assert!(response.headers().contains_key("Retry-After"));
+        assert!(response.headers().contains_key("X-RateLimit-Remaining"));
+        assert!(response.headers().contains_key("X-RateLimit-Reset"));
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let payload: middleware::rate_limit::RateLimitErrorBody =
+            serde_json::from_slice(&body).unwrap();
+        assert!(payload.retry_after >= 1);
+        assert!(payload.error.contains("Too many requests"));
+    }
 }
