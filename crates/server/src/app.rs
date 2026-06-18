@@ -17,6 +17,7 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::config::MAX_BODY_SIZE;
+use crate::middleware::auth::require_auth_when_enabled;
 use crate::middleware::security::security_headers;
 use crate::observability::apply_sentry_layers;
 use crate::openapi::ApiDoc;
@@ -41,16 +42,23 @@ pub fn create_router_with_static_dir(dir: PathBuf) -> Router {
 pub fn create_router_with_state(state: AppState) -> Router {
     let cors = build_cors_layer();
 
-    let mut router = Router::new()
-        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
-        .route("/health", get(health))
-        .route("/metrics", get(metrics))
+    let billable_routes = Router::new()
         .route("/api/templates", get(list_templates))
         .route("/api/templates/{id}/thumbnail", get(template_thumbnail))
         .route("/api/parse", post(parse))
         .route("/api/render/pdf", post(render_pdf))
         .route("/api/render/preview", post(render_preview))
-        .route("/api/validate", post(validate));
+        .route("/api/validate", post(validate))
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            require_auth_when_enabled,
+        ));
+
+    let mut router = Router::new()
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .route("/health", get(health))
+        .route("/metrics", get(metrics))
+        .merge(billable_routes);
 
     if state.cloud.is_some() {
         router = router

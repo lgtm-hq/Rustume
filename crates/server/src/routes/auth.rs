@@ -13,9 +13,8 @@ use uuid::Uuid;
 
 use crate::auth::session::SESSION_COOKIE;
 use crate::auth::workos::upsert_user;
-use crate::db::AuthUserResponse;
+use crate::db::{AuthMeUnauthorizedResponse, AuthUserResponse};
 use crate::error::ApiError;
-use crate::middleware::auth::AuthUser;
 use crate::state::AppState;
 
 const OAUTH_STATE_COOKIE: &str = "rustume_oauth_state";
@@ -163,13 +162,37 @@ pub async fn logout(State(state): State<AppState>, jar: CookieJar) -> Result<Res
     tag = "Auth",
     responses(
         (status = 200, description = "Authenticated user", body = AuthUserResponse),
-        (status = 401, description = "Not authenticated", body = ApiError),
+        (status = 401, description = "Not authenticated", body = AuthMeUnauthorizedResponse),
         (status = 404, description = "Cloud auth not enabled", body = ApiError),
     ),
     security(("cookieAuth" = []))
 )]
-pub async fn me(AuthUser(user): AuthUser) -> Json<AuthUserResponse> {
-    Json(user.into())
+pub async fn me(State(state): State<AppState>, jar: CookieJar) -> Result<Response, ApiError> {
+    let cloud = state.cloud()?;
+    let require_auth = state.require_auth;
+
+    if let Some(cookie) = jar.get(SESSION_COOKIE) {
+        if let Some(user) = cloud
+            .sessions
+            .user_for_token(cookie.value())
+            .await
+            .map_err(|err| {
+                error!("session lookup failed: {err}");
+                ApiError::internal("internal server error")
+            })?
+        {
+            return Ok(Json(AuthUserResponse::from_user(user, require_auth)).into_response());
+        }
+    }
+
+    Ok((
+        StatusCode::UNAUTHORIZED,
+        Json(AuthMeUnauthorizedResponse {
+            error: "Not authenticated".to_string(),
+            require_auth,
+        }),
+    )
+        .into_response())
 }
 
 fn oauth_error_redirect(code: &'static str) -> Response {

@@ -196,17 +196,34 @@ pub struct AuthUserResponse {
     /// Family name from WorkOS, when available.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_name: Option<String>,
+    /// Whether billable routes require sign-in on this deployment.
+    pub require_auth: bool,
 }
 
-impl From<User> for AuthUserResponse {
-    fn from(user: User) -> Self {
+/// Signed-out probe payload returned by `GET /auth/me` with HTTP 401.
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+pub struct AuthMeUnauthorizedResponse {
+    pub error: String,
+    pub require_auth: bool,
+}
+
+impl AuthUserResponse {
+    /// Build a profile response with the hosted require-auth flag.
+    pub fn from_user(user: User, require_auth: bool) -> Self {
         Self {
             id: user.id,
             plan: user.plan,
             email: user.email,
             first_name: user.first_name,
             last_name: user.last_name,
+            require_auth,
         }
+    }
+}
+
+impl From<User> for AuthUserResponse {
+    fn from(user: User) -> Self {
+        Self::from_user(user, false)
     }
 }
 
@@ -229,7 +246,7 @@ mod tests {
             updated_at: Utc::now(),
         };
 
-        let response = AuthUserResponse::from(user);
+        let response = AuthUserResponse::from_user(user, true);
         let json = serde_json::to_value(&response).unwrap();
 
         assert_eq!(json["id"], Uuid::nil().to_string());
@@ -237,6 +254,7 @@ mod tests {
         assert_eq!(json["email"], "dev@example.com");
         assert_eq!(json["first_name"], "Ada");
         assert_eq!(json["last_name"], "Lovelace");
+        assert_eq!(json["require_auth"], true);
     }
 
     #[test]
