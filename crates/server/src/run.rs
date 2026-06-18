@@ -65,7 +65,10 @@ pub async fn run() -> anyhow::Result<()> {
         .await
         .context(format!("Failed to bind to {}", addr))?;
 
-    axum::serve(listener, app)
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
         .with_graceful_shutdown(shutdown_signal())
         .await
         .context("Server error")?;

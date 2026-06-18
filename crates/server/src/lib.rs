@@ -807,9 +807,16 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
-        assert!(response.headers().contains_key("Retry-After"));
-        assert!(response.headers().contains_key("X-RateLimit-Remaining"));
-        assert!(response.headers().contains_key("X-RateLimit-Reset"));
+        assert_eq!(
+            response.headers().get("X-RateLimit-Remaining").unwrap(),
+            "0"
+        );
+        assert!(response
+            .headers()
+            .get("Retry-After")
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.parse::<u64>().ok())
+            .is_some_and(|retry_after| retry_after >= 1));
 
         let body = axum::body::to_bytes(response.into_body(), usize::MAX)
             .await

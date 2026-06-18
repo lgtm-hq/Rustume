@@ -201,4 +201,18 @@ describe("429 rate limiting", () => {
     await expectation;
     expect(globalThis.fetch).toHaveBeenCalledTimes(4);
   });
+
+  it("does not retry GET requests on 429", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      statusText: "Too Many Requests",
+      headers: new Headers({ "Retry-After": "1" }),
+      text: () => Promise.resolve(JSON.stringify({ error: "Too many requests", retry_after: 1 })),
+    });
+    globalThis.fetch = mockFetch;
+
+    await expect(get("/templates")).rejects.toMatchObject({ status: 429 });
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
 });

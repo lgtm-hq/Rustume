@@ -1,7 +1,7 @@
 //! Per-user and per-IP rate limiting for Rustume Cloud.
 
 use axum::{
-    extract::{Request, State},
+    extract::{ConnectInfo, Request, State},
     http::{header, HeaderMap, HeaderValue, StatusCode},
     middleware::Next,
     response::{IntoResponse, Response},
@@ -12,6 +12,7 @@ use governor::{
     RateLimiter,
 };
 use serde::{Deserialize, Serialize};
+use std::net::SocketAddr;
 use std::time::{Duration, UNIX_EPOCH};
 
 use crate::auth::session::SESSION_COOKIE;
@@ -74,8 +75,8 @@ impl RateLimitState {
         }
     }
 
-    fn check(&self, group: RateLimitGroup, key: &str) -> Result<(), RateLimitExceeded> {
-        match self.limiter(group).check_key(&key.to_string()) {
+    fn check(&self, group: RateLimitGroup, key: &String) -> Result<(), RateLimitExceeded> {
+        match self.limiter(group).check_key(key) {
             Ok(()) => Ok(()),
             Err(not_until) => {
                 let wait = not_until.wait_time_from(DefaultClock::default().now());
@@ -157,11 +158,14 @@ fn trusted_client_ip(headers: &HeaderMap) -> Option<String> {
         .map(str::to_string)
 }
 
-fn ip_rate_limit_key(headers: &HeaderMap) -> String {
-    format!(
-        "ip:{}",
-        trusted_client_ip(headers).unwrap_or_else(|| "unknown".to_string())
-    )
+fn ip_rate_limit_key(headers: &HeaderMap, remote_addr: Option<SocketAddr>) -> String {
+    if let Some(ip) = trusted_client_ip(headers) {
+        return format!("ip:{ip}");
+    }
+    if let Some(addr) = remote_addr {
+        return format!("ip:{}", addr.ip());
+    }
+    "ip:unknown".to_string()
 }
 
 fn session_token_from_headers(headers: &HeaderMap) -> Option<String> {
@@ -176,13 +180,17 @@ fn session_token_from_headers(headers: &HeaderMap) -> Option<String> {
     })
 }
 
-async fn session_rate_limit_key(state: &AppState, headers: &HeaderMap) -> String {
+async fn session_rate_limit_key(
+    state: &AppState,
+    headers: &HeaderMap,
+    remote_addr: Option<SocketAddr>,
+) -> String {
     let Ok(cloud) = state.cloud() else {
-        return ip_rate_limit_key(headers);
+        return ip_rate_limit_key(headers, remote_addr);
     };
 
     let Some(token) = session_token_from_headers(headers) else {
-        return ip_rate_limit_key(headers);
+        return ip_rate_limit_key(headers, remote_addr);
     };
 
     if let Ok(Some(user)) = cloud.sessions.user_for_token(&token).await {
@@ -190,6 +198,13 @@ async fn session_rate_limit_key(state: &AppState, headers: &HeaderMap) -> String
     }
 
     format!("session:{token}")
+}
+
+fn remote_addr_from_request(request: &Request) -> Option<SocketAddr> {
+    request
+        .extensions()
+        .get::<ConnectInfo<SocketAddr>>()
+        .map(|ConnectInfo(addr)| *addr)
 }
 
 async fn enforce_rate_limit(
@@ -202,22 +217,18 @@ async fn enforce_rate_limit(
         return Ok(next.run(request).await);
     };
 
+    let remote_addr = remote_addr_from_request(&request);
+    let headers = request.headers();
+
     let key = match group {
         RateLimitGroup::Health | RateLimitGroup::Metrics | RateLimitGroup::Unauthenticated => {
-            ip_rate_limit_key(request.headers())
+            ip_rate_limit_key(headers, remote_addr)
         }
-        RateLimitGroup::Auth => {
-            let session_key = session_rate_limit_key(state, request.headers()).await;
-            if session_key.starts_with("user:") || session_key.starts_with("session:") {
-                session_key
-            } else {
-                ip_rate_limit_key(request.headers())
-            }
-        }
+        RateLimitGroup::Auth => session_rate_limit_key(state, headers, remote_addr).await,
         RateLimitGroup::ResumeCrud
         | RateLimitGroup::Import
         | RateLimitGroup::Preview
-        | RateLimitGroup::Pdf => session_rate_limit_key(state, request.headers()).await,
+        | RateLimitGroup::Pdf => session_rate_limit_key(state, headers, remote_addr).await,
     };
 
     rate_limits.check(group, &key)?;
@@ -272,9 +283,9 @@ mod tests {
         let limits = test_rate_limits(2);
         let key = "ip:test";
 
-        assert!(limits.check(RateLimitGroup::Health, key).is_ok());
-        assert!(limits.check(RateLimitGroup::Health, key).is_ok());
-        assert!(limits.check(RateLimitGroup::Health, key).is_err());
+        assert!(limits.check(RateLimitGroup::Health, &key.to_string()).is_ok());
+        assert!(limits.check(RateLimitGroup::Health, &key.to_string()).is_ok());
+        assert!(limits.check(RateLimitGroup::Health, &key.to_string()).is_err());
     }
 
     #[test]
@@ -282,8 +293,8 @@ mod tests {
         let limits = test_rate_limits(1);
         let key = "ip:test";
 
-        assert!(limits.check(RateLimitGroup::Health, key).is_ok());
-        assert!(limits.check(RateLimitGroup::Metrics, key).is_ok());
+        assert!(limits.check(RateLimitGroup::Health, &key.to_string()).is_ok());
+        assert!(limits.check(RateLimitGroup::Metrics, &key.to_string()).is_ok());
     }
 
     #[test]

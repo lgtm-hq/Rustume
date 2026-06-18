@@ -48,6 +48,11 @@ function isPreviewEndpoint(endpoint: string): boolean {
 }
 
 async function maybeShowRateLimitToast(endpoint: string, method: string): Promise<void> {
+  const willShow = isPreviewEndpoint(endpoint) || isSaveMethod(method);
+  if (!willShow) {
+    return;
+  }
+
   const now = Date.now();
   if (now - lastRateLimitToastAt < RATE_LIMIT_TOAST_COOLDOWN_MS) {
     return;
@@ -60,9 +65,7 @@ async function maybeShowRateLimitToast(endpoint: string, method: string): Promis
     return;
   }
 
-  if (isSaveMethod(method)) {
-    toast.warning("Saving paused briefly — too many rapid changes");
-  }
+  toast.warning("Saving paused briefly — too many rapid changes");
 }
 
 async function request<T>(endpoint: string, options: RequestInit = {}, attempt = 0): Promise<T> {

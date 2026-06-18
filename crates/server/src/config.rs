@@ -83,10 +83,9 @@ impl RateLimitConfig {
 
     /// Build a governor quota with a separate burst size (resume CRUD).
     pub fn quota_with_burst(per_minute: u32, burst: u32) -> Quota {
-        let per_second = NonZeroU32::new(((f64::from(per_minute) / 60.0).ceil() as u32).max(1))
-            .expect("rate limit must be at least 1 per second");
+        let limit = NonZeroU32::new(per_minute.max(1)).expect("rate limit must be at least 1");
         let burst = NonZeroU32::new(burst.max(1)).expect("burst must be at least 1");
-        Quota::per_second(per_second).allow_burst(burst)
+        Quota::per_minute(limit).allow_burst(burst)
     }
 
     /// Quota for resume CRUD routes.
@@ -145,10 +144,13 @@ mod tests {
     fn default_limits_match_issue() {
         let config = RateLimitConfig::default();
         assert_eq!(config.resume_crud_per_min, 300);
+        assert_eq!(config.resume_crud_burst, 30);
         assert_eq!(config.import_per_min, 10);
         assert_eq!(config.preview_per_min, 60);
         assert_eq!(config.pdf_per_min, 20);
         assert_eq!(config.auth_per_min, 10);
         assert_eq!(config.health_per_min, 60);
+        assert_eq!(config.metrics_per_min, 60);
+        assert_eq!(config.unauthenticated_per_min, 30);
     }
 }
