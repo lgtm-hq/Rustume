@@ -33,6 +33,7 @@ pub enum RateLimitGroup {
     Auth,
     Health,
     Metrics,
+    Billable,
     Unauthenticated,
 }
 
@@ -46,6 +47,7 @@ pub struct RateLimitState {
     auth: KeyedRateLimiter,
     health: KeyedRateLimiter,
     metrics: KeyedRateLimiter,
+    billable: KeyedRateLimiter,
     unauthenticated: KeyedRateLimiter,
 }
 
@@ -61,6 +63,7 @@ impl RateLimitState {
             auth: RateLimiter::dashmap(config.auth_quota()),
             health: RateLimiter::dashmap(config.health_quota()),
             metrics: RateLimiter::dashmap(config.metrics_quota()),
+            billable: RateLimiter::dashmap(config.billable_quota()),
             unauthenticated: RateLimiter::dashmap(config.unauthenticated_quota()),
         }
     }
@@ -74,6 +77,7 @@ impl RateLimitState {
             RateLimitGroup::Auth => &self.auth,
             RateLimitGroup::Health => &self.health,
             RateLimitGroup::Metrics => &self.metrics,
+            RateLimitGroup::Billable => &self.billable,
             RateLimitGroup::Unauthenticated => &self.unauthenticated,
         }
     }
@@ -275,7 +279,8 @@ async fn enforce_rate_limit(
         | RateLimitGroup::ResumeCrud
         | RateLimitGroup::Import
         | RateLimitGroup::Preview
-        | RateLimitGroup::Pdf => {
+        | RateLimitGroup::Pdf
+        | RateLimitGroup::Billable => {
             enforce_session_rate_limit(
                 state,
                 rate_limits,
@@ -312,28 +317,13 @@ rate_limit_middleware!(rate_limit_health, RateLimitGroup::Health);
 rate_limit_middleware!(rate_limit_metrics, RateLimitGroup::Metrics);
 rate_limit_middleware!(rate_limit_unauthenticated, RateLimitGroup::Unauthenticated);
 
-/// Per-user rate limiting for auth-protected billable routes (templates, parse, validate).
+/// Per-user rate limiting for billable routes (templates, parse, validate).
 pub async fn rate_limit_billable(
     State(state): State<AppState>,
     request: Request,
     next: Next,
 ) -> Result<Response, RateLimitExceeded> {
-    let Some(rate_limits) = state.rate_limits.as_ref() else {
-        return Ok(next.run(request).await);
-    };
-
-    let remote_addr = remote_addr_from_request(&request);
-    let headers = request.headers().clone();
-    enforce_session_rate_limit(
-        &state,
-        rate_limits,
-        RateLimitGroup::Unauthenticated,
-        &headers,
-        remote_addr,
-        request,
-        next,
-    )
-    .await
+    enforce_rate_limit(&state, RateLimitGroup::Billable, request, next).await
 }
 
 #[cfg(test)]

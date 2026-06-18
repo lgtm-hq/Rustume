@@ -40,7 +40,7 @@ function parseRetryAfterSeconds(response: Response, bodyText: string): number {
 }
 
 function isSaveMethod(method: string): boolean {
-  return ["POST", "PUT", "PATCH"].includes(method.toUpperCase());
+  return ["POST", "PUT", "PATCH", "DELETE"].includes(method.toUpperCase());
 }
 
 function isPreviewEndpoint(endpoint: string): boolean {

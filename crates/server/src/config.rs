@@ -34,6 +34,8 @@ pub struct RateLimitConfig {
     pub metrics_per_min: u32,
     /// Other unauthenticated requests (per IP).
     pub unauthenticated_per_min: u32,
+    /// Templates, parse, and validate routes (per user when authenticated).
+    pub billable_per_min: u32,
     /// Whether to trust `X-Forwarded-For` for client IP extraction.
     pub trusted_proxy: bool,
 }
@@ -50,6 +52,7 @@ impl Default for RateLimitConfig {
             health_per_min: 60,
             metrics_per_min: 60,
             unauthenticated_per_min: 30,
+            billable_per_min: 30,
             trusted_proxy: false,
         }
     }
@@ -75,6 +78,7 @@ impl RateLimitConfig {
                 "RATE_LIMIT_UNAUTHENTICATED_PER_MIN",
                 defaults.unauthenticated_per_min,
             ),
+            billable_per_min: env_u32("RATE_LIMIT_BILLABLE_PER_MIN", defaults.billable_per_min),
             trusted_proxy: trusted_proxy_from_env(),
         }
     }
@@ -131,6 +135,11 @@ impl RateLimitConfig {
     pub fn unauthenticated_quota(self) -> Quota {
         Self::quota_per_minute(self.unauthenticated_per_min)
     }
+
+    /// Quota for billable template/parse/validate routes.
+    pub fn billable_quota(self) -> Quota {
+        Self::quota_per_minute(self.billable_per_min)
+    }
 }
 
 fn env_u32(key: &str, default: u32) -> u32 {
@@ -174,6 +183,7 @@ mod tests {
         assert_eq!(config.health_per_min, 60);
         assert_eq!(config.metrics_per_min, 60);
         assert_eq!(config.unauthenticated_per_min, 30);
+        assert_eq!(config.billable_per_min, 30);
         assert!(!config.trusted_proxy);
     }
 }
