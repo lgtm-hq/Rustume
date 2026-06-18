@@ -87,18 +87,21 @@ export default function Account() {
                     Sign in to Rustume Cloud
                   </h1>
                   <p class="text-stone text-sm max-w-md mx-auto mb-6">
-                    Sync resumes across devices with your Rustume Cloud account. Your local copies
-                    stay on this device until you choose to import them.
+                    {state.requireAuth
+                      ? "Sign in is required to use Rustume Cloud on this deployment."
+                      : "Sync resumes across devices with your Rustume Cloud account. Your local copies stay on this device until you choose to import them."}
                   </p>
                   <Button onClick={handleSignIn} loading={signingIn()}>
                     Sign in to Cloud
                   </Button>
-                  <p class="mt-4 text-xs text-stone">
-                    Prefer local-only?{" "}
-                    <A href="/" class="text-accent hover:underline">
-                      Continue without signing in
-                    </A>
-                  </p>
+                  <Show when={!state.requireAuth}>
+                    <p class="mt-4 text-xs text-stone">
+                      Prefer local-only?{" "}
+                      <A href="/" class="text-accent hover:underline">
+                        Continue without signing in
+                      </A>
+                    </p>
+                  </Show>
                 </div>
               }
             >

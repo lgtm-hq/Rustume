@@ -43,7 +43,8 @@ export default function Home() {
   const [renameValue, setRenameValue] = createSignal("");
   const [signingIn, setSigningIn] = createSignal(false);
 
-  const showCloudSignInCta = () => authState.cloudEnabled && !authState.loading && !authState.user;
+  const showCloudSignInCta = () =>
+    authState.cloudEnabled && !authState.requireAuth && !authState.loading && !authState.user;
 
   const handleCloudSignIn = () => {
     setSigningIn(true);

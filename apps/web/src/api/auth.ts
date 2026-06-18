@@ -6,7 +6,17 @@ export interface AuthUser {
   last_name?: string;
 }
 
-export type AuthProbeResult = { mode: "self-hosted" } | { mode: "cloud"; user: AuthUser | null };
+export type AuthProbeResult =
+  | { mode: "self-hosted" }
+  | { mode: "cloud"; user: AuthUser | null; requireAuth: boolean };
+
+function parseRequireAuth(payload: unknown): boolean {
+  if (typeof payload !== "object" || payload === null) {
+    return false;
+  }
+
+  return (payload as { require_auth?: boolean }).require_auth === true;
+}
 
 /** Build a display label from profile fields, falling back to email or a generic label. */
 export function userDisplayName(
@@ -31,15 +41,21 @@ export async function probeAuth(): Promise<AuthProbeResult> {
   }
 
   if (response.status === 401) {
-    return { mode: "cloud", user: null };
+    const payload = await response.json().catch(() => ({}));
+    return { mode: "cloud", user: null, requireAuth: parseRequireAuth(payload) };
   }
 
   if (!response.ok) {
     throw new Error(`Auth probe failed (${response.status})`);
   }
 
-  const user = (await response.json()) as AuthUser;
-  return { mode: "cloud", user };
+  const payload = (await response.json()) as AuthUser & { require_auth?: boolean };
+  const { require_auth: requireAuthRaw, ...user } = payload;
+  return {
+    mode: "cloud",
+    user: user as AuthUser,
+    requireAuth: requireAuthRaw === true,
+  };
 }
 
 export function login(): void {

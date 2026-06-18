@@ -7,6 +7,7 @@ const { mockAuthState, signInMock } = vi.hoisted(() => ({
   mockAuthState: {
     loading: false,
     cloudEnabled: false,
+    requireAuth: false,
     user: null as { id: string; plan: string } | null,
   },
   signInMock: vi.fn(),
@@ -48,12 +49,24 @@ describe("Home cloud sign-in CTA", () => {
   it("shows the cloud banner when cloud is enabled and the user is signed out", () => {
     mockAuthState.loading = false;
     mockAuthState.cloudEnabled = true;
+    mockAuthState.requireAuth = false;
     mockAuthState.user = null;
 
     renderHome();
 
     expect(screen.getByTestId("home-cloud-sign-in")).toBeInTheDocument();
     expect(screen.getByText(/Working locally on this device/i)).toBeInTheDocument();
+  });
+
+  it("hides the cloud banner when hosted require-auth mode is active", () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.requireAuth = true;
+    mockAuthState.user = null;
+
+    renderHome();
+
+    expect(screen.queryByTestId("home-cloud-sign-in")).not.toBeInTheDocument();
   });
 
   it("hides the cloud banner when the user is signed in", () => {

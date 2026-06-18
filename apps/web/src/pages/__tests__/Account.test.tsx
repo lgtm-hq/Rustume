@@ -7,6 +7,7 @@ const { mockAuthState, signInMock, signOutMock } = vi.hoisted(() => ({
   mockAuthState: {
     loading: false,
     cloudEnabled: true,
+    requireAuth: false,
     user: null as {
       id: string;
       plan: string;

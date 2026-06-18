@@ -14,6 +14,8 @@ export function AuthMenu() {
     signIn();
   };
 
+  const showSignedOutSignIn = () => state.cloudEnabled && !state.requireAuth && !state.user;
+
   return (
     <Show
       when={!state.loading}
@@ -23,9 +25,11 @@ export function AuthMenu() {
         <Show
           when={state.user}
           fallback={
-            <Button variant="secondary" size="sm" onClick={handleSignIn} loading={signingIn()}>
-              Sign in to Cloud
-            </Button>
+            <Show when={showSignedOutSignIn()}>
+              <Button variant="secondary" size="sm" onClick={handleSignIn} loading={signingIn()}>
+                Sign in to Cloud
+              </Button>
+            </Show>
           }
         >
           {(user) => (
