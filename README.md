@@ -10,7 +10,7 @@ A privacy-first, offline-first resume builder powered by Rust.
 </p>
 
 <p align="center">
-<a href="https://lgtm-hq.github.io/Rustume/">Documentation site</a>
+<a href="https://rustume.com/">Documentation site</a>
 </p>
 
 <!-- Badges: Build & Quality -->
@@ -48,7 +48,7 @@ make dev
 Open <http://localhost:5173> to use the web app during development.
 
 For self-hosting with Docker, see [Deployment](docs/deployment.md) or the
-[documentation site](https://lgtm-hq.github.io/Rustume/docs/deployment/docker/).
+[documentation site](https://rustume.com/docs/deployment/docker/).
 
 CLI commands are also available:
 

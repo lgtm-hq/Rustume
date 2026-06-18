@@ -102,8 +102,8 @@ After startup, verify the server with `curl http://localhost:3000/health`.
 
 Full architecture documentation lives on the published docs site:
 
-- Local preview: `make site-dev` then open <http://localhost:4321/Rustume/>
-- Published: <https://lgtm-hq.github.io/Rustume/docs/architecture/overview/>
+- Local preview: `make site-dev` then open <http://localhost:4321/>
+- Published: <https://rustume.com/docs/architecture/overview/>
 
 Rustume follows a modular crate architecture:
 
