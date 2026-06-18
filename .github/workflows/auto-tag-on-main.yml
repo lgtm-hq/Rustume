@@ -30,5 +30,9 @@ jobs:
     secrets:
       RELEASE_APP_ID: ${{ secrets.RELEASE_APP_ID }}
       RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+    # Caller must grant permissions required by reusable-release-auto-tag, including
+    # its report-release-failure follow-up job (lgtm-ci workflow-contract).
     permissions:
-      contents: write
+      actions: read # report-release-failure reads workflow/job metadata
+      contents: write # create and push version tags
+      issues: write # report-release-failure opens deduplicated failure issues
