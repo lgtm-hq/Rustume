@@ -86,6 +86,9 @@ Project: `rustume-cloud` (service historically named `responsible-celebration`).
    deploy workflow is the single deploy authority.
 7. Keep runtime variables unchanged (`RUSTUME_CLOUD`, `DATABASE_URL`, WorkOS, `SESSION_SECRET`,
    `CORS_ORIGIN`, observability secrets, etc.).
+8. Set **`RUSTUME_REQUIRE_AUTH=true`** on the hosted Railway service only (`app.rustume.com`).
+   Do **not** set this on local docker-compose or self-hosted examples — optional anonymous
+   use remains available when the flag is unset.
 
 ### Post-merge CI validation
 
@@ -186,6 +189,12 @@ Update on the `responsible-celebration` service:
 | --- | --- |
 | `CORS_ORIGIN` | `https://app.rustume.com` |
 | `WORKOS_REDIRECT_URI` | `https://app.rustume.com/auth/callback` |
+| `RUSTUME_REQUIRE_AUTH` | `true` (hosted production only) |
+
+When `RUSTUME_REQUIRE_AUTH=true` and cloud mode is enabled, billable API routes
+(`/api/render/*`, `/api/parse`, `/api/validate`, `/api/templates*`) require a session cookie.
+The web app redirects signed-out users to `/auth/login`. Self-hosted deployments leave this
+unset so local IndexedDB use and optional anonymous API access continue to work.
 
 Redeploy after changing env vars so the process picks up the new origin and callback.
 
@@ -201,9 +210,10 @@ that URL.
 ### Post-cutover verification
 
 1. `GET https://app.rustume.com/health` returns **200**.
-2. WorkOS AuthKit sign-in completes on `app.rustume.com` (callback hits the new redirect URI).
-3. Docs site loads at `https://rustume.com` with valid HTTPS.
-4. GitHub **Deploy - GitHub Pages** workflow reports success against the custom domain URL.
+2. Anonymous requests to billable APIs return **401** when `RUSTUME_REQUIRE_AUTH=true`.
+3. WorkOS AuthKit sign-in completes on `app.rustume.com` (callback hits the new redirect URI).
+4. Docs site loads at `https://rustume.com` with valid HTTPS.
+5. GitHub **Deploy - GitHub Pages** workflow reports success against the custom domain URL.
 
 ### Railway default domain
 
