@@ -111,6 +111,17 @@ pub fn cloud_enabled() -> bool {
             .is_some_and(|url| !url.trim().is_empty())
 }
 
+/// Returns `true` when hosted Rustume Cloud should reject anonymous billable API use.
+///
+/// Only meaningful when [`cloud_enabled`] is also true.
+pub fn require_auth_enabled() -> bool {
+    require_auth_from_env(cloud_enabled(), std::env::var("RUSTUME_REQUIRE_AUTH").ok())
+}
+
+fn require_auth_from_env(cloud: bool, value: Option<String>) -> bool {
+    cloud && matches!(value.as_deref().map(str::trim), Some("true" | "1"))
+}
+
 /// Shared cloud services (database, auth providers).
 #[derive(Clone)]
 pub struct CloudState {
@@ -147,4 +158,18 @@ pub async fn init_cloud(config: CloudConfig) -> anyhow::Result<Arc<CloudState>> 
         sessions,
         workos_redirect_uri,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn require_auth_from_env_requires_cloud_and_truthy_flag() {
+        assert!(!require_auth_from_env(false, Some("true".to_string())));
+        assert!(!require_auth_from_env(true, None));
+        assert!(!require_auth_from_env(true, Some("false".to_string())));
+        assert!(require_auth_from_env(true, Some("true".to_string())));
+        assert!(require_auth_from_env(true, Some("1".to_string())));
+    }
 }

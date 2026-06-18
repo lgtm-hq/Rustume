@@ -6,7 +6,45 @@ export interface AuthUser {
   last_name?: string;
 }
 
-export type AuthProbeResult = { mode: "self-hosted" } | { mode: "cloud"; user: AuthUser | null };
+export type AuthProbeResult =
+  | { mode: "self-hosted" }
+  | { mode: "cloud"; user: AuthUser | null; requireAuth: boolean };
+
+function parseRequireAuth(payload: unknown): boolean {
+  if (typeof payload !== "object" || payload === null) {
+    return false;
+  }
+
+  return (payload as { require_auth?: boolean }).require_auth === true;
+}
+
+function parseAuthUserPayload(payload: unknown): { user: AuthUser; requireAuth: boolean } {
+  if (typeof payload !== "object" || payload === null) {
+    throw new Error("Auth probe failed: invalid /auth/me response");
+  }
+
+  const record = payload as Record<string, unknown>;
+  const id = record.id;
+  const plan = record.plan;
+
+  if (typeof id !== "string" || typeof plan !== "string") {
+    throw new Error("Auth probe failed: invalid /auth/me response");
+  }
+
+  const user: AuthUser = { id, plan };
+
+  if (typeof record.email === "string") {
+    user.email = record.email;
+  }
+  if (typeof record.first_name === "string") {
+    user.first_name = record.first_name;
+  }
+  if (typeof record.last_name === "string") {
+    user.last_name = record.last_name;
+  }
+
+  return { user, requireAuth: record.require_auth === true };
+}
 
 /** Build a display label from profile fields, falling back to email or a generic label. */
 export function userDisplayName(
@@ -31,15 +69,21 @@ export async function probeAuth(): Promise<AuthProbeResult> {
   }
 
   if (response.status === 401) {
-    return { mode: "cloud", user: null };
+    const payload = await response.json().catch(() => ({}));
+    return { mode: "cloud", user: null, requireAuth: parseRequireAuth(payload) };
   }
 
   if (!response.ok) {
     throw new Error(`Auth probe failed (${response.status})`);
   }
 
-  const user = (await response.json()) as AuthUser;
-  return { mode: "cloud", user };
+  const payload = await response.json();
+  const { user, requireAuth } = parseAuthUserPayload(payload);
+  return {
+    mode: "cloud",
+    user,
+    requireAuth,
+  };
 }
 
 export function login(): void {

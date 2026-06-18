@@ -617,4 +617,133 @@ mod tests {
             "strict-origin-when-cross-origin"
         );
     }
+
+    fn test_cloud_state() -> std::sync::Arc<cloud::CloudState> {
+        use auth::{session::SessionService, workos::WorkOsClient};
+        use sqlx::postgres::PgPoolOptions;
+
+        let pool = PgPoolOptions::new()
+            .connect_lazy("postgres://localhost/rustume_test")
+            .expect("lazy pool");
+        std::sync::Arc::new(cloud::CloudState {
+            db: pool.clone(),
+            workos: WorkOsClient::new("client_test".to_string(), "api_key_test".to_string()),
+            sessions: SessionService::new(
+                pool,
+                "test-session-secret-at-least-32-chars".to_string(),
+                false,
+            ),
+            workos_redirect_uri: "http://localhost/auth/callback".to_string(),
+        })
+    }
+
+    fn sample_render_pdf_request() -> RenderPdfRequest {
+        RenderPdfRequest {
+            resume: serde_json::to_value(ResumeData::default()).unwrap(),
+            template: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_render_pdf_anonymous_ok_when_require_auth_disabled() {
+        let state = state::AppState::with_require_auth(
+            std::sync::Arc::new(routes::static_dir()),
+            Some(test_cloud_state()),
+            false,
+        );
+        let app = create_router_with_state(state);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/render/pdf")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::to_string(&sample_render_pdf_request()).unwrap(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_render_pdf_anonymous_401_when_require_auth_enabled() {
+        let state = state::AppState::with_require_auth(
+            std::sync::Arc::new(routes::static_dir()),
+            Some(test_cloud_state()),
+            true,
+        );
+        let app = create_router_with_state(state);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/render/pdf")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::to_string(&sample_render_pdf_request()).unwrap(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn test_templates_anonymous_401_when_require_auth_enabled() {
+        let state = state::AppState::with_require_auth(
+            std::sync::Arc::new(routes::static_dir()),
+            Some(test_cloud_state()),
+            true,
+        );
+        let app = create_router_with_state(state);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/templates")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn test_auth_me_includes_require_auth_when_signed_out() {
+        let state = state::AppState::with_require_auth(
+            std::sync::Arc::new(routes::static_dir()),
+            Some(test_cloud_state()),
+            true,
+        );
+        let app = create_router_with_state(state);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/auth/me")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let payload: db::AuthMeUnauthorizedResponse = serde_json::from_slice(&body).unwrap();
+        assert!(payload.require_auth);
+        assert_eq!(payload.error, "Not authenticated");
+    }
 }

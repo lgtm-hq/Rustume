@@ -12,6 +12,7 @@ import {
 interface AuthState {
   loading: boolean;
   cloudEnabled: boolean;
+  requireAuth: boolean;
   user: AuthUser | null;
 }
 
@@ -19,16 +20,22 @@ function createAuthStore() {
   const [state, setState] = createStore<AuthState>({
     loading: true,
     cloudEnabled: false,
+    requireAuth: false,
     user: null,
   });
 
   function applyProbe(result: AuthProbeResult) {
     if (result.mode === "self-hosted") {
-      setState({ cloudEnabled: false, user: null, loading: false });
+      setState({ cloudEnabled: false, requireAuth: false, user: null, loading: false });
       return;
     }
 
-    setState({ cloudEnabled: true, user: result.user, loading: false });
+    setState({
+      cloudEnabled: true,
+      requireAuth: result.requireAuth,
+      user: result.user,
+      loading: false,
+    });
   }
 
   async function refresh() {
@@ -37,7 +44,7 @@ function createAuthStore() {
       applyProbe(await probeAuth());
     } catch (error) {
       console.error("Failed to probe auth:", error);
-      setState({ cloudEnabled: false, user: null, loading: false });
+      setState({ cloudEnabled: false, requireAuth: false, user: null, loading: false });
     }
   }
 

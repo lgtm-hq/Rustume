@@ -7,6 +7,7 @@ const { mockAuthState, signInMock, signOutMock } = vi.hoisted(() => ({
   mockAuthState: {
     loading: false,
     cloudEnabled: true,
+    requireAuth: false,
     user: null as {
       id: string;
       plan: string;
@@ -58,12 +59,28 @@ describe("Account page", () => {
   it("shows a sign-in CTA when cloud is enabled and the user is signed out", () => {
     mockAuthState.loading = false;
     mockAuthState.cloudEnabled = true;
+    mockAuthState.requireAuth = false;
     mockAuthState.user = null;
 
     renderAccount();
 
     expect(screen.getByText("Sign in to Rustume Cloud")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign in to Cloud" })).toBeInTheDocument();
+    expect(screen.getByText(/Continue without signing in/i)).toBeInTheDocument();
+  });
+
+  it("shows required-auth copy and hides local-only link when require-auth mode is active", () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.requireAuth = true;
+    mockAuthState.user = null;
+
+    renderAccount();
+
+    expect(
+      screen.getByText(/Sign in is required to use Rustume Cloud on this deployment/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Continue without signing in/i)).not.toBeInTheDocument();
   });
 
   it("shows profile details when signed in", () => {

@@ -57,6 +57,27 @@ describe("probeAuth", () => {
         first_name: "Grace",
         last_name: "Hopper",
       },
+      requireAuth: false,
+    });
+  });
+
+  it("maps require_auth from authenticated /auth/me", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: "user-1",
+        plan: "free",
+        require_auth: true,
+      }),
+    });
+
+    const result = await probeAuth();
+
+    expect(result).toEqual({
+      mode: "cloud",
+      user: { id: "user-1", plan: "free" },
+      requireAuth: true,
     });
   });
 
@@ -67,8 +88,26 @@ describe("probeAuth", () => {
   });
 
   it("returns signed-out cloud mode on 401", async () => {
-    fetchMock.mockResolvedValue({ ok: false, status: 401 });
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ error: "Not authenticated", require_auth: true }),
+    });
 
-    await expect(probeAuth()).resolves.toEqual({ mode: "cloud", user: null });
+    await expect(probeAuth()).resolves.toEqual({
+      mode: "cloud",
+      user: null,
+      requireAuth: true,
+    });
+  });
+
+  it("rejects invalid authenticated /auth/me payloads", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => null,
+    });
+
+    await expect(probeAuth()).rejects.toThrow(/invalid \/auth\/me response/i);
   });
 });
