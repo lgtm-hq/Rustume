@@ -100,4 +100,14 @@ describe("probeAuth", () => {
       requireAuth: true,
     });
   });
+
+  it("rejects invalid authenticated /auth/me payloads", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => null,
+    });
+
+    await expect(probeAuth()).rejects.toThrow(/invalid \/auth\/me response/i);
+  });
 });

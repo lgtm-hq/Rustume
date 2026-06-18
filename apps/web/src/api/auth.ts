@@ -18,6 +18,34 @@ function parseRequireAuth(payload: unknown): boolean {
   return (payload as { require_auth?: boolean }).require_auth === true;
 }
 
+function parseAuthUserPayload(payload: unknown): { user: AuthUser; requireAuth: boolean } {
+  if (typeof payload !== "object" || payload === null) {
+    throw new Error("Auth probe failed: invalid /auth/me response");
+  }
+
+  const record = payload as Record<string, unknown>;
+  const id = record.id;
+  const plan = record.plan;
+
+  if (typeof id !== "string" || typeof plan !== "string") {
+    throw new Error("Auth probe failed: invalid /auth/me response");
+  }
+
+  const user: AuthUser = { id, plan };
+
+  if (typeof record.email === "string") {
+    user.email = record.email;
+  }
+  if (typeof record.first_name === "string") {
+    user.first_name = record.first_name;
+  }
+  if (typeof record.last_name === "string") {
+    user.last_name = record.last_name;
+  }
+
+  return { user, requireAuth: record.require_auth === true };
+}
+
 /** Build a display label from profile fields, falling back to email or a generic label. */
 export function userDisplayName(
   user: Pick<AuthUser, "email" | "first_name" | "last_name">,
@@ -49,12 +77,12 @@ export async function probeAuth(): Promise<AuthProbeResult> {
     throw new Error(`Auth probe failed (${response.status})`);
   }
 
-  const payload = (await response.json()) as AuthUser & { require_auth?: boolean };
-  const { require_auth: requireAuthRaw, ...user } = payload;
+  const payload = await response.json();
+  const { user, requireAuth } = parseAuthUserPayload(payload);
   return {
     mode: "cloud",
-    user: user as AuthUser,
-    requireAuth: requireAuthRaw === true,
+    user,
+    requireAuth,
   };
 }
 
