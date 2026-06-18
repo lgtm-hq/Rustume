@@ -30,6 +30,9 @@ and this project adheres to
 
 ### Changed
 
+- **infra**: update public URLs from GitHub Pages to rustume.com (#309) (a7baf3e)
+- **infra**: configure rustume.com domain and prepare for public access (#307) (dcb9b33)
+- **release**: version 0.19.0 (#303) (6c8d61d)
 - **ci**: add BATS tests for Railway deploy scripts (#302) (6e05cc0)
 - **infra**: automate Railway deploy after GHCR publish on main (#301) (27878d9)
 - **infra**: deploy Rustume Cloud from GHCR instead of Railway source builds (#298) (50de287)
