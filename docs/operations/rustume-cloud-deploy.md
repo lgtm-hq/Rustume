@@ -182,9 +182,12 @@ Redeploy after changing env vars so the process picks up the new origin and call
 
 ### Docs site build config
 
-`PUBLIC_CLOUD_APP_URL` defaults to `https://app.rustume.com` in `scripts/ci/site/defaults.env`
-and is declared in `apps/site/astro.config.mjs`. Docs CTAs (cloud landing page, footer, getting
-started) link to that URL.
+`PUBLIC_CLOUD_APP_URL_DEFAULT` in `scripts/ci/site/defaults.env` supplies the production
+default (`https://app.rustume.com`); `build.sh` applies
+`PUBLIC_CLOUD_APP_URL="${PUBLIC_CLOUD_APP_URL:-${PUBLIC_CLOUD_APP_URL_DEFAULT}}"` so CI can
+override the URL without the default clobbering it. The value is declared in
+`apps/site/astro.config.mjs`. Docs CTAs (cloud landing page, footer, getting started) link to
+that URL.
 
 ### Post-cutover verification
 

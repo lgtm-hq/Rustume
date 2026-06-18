@@ -5,7 +5,10 @@ import { rehypeSiteImages } from "./src/lib/rehype-site-images.mjs";
 import { rehypeDocLinks, rehypeUnwrapHeadingLinks } from "./src/lib/rehype-doc-links.mjs";
 
 const base = process.env.ASTRO_BASE || "/";
-const cloudAppUrl = process.env.PUBLIC_CLOUD_APP_URL || "https://app.rustume.com";
+const cloudAppUrl =
+  process.env.PUBLIC_CLOUD_APP_URL ||
+  process.env.PUBLIC_CLOUD_APP_URL_DEFAULT ||
+  "https://app.rustume.com";
 
 /** @type {import('astro').AstroUserConfig} */
 export default defineConfig({
