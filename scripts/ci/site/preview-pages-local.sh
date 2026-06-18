@@ -8,6 +8,12 @@ ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 SITE_DIR="${ROOT}/apps/site"
 DIST_DIR="${SITE_DIR}/dist"
 
+set -a
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/defaults.env"
+set +a
+ASTRO_BASE="${ASTRO_BASE:-${ASTRO_BASE_DEFAULT}}"
+
 INCLUDE_RUST="${PREVIEW_INCLUDE_RUST:-1}"
 INCLUDE_WEB="${PREVIEW_INCLUDE_WEB:-1}"
 SKIP_BUILD="${PREVIEW_SKIP_BUILD:-0}"
@@ -16,7 +22,7 @@ usage() {
 	cat <<'EOF'
 Usage: ./scripts/ci/site/preview-pages-local.sh
 
-Builds apps/site/dist with production ASTRO_BASE (/Rustume/) and copies local
+Builds apps/site/dist with production ASTRO_BASE from defaults.env and copies local
 coverage HTML into the same paths used on GitHub Pages (coverage-rust/, coverage-web/).
 
 Environment:
@@ -25,7 +31,7 @@ Environment:
   PREVIEW_INCLUDE_WEB=0    Skip web Vitest coverage
   PREVIEW_SERVE=0          Build only; do not start astro preview
 
-After the script runs, open the URL printed by "astro preview" (default base /Rustume/).
+After the script runs, open the URL printed by "astro preview" (ASTRO_BASE from defaults.env).
 EOF
 }
 
@@ -94,9 +100,9 @@ fi
 
 echo ""
 echo "Pages-like dist ready at: ${DIST_DIR}"
-echo "  Docs:     /Rustume/"
-echo "  Rust cov: /Rustume/coverage-rust/"
-echo "  Web cov:  /Rustume/coverage-web/"
+echo "  Docs:     ${ASTRO_BASE}"
+echo "  Rust cov: ${ASTRO_BASE}coverage-rust/"
+echo "  Web cov:  ${ASTRO_BASE}coverage-web/"
 echo ""
 
 if [[ "${PREVIEW_SERVE:-1}" == "0" ]]; then

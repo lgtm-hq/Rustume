@@ -6,9 +6,11 @@ import Section from '../../components/ui/Section.astro';
 import Figure from '../../components/ui/Figure.astro';
 import DocsResources from '../../components/docs/DocsResources.astro';
 import { asset } from '../../data/landing';
+import { cloudAppUrl } from '../../lib/cloud-app-url';
 import type { DocResource } from '../../lib/doc-resources';
 
 const base = import.meta.env.BASE_URL;
+const hostedAppUrl = cloudAppUrl();
 const img = (path: string) => asset(base, path);
 const cloudLinks = {
   overview: { label: 'Cloud overview', href: `${base}docs/cloud/overview/` },
@@ -44,6 +46,17 @@ const cloudLinks = {
       the same functional capabilities when you run it yourself.
     </p>
 
+    <p class="cloud-open-app">
+      <a
+        href={hostedAppUrl}
+        class="btn btn-primary"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Open hosted app
+      </a>
+    </p>
+
     <Callout title="Hosting, not a feature paywall" variant="info" class="callout-banner">
       <p>
         Hosted access buys an already deployed application, operated storage, synchronization,
@@ -54,6 +67,7 @@ const cloudLinks = {
       <p>
         <a href={cloudLinks.pricing.href} class="doc-link">Compare hosting options</a>
         <a href={cloudLinks.gettingStarted.href} class="doc-link">Get started with Cloud</a>
+        <a href={hostedAppUrl} class="doc-link" target="_blank" rel="noopener noreferrer">Open hosted app</a>
       </p>
     </Callout>
 
@@ -169,6 +183,10 @@ const cloudLinks = {
 </BaseLayout>
 
 <style>
+  .cloud-open-app {
+    margin: 1.25rem 0 0;
+  }
+
   .cloud-page :global(h3) {
     font-family: var(--font-display);
     font-size: 1.05rem;

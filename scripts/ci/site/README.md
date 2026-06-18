@@ -7,12 +7,13 @@
 | `test.sh` | Vitest with coverage |
 | `test-python.sh` | Pytest for `tests/scripts/ci/` |
 | `test-all.sh` | `test.sh` + `test-python.sh` |
-| `preview-serve.sh` | `astro preview` with `ASTRO_BASE` from `defaults.env` (required for `/Rustume/`) |
+| `preview-serve.sh` | `astro preview` with `ASTRO_BASE` from `defaults.env` |
 | `preview-pages-local.sh` | Build dist + optional local coverage bundles for manual Pages preview |
 
 ## Astro base path
 
-[`defaults.env`](defaults.env) defines `ASTRO_BASE_DEFAULT` (currently `/Rustume/`).
+[`defaults.env`](defaults.env) defines `ASTRO_BASE_DEFAULT` (currently `/` for the
+`rustume.com` custom domain).
 [`build.sh`](build.sh) and the root [`Makefile`](../../../Makefile) `SITE_ASTRO_BASE` target read
 that value — do not duplicate the path elsewhere.
 
@@ -37,13 +38,15 @@ via [`.github/workflows/deploy-pages.yml`](../../../.github/workflows/deploy-pag
 
 | Published path | Content |
 | --- | --- |
-| `https://lgtm-hq.github.io/Rustume/` | Astro documentation site |
-| `https://lgtm-hq.github.io/Rustume/coverage-rust/` | Rust `cargo llvm-cov` HTML report |
-| `https://lgtm-hq.github.io/Rustume/coverage-web/` | Web Vitest HTML report |
+| `https://rustume.com/` | Astro documentation site |
+| `https://rustume.com/coverage-rust/` | Rust `cargo llvm-cov` HTML report |
+| `https://rustume.com/coverage-web/` | Web Vitest HTML report |
 
 **Settings → Pages → Build and deployment → Source: GitHub Actions** (not “Deploy from a branch”).
 
-**About URL** (manual): repository **About** → **Website** → `https://lgtm-hq.github.io/Rustume/`.
+**Custom domain** (manual): repository **Settings → Pages → Custom domain** → `rustume.com`.
+
+**About URL** (manual): repository **About** → **Website** → `https://rustume.com`.
 
 ## Local preview (manual check before merge)
 
@@ -58,12 +61,11 @@ PREVIEW_INCLUDE_RUST=0 PREVIEW_INCLUDE_WEB=0 ./scripts/ci/site/preview-pages-loc
 PREVIEW_SERVE=0 ./scripts/ci/site/preview-pages-local.sh
 ```
 
-Open [http://127.0.0.1:4321/Rustume/](http://127.0.0.1:4321/Rustume/) — not `/`, which
-serves unstyled HTML when the build used `/Rustume/`. Use `make site-preview`,
+Open [http://127.0.0.1:4321/](http://127.0.0.1:4321/) at the site root. Use `make site-preview`,
 `bun run preview` in `apps/site`, or `preview-pages-local.sh`; all load `ASTRO_BASE`
 via `preview-serve.sh`.
 
-Coverage trees appear under `/Rustume/coverage-rust/` and `/Rustume/coverage-web/` when generated.
+Coverage trees appear under `/coverage-rust/` and `/coverage-web/` when generated.
 
 ## CI scripts (site quality)
 
