@@ -1,6 +1,9 @@
 ---
+import { cloudAppUrl } from '../lib/cloud-app-url';
+
 const base = import.meta.env.BASE_URL;
 const year = new Date().getFullYear();
+const hostedAppUrl = cloudAppUrl();
 ---
 
 <footer class="site-footer" data-pagefind-ignore>
@@ -15,6 +18,7 @@ const year = new Date().getFullYear();
         <a href={`${base}docs/getting-started/quickstart/`}>Quick Start</a>
         <a href={`${base}docs/deployment/docker/`}>Deployment</a>
         <a href={`${base}cloud/`}>Rustume Cloud</a>
+        <a href={hostedAppUrl} target="_blank" rel="noopener noreferrer">Open Rustume Cloud</a>
         <a href={`${base}docs/pricing/plans/`}>Pricing</a>
         <a href={`${base}faq/`}>FAQ</a>
         <a href={`${base}docs/api/overview/`}>API</a>

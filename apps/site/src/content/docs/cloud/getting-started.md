@@ -11,7 +11,7 @@ open-source operators who configure Cloud mode on their own deployment.
 
 ## Start with hosted Cloud
 
-1. Open the hosted Rustume Cloud application.
+1. Open the hosted [Rustume Cloud application](https://app.rustume.com).
 2. Sign in through [WorkOS AuthKit](/docs/cloud/auth/).
 3. Create a resume or import existing browser-local resumes.
 4. Continue editing on another signed-in device through [sync](/docs/cloud/sync/).
