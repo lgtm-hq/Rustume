@@ -159,7 +159,7 @@ fn trusted_client_ip(headers: &HeaderMap, trusted_proxy: bool) -> Option<String>
             value
                 .split(',')
                 .map(str::trim)
-                .rfind(|part| !part.is_empty())
+                .find(|part| !part.is_empty())
         })
         .map(str::to_string)
 }
@@ -340,7 +340,7 @@ mod tests {
     }
 
     #[test]
-    fn trusted_client_ip_uses_rightmost_forwarded_value() {
+    fn trusted_client_ip_uses_leftmost_forwarded_value() {
         let mut headers = HeaderMap::new();
         headers.insert(
             "x-forwarded-for",
@@ -349,7 +349,7 @@ mod tests {
 
         assert_eq!(
             trusted_client_ip(&headers, true).as_deref(),
-            Some("198.51.100.2")
+            Some("203.0.113.1")
         );
     }
 }

@@ -47,6 +47,10 @@ function isPreviewEndpoint(endpoint: string): boolean {
   return endpoint.includes("/render/preview");
 }
 
+function isPdfEndpoint(endpoint: string): boolean {
+  return endpoint.includes("/render/pdf");
+}
+
 function shouldRetryOnRateLimit(endpoint: string, method: string): boolean {
   if (isPreviewEndpoint(endpoint)) {
     return false;
@@ -55,7 +59,7 @@ function shouldRetryOnRateLimit(endpoint: string, method: string): boolean {
 }
 
 async function maybeShowRateLimitToast(endpoint: string, method: string): Promise<void> {
-  const willShow = isPreviewEndpoint(endpoint) || isSaveMethod(method);
+  const willShow = isPreviewEndpoint(endpoint) || isPdfEndpoint(endpoint) || isSaveMethod(method);
   if (!willShow) {
     return;
   }
@@ -69,6 +73,11 @@ async function maybeShowRateLimitToast(endpoint: string, method: string): Promis
   const { toast } = await import("../components/ui");
   if (isPreviewEndpoint(endpoint)) {
     toast.warning("Preview paused briefly — too many rapid updates");
+    return;
+  }
+
+  if (isPdfEndpoint(endpoint)) {
+    toast.warning("PDF export paused briefly — too many rapid requests");
     return;
   }
 

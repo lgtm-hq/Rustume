@@ -56,7 +56,7 @@ impl Default for RateLimitConfig {
 }
 
 impl RateLimitConfig {
-    /// Load rate limit settings from environment variables with issue defaults.
+    /// Load rate limit settings from environment variables with built-in defaults.
     pub fn from_env() -> Self {
         let defaults = Self::default();
         Self {
