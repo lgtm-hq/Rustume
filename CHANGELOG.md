@@ -22,7 +22,7 @@ and this project adheres to
 
 ### Security
 
-## [0.19.0] - 2026-06-14
+## [0.19.0] - 2026-06-18
 
 ### Added
 
@@ -30,6 +30,11 @@ and this project adheres to
 
 ### Changed
 
+- **ci**: add BATS tests for Railway deploy scripts (#302) (6e05cc0)
+- **infra**: automate Railway deploy after GHCR publish on main (#301) (27878d9)
+- **infra**: deploy Rustume Cloud from GHCR instead of Railway source builds (#298) (50de287)
+- **deps**: update digest (#247) (ec48308)
+- **release**: version 0.19.0 (#288) (681fc82)
 - **release**: version 0.18.1 (#284) (a042863)
 - **deps**: update actions/checkout to v6.0.3 (#282) (1c7a420)
 - **release**: version 0.18.1 (#283) (e33cd66)
@@ -37,6 +42,7 @@ and this project adheres to
 
 ### Fixed
 
+- **ci**: resolve shell test flake and kcov include-path error (#306) (45b9f68)
 - **server**: optimistic concurrency control on resume updates (#286) (5d384da)
 - **docker**: sync wasm-bindgen dynamic versioning to Railway Dockerfile (95b3825)
 - **ci**: grant actions:read and issues:write for reusable failure-notify job (a360f0e)
