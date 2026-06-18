@@ -119,9 +119,90 @@ After switching to GHCR:
    - WorkOS login completes
    - Resume create / read / update / delete via the UI or API
 
+## Public domains (`rustume.com`)
+
+Production URLs:
+
+| Host | Service | Purpose |
+| --- | --- | --- |
+| `rustume.com` | GitHub Pages (docs) | Documentation site apex |
+| `app.rustume.com` | Railway (`responsible-celebration`) | Hosted Rustume Cloud |
+
+DNS is managed on Cloudflare. GHCR image source disconnect from the Railway GitHub repo is
+already complete (see [Issue #299](https://github.com/lgtm-hq/Rustume/issues/299)).
+
+### Railway — custom domain
+
+1. Open the service **Settings → Networking → Custom Domain**.
+2. Add `app.rustume.com`.
+3. Copy the Railway-provided CNAME target for Cloudflare.
+
+### Cloudflare — `app.rustume.com`
+
+1. Add **CNAME** record: name `app`, target = Railway custom-domain target from the step above.
+2. Orange-cloud (proxied) is compatible with Railway custom domains.
+
+### Cloudflare — apex `rustume.com` (docs)
+
+Point the apex at GitHub Pages using one of:
+
+- **A / AAAA** records to
+  [GitHub Pages IP addresses](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site#configuring-an-apex-domain),
+  or
+- **CNAME flattening** at the apex to `<org>.github.io` when your DNS provider supports it.
+
+For this repository, the GitHub Pages project path is `/Rustume/` until the custom domain is
+active; after `rustume.com` is verified, set production `ASTRO_BASE=/` and update
+`astro.config.mjs` `site` to `https://rustume.com` (see `scripts/ci/site/defaults.env`).
+
+### GitHub Pages — custom domain
+
+1. Repository **Settings → Pages → Custom domain** → enter `rustume.com`.
+2. Wait for DNS verification and HTTPS provisioning.
+3. Confirm the deployment success URL in the **Deploy - GitHub Pages** workflow matches the
+   intended public URL once the domain cutover is complete.
+
+### WorkOS — redirect URI
+
+In the WorkOS dashboard for the Rustume Cloud application:
+
+1. Add redirect URI: `https://app.rustume.com/auth/callback`
+2. Remove or deprecate the legacy `*.up.railway.app` callback once the new domain is verified.
+
+### Railway — environment variables
+
+Update on the `responsible-celebration` service:
+
+| Variable | Value |
+| --- | --- |
+| `CORS_ORIGIN` | `https://app.rustume.com` |
+| `WORKOS_REDIRECT_URI` | `https://app.rustume.com/auth/callback` |
+
+Redeploy after changing env vars so the process picks up the new origin and callback.
+
+### Docs site build config
+
+`PUBLIC_CLOUD_APP_URL` defaults to `https://app.rustume.com` in `scripts/ci/site/defaults.env`
+and is declared in `apps/site/astro.config.mjs`. Docs CTAs (cloud landing page, footer, getting
+started) link to that URL.
+
+### Post-cutover verification
+
+1. `GET https://app.rustume.com/health` returns **200**.
+2. WorkOS AuthKit sign-in completes on `app.rustume.com` (callback hits the new redirect URI).
+3. Docs site loads at `https://rustume.com` with valid HTTPS.
+4. GitHub **Deploy - GitHub Pages** workflow reports success against the custom domain URL.
+
+### Railway default domain
+
+The generated `*.up.railway.app` hostname may remain reachable after adding a custom domain.
+Treat it as a known back door: disable public access on the default domain in Railway if the
+product UI offers it, or document that only `app.rustume.com` is supported for users.
+
 ## Related
 
 - [Deployment](../deployment.md) — self-hosting and GHCR tags for operators
 - [Issue #252](https://github.com/lgtm-hq/Rustume/issues/252) — GHCR migration (closed)
 - [Issue #299](https://github.com/lgtm-hq/Rustume/issues/299) — CI deploy automation
+- [Issue #300](https://github.com/lgtm-hq/Rustume/issues/300) — Public domain configuration
 - [Issue #243](https://github.com/lgtm-hq/Rustume/issues/243) — Rustume Cloud parent epic
