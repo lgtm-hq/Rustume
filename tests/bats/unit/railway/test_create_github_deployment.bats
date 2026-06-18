@@ -21,6 +21,7 @@ teardown() {
 @test "create-github-deployment: writes deployment id to GITHUB_OUTPUT" {
 	mock_command_script "gh" '
 if [[ "$1" == "api" ]]; then
+  cat >/dev/null
   echo "424242"
   exit 0
 fi
