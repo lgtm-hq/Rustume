@@ -23,16 +23,15 @@ export const RequireAuthGuard: ParentComponent = (props) => {
   const location = useLocation();
   const { state } = authStore;
 
+  const shouldBlock = () =>
+    !state.loading &&
+    state.cloudEnabled &&
+    state.requireAuth &&
+    !state.user &&
+    isProtectedPath(location.pathname);
+
   createEffect(() => {
-    if (state.loading) {
-      return;
-    }
-
-    if (!state.cloudEnabled || !state.requireAuth || state.user) {
-      return;
-    }
-
-    if (!isProtectedPath(location.pathname)) {
+    if (!shouldBlock()) {
       return;
     }
 
@@ -40,7 +39,12 @@ export const RequireAuthGuard: ParentComponent = (props) => {
   });
 
   return (
-    <Show when={!state.loading} fallback={<Spinner class="w-6 h-6 text-accent mx-auto mt-24" />}>
+    <Show
+      when={!state.loading && !shouldBlock()}
+      fallback={
+        <Spinner class="w-6 h-6 text-accent mx-auto mt-24" ariaLabel="Loading authentication" />
+      }
+    >
       {props.children}
     </Show>
   );

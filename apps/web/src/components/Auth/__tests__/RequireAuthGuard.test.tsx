@@ -71,6 +71,19 @@ describe("RequireAuthGuard", () => {
     renderGuard();
 
     expect(navigateMock).toHaveBeenCalledWith("/auth/login", { replace: true });
+    expect(screen.queryByTestId("protected-content")).not.toBeInTheDocument();
+  });
+
+  it("shows protected content when the user is signed in", () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.requireAuth = true;
+    mockAuthState.user = { id: "user-1", plan: "free" };
+    navigateMock.mockClear();
+
+    renderGuard();
+
+    expect(navigateMock).not.toHaveBeenCalled();
     expect(screen.getByTestId("protected-content")).toBeInTheDocument();
   });
 

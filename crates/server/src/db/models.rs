@@ -221,14 +221,6 @@ impl AuthUserResponse {
     }
 }
 
-/// NOTE: `require_auth` is always `false` here. Prefer [`AuthUserResponse::from_user`] when the
-/// hosted require-auth flag must be propagated to the client.
-impl From<User> for AuthUserResponse {
-    fn from(user: User) -> Self {
-        Self::from_user(user, false)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -273,7 +265,7 @@ mod tests {
             updated_at: Utc::now(),
         };
 
-        let json = serde_json::to_value(AuthUserResponse::from(user)).unwrap();
+        let json = serde_json::to_value(AuthUserResponse::from_user(user, false)).unwrap();
 
         assert!(json.get("email").is_none());
         assert!(json.get("first_name").is_none());
