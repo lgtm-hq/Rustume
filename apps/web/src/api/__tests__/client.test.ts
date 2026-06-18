@@ -179,6 +179,7 @@ describe("429 rate limiting", () => {
     globalThis.fetch = mockFetch;
 
     const promise = put("/resumes/test-id", { title: "Updated" });
+    expect(mockFetch).toHaveBeenCalledTimes(1);
     await vi.runAllTimersAsync();
     const result = await promise;
 

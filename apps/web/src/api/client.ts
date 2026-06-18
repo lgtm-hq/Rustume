@@ -175,7 +175,14 @@ export interface BlobResponse {
 export async function fetchBlobWithHeaders(
   endpoint: string,
   body?: unknown,
-  attempt = 0,
+): Promise<BlobResponse> {
+  return fetchBlobWithHeadersInternal(endpoint, body, 0);
+}
+
+async function fetchBlobWithHeadersInternal(
+  endpoint: string,
+  body: unknown | undefined,
+  attempt: number,
 ): Promise<BlobResponse> {
   const url = `${API_BASE}${endpoint}`;
   const response = await fetch(url, {
@@ -199,7 +206,7 @@ export async function fetchBlobWithHeaders(
 
     if (attempt < MAX_RATE_LIMIT_RETRIES) {
       await sleep(retryAfterMs);
-      return fetchBlobWithHeaders(endpoint, body, attempt + 1);
+      return fetchBlobWithHeadersInternal(endpoint, body, attempt + 1);
     }
 
     await maybeShowRateLimitToast(endpoint, "POST");
