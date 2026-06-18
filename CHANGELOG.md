@@ -22,6 +22,16 @@ and this project adheres to
 
 ### Security
 
+## [0.20.0] - 2026-06-18
+
+### Added
+
+- **cloud**: require authentication on hosted Rustume Cloud (#311) (90dec0b)
+
+### Fixed
+
+- **ci**: grant release auto-tag caller permissions (#314) (c9c2c00)
+
 ## [0.19.0] - 2026-06-18
 
 ### Added
@@ -203,7 +213,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.19.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.20.0...HEAD
+[0.20.0]: https://github.com/lgtm-hq/Rustume/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/lgtm-hq/Rustume/compare/v0.18.0...v0.19.0
 [0.18.1]: https://github.com/lgtm-hq/Rustume/compare/v0.18.0...v0.18.1
 [0.11.0]: https://github.com/lgtm-hq/Rustume/compare/v0.10.2...v0.11.0
