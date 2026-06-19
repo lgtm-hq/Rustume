@@ -40,6 +40,8 @@ enabled, these identity and persistence settings are required:
 | `WORKOS_API_KEY` | Server-side WorkOS API key |
 | `WORKOS_REDIRECT_URI` | Registered OAuth callback URL |
 | `SESSION_SECRET` | Session signing secret, at least 32 characters |
+| `RESEND_API_KEY` | Resend API key for transactional account lifecycle email |
+| `EMAIL_FROM` | Sender address for outbound mail (for example `noreply@rustume.com`) |
 
 Set `TRUSTED_PROXY=true` only when the server is behind a trusted proxy and may rely on
 `X-Forwarded-For` when calling WorkOS.
@@ -54,6 +56,8 @@ export WORKOS_CLIENT_ID=client_...
 export WORKOS_API_KEY=sk_...
 export WORKOS_REDIRECT_URI=http://localhost:3000/auth/callback
 export SESSION_SECRET="$(openssl rand -hex 32)"
+export RESEND_API_KEY=re_...
+export EMAIL_FROM=noreply@rustume.com
 export METRICS_TOKEN="$(openssl rand -hex 32)"
 export CORS_ORIGIN=http://localhost:5173
 cargo run -p rustume-server

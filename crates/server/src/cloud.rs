@@ -8,6 +8,7 @@ use tracing::info;
 
 use crate::auth::session::SessionService;
 use crate::auth::workos::WorkOsClient;
+use crate::email::EmailService;
 
 /// Cloud-specific configuration loaded from environment variables.
 #[derive(Clone)]
@@ -26,6 +27,10 @@ pub struct CloudConfig {
     pub db_max_connections: u32,
     /// Pool acquire timeout in seconds (`DB_ACQUIRE_TIMEOUT_SECS`, default 5).
     pub db_acquire_timeout_secs: u64,
+    /// Resend API key for transactional email (`RESEND_API_KEY`).
+    pub resend_api_key: String,
+    /// Sender address for outbound mail (`EMAIL_FROM`).
+    pub email_from: String,
 }
 
 impl CloudConfig {
@@ -46,6 +51,8 @@ impl CloudConfig {
             session_secret,
             db_max_connections: optional_env_u32("DB_MAX_CONNECTIONS", 10)?,
             db_acquire_timeout_secs: optional_env_u64("DB_ACQUIRE_TIMEOUT_SECS", 5)?,
+            resend_api_key: required_non_empty_env("RESEND_API_KEY")?,
+            email_from: required_non_empty_env("EMAIL_FROM")?,
         })
     }
 }
@@ -60,6 +67,8 @@ impl std::fmt::Debug for CloudConfig {
             .field("session_secret", &"<redacted>")
             .field("db_max_connections", &self.db_max_connections)
             .field("db_acquire_timeout_secs", &self.db_acquire_timeout_secs)
+            .field("resend_api_key", &"<redacted>")
+            .field("email_from", &self.email_from)
             .finish()
     }
 }
@@ -133,6 +142,8 @@ pub struct CloudState {
     pub sessions: SessionService,
     /// OAuth redirect URI validated at startup.
     pub workos_redirect_uri: String,
+    /// Transactional email delivery for account lifecycle events.
+    pub email: EmailService,
 }
 
 /// Connect to PostgreSQL, run migrations, and wire cloud auth services.
@@ -151,12 +162,14 @@ pub async fn init_cloud(config: CloudConfig) -> anyhow::Result<Arc<CloudState>> 
     let cookie_secure = config.workos_redirect_uri.starts_with("https://");
     let sessions = SessionService::new(db.clone(), config.session_secret, cookie_secure);
     let workos_redirect_uri = config.workos_redirect_uri;
+    let email = EmailService::new(config.resend_api_key, config.email_from);
 
     Ok(Arc::new(CloudState {
         db,
         workos,
         sessions,
         workos_redirect_uri,
+        email,
     }))
 }
 
