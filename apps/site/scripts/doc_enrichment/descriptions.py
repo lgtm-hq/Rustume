@@ -18,6 +18,10 @@ OPERATIONS_POLICY_DESCRIPTIONS: dict[str, str] = {
         "Recovery guidance for PostgreSQL-backed connected deployments and the operated "
         "Rustume Cloud service."
     ),
+    "operations/secrets-rotation.md": (
+        "Rotate <code>SESSION_SECRET</code>, WorkOS keys, <code>METRICS_TOKEN</code>, "
+        "and database credentials with minimal downtime."
+    ),
 }
 
 DESCRIPTIONS: dict[str, str] = {
