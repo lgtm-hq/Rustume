@@ -18,6 +18,7 @@ use tracing::warn;
 
 use crate::auth::session::SESSION_COOKIE;
 use crate::config::RateLimitConfig;
+use crate::net::trusted_client_ip;
 use crate::state::AppState;
 
 type KeyedRateLimiter =
@@ -151,32 +152,6 @@ fn set_rate_limit_headers(headers: &mut HeaderMap, retry_after: u64, reset_times
     }
 }
 
-fn trusted_client_ip(headers: &HeaderMap, trusted_proxy: bool) -> Option<String> {
-    if !trusted_proxy {
-        return None;
-    }
-
-    if let Some(ip) = headers
-        .get("x-real-ip")
-        .and_then(|value| value.to_str().ok())
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-    {
-        return Some(ip.to_string());
-    }
-
-    headers
-        .get("x-forwarded-for")
-        .and_then(|value| value.to_str().ok())
-        .and_then(|value| {
-            value
-                .split(',')
-                .map(str::trim)
-                .rfind(|part| !part.is_empty())
-        })
-        .map(str::to_string)
-}
-
 fn ip_rate_limit_key(
     headers: &HeaderMap,
     remote_addr: Option<SocketAddr>,
@@ -261,8 +236,8 @@ async fn enforce_session_rate_limit(
     let session_key = session_rate_limit_key(state, headers, remote_addr, trusted_proxy).await;
 
     if session_key != ip_key {
-        rate_limits.check(group, &session_key)?;
         rate_limits.check(group, &ip_key)?;
+        rate_limits.check(group, &session_key)?;
     } else {
         rate_limits.check(group, &ip_key)?;
     }
@@ -398,34 +373,5 @@ mod tests {
             "0"
         );
         assert!(response.headers().get("X-RateLimit-Reset").is_some());
-    }
-
-    #[test]
-    fn trusted_client_ip_uses_proxy_appended_forwarded_value() {
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            "x-forwarded-for",
-            HeaderValue::from_static("203.0.113.1, 198.51.100.2"),
-        );
-
-        assert_eq!(
-            trusted_client_ip(&headers, true).as_deref(),
-            Some("198.51.100.2")
-        );
-    }
-
-    #[test]
-    fn trusted_client_ip_prefers_x_real_ip() {
-        let mut headers = HeaderMap::new();
-        headers.insert("x-real-ip", HeaderValue::from_static("198.51.100.2"));
-        headers.insert(
-            "x-forwarded-for",
-            HeaderValue::from_static("203.0.113.1, 198.51.100.2"),
-        );
-
-        assert_eq!(
-            trusted_client_ip(&headers, true).as_deref(),
-            Some("198.51.100.2")
-        );
     }
 }

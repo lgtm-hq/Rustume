@@ -31,6 +31,7 @@ pub mod db;
 pub mod dto;
 pub mod error;
 pub mod middleware;
+pub mod net;
 pub mod observability;
 pub mod openapi;
 pub mod routes;
