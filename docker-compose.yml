@@ -6,8 +6,8 @@
 #
 # Rustume Cloud local dev:
 #   cp .env.example .env   # required: POSTGRES_PASSWORD, DATABASE_URL,
-#                          # SESSION_SECRET (32+ chars), WORKOS_CLIENT_ID, WORKOS_API_KEY,
-#                          # RESEND_API_KEY, EMAIL_FROM
+#                          # SESSION_SECRET (32+ chars), WORKOS_CLIENT_ID, WORKOS_API_KEY
+#                          # optional: RESEND_API_KEY + EMAIL_FROM (transactional email)
 #   docker compose --profile cloud up
 ---
 services:

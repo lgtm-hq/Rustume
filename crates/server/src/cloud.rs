@@ -134,7 +134,13 @@ fn validate_email_from(value: &str) -> anyhow::Result<()> {
     let Some((local, domain)) = trimmed.split_once('@') else {
         anyhow::bail!("EMAIL_FROM must be a valid email address");
     };
-    if local.is_empty() || domain.is_empty() || !domain.contains('.') {
+    if local.is_empty()
+        || domain.is_empty()
+        || domain.contains('@')
+        || domain.starts_with('.')
+        || domain.ends_with('.')
+        || !domain.contains('.')
+    {
         anyhow::bail!("EMAIL_FROM must be a valid email address");
     }
     Ok(())
