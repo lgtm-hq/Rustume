@@ -2,7 +2,7 @@
 
 use axum::{
     extract::{Path, Query, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     Json,
 };
 use tracing::error;
@@ -16,6 +16,7 @@ use crate::db::{
 };
 use crate::error::ApiError;
 use crate::middleware::auth::AuthUser;
+use crate::net::{self, trusted_client_ip};
 use crate::state::AppState;
 use crate::validation::{validate_resume_json, validate_title};
 
@@ -192,6 +193,7 @@ pub async fn delete_resume(
     AuthUser(user): AuthUser,
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
+    headers: HeaderMap,
 ) -> Result<StatusCode, ApiError> {
     let cloud = state.cloud()?;
     let result = sqlx::query("DELETE FROM resumes WHERE id = $1 AND user_id = $2")
@@ -213,7 +215,7 @@ pub async fn delete_resume(
             resource_type: Some("resume"),
             resource_id: Some(id),
             metadata: serde_json::json!({}),
-            ip_address: None,
+            ip_address: trusted_client_ip(&headers, net::trusted_proxy_enabled()).as_deref(),
         },
     )
     .await;

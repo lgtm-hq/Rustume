@@ -11,3 +11,4 @@ CREATE TABLE audit_events (
 
 CREATE INDEX audit_events_created_at_idx ON audit_events (created_at);
 CREATE INDEX audit_events_event_type_idx ON audit_events (event_type);
+CREATE INDEX audit_events_actor_user_id_idx ON audit_events (actor_user_id);

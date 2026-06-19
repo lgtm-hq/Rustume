@@ -105,7 +105,12 @@ async fn callback_inner(
     match (stored_state, oauth_state) {
         (Some(stored), Some(provided)) if stored == provided => {}
         _ => {
-            record_auth_failure(&cloud.db, "invalid_state", trusted_client_ip(&headers)).await;
+            record_auth_failure(
+                &cloud.db,
+                "invalid_state",
+                trusted_client_ip(&headers, net::trusted_proxy_enabled()).as_deref(),
+            )
+            .await;
             return Err("invalid_state");
         }
     }
@@ -163,7 +168,11 @@ async fn callback_inner(
 }
 
 /// Clear the session cookie and delete the server-side session row.
-pub async fn logout(State(state): State<AppState>, jar: CookieJar) -> Result<Response, ApiError> {
+pub async fn logout(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    headers: HeaderMap,
+) -> Result<Response, ApiError> {
     let cloud = state.cloud()?;
     let mut actor_user_id = None;
     if let Some(cookie) = jar.get(SESSION_COOKIE) {
@@ -188,7 +197,7 @@ pub async fn logout(State(state): State<AppState>, jar: CookieJar) -> Result<Res
             resource_type: Some("auth"),
             resource_id: None,
             metadata: serde_json::json!({}),
-            ip_address: None,
+            ip_address: trusted_client_ip(&headers, net::trusted_proxy_enabled()).as_deref(),
         },
     )
     .await;
