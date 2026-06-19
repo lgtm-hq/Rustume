@@ -92,7 +92,7 @@ export default function Account() {
                       : "Sync resumes across devices with your Rustume Cloud account. Your local copies stay on this device until you choose to import them."}
                   </p>
                   <Button onClick={handleSignIn} loading={signingIn()}>
-                    Sign in to Cloud
+                    Sign in to sync
                   </Button>
                   <Show when={!state.requireAuth}>
                     <p class="mt-4 text-xs text-stone">

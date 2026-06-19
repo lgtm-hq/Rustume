@@ -3,14 +3,13 @@ import { render, screen } from "@solidjs/testing-library";
 import { Route, Router } from "@solidjs/router";
 import { RequireAuthGuard } from "../RequireAuthGuard";
 
-const { mockAuthState, navigateMock, useLocationMock } = vi.hoisted(() => ({
+const { mockAuthState, useLocationMock } = vi.hoisted(() => ({
   mockAuthState: {
     loading: false,
     cloudEnabled: true,
     requireAuth: true,
     user: null as { id: string; plan: string } | null,
   },
-  navigateMock: vi.fn(),
   useLocationMock: vi.fn(() => ({
     pathname: "/edit/resume-1",
     search: "",
@@ -25,6 +24,7 @@ vi.mock("../../../stores/auth", () => ({
     get state() {
       return mockAuthState;
     },
+    signIn: vi.fn(),
   },
 }));
 
@@ -32,7 +32,6 @@ vi.mock("@solidjs/router", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@solidjs/router")>();
   return {
     ...actual,
-    useNavigate: () => navigateMock,
     useLocation: () => useLocationMock(),
   };
 });
@@ -61,8 +60,7 @@ function renderGuard(pathname = "/edit/resume-1") {
 }
 
 describe("RequireAuthGuard", () => {
-  it("redirects signed-out users to login when require-auth mode is active", () => {
-    navigateMock.mockClear();
+  it("shows the unauthorized page when require-auth mode blocks access", () => {
     mockAuthState.loading = false;
     mockAuthState.cloudEnabled = true;
     mockAuthState.requireAuth = true;
@@ -70,7 +68,7 @@ describe("RequireAuthGuard", () => {
 
     renderGuard();
 
-    expect(navigateMock).toHaveBeenCalledWith("/auth/login", { replace: true });
+    expect(screen.getByTestId("unauthorized-page")).toBeInTheDocument();
     expect(screen.queryByTestId("protected-content")).not.toBeInTheDocument();
   });
 
@@ -79,84 +77,67 @@ describe("RequireAuthGuard", () => {
     mockAuthState.cloudEnabled = true;
     mockAuthState.requireAuth = true;
     mockAuthState.user = { id: "user-1", plan: "free" };
-    navigateMock.mockClear();
 
     renderGuard();
 
-    expect(navigateMock).not.toHaveBeenCalled();
     expect(screen.getByTestId("protected-content")).toBeInTheDocument();
+    expect(screen.queryByTestId("unauthorized-page")).not.toBeInTheDocument();
   });
 
-  it("does not redirect when require-auth mode is disabled", () => {
+  it("does not block when require-auth mode is disabled", () => {
     mockAuthState.loading = false;
     mockAuthState.cloudEnabled = true;
     mockAuthState.requireAuth = false;
     mockAuthState.user = null;
-    navigateMock.mockClear();
 
     renderGuard();
 
-    expect(navigateMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId("protected-content")).toBeInTheDocument();
   });
 
-  it("does not redirect in self-hosted mode", () => {
+  it("does not block in self-hosted mode", () => {
     mockAuthState.loading = false;
     mockAuthState.cloudEnabled = false;
     mockAuthState.requireAuth = false;
     mockAuthState.user = null;
-    navigateMock.mockClear();
 
     renderGuard();
 
-    expect(navigateMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId("protected-content")).toBeInTheDocument();
   });
 
-  it("does not redirect when the user is signed in", () => {
-    mockAuthState.loading = false;
-    mockAuthState.cloudEnabled = true;
-    mockAuthState.requireAuth = true;
-    mockAuthState.user = { id: "user-1", plan: "free" };
-    navigateMock.mockClear();
-
-    renderGuard();
-
-    expect(navigateMock).not.toHaveBeenCalled();
-  });
-
-  it("defers navigation while auth is loading", () => {
+  it("shows a loading state while auth is loading", () => {
     mockAuthState.loading = true;
     mockAuthState.cloudEnabled = true;
     mockAuthState.requireAuth = true;
     mockAuthState.user = null;
-    navigateMock.mockClear();
 
     renderGuard();
 
-    expect(navigateMock).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Loading authentication")).toBeInTheDocument();
     expect(screen.queryByTestId("protected-content")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("unauthorized-page")).not.toBeInTheDocument();
   });
 
-  it("does not redirect on auth callback paths", () => {
+  it("does not block auth callback paths", () => {
     mockAuthState.loading = false;
     mockAuthState.cloudEnabled = true;
     mockAuthState.requireAuth = true;
     mockAuthState.user = null;
-    navigateMock.mockClear();
 
     renderGuard("/auth/callback");
 
-    expect(navigateMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId("protected-content")).toBeInTheDocument();
   });
 
-  it("does not redirect on account sub-routes", () => {
+  it("does not block account sub-routes", () => {
     mockAuthState.loading = false;
     mockAuthState.cloudEnabled = true;
     mockAuthState.requireAuth = true;
     mockAuthState.user = null;
-    navigateMock.mockClear();
 
     renderGuard("/account/settings");
 
-    expect(navigateMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId("protected-content")).toBeInTheDocument();
   });
 });

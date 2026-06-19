@@ -26,8 +26,14 @@ export function AuthMenu() {
           when={state.user}
           fallback={
             <Show when={showSignedOutSignIn()}>
-              <Button variant="secondary" size="sm" onClick={handleSignIn} loading={signingIn()}>
-                Sign in to Cloud
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleSignIn}
+                loading={signingIn()}
+                title="Sign in to sync resumes across devices with Rustume Cloud"
+              >
+                Sign in to sync
               </Button>
             </Show>
           }

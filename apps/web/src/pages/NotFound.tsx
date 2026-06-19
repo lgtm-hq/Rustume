@@ -1,27 +1,51 @@
-import { useNavigate } from "@solidjs/router";
-import { Button } from "../components/ui";
+import { useLocation, useNavigate } from "@solidjs/router";
+import { StatusPage } from "../components/errors/StatusPage";
+
+function MissingPageIcon() {
+  return (
+    <svg
+      class="h-8 w-8 text-accent"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      aria-hidden="true"
+    >
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="1.75"
+        d="M8 4h8l3 4v11a1 1 0 01-1 1H6a1 1 0 01-1-1V5a1 1 0 011-1h2z"
+      />
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9 12h6" />
+    </svg>
+  );
+}
 
 export default function NotFound() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const pathLabel = () => {
+    const path = location.pathname;
+    return path.length > 48 ? `${path.slice(0, 45)}…` : path;
+  };
 
   return (
-    <main class="min-h-[calc(100vh-4rem)] bg-paper px-6 py-16 text-ink">
-      <section class="mx-auto flex max-w-3xl flex-col items-start gap-8 rounded-3xl border border-border/60 bg-surface/70 p-8 shadow-card md:p-12">
-        <div class="space-y-4">
-          <p class="font-mono text-sm uppercase tracking-[0.35em] text-stone">404</p>
-          <h1 class="font-display text-4xl font-semibold leading-tight md:text-5xl">
-            This page is off the page.
-          </h1>
-          <p class="max-w-2xl text-lg leading-8 text-stone">
-            The route you opened does not exist in Rustume. Your saved resumes are still available
-            from the home screen.
-          </p>
-        </div>
-
-        <Button size="lg" onClick={() => navigate("/", { replace: true })}>
-          Back to resumes
-        </Button>
-      </section>
-    </main>
+    <StatusPage
+      testId="not-found-page"
+      titleId="not-found-page-title"
+      statusCode="404"
+      title="Page not found"
+      description={`We couldn't find a page at ${pathLabel()}. Your resumes are still safe — head back home or open one from your list.`}
+      icon={<MissingPageIcon />}
+      primaryAction={{
+        label: "Back to resumes",
+        onClick: () => navigate("/", { replace: true }),
+      }}
+      secondaryAction={{
+        label: "Open account",
+        href: "/account",
+      }}
+    />
   );
 }
