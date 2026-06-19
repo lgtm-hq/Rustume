@@ -127,8 +127,8 @@ fn optional_non_empty_env(key: &str) -> anyhow::Result<Option<String>> {
             }
         }
         Err(VarError::NotPresent) => Ok(None),
-        Err(VarError::NotUnicode(os_string)) => Err(anyhow::anyhow!(
-            "environment variable {key} contains invalid unicode: {os_string:?}"
+        Err(VarError::NotUnicode(_os_string)) => Err(anyhow::anyhow!(
+            "environment variable {key} contains invalid unicode"
         )),
     }
 }
