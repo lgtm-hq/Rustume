@@ -7,7 +7,7 @@ name: Release - Automated PR Creation
 # - Rust Build (workspace) — backend / workspace Rust changes
 # - Coverage Reports — web app and Rust test coverage changes
 # - Quality - Documentation Site — apps/site documentation site changes
-# - push (paths below) — docs/scripts-only commits that skip app CI workflows
+# - push (paths below) — commits that skip Rust Build, Coverage, and Site Quality
 
 "on":
   # Gate releases on CI passing: trigger after app or Rust CI workflows complete.
@@ -18,12 +18,11 @@ name: Release - Automated PR Creation
       - Quality - Documentation Site
     branches: [main]
     types: [completed]
-  # For commits that don't touch app source (docs, scripts, Docker, etc.)
-  # the test suite never runs, so fall back to a direct push trigger.
+  # Fallback when no app CI workflow runs (e.g. Docker-only or hygiene workflow edits).
+  # Omit docs/** — Quality - Documentation Site workflow_run covers that path set.
   push:
     branches: [main]
     paths:
-      - "docs/**"
       - "scripts/**"
       - "docker/**"
       - "**.md"
