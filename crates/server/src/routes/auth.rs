@@ -51,10 +51,13 @@ pub async fn callback(
     query: Result<Query<CallbackQuery>, axum::extract::rejection::QueryRejection>,
     headers: HeaderMap,
 ) -> Response {
+    let ip = trusted_client_ip(&headers, net::trusted_proxy_enabled());
+
     let query = match query {
         Ok(Query(query)) => query,
         Err(rejection) => {
             error!("OAuth callback query rejected: {rejection}");
+            audit_callback_failure(&state, "invalid_query", ip.as_deref()).await;
             return oauth_error_redirect("authentication_failed");
         }
     };
@@ -62,13 +65,16 @@ pub async fn callback(
     if let Some(code) = oauth_callback_error_code(&query) {
         if query.error.is_some() {
             error!("WorkOS OAuth callback returned error");
+            audit_callback_failure(&state, "provider_error", ip.as_deref()).await;
         } else {
             error!("OAuth callback missing authorization code");
+            audit_callback_failure(&state, "missing_code", ip.as_deref()).await;
         }
         return oauth_error_redirect(code);
     }
 
     let Some(code) = query.code.as_deref() else {
+        audit_callback_failure(&state, "missing_code", ip.as_deref()).await;
         return oauth_error_redirect("authentication_failed");
     };
 
@@ -144,6 +150,14 @@ async fn callback_inner(
         "server_error"
     })?;
 
+    let mut response = Redirect::to("/?signed_in=1").into_response();
+    append_set_cookie(&mut response, cookie).map_err(|_| "server_error")?;
+    append_set_cookie(
+        &mut response,
+        clear_oauth_state_cookie(&cloud.workos_redirect_uri),
+    )
+    .map_err(|_| "server_error")?;
+
     record_event(
         &cloud.db,
         AuditEvent {
@@ -157,13 +171,6 @@ async fn callback_inner(
     )
     .await;
 
-    let mut response = Redirect::to("/?signed_in=1").into_response();
-    append_set_cookie(&mut response, cookie).map_err(|_| "server_error")?;
-    append_set_cookie(
-        &mut response,
-        clear_oauth_state_cookie(&cloud.workos_redirect_uri),
-    )
-    .map_err(|_| "server_error")?;
     Ok(response)
 }
 
@@ -306,6 +313,12 @@ async fn record_auth_failure(pool: &sqlx::PgPool, reason: &str, ip_address: Opti
         },
     )
     .await;
+}
+
+async fn audit_callback_failure(state: &AppState, reason: &str, ip_address: Option<&str>) {
+    if let Ok(cloud) = state.cloud() {
+        record_auth_failure(&cloud.db, reason, ip_address).await;
+    }
 }
 
 #[cfg(test)]

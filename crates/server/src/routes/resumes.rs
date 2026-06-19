@@ -240,6 +240,7 @@ const MAX_IMPORT_BATCH: usize = 100;
 pub async fn import_resumes(
     AuthUser(user): AuthUser,
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(body): Json<ImportResumesRequest>,
 ) -> Result<Json<ImportResumesResponse>, ApiError> {
     if body.resumes.len() > MAX_IMPORT_BATCH {
@@ -290,7 +291,7 @@ pub async fn import_resumes(
                 "imported": imported.len(),
                 "failed": failed.len(),
             }),
-            ip_address: None,
+            ip_address: trusted_client_ip(&headers, net::trusted_proxy_enabled()).as_deref(),
         },
     )
     .await;
