@@ -30,6 +30,7 @@ pub mod cloud;
 pub mod config;
 pub mod db;
 pub mod dto;
+pub mod email;
 pub mod error;
 pub mod middleware;
 pub mod net;
@@ -677,6 +678,7 @@ mod tests {
 
     fn test_cloud_state() -> std::sync::Arc<cloud::CloudState> {
         use auth::{session::SessionService, workos::WorkOsClient};
+        use email::EmailService;
         use sqlx::postgres::PgPoolOptions;
 
         let pool = PgPoolOptions::new()
@@ -691,6 +693,10 @@ mod tests {
                 false,
             ),
             workos_redirect_uri: "http://localhost/auth/callback".to_string(),
+            email: Some(EmailService::new(
+                "re_test_key".to_string(),
+                "noreply@rustume.com".to_string(),
+            )),
         })
     }
 

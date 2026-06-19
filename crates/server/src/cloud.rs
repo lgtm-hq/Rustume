@@ -2,12 +2,14 @@
 
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
+use std::env::VarError;
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::info;
 
 use crate::auth::session::SessionService;
 use crate::auth::workos::WorkOsClient;
+use crate::email::EmailService;
 
 /// Cloud-specific configuration loaded from environment variables.
 #[derive(Clone)]
@@ -26,6 +28,10 @@ pub struct CloudConfig {
     pub db_max_connections: u32,
     /// Pool acquire timeout in seconds (`DB_ACQUIRE_TIMEOUT_SECS`, default 5).
     pub db_acquire_timeout_secs: u64,
+    /// Resend API key when transactional email is enabled (`RESEND_API_KEY`).
+    pub resend_api_key: Option<String>,
+    /// Sender address when transactional email is enabled (`EMAIL_FROM`).
+    pub email_from: Option<String>,
 }
 
 impl CloudConfig {
@@ -46,6 +52,8 @@ impl CloudConfig {
             session_secret,
             db_max_connections: optional_env_u32("DB_MAX_CONNECTIONS", 10)?,
             db_acquire_timeout_secs: optional_env_u64("DB_ACQUIRE_TIMEOUT_SECS", 5)?,
+            resend_api_key: optional_non_empty_env("RESEND_API_KEY")?,
+            email_from: optional_non_empty_env("EMAIL_FROM")?,
         })
     }
 }
@@ -60,6 +68,11 @@ impl std::fmt::Debug for CloudConfig {
             .field("session_secret", &"<redacted>")
             .field("db_max_connections", &self.db_max_connections)
             .field("db_acquire_timeout_secs", &self.db_acquire_timeout_secs)
+            .field(
+                "resend_api_key",
+                &self.resend_api_key.as_ref().map(|_| "<redacted>"),
+            )
+            .field("email_from", &self.email_from)
             .finish()
     }
 }
@@ -103,6 +116,53 @@ fn required_non_empty_env(key: &str) -> anyhow::Result<String> {
     Ok(value)
 }
 
+fn optional_non_empty_env(key: &str) -> anyhow::Result<Option<String>> {
+    match std::env::var(key) {
+        Ok(value) => {
+            let trimmed = value.trim();
+            if trimmed.is_empty() {
+                Ok(None)
+            } else {
+                Ok(Some(trimmed.to_string()))
+            }
+        }
+        Err(VarError::NotPresent) => Ok(None),
+        Err(VarError::NotUnicode(_os_string)) => Err(anyhow::anyhow!(
+            "environment variable {key} contains invalid unicode"
+        )),
+    }
+}
+
+fn validate_email_from(value: &str) -> anyhow::Result<()> {
+    let trimmed = value.trim();
+    let Some((local, domain)) = trimmed.split_once('@') else {
+        anyhow::bail!("EMAIL_FROM must be a valid email address");
+    };
+    if local.is_empty()
+        || domain.is_empty()
+        || domain.contains('@')
+        || domain.starts_with('.')
+        || domain.ends_with('.')
+        || !domain.contains('.')
+    {
+        anyhow::bail!("EMAIL_FROM must be a valid email address");
+    }
+    Ok(())
+}
+
+fn email_service_from_config(config: &CloudConfig) -> anyhow::Result<Option<EmailService>> {
+    match (&config.resend_api_key, &config.email_from) {
+        (Some(api_key), Some(from)) => {
+            validate_email_from(from)?;
+            Ok(Some(EmailService::new(api_key.clone(), from.clone())))
+        }
+        (None, None) => Ok(None),
+        _ => anyhow::bail!(
+            "RESEND_API_KEY and EMAIL_FROM must both be set to enable transactional email"
+        ),
+    }
+}
+
 /// Returns `true` when `RUSTUME_CLOUD` is enabled and `DATABASE_URL` is set.
 pub fn cloud_enabled() -> bool {
     matches!(std::env::var("RUSTUME_CLOUD").as_deref(), Ok("true" | "1"))
@@ -133,6 +193,8 @@ pub struct CloudState {
     pub sessions: SessionService,
     /// OAuth redirect URI validated at startup.
     pub workos_redirect_uri: String,
+    /// Transactional email delivery for account lifecycle events.
+    pub email: Option<EmailService>,
 }
 
 /// Connect to PostgreSQL, run migrations, and wire cloud auth services.
@@ -147,6 +209,20 @@ pub async fn init_cloud(config: CloudConfig) -> anyhow::Result<Arc<CloudState>> 
 
     info!("PostgreSQL migrations applied");
 
+    let email = match email_service_from_config(&config)? {
+        Some(service) => {
+            info!("Transactional email enabled");
+            Some(service)
+        }
+        None => {
+            info!(
+                "Transactional email disabled: set RESEND_API_KEY and EMAIL_FROM to enable \
+                 account lifecycle notifications"
+            );
+            None
+        }
+    };
+
     let workos = WorkOsClient::new(config.workos_client_id, config.workos_api_key);
     let cookie_secure = config.workos_redirect_uri.starts_with("https://");
     let sessions = SessionService::new(db.clone(), config.session_secret, cookie_secure);
@@ -157,6 +233,7 @@ pub async fn init_cloud(config: CloudConfig) -> anyhow::Result<Arc<CloudState>> 
         workos,
         sessions,
         workos_redirect_uri,
+        email,
     }))
 }
 
@@ -171,5 +248,23 @@ mod tests {
         assert!(!require_auth_from_env(true, Some("false".to_string())));
         assert!(require_auth_from_env(true, Some("true".to_string())));
         assert!(require_auth_from_env(true, Some("1".to_string())));
+    }
+
+    #[test]
+    fn email_service_from_config_requires_both_vars() {
+        let config = CloudConfig {
+            database_url: "postgres://localhost/rustume".to_string(),
+            workos_client_id: "client".to_string(),
+            workos_api_key: "key".to_string(),
+            workos_redirect_uri: "http://localhost/auth/callback".to_string(),
+            session_secret: "test-session-secret-at-least-32-chars".to_string(),
+            db_max_connections: 10,
+            db_acquire_timeout_secs: 5,
+            resend_api_key: Some("re_test".to_string()),
+            email_from: None,
+        };
+
+        let err = email_service_from_config(&config).expect_err("partial config");
+        assert!(err.to_string().contains("RESEND_API_KEY and EMAIL_FROM"));
     }
 }
