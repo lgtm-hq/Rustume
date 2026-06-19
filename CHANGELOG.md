@@ -22,6 +22,16 @@ and this project adheres to
 
 ### Security
 
+## [0.22.0] - 2026-06-19
+
+### Added
+
+- **web**: polish Rustume Cloud login and account UX (#320) (daec673)
+
+### Fixed
+
+- **ci**: trigger release PR for web and site app changes (#322) (8b077c5)
+
 ## [0.21.1] - 2026-06-19
 
 ### Fixed
@@ -225,7 +235,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.21.1...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.22.0...HEAD
+[0.22.0]: https://github.com/lgtm-hq/Rustume/compare/v0.21.1...v0.22.0
 [0.21.1]: https://github.com/lgtm-hq/Rustume/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/lgtm-hq/Rustume/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/lgtm-hq/Rustume/compare/v0.19.0...v0.20.0
