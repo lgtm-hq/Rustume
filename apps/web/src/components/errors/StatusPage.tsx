@@ -25,10 +25,14 @@ export interface StatusPageProps {
   icon?: JSX.Element;
   /** Optional test id for the page root. */
   testId?: string;
+  /** Heading id for aria-labelledby; override when multiple instances may mount. */
+  titleId?: string;
 }
 
 /** Shared layout for application error and auth-required pages. */
 export function StatusPage(props: StatusPageProps) {
+  const titleId = () => props.titleId ?? "status-page-title";
+
   return (
     <div
       class="relative flex min-h-[calc(100vh-3.5rem)] items-center justify-center overflow-hidden px-4 py-16"
@@ -45,7 +49,7 @@ export function StatusPage(props: StatusPageProps) {
 
       <section
         class="relative z-10 w-full max-w-xl animate-slide-up text-center"
-        aria-labelledby="status-page-title"
+        aria-labelledby={titleId()}
       >
         <Show when={props.icon}>
           <div class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-surface shadow-soft">
@@ -54,10 +58,7 @@ export function StatusPage(props: StatusPageProps) {
         </Show>
 
         <p class="font-mono text-xs uppercase tracking-[0.3em] text-stone">{props.statusCode}</p>
-        <h1
-          id="status-page-title"
-          class="mt-3 font-display text-3xl font-semibold text-ink md:text-4xl"
-        >
+        <h1 id={titleId()} class="mt-3 font-display text-3xl font-semibold text-ink md:text-4xl">
           {props.title}
         </h1>
         <p class="mx-auto mt-4 max-w-md text-base leading-7 text-stone">{props.description}</p>

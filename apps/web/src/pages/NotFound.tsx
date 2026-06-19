@@ -33,6 +33,7 @@ export default function NotFound() {
   return (
     <StatusPage
       testId="not-found-page"
+      titleId="not-found-page-title"
       statusCode="404"
       title="Page not found"
       description={`We couldn't find a page at ${pathLabel()}. Your resumes are still safe — head back home or open one from your list.`}

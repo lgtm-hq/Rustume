@@ -28,12 +28,17 @@ export default function Unauthorized() {
 
   const handleSignIn = () => {
     setSigningIn(true);
-    signIn();
+    try {
+      signIn();
+    } catch {
+      setSigningIn(false);
+    }
   };
 
   return (
     <StatusPage
       testId="unauthorized-page"
+      titleId="unauthorized-page-title"
       statusCode="401"
       title="Sign in required"
       description="Rustume Cloud on this deployment requires an account. Sign in to open, edit, and sync your resumes across devices."
