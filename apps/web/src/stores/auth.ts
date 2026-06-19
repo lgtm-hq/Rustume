@@ -61,6 +61,10 @@ function createAuthStore() {
     return userDisplayName(user);
   }
 
+  function clearUser() {
+    setState("user", null);
+  }
+
   return {
     get state() {
       return state;
@@ -68,6 +72,7 @@ function createAuthStore() {
     refresh,
     signIn: login,
     signOut,
+    clearUser,
     displayName,
   };
 }

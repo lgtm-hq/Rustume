@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@solidjs/testing-library";
+import { fireEvent, render, screen } from "@solidjs/testing-library";
 import { Route, Router } from "@solidjs/router";
 import Account from "../Account";
 
@@ -27,6 +27,7 @@ vi.mock("../../stores/auth", () => ({
     },
     signIn: signInMock,
     signOut: signOutMock,
+    clearUser: vi.fn(),
     // Mirrors userDisplayName — vi.mock hoisting prevents importing the real function.
     displayName: (user: { email?: string; first_name?: string; last_name?: string }) => {
       const parts = [user.first_name, user.last_name].filter(Boolean);
@@ -34,6 +35,14 @@ vi.mock("../../stores/auth", () => ({
       return user.email ?? "Account";
     },
   },
+}));
+
+vi.mock("../../api/account", () => ({
+  deleteAccount: vi.fn(),
+}));
+
+vi.mock("../../api/resumes", () => ({
+  listCloudResumesPage: vi.fn().mockResolvedValue({ total: 2, items: [], page: 1, per_page: 100 }),
 }));
 
 vi.mock("../../components/ui", async (importOriginal) => {
@@ -107,5 +116,24 @@ describe("Account page", () => {
     expect(screen.getByText("Billing")).toBeInTheDocument();
     expect(screen.getByText("End-to-end encryption")).toBeInTheDocument();
     expect(screen.getAllByText("Coming soon").length).toBeGreaterThan(0);
+    expect(screen.getByText("Danger zone")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete my account" })).toBeInTheDocument();
+  });
+
+  it("opens the delete confirmation modal", () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.user = {
+      id: "user-1",
+      plan: "free",
+      email: "dev@example.com",
+    };
+
+    renderAccount();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete my account" }));
+
+    expect(screen.getByText("Type DELETE to confirm")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete permanently" })).toBeDisabled();
   });
 });
