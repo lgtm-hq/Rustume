@@ -7,6 +7,18 @@ use governor::Quota;
 /// Maximum request body size (10 MB)
 pub const MAX_BODY_SIZE: usize = 10 * 1024 * 1024;
 
+/// Maximum nested JSON depth for resume payloads.
+pub const MAX_JSON_DEPTH: usize = 32;
+
+/// Maximum length for any single string field inside resume JSON.
+pub const MAX_STRING_FIELD_LEN: usize = 16_384;
+
+/// Maximum serialized resume JSON size (2 MB).
+pub const MAX_RESUME_JSON_BYTES: usize = 2 * 1024 * 1024;
+
+/// Maximum resume title length in characters.
+pub const MAX_TITLE_LEN: usize = 512;
+
 /// Default server port
 pub const DEFAULT_PORT: u16 = 3000;
 

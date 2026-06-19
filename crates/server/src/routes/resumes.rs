@@ -8,6 +8,7 @@ use axum::{
 use tracing::error;
 use uuid::Uuid;
 
+use crate::audit::{record_event, AuditEvent};
 use crate::db::{
     CreateResumeRequest, ImportFailure, ImportResumeItem, ImportResumesRequest,
     ImportResumesResponse, PaginatedResumeSummaries, ResumeListQuery, ResumeRow, ResumeSummary,
@@ -16,6 +17,7 @@ use crate::db::{
 use crate::error::ApiError;
 use crate::middleware::auth::AuthUser;
 use crate::state::AppState;
+use crate::validation::{validate_resume_json, validate_title};
 
 /// List resumes for the authenticated user.
 #[utoipa::path(
@@ -113,6 +115,8 @@ pub async fn create_resume(
 ) -> Result<(StatusCode, Json<ResumeRow>), ApiError> {
     let cloud = state.cloud()?;
     let title = body.title.unwrap_or_else(|| "Untitled".to_string());
+    validate_title(title.as_str())?;
+    validate_resume_json(&body.data)?;
     let resume_id = body.id.unwrap_or_else(Uuid::new_v4);
 
     let row = sqlx::query_as::<_, ResumeRow>(
@@ -161,6 +165,10 @@ pub async fn update_resume(
     let cloud = state.cloud()?;
     let existing = fetch_owned_resume(&state, user.id, id).await?;
     let title = body.title.unwrap_or(existing.title);
+    validate_title(title.as_str())?;
+    if let Some(data) = &body.data {
+        validate_resume_json(data)?;
+    }
 
     let row = apply_resume_update(&cloud.db, user.id, id, &title, body.data, body.version).await?;
 
@@ -197,6 +205,19 @@ pub async fn delete_resume(
         return Err(ApiError::not_found("Resume not found"));
     }
 
+    record_event(
+        &cloud.db,
+        AuditEvent {
+            event_type: "resume.delete",
+            actor_user_id: Some(user.id),
+            resource_type: Some("resume"),
+            resource_id: Some(id),
+            metadata: serde_json::json!({}),
+            ip_address: None,
+        },
+    )
+    .await;
+
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -226,11 +247,26 @@ pub async fn import_resumes(
     }
 
     let cloud = state.cloud()?;
+    let requested_count = body.resumes.len();
     let mut imported = Vec::new();
     let mut failed = Vec::new();
 
     for item in body.resumes {
         let resume_id = item.id;
+        if let Err(err) = validate_title(item.title.as_deref().unwrap_or("Untitled")) {
+            failed.push(ImportFailure {
+                id: resume_id,
+                error: err.error,
+            });
+            continue;
+        }
+        if let Err(err) = validate_resume_json(&item.data) {
+            failed.push(ImportFailure {
+                id: resume_id,
+                error: err.error,
+            });
+            continue;
+        }
         match import_single_resume(&cloud.db, user.id, item).await {
             Ok(row) => imported.push(ResumeSummary::from(row)),
             Err(err) => failed.push(ImportFailure {
@@ -239,6 +275,23 @@ pub async fn import_resumes(
             }),
         }
     }
+
+    record_event(
+        &cloud.db,
+        AuditEvent {
+            event_type: "resume.import.batch",
+            actor_user_id: Some(user.id),
+            resource_type: None,
+            resource_id: None,
+            metadata: serde_json::json!({
+                "requested": requested_count,
+                "imported": imported.len(),
+                "failed": failed.len(),
+            }),
+            ip_address: None,
+        },
+    )
+    .await;
 
     Ok(Json(ImportResumesResponse { imported, failed }))
 }
