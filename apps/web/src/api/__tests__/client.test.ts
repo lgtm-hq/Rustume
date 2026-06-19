@@ -1,4 +1,4 @@
-import { get, post, put, fetchBlob, ApiError } from "../client";
+import { get, post, put, fetchBlob, fetchBlobWithHeaders, ApiError } from "../client";
 
 describe("ApiError", () => {
   it("has status and message properties", () => {
@@ -215,5 +215,21 @@ describe("429 rate limiting", () => {
 
     await expect(get("/templates")).rejects.toMatchObject({ status: 429 });
     expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("throws ApiError when preview blob retries are exhausted", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      statusText: "Too Many Requests",
+      headers: new Headers({ "Retry-After": "1" }),
+      text: () => Promise.resolve(JSON.stringify({ error: "Too many requests", retry_after: 1 })),
+    });
+
+    const promise = fetchBlobWithHeaders("/render/preview", { resume: {} });
+    const expectation = expect(promise).rejects.toMatchObject({ status: 429 });
+    await vi.runAllTimersAsync();
+    await expectation;
+    expect(globalThis.fetch).toHaveBeenCalledTimes(4);
   });
 });

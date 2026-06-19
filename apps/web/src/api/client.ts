@@ -40,7 +40,11 @@ function parseRetryAfterSeconds(response: Response, bodyText: string): number {
 }
 
 function isSaveMethod(method: string): boolean {
-  return ["POST", "PUT", "PATCH", "DELETE"].includes(method.toUpperCase());
+  return ["POST", "PUT", "PATCH"].includes(method.toUpperCase());
+}
+
+function shouldNotifyRateLimit(method: string): boolean {
+  return isSaveMethod(method) || method.toUpperCase() === "DELETE";
 }
 
 function isPreviewEndpoint(endpoint: string): boolean {
@@ -52,14 +56,12 @@ function isPdfEndpoint(endpoint: string): boolean {
 }
 
 function shouldRetryOnRateLimit(endpoint: string, method: string): boolean {
-  if (isPreviewEndpoint(endpoint)) {
-    return false;
-  }
   return isSaveMethod(method);
 }
 
 async function maybeShowRateLimitToast(endpoint: string, method: string): Promise<void> {
-  const willShow = isPreviewEndpoint(endpoint) || isPdfEndpoint(endpoint) || isSaveMethod(method);
+  const willShow =
+    isPreviewEndpoint(endpoint) || isPdfEndpoint(endpoint) || shouldNotifyRateLimit(method);
   if (!willShow) {
     return;
   }
@@ -196,12 +198,6 @@ async function fetchBlobWithHeadersInternal(
 
   if (response.status === 429) {
     const text = await response.text();
-
-    if (isPreviewEndpoint(endpoint)) {
-      await maybeShowRateLimitToast(endpoint, "POST");
-      throw new ApiError(response.status, text || response.statusText);
-    }
-
     const retryAfterMs = parseRetryAfterSeconds(response, text) * 1000;
 
     if (attempt < MAX_RATE_LIMIT_RETRIES) {
