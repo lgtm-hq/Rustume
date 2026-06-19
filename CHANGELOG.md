@@ -22,6 +22,12 @@ and this project adheres to
 
 ### Security
 
+## [0.23.0] - 2026-06-19
+
+### Added
+
+- **infra**: transactional email service for account lifecycle (#324) (71cb2c9)
+
 ## [0.22.0] - 2026-06-19
 
 ### Added
@@ -235,7 +241,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.22.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.23.0...HEAD
+[0.23.0]: https://github.com/lgtm-hq/Rustume/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/lgtm-hq/Rustume/compare/v0.21.1...v0.22.0
 [0.21.1]: https://github.com/lgtm-hq/Rustume/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/lgtm-hq/Rustume/compare/v0.20.0...v0.21.0
