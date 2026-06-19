@@ -156,6 +156,15 @@ fn trusted_client_ip(headers: &HeaderMap, trusted_proxy: bool) -> Option<String>
         return None;
     }
 
+    if let Some(ip) = headers
+        .get("x-real-ip")
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        return Some(ip.to_string());
+    }
+
     headers
         .get("x-forwarded-for")
         .and_then(|value| value.to_str().ok())
@@ -163,7 +172,7 @@ fn trusted_client_ip(headers: &HeaderMap, trusted_proxy: bool) -> Option<String>
             value
                 .split(',')
                 .map(str::trim)
-                .find(|part| !part.is_empty())
+                .rfind(|part| !part.is_empty())
         })
         .map(str::to_string)
 }
@@ -249,11 +258,13 @@ async fn enforce_session_rate_limit(
 ) -> Result<Response, RateLimitExceeded> {
     let trusted_proxy = rate_limits.trusted_proxy;
     let ip_key = ip_rate_limit_key(headers, remote_addr, trusted_proxy);
-    rate_limits.check(group, &ip_key)?;
-
     let session_key = session_rate_limit_key(state, headers, remote_addr, trusted_proxy).await;
+
     if session_key != ip_key {
         rate_limits.check(group, &session_key)?;
+        rate_limits.check(group, &ip_key)?;
+    } else {
+        rate_limits.check(group, &ip_key)?;
     }
     Ok(next.run(request).await)
 }
@@ -390,7 +401,7 @@ mod tests {
     }
 
     #[test]
-    fn trusted_client_ip_uses_leftmost_forwarded_value() {
+    fn trusted_client_ip_uses_proxy_appended_forwarded_value() {
         let mut headers = HeaderMap::new();
         headers.insert(
             "x-forwarded-for",
@@ -399,7 +410,22 @@ mod tests {
 
         assert_eq!(
             trusted_client_ip(&headers, true).as_deref(),
-            Some("203.0.113.1")
+            Some("198.51.100.2")
+        );
+    }
+
+    #[test]
+    fn trusted_client_ip_prefers_x_real_ip() {
+        let mut headers = HeaderMap::new();
+        headers.insert("x-real-ip", HeaderValue::from_static("198.51.100.2"));
+        headers.insert(
+            "x-forwarded-for",
+            HeaderValue::from_static("203.0.113.1, 198.51.100.2"),
+        );
+
+        assert_eq!(
+            trusted_client_ip(&headers, true).as_deref(),
+            Some("198.51.100.2")
         );
     }
 }

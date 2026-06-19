@@ -36,7 +36,7 @@ pub struct RateLimitConfig {
     pub unauthenticated_per_min: u32,
     /// Templates, parse, and validate routes (per user when authenticated).
     pub billable_per_min: u32,
-    /// Whether to trust `X-Forwarded-For` for client IP extraction.
+    /// Whether to trust proxy headers (`X-Real-IP`, append-mode `X-Forwarded-For`).
     pub trusted_proxy: bool,
 }
 

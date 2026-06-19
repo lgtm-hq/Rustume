@@ -210,12 +210,24 @@ fn trusted_client_ip(headers: &HeaderMap) -> Option<&str> {
         return None;
     }
 
+    if let Some(ip) = headers
+        .get("x-real-ip")
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        return Some(ip);
+    }
+
     headers
         .get("x-forwarded-for")
         .and_then(|value| value.to_str().ok())
-        .and_then(|value| value.split(',').next())
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
+        .and_then(|value| {
+            value
+                .split(',')
+                .map(str::trim)
+                .rfind(|value| !value.is_empty())
+        })
 }
 
 fn oauth_cookie_secure(redirect_uri: &str) -> bool {
