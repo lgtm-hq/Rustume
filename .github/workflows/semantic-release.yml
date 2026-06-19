@@ -2,20 +2,28 @@
 ---
 name: Release - Automated PR Creation
 # Computes next semantic version using conventional commits and opens release PR.
+#
+# Trigger matrix (after CI succeeds on main):
+# - Rust Build (workspace) — backend / workspace Rust changes
+# - Coverage Reports — web app and Rust test coverage changes
+# - Quality - Documentation Site — apps/site documentation site changes
+# - push (paths below) — config/scripting/tooling changes that skip all three app-CI
+#   workflows (scripts, docker, markdown, renovate, .github, Makefile)
 
 "on":
-  # Gate releases on CI passing: only trigger after the Rust build workflow
-  # completes on main. The job condition below rejects failed runs.
+  # Gate releases on CI passing: trigger after app or Rust CI workflows complete.
   workflow_run:
-    workflows: ["Rust Build (workspace)"]
+    workflows:
+      - Rust Build (workspace)
+      - Coverage Reports
+      - Quality - Documentation Site
     branches: [main]
     types: [completed]
-  # For commits that don't touch Rust source (docs, scripts, Docker, etc.)
-  # the test suite never runs, so fall back to a direct push trigger.
+  # Fallback for config/scripting/tooling changes that skip Rust Build, Coverage, and
+  # Site Quality. Omit docs/** — Site Quality workflow_run covers that path set.
   push:
     branches: [main]
     paths:
-      - "docs/**"
       - "scripts/**"
       - "docker/**"
       - "**.md"

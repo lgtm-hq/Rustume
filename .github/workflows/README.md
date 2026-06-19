@@ -44,7 +44,9 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
 ## Release
 
 - **semantic-release.yml** — Opens version bump PR via `reusable-release-version-pr`
-  (dual `workflow_run` + `push` triggers for non-Rust commits)
+  (`workflow_run` after Rust Build, Coverage Reports, or Site Quality on `main`;
+  `push` fallback for config/scripting/tooling changes that skip all three app-CI
+  workflows)
 - **auto-tag-on-main.yml** — Creates tags when `Cargo.toml` version changes on `main`
   via `reusable-release-auto-tag` (`version-source: cargo`, `create-release: false`)
 - **publish-release-on-tag.yml** — GitHub Release on tag push (inline;
