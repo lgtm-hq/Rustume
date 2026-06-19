@@ -65,7 +65,7 @@ describe("Account page", () => {
     renderAccount();
 
     expect(screen.getByText("Sign in to Rustume Cloud")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Sign in to Cloud" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in to sync" })).toBeInTheDocument();
     expect(screen.getByText(/Continue without signing in/i)).toBeInTheDocument();
   });
 

@@ -138,7 +138,7 @@ export default function Home() {
               loading={signingIn()}
               data-testid="home-cloud-sign-in"
             >
-              Sign in to Cloud
+              Sign in to sync
             </Button>
           </div>
         </div>

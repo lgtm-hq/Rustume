@@ -1,5 +1,6 @@
-import { useLocation, useNavigate } from "@solidjs/router";
-import { createEffect, Show, type ParentComponent } from "solid-js";
+import { useLocation } from "@solidjs/router";
+import { Show, type ParentComponent } from "solid-js";
+import Unauthorized from "../../pages/Unauthorized";
 import { authStore } from "../../stores/auth";
 import { Spinner } from "../ui";
 
@@ -17,9 +18,8 @@ function isProtectedPath(pathname: string): boolean {
   return true;
 }
 
-/** Redirect signed-out users to login when hosted require-auth mode is active. */
+/** Block protected routes with a sign-in page when hosted require-auth mode is active. */
 export const RequireAuthGuard: ParentComponent = (props) => {
-  const navigate = useNavigate();
   const location = useLocation();
   const { state } = authStore;
 
@@ -30,22 +30,18 @@ export const RequireAuthGuard: ParentComponent = (props) => {
     !state.user &&
     isProtectedPath(location.pathname);
 
-  createEffect(() => {
-    if (!shouldBlock()) {
-      return;
-    }
-
-    navigate("/auth/login", { replace: true });
-  });
-
   return (
     <Show
-      when={!state.loading && !shouldBlock()}
+      when={!state.loading}
       fallback={
-        <Spinner class="w-6 h-6 text-accent mx-auto mt-24" ariaLabel="Loading authentication" />
+        <div class="flex min-h-[calc(100vh-3.5rem)] items-center justify-center">
+          <Spinner class="h-6 w-6 text-accent" ariaLabel="Loading authentication" />
+        </div>
       }
     >
-      {props.children}
+      <Show when={!shouldBlock()} fallback={<Unauthorized />}>
+        {props.children}
+      </Show>
     </Show>
   );
 };
