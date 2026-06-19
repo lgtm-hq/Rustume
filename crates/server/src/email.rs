@@ -3,9 +3,11 @@
 use chrono::{DateTime, Utc};
 use reqwest::Client;
 use serde::Serialize;
+use std::time::Duration;
 use tracing::warn;
 
 const RESEND_API_BASE: &str = "https://api.resend.com";
+const RESEND_HTTP_TIMEOUT_SECS: u64 = 10;
 
 /// HTTP client for Resend transactional email.
 #[derive(Clone)]
@@ -15,11 +17,24 @@ pub struct EmailService {
     from: String,
 }
 
+impl std::fmt::Debug for EmailService {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EmailService")
+            .field("api_key", &"<redacted>")
+            .field("from", &self.from)
+            .finish_non_exhaustive()
+    }
+}
+
 impl EmailService {
     /// Create a client with the given Resend credentials and sender address.
     pub fn new(api_key: String, from: String) -> Self {
+        let http = Client::builder()
+            .timeout(Duration::from_secs(RESEND_HTTP_TIMEOUT_SECS))
+            .build()
+            .expect("reqwest client");
         Self {
-            http: Client::new(),
+            http,
             api_key,
             from,
         }
@@ -37,16 +52,17 @@ impl EmailService {
         days_remaining: u32,
     ) -> Result<(), EmailError> {
         let subject = "Your Rustume Cloud subscription has been canceled";
+        let days_label = if days_remaining == 1 { "day" } else { "days" };
         let text = format!(
             "Your Rustume Cloud subscription has been canceled.\n\n\
-             You can continue using Rustume Cloud for {days_remaining} more day(s). \
+             You can continue using Rustume Cloud for {days_remaining} more {days_label}. \
              Export your resumes before access ends.\n\n\
              To reactivate, sign in at https://app.rustume.com and update billing."
         );
         let html = format!(
             "<p>Your Rustume Cloud subscription has been canceled.</p>\
              <p>You can continue using Rustume Cloud for <strong>{days_remaining}</strong> \
-             more day(s). Export your resumes before access ends.</p>\
+             more {days_label}. Export your resumes before access ends.</p>\
              <p>To reactivate, sign in at \
              <a href=\"https://app.rustume.com\">app.rustume.com</a> and update billing.</p>"
         );
@@ -162,10 +178,23 @@ pub enum EmailError {
 pub fn log_send_failure(template: &str, recipient: &str, err: &EmailError) {
     warn!(
         template = template,
-        recipient = recipient,
+        recipient = %mask_recipient(recipient),
         error = %err,
         "transactional email send failed"
     );
+}
+
+fn mask_recipient(recipient: &str) -> String {
+    let Some((local, domain)) = recipient.split_once('@') else {
+        return "***".to_string();
+    };
+
+    let masked_local = match local.chars().next() {
+        Some(first) => format!("{first}*"),
+        None => "*".to_string(),
+    };
+
+    format!("{masked_local}@{domain}")
 }
 
 fn truncate_body(body: &str) -> String {
@@ -197,6 +226,11 @@ mod tests {
         assert_eq!(json["subject"], "Test");
         assert_eq!(json["text"], "plain");
         assert_eq!(json["html"], "<p>html</p>");
+    }
+
+    #[test]
+    fn mask_recipient_redacts_local_part() {
+        assert_eq!(mask_recipient("user@example.com"), "u*@example.com",);
     }
 
     #[test]

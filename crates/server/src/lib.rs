@@ -693,7 +693,10 @@ mod tests {
                 false,
             ),
             workos_redirect_uri: "http://localhost/auth/callback".to_string(),
-            email: EmailService::new("re_test_key".to_string(), "noreply@rustume.com".to_string()),
+            email: Some(EmailService::new(
+                "re_test_key".to_string(),
+                "noreply@rustume.com".to_string(),
+            )),
         })
     }
 

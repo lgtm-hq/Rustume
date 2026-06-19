@@ -40,7 +40,7 @@ enabled, these identity and persistence settings are required:
 | `WORKOS_API_KEY` | Server-side WorkOS API key |
 | `WORKOS_REDIRECT_URI` | Registered OAuth callback URL |
 | `SESSION_SECRET` | Session signing secret, at least 32 characters |
-| `RESEND_API_KEY` | Resend API key for transactional account lifecycle email |
+| `RESEND_API_KEY` | Resend API key; required together with `EMAIL_FROM` to enable transactional email |
 | `EMAIL_FROM` | Sender address for outbound mail (for example `noreply@rustume.com`) |
 
 Set `TRUSTED_PROXY=true` only when the server is behind a trusted proxy and may rely on
