@@ -68,6 +68,6 @@ connection draining.
 
 ## References
 
-- [Environment reference](../apps/site/src/content/docs/deployment/env-reference.md)
-- [Cloud authentication](../apps/site/src/content/docs/cloud/auth.md)
-- [SECURITY.md](../SECURITY.md)
+- [Environment reference](/docs/deployment/env-reference/)
+- [Cloud authentication](/docs/cloud/auth/)
+- [SECURITY.md](https://github.com/lgtm-hq/Rustume/blob/main/SECURITY.md)
