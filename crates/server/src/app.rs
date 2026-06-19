@@ -2,7 +2,7 @@ use axum::{
     extract::DefaultBodyLimit,
     http::{header, HeaderValue, Method},
     middleware,
-    routing::{get, post},
+    routing::{delete, get, post},
     Router,
 };
 use std::path::PathBuf;
@@ -26,9 +26,9 @@ use crate::middleware::security::security_headers;
 use crate::observability::apply_sentry_layers;
 use crate::openapi::ApiDoc;
 use crate::routes::{
-    callback, create_resume, delete_resume, get_resume, health, import_resumes, list_resumes,
-    list_templates, login, logout, me, metrics, parse, render_pdf, render_preview, security_txt,
-    spa_fallback, static_dir, template_thumbnail, update_resume, validate,
+    callback, create_resume, delete_account, delete_resume, get_resume, health, import_resumes,
+    list_resumes, list_templates, login, logout, me, metrics, parse, render_pdf, render_preview,
+    security_txt, spa_fallback, static_dir, template_thumbnail, update_resume, validate,
 };
 use crate::state::AppState;
 
@@ -156,10 +156,24 @@ pub fn create_router_with_state(state: AppState) -> Router {
             ));
         }
 
+        let mut account_routes = Router::new()
+            .route("/api/account", delete(delete_account))
+            .route_layer(middleware::from_fn_with_state(
+                state.clone(),
+                require_auth_when_enabled,
+            ));
+        if cloud_rate_limits {
+            account_routes = account_routes.route_layer(middleware::from_fn_with_state(
+                state_for_layers.clone(),
+                rate_limit_resume_crud,
+            ));
+        }
+
         router = router
             .merge(auth_routes)
             .merge(resume_routes)
-            .merge(import_routes);
+            .merge(import_routes)
+            .merge(account_routes);
     }
 
     let router = router

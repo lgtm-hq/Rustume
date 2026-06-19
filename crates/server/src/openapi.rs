@@ -5,9 +5,10 @@ use utoipa::Modify;
 use utoipa::OpenApi;
 
 use crate::db::{
-    AuthMeUnauthorizedResponse, AuthUserResponse, CreateResumeRequest, ImportFailure,
-    ImportResumeItem, ImportResumesRequest, ImportResumesResponse, PaginatedResumeSummaries,
-    ResumeListQuery, ResumeRow, ResumeSummary, UpdateResumeRequest,
+    AuthMeUnauthorizedResponse, AuthUserResponse, CreateResumeRequest, DeleteAccountRequest,
+    DeleteAccountResponse, ImportFailure, ImportResumeItem, ImportResumesRequest,
+    ImportResumesResponse, PaginatedResumeSummaries, ResumeListQuery, ResumeRow, ResumeSummary,
+    UpdateResumeRequest,
 };
 use crate::dto::{
     ParseFormat, ParseRequest, RenderPdfRequest, RenderPreviewRequest, TemplateInfo, ThemeInfo,
@@ -56,6 +57,7 @@ impl Modify for CookieAuthAddon {
         crate::routes::resumes::update_resume,
         crate::routes::resumes::delete_resume,
         crate::routes::resumes::import_resumes,
+        crate::routes::account::delete_account,
     ),
     components(
         schemas(
@@ -79,6 +81,8 @@ impl Modify for CookieAuthAddon {
             ImportResumesResponse,
             ImportFailure,
             ImportResumeItem,
+            DeleteAccountRequest,
+            DeleteAccountResponse,
             rustume_schema::ResumeData
         )
     ),
@@ -89,7 +93,8 @@ impl Modify for CookieAuthAddon {
         (name = "Render", description = "Resume rendering to PDF/PNG"),
         (name = "Validate", description = "Resume validation"),
         (name = "Auth", description = "Rustume Cloud authentication (cloud mode only)"),
-        (name = "Resumes", description = "Authenticated resume storage (cloud mode only)")
+        (name = "Resumes", description = "Authenticated resume storage (cloud mode only)"),
+        (name = "Account", description = "Account lifecycle (cloud mode only)")
     )
 )]
 /// Generated OpenAPI document served at `/api-docs/openapi.json`.

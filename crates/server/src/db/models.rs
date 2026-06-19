@@ -207,6 +207,20 @@ pub struct AuthMeUnauthorizedResponse {
     pub require_auth: bool,
 }
 
+/// Request body for `DELETE /api/account`.
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct DeleteAccountRequest {
+    /// Typed confirmation; must be exactly `DELETE`.
+    pub confirmation: String,
+}
+
+/// Response body for `DELETE /api/account`.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct DeleteAccountResponse {
+    pub deleted: bool,
+    pub message: String,
+}
+
 impl AuthUserResponse {
     /// Build a profile response with the hosted require-auth flag.
     pub fn from_user(user: User, require_auth: bool) -> Self {

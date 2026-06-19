@@ -94,6 +94,39 @@ impl WorkOsClient {
 
         Ok(payload.user)
     }
+
+    /// Delete a WorkOS user by ID. Best-effort during account erasure.
+    pub async fn delete_user(&self, workos_user_id: &str) -> Result<(), WorkOsAuthError> {
+        let response = self
+            .http
+            .delete(format!(
+                "{WORKOS_API_BASE}/user_management/users/{workos_user_id}"
+            ))
+            .bearer_auth(&self.api_key)
+            .send()
+            .await
+            .map_err(|err| WorkOsAuthError::Transport(err.to_string()))?;
+
+        if response.status().is_success() || response.status() == reqwest::StatusCode::NOT_FOUND {
+            return Ok(());
+        }
+
+        let status = response.status();
+        let body = response
+            .text()
+            .await
+            .unwrap_or_else(|e| format!("failed to read response: {e}"));
+        let body = if body.chars().count() > 200 {
+            let truncated: String = body.chars().take(200).collect();
+            format!("{truncated}… (truncated)")
+        } else {
+            body
+        };
+        Err(WorkOsAuthError::Api {
+            status: status.as_u16(),
+            body,
+        })
+    }
 }
 
 #[derive(Debug, Deserialize)]
