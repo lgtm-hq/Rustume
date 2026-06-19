@@ -15,6 +15,7 @@ use crate::auth::session::SESSION_COOKIE;
 use crate::auth::workos::upsert_user;
 use crate::db::{AuthMeUnauthorizedResponse, AuthUserResponse};
 use crate::error::ApiError;
+use crate::net::{self, trusted_client_ip};
 use crate::state::AppState;
 
 const OAUTH_STATE_COOKIE: &str = "rustume_oauth_state";
@@ -105,7 +106,8 @@ async fn callback_inner(
         _ => return Err("invalid_state"),
     }
 
-    let ip = trusted_client_ip(&headers);
+    let ip_address = trusted_client_ip(&headers, net::trusted_proxy_enabled());
+    let ip = ip_address.as_deref();
     let user_agent = headers
         .get(header::USER_AGENT)
         .and_then(|value| value.to_str().ok());
@@ -203,19 +205,6 @@ fn oauth_error_redirect(code: &'static str) -> Response {
         _ => "/?auth_error=server_error",
     };
     Redirect::to(path).into_response()
-}
-
-fn trusted_client_ip(headers: &HeaderMap) -> Option<&str> {
-    if !matches!(std::env::var("TRUSTED_PROXY").as_deref(), Ok("true" | "1")) {
-        return None;
-    }
-
-    headers
-        .get("x-forwarded-for")
-        .and_then(|value| value.to_str().ok())
-        .and_then(|value| value.split(',').next())
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
 }
 
 fn oauth_cookie_secure(redirect_uri: &str) -> bool {

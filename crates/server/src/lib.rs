@@ -31,6 +31,7 @@ pub mod db;
 pub mod dto;
 pub mod error;
 pub mod middleware;
+pub mod net;
 pub mod observability;
 pub mod openapi;
 pub mod routes;
@@ -719,6 +720,28 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_resumes_anonymous_401_when_require_auth_enabled() {
+        let state = state::AppState::with_require_auth(
+            std::sync::Arc::new(routes::static_dir()),
+            Some(test_cloud_state()),
+            true,
+        );
+        let app = create_router_with_state(state);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/resumes")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
     async fn test_auth_me_includes_require_auth_when_signed_out() {
         let state = state::AppState::with_require_auth(
             std::sync::Arc::new(routes::static_dir()),
@@ -745,5 +768,97 @@ mod tests {
         let payload: db::AuthMeUnauthorizedResponse = serde_json::from_slice(&body).unwrap();
         assert!(payload.require_auth);
         assert_eq!(payload.error, "Not authenticated");
+    }
+
+    #[tokio::test]
+    async fn test_self_hosted_health_has_no_rate_limit() {
+        let app = create_router();
+        let default_health_quota = config::RateLimitConfig::default().health_per_min;
+        let request_count = default_health_quota as usize + 1;
+
+        for _ in 0..request_count {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri("/health")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::OK);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_cloud_auth_rate_limit_returns_429() {
+        let config = config::RateLimitConfig {
+            auth_per_min: 2,
+            ..Default::default()
+        };
+
+        let state = state::AppState::with_options(
+            std::sync::Arc::new(routes::static_dir()),
+            Some(test_cloud_state()),
+            false,
+            config,
+        );
+        let app = create_router_with_state(state);
+
+        for _ in 0..2 {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri("/auth/login")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT);
+        }
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/auth/login")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+        assert_eq!(
+            response.headers().get("X-RateLimit-Remaining").unwrap(),
+            "0"
+        );
+        assert!(response
+            .headers()
+            .get("Retry-After")
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.parse::<u64>().ok())
+            .is_some_and(|retry_after| retry_after >= 1));
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        assert!(response
+            .headers()
+            .get("X-RateLimit-Reset")
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.parse::<u64>().ok())
+            .is_some_and(|reset| reset >= now));
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let payload: middleware::rate_limit::RateLimitErrorBody =
+            serde_json::from_slice(&body).unwrap();
+        assert!(payload.retry_after >= 1);
+        assert!(payload.error.contains("Too many requests"));
     }
 }

@@ -100,6 +100,10 @@ utoipa = { version = "5", features = ["axum_extras"] }
 # Caching
 lru = "0.18"
 
+# Rate limiting
+governor = "0.8"
+dashmap = "6"
+
 # Cloud / database
 sqlx = { version = "0.9", default-features = false, features = [
   "runtime-tokio",
