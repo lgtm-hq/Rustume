@@ -22,6 +22,12 @@ and this project adheres to
 
 ### Security
 
+## [0.21.0] - 2026-06-19
+
+### Added
+
+- **server**: rate limiting for cloud API endpoints (#313) (049873d)
+
 ## [0.20.0] - 2026-06-18
 
 ### Added
@@ -213,7 +219,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.20.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.21.0...HEAD
+[0.21.0]: https://github.com/lgtm-hq/Rustume/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/lgtm-hq/Rustume/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/lgtm-hq/Rustume/compare/v0.18.0...v0.19.0
 [0.18.1]: https://github.com/lgtm-hq/Rustume/compare/v0.18.0...v0.18.1
