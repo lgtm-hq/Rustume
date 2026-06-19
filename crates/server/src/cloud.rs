@@ -2,6 +2,7 @@
 
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
+use std::env::VarError;
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::info;
@@ -125,7 +126,10 @@ fn optional_non_empty_env(key: &str) -> anyhow::Result<Option<String>> {
                 Ok(Some(trimmed.to_string()))
             }
         }
-        Err(_) => Ok(None),
+        Err(VarError::NotPresent) => Ok(None),
+        Err(VarError::NotUnicode(os_string)) => Err(anyhow::anyhow!(
+            "environment variable {key} contains invalid unicode: {os_string:?}"
+        )),
     }
 }
 
