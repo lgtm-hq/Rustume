@@ -30,7 +30,7 @@ services:
       WORKOS_REDIRECT_URI: ${WORKOS_REDIRECT_URI:-http://localhost:3000/auth/callback}
       SESSION_SECRET: ${SESSION_SECRET:-}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
-      EMAIL_FROM: ${EMAIL_FROM:-noreply@rustume.com}
+      EMAIL_FROM: ${EMAIL_FROM:-}
     restart: unless-stopped
     depends_on:
       postgres:

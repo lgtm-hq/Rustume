@@ -4,7 +4,7 @@ use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
 use std::sync::Arc;
 use std::time::Duration;
-use tracing::{info, warn};
+use tracing::info;
 
 use crate::auth::session::SessionService;
 use crate::auth::workos::WorkOsClient;
@@ -117,8 +117,14 @@ fn required_non_empty_env(key: &str) -> anyhow::Result<String> {
 
 fn optional_non_empty_env(key: &str) -> anyhow::Result<Option<String>> {
     match std::env::var(key) {
-        Ok(value) if value.trim().is_empty() => Ok(None),
-        Ok(value) => Ok(Some(value)),
+        Ok(value) => {
+            let trimmed = value.trim();
+            if trimmed.is_empty() {
+                Ok(None)
+            } else {
+                Ok(Some(trimmed.to_string()))
+            }
+        }
         Err(_) => Ok(None),
     }
 }
@@ -199,7 +205,7 @@ pub async fn init_cloud(config: CloudConfig) -> anyhow::Result<Arc<CloudState>> 
             Some(service)
         }
         None => {
-            warn!(
+            info!(
                 "Transactional email disabled: set RESEND_API_KEY and EMAIL_FROM to enable \
                  account lifecycle notifications"
             );

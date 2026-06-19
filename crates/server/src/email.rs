@@ -176,12 +176,25 @@ pub enum EmailError {
 
 /// Log email delivery failures without failing the caller's primary action.
 pub fn log_send_failure(template: &str, recipient: &str, err: &EmailError) {
-    warn!(
-        template = template,
-        recipient = %mask_recipient(recipient),
-        error = %err,
-        "transactional email send failed"
-    );
+    let masked_recipient = mask_recipient(recipient);
+    match err {
+        EmailError::Api { status, .. } => {
+            warn!(
+                template = template,
+                recipient = %masked_recipient,
+                status = status,
+                "transactional email send failed (Resend API error)"
+            );
+        }
+        EmailError::Transport(message) => {
+            warn!(
+                template = template,
+                recipient = %masked_recipient,
+                error = %message,
+                "transactional email send failed"
+            );
+        }
+    }
 }
 
 fn mask_recipient(recipient: &str) -> String {
@@ -190,8 +203,8 @@ fn mask_recipient(recipient: &str) -> String {
     };
 
     let masked_local = match local.chars().next() {
-        Some(first) => format!("{first}*"),
-        None => "*".to_string(),
+        Some(first) => format!("{first}***"),
+        None => "***".to_string(),
     };
 
     format!("{masked_local}@{domain}")
@@ -230,7 +243,8 @@ mod tests {
 
     #[test]
     fn mask_recipient_redacts_local_part() {
-        assert_eq!(mask_recipient("user@example.com"), "u*@example.com",);
+        assert_eq!(mask_recipient("user@example.com"), "u***@example.com");
+        assert_eq!(mask_recipient("a@example.com"), "a***@example.com");
     }
 
     #[test]
