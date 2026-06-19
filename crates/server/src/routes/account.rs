@@ -87,15 +87,6 @@ pub async fn delete_account(
         );
     }
 
-    if let Err(err) = cloud.workos.delete_user(&workos_id).await {
-        warn!(
-            user_id = %user.id,
-            workos_id = %workos_id,
-            error = %err,
-            "WorkOS user deletion failed; continuing with local data erasure"
-        );
-    }
-
     if let Some(cookie) = jar.get(SESSION_COOKIE) {
         cloud.sessions.delete(cookie.value()).await.map_err(|err| {
             error!("session deletion failed during account delete: {err}");
@@ -111,6 +102,15 @@ pub async fn delete_account(
             error!("user deletion failed: {err}");
             ApiError::internal("failed to delete account")
         })?;
+
+    if let Err(err) = cloud.workos.delete_user(&workos_id).await {
+        warn!(
+            user_id = %user.id,
+            workos_id = %workos_id,
+            error = %err,
+            "WorkOS user deletion failed after local data erasure"
+        );
+    }
 
     if let (Some(service), Some(recipient)) = (cloud.email.as_ref(), email.as_deref()) {
         if let Err(err) = service.send_deletion_confirmation(recipient).await {

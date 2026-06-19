@@ -29,7 +29,7 @@ describe("deleteAccount", () => {
       vi.fn().mockResolvedValue({
         ok: false,
         status: 400,
-        text: async () => "Type DELETE to confirm account deletion",
+        text: async () => JSON.stringify({ error: "Type DELETE to confirm account deletion" }),
       }),
     );
 
