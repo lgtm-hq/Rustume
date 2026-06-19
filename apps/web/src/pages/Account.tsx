@@ -53,7 +53,7 @@ export default function Account() {
     }
 
     setLoadingResumeCount(true);
-    void listCloudResumesPage(1)
+    void listCloudResumesPage(1, 1)
       .then((page) => setResumeCount(page.total))
       .catch((error) => {
         console.error("Failed to load resume count:", error);

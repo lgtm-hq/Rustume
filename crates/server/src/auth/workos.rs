@@ -2,10 +2,12 @@
 
 use reqwest::Client;
 use serde::Deserialize;
+use std::time::Duration;
 
 use crate::db::User;
 
 const WORKOS_API_BASE: &str = "https://api.workos.com";
+const WORKOS_HTTP_TIMEOUT_SECS: u64 = 10;
 
 /// HTTP client for WorkOS User Management API calls.
 #[derive(Clone)]
@@ -103,6 +105,7 @@ impl WorkOsClient {
                 "{WORKOS_API_BASE}/user_management/users/{workos_user_id}"
             ))
             .bearer_auth(&self.api_key)
+            .timeout(Duration::from_secs(WORKOS_HTTP_TIMEOUT_SECS))
             .send()
             .await
             .map_err(|err| WorkOsAuthError::Transport(err.to_string()))?;

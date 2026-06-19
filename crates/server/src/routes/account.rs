@@ -64,6 +64,32 @@ pub async fn delete_account(
     let email = user.email.clone();
     let workos_id = user.workos_id.clone();
 
+    if user.paddle_customer_id.is_some() {
+        info!(
+            user_id = %user.id,
+            "paddle subscription cancellation deferred until billing API is integrated"
+        );
+    }
+
+    sqlx::query("DELETE FROM users WHERE id = $1")
+        .bind(user.id)
+        .execute(&cloud.db)
+        .await
+        .map_err(|err| {
+            error!("user deletion failed: {err}");
+            ApiError::internal("failed to delete account")
+        })?;
+
+    if let Some(cookie) = jar.get(SESSION_COOKIE) {
+        if let Err(err) = cloud.sessions.delete(cookie.value()).await {
+            warn!(
+                user_id = %user.id,
+                error = %err,
+                "session cleanup failed after account deletion; user row already removed"
+            );
+        }
+    }
+
     record_event(
         &cloud.db,
         AuditEvent {
@@ -79,29 +105,6 @@ pub async fn delete_account(
         },
     )
     .await;
-
-    if user.paddle_customer_id.is_some() {
-        info!(
-            user_id = %user.id,
-            "paddle subscription cancellation deferred until billing API is integrated"
-        );
-    }
-
-    if let Some(cookie) = jar.get(SESSION_COOKIE) {
-        cloud.sessions.delete(cookie.value()).await.map_err(|err| {
-            error!("session deletion failed during account delete: {err}");
-            ApiError::internal("internal server error")
-        })?;
-    }
-
-    sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(user.id)
-        .execute(&cloud.db)
-        .await
-        .map_err(|err| {
-            error!("user deletion failed: {err}");
-            ApiError::internal("failed to delete account")
-        })?;
 
     if let Err(err) = cloud.workos.delete_user(&workos_id).await {
         warn!(
