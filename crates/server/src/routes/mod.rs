@@ -6,6 +6,7 @@ pub mod metrics;
 pub mod parse;
 pub mod render;
 pub mod resumes;
+pub mod security_txt;
 pub mod static_files;
 pub mod templates;
 pub mod validate;
@@ -18,6 +19,7 @@ pub use render::{render_pdf, render_preview};
 pub use resumes::{
     create_resume, delete_resume, get_resume, import_resumes, list_resumes, update_resume,
 };
+pub use security_txt::security_txt;
 pub use static_files::{sanitize_static_path, spa_fallback, static_dir};
 pub use templates::{list_templates, template_thumbnail};
 pub use validate::validate;

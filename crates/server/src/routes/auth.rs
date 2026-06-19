@@ -11,6 +11,7 @@ use serde::Deserialize;
 use tracing::error;
 use uuid::Uuid;
 
+use crate::audit::{record_event, AuditEvent};
 use crate::auth::session::SESSION_COOKIE;
 use crate::auth::workos::upsert_user;
 use crate::db::{AuthMeUnauthorizedResponse, AuthUserResponse};
@@ -50,10 +51,13 @@ pub async fn callback(
     query: Result<Query<CallbackQuery>, axum::extract::rejection::QueryRejection>,
     headers: HeaderMap,
 ) -> Response {
+    let ip = trusted_client_ip(&headers, net::trusted_proxy_enabled());
+
     let query = match query {
         Ok(Query(query)) => query,
         Err(rejection) => {
             error!("OAuth callback query rejected: {rejection}");
+            audit_callback_failure(&state, "invalid_query", ip.as_deref()).await;
             return oauth_error_redirect("authentication_failed");
         }
     };
@@ -61,13 +65,16 @@ pub async fn callback(
     if let Some(code) = oauth_callback_error_code(&query) {
         if query.error.is_some() {
             error!("WorkOS OAuth callback returned error");
+            audit_callback_failure(&state, "provider_error", ip.as_deref()).await;
         } else {
             error!("OAuth callback missing authorization code");
+            audit_callback_failure(&state, "missing_code", ip.as_deref()).await;
         }
         return oauth_error_redirect(code);
     }
 
     let Some(code) = query.code.as_deref() else {
+        audit_callback_failure(&state, "missing_code", ip.as_deref()).await;
         return oauth_error_redirect("authentication_failed");
     };
 
@@ -103,7 +110,15 @@ async fn callback_inner(
     let stored_state = jar.get(OAUTH_STATE_COOKIE).map(|cookie| cookie.value());
     match (stored_state, oauth_state) {
         (Some(stored), Some(provided)) if stored == provided => {}
-        _ => return Err("invalid_state"),
+        _ => {
+            record_auth_failure(
+                &cloud.db,
+                "invalid_state",
+                trusted_client_ip(&headers, net::trusted_proxy_enabled()).as_deref(),
+            )
+            .await;
+            return Err("invalid_state");
+        }
     }
 
     let ip_address = trusted_client_ip(&headers, net::trusted_proxy_enabled());
@@ -112,14 +127,18 @@ async fn callback_inner(
         .get(header::USER_AGENT)
         .and_then(|value| value.to_str().ok());
 
-    let workos_user = cloud
+    let workos_user = match cloud
         .workos
         .authenticate_with_code(code, ip, user_agent)
         .await
-        .map_err(|err| {
+    {
+        Ok(user) => user,
+        Err(err) => {
             error!("WorkOS authentication failed: {err}");
-            "authentication_failed"
-        })?;
+            record_auth_failure(&cloud.db, "authentication_failed", ip).await;
+            return Err("authentication_failed");
+        }
+    };
 
     let user = upsert_user(&cloud.db, &workos_user).await.map_err(|err| {
         error!("user upsert failed: {err}");
@@ -138,18 +157,57 @@ async fn callback_inner(
         clear_oauth_state_cookie(&cloud.workos_redirect_uri),
     )
     .map_err(|_| "server_error")?;
+
+    record_event(
+        &cloud.db,
+        AuditEvent {
+            event_type: "auth.login.success",
+            actor_user_id: Some(user.id),
+            resource_type: Some("auth"),
+            resource_id: None,
+            metadata: serde_json::json!({}),
+            ip_address: ip,
+        },
+    )
+    .await;
+
     Ok(response)
 }
 
 /// Clear the session cookie and delete the server-side session row.
-pub async fn logout(State(state): State<AppState>, jar: CookieJar) -> Result<Response, ApiError> {
+pub async fn logout(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    headers: HeaderMap,
+) -> Result<Response, ApiError> {
     let cloud = state.cloud()?;
+    let mut actor_user_id = None;
     if let Some(cookie) = jar.get(SESSION_COOKIE) {
+        actor_user_id = cloud
+            .sessions
+            .user_for_token(cookie.value())
+            .await
+            .ok()
+            .flatten()
+            .map(|user| user.id);
         cloud.sessions.delete(cookie.value()).await.map_err(|err| {
             error!("session deletion failed: {err}");
             ApiError::internal("internal server error")
         })?;
     }
+
+    record_event(
+        &cloud.db,
+        AuditEvent {
+            event_type: "auth.logout",
+            actor_user_id,
+            resource_type: Some("auth"),
+            resource_id: None,
+            metadata: serde_json::json!({}),
+            ip_address: trusted_client_ip(&headers, net::trusted_proxy_enabled()).as_deref(),
+        },
+    )
+    .await;
 
     let clear = cloud.sessions.clear_cookie();
     let mut response = (StatusCode::NO_CONTENT, ()).into_response();
@@ -240,6 +298,27 @@ fn append_set_cookie(response: &mut Response, cookie: Cookie<'static>) -> Result
         .headers_mut()
         .append(header::SET_COOKIE, header_value);
     Ok(())
+}
+
+async fn record_auth_failure(pool: &sqlx::PgPool, reason: &str, ip_address: Option<&str>) {
+    record_event(
+        pool,
+        AuditEvent {
+            event_type: "auth.login.failure",
+            actor_user_id: None,
+            resource_type: Some("auth"),
+            resource_id: None,
+            metadata: serde_json::json!({ "reason": reason }),
+            ip_address,
+        },
+    )
+    .await;
+}
+
+async fn audit_callback_failure(state: &AppState, reason: &str, ip_address: Option<&str>) {
+    if let Ok(cloud) = state.cloud() {
+        record_auth_failure(&cloud.db, reason, ip_address).await;
+    }
 }
 
 #[cfg(test)]

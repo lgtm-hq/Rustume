@@ -24,6 +24,7 @@
 //! - `GET /metrics` - Prometheus metrics
 
 pub mod app;
+pub mod audit;
 pub mod auth;
 pub mod cloud;
 pub mod config;
@@ -38,6 +39,7 @@ pub mod routes;
 pub mod run;
 pub mod shutdown;
 pub mod state;
+pub mod validation;
 
 pub use app::{create_router, create_router_with_state, create_router_with_static_dir};
 pub use run::run;
@@ -591,6 +593,60 @@ mod tests {
             .unwrap();
 
         assert_eq!(missing.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_security_txt_endpoint() {
+        let app = create_router();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/.well-known/security.txt")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get("content-type").unwrap(),
+            "text/plain; charset=utf-8"
+        );
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let text = std::str::from_utf8(&body).unwrap();
+        assert!(text.contains("Contact: mailto:turbocoder13@gmail.com"));
+        assert!(text.contains("Canonical: https://rustume.com/.well-known/security.txt"));
+    }
+
+    #[tokio::test]
+    async fn test_render_rejects_deeply_nested_resume_json() {
+        use crate::config::MAX_JSON_DEPTH;
+
+        let app = create_router();
+        let mut resume = serde_json::json!(1);
+        for _ in 0..MAX_JSON_DEPTH {
+            resume = serde_json::json!({ "nested": resume });
+        }
+
+        let payload = serde_json::json!({ "resume": resume });
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/render/preview")
+                    .header("content-type", "application/json")
+                    .body(Body::from(payload.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     }
 
     #[tokio::test]

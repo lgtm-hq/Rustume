@@ -27,8 +27,8 @@ use crate::observability::apply_sentry_layers;
 use crate::openapi::ApiDoc;
 use crate::routes::{
     callback, create_resume, delete_resume, get_resume, health, import_resumes, list_resumes,
-    list_templates, login, logout, me, metrics, parse, render_pdf, render_preview, spa_fallback,
-    static_dir, template_thumbnail, update_resume, validate,
+    list_templates, login, logout, me, metrics, parse, render_pdf, render_preview, security_txt,
+    spa_fallback, static_dir, template_thumbnail, update_resume, validate,
 };
 use crate::state::AppState;
 
@@ -108,6 +108,7 @@ pub fn create_router_with_state(state: AppState) -> Router {
 
     let mut router = Router::new()
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .route("/.well-known/security.txt", get(security_txt))
         .merge(health_routes)
         .merge(metrics_routes)
         .merge(billable_core)

@@ -12,12 +12,14 @@ use crate::dto::{RenderPdfRequest, RenderPreviewRequest};
 use crate::error::ApiError;
 use crate::routes::validate::validation_errors;
 use crate::state::AppState;
+use crate::validation::validate_resume_json;
 
 /// Deserialize resume JSON, apply an optional template override, and validate.
 fn prepare_resume(
     resume: serde_json::Value,
     template: Option<String>,
 ) -> Result<ResumeData, ApiError> {
+    validate_resume_json(&resume)?;
     let mut resume: ResumeData =
         serde_json::from_value(resume).map_err(|_| ApiError::new("Invalid resume data format"))?;
 
