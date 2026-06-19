@@ -105,4 +105,14 @@ mod tests {
         validate_resume_json(&json!({ "basics": { "name": "Ada Lovelace" } }))
             .expect("minimal resume should pass");
     }
+
+    #[test]
+    fn accepts_json_at_max_depth() {
+        let mut value = json!(1);
+        for _ in 0..(MAX_JSON_DEPTH - 1) {
+            value = json!({ "nested": value });
+        }
+
+        validate_resume_json(&value).expect("depth at MAX_JSON_DEPTH should pass");
+    }
 }

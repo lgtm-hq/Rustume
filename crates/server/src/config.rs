@@ -7,7 +7,7 @@ use governor::Quota;
 /// Maximum request body size (10 MB)
 pub const MAX_BODY_SIZE: usize = 10 * 1024 * 1024;
 
-/// Maximum nested JSON depth for resume payloads.
+/// Maximum nested JSON depth for resume payloads (root depth = 1).
 pub const MAX_JSON_DEPTH: usize = 32;
 
 /// Maximum length for any single string field inside resume JSON.
