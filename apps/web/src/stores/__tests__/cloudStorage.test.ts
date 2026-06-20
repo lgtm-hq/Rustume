@@ -250,6 +250,17 @@ describe("saveCloudResume", () => {
 
     await expect(saveCloudResume("abc", data)).rejects.toBeInstanceOf(SubscriptionReadOnlyError);
   });
+
+  it("preserves expired-subscription 403 as ApiError", async () => {
+    const data = testResume("Expired");
+    const expiredError = new ApiError(
+      403,
+      "Cloud subscription expired — resume writes are disabled",
+    );
+    resumeApiMocks.upsertCloudResume.mockRejectedValue(expiredError);
+
+    await expect(saveCloudResume("abc", data)).rejects.toBe(expiredError);
+  });
 });
 
 describe("createCloudResumeWithId", () => {

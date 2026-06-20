@@ -1,5 +1,7 @@
-import { Show, createMemo } from "solid-js";
+import { Show, createMemo, createSignal, onCleanup, onMount } from "solid-js";
 import { authStore } from "../../stores/auth";
+
+const COUNTDOWN_REFRESH_MS = 60_000;
 
 function daysUntil(isoDate: string): number {
   const end = new Date(isoDate).getTime();
@@ -18,8 +20,15 @@ function formatExpiryDate(isoDate: string): string {
 /** Banner shown during subscription cancellation grace period. */
 export function SubscriptionBanner() {
   const { state } = authStore;
+  const [now, setNow] = createSignal(Date.now());
+
+  onMount(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), COUNTDOWN_REFRESH_MS);
+    onCleanup(() => window.clearInterval(timer));
+  });
 
   const grace = createMemo(() => {
+    void now();
     const user = state.user;
     if (!user?.subscription) return null;
 

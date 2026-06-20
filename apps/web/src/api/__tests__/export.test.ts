@@ -53,8 +53,10 @@ describe("export API", () => {
       revokeObjectURL,
     });
 
-    const anchor = { click, href: "", download: "" } as HTMLAnchorElement;
+    const anchor = { click, href: "", download: "", remove: vi.fn() } as HTMLAnchorElement;
+    const appendChild = vi.spyOn(document.body, "appendChild").mockImplementation(() => anchor);
     const createElement = vi.spyOn(document, "createElement").mockReturnValue(anchor);
+    vi.useFakeTimers();
 
     fetchMock.mockResolvedValue({
       ok: true,
@@ -65,11 +67,16 @@ describe("export API", () => {
       }),
     });
 
-    await downloadResumesJson();
+    const downloadPromise = downloadResumesJson();
+    await vi.runAllTimersAsync();
+    await downloadPromise;
 
     expect(createObjectURL).toHaveBeenCalled();
     expect(click).toHaveBeenCalled();
+    expect(anchor.remove).toHaveBeenCalled();
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:export");
+    vi.useRealTimers();
+    appendChild.mockRestore();
     createElement.mockRestore();
   });
 });

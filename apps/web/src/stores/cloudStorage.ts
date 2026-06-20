@@ -78,13 +78,11 @@ export function isSubscriptionReadOnlyError(error: unknown): error is Subscripti
 }
 
 function rethrowSubscriptionForbidden(error: unknown): void {
+  // Only grace-period read-only writes match; callers can use isSubscriptionReadOnlyError
+  // to avoid duplicate error UI.
   if (error instanceof ApiError && error.status === 403) {
     const message = error.message.toLowerCase();
-    if (
-      message.includes("read-only") ||
-      message.includes("subscription") ||
-      message.includes("grace")
-    ) {
+    if (message.includes("read-only")) {
       toast.warning(
         "Cloud account is read-only — export your resumes before subscription access ends.",
         "Read-only",
