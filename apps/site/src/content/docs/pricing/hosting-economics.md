@@ -63,8 +63,8 @@ restricted until the period ends. See [Subscription Management](/docs/pricing/ma
 
 ## Public documentation boundary
 
-Per [Rustume Cloud launch criteria](https://github.com/lgtm-hq/Rustume/issues/243), this site documents
-architecture, user workflows, and operator-facing configuration. It intentionally omits:
+Rustume's public documentation covers architecture, user workflows, and operator-facing
+configuration. It intentionally omits restricted operations detail such as:
 
 - Exact production cost per user or resume
 - Internal alert thresholds and SLO numbers

@@ -64,7 +64,7 @@ Limits](/docs/deployment/rate-limits/) for defaults, route groups, and client be
 | `RATE_LIMIT_HEALTH_PER_MIN` | `60` | Unauthenticated health checks (per IP) |
 | `RATE_LIMIT_METRICS_PER_MIN` | `60` | Metrics scrapes (per IP) |
 | `RATE_LIMIT_UNAUTHENTICATED_PER_MIN` | `30` | Other unauthenticated traffic (per IP) |
-| `RATE_LIMIT_BILLABLE_PER_MIN` | `30` | Templates, parse, validate |
+| `RATE_LIMIT_BILLABLE_PER_MIN` | `30` | Templates, parse, validate (available in all connected deployments; env name is historical) |
 
 ## Local connected example
 

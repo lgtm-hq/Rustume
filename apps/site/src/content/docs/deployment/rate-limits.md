@@ -37,7 +37,7 @@ All values are **requests per minute** unless noted.
 | Preview render | 60 | — | `POST /api/render/preview` |
 | PDF render & bulk PDF export | 20 | — | `POST /api/render/pdf`, `GET /api/resumes/export/pdf` |
 | Auth | 10 | — | Login, callback, logout, `/auth/me` |
-| Billable utilities | 30 | — | Templates, parse, validate |
+| Parse & utility | 30 | — | Templates, parse, validate |
 
 Resume CRUD allows short bursts (for example rapid autosave) via a separate burst bucket.
 
@@ -50,23 +50,34 @@ Resume CRUD allows short bursts (for example rapid autosave) via a separate burs
 | Other unauthenticated | 30 | Any route reached without a session |
 
 When `RUSTUME_REQUIRE_AUTH=true` (hosted Rustume Cloud), unauthenticated clients cannot reach
-billable render routes; the unauthenticated bucket mainly covers probes and stray traffic.
+render or connected API routes; the unauthenticated bucket mainly covers probes and stray traffic.
 
 ## Bulk export cap
 
-Bulk export endpoints enforce a separate **size cap**, not a per-minute quota:
+Bulk export endpoints enforce a separate **resume-count cap**, independent of per-minute rate limits.
 
 Bulk JSON export (`GET /api/resumes/export`) counts against the **resume CRUD** limit group.
 Bulk PDF export (`GET /api/resumes/export/pdf`) counts against the **PDF** limit group and
 renders each resume sequentially.
 
-| Endpoint | Rate limit group | Size cap | Over-limit response |
-| --- | --- | --- | --- |
-| `GET /api/resumes/export` | Resume CRUD | 50 resumes | `413 Payload Too Large` |
-| `GET /api/resumes/export/pdf` | PDF | 50 resumes (each rendered) | `413 Payload Too Large` |
+| Endpoint | Rate limit group | Maximum resumes per request |
+| --- | --- | ---: |
+| `GET /api/resumes/export` | Resume CRUD | 50 |
+| `GET /api/resumes/export/pdf` | PDF | 50 |
 
-The cap applies to owned resumes ordered by `updated_at`. It complements PDF rate limits by
-bounding per-request CPU and memory even when requests are spaced apart.
+**Trigger:** before any data is returned, the server counts all resumes you own. If the count
+exceeds 50, the entire request fails with `413 Payload Too Large` and an error message — there is
+no silent truncation to the 50 most recently updated resumes.
+
+**At or below 50:** the response includes every owned resume (ordered by `updated_at`, most recent
+first). The SQL query also applies `LIMIT 50` as a safety bound under concurrent writes.
+
+**Above 50:** bulk export cannot return the full library in one call. Export resumes individually,
+delete or archive older entries, or split work across multiple accounts — **pagination is not
+available** on these endpoints today.
+
+The cap complements PDF rate limits by bounding per-request CPU and memory even when requests are
+spaced apart.
 
 ## Configuration
 
@@ -83,7 +94,7 @@ RATE_LIMIT_AUTH_PER_MIN=10
 RATE_LIMIT_HEALTH_PER_MIN=60
 RATE_LIMIT_METRICS_PER_MIN=60
 RATE_LIMIT_UNAUTHENTICATED_PER_MIN=30
-RATE_LIMIT_BILLABLE_PER_MIN=30
+RATE_LIMIT_BILLABLE_PER_MIN=30   # templates, parse, validate (not subscription-gated)
 TRUSTED_PROXY=true   # only behind a trusted reverse proxy
 ```
 
