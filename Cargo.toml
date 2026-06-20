@@ -129,7 +129,7 @@ axum-extra = { version = "0.10", features = ["cookie"] }
 
 # Metrics
 metrics = "0.24"
-metrics-exporter-prometheus = "0.16"
+metrics-exporter-prometheus = "0.18"
 
 # Error tracking
 sentry = { version = "0.48.2", default-features = false, features = [
