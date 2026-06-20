@@ -44,7 +44,27 @@ enabled, these identity and persistence settings are required:
 | `EMAIL_FROM` | Sender address for outbound mail (for example `noreply@rustume.com`) |
 
 Set `TRUSTED_PROXY=true` only when the server is behind a trusted proxy and may rely on
-`X-Forwarded-For` when calling WorkOS.
+`X-Forwarded-For` when calling WorkOS. The same flag enables `X-Real-IP` and append-mode
+`X-Forwarded-For` for rate-limit key extraction — see [Rate
+Limits](/docs/deployment/rate-limits/#scope).
+
+## Rate limits (cloud mode)
+
+When connected mode is enabled, per-route rate limits apply. See [Rate
+Limits](/docs/deployment/rate-limits/) for defaults, route groups, and client behavior.
+
+| Variable | Default | Purpose |
+| --- | ---: | --- |
+| `RATE_LIMIT_RESUME_CRUD_PER_MIN` | `300` | Resume list/get/create/update/delete |
+| `RATE_LIMIT_RESUME_CRUD_BURST` | `30` | Short burst allowance for resume CRUD |
+| `RATE_LIMIT_IMPORT_PER_MIN` | `10` | Bulk import |
+| `RATE_LIMIT_PREVIEW_PER_MIN` | `60` | Preview render |
+| `RATE_LIMIT_PDF_PER_MIN` | `20` | PDF render and bulk PDF export |
+| `RATE_LIMIT_AUTH_PER_MIN` | `10` | Auth login/callback/logout/me |
+| `RATE_LIMIT_HEALTH_PER_MIN` | `60` | Unauthenticated health checks (per IP) |
+| `RATE_LIMIT_METRICS_PER_MIN` | `60` | Metrics scrapes (per IP) |
+| `RATE_LIMIT_UNAUTHENTICATED_PER_MIN` | `30` | Other unauthenticated traffic (per IP) |
+| `RATE_LIMIT_BILLABLE_PER_MIN` | `30` | Templates, parse, validate |
 
 ## Local connected example
 
