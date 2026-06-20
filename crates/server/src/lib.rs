@@ -21,6 +21,8 @@
 //! - `GET/POST /api/resumes` - List and create resumes
 //! - `GET/PUT/DELETE /api/resumes/{id}` - Resume CRUD
 //! - `POST /api/resumes/import` - Bulk import from local storage
+//! - `GET /api/resumes/export` - Bulk JSON export
+//! - `GET /api/resumes/export/pdf` - Bulk PDF export (ZIP)
 //! - `DELETE /api/account` - Permanently delete account and all data
 //! - `GET /metrics` - Prometheus metrics
 
@@ -41,6 +43,7 @@ pub mod routes;
 pub mod run;
 pub mod shutdown;
 pub mod state;
+pub mod subscription;
 pub mod validation;
 
 pub use app::{create_router, create_router_with_state, create_router_with_static_dir};

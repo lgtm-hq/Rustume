@@ -18,6 +18,7 @@ use crate::error::ApiError;
 use crate::middleware::auth::AuthUser;
 use crate::net::{self, trusted_client_ip};
 use crate::state::AppState;
+use crate::subscription;
 use crate::validation::{validate_resume_json, validate_title};
 
 /// List resumes for the authenticated user.
@@ -38,6 +39,8 @@ pub async fn list_resumes(
     Query(query): Query<ResumeListQuery>,
 ) -> Result<Json<PaginatedResumeSummaries>, ApiError> {
     let cloud = state.cloud()?;
+    let access = subscription::load_access(&cloud.db, user.id).await?;
+    access.ensure_read()?;
     let (page, per_page, offset) = query.normalized();
 
     let total = sqlx::query_scalar::<_, i64>(
@@ -94,6 +97,9 @@ pub async fn get_resume(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<Json<ResumeRow>, ApiError> {
+    let cloud = state.cloud()?;
+    let access = subscription::load_access(&cloud.db, user.id).await?;
+    access.ensure_read()?;
     fetch_owned_resume(&state, user.id, id).await.map(Json)
 }
 
@@ -115,6 +121,8 @@ pub async fn create_resume(
     Json(body): Json<CreateResumeRequest>,
 ) -> Result<(StatusCode, Json<ResumeRow>), ApiError> {
     let cloud = state.cloud()?;
+    let access = subscription::load_access(&cloud.db, user.id).await?;
+    access.ensure_write()?;
     let title = body.title.unwrap_or_else(|| "Untitled".to_string());
     validate_title(title.as_str())?;
     validate_resume_json(&body.data)?;
@@ -164,6 +172,8 @@ pub async fn update_resume(
     }
 
     let cloud = state.cloud()?;
+    let access = subscription::load_access(&cloud.db, user.id).await?;
+    access.ensure_write()?;
     let existing = fetch_owned_resume(&state, user.id, id).await?;
     let title = body.title.unwrap_or(existing.title);
     validate_title(title.as_str())?;
@@ -196,6 +206,8 @@ pub async fn delete_resume(
     headers: HeaderMap,
 ) -> Result<StatusCode, ApiError> {
     let cloud = state.cloud()?;
+    let access = subscription::load_access(&cloud.db, user.id).await?;
+    access.ensure_delete()?;
     let result = sqlx::query("DELETE FROM resumes WHERE id = $1 AND user_id = $2")
         .bind(id)
         .bind(user.id)
@@ -250,6 +262,8 @@ pub async fn import_resumes(
     }
 
     let cloud = state.cloud()?;
+    let access = subscription::load_access(&cloud.db, user.id).await?;
+    access.ensure_write()?;
     let requested_count = body.resumes.len();
     let mut imported = Vec::new();
     let mut failed = Vec::new();

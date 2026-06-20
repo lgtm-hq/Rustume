@@ -2,6 +2,7 @@
 
 pub mod account;
 pub mod auth;
+pub mod export;
 pub mod health;
 pub mod metrics;
 pub mod parse;
@@ -14,6 +15,7 @@ pub mod validate;
 
 pub use account::delete_account;
 pub use auth::{callback, login, logout, me};
+pub use export::{export_resumes_json, export_resumes_pdf};
 pub use health::health;
 pub use metrics::{init_metrics, metrics};
 pub use parse::parse;
