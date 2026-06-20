@@ -27,6 +27,14 @@ export class CloudWriteBlockedError extends Error {
   }
 }
 
+/** Thrown when the cloud account is read-only during subscription cancellation. */
+export class SubscriptionReadOnlyError extends Error {
+  constructor(message = "Cloud account is read-only") {
+    super(message);
+    this.name = "SubscriptionReadOnlyError";
+  }
+}
+
 /** True when cloud mode is enabled and the user has an active session. */
 export function isCloudAuthenticated(): boolean {
   const { loading, cloudEnabled, user } = authStore.state;
@@ -63,6 +71,25 @@ export function isResumeVersionConflictError(error: unknown): error is ResumeVer
 
 export function isCloudWriteBlockedError(error: unknown): error is CloudWriteBlockedError {
   return error instanceof CloudWriteBlockedError;
+}
+
+export function isSubscriptionReadOnlyError(error: unknown): error is SubscriptionReadOnlyError {
+  return error instanceof SubscriptionReadOnlyError;
+}
+
+function rethrowSubscriptionForbidden(error: unknown): void {
+  // Only grace-period read-only writes match; callers can use isSubscriptionReadOnlyError
+  // to avoid duplicate error UI.
+  if (error instanceof ApiError && error.status === 403) {
+    const message = error.message.toLowerCase();
+    if (message.includes("read-only")) {
+      toast.warning(
+        "Cloud account is read-only — export your resumes before subscription access ends.",
+        "Read-only",
+      );
+      throw new SubscriptionReadOnlyError();
+    }
+  }
 }
 
 export function showResumeVersionConflictToast(id: string): void {
@@ -111,6 +138,7 @@ export async function saveCloudResume(id: string, data: ResumeData, title?: stri
     const row = await upsertCloudResume(id, data, resolvedTitle, getCloudResumeVersion(id));
     setCloudResumeVersion(id, row.version);
   } catch (error: unknown) {
+    rethrowSubscriptionForbidden(error);
     handleVersionConflict(id, error);
   }
 }
@@ -120,13 +148,18 @@ export async function createCloudResumeWithId(
   data: ResumeData,
   title?: string,
 ): Promise<void> {
-  const row = await createCloudResume({
-    id,
-    title: title ?? deriveTitleFromResume(data),
-    data,
-  });
-  clearCloudWriteBlock(id);
-  setCloudResumeVersion(id, row.version);
+  try {
+    const row = await createCloudResume({
+      id,
+      title: title ?? deriveTitleFromResume(data),
+      data,
+    });
+    clearCloudWriteBlock(id);
+    setCloudResumeVersion(id, row.version);
+  } catch (error: unknown) {
+    rethrowSubscriptionForbidden(error);
+    throw error;
+  }
 }
 
 export async function removeCloudResume(id: string): Promise<void> {
@@ -144,6 +177,7 @@ export async function renameCloudResume(id: string, title: string): Promise<void
     });
     setCloudResumeVersion(id, row.version);
   } catch (error: unknown) {
+    rethrowSubscriptionForbidden(error);
     handleVersionConflict(id, error);
   }
 }
@@ -154,9 +188,14 @@ export async function duplicateCloudResume(
   data: ResumeData,
   title: string,
 ): Promise<void> {
-  const row = await createCloudResume({ id: newId, title, data });
-  clearCloudWriteBlock(newId);
-  setCloudResumeVersion(newId, row.version);
+  try {
+    const row = await createCloudResume({ id: newId, title, data });
+    clearCloudWriteBlock(newId);
+    setCloudResumeVersion(newId, row.version);
+  } catch (error: unknown) {
+    rethrowSubscriptionForbidden(error);
+    throw error;
+  }
 }
 
 export async function cloudResumeExists(id: string): Promise<boolean> {

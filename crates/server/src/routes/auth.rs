@@ -18,6 +18,7 @@ use crate::db::{AuthMeUnauthorizedResponse, AuthUserResponse};
 use crate::error::ApiError;
 use crate::net::{self, trusted_client_ip};
 use crate::state::AppState;
+use crate::subscription;
 
 const OAUTH_STATE_COOKIE: &str = "rustume_oauth_state";
 const OAUTH_STATE_TTL_MINUTES: i64 = 10;
@@ -241,7 +242,13 @@ pub async fn me(State(state): State<AppState>, jar: CookieJar) -> Result<Respons
                 ApiError::internal("internal server error")
             })?
         {
-            return Ok(Json(AuthUserResponse::from_user(user, require_auth)).into_response());
+            let access = subscription::load_access(&cloud.db, user.id).await?;
+            return Ok(Json(AuthUserResponse::from_user(
+                user,
+                require_auth,
+                access.to_info(),
+            ))
+            .into_response());
         }
     }
 

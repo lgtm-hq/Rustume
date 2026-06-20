@@ -40,6 +40,12 @@ vi.mock("../../api/resumes", async (importOriginal) => {
   };
 });
 
+vi.mock("../../components/ui", () => ({
+  toast: {
+    warning: vi.fn(),
+  },
+}));
+
 import {
   clearCloudResumeVersion,
   clearCloudWriteBlock,
@@ -54,6 +60,7 @@ import {
   loadCloudResume,
   removeCloudResume,
   renameCloudResume,
+  SubscriptionReadOnlyError,
   saveCloudResume,
   setCloudResumeVersion,
 } from "../cloudStorage";
@@ -233,6 +240,26 @@ describe("saveCloudResume", () => {
 
     await expect(saveCloudResume("abc", data)).rejects.toBeInstanceOf(CloudWriteBlockedError);
     expect(resumeApiMocks.upsertCloudResume).toHaveBeenCalledTimes(1);
+  });
+
+  it("maps subscription read-only 403 to SubscriptionReadOnlyError", async () => {
+    const data = testResume("Read only");
+    resumeApiMocks.upsertCloudResume.mockRejectedValue(
+      new ApiError(403, "Cloud account is read-only during subscription cancellation"),
+    );
+
+    await expect(saveCloudResume("abc", data)).rejects.toBeInstanceOf(SubscriptionReadOnlyError);
+  });
+
+  it("preserves expired-subscription 403 as ApiError", async () => {
+    const data = testResume("Expired");
+    const expiredError = new ApiError(
+      403,
+      "Cloud subscription expired — resume writes are disabled",
+    );
+    resumeApiMocks.upsertCloudResume.mockRejectedValue(expiredError);
+
+    await expect(saveCloudResume("abc", data)).rejects.toBe(expiredError);
   });
 });
 

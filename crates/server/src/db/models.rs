@@ -177,6 +177,17 @@ pub struct ImportResumesRequest {
     pub resumes: Vec<ImportResumeItem>,
 }
 
+/// Subscription summary returned by `GET /auth/me` for linked instances.
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct SubscriptionInfo {
+    /// Paddle subscription status (`active`, `canceled`, etc.).
+    pub status: String,
+    /// Grace period end timestamp, when applicable.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<String>, format = "date-time")]
+    pub expires_at: Option<DateTime<Utc>>,
+}
+
 /// Authenticated user profile returned by `GET /auth/me`.
 ///
 /// Includes account identity and display-friendly profile fields synced from
@@ -198,6 +209,27 @@ pub struct AuthUserResponse {
     pub last_name: Option<String>,
     /// Whether billable routes require sign-in on this deployment.
     pub require_auth: bool,
+    /// Subscription lifecycle state for grace-period UX and local sync.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subscription: Option<SubscriptionInfo>,
+}
+
+/// Single resume in a bulk JSON export.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ResumeExportItem {
+    #[schema(value_type = String, format = "uuid")]
+    pub id: Uuid,
+    pub title: String,
+    #[schema(value_type = Object)]
+    pub data: serde_json::Value,
+}
+
+/// Bulk JSON export payload for `GET /api/resumes/export`.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ResumeBulkExport {
+    #[schema(value_type = String, format = "date-time")]
+    pub exported_at: DateTime<Utc>,
+    pub resumes: Vec<ResumeExportItem>,
 }
 
 /// Signed-out probe payload returned by `GET /auth/me` with HTTP 401.
@@ -223,7 +255,11 @@ pub struct DeleteAccountResponse {
 
 impl AuthUserResponse {
     /// Build a profile response with the hosted require-auth flag.
-    pub fn from_user(user: User, require_auth: bool) -> Self {
+    pub fn from_user(
+        user: User,
+        require_auth: bool,
+        subscription: Option<SubscriptionInfo>,
+    ) -> Self {
         Self {
             id: user.id,
             plan: user.plan,
@@ -231,6 +267,7 @@ impl AuthUserResponse {
             first_name: user.first_name,
             last_name: user.last_name,
             require_auth,
+            subscription,
         }
     }
 }
@@ -254,7 +291,7 @@ mod tests {
             updated_at: Utc::now(),
         };
 
-        let response = AuthUserResponse::from_user(user, true);
+        let response = AuthUserResponse::from_user(user, true, None);
         let json = serde_json::to_value(&response).unwrap();
 
         assert_eq!(json["id"], Uuid::nil().to_string());
@@ -263,6 +300,7 @@ mod tests {
         assert_eq!(json["first_name"], "Ada");
         assert_eq!(json["last_name"], "Lovelace");
         assert_eq!(json["require_auth"], true);
+        assert!(json.get("subscription").is_none());
     }
 
     #[test]
@@ -279,10 +317,38 @@ mod tests {
             updated_at: Utc::now(),
         };
 
-        let json = serde_json::to_value(AuthUserResponse::from_user(user, false)).unwrap();
+        let json = serde_json::to_value(AuthUserResponse::from_user(user, false, None)).unwrap();
 
         assert!(json.get("email").is_none());
         assert!(json.get("first_name").is_none());
         assert!(json.get("last_name").is_none());
+    }
+
+    #[test]
+    fn auth_user_response_includes_subscription_when_present() {
+        let user = User {
+            id: Uuid::nil(),
+            workos_id: "user_01".to_string(),
+            plan: "pro".to_string(),
+            paddle_customer_id: None,
+            email: None,
+            first_name: None,
+            last_name: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        let expires_at = Utc::now();
+        let response = AuthUserResponse::from_user(
+            user,
+            true,
+            Some(SubscriptionInfo {
+                status: "canceled".to_string(),
+                expires_at: Some(expires_at),
+            }),
+        );
+        let json = serde_json::to_value(&response).unwrap();
+
+        assert_eq!(json["subscription"]["status"], "canceled");
+        assert!(json["subscription"]["expires_at"].as_str().is_some());
     }
 }

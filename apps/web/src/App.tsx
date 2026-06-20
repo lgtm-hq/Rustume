@@ -2,6 +2,7 @@ import { onCleanup, onMount, createSignal, Show, type ParentComponent } from "so
 import { AppShell } from "./components/layout/AppShell";
 import { CloudImportPrompt } from "./components/Auth/CloudImportPrompt";
 import { RequireAuthGuard } from "./components/Auth/RequireAuthGuard";
+import { SubscriptionBanner } from "./components/Auth/SubscriptionBanner";
 import { Button, ToastRegion } from "./components/ui";
 import { authStore } from "./stores/auth";
 import { handleAuthQueryParams } from "./lib/authFeedback";
@@ -62,6 +63,7 @@ const App: ParentComponent = (props) => {
         </div>
       </Show>
       <RequireAuthGuard>
+        <SubscriptionBanner />
         <AppShell>{props.children}</AppShell>
       </RequireAuthGuard>
       <CloudImportPrompt />

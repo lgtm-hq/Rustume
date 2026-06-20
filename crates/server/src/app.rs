@@ -23,12 +23,14 @@ use crate::middleware::rate_limit::{
     rate_limit_pdf, rate_limit_preview, rate_limit_resume_crud,
 };
 use crate::middleware::security::security_headers;
+use crate::middleware::subscription::require_subscription_render;
 use crate::observability::apply_sentry_layers;
 use crate::openapi::ApiDoc;
 use crate::routes::{
-    callback, create_resume, delete_account, delete_resume, get_resume, health, import_resumes,
-    list_resumes, list_templates, login, logout, me, metrics, parse, render_pdf, render_preview,
-    security_txt, spa_fallback, static_dir, template_thumbnail, update_resume, validate,
+    callback, create_resume, delete_account, delete_resume, export_resumes_json,
+    export_resumes_pdf, get_resume, health, import_resumes, list_resumes, list_templates, login,
+    logout, me, metrics, parse, render_pdf, render_preview, security_txt, spa_fallback, static_dir,
+    template_thumbnail, update_resume, validate,
 };
 use crate::state::AppState;
 
@@ -76,6 +78,12 @@ pub fn create_router_with_state(state: AppState) -> Router {
             rate_limit_preview,
         ));
     }
+    if state.cloud.is_some() {
+        preview_routes = preview_routes.route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            require_subscription_render,
+        ));
+    }
 
     let mut pdf_routes = Router::new()
         .route("/api/render/pdf", post(render_pdf))
@@ -87,6 +95,12 @@ pub fn create_router_with_state(state: AppState) -> Router {
         pdf_routes = pdf_routes.route_layer(middleware::from_fn_with_state(
             state_for_layers.clone(),
             rate_limit_pdf,
+        ));
+    }
+    if state.cloud.is_some() {
+        pdf_routes = pdf_routes.route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            require_subscription_render,
         ));
     }
 
@@ -163,10 +177,38 @@ pub fn create_router_with_state(state: AppState) -> Router {
                 require_auth_when_enabled,
             ));
 
+        let mut export_json_routes = Router::new()
+            .route("/api/resumes/export", get(export_resumes_json))
+            .route_layer(middleware::from_fn_with_state(
+                state.clone(),
+                require_auth_when_enabled,
+            ));
+        if cloud_rate_limits {
+            export_json_routes = export_json_routes.route_layer(middleware::from_fn_with_state(
+                state_for_layers.clone(),
+                rate_limit_resume_crud,
+            ));
+        }
+
+        let mut export_pdf_routes = Router::new()
+            .route("/api/resumes/export/pdf", get(export_resumes_pdf))
+            .route_layer(middleware::from_fn_with_state(
+                state.clone(),
+                require_auth_when_enabled,
+            ));
+        if cloud_rate_limits {
+            export_pdf_routes = export_pdf_routes.route_layer(middleware::from_fn_with_state(
+                state_for_layers.clone(),
+                rate_limit_pdf,
+            ));
+        }
+
         router = router
             .merge(auth_routes)
             .merge(resume_routes)
             .merge(import_routes)
+            .merge(export_json_routes)
+            .merge(export_pdf_routes)
             .merge(account_routes);
     }
 

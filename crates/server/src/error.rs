@@ -24,6 +24,8 @@ pub enum ApiErrorKind {
     Forbidden,
     /// Conflict (409) - resource already exists
     Conflict,
+    /// Payload too large (413) - request exceeds size or count limits
+    PayloadTooLarge,
 }
 
 impl ApiErrorKind {
@@ -36,6 +38,7 @@ impl ApiErrorKind {
             ApiErrorKind::Unauthorized => StatusCode::UNAUTHORIZED,
             ApiErrorKind::Forbidden => StatusCode::FORBIDDEN,
             ApiErrorKind::Conflict => StatusCode::CONFLICT,
+            ApiErrorKind::PayloadTooLarge => StatusCode::PAYLOAD_TOO_LARGE,
         }
     }
 }
@@ -136,6 +139,16 @@ impl ApiError {
             details: None,
             current_version: Some(current_version),
             kind: ApiErrorKind::Conflict,
+        }
+    }
+
+    /// Create a 413 Payload Too Large error.
+    pub fn payload_too_large(error: impl Into<String>) -> Self {
+        Self {
+            error: error.into(),
+            details: None,
+            current_version: None,
+            kind: ApiErrorKind::PayloadTooLarge,
         }
     }
 }
