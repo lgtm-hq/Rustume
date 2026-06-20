@@ -61,6 +61,36 @@ describe("probeAuth", () => {
     });
   });
 
+  it("maps subscription info from /auth/me", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: "user-1",
+        plan: "pro",
+        subscription: {
+          status: "canceled",
+          expires_at: "2026-07-15T00:00:00Z",
+        },
+      }),
+    });
+
+    const result = await probeAuth();
+
+    expect(result).toEqual({
+      mode: "cloud",
+      user: {
+        id: "user-1",
+        plan: "pro",
+        subscription: {
+          status: "canceled",
+          expires_at: "2026-07-15T00:00:00Z",
+        },
+      },
+      requireAuth: false,
+    });
+  });
+
   it("maps require_auth from authenticated /auth/me", async () => {
     fetchMock.mockResolvedValue({
       ok: true,

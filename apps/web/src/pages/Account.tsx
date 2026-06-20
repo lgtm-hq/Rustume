@@ -1,6 +1,7 @@
 import { Show, createEffect, createSignal } from "solid-js";
 import { A, useNavigate } from "@solidjs/router";
 import { deleteAccount } from "../api/account";
+import { downloadResumesJson, downloadResumesPdf } from "../api/export";
 import { listCloudResumesPage } from "../api/resumes";
 import { authStore } from "../stores/auth";
 import { Button, Input, Modal, Spinner, toast } from "../components/ui";
@@ -44,6 +45,8 @@ export default function Account() {
   const [resumeCount, setResumeCount] = createSignal<number | null>(null);
   const [loadingResumeCount, setLoadingResumeCount] = createSignal(false);
   const [deletingAccount, setDeletingAccount] = createSignal(false);
+  const [exportingJson, setExportingJson] = createSignal(false);
+  const [exportingPdf, setExportingPdf] = createSignal(false);
 
   createEffect(() => {
     if (!deleteModalOpen()) {
@@ -79,6 +82,32 @@ export default function Account() {
   const handleSignIn = () => {
     setSigningIn(true);
     signIn();
+  };
+
+  const handleExportJson = async () => {
+    setExportingJson(true);
+    try {
+      await downloadResumesJson();
+      toast.success("Resume export downloaded");
+    } catch (error) {
+      console.error("JSON export failed:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to export resumes");
+    } finally {
+      setExportingJson(false);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    setExportingPdf(true);
+    try {
+      await downloadResumesPdf();
+      toast.success("PDF export downloaded");
+    } catch (error) {
+      console.error("PDF export failed:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to export PDFs");
+    } finally {
+      setExportingPdf(false);
+    }
   };
 
   const handleDeleteAccount = async () => {
@@ -202,6 +231,32 @@ export default function Account() {
                     </p>
                   </section>
 
+                  <section
+                    id="export"
+                    class="rounded-2xl border border-border bg-paper p-6 shadow-card"
+                  >
+                    <h2 class="font-display text-lg font-semibold text-ink mb-2">Export data</h2>
+                    <p class="text-sm text-stone mb-4">
+                      Download all cloud resumes for backup or migration to self-hosted Rustume.
+                    </p>
+                    <div class="flex flex-wrap gap-3">
+                      <Button
+                        variant="secondary"
+                        onClick={() => void handleExportJson()}
+                        loading={exportingJson()}
+                      >
+                        Download as JSON
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        onClick={() => void handleExportPdf()}
+                        loading={exportingPdf()}
+                      >
+                        Download as PDF (ZIP)
+                      </Button>
+                    </div>
+                  </section>
+
                   <section class="rounded-2xl border border-border bg-paper px-6 py-2 shadow-card">
                     <ComingSoonRow
                       title="Billing"
@@ -258,8 +313,8 @@ export default function Account() {
                       </ul>
 
                       <p class="text-sm text-stone">
-                        Bulk export is coming in a future release. Download individual resumes from
-                        the editor before deleting if you need local copies.
+                        Export your resumes from the account page before deleting if you need local
+                        copies.
                       </p>
 
                       <Input

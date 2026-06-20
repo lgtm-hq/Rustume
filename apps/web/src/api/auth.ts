@@ -1,9 +1,15 @@
+export interface SubscriptionInfo {
+  status: string;
+  expires_at?: string;
+}
+
 export interface AuthUser {
   id: string;
   plan: string;
   email?: string;
   first_name?: string;
   last_name?: string;
+  subscription?: SubscriptionInfo;
 }
 
 export type AuthProbeResult =
@@ -41,6 +47,18 @@ function parseAuthUserPayload(payload: unknown): { user: AuthUser; requireAuth: 
   }
   if (typeof record.last_name === "string") {
     user.last_name = record.last_name;
+  }
+
+  const subscription = record.subscription;
+  if (typeof subscription === "object" && subscription !== null) {
+    const status = (subscription as { status?: unknown }).status;
+    if (typeof status === "string") {
+      user.subscription = { status };
+      const expiresAt = (subscription as { expires_at?: unknown }).expires_at;
+      if (typeof expiresAt === "string") {
+        user.subscription.expires_at = expiresAt;
+      }
+    }
   }
 
   return { user, requireAuth: record.require_auth === true };
