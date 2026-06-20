@@ -94,7 +94,7 @@ pub async fn export_resumes_pdf(
     let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
     for row in rows {
-        let resume: ResumeData = serde_json::from_value(row.data.clone())
+        let resume: ResumeData = serde_json::from_value(row.data)
             .map_err(|_| ApiError::new("Invalid resume data format"))?;
         let file_name = export_pdf_filename(&row.id, &row.title);
         let pdf = tokio::task::spawn_blocking({
@@ -168,9 +168,11 @@ async fn fetch_all_resumes(
         FROM resumes
         WHERE user_id = $1
         ORDER BY updated_at DESC
+        LIMIT $2
         "#,
     )
     .bind(user_id)
+    .bind(MAX_EXPORT_RESUMES)
     .fetch_all(db)
     .await
     .map_err(internal_db_error)
