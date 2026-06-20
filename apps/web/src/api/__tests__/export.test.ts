@@ -58,25 +58,28 @@ describe("export API", () => {
     const createElement = vi.spyOn(document, "createElement").mockReturnValue(anchor);
     vi.useFakeTimers();
 
-    fetchMock.mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        exported_at: "2026-06-15T12:00:00Z",
-        resumes: [],
-      }),
-    });
+    try {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          exported_at: "2026-06-15T12:00:00Z",
+          resumes: [],
+        }),
+      });
 
-    const downloadPromise = downloadResumesJson();
-    await vi.runAllTimersAsync();
-    await downloadPromise;
+      const downloadPromise = downloadResumesJson();
+      await vi.runAllTimersAsync();
+      await downloadPromise;
 
-    expect(createObjectURL).toHaveBeenCalled();
-    expect(click).toHaveBeenCalled();
-    expect(anchor.remove).toHaveBeenCalled();
-    expect(revokeObjectURL).toHaveBeenCalledWith("blob:export");
-    vi.useRealTimers();
-    appendChild.mockRestore();
-    createElement.mockRestore();
+      expect(createObjectURL).toHaveBeenCalled();
+      expect(click).toHaveBeenCalled();
+      expect(anchor.remove).toHaveBeenCalled();
+      expect(revokeObjectURL).toHaveBeenCalledWith("blob:export");
+    } finally {
+      vi.useRealTimers();
+      appendChild.mockRestore();
+      createElement.mockRestore();
+    }
   });
 });
