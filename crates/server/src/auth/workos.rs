@@ -67,6 +67,7 @@ impl WorkOsClient {
             .http
             .post(format!("{WORKOS_API_BASE}/user_management/authenticate"))
             .json(&body)
+            .timeout(Duration::from_secs(WORKOS_HTTP_TIMEOUT_SECS))
             .send()
             .await
             .map_err(|err| WorkOsAuthError::Transport(err.to_string()))?;

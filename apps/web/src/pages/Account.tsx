@@ -250,7 +250,7 @@ export default function Account() {
                             when={!loadingResumeCount() && resumeCount() !== null}
                             fallback="All cloud resumes"
                           >
-                            All {resumeCount()} resumes
+                            All {resumeCount()} {resumeCount() === 1 ? "resume" : "resumes"}
                           </Show>
                         </li>
                         <li>All version history</li>
