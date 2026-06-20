@@ -25,6 +25,8 @@ const cloudLinks = {
   history: { label: 'Version history', href: `${base}docs/cloud/version-history/` },
   apiKeys: { label: 'API keys', href: `${base}docs/api/api-keys/` },
   pricing: { label: 'Hosting options', href: `${base}docs/pricing/plans/` },
+  hostingEconomics: { label: 'Hosting economics', href: `${base}docs/pricing/hosting-economics/` },
+  rateLimits: { label: 'Rate limits', href: `${base}docs/deployment/rate-limits/` },
   environment: { label: 'Environment variables', href: `${base}docs/deployment/env-reference/` },
   stack: { label: 'Cloud stack', href: `${base}docs/architecture/cloud-stack/` },
 } satisfies Record<string, DocResource>;
@@ -149,7 +151,9 @@ const cloudLinks = {
       </p>
       <p>
         Checkout purchases access to the operated deployment, not feature entitlements. See
-        <a href={cloudLinks.pricing.href} class="doc-link">hosting comparison</a>
+        <a href={cloudLinks.pricing.href} class="doc-link">hosting comparison</a>,
+        <a href={cloudLinks.hostingEconomics.href} class="doc-link">hosting economics</a>,
+        <a href={cloudLinks.rateLimits.href} class="doc-link">rate limits</a>,
         and <a href={`${base}docs/pricing/management/`} class="doc-link">subscription management</a>.
       </p>
     </Section>
