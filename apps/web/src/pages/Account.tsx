@@ -1,7 +1,9 @@
-import { Show, createSignal } from "solid-js";
+import { Show, createEffect, createSignal } from "solid-js";
 import { A, useNavigate } from "@solidjs/router";
+import { deleteAccount } from "../api/account";
+import { listCloudResumesPage } from "../api/resumes";
 import { authStore } from "../stores/auth";
-import { Button, Spinner, toast } from "../components/ui";
+import { Button, Input, Modal, Spinner, toast } from "../components/ui";
 
 function ProfileAvatar(props: { label: string }) {
   return (
@@ -33,10 +35,32 @@ function ComingSoonRow(props: { title: string; description: string }) {
 }
 
 export default function Account() {
-  const { state, signIn, signOut, displayName } = authStore;
+  const { state, signIn, signOut, clearUser, displayName } = authStore;
   const navigate = useNavigate();
   const [signingOut, setSigningOut] = createSignal(false);
   const [signingIn, setSigningIn] = createSignal(false);
+  const [deleteModalOpen, setDeleteModalOpen] = createSignal(false);
+  const [deleteConfirmation, setDeleteConfirmation] = createSignal("");
+  const [resumeCount, setResumeCount] = createSignal<number | null>(null);
+  const [loadingResumeCount, setLoadingResumeCount] = createSignal(false);
+  const [deletingAccount, setDeletingAccount] = createSignal(false);
+
+  createEffect(() => {
+    if (!deleteModalOpen()) {
+      setDeleteConfirmation("");
+      setResumeCount(null);
+      return;
+    }
+
+    setLoadingResumeCount(true);
+    void listCloudResumesPage(1, 1)
+      .then((page) => setResumeCount(page.total))
+      .catch((error) => {
+        console.error("Failed to load resume count:", error);
+        setResumeCount(null);
+      })
+      .finally(() => setLoadingResumeCount(false));
+  });
 
   const handleSignOut = async () => {
     setSigningOut(true);
@@ -56,6 +80,26 @@ export default function Account() {
     setSigningIn(true);
     signIn();
   };
+
+  const handleDeleteAccount = async () => {
+    setDeletingAccount(true);
+    try {
+      await deleteAccount(deleteConfirmation());
+      clearUser();
+      setDeleteModalOpen(false);
+      toast.success("Account deleted");
+      navigate("/");
+    } catch (error) {
+      console.error("Account deletion failed:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete account. Please try again.",
+      );
+    } finally {
+      setDeletingAccount(false);
+    }
+  };
+
+  const deleteConfirmed = () => deleteConfirmation() === "DELETE";
 
   return (
     <div class="min-h-[calc(100vh-3.5rem)] bg-paper">
@@ -169,6 +213,17 @@ export default function Account() {
                     />
                   </section>
 
+                  <section class="rounded-2xl border border-red-200 bg-red-50/40 p-6 shadow-card">
+                    <h2 class="font-display text-lg font-semibold text-ink mb-2">Danger zone</h2>
+                    <p class="text-sm text-stone mb-4">
+                      Permanently delete your account, all cloud resumes, and version history. This
+                      action cannot be undone.
+                    </p>
+                    <Button variant="danger" onClick={() => setDeleteModalOpen(true)}>
+                      Delete my account
+                    </Button>
+                  </section>
+
                   <div class="flex justify-end">
                     <Button
                       variant="secondary"
@@ -178,6 +233,57 @@ export default function Account() {
                       Sign out
                     </Button>
                   </div>
+
+                  <Modal
+                    open={deleteModalOpen()}
+                    onOpenChange={setDeleteModalOpen}
+                    title="Delete account"
+                    description="This permanently removes your Rustume Cloud account and data."
+                    size="lg"
+                  >
+                    <div class="space-y-4">
+                      <p class="text-sm text-stone">This will permanently delete:</p>
+                      <ul class="list-disc pl-5 text-sm text-stone space-y-1">
+                        <li>Your account and profile</li>
+                        <li>
+                          <Show
+                            when={!loadingResumeCount() && resumeCount() !== null}
+                            fallback="All cloud resumes"
+                          >
+                            All {resumeCount()} {resumeCount() === 1 ? "resume" : "resumes"}
+                          </Show>
+                        </li>
+                        <li>All version history</li>
+                        <li>Your subscription (if active)</li>
+                      </ul>
+
+                      <p class="text-sm text-stone">
+                        Bulk export is coming in a future release. Download individual resumes from
+                        the editor before deleting if you need local copies.
+                      </p>
+
+                      <Input
+                        label="Type DELETE to confirm"
+                        value={deleteConfirmation()}
+                        onInput={setDeleteConfirmation}
+                        placeholder="DELETE"
+                      />
+
+                      <div class="flex justify-end gap-3 pt-2">
+                        <Button variant="secondary" onClick={() => setDeleteModalOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="danger"
+                          onClick={() => void handleDeleteAccount()}
+                          loading={deletingAccount()}
+                          disabled={!deleteConfirmed()}
+                        >
+                          Delete permanently
+                        </Button>
+                      </div>
+                    </div>
+                  </Modal>
                 </div>
               )}
             </Show>

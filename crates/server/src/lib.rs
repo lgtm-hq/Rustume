@@ -21,6 +21,7 @@
 //! - `GET/POST /api/resumes` - List and create resumes
 //! - `GET/PUT/DELETE /api/resumes/{id}` - Resume CRUD
 //! - `POST /api/resumes/import` - Bulk import from local storage
+//! - `DELETE /api/account` - Permanently delete account and all data
 //! - `GET /metrics` - Prometheus metrics
 
 pub mod app;
@@ -922,5 +923,29 @@ mod tests {
             serde_json::from_slice(&body).unwrap();
         assert!(payload.retry_after >= 1);
         assert!(payload.error.contains("Too many requests"));
+    }
+
+    #[tokio::test]
+    async fn test_delete_account_unauthenticated_401() {
+        let state = state::AppState::with_require_auth(
+            std::sync::Arc::new(routes::static_dir()),
+            Some(test_cloud_state()),
+            true,
+        );
+        let app = create_router_with_state(state);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri("/api/account")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"confirmation":"DELETE"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
 }

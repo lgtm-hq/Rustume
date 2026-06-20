@@ -2,10 +2,12 @@
 
 use reqwest::Client;
 use serde::Deserialize;
+use std::time::Duration;
 
 use crate::db::User;
 
 const WORKOS_API_BASE: &str = "https://api.workos.com";
+const WORKOS_HTTP_TIMEOUT_SECS: u64 = 10;
 
 /// HTTP client for WorkOS User Management API calls.
 #[derive(Clone)]
@@ -65,6 +67,7 @@ impl WorkOsClient {
             .http
             .post(format!("{WORKOS_API_BASE}/user_management/authenticate"))
             .json(&body)
+            .timeout(Duration::from_secs(WORKOS_HTTP_TIMEOUT_SECS))
             .send()
             .await
             .map_err(|err| WorkOsAuthError::Transport(err.to_string()))?;
@@ -93,6 +96,40 @@ impl WorkOsClient {
             .map_err(|err| WorkOsAuthError::Transport(err.to_string()))?;
 
         Ok(payload.user)
+    }
+
+    /// Delete a WorkOS user by ID. Best-effort during account erasure.
+    pub async fn delete_user(&self, workos_user_id: &str) -> Result<(), WorkOsAuthError> {
+        let response = self
+            .http
+            .delete(format!(
+                "{WORKOS_API_BASE}/user_management/users/{workos_user_id}"
+            ))
+            .bearer_auth(&self.api_key)
+            .timeout(Duration::from_secs(WORKOS_HTTP_TIMEOUT_SECS))
+            .send()
+            .await
+            .map_err(|err| WorkOsAuthError::Transport(err.to_string()))?;
+
+        if response.status().is_success() || response.status() == reqwest::StatusCode::NOT_FOUND {
+            return Ok(());
+        }
+
+        let status = response.status();
+        let body = response
+            .text()
+            .await
+            .unwrap_or_else(|e| format!("failed to read response: {e}"));
+        let body = if body.chars().count() > 200 {
+            let truncated: String = body.chars().take(200).collect();
+            format!("{truncated}… (truncated)")
+        } else {
+            body
+        };
+        Err(WorkOsAuthError::Api {
+            status: status.as_u16(),
+            body,
+        })
     }
 }
 
