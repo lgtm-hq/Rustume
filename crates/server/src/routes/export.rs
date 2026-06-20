@@ -14,11 +14,21 @@ use uuid::Uuid;
 use zip::write::SimpleFileOptions;
 use zip::ZipWriter;
 
-use crate::db::{ResumeBulkExport, ResumeExportItem, ResumeRow};
+use crate::db::{ResumeBulkExport, ResumeExportItem};
 use crate::error::ApiError;
 use crate::middleware::auth::AuthUser;
 use crate::state::AppState;
 use crate::subscription;
+
+const MAX_EXPORT_RESUMES: i64 = 50;
+
+/// Resume fields required for bulk export.
+#[derive(Debug, sqlx::FromRow)]
+struct ExportResumeRow {
+    id: Uuid,
+    title: String,
+    data: serde_json::Value,
+}
 
 /// Export all resumes for the authenticated user as JSON.
 #[utoipa::path(
@@ -29,6 +39,7 @@ use crate::subscription;
         (status = 200, description = "Bulk JSON export", body = ResumeBulkExport),
         (status = 401, description = "Not authenticated", body = ApiError),
         (status = 403, description = "Subscription expired", body = ApiError),
+        (status = 413, description = "Too many resumes to export", body = ApiError),
     ),
     security(("cookieAuth" = []))
 )]
@@ -65,6 +76,7 @@ pub async fn export_resumes_json(
         (status = 200, description = "ZIP archive of PDF resumes", content_type = "application/zip"),
         (status = 401, description = "Not authenticated", body = ApiError),
         (status = 403, description = "Subscription expired", body = ApiError),
+        (status = 413, description = "Too many resumes to export", body = ApiError),
     ),
     security(("cookieAuth" = []))
 )]
@@ -128,10 +140,31 @@ pub async fn export_resumes_pdf(
         .into_response())
 }
 
-async fn fetch_all_resumes(db: &sqlx::PgPool, user_id: Uuid) -> Result<Vec<ResumeRow>, ApiError> {
-    sqlx::query_as::<_, ResumeRow>(
+async fn fetch_all_resumes(
+    db: &sqlx::PgPool,
+    user_id: Uuid,
+) -> Result<Vec<ExportResumeRow>, ApiError> {
+    let total = sqlx::query_scalar::<_, i64>(
         r#"
-        SELECT id, user_id, title, data, is_public, public_slug, password_hash, version, created_at, updated_at
+        SELECT COUNT(*)
+        FROM resumes
+        WHERE user_id = $1
+        "#,
+    )
+    .bind(user_id)
+    .fetch_one(db)
+    .await
+    .map_err(internal_db_error)?;
+
+    if total > MAX_EXPORT_RESUMES {
+        return Err(ApiError::payload_too_large(format!(
+            "Export exceeds maximum of {MAX_EXPORT_RESUMES} resumes ({total} found)"
+        )));
+    }
+
+    sqlx::query_as::<_, ExportResumeRow>(
+        r#"
+        SELECT id, title, data
         FROM resumes
         WHERE user_id = $1
         ORDER BY updated_at DESC
@@ -140,10 +173,12 @@ async fn fetch_all_resumes(db: &sqlx::PgPool, user_id: Uuid) -> Result<Vec<Resum
     .bind(user_id)
     .fetch_all(db)
     .await
-    .map_err(|err| {
-        error!("export resume query failed: {err}");
-        ApiError::internal("internal server error")
-    })
+    .map_err(internal_db_error)
+}
+
+fn internal_db_error(err: impl std::fmt::Display) -> ApiError {
+    error!("export resume query failed: {err}");
+    ApiError::internal("internal server error")
 }
 
 fn export_pdf_filename(id: &Uuid, title: &str) -> String {
@@ -159,11 +194,11 @@ fn export_pdf_filename(id: &Uuid, title: &str) -> String {
             }
         })
         .collect();
-    let slug = slug.trim_matches('-');
-    let slug = if slug.is_empty() {
-        "resume".to_string()
-    } else {
+    let slug = slug.trim_matches(|c| c == '-' || c == '_');
+    let slug = if slug.chars().any(|ch| ch.is_ascii_alphanumeric()) {
         slug.to_string()
+    } else {
+        "resume".to_string()
     };
     format!("{slug}-{id}.pdf")
 }
@@ -185,5 +220,11 @@ mod tests {
     fn export_pdf_filename_falls_back_when_title_empty() {
         let id = Uuid::nil();
         assert_eq!(export_pdf_filename(&id, "   "), format!("resume-{id}.pdf"));
+    }
+
+    #[test]
+    fn export_pdf_filename_falls_back_for_symbol_only_titles() {
+        let id = Uuid::nil();
+        assert_eq!(export_pdf_filename(&id, "@@@"), format!("resume-{id}.pdf"));
     }
 }
