@@ -44,7 +44,9 @@ enabled, these identity and persistence settings are required:
 | `EMAIL_FROM` | Sender address for outbound mail (for example `noreply@rustume.com`) |
 
 Set `TRUSTED_PROXY=true` only when the server is behind a trusted proxy and may rely on
-`X-Forwarded-For` when calling WorkOS.
+`X-Forwarded-For` when calling WorkOS. The same flag enables `X-Real-IP` and append-mode
+`X-Forwarded-For` for rate-limit key extraction — see [Rate
+Limits](/docs/deployment/rate-limits/#scope).
 
 ## Rate limits (cloud mode)
 

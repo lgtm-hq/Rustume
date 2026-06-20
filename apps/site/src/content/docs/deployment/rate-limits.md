@@ -32,7 +32,7 @@ All values are **requests per minute** unless noted.
 
 | Route group | Default | Burst | Examples |
 | --- | ---: | ---: | --- |
-| Resume CRUD | 300 | 30 | List, get, create, update, delete |
+| Resume CRUD | 300 | 30 | List, get, create, update, delete, `GET /api/resumes/export` |
 | Resume import | 10 | — | `POST /api/resumes/import` |
 | Preview render | 60 | — | `POST /api/render/preview` |
 | PDF render & bulk PDF export | 20 | — | `POST /api/render/pdf`, `GET /api/resumes/export/pdf` |
@@ -56,10 +56,14 @@ billable render routes; the unauthenticated bucket mainly covers probes and stra
 
 Bulk export endpoints enforce a separate **size cap**, not a per-minute quota:
 
-| Endpoint | Cap | Over-limit response |
-| --- | --- | --- |
-| `GET /api/resumes/export` | 50 resumes | `413 Payload Too Large` |
-| `GET /api/resumes/export/pdf` | 50 resumes (each rendered as PDF) | `413 Payload Too Large` |
+Bulk JSON export (`GET /api/resumes/export`) counts against the **resume CRUD** limit group.
+Bulk PDF export (`GET /api/resumes/export/pdf`) counts against the **PDF** limit group and
+renders each resume sequentially.
+
+| Endpoint | Rate limit group | Size cap | Over-limit response |
+| --- | --- | --- | --- |
+| `GET /api/resumes/export` | Resume CRUD | 50 resumes | `413 Payload Too Large` |
+| `GET /api/resumes/export/pdf` | PDF | 50 resumes (each rendered) | `413 Payload Too Large` |
 
 The cap applies to owned resumes ordered by `updated_at`. It complements PDF rate limits by
 bounding per-request CPU and memory even when requests are spaced apart.

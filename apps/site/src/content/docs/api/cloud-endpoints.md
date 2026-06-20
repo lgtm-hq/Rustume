@@ -31,8 +31,10 @@ Variables](/docs/deployment/env-reference/).
 | `GET` | `/api/resumes/export` | Bulk JSON export (max 50 resumes) |
 | `GET` | `/api/resumes/export/pdf` | Bulk PDF export as ZIP (max 50 resumes) |
 
-Export endpoints share the PDF rate limit group and return `413` when the resume count exceeds the
-cap. See [Rate Limits](/docs/deployment/rate-limits/).
+Export endpoints enforce a resume-count cap and route-specific rate limits:
+
+JSON export uses the resume CRUD limit group; PDF export uses the PDF limit group (same as
+`POST /api/render/pdf`). See [Rate Limits](/docs/deployment/rate-limits/#bulk-export-cap).
 
 ## Connected workflows
 
