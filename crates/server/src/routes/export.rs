@@ -88,10 +88,12 @@ pub async fn export_resumes_pdf(
         let pdf = tokio::task::spawn_blocking({
             let renderer = renderer.clone();
             let resume = resume.clone();
+            let resume_id = row.id;
+            let resume_title = row.title.clone();
             move || {
-                renderer
-                    .render_pdf(&resume)
-                    .map_err(|err| format!("Failed to render PDF: {err}"))
+                renderer.render_pdf(&resume).map_err(|err| {
+                    format!("Failed to render PDF for resume '{resume_title}' ({resume_id}): {err}")
+                })
             }
         })
         .await

@@ -16,6 +16,8 @@ use crate::subscription;
 /// Enforce subscription render access for signed-in cloud users.
 ///
 /// Anonymous requests pass through when hosted require-auth is disabled.
+/// Stale session cookies on open deployments also pass through so render stays
+/// available without manual cookie clearing.
 pub async fn require_subscription_render(
     State(state): State<AppState>,
     request: Request,
@@ -30,12 +32,18 @@ pub async fn require_subscription_render(
         .await
         .map_err(|_| ApiError::internal("failed to read cookies"))?;
 
-    let has_session = jar.get(SESSION_COOKIE).is_some();
-    if !state.require_auth && !has_session {
+    if jar.get(SESSION_COOKIE).is_none() && !state.require_auth {
         return Ok(next.run(Request::from_parts(parts, body)).await);
     }
 
-    let AuthUser(user) = AuthUser::from_request_parts(&mut parts, &state).await?;
+    let user = match AuthUser::from_request_parts(&mut parts, &state).await {
+        Ok(AuthUser(user)) => user,
+        Err(_err) if !state.require_auth => {
+            return Ok(next.run(Request::from_parts(parts, body)).await);
+        }
+        Err(err) => return Err(err),
+    };
+
     let cloud = state.cloud()?;
     let access = subscription::load_access(&cloud.db, user.id).await?;
     access.ensure_render()?;

@@ -61,6 +61,10 @@ impl SubscriptionAccess {
     /// Build access rules from a subscription row, if any.
     pub fn from_row(status: &str, period_end: Option<DateTime<Utc>>) -> Self {
         let Some(status) = SubscriptionStatus::parse(status) else {
+            tracing::warn!(
+                status = status,
+                "unknown subscription status, defaulting to Active"
+            );
             return Self::Active;
         };
 

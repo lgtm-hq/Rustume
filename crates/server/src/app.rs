@@ -177,15 +177,27 @@ pub fn create_router_with_state(state: AppState) -> Router {
                 require_auth_when_enabled,
             ));
 
-        let mut export_routes = Router::new()
+        let mut export_json_routes = Router::new()
             .route("/api/resumes/export", get(export_resumes_json))
+            .route_layer(middleware::from_fn_with_state(
+                state.clone(),
+                require_auth_when_enabled,
+            ));
+        if cloud_rate_limits {
+            export_json_routes = export_json_routes.route_layer(middleware::from_fn_with_state(
+                state_for_layers.clone(),
+                rate_limit_resume_crud,
+            ));
+        }
+
+        let mut export_pdf_routes = Router::new()
             .route("/api/resumes/export/pdf", get(export_resumes_pdf))
             .route_layer(middleware::from_fn_with_state(
                 state.clone(),
                 require_auth_when_enabled,
             ));
         if cloud_rate_limits {
-            export_routes = export_routes.route_layer(middleware::from_fn_with_state(
+            export_pdf_routes = export_pdf_routes.route_layer(middleware::from_fn_with_state(
                 state_for_layers.clone(),
                 rate_limit_pdf,
             ));
@@ -195,7 +207,8 @@ pub fn create_router_with_state(state: AppState) -> Router {
             .merge(auth_routes)
             .merge(resume_routes)
             .merge(import_routes)
-            .merge(export_routes)
+            .merge(export_json_routes)
+            .merge(export_pdf_routes)
             .merge(account_routes);
     }
 

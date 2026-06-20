@@ -79,11 +79,18 @@ export function isSubscriptionReadOnlyError(error: unknown): error is Subscripti
 
 function rethrowSubscriptionForbidden(error: unknown): void {
   if (error instanceof ApiError && error.status === 403) {
-    toast.warning(
-      "Cloud account is read-only — export your resumes before subscription access ends.",
-      "Read-only",
-    );
-    throw new SubscriptionReadOnlyError();
+    const message = error.message.toLowerCase();
+    if (
+      message.includes("read-only") ||
+      message.includes("subscription") ||
+      message.includes("grace")
+    ) {
+      toast.warning(
+        "Cloud account is read-only — export your resumes before subscription access ends.",
+        "Read-only",
+      );
+      throw new SubscriptionReadOnlyError();
+    }
   }
 }
 
