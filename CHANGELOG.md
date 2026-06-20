@@ -22,6 +22,12 @@ and this project adheres to
 
 ### Security
 
+## [0.25.0] - 2026-06-20
+
+### Added
+
+- **cloud**: subscription cancellation, data portability, and grace period (#328) (cda3376)
+
 ## [0.24.0] - 2026-06-20
 
 ### Added
@@ -247,7 +253,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.24.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.25.0...HEAD
+[0.25.0]: https://github.com/lgtm-hq/Rustume/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/lgtm-hq/Rustume/compare/v0.23.0...v0.24.0
 [0.23.0]: https://github.com/lgtm-hq/Rustume/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/lgtm-hq/Rustume/compare/v0.21.1...v0.22.0
