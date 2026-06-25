@@ -4363,7 +4363,7 @@ dependencies = [
  "utoipa-swagger-ui",
  "uuid",
  "validator",
- "zip 3.0.0",
+ "zip 8.6.0",
 ]
 
 [[package]]
