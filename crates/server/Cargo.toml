@@ -70,7 +70,7 @@ zip = { version = "3.0", default-features = false, features = ["deflate"] }
 
 # Use jemalloc on musl to avoid musl's slower default allocator
 [target.'cfg(target_env = "musl")'.dependencies]
-tikv-jemallocator = { version = "0.6", features = [
+tikv-jemallocator = { version = "0.7", features = [
   "unprefixed_malloc_on_supported_platforms",
 ] }
 
