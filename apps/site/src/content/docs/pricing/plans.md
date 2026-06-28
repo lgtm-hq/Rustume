@@ -11,3 +11,6 @@ charges for a ready-to-use hosted deployment: sign in, synchronize resumes, and 
 operate the infrastructure.
 
 ## Capability and operations comparison
+
+See [Hosting Economics](/docs/pricing/hosting-economics/) for what hosted billing funds and how
+[rate limits](/docs/deployment/rate-limits/) protect service capacity without gating product features.

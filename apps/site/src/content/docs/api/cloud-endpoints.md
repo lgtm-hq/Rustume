@@ -28,6 +28,13 @@ Variables](/docs/deployment/env-reference/).
 | `PUT` | `/api/resumes/{id}` | Update title and/or resume data |
 | `DELETE` | `/api/resumes/{id}` | Delete an owned resume |
 | `POST` | `/api/resumes/import` | Import locally stored resumes |
+| `GET` | `/api/resumes/export` | Bulk JSON export (max 50 resumes) |
+| `GET` | `/api/resumes/export/pdf` | Bulk PDF export as ZIP (max 50 resumes) |
+
+Export endpoints enforce a resume-count cap and route-specific rate limits:
+
+JSON export uses the resume CRUD limit group; PDF export uses the PDF limit group (same as
+`POST /api/render/pdf`). See [Rate Limits](/docs/deployment/rate-limits/#bulk-export-cap).
 
 ## Connected workflows
 

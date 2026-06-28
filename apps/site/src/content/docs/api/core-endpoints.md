@@ -167,8 +167,10 @@ Always returns `200` — check the `valid` field. Nested field paths use dot not
 
 ## Rate limits
 
-Deployments may apply protective rate limits to keep the service healthy. Hosted billing is not used
-to hide parsing, rendering, templates, or connected capabilities from open-source users.
+Connected deployments apply per-route limits when `RUSTUME_CLOUD=true` and `DATABASE_URL` is
+configured. Defaults, route groups, `429` responses, and bulk export caps are documented in [Rate
+Limits](/docs/deployment/rate-limits/). Hosted billing does not hide parsing, rendering,
+templates, or connected capabilities from self-hosted operators.
 
 ## CLI equivalents
 

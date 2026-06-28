@@ -22,6 +22,13 @@ use crate::subscription;
 
 const MAX_EXPORT_RESUMES: i64 = 50;
 
+/// Reject bulk export when the owned resume count exceeds the cap.
+fn reject_export_over_resume_cap() -> ApiError {
+    ApiError::payload_too_large(format!(
+        "Export exceeds maximum of {MAX_EXPORT_RESUMES} resumes"
+    ))
+}
+
 /// Resume fields required for bulk export.
 #[derive(Debug, sqlx::FromRow)]
 struct ExportResumeRow {
@@ -144,25 +151,8 @@ async fn fetch_all_resumes(
     db: &sqlx::PgPool,
     user_id: Uuid,
 ) -> Result<Vec<ExportResumeRow>, ApiError> {
-    let total = sqlx::query_scalar::<_, i64>(
-        r#"
-        SELECT COUNT(*)
-        FROM resumes
-        WHERE user_id = $1
-        "#,
-    )
-    .bind(user_id)
-    .fetch_one(db)
-    .await
-    .map_err(internal_db_error)?;
-
-    if total > MAX_EXPORT_RESUMES {
-        return Err(ApiError::payload_too_large(format!(
-            "Export exceeds maximum of {MAX_EXPORT_RESUMES} resumes ({total} found)"
-        )));
-    }
-
-    sqlx::query_as::<_, ExportResumeRow>(
+    let fetch_limit = MAX_EXPORT_RESUMES + 1;
+    let rows = sqlx::query_as::<_, ExportResumeRow>(
         r#"
         SELECT id, title, data
         FROM resumes
@@ -172,10 +162,16 @@ async fn fetch_all_resumes(
         "#,
     )
     .bind(user_id)
-    .bind(MAX_EXPORT_RESUMES)
+    .bind(fetch_limit)
     .fetch_all(db)
     .await
-    .map_err(internal_db_error)
+    .map_err(internal_db_error)?;
+
+    if rows.len() as i64 > MAX_EXPORT_RESUMES {
+        return Err(reject_export_over_resume_cap());
+    }
+
+    Ok(rows)
 }
 
 fn internal_db_error(err: impl std::fmt::Display) -> ApiError {
@@ -208,6 +204,235 @@ fn export_pdf_filename(id: &Uuid, title: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::auth::{session::SessionService, workos::WorkOsClient};
+    use crate::cloud::CloudState;
+    use crate::email::EmailService;
+    use crate::error::ApiErrorKind;
+    use crate::state::AppState;
+    use sqlx::postgres::PgPoolOptions;
+    use std::sync::Arc;
+
+    fn ensure_export_resume_count(count: i64) -> Result<(), ApiError> {
+        if count > MAX_EXPORT_RESUMES {
+            return Err(reject_export_over_resume_cap());
+        }
+        Ok(())
+    }
+
+    fn looks_like_test_database_url(url: &str) -> bool {
+        let db_name = url
+            .split(['?', '#'])
+            .next()
+            .unwrap_or(url)
+            .rsplit('/')
+            .next()
+            .unwrap_or("");
+        db_name.contains("_test")
+    }
+
+    #[test]
+    fn ensure_export_resume_count_allows_fifty() {
+        assert!(ensure_export_resume_count(50).is_ok());
+    }
+
+    #[test]
+    fn ensure_export_resume_count_rejects_fifty_one() {
+        let err = ensure_export_resume_count(51).expect_err("expected cap rejection");
+        assert!(matches!(err.kind, ApiErrorKind::PayloadTooLarge));
+        assert!(err.error.contains("50"));
+        assert!(!err.error.contains("51"));
+    }
+
+    #[test]
+    fn looks_like_test_database_url_matches_database_name_only() {
+        assert!(looks_like_test_database_url(
+            "postgres://user:pass@localhost:5432/rustume_test"
+        ));
+        assert!(!looks_like_test_database_url(
+            "postgres://user:pass@localhost:5432/rustume"
+        ));
+    }
+
+    fn database_url_for_tests() -> Option<String> {
+        let url = std::env::var("TEST_DATABASE_URL")
+            .ok()
+            .map(|url| url.trim().to_owned())
+            .filter(|url| !url.is_empty())
+            .or_else(|| {
+                std::env::var("DATABASE_URL")
+                    .ok()
+                    .map(|url| url.trim().to_owned())
+                    .filter(|url| !url.is_empty())
+            })?;
+
+        if looks_like_test_database_url(&url) {
+            Some(url)
+        } else {
+            eprintln!(
+                "SKIP export integration tests: set TEST_DATABASE_URL (or DATABASE_URL) to a database whose name contains _test"
+            );
+            None
+        }
+    }
+
+    async fn connect_test_pool(database_url: &str) -> sqlx::PgPool {
+        let pool = PgPoolOptions::new()
+            .max_connections(2)
+            .connect(database_url)
+            .await
+            .expect("connect to test database for export integration tests");
+        sqlx::migrate!("./src/db/migrations")
+            .run(&pool)
+            .await
+            .expect("run migrations for export integration tests");
+        pool
+    }
+
+    async fn seed_user_with_resumes(pool: &sqlx::PgPool, count: i64) -> crate::db::User {
+        let user_id = Uuid::new_v4();
+        let workos_id = format!("workos_export_cap_{user_id}");
+
+        sqlx::query("INSERT INTO users (id, workos_id) VALUES ($1, $2)")
+            .bind(user_id)
+            .bind(&workos_id)
+            .execute(pool)
+            .await
+            .expect("insert user");
+
+        for index in 0..count {
+            sqlx::query("INSERT INTO resumes (user_id, title, data) VALUES ($1, $2, $3)")
+                .bind(user_id)
+                .bind(format!("Resume {index}"))
+                .bind(serde_json::json!({}))
+                .execute(pool)
+                .await
+                .expect("insert resume");
+        }
+
+        sqlx::query_as::<_, crate::db::User>("SELECT * FROM users WHERE id = $1")
+            .bind(user_id)
+            .fetch_one(pool)
+            .await
+            .expect("fetch user")
+    }
+
+    async fn cleanup_user(pool: &sqlx::PgPool, user_id: Uuid) {
+        sqlx::query("DELETE FROM users WHERE id = $1")
+            .bind(user_id)
+            .execute(pool)
+            .await
+            .expect("cleanup user");
+    }
+
+    fn test_app_state(pool: sqlx::PgPool) -> AppState {
+        let sessions_pool = pool.clone();
+        AppState::with_require_auth(
+            Arc::new(crate::routes::static_dir()),
+            Some(Arc::new(CloudState {
+                db: pool,
+                workos: WorkOsClient::new("client_test".into(), "api_key_test".into()),
+                sessions: SessionService::new(
+                    sessions_pool,
+                    "test-session-secret-at-least-32-chars".into(),
+                    false,
+                ),
+                workos_redirect_uri: "http://localhost/auth/callback".into(),
+                email: Some(EmailService::new(
+                    "re_test".into(),
+                    "noreply@rustume.com".into(),
+                )),
+            })),
+            false,
+        )
+    }
+
+    #[tokio::test]
+    async fn export_resumes_json_rejects_over_fifty_resumes_with_413() {
+        let Some(database_url) = database_url_for_tests() else {
+            eprintln!("SKIP export_resumes_json cap test: DATABASE_URL unavailable");
+            return;
+        };
+        let pool = connect_test_pool(&database_url).await;
+
+        let user = seed_user_with_resumes(&pool, 51).await;
+        let state = test_app_state(pool.clone());
+
+        let result = export_resumes_json(AuthUser(user.clone()), State(state)).await;
+        cleanup_user(&pool, user.id).await;
+
+        assert!(matches!(
+            result,
+            Err(err) if matches!(err.kind, ApiErrorKind::PayloadTooLarge)
+        ));
+    }
+
+    #[tokio::test]
+    async fn export_resumes_json_returns_all_resumes_at_fifty() {
+        let Some(database_url) = database_url_for_tests() else {
+            eprintln!("SKIP export_resumes_json at-cap test: DATABASE_URL unavailable");
+            return;
+        };
+        let pool = connect_test_pool(&database_url).await;
+
+        let user = seed_user_with_resumes(&pool, 50).await;
+        let state = test_app_state(pool.clone());
+
+        let result = export_resumes_json(AuthUser(user.clone()), State(state)).await;
+        cleanup_user(&pool, user.id).await;
+
+        let payload = result.expect("expected bulk JSON export to succeed at cap");
+        assert_eq!(payload.resumes.len(), 50);
+    }
+
+    #[tokio::test]
+    async fn export_resumes_pdf_rejects_over_fifty_resumes_with_413() {
+        let Some(database_url) = database_url_for_tests() else {
+            eprintln!("SKIP export_resumes_pdf cap test: DATABASE_URL unavailable");
+            return;
+        };
+        let pool = connect_test_pool(&database_url).await;
+
+        let user = seed_user_with_resumes(&pool, 51).await;
+        let state = test_app_state(pool.clone());
+
+        let result = export_resumes_pdf(AuthUser(user.clone()), State(state)).await;
+        cleanup_user(&pool, user.id).await;
+
+        assert!(matches!(
+            result,
+            Err(err) if matches!(err.kind, ApiErrorKind::PayloadTooLarge)
+        ));
+    }
+
+    #[tokio::test]
+    async fn export_resumes_pdf_returns_zip_at_fifty() {
+        let Some(database_url) = database_url_for_tests() else {
+            eprintln!("SKIP export_resumes_pdf at-cap test: DATABASE_URL unavailable");
+            return;
+        };
+        let pool = connect_test_pool(&database_url).await;
+
+        let user = seed_user_with_resumes(&pool, 50).await;
+        let state = test_app_state(pool.clone());
+
+        let result = export_resumes_pdf(AuthUser(user.clone()), State(state)).await;
+        cleanup_user(&pool, user.id).await;
+
+        let response = result.expect("expected bulk PDF export to succeed at cap");
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get(header::CONTENT_TYPE).unwrap(),
+            "application/zip",
+        );
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("read bulk PDF export body");
+        assert!(
+            body.starts_with(b"PK"),
+            "expected ZIP archive bytes at cap boundary",
+        );
+    }
 
     #[test]
     fn export_pdf_filename_sanitizes_title() {
