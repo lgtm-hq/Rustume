@@ -29,14 +29,6 @@ fn reject_export_over_resume_cap() -> ApiError {
     ))
 }
 
-/// Returns `Ok(())` when `count` is within the export cap (for unit tests).
-fn ensure_export_resume_count(count: i64) -> Result<(), ApiError> {
-    if count > MAX_EXPORT_RESUMES {
-        return Err(reject_export_over_resume_cap());
-    }
-    Ok(())
-}
-
 /// Resume fields required for bulk export.
 #[derive(Debug, sqlx::FromRow)]
 struct ExportResumeRow {
@@ -220,6 +212,24 @@ mod tests {
     use sqlx::postgres::PgPoolOptions;
     use std::sync::Arc;
 
+    fn ensure_export_resume_count(count: i64) -> Result<(), ApiError> {
+        if count > MAX_EXPORT_RESUMES {
+            return Err(reject_export_over_resume_cap());
+        }
+        Ok(())
+    }
+
+    fn looks_like_test_database_url(url: &str) -> bool {
+        let db_name = url
+            .split(['?', '#'])
+            .next()
+            .unwrap_or(url)
+            .rsplit('/')
+            .next()
+            .unwrap_or("");
+        db_name.contains("_test")
+    }
+
     #[test]
     fn ensure_export_resume_count_allows_fifty() {
         assert!(ensure_export_resume_count(50).is_ok());
@@ -233,8 +243,14 @@ mod tests {
         assert!(!err.error.contains("51"));
     }
 
-    fn looks_like_test_database_url(url: &str) -> bool {
-        url.contains("_test")
+    #[test]
+    fn looks_like_test_database_url_matches_database_name_only() {
+        assert!(looks_like_test_database_url(
+            "postgres://user:pass@localhost:5432/rustume_test"
+        ));
+        assert!(!looks_like_test_database_url(
+            "postgres://user:pass@localhost:5432/rustume"
+        ));
     }
 
     fn database_url_for_tests() -> Option<String> {
