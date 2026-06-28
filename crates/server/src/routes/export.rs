@@ -235,18 +235,23 @@ mod tests {
         assert!(err.error.contains("51"));
     }
 
-    async fn connect_test_pool() -> Option<sqlx::PgPool> {
-        let database_url = std::env::var("DATABASE_URL").ok()?;
+    fn database_url_for_tests() -> Option<String> {
+        std::env::var("DATABASE_URL")
+            .ok()
+            .filter(|url| !url.is_empty())
+    }
+
+    async fn connect_test_pool(database_url: &str) -> sqlx::PgPool {
         let pool = PgPoolOptions::new()
             .max_connections(2)
-            .connect(&database_url)
+            .connect(database_url)
             .await
-            .ok()?;
+            .expect("connect to DATABASE_URL for export integration tests");
         sqlx::migrate!("./src/db/migrations")
             .run(&pool)
             .await
-            .ok()?;
-        Some(pool)
+            .expect("run migrations for export integration tests");
+        pool
     }
 
     async fn seed_user_with_resumes(pool: &sqlx::PgPool, count: i64) -> crate::db::User {
@@ -309,10 +314,11 @@ mod tests {
 
     #[tokio::test]
     async fn export_resumes_json_rejects_over_fifty_resumes_with_413() {
-        let Some(pool) = connect_test_pool().await else {
+        let Some(database_url) = database_url_for_tests() else {
             eprintln!("SKIP export_resumes_json cap test: DATABASE_URL unavailable");
             return;
         };
+        let pool = connect_test_pool(&database_url).await;
 
         let user = seed_user_with_resumes(&pool, 51).await;
         let state = test_app_state(pool.clone());
@@ -328,10 +334,11 @@ mod tests {
 
     #[tokio::test]
     async fn export_resumes_json_returns_all_resumes_at_fifty() {
-        let Some(pool) = connect_test_pool().await else {
+        let Some(database_url) = database_url_for_tests() else {
             eprintln!("SKIP export_resumes_json at-cap test: DATABASE_URL unavailable");
             return;
         };
+        let pool = connect_test_pool(&database_url).await;
 
         let user = seed_user_with_resumes(&pool, 50).await;
         let state = test_app_state(pool.clone());
@@ -347,10 +354,11 @@ mod tests {
 
     #[tokio::test]
     async fn export_resumes_pdf_rejects_over_fifty_resumes_with_413() {
-        let Some(pool) = connect_test_pool().await else {
+        let Some(database_url) = database_url_for_tests() else {
             eprintln!("SKIP export_resumes_pdf cap test: DATABASE_URL unavailable");
             return;
         };
+        let pool = connect_test_pool(&database_url).await;
 
         let user = seed_user_with_resumes(&pool, 51).await;
         let state = test_app_state(pool.clone());
@@ -360,6 +368,38 @@ mod tests {
             .expect_err("expected bulk PDF export to fail over cap");
 
         assert!(matches!(err.kind, ApiErrorKind::PayloadTooLarge));
+
+        cleanup_user(&pool, user.id).await;
+    }
+
+    #[tokio::test]
+    async fn export_resumes_pdf_returns_zip_at_fifty() {
+        let Some(database_url) = database_url_for_tests() else {
+            eprintln!("SKIP export_resumes_pdf at-cap test: DATABASE_URL unavailable");
+            return;
+        };
+        let pool = connect_test_pool(&database_url).await;
+
+        let user = seed_user_with_resumes(&pool, 50).await;
+        let state = test_app_state(pool.clone());
+
+        let response = export_resumes_pdf(AuthUser(user.clone()), State(state))
+            .await
+            .expect("expected bulk PDF export to succeed at cap");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get(header::CONTENT_TYPE).unwrap(),
+            "application/zip",
+        );
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("read bulk PDF export body");
+        assert!(
+            body.starts_with(b"PK"),
+            "expected ZIP archive bytes at cap boundary",
+        );
 
         cleanup_user(&pool, user.id).await;
     }
