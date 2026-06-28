@@ -55,7 +55,7 @@ Limits](/docs/deployment/rate-limits/) for defaults, route groups, and client be
 
 | Variable | Default | Purpose |
 | --- | ---: | --- |
-| `RATE_LIMIT_RESUME_CRUD_PER_MIN` | `300` | Resume list/get/create/update/delete |
+| `RATE_LIMIT_RESUME_CRUD_PER_MIN` | `300` | Resume list/get/create/update/delete and bulk JSON export |
 | `RATE_LIMIT_RESUME_CRUD_BURST` | `30` | Short burst allowance for resume CRUD |
 | `RATE_LIMIT_IMPORT_PER_MIN` | `10` | Bulk import |
 | `RATE_LIMIT_PREVIEW_PER_MIN` | `60` | Preview render |

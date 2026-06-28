@@ -38,7 +38,9 @@ not a tiered feature matrix:
 | JSON complexity limits | Reject oversized or deeply nested resume payloads (server-wide) |
 
 Generous defaults are chosen so typical editing, preview, and occasional PDF export never hit limits.
-Power users who self-host can raise or remove limits via environment variables.
+Self-hosted operators can tune the [documented rate limits](/docs/deployment/rate-limits/#configuration)
+via environment variables. The **50-resume bulk export cap** is a fixed server limit today (not
+env-configurable); raise it only by changing the application source.
 
 ## Cost drivers operators should know
 
