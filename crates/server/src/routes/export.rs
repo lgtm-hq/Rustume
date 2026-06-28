@@ -255,10 +255,15 @@ mod tests {
 
     fn database_url_for_tests() -> Option<String> {
         let url = std::env::var("TEST_DATABASE_URL")
-            .or_else(|_| std::env::var("DATABASE_URL"))
             .ok()
             .map(|url| url.trim().to_owned())
-            .filter(|url| !url.is_empty())?;
+            .filter(|url| !url.is_empty())
+            .or_else(|| {
+                std::env::var("DATABASE_URL")
+                    .ok()
+                    .map(|url| url.trim().to_owned())
+                    .filter(|url| !url.is_empty())
+            })?;
 
         if looks_like_test_database_url(&url) {
             Some(url)
