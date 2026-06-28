@@ -20,9 +20,12 @@ deployments without connected mode do not install these middleware layers.
 | Self-hosted connected | Applied; operator-configurable via env vars |
 | Rustume Cloud | Applied with production defaults |
 
-Limits are keyed by **authenticated user ID** for signed-in routes and by **client IP** for
-unauthenticated traffic. When `TRUSTED_PROXY=true`, IP extraction uses `X-Real-IP` and append-mode
-`X-Forwarded-For` from a trusted reverse proxy.
+Limits apply **both** a per-user bucket (authenticated user ID) and a shared per-IP bucket for
+signed-in routes. When a session resolves to a user ID, middleware checks the IP limit and the
+user limit; multiple signed-in accounts behind the same office NAT or proxy can therefore receive
+`429` responses when the shared IP bucket is exhausted, even if each user is below their own
+quota. Unauthenticated traffic is keyed by **client IP** only. When `TRUSTED_PROXY=true`, IP
+extraction uses `X-Real-IP` and append-mode `X-Forwarded-For` from a trusted reverse proxy.
 
 ## Default limits
 
