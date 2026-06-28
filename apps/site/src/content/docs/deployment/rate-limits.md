@@ -65,13 +65,12 @@ renders each resume sequentially.
 | `GET /api/resumes/export` | Resume CRUD | 50 |
 | `GET /api/resumes/export/pdf` | PDF | 50 |
 
-**Trigger:** before any data is returned, the server counts all resumes you own. If the count
-exceeds 50, the entire request fails with `413 Payload Too Large` and an error message — there is
-no silent truncation to the 50 most recently updated resumes.
+**Trigger:** before any data is returned, the server fetches up to 51 resumes you own (ordered by
+`updated_at`). If a 51st row is present, the entire request fails with `413 Payload Too Large` and
+an error message — there is no silent truncation to the 50 most recently updated resumes.
 
-**At or below 50:** the response includes every owned resume (ordered by `updated_at`, most recent
-first). The server fetches up to 51 rows in one query so the cap check and payload load cannot
-race under concurrent writes.
+**At or below 50:** the response includes every owned resume (most recent first). The single-query
+`LIMIT+1` check keeps the cap decision aligned with the returned payload under concurrent writes.
 
 **Above 50:** bulk export cannot return the full library in one call. Export resumes individually,
 delete or archive older entries, or split work across multiple accounts — **pagination is not

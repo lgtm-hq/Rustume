@@ -167,8 +167,8 @@ Always returns `200` — check the `valid` field. Nested field paths use dot not
 
 ## Rate limits
 
-Connected deployments apply per-route limits when `RUSTUME_CLOUD` is enabled. Defaults, route
-groups, `429` responses, and bulk export caps are documented in [Rate
+Connected deployments apply per-route limits when `RUSTUME_CLOUD=true` and `DATABASE_URL` is
+configured. Defaults, route groups, `429` responses, and bulk export caps are documented in [Rate
 Limits](/docs/deployment/rate-limits/). Hosted billing does not hide parsing, rendering,
 templates, or connected capabilities from self-hosted operators.
 
