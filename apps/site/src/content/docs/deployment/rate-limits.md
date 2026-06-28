@@ -70,7 +70,8 @@ exceeds 50, the entire request fails with `413 Payload Too Large` and an error m
 no silent truncation to the 50 most recently updated resumes.
 
 **At or below 50:** the response includes every owned resume (ordered by `updated_at`, most recent
-first). The SQL query also applies `LIMIT 50` as a safety bound under concurrent writes.
+first). The server fetches up to 51 rows in one query so the cap check and payload load cannot
+race under concurrent writes.
 
 **Above 50:** bulk export cannot return the full library in one call. Export resumes individually,
 delete or archive older entries, or split work across multiple accounts — **pagination is not
