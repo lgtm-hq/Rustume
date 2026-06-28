@@ -154,21 +154,8 @@ async fn fetch_all_resumes(
     db: &sqlx::PgPool,
     user_id: Uuid,
 ) -> Result<Vec<ExportResumeRow>, ApiError> {
-    let total = sqlx::query_scalar::<_, i64>(
-        r#"
-        SELECT COUNT(*)
-        FROM resumes
-        WHERE user_id = $1
-        "#,
-    )
-    .bind(user_id)
-    .fetch_one(db)
-    .await
-    .map_err(internal_db_error)?;
-
-    reject_export_over_resume_cap(total)?;
-
-    sqlx::query_as::<_, ExportResumeRow>(
+    let fetch_limit = MAX_EXPORT_RESUMES + 1;
+    let rows = sqlx::query_as::<_, ExportResumeRow>(
         r#"
         SELECT id, title, data
         FROM resumes
@@ -178,10 +165,18 @@ async fn fetch_all_resumes(
         "#,
     )
     .bind(user_id)
-    .bind(MAX_EXPORT_RESUMES)
+    .bind(fetch_limit)
     .fetch_all(db)
     .await
-    .map_err(internal_db_error)
+    .map_err(internal_db_error)?;
+
+    if rows.len() as i64 > MAX_EXPORT_RESUMES {
+        return Err(ApiError::payload_too_large(format!(
+            "Export exceeds maximum of {MAX_EXPORT_RESUMES} resumes (more than {MAX_EXPORT_RESUMES} found)"
+        )));
+    }
+
+    Ok(rows)
 }
 
 fn internal_db_error(err: impl std::fmt::Display) -> ApiError {
@@ -214,11 +209,11 @@ fn export_pdf_filename(id: &Uuid, title: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::auth::{session::SessionService, workos::WorkOsClient};
     use crate::cloud::CloudState;
+    use crate::email::EmailService;
     use crate::error::ApiErrorKind;
     use crate::state::AppState;
-    use crate::auth::{session::SessionService, workos::WorkOsClient};
-    use crate::email::EmailService;
     use sqlx::postgres::PgPoolOptions;
     use std::sync::Arc;
 
