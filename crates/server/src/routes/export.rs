@@ -171,9 +171,7 @@ async fn fetch_all_resumes(
     .map_err(internal_db_error)?;
 
     if rows.len() as i64 > MAX_EXPORT_RESUMES {
-        return Err(ApiError::payload_too_large(format!(
-            "Export exceeds maximum of {MAX_EXPORT_RESUMES} resumes (more than {MAX_EXPORT_RESUMES} found)"
-        )));
+        reject_export_over_resume_cap(rows.len() as i64)?;
     }
 
     Ok(rows)
@@ -231,9 +229,26 @@ mod tests {
     }
 
     fn database_url_for_tests() -> Option<String> {
-        std::env::var("DATABASE_URL")
+        if let Ok(url) = std::env::var("TEST_DATABASE_URL") {
+            let url = url.trim().to_owned();
+            if !url.is_empty() {
+                return Some(url);
+            }
+        }
+
+        let url = std::env::var("DATABASE_URL")
             .ok()
-            .filter(|url| !url.is_empty())
+            .map(|url| url.trim().to_owned())
+            .filter(|url| !url.is_empty())?;
+
+        if url.contains("_test") || url.contains("localhost") || url.contains("127.0.0.1") {
+            Some(url)
+        } else {
+            eprintln!(
+                "SKIP export integration tests: set TEST_DATABASE_URL or use a local/_test DATABASE_URL"
+            );
+            None
+        }
     }
 
     async fn connect_test_pool(database_url: &str) -> sqlx::PgPool {
@@ -241,7 +256,7 @@ mod tests {
             .max_connections(2)
             .connect(database_url)
             .await
-            .expect("connect to DATABASE_URL for export integration tests");
+            .expect("connect to test database for export integration tests");
         sqlx::migrate!("./src/db/migrations")
             .run(&pool)
             .await
