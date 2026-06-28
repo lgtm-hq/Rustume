@@ -22,6 +22,12 @@ and this project adheres to
 
 ### Security
 
+## [0.25.1] - 2026-06-28
+
+### Fixed
+
+- **server**: bulk export cap, rate limit reference, and hosting cost docs (#330) (2ae15c0)
+
 ## [0.25.0] - 2026-06-20
 
 ### Added
@@ -253,7 +259,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.25.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.25.1...HEAD
+[0.25.1]: https://github.com/lgtm-hq/Rustume/compare/v0.25.0...v0.25.1
 [0.25.0]: https://github.com/lgtm-hq/Rustume/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/lgtm-hq/Rustume/compare/v0.23.0...v0.24.0
 [0.23.0]: https://github.com/lgtm-hq/Rustume/compare/v0.22.0...v0.23.0
