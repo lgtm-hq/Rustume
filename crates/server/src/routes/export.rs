@@ -23,11 +23,16 @@ use crate::subscription;
 const MAX_EXPORT_RESUMES: i64 = 50;
 
 /// Reject bulk export when the owned resume count exceeds the cap.
-fn reject_export_over_resume_cap(total: i64) -> Result<(), ApiError> {
-    if total > MAX_EXPORT_RESUMES {
-        return Err(ApiError::payload_too_large(format!(
-            "Export exceeds maximum of {MAX_EXPORT_RESUMES} resumes ({total} found)"
-        )));
+fn reject_export_over_resume_cap() -> ApiError {
+    ApiError::payload_too_large(format!(
+        "Export exceeds maximum of {MAX_EXPORT_RESUMES} resumes"
+    ))
+}
+
+/// Returns `Ok(())` when `count` is within the export cap (for unit tests).
+fn ensure_export_resume_count(count: i64) -> Result<(), ApiError> {
+    if count > MAX_EXPORT_RESUMES {
+        return Err(reject_export_over_resume_cap());
     }
     Ok(())
 }
@@ -171,7 +176,7 @@ async fn fetch_all_resumes(
     .map_err(internal_db_error)?;
 
     if rows.len() as i64 > MAX_EXPORT_RESUMES {
-        reject_export_over_resume_cap(rows.len() as i64)?;
+        return Err(reject_export_over_resume_cap());
     }
 
     Ok(rows)
@@ -216,36 +221,34 @@ mod tests {
     use std::sync::Arc;
 
     #[test]
-    fn reject_export_over_resume_cap_allows_fifty() {
-        assert!(reject_export_over_resume_cap(50).is_ok());
+    fn ensure_export_resume_count_allows_fifty() {
+        assert!(ensure_export_resume_count(50).is_ok());
     }
 
     #[test]
-    fn reject_export_over_resume_cap_rejects_fifty_one() {
-        let err = reject_export_over_resume_cap(51).expect_err("expected cap rejection");
+    fn ensure_export_resume_count_rejects_fifty_one() {
+        let err = ensure_export_resume_count(51).expect_err("expected cap rejection");
         assert!(matches!(err.kind, ApiErrorKind::PayloadTooLarge));
         assert!(err.error.contains("50"));
-        assert!(err.error.contains("51"));
+        assert!(!err.error.contains("51"));
+    }
+
+    fn looks_like_test_database_url(url: &str) -> bool {
+        url.contains("_test")
     }
 
     fn database_url_for_tests() -> Option<String> {
-        if let Ok(url) = std::env::var("TEST_DATABASE_URL") {
-            let url = url.trim().to_owned();
-            if !url.is_empty() {
-                return Some(url);
-            }
-        }
-
-        let url = std::env::var("DATABASE_URL")
+        let url = std::env::var("TEST_DATABASE_URL")
+            .or_else(|_| std::env::var("DATABASE_URL"))
             .ok()
             .map(|url| url.trim().to_owned())
             .filter(|url| !url.is_empty())?;
 
-        if url.contains("_test") || url.contains("localhost") || url.contains("127.0.0.1") {
+        if looks_like_test_database_url(&url) {
             Some(url)
         } else {
             eprintln!(
-                "SKIP export integration tests: set TEST_DATABASE_URL or use a local/_test DATABASE_URL"
+                "SKIP export integration tests: set TEST_DATABASE_URL (or DATABASE_URL) to a database whose name contains _test"
             );
             None
         }
@@ -333,13 +336,13 @@ mod tests {
         let user = seed_user_with_resumes(&pool, 51).await;
         let state = test_app_state(pool.clone());
 
-        let err = export_resumes_json(AuthUser(user.clone()), State(state))
-            .await
-            .expect_err("expected bulk JSON export to fail over cap");
-
-        assert!(matches!(err.kind, ApiErrorKind::PayloadTooLarge));
-
+        let result = export_resumes_json(AuthUser(user.clone()), State(state)).await;
         cleanup_user(&pool, user.id).await;
+
+        assert!(matches!(
+            result,
+            Err(err) if matches!(err.kind, ApiErrorKind::PayloadTooLarge)
+        ));
     }
 
     #[tokio::test]
@@ -353,13 +356,11 @@ mod tests {
         let user = seed_user_with_resumes(&pool, 50).await;
         let state = test_app_state(pool.clone());
 
-        let payload = export_resumes_json(AuthUser(user.clone()), State(state))
-            .await
-            .expect("expected bulk JSON export to succeed at cap");
-
-        assert_eq!(payload.resumes.len(), 50);
-
+        let result = export_resumes_json(AuthUser(user.clone()), State(state)).await;
         cleanup_user(&pool, user.id).await;
+
+        let payload = result.expect("expected bulk JSON export to succeed at cap");
+        assert_eq!(payload.resumes.len(), 50);
     }
 
     #[tokio::test]
@@ -373,13 +374,13 @@ mod tests {
         let user = seed_user_with_resumes(&pool, 51).await;
         let state = test_app_state(pool.clone());
 
-        let err = export_resumes_pdf(AuthUser(user.clone()), State(state))
-            .await
-            .expect_err("expected bulk PDF export to fail over cap");
-
-        assert!(matches!(err.kind, ApiErrorKind::PayloadTooLarge));
-
+        let result = export_resumes_pdf(AuthUser(user.clone()), State(state)).await;
         cleanup_user(&pool, user.id).await;
+
+        assert!(matches!(
+            result,
+            Err(err) if matches!(err.kind, ApiErrorKind::PayloadTooLarge)
+        ));
     }
 
     #[tokio::test]
@@ -393,10 +394,10 @@ mod tests {
         let user = seed_user_with_resumes(&pool, 50).await;
         let state = test_app_state(pool.clone());
 
-        let response = export_resumes_pdf(AuthUser(user.clone()), State(state))
-            .await
-            .expect("expected bulk PDF export to succeed at cap");
+        let result = export_resumes_pdf(AuthUser(user.clone()), State(state)).await;
+        cleanup_user(&pool, user.id).await;
 
+        let response = result.expect("expected bulk PDF export to succeed at cap");
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(
             response.headers().get(header::CONTENT_TYPE).unwrap(),
@@ -410,8 +411,6 @@ mod tests {
             body.starts_with(b"PK"),
             "expected ZIP archive bytes at cap boundary",
         );
-
-        cleanup_user(&pool, user.id).await;
     }
 
     #[test]
