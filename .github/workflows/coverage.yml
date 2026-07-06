@@ -16,6 +16,7 @@ name: Coverage Reports
       - "scripts/ci/testing/**"
   pull_request:
     branches: [main]
+  merge_group:
   workflow_dispatch:
 
 permissions:
