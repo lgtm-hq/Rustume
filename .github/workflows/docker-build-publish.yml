@@ -75,7 +75,9 @@ jobs:
       sbom: ${{ github.event_name != 'pull_request' }}
       # Harden-runner pre reads workflow inputs only (not resolved presets).
       # Full list = reusable-docker default + gcr.io (distroless base image
-      # in docker/Dockerfile) + sigstore hosts (cosign-sign on push runs).
+      # in docker/Dockerfile) + sigstore hosts (cosign-sign on push runs) +
+      # trivy hosts (installer downloads from get.trivy.dev; vulnerability DB
+      # is pulled from ghcr.io with mirror.gcr.io / public.ecr.aws fallbacks).
       allowed-endpoints-mode: replace
       allowed-endpoints: >
         github.com:443
@@ -97,3 +99,6 @@ jobs:
         fulcio.sigstore.dev:443
         rekor.sigstore.dev:443
         tuf-repo-cdn.sigstore.dev:443
+        get.trivy.dev:443
+        mirror.gcr.io:443
+        public.ecr.aws:443

@@ -84,6 +84,7 @@ jobs:
             uploads.github.com:443
             codeload.github.com:443
             objects.githubusercontent.com:443
+            pipelines.actions.githubusercontent.com:443
 
       - name: Checkout
         # yamllint disable-line rule:line-length
