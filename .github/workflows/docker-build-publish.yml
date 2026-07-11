@@ -73,3 +73,27 @@ jobs:
       # --load used during PR validation (validate-on-pr + scan).
       provenance: ${{ github.event_name != 'pull_request' }}
       sbom: ${{ github.event_name != 'pull_request' }}
+      # Harden-runner pre reads workflow inputs only (not resolved presets).
+      # Full list = reusable-docker default + gcr.io (distroless base image
+      # in docker/Dockerfile) + sigstore hosts (cosign-sign on push runs).
+      allowed-endpoints-mode: replace
+      allowed-endpoints: >
+        github.com:443
+        api.github.com:443
+        codeload.github.com:443
+        objects.githubusercontent.com:443
+        raw.githubusercontent.com:443
+        release-assets.githubusercontent.com:443
+        github-releases.githubusercontent.com:443
+        pipelines.actions.githubusercontent.com:443
+        ghcr.io:443
+        pkg-containers.githubusercontent.com:443
+        docker.io:443
+        registry-1.docker.io:443
+        auth.docker.io:443
+        production.cloudflare.docker.com:443
+        production.cloudfront.docker.com:443
+        gcr.io:443
+        fulcio.sigstore.dev:443
+        rekor.sigstore.dev:443
+        tuf-repo-cdn.sigstore.dev:443

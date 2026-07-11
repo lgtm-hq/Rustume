@@ -60,6 +60,10 @@ jobs:
       upload-pages-coverage-html: true
       pages-coverage-artifact-name: web-coverage-html
       pages-coverage-source-subpath: coverage
-      publish-test-summary: true
+      # TODO(lgtm-hq/lgtm-ci#511): revert to true once reusable-test-node's
+      # "Stage coverage for test summary" step sets the COVERAGE env var. At
+      # v0.52.3 the step hard-fails for single-version coverage callers on
+      # PRs, taking the required 🌐 Web Coverage check down with it.
+      publish-test-summary: false
       runner-image: ubuntu-24.04
       timeout-minutes: 30
