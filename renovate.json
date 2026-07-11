@@ -36,20 +36,10 @@
   ],
   "packageRules": [
     {
-      "matchCategories": ["docker"],
-      "pinDigests": true
-    },
-    {
       "matchManagers": ["docker-compose", "dockerfile"],
       "matchUpdateTypes": ["digest"],
       "automerge": true,
       "automergeType": "branch"
-    },
-    {
-      "groupName": "linting tools",
-      "groupSlug": "linting-tools",
-      "matchPackageNames": ["ghcr.io/lgtm-hq/py-lintro"],
-      "automerge": false
     },
     {
       "groupName": "axum ecosystem",
