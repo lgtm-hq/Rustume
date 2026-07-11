@@ -58,14 +58,34 @@ jobs:
       runner-image: ubuntu-24.04
       egress-policy: block
       egress-preset: github-pages
-      test-allowed-endpoints: |
+      # Harden-runner pre reads workflow inputs only (not resolved presets)
+      # and requires space-separated lists (folded scalars) — newline lists
+      # are ignored by the agent. Build list = reusable default +
+      # github-pages preset extras + bun toolchain (setup downloads the bun
+      # release, which redirects to release-assets) + npm registry.
+      allowed-endpoints-mode: replace
+      allowed-endpoints: >
+        github.com:443
+        api.github.com:443
+        actions.githubusercontent.com:443
+        codeload.github.com:443
+        objects.githubusercontent.com:443
+        raw.githubusercontent.com:443
+        uploads.github.com:443
+        pipelines.actions.githubusercontent.com:443
+        release-assets.githubusercontent.com:443
+        registry.npmjs.org:443
+        bun.sh:443
+      test-allowed-endpoints: >
         github.com:443
         api.github.com:443
         codeload.github.com:443
         objects.githubusercontent.com:443
+        pipelines.actions.githubusercontent.com:443
         release-assets.githubusercontent.com:443
         raw.githubusercontent.com:443
         registry.npmjs.org:443
         bun.sh:443
         pypi.org:443
         files.pythonhosted.org:443
+        astral.sh:443
