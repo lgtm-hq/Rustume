@@ -12,6 +12,10 @@ pub enum ParseError {
     #[error("Invalid format: {0}")]
     ValidationError(String),
 
+    /// Raw JSON deserialization error without an extra format prefix.
+    #[error("{0}")]
+    DeserializeError(String),
+
     #[error("Conversion failed: {0}")]
     ConversionError(String),
 }

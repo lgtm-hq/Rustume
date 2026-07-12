@@ -35,9 +35,8 @@ pub fn parse_resume(format: ResumeFormat, data: &[u8]) -> Result<ResumeData, Par
         ResumeFormat::JsonResume => JsonResumeParser.parse(data),
         ResumeFormat::LinkedIn => LinkedInParser.parse(data),
         ResumeFormat::Rrv3 => ReactiveResumeV3Parser.parse(data),
-        ResumeFormat::Rustume => {
-            serde_json::from_slice(data).map_err(|err| ParseError::ValidationError(err.to_string()))
-        }
+        ResumeFormat::Rustume => serde_json::from_slice(data)
+            .map_err(|err| ParseError::DeserializeError(err.to_string())),
     }
 }
 
@@ -117,7 +116,7 @@ mod tests {
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
-            ParseError::ValidationError(_)
+            ParseError::DeserializeError(_)
         ));
     }
 
