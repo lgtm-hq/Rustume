@@ -2,6 +2,12 @@
 //!
 //! Uses Typst for high-quality PDF rendering without browser dependencies.
 //!
+//! ## Template overrides
+//!
+//! Native builds embed Typst templates at compile time. Set `RUSTUME_TEMPLATES_DIR` to a
+//! directory of `<name>.typ` files to override embedded templates at render time without
+//! rebuilding. WASM builds use embedded templates only.
+//!
 //! # Example
 //!
 //! ```ignore

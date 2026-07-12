@@ -24,6 +24,7 @@ open-source application or maintaining the hosted service.
 | `RUST_LOG` | `info` | Rust tracing filter |
 | `CORS_ORIGIN` | `*` | Allowed browser origins; set an explicit origin for credentialed requests |
 | `RUSTUME_STATIC_DIR` | `/app/web` | Built web UI directory |
+| `RUSTUME_TEMPLATES_DIR` | unset | Directory of `.typ` template overrides (native CLI/server only; see [Templates](/docs/getting-started/templates/#iterating-on-templates)) |
 | `SENTRY_DSN` | unset | Optional Sentry error tracking |
 | `METRICS_TOKEN` | unset | Required bearer token for `/metrics` to return telemetry |
 

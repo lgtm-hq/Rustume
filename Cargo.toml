@@ -76,6 +76,9 @@ web-sys = { version = "0.3", features = [
   "IdbTransaction",
 ] }
 
+# Embedded directories
+include_dir = "0.7"
+
 # Error handling
 thiserror = "2.0"
 anyhow = "1.0"

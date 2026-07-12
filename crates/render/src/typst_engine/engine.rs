@@ -218,7 +218,7 @@ impl TypstRenderer {
 
         debug!("Starting Typst compilation");
         let source = self.generate_source(resume)?;
-        let world = RustumeWorld::new(source);
+        let world = RustumeWorld::new(source)?;
 
         debug!("Compiling Typst document");
         let result = typst::compile(&world);
