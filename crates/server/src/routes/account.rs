@@ -7,8 +7,9 @@ use axum::{
     Json,
 };
 use axum_extra::extract::cookie::CookieJar;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use futures::TryStreamExt;
+use serde::Serialize;
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
@@ -26,15 +27,6 @@ use crate::net::{self, trusted_client_ip};
 use crate::state::AppState;
 
 const DELETE_CONFIRMATION: &str = "DELETE";
-const MAX_ACCOUNT_EXPORT_RESUMES: i64 = 50;
-const ACCOUNT_EXPORT_FETCH_LIMIT: i64 = MAX_ACCOUNT_EXPORT_RESUMES + 1;
-
-/// Reject account export when the owned resume count exceeds the cap.
-fn reject_account_export_over_resume_cap() -> ApiError {
-    ApiError::payload_too_large(format!(
-        "Account export exceeds maximum of {MAX_ACCOUNT_EXPORT_RESUMES} resumes"
-    ))
-}
 
 /// Resume fields required for account data export.
 #[derive(Debug, sqlx::FromRow)]
@@ -52,7 +44,7 @@ struct ExportResumeRow {
     responses(
         (status = 200, description = "Account data export", body = AccountDataExport),
         (status = 401, description = "Not authenticated", body = ApiError),
-        (status = 413, description = "Export payload too large or too many resumes", body = ApiError),
+        (status = 413, description = "Export payload too large", body = ApiError),
         (status = 500, description = "Export failed", body = ApiError),
     ),
     security(("cookieAuth" = []))
@@ -66,13 +58,9 @@ pub async fn export_account(
     let ip_address = trusted_client_ip(&headers, net::trusted_proxy_enabled());
     let ip = ip_address.as_deref();
 
-    let (resumes, resume_count) = collect_export_resumes(&cloud.db, user.id).await?;
-
-    let payload = AccountDataExport {
-        exported_at: Utc::now(),
-        account: AccountExportProfile::from_user(&user),
-        resumes,
-    };
+    let exported_at = Utc::now();
+    let account = AccountExportProfile::from_user(&user);
+    let (body, resume_count) = build_export_body(&cloud.db, user.id, exported_at, &account).await?;
 
     record_event_required(
         &cloud.db,
@@ -86,16 +74,6 @@ pub async fn export_account(
         },
     )
     .await?;
-
-    let body = serde_json::to_vec(&payload).map_err(|err| {
-        error!("account export serialization failed: {err}");
-        ApiError::internal("failed to export account data")
-    })?;
-    if body.len() > MAX_BODY_SIZE {
-        return Err(ApiError::payload_too_large(format!(
-            "Account export exceeds maximum size of {MAX_BODY_SIZE} bytes"
-        )));
-    }
 
     let content_disposition =
         HeaderValue::from_static("attachment; filename=\"rustume-account-export.json\"");
@@ -228,55 +206,104 @@ fn is_valid_delete_confirmation(confirmation: &str) -> bool {
     confirmation == DELETE_CONFIRMATION
 }
 
-async fn collect_export_resumes(
+async fn build_export_body(
     db: &sqlx::PgPool,
     user_id: Uuid,
-) -> Result<(Vec<ResumeExportItem>, usize), ApiError> {
+    exported_at: DateTime<Utc>,
+    account: &AccountExportProfile,
+) -> Result<(Vec<u8>, usize), ApiError> {
+    let resume_count = sqlx::query_scalar::<_, i64>(
+        r#"
+        SELECT COUNT(*)
+        FROM resumes
+        WHERE user_id = $1
+        "#,
+    )
+    .bind(user_id)
+    .fetch_one(db)
+    .await
+    .map_err(internal_db_error)?;
+
+    let mut body = Vec::new();
+    body.push(b'{');
+    append_json_field(&mut body, "exported_at", &exported_at, true)?;
+    append_json_field(&mut body, "account", account, false)?;
+    body.extend_from_slice(br#","resumes":["#);
+
     let mut rows = sqlx::query_as::<_, ExportResumeRow>(
         r#"
         SELECT id, title, data
         FROM resumes
         WHERE user_id = $1
         ORDER BY updated_at DESC
-        LIMIT $2
         "#,
     )
     .bind(user_id)
-    .bind(ACCOUNT_EXPORT_FETCH_LIMIT)
     .fetch(db);
 
-    let mut resumes = Vec::new();
-    let mut total_resume_bytes = 0usize;
-
+    let mut first_resume = true;
     while let Some(row) = rows.try_next().await.map_err(internal_db_error)? {
-        if resumes.len() as i64 >= MAX_ACCOUNT_EXPORT_RESUMES {
-            return Err(reject_account_export_over_resume_cap());
-        }
         let data_bytes = serde_json::to_vec(&row.data).map_err(|err| {
             error!("account export resume serialization failed: {err}");
             ApiError::internal("failed to export account data")
         })?;
-        let data_size = data_bytes.len();
-        if data_size > MAX_RESUME_JSON_BYTES {
+        if data_bytes.len() > MAX_RESUME_JSON_BYTES {
             return Err(ApiError::payload_too_large(format!(
                 "Resume JSON exceeds maximum size of {MAX_RESUME_JSON_BYTES} bytes"
             )));
         }
-        total_resume_bytes = total_resume_bytes.saturating_add(data_size);
-        if total_resume_bytes > MAX_BODY_SIZE {
-            return Err(ApiError::payload_too_large(format!(
-                "Account export exceeds maximum size of {MAX_BODY_SIZE} bytes"
-            )));
+
+        if !first_resume {
+            body.push(b',');
+        } else {
+            first_resume = false;
         }
-        resumes.push(ResumeExportItem {
+
+        let item = ResumeExportItem {
             id: row.id,
             title: row.title,
             data: row.data,
-        });
+        };
+        serde_json::to_writer(&mut body, &item).map_err(|err| {
+            error!("account export resume serialization failed: {err}");
+            ApiError::internal("failed to export account data")
+        })?;
+
+        if body.len() > MAX_BODY_SIZE {
+            return Err(export_payload_too_large());
+        }
     }
 
-    let resume_count = resumes.len();
-    Ok((resumes, resume_count))
+    body.extend_from_slice(b"]}");
+    if body.len() > MAX_BODY_SIZE {
+        return Err(export_payload_too_large());
+    }
+
+    Ok((body, resume_count as usize))
+}
+
+fn append_json_field(
+    body: &mut Vec<u8>,
+    key: &str,
+    value: &impl Serialize,
+    first: bool,
+) -> Result<(), ApiError> {
+    if !first {
+        body.push(b',');
+    }
+    body.extend_from_slice(b"\"");
+    body.extend_from_slice(key.as_bytes());
+    body.extend_from_slice(b"\":");
+    serde_json::to_writer(body, value).map_err(|err| {
+        error!("account export serialization failed: {err}");
+        ApiError::internal("failed to export account data")
+    })
+}
+
+fn export_payload_too_large() -> ApiError {
+    ApiError::payload_too_large(format!(
+        "Account export exceeds maximum size of {MAX_BODY_SIZE} bytes"
+    ))
 }
 
 fn internal_db_error(err: sqlx::Error) -> ApiError {
@@ -564,7 +591,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn export_account_rejects_over_fifty_resumes_with_413() {
+    async fn export_account_includes_all_resumes_above_bulk_export_cap() {
         let Some(database_url) = database_url_for_tests() else {
             return;
         };
@@ -573,13 +600,14 @@ mod tests {
         let user = seed_user_with_resumes(&pool, 51).await;
         let state = test_app_state(pool.clone());
 
-        let result = export_account(AuthUser(user.clone()), State(state), HeaderMap::new()).await;
+        let response = export_account(AuthUser(user.clone()), State(state), HeaderMap::new())
+            .await
+            .expect("account export should include every resume for portability");
         cleanup_user(&pool, user.id).await;
 
-        assert!(matches!(
-            result,
-            Err(err) if matches!(err.kind, ApiErrorKind::PayloadTooLarge)
-        ));
+        assert_eq!(response.status(), StatusCode::OK);
+        let payload = read_export_payload(response).await;
+        assert_eq!(payload["resumes"].as_array().map(Vec::len), Some(51));
     }
 
     #[tokio::test]
