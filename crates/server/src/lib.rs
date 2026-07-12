@@ -272,12 +272,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_cors_headers() {
-        let _lock = CORS_ORIGIN_TEST_LOCK
-            .get_or_init(|| Mutex::new(()))
-            .lock()
-            .unwrap();
-        let _guard = EnvVarGuard::set("CORS_ORIGIN", "*");
-        let app = create_router();
+        let app = {
+            let _lock = CORS_ORIGIN_TEST_LOCK
+                .get_or_init(|| Mutex::new(()))
+                .lock()
+                .unwrap();
+            let _guard = EnvVarGuard::set("CORS_ORIGIN", "*");
+            create_router()
+        };
 
         let response = app
             .oneshot(
