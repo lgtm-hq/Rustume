@@ -170,8 +170,19 @@ pub fn create_router_with_state(state: AppState) -> Router {
             ));
         }
 
-        let account_routes = Router::new()
+        let mut account_export_routes = Router::new()
             .route("/api/account/export", get(export_account))
+            .route_layer(middleware::from_fn_with_state(
+                state.clone(),
+                require_auth_when_enabled,
+            ));
+        if cloud_rate_limits {
+            account_export_routes = account_export_routes.route_layer(
+                middleware::from_fn_with_state(state_for_layers.clone(), rate_limit_resume_crud),
+            );
+        }
+
+        let account_delete_routes = Router::new()
             .route("/api/account", delete(delete_account))
             .route_layer(middleware::from_fn_with_state(
                 state.clone(),
@@ -210,7 +221,8 @@ pub fn create_router_with_state(state: AppState) -> Router {
             .merge(import_routes)
             .merge(export_json_routes)
             .merge(export_pdf_routes)
-            .merge(account_routes);
+            .merge(account_export_routes)
+            .merge(account_delete_routes);
     }
 
     let router = router

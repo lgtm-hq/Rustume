@@ -26,6 +26,15 @@ use crate::net::{self, trusted_client_ip};
 use crate::state::AppState;
 
 const DELETE_CONFIRMATION: &str = "DELETE";
+const MAX_ACCOUNT_EXPORT_RESUMES: i64 = 50;
+const ACCOUNT_EXPORT_FETCH_LIMIT: i64 = MAX_ACCOUNT_EXPORT_RESUMES + 1;
+
+/// Reject account export when the owned resume count exceeds the cap.
+fn reject_account_export_over_resume_cap() -> ApiError {
+    ApiError::payload_too_large(format!(
+        "Account export exceeds maximum of {MAX_ACCOUNT_EXPORT_RESUMES} resumes"
+    ))
+}
 
 /// Resume fields required for account data export.
 #[derive(Debug, sqlx::FromRow)]
@@ -43,7 +52,7 @@ struct ExportResumeRow {
     responses(
         (status = 200, description = "Account data export", body = AccountDataExport),
         (status = 401, description = "Not authenticated", body = ApiError),
-        (status = 413, description = "Export payload too large", body = ApiError),
+        (status = 413, description = "Export payload too large or too many resumes", body = ApiError),
         (status = 500, description = "Export failed", body = ApiError),
     ),
     security(("cookieAuth" = []))
@@ -229,15 +238,20 @@ async fn collect_export_resumes(
         FROM resumes
         WHERE user_id = $1
         ORDER BY updated_at DESC
+        LIMIT $2
         "#,
     )
     .bind(user_id)
+    .bind(ACCOUNT_EXPORT_FETCH_LIMIT)
     .fetch(db);
 
     let mut resumes = Vec::new();
     let mut total_resume_bytes = 0usize;
 
     while let Some(row) = rows.try_next().await.map_err(internal_db_error)? {
+        if resumes.len() as i64 >= MAX_ACCOUNT_EXPORT_RESUMES {
+            return Err(reject_account_export_over_resume_cap());
+        }
         let data_bytes = serde_json::to_vec(&row.data).map_err(|err| {
             error!("account export resume serialization failed: {err}");
             ApiError::internal("failed to export account data")
@@ -546,6 +560,25 @@ mod tests {
         assert!(matches!(
             resume_result,
             Err(err) if matches!(err.kind, ApiErrorKind::Forbidden)
+        ));
+    }
+
+    #[tokio::test]
+    async fn export_account_rejects_over_fifty_resumes_with_413() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+        let pool = connect_test_pool(&database_url).await;
+
+        let user = seed_user_with_resumes(&pool, 51).await;
+        let state = test_app_state(pool.clone());
+
+        let result = export_account(AuthUser(user.clone()), State(state), HeaderMap::new()).await;
+        cleanup_user(&pool, user.id).await;
+
+        assert!(matches!(
+            result,
+            Err(err) if matches!(err.kind, ApiErrorKind::PayloadTooLarge)
         ));
     }
 
