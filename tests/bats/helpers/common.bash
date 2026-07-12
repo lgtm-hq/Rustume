@@ -6,6 +6,7 @@ HELPERS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${HELPERS_DIR}/../../.." && pwd)"
 export PROJECT_ROOT
 export RAILWAY_SCRIPTS_DIR="${PROJECT_ROOT}/scripts/ci/railway"
+export BACKUP_SCRIPTS_DIR="${PROJECT_ROOT}/scripts/ci/backup"
 
 _load_bats_library() {
 	local name="$1"
