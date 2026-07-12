@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/*", "bindings/*"]
 
 [workspace.package]
-version = "0.26.1"
+version = "0.26.3"
 edition = "2021"
 license = "AGPL-3.0-only"
 repository = "https://github.com/lgtm-hq/Rustume"
@@ -101,7 +101,7 @@ utoipa = { version = "5", features = ["axum_extras"] }
 lru = "0.18"
 
 # Rate limiting
-governor = "0.8"
+governor = "0.10"
 dashmap = "6"
 
 # Cloud / database
@@ -119,9 +119,9 @@ sqlx = { version = "0.9", default-features = false, features = [
 uuid = { version = "1", features = ["v4", "serde"] }
 
 # HTTP client (WorkOS)
-reqwest = { version = "0.12", default-features = false, features = [
+reqwest = { version = "0.13", default-features = false, features = [
   "json",
-  "rustls-tls",
+  "rustls",
 ] }
 
 # Cookies / sessions

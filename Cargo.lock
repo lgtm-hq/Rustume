@@ -1593,9 +1593,9 @@ checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "governor"
-version = "0.8.1"
+version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be93b4ec2e4710b04d9264c0c7350cdd62a8c20e5e4ac732552ebb8f0debe8eb"
+checksum = "9efcab3c1958580ff1f25a2a41be1668f7603d849bb63af523b208a3cc1223b8"
 dependencies = [
  "cfg-if",
  "dashmap",
@@ -1603,7 +1603,7 @@ dependencies = [
  "futures-timer",
  "futures-util",
  "getrandom 0.3.4",
- "no-std-compat",
+ "hashbrown 0.16.1",
  "nonzero_ext",
  "parking_lot",
  "portable-atomic",
@@ -2812,12 +2812,6 @@ dependencies = [
  "cfg_aliases",
  "libc",
 ]
-
-[[package]]
-name = "no-std-compat"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b93853da6d84c2e3c7d730d6473e8817692dd89be387eb01b94d7f108ecb5b8c"
 
 [[package]]
 name = "nonzero_ext"
@@ -4160,7 +4154,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-cli"
-version = "0.26.1"
+version = "0.26.3"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -4181,7 +4175,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-parser"
-version = "0.26.1"
+version = "0.26.3"
 dependencies = [
  "csv",
  "cuid2",
@@ -4197,7 +4191,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-render"
-version = "0.26.1"
+version = "0.26.3"
 dependencies = [
  "chrono",
  "rstest",
@@ -4216,7 +4210,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-schema"
-version = "0.26.1"
+version = "0.26.3"
 dependencies = [
  "cuid2",
  "once_cell",
@@ -4233,7 +4227,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-schema-macros"
-version = "0.26.1"
+version = "0.26.3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4242,7 +4236,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-server"
-version = "0.26.1"
+version = "0.26.3"
 dependencies = [
  "anyhow",
  "axum",
@@ -4257,7 +4251,7 @@ dependencies = [
  "lru",
  "metrics",
  "metrics-exporter-prometheus",
- "reqwest 0.12.28",
+ "reqwest 0.13.4",
  "rustume-parser",
  "rustume-render",
  "rustume-schema",
@@ -4266,7 +4260,6 @@ dependencies = [
  "sentry-tower",
  "serde",
  "serde_json",
- "sha2 0.10.9",
  "sha2 0.11.0",
  "sqlx",
  "subtle",
@@ -4287,7 +4280,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-storage"
-version = "0.26.1"
+version = "0.26.3"
 dependencies = [
  "async-trait",
  "js-sys",
@@ -4304,7 +4297,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-utils"
-version = "0.26.1"
+version = "0.26.3"
 dependencies = [
  "ammonia",
  "chrono",
@@ -4318,7 +4311,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-wasm"
-version = "0.26.1"
+version = "0.26.3"
 dependencies = [
  "js-sys",
  "rustume-parser",
