@@ -4160,7 +4160,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-cli"
-version = "0.26.1"
+version = "0.26.2"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -4181,7 +4181,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-parser"
-version = "0.26.1"
+version = "0.26.2"
 dependencies = [
  "csv",
  "cuid2",
@@ -4197,7 +4197,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-render"
-version = "0.26.1"
+version = "0.26.2"
 dependencies = [
  "chrono",
  "rstest",
@@ -4216,7 +4216,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-schema"
-version = "0.26.1"
+version = "0.26.2"
 dependencies = [
  "cuid2",
  "once_cell",
@@ -4233,7 +4233,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-schema-macros"
-version = "0.26.1"
+version = "0.26.2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4242,7 +4242,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-server"
-version = "0.26.1"
+version = "0.26.2"
 dependencies = [
  "anyhow",
  "axum",
@@ -4286,7 +4286,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-storage"
-version = "0.26.1"
+version = "0.26.2"
 dependencies = [
  "async-trait",
  "js-sys",
@@ -4303,7 +4303,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-utils"
-version = "0.26.1"
+version = "0.26.2"
 dependencies = [
  "ammonia",
  "chrono",
@@ -4317,7 +4317,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-wasm"
-version = "0.26.1"
+version = "0.26.2"
 dependencies = [
  "js-sys",
  "rustume-parser",
