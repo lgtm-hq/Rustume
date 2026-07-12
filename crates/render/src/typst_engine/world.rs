@@ -85,10 +85,21 @@ fn templates_override_dir() -> Option<PathBuf> {
 #[cfg(not(target_arch = "wasm32"))]
 fn read_override_template(dir: &Path, name: &str) -> std::io::Result<Option<String>> {
     let path = dir.join(format!("{name}.typ"));
-    match std::fs::symlink_metadata(&path) {
+    match path.symlink_metadata() {
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(None),
         Err(err) => Err(err),
         Ok(meta) if meta.is_file() => std::fs::read_to_string(&path).map(Some),
+        Ok(meta) if meta.file_type().is_symlink() => match std::fs::metadata(&path) {
+            Ok(target) if target.is_file() => std::fs::read_to_string(&path).map(Some),
+            Ok(_) => Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!(
+                    "template override is not a regular file: {}",
+                    path.display()
+                ),
+            )),
+            Err(err) => Err(err),
+        },
         Ok(_) => Err(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
             format!(
@@ -394,6 +405,23 @@ mod tests {
         let temp = tempfile::tempdir().expect("tempdir");
         let marker = "OVERRIDE_MARKER_FOR_RHYHORN";
         fs::write(temp.path().join("rhyhorn.typ"), marker).expect("write override");
+
+        set_test_templates_override(Some(temp.path().to_path_buf()));
+        let content = resolve_template_content("rhyhorn").expect("rhyhorn content");
+        reset_test_override();
+
+        assert!(content.contains(marker));
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn override_dir_follows_symlink_to_file() {
+        reset_test_override();
+        let temp = tempfile::tempdir().expect("tempdir");
+        let marker = "SYMLINK_OVERRIDE_MARKER";
+        let target = temp.path().join("actual.typ");
+        fs::write(&target, marker).expect("write target");
+        std::os::unix::fs::symlink(&target, temp.path().join("rhyhorn.typ")).expect("symlink");
 
         set_test_templates_override(Some(temp.path().to_path_buf()));
         let content = resolve_template_content("rhyhorn").expect("rhyhorn content");
