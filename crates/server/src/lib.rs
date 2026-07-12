@@ -247,7 +247,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_cors_headers() {
+        std::env::set_var("CORS_ORIGIN", "*");
         let app = create_router();
+        std::env::remove_var("CORS_ORIGIN");
 
         let response = app
             .oneshot(

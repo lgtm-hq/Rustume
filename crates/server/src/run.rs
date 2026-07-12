@@ -58,7 +58,7 @@ pub async fn run() -> anyhow::Result<()> {
     );
     info!(
         "CORS origin: {}",
-        std::env::var("CORS_ORIGIN").unwrap_or_else(|_| "*".to_string())
+        std::env::var("CORS_ORIGIN").unwrap_or_else(|_| "(same-origin only)".to_string())
     );
 
     let listener = tokio::net::TcpListener::bind(addr)

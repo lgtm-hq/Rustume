@@ -226,6 +226,10 @@ pub fn create_router_with_state(state: AppState) -> Router {
 }
 
 fn build_cors_layer() -> CorsLayer {
+    build_cors_layer_for_origin(std::env::var("CORS_ORIGIN").ok())
+}
+
+fn build_cors_layer_for_origin(origin: Option<String>) -> CorsLayer {
     let base = CorsLayer::new()
         .allow_methods([
             Method::GET,
@@ -249,14 +253,110 @@ fn build_cors_layer() -> CorsLayer {
             "X-RateLimit-Reset".parse::<header::HeaderName>().unwrap(),
         ]);
 
-    match std::env::var("CORS_ORIGIN").ok() {
-        Some(origin) if !origin.is_empty() && origin != "*" => {
+    match origin.and_then(|value| {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_string())
+        }
+    }) {
+        Some(origin) if origin == "*" => base.allow_origin(Any),
+        Some(origin) => {
             let origins: Vec<HeaderValue> = origin
                 .split(',')
                 .filter_map(|o| o.trim().parse().ok())
                 .collect();
             base.allow_origin(origins).allow_credentials(true)
         }
-        _ => base.allow_origin(Any),
+        None => base,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::{body::Body, http::Request, routing::get, Router};
+    use tower::ServiceExt;
+
+    async fn cors_preflight(cors: CorsLayer, origin: &str) -> axum::http::Response<Body> {
+        let app = Router::new()
+            .route("/test", get(|| async { "ok" }))
+            .layer(cors);
+
+        app.oneshot(
+            Request::builder()
+                .method("OPTIONS")
+                .uri("/test")
+                .header("origin", origin)
+                .header("access-control-request-method", "GET")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn cors_unset_rejects_cross_origin() {
+        let response =
+            cors_preflight(build_cors_layer_for_origin(None), "https://evil.example").await;
+
+        assert!(
+            !response
+                .headers()
+                .contains_key("access-control-allow-origin"),
+            "unset CORS_ORIGIN must not allow arbitrary cross-origin access"
+        );
+    }
+
+    #[tokio::test]
+    async fn cors_empty_rejects_cross_origin() {
+        let response = cors_preflight(
+            build_cors_layer_for_origin(Some(String::new())),
+            "https://evil.example",
+        )
+        .await;
+
+        assert!(
+            !response
+                .headers()
+                .contains_key("access-control-allow-origin"),
+            "empty CORS_ORIGIN must not allow arbitrary cross-origin access"
+        );
+    }
+
+    #[tokio::test]
+    async fn cors_wildcard_allows_cross_origin() {
+        let response = cors_preflight(
+            build_cors_layer_for_origin(Some("*".to_string())),
+            "https://evil.example",
+        )
+        .await;
+
+        assert_eq!(
+            response
+                .headers()
+                .get("access-control-allow-origin")
+                .unwrap(),
+            "*"
+        );
+    }
+
+    #[tokio::test]
+    async fn cors_specific_origin_allows_matching_origin() {
+        let response = cors_preflight(
+            build_cors_layer_for_origin(Some("http://localhost:3000".to_string())),
+            "http://localhost:3000",
+        )
+        .await;
+
+        assert_eq!(
+            response
+                .headers()
+                .get("access-control-allow-origin")
+                .unwrap(),
+            "http://localhost:3000"
+        );
     }
 }
