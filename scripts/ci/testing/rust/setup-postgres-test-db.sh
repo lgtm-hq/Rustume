@@ -42,10 +42,8 @@ start_postgres() {
 	fi
 
 	if docker ps -a --format '{{.Names}}' | grep -qx "$POSTGRES_CONTAINER_NAME"; then
-		echo "Starting existing Postgres container ${POSTGRES_CONTAINER_NAME}..."
-		docker start "$POSTGRES_CONTAINER_NAME" >/dev/null
-		wait_for_postgres
-		return 0
+		echo "Removing stale Postgres container ${POSTGRES_CONTAINER_NAME}..."
+		docker rm -f "$POSTGRES_CONTAINER_NAME" >/dev/null
 	fi
 
 	echo "Starting Postgres container (${POSTGRES_IMAGE})..."
