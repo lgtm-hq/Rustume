@@ -76,6 +76,6 @@ tikv-jemallocator = { version = "0.6", features = [
 
 [dev-dependencies]
 reqwest = { workspace = true, features = ["json"] }
-tempfile = "3"
+tempfile = "=3.27.0"
 tower = { workspace = true, features = ["util"] }
-http-body-util = "0.1"
+http-body-util = "=0.1.3"
