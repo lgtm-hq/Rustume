@@ -19,6 +19,7 @@ use std::sync::OnceLock;
 
 use chrono::Datelike;
 use include_dir::{include_dir, Dir};
+use crate::traits::RenderError;
 use typst::diag::{FileError, FileResult};
 use typst::foundations::{Bytes, Datetime};
 use typst::syntax::{FileId, Source, VirtualPath};
@@ -80,25 +81,36 @@ fn templates_override_dir() -> Option<PathBuf> {
 
 /// Read a template override from disk when the override directory contains `<name>.typ`.
 #[cfg(not(target_arch = "wasm32"))]
-fn read_override_template(dir: &Path, name: &str) -> Option<String> {
+fn read_override_template(dir: &Path, name: &str) -> std::io::Result<Option<String>> {
     let path = dir.join(format!("{name}.typ"));
     if !path.is_file() {
-        return None;
+        return Ok(None);
     }
-    std::fs::read_to_string(&path).ok()
+    std::fs::read_to_string(&path).map(Some)
 }
 
 /// Resolve template content: override directory first, then embedded defaults.
-fn resolve_template_content(name: &str) -> Option<String> {
+fn resolve_template_content(name: &str) -> Result<String, RenderError> {
     if let Some(dir) = templates_override_dir() {
         #[cfg(not(target_arch = "wasm32"))]
         {
-            if let Some(content) = read_override_template(&dir, name) {
-                return Some(content);
+            match read_override_template(&dir, name) {
+                Ok(Some(content)) => return Ok(content),
+                Ok(None) => {}
+                Err(err) => {
+                    let path = dir.join(format!("{name}.typ"));
+                    return Err(RenderError::RenderFailed(format!(
+                        "Failed to read template override '{}': {err}",
+                        path.display(),
+                    )));
+                }
             }
         }
     }
-    embedded_templates().get(name).cloned()
+    embedded_templates()
+        .get(name)
+        .cloned()
+        .ok_or_else(|| RenderError::TemplateNotFound(name.to_string()))
 }
 
 /// Set an injectable templates override directory for unit tests.
@@ -121,27 +133,25 @@ pub struct RustumeWorld {
 
 impl RustumeWorld {
     /// Create a new world with the given main source content.
-    pub fn new(main_content: String) -> Self {
+    pub fn new(main_content: String) -> Result<Self, RenderError> {
         let main_id = FileId::new(None, VirtualPath::new("main.typ"));
         let main = Source::new(main_id, main_content);
 
         // Pre-load template sources (override resolved per render).
         let mut sources = HashMap::new();
         for name in embedded_templates().keys() {
-            let Some(content) = resolve_template_content(name) else {
-                continue;
-            };
+            let content = resolve_template_content(name)?;
             let path = format!("templates/{name}.typ");
             let id = FileId::new(None, VirtualPath::new(&path));
             sources.insert(id, Source::new(id, content));
         }
 
-        Self {
+        Ok(Self {
             main,
             library: OnceLock::new(),
             book: OnceLock::new(),
             sources,
-        }
+        })
     }
 
     /// Get the main source file ID.
@@ -304,6 +314,9 @@ mod tests {
     use super::*;
     use std::fs;
 
+    /// Serializes override tests that mutate process-global template state.
+    static OVERRIDE_TEST_LOCK: Mutex<()> = Mutex::new(());
+
     const EXPECTED_TEMPLATES: &[&str] = &[
         "rhyhorn",
         "azurill",
@@ -345,6 +358,7 @@ mod tests {
 
     #[test]
     fn override_dir_takes_precedence_over_embedded() {
+        let _lock = OVERRIDE_TEST_LOCK.lock().unwrap();
         reset_test_override();
         let temp = tempfile::tempdir().expect("tempdir");
         let marker = "OVERRIDE_MARKER_FOR_RHYHORN";
@@ -359,6 +373,7 @@ mod tests {
 
     #[test]
     fn override_dir_falls_back_to_embedded_for_missing_files() {
+        let _lock = OVERRIDE_TEST_LOCK.lock().unwrap();
         reset_test_override();
         let temp = tempfile::tempdir().expect("tempdir");
         set_test_templates_override(Some(temp.path().to_path_buf()));
@@ -371,5 +386,36 @@ mod tests {
         reset_test_override();
 
         assert_eq!(resolved, embedded);
+    }
+
+    #[test]
+    fn override_dir_errors_on_unreadable_file() {
+        let _lock = OVERRIDE_TEST_LOCK.lock().unwrap();
+        reset_test_override();
+        let temp = tempfile::tempdir().expect("tempdir");
+        let override_path = temp.path().join("rhyhorn.typ");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+
+            fs::write(&override_path, "content").expect("write override");
+            fs::set_permissions(&override_path, fs::Permissions::from_mode(0o000))
+                .expect("chmod override");
+        }
+        #[cfg(not(unix))]
+        {
+            fs::create_dir(&override_path).expect("create override dir");
+        }
+
+        set_test_templates_override(Some(temp.path().to_path_buf()));
+        let err = resolve_template_content("rhyhorn").expect_err("expected read error");
+        reset_test_override();
+
+        match err {
+            RenderError::RenderFailed(message) => {
+                assert!(message.contains("Failed to read template override"));
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
     }
 }
