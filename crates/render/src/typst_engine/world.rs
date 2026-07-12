@@ -11,8 +11,6 @@
 //! (no server restart required); names not present in the override directory
 //! fall back to the embedded copy. WASM builds use embedded templates only.
 
-#[cfg(test)]
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
@@ -33,11 +31,9 @@ static TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/src/typst_engin
 /// Cached embedded template contents keyed by file stem (without `.typ`).
 static EMBEDDED_TEMPLATES: OnceLock<HashMap<String, String>> = OnceLock::new();
 
-// Per-thread override directory for unit tests (avoids cross-test races).
+// Shared override directory for unit tests (visible to typst worker threads).
 #[cfg(test)]
-thread_local! {
-    static TEST_TEMPLATES_OVERRIDE: RefCell<Option<PathBuf>> = const { RefCell::new(None) };
-}
+static TEST_TEMPLATES_OVERRIDE: Mutex<Option<PathBuf>> = Mutex::new(None);
 
 /// Shared font cache to avoid duplicate font loading
 static FONTS_CACHE: OnceLock<(FontBook, Vec<Font>)> = OnceLock::new();
@@ -63,18 +59,19 @@ fn embedded_templates() -> &'static HashMap<String, String> {
 fn templates_override_dir() -> Option<PathBuf> {
     #[cfg(test)]
     {
-        if let Some(dir) =
-            TEST_TEMPLATES_OVERRIDE.with(|override_dir| override_dir.borrow().clone())
-        {
-            return Some(dir);
-        }
+        TEST_TEMPLATES_OVERRIDE
+            .lock()
+            .ok()
+            .and_then(|guard| guard.clone())
     }
 
+    #[cfg(not(test))]
     #[cfg(not(target_arch = "wasm32"))]
     {
         std::env::var_os("RUSTUME_TEMPLATES_DIR").map(PathBuf::from)
     }
 
+    #[cfg(not(test))]
     #[cfg(target_arch = "wasm32")]
     {
         None
@@ -137,7 +134,7 @@ fn resolve_template_content(name: &str) -> Result<String, RenderError> {
 /// Set an injectable templates override directory for unit tests.
 #[cfg(test)]
 pub(crate) fn set_test_templates_override(dir: Option<PathBuf>) {
-    TEST_TEMPLATES_OVERRIDE.with(|override_dir| *override_dir.borrow_mut() = dir);
+    *TEST_TEMPLATES_OVERRIDE.lock().unwrap() = dir;
 }
 
 /// The Rustume Typst world.
@@ -360,6 +357,8 @@ mod tests {
     use super::*;
     use std::fs;
 
+    static OVERRIDE_TEST_LOCK: Mutex<()> = Mutex::new(());
+
     const EXPECTED_TEMPLATES: &[&str] = &[
         "rhyhorn",
         "azurill",
@@ -401,6 +400,7 @@ mod tests {
 
     #[test]
     fn override_dir_takes_precedence_over_embedded() {
+        let _lock = OVERRIDE_TEST_LOCK.lock().unwrap();
         reset_test_override();
         let temp = tempfile::tempdir().expect("tempdir");
         let marker = "OVERRIDE_MARKER_FOR_RHYHORN";
@@ -416,6 +416,7 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn override_dir_follows_symlink_to_file() {
+        let _lock = OVERRIDE_TEST_LOCK.lock().unwrap();
         reset_test_override();
         let temp = tempfile::tempdir().expect("tempdir");
         let marker = "SYMLINK_OVERRIDE_MARKER";
@@ -432,6 +433,7 @@ mod tests {
 
     #[test]
     fn override_dir_falls_back_to_embedded_for_missing_files() {
+        let _lock = OVERRIDE_TEST_LOCK.lock().unwrap();
         reset_test_override();
         let temp = tempfile::tempdir().expect("tempdir");
         set_test_templates_override(Some(temp.path().to_path_buf()));
@@ -448,6 +450,7 @@ mod tests {
 
     #[test]
     fn override_dir_errors_on_unreadable_file() {
+        let _lock = OVERRIDE_TEST_LOCK.lock().unwrap();
         reset_test_override();
         let temp = tempfile::tempdir().expect("tempdir");
         let override_path = temp.path().join("rhyhorn.typ");
@@ -478,6 +481,7 @@ mod tests {
 
     #[test]
     fn override_dir_errors_on_non_file_path() {
+        let _lock = OVERRIDE_TEST_LOCK.lock().unwrap();
         reset_test_override();
         let temp = tempfile::tempdir().expect("tempdir");
         fs::create_dir(temp.path().join("rhyhorn.typ")).expect("create override dir");
@@ -496,6 +500,7 @@ mod tests {
 
     #[test]
     fn unused_broken_override_does_not_block_other_template() {
+        let _lock = OVERRIDE_TEST_LOCK.lock().unwrap();
         reset_test_override();
         let temp = tempfile::tempdir().expect("tempdir");
         // Broken override for an unused template must not prevent loading rhyhorn.
