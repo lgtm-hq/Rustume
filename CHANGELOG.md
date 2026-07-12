@@ -22,6 +22,29 @@ and this project adheres to
 
 ### Security
 
+## [0.26.2] - 2026-07-12
+
+### Changed
+
+- **deps**: update renovatebot/github-action action to v46.1.18 (patch) (#409) (a3fb238)
+- **deps**: update rust crate reqwest to 0.13.4 (minor) (#289) (e4b46e7)
+
+### Fixed
+
+- **deps**: update rust crate sha2 to 0.11.0 (minor) (#296) (74272b4)
+
+## [0.26.1] - 2026-07-12
+
+### Changed
+
+- **deps**: pin dependencies (#401) (019bbd5)
+- **deps**: group typst crates into a single Renovate update (#392) (3e430a9)
+- **deps**: pin dependencies (#398) (fe9b961)
+
+### Fixed
+
+- **deps**: update rust crate hmac to 0.13.0 (minor) (#295) (1c022f6)
+
 ## [0.26.0] - 2026-07-12
 
 ### Added
@@ -281,7 +304,9 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.26.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.26.2...HEAD
+[0.26.2]: https://github.com/lgtm-hq/Rustume/compare/v0.26.1...v0.26.2
+[0.26.1]: https://github.com/lgtm-hq/Rustume/compare/v0.26.0...v0.26.1
 [0.26.0]: https://github.com/lgtm-hq/Rustume/compare/v0.25.1...v0.26.0
 [0.25.1]: https://github.com/lgtm-hq/Rustume/compare/v0.25.0...v0.25.1
 [0.25.0]: https://github.com/lgtm-hq/Rustume/compare/v0.24.0...v0.25.0

@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/*", "bindings/*"]
 
 [workspace.package]
-version = "0.26.0"
+version = "0.26.2"
 edition = "2021"
 license = "AGPL-3.0-only"
 repository = "https://github.com/lgtm-hq/Rustume"
@@ -119,9 +119,9 @@ sqlx = { version = "0.9", default-features = false, features = [
 uuid = { version = "1", features = ["v4", "serde"] }
 
 # HTTP client (WorkOS)
-reqwest = { version = "0.12", default-features = false, features = [
+reqwest = { version = "0.13", default-features = false, features = [
   "json",
-  "rustls-tls",
+  "rustls",
 ] }
 
 # Cookies / sessions
