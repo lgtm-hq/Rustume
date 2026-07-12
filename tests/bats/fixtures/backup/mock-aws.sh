@@ -59,6 +59,11 @@ s3:ls)
 		exit 1
 	fi
 
+	if [[ "${MOCK_AWS_LS_FAIL:-0}" == "1" ]]; then
+		echo "list failed" >&2
+		exit 1
+	fi
+
 	if [[ -n "${MOCK_AWS_LS_FILE:-}" && -f "${MOCK_AWS_LS_FILE}" ]]; then
 		cat "${MOCK_AWS_LS_FILE}"
 	fi

@@ -36,6 +36,21 @@ write_listing() {
 	done
 }
 
+@test "prune-backups: fails when listing backups fails" {
+	setup_prune_mocks
+
+	run env \
+		R2_ACCOUNT_ID="acct" \
+		R2_ACCESS_KEY_ID="key" \
+		R2_SECRET_ACCESS_KEY="secret" \
+		R2_BACKUP_BUCKET="backups" \
+		MOCK_AWS_LS_FAIL="1" \
+		bash "${BACKUP_SCRIPTS_DIR}/prune-backups.sh"
+
+	assert_failure
+	assert_output --partial "Failed to list backups in s3://backups/"
+}
+
 @test "prune-backups: --help exits successfully" {
 	run bash "${BACKUP_SCRIPTS_DIR}/prune-backups.sh" --help
 

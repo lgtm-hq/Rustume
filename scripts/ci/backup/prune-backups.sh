@@ -161,7 +161,10 @@ should_keep_backup() {
 declare -A seen_weeks=()
 declare -A seen_months=()
 
-list_output="$(aws s3 ls "s3://${R2_BACKUP_BUCKET}/" --endpoint-url "${R2_ENDPOINT}" 2>/dev/null || true)"
+if ! list_output="$(aws s3 ls "s3://${R2_BACKUP_BUCKET}/" --endpoint-url "${R2_ENDPOINT}")"; then
+	echo "Failed to list backups in s3://${R2_BACKUP_BUCKET}/" >&2
+	exit 1
+fi
 if [[ -z "${list_output}" ]]; then
 	echo "No backups found in s3://${R2_BACKUP_BUCKET}/"
 	exit 0

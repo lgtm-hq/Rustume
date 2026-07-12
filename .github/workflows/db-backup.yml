@@ -40,6 +40,12 @@ jobs:
             github.com:443
             api.github.com:443
             codeload.github.com:443
+            archive.ubuntu.com:80
+            azure.archive.ubuntu.com:80
+            security.ubuntu.com:80
+            security.ubuntu.com:443
+            awscli.amazonaws.com:443
+            *.aws.neon.tech:5432
             ${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com:443
 
       - name: Checkout
