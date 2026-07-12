@@ -5,6 +5,8 @@ use sqlx::PgPool;
 use tracing::error;
 use uuid::Uuid;
 
+use crate::error::ApiError;
+
 /// Security-relevant event to persist in the audit log.
 #[derive(Debug)]
 pub struct AuditEvent<'a> {
@@ -49,4 +51,35 @@ pub async fn record_event(pool: &PgPool, event: AuditEvent<'_>) {
     if let Err(err) = result {
         error!("audit log insert failed: {err}");
     }
+}
+
+/// Insert an audit event and fail the request when persistence errors.
+pub async fn record_event_required(pool: &PgPool, event: AuditEvent<'_>) -> Result<(), ApiError> {
+    sqlx::query(
+        r#"
+        INSERT INTO audit_events (
+            event_type,
+            actor_user_id,
+            resource_type,
+            resource_id,
+            metadata,
+            ip_address
+        )
+        VALUES ($1, $2, $3, $4, $5, $6::inet)
+        "#,
+    )
+    .bind(event.event_type)
+    .bind(event.actor_user_id)
+    .bind(event.resource_type)
+    .bind(event.resource_id)
+    .bind(event.metadata)
+    .bind(event.ip_address)
+    .execute(pool)
+    .await
+    .map_err(|err| {
+        error!("audit log insert failed: {err}");
+        ApiError::internal("failed to record audit event")
+    })?;
+
+    Ok(())
 }

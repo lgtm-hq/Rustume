@@ -11,8 +11,9 @@ use chrono::Utc;
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
-use crate::audit::{record_event, AuditEvent};
+use crate::audit::{record_event, record_event_required, AuditEvent};
 use crate::auth::session::SESSION_COOKIE;
+use crate::config::{MAX_BODY_SIZE, MAX_RESUME_JSON_BYTES};
 use crate::db::{
     AccountDataExport, AccountExportProfile, DeleteAccountRequest, DeleteAccountResponse,
     ResumeExportItem,
@@ -41,6 +42,7 @@ struct ExportResumeRow {
     responses(
         (status = 200, description = "Account data export", body = AccountDataExport),
         (status = 401, description = "Not authenticated", body = ApiError),
+        (status = 413, description = "Export payload too large", body = ApiError),
         (status = 500, description = "Export failed", body = ApiError),
     ),
     security(("cookieAuth" = []))
@@ -56,14 +58,33 @@ pub async fn export_account(
 
     let rows = fetch_all_resumes(&cloud.db, user.id).await?;
     let resume_count = rows.len();
+    let mut total_resume_bytes = 0usize;
     let resumes = rows
         .into_iter()
-        .map(|row| ResumeExportItem {
-            id: row.id,
-            title: row.title,
-            data: row.data,
+        .map(|row| {
+            let data_bytes = serde_json::to_vec(&row.data).map_err(|err| {
+                error!("account export resume serialization failed: {err}");
+                ApiError::internal("failed to export account data")
+            })?;
+            let data_size = data_bytes.len();
+            if data_size > MAX_RESUME_JSON_BYTES {
+                return Err(ApiError::payload_too_large(format!(
+                    "Resume JSON exceeds maximum size of {MAX_RESUME_JSON_BYTES} bytes"
+                )));
+            }
+            total_resume_bytes = total_resume_bytes.saturating_add(data_size);
+            if total_resume_bytes > MAX_BODY_SIZE {
+                return Err(ApiError::payload_too_large(format!(
+                    "Account export exceeds maximum size of {MAX_BODY_SIZE} bytes"
+                )));
+            }
+            Ok(ResumeExportItem {
+                id: row.id,
+                title: row.title,
+                data: row.data,
+            })
         })
-        .collect();
+        .collect::<Result<Vec<_>, ApiError>>()?;
 
     let payload = AccountDataExport {
         exported_at: Utc::now(),
@@ -71,7 +92,7 @@ pub async fn export_account(
         resumes,
     };
 
-    record_event(
+    record_event_required(
         &cloud.db,
         AuditEvent {
             event_type: "account.export",
@@ -82,12 +103,17 @@ pub async fn export_account(
             ip_address: ip,
         },
     )
-    .await;
+    .await?;
 
     let body = serde_json::to_vec(&payload).map_err(|err| {
         error!("account export serialization failed: {err}");
         ApiError::internal("failed to export account data")
     })?;
+    if body.len() > MAX_BODY_SIZE {
+        return Err(ApiError::payload_too_large(format!(
+            "Account export exceeds maximum size of {MAX_BODY_SIZE} bytes"
+        )));
+    }
 
     let content_disposition =
         HeaderValue::from_static("attachment; filename=\"rustume-account-export.json\"");
