@@ -56,6 +56,18 @@
         "utoipa-swagger-ui",
         "utoipa-axum"
       ]
+    },
+    {
+      "groupName": "typst",
+      "groupSlug": "typst",
+      "matchManagers": ["cargo"],
+      "matchPackageNames": [
+        "typst",
+        "typst-assets",
+        "typst-pdf",
+        "typst-render"
+      ],
+      "matchPackagePatterns": ["^typst-"]
     }
   ]
 }
