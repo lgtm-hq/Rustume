@@ -263,11 +263,34 @@ fn build_cors_layer_for_origin(origin: Option<String>) -> CorsLayer {
     }) {
         Some(origin) if origin == "*" => base.allow_origin(Any),
         Some(origin) => {
-            let origins: Vec<HeaderValue> = origin
+            let parts: Vec<&str> = origin
                 .split(',')
-                .filter_map(|o| o.trim().parse().ok())
+                .map(str::trim)
+                .filter(|part| !part.is_empty())
                 .collect();
-            base.allow_origin(origins).allow_credentials(true)
+            let had_entries = !parts.is_empty();
+            let mut origins = Vec::with_capacity(parts.len());
+            for part in parts {
+                match part.parse::<HeaderValue>() {
+                    Ok(value) => origins.push(value),
+                    Err(error) => tracing::warn!(
+                        origin = part,
+                        error = %error,
+                        "Invalid CORS_ORIGIN entry; skipping"
+                    ),
+                }
+            }
+            if origins.is_empty() {
+                if had_entries {
+                    tracing::warn!(
+                        cors_origin = %origin,
+                        "CORS_ORIGIN contained no valid origins; cross-origin requests will be denied"
+                    );
+                }
+                base
+            } else {
+                base.allow_origin(origins).allow_credentials(true)
+            }
         }
         None => base,
     }
@@ -357,6 +380,22 @@ mod tests {
                 .get("access-control-allow-origin")
                 .unwrap(),
             "http://localhost:3000"
+        );
+    }
+
+    #[tokio::test]
+    async fn cors_invalid_origin_rejects_cross_origin() {
+        let response = cors_preflight(
+            build_cors_layer_for_origin(Some("not-a-valid-origin".to_string())),
+            "https://evil.example",
+        )
+        .await;
+
+        assert!(
+            !response
+                .headers()
+                .contains_key("access-control-allow-origin"),
+            "invalid CORS_ORIGIN must not allow cross-origin access"
         );
     }
 }
