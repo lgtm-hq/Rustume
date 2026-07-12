@@ -289,8 +289,10 @@ versioned ChaCha20-Poly1305 envelopes in the existing `resumes.data` JSONB colum
 1. Client verifies passphrase strength and displays recovery codes (user confirms saved).
 2. Client generates DEK, wraps with MK, uploads `e2ee_config` and recovery backups to server.
 3. Client fetches all resumes (plaintext), encrypts each to v1 envelope, PUTs back.
-4. Server sets `e2ee_enabled = true` only after verifying **every** resume row for the
-   account is a valid envelope (reject toggle if any row is still plaintext or a PUT failed).
+4. Server atomically verifies every resume row is a valid envelope **and** commits
+   `e2ee_enabled = true` in one transaction. During this step, resume writes for the
+   account are rejected unless the payload is a valid envelope (blocks TOCTOU from
+   concurrent tabs or older clients).
 5. Audit event recorded (`crates/server/src/audit/`).
 
 All steps are client-driven; server never sees passphrase or unwrapped DEK.
@@ -299,7 +301,10 @@ All steps are client-driven; server never sees passphrase or unwrapped DEK.
 
 1. User provides passphrase (or recovery code).
 2. Client decrypts all resumes, PUTs plaintext JSON.
-3. Client clears `e2ee_config`; server sets `e2ee_enabled = false`.
+3. Server atomically verifies every resume row is plaintext JSON and clears
+   `e2ee_config` / sets `e2ee_enabled = false` in one transaction (reject toggle if
+   any row is still an envelope or a PUT failed). During this step, resume writes must
+   be plaintext.
 
 Requires explicit user action — not reversible by operator alone.
 
