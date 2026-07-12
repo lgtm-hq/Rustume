@@ -56,6 +56,31 @@ mod tests {
         body::Body,
         http::{Request, StatusCode},
     };
+    use std::sync::{Mutex, OnceLock};
+
+    static CORS_ORIGIN_TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+    struct EnvVarGuard {
+        key: &'static str,
+        previous: Option<String>,
+    }
+
+    impl EnvVarGuard {
+        fn set(key: &'static str, value: &str) -> Self {
+            let previous = std::env::var(key).ok();
+            std::env::set_var(key, value);
+            Self { key, previous }
+        }
+    }
+
+    impl Drop for EnvVarGuard {
+        fn drop(&mut self) {
+            match &self.previous {
+                Some(value) => std::env::set_var(self.key, value),
+                None => std::env::remove_var(self.key),
+            }
+        }
+    }
     use dto::{
         ParseFormat, ParseRequest, RenderPdfRequest, RenderPreviewRequest, TemplateInfo,
         ValidationResponse,
@@ -247,7 +272,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_cors_headers() {
-        let app = create_router();
+        let app = {
+            let _lock = CORS_ORIGIN_TEST_LOCK
+                .get_or_init(|| Mutex::new(()))
+                .lock()
+                .unwrap();
+            let _guard = EnvVarGuard::set("CORS_ORIGIN", "*");
+            create_router()
+        };
 
         let response = app
             .oneshot(
