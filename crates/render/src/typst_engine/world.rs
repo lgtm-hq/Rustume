@@ -15,7 +15,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 
 use crate::traits::RenderError;
 use chrono::Datelike;
@@ -137,31 +137,43 @@ pub struct RustumeWorld {
     library: OnceLock<LazyHash<Library>>,
     /// The font book.
     book: OnceLock<LazyHash<FontBook>>,
-    /// Additional source files (templates).
-    sources: HashMap<FileId, Source>,
+    /// Lazily resolved template sources (override errors only fail when that
+    /// template is actually requested by Typst).
+    sources: Mutex<HashMap<FileId, Source>>,
 }
 
 impl RustumeWorld {
     /// Create a new world with the given main source content.
+    ///
+    /// Template overrides are resolved lazily in [`typst::World::source`] so a
+    /// broken override for an unused template cannot block rendering another.
     pub fn new(main_content: String) -> Result<Self, RenderError> {
         let main_id = FileId::new(None, VirtualPath::new("main.typ"));
         let main = Source::new(main_id, main_content);
-
-        // Pre-load template sources (override resolved per render).
-        let mut sources = HashMap::new();
-        for name in embedded_templates().keys() {
-            let content = resolve_template_content(name)?;
-            let path = format!("templates/{name}.typ");
-            let id = FileId::new(None, VirtualPath::new(&path));
-            sources.insert(id, Source::new(id, content));
-        }
 
         Ok(Self {
             main,
             library: OnceLock::new(),
             book: OnceLock::new(),
-            sources,
+            sources: Mutex::new(HashMap::new()),
         })
+    }
+
+    /// Resolve `templates/<name>.typ` from an override dir or embedded defaults.
+    fn load_template_source(id: FileId) -> FileResult<Source> {
+        let path = id.vpath().as_rootless_path();
+        let path_str = path.to_string_lossy();
+        let Some(name) = path_str
+            .strip_prefix("templates/")
+            .and_then(|rest| rest.strip_suffix(".typ"))
+            .filter(|name| !name.is_empty() && !name.contains('/'))
+        else {
+            return Err(FileError::NotFound(path.into()));
+        };
+
+        let content = resolve_template_content(name)
+            .map_err(|err| FileError::Other(Some(err.to_string().into())))?;
+        Ok(Source::new(id, content))
     }
 
     /// Get the main source file ID.
@@ -289,12 +301,25 @@ impl typst::World for RustumeWorld {
 
     fn source(&self, id: FileId) -> FileResult<Source> {
         if id == self.main.id() {
-            Ok(self.main.clone())
-        } else if let Some(source) = self.sources.get(&id) {
-            Ok(source.clone())
-        } else {
-            Err(FileError::NotFound(id.vpath().as_rootless_path().into()))
+            return Ok(self.main.clone());
         }
+
+        {
+            let sources = self
+                .sources
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if let Some(source) = sources.get(&id) {
+                return Ok(source.clone());
+            }
+        }
+
+        let source = Self::load_template_source(id)?;
+        let mut sources = self
+            .sources
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        Ok(sources.entry(id).or_insert(source).clone())
     }
 
     fn file(&self, id: FileId) -> FileResult<Bytes> {
@@ -439,5 +464,27 @@ mod tests {
             }
             other => panic!("unexpected error: {other:?}"),
         }
+    }
+
+    #[test]
+    fn unused_broken_override_does_not_block_other_template() {
+        reset_test_override();
+        let temp = tempfile::tempdir().expect("tempdir");
+        // Broken override for an unused template must not prevent loading rhyhorn.
+        fs::create_dir(temp.path().join("azurill.typ")).expect("create azurill override dir");
+        set_test_templates_override(Some(temp.path().to_path_buf()));
+
+        let world = RustumeWorld::new("// unused-override isolation".into())
+            .expect("world construction must ignore unused overrides");
+        let rhyhorn_id = FileId::new(None, VirtualPath::new("templates/rhyhorn.typ"));
+        let source = typst::World::source(&world, rhyhorn_id).expect("rhyhorn should load");
+        assert!(!source.text().is_empty());
+
+        let azurill_id = FileId::new(None, VirtualPath::new("templates/azurill.typ"));
+        assert!(
+            typst::World::source(&world, azurill_id).is_err(),
+            "broken azurill override should still fail when requested"
+        );
+        reset_test_override();
     }
 }
