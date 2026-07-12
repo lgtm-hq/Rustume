@@ -2,11 +2,23 @@
 //!
 //! This module provides the `World` trait implementation required by Typst
 //! to compile documents.
+//!
+//! ## Template loading
+//!
+//! Templates are embedded at build time via [`include_dir!`] and serve as the
+//! default set. On native targets, set `RUSTUME_TEMPLATES_DIR` to a directory
+//! containing `<name>.typ` files. Override files are resolved on each render
+//! (no server restart required); names not present in the override directory
+//! fall back to the embedded copy. WASM builds use embedded templates only.
 
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+#[cfg(test)]
+use std::sync::Mutex;
 use std::sync::OnceLock;
 
 use chrono::Datelike;
+use include_dir::{include_dir, Dir};
 use typst::diag::{FileError, FileResult};
 use typst::foundations::{Bytes, Datetime};
 use typst::syntax::{FileId, Source, VirtualPath};
@@ -14,30 +26,85 @@ use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
 use typst::{Library, LibraryExt};
 
-/// Embedded templates
-static TEMPLATES: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
+/// Embedded template directory (all `.typ` files under `templates/`).
+static TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/src/typst_engine/templates");
+
+/// Cached embedded template contents keyed by file stem (without `.typ`).
+static EMBEDDED_TEMPLATES: OnceLock<HashMap<String, String>> = OnceLock::new();
+
+/// Injectable override directory for unit tests (avoids process-global env vars).
+#[cfg(test)]
+static TEST_TEMPLATES_OVERRIDE: Mutex<Option<PathBuf>> = Mutex::new(None);
 
 /// Shared font cache to avoid duplicate font loading
 static FONTS_CACHE: OnceLock<(FontBook, Vec<Font>)> = OnceLock::new();
 
-fn get_templates() -> &'static HashMap<&'static str, &'static str> {
-    TEMPLATES.get_or_init(|| {
+/// Return the cached map of embedded template name → content.
+fn embedded_templates() -> &'static HashMap<String, String> {
+    EMBEDDED_TEMPLATES.get_or_init(|| {
         let mut map = HashMap::new();
-        map.insert("rhyhorn", include_str!("templates/rhyhorn.typ"));
-        map.insert("azurill", include_str!("templates/azurill.typ"));
-        map.insert("pikachu", include_str!("templates/pikachu.typ"));
-        map.insert("nosepass", include_str!("templates/nosepass.typ"));
-        map.insert("bronzor", include_str!("templates/bronzor.typ"));
-        map.insert("chikorita", include_str!("templates/chikorita.typ"));
-        map.insert("ditto", include_str!("templates/ditto.typ"));
-        map.insert("gengar", include_str!("templates/gengar.typ"));
-        map.insert("glalie", include_str!("templates/glalie.typ"));
-        map.insert("kakuna", include_str!("templates/kakuna.typ"));
-        map.insert("leafish", include_str!("templates/leafish.typ"));
-        map.insert("onyx", include_str!("templates/onyx.typ"));
-        map.insert("_common", include_str!("templates/_common.typ"));
+        for file in TEMPLATE_DIR.files() {
+            let Some(stem) = file.path().file_stem().and_then(|name| name.to_str()) else {
+                continue;
+            };
+            let Some(content) = file.contents_utf8() else {
+                continue;
+            };
+            map.insert(stem.to_string(), content.to_string());
+        }
         map
     })
+}
+
+/// Resolve the override directory: test injectable path on native, env var otherwise.
+fn templates_override_dir() -> Option<PathBuf> {
+    #[cfg(test)]
+    {
+        if let Ok(guard) = TEST_TEMPLATES_OVERRIDE.lock() {
+            if let Some(dir) = guard.clone() {
+                return Some(dir);
+            }
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        std::env::var_os("RUSTUME_TEMPLATES_DIR").map(PathBuf::from)
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        None
+    }
+}
+
+/// Read a template override from disk when the override directory contains `<name>.typ`.
+#[cfg(not(target_arch = "wasm32"))]
+fn read_override_template(dir: &Path, name: &str) -> Option<String> {
+    let path = dir.join(format!("{name}.typ"));
+    if !path.is_file() {
+        return None;
+    }
+    std::fs::read_to_string(&path).ok()
+}
+
+/// Resolve template content: override directory first, then embedded defaults.
+fn resolve_template_content(name: &str) -> Option<String> {
+    if let Some(dir) = templates_override_dir() {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            if let Some(content) = read_override_template(&dir, name) {
+                return Some(content);
+            }
+        }
+    }
+    embedded_templates().get(name).cloned()
+}
+
+/// Set an injectable templates override directory for unit tests.
+#[cfg(test)]
+pub(crate) fn set_test_templates_override(dir: Option<PathBuf>) {
+    *TEST_TEMPLATES_OVERRIDE.lock().unwrap() = dir;
 }
 
 /// The Rustume Typst world.
@@ -58,12 +125,15 @@ impl RustumeWorld {
         let main_id = FileId::new(None, VirtualPath::new("main.typ"));
         let main = Source::new(main_id, main_content);
 
-        // Pre-load template sources
+        // Pre-load template sources (override resolved per render).
         let mut sources = HashMap::new();
-        for (name, content) in get_templates().iter() {
-            let path = format!("templates/{}.typ", name);
+        for name in embedded_templates().keys() {
+            let Some(content) = resolve_template_content(name) else {
+                continue;
+            };
+            let path = format!("templates/{name}.typ");
             let id = FileId::new(None, VirtualPath::new(&path));
-            sources.insert(id, Source::new(id, (*content).to_string()));
+            sources.insert(id, Source::new(id, content));
         }
 
         Self {
@@ -226,5 +296,80 @@ impl typst::World for RustumeWorld {
             adjusted.month() as u8,
             adjusted.day() as u8,
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    const EXPECTED_TEMPLATES: &[&str] = &[
+        "rhyhorn",
+        "azurill",
+        "pikachu",
+        "nosepass",
+        "bronzor",
+        "chikorita",
+        "ditto",
+        "gengar",
+        "glalie",
+        "kakuna",
+        "leafish",
+        "onyx",
+    ];
+
+    fn reset_test_override() {
+        set_test_templates_override(None);
+    }
+
+    #[test]
+    fn embedded_templates_include_all_defaults() {
+        let embedded = embedded_templates();
+        for name in EXPECTED_TEMPLATES {
+            assert!(
+                embedded.contains_key(*name),
+                "embedded set missing template '{name}'"
+            );
+        }
+        assert!(
+            embedded.contains_key("_common"),
+            "embedded set missing '_common'"
+        );
+        assert_eq!(
+            embedded.len(),
+            EXPECTED_TEMPLATES.len() + 1,
+            "unexpected embedded template count"
+        );
+    }
+
+    #[test]
+    fn override_dir_takes_precedence_over_embedded() {
+        reset_test_override();
+        let temp = tempfile::tempdir().expect("tempdir");
+        let marker = "OVERRIDE_MARKER_FOR_RHYHORN";
+        fs::write(temp.path().join("rhyhorn.typ"), marker).expect("write override");
+
+        set_test_templates_override(Some(temp.path().to_path_buf()));
+        let content = resolve_template_content("rhyhorn").expect("rhyhorn content");
+        reset_test_override();
+
+        assert!(content.contains(marker));
+    }
+
+    #[test]
+    fn override_dir_falls_back_to_embedded_for_missing_files() {
+        reset_test_override();
+        let temp = tempfile::tempdir().expect("tempdir");
+        set_test_templates_override(Some(temp.path().to_path_buf()));
+
+        let embedded = embedded_templates()
+            .get("azurill")
+            .expect("embedded azurill")
+            .clone();
+        let resolved = resolve_template_content("azurill").expect("azurill content");
+        reset_test_override();
+
+        assert_eq!(resolved, embedded);
     }
 }
