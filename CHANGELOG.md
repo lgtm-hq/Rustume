@@ -22,6 +22,16 @@ and this project adheres to
 
 ### Security
 
+## [0.28.0] - 2026-07-12
+
+### Added
+
+- **web**: respect system color scheme for default theme (#393) (0da1363)
+
+### Fixed
+
+- **server**: evict stale rate limiter keys periodically (#400) (f6d6b43)
+
 ## [0.27.0] - 2026-07-12
 
 ### Added
@@ -324,7 +334,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.27.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.28.0...HEAD
+[0.28.0]: https://github.com/lgtm-hq/Rustume/compare/v0.27.0...v0.28.0
 [0.27.0]: https://github.com/lgtm-hq/Rustume/compare/v0.26.3...v0.27.0
 [0.26.3]: https://github.com/lgtm-hq/Rustume/compare/v0.26.2...v0.26.3
 [0.26.2]: https://github.com/lgtm-hq/Rustume/compare/v0.26.1...v0.26.2
