@@ -25,9 +25,7 @@
 
 use anyhow::{anyhow, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
-use rustume_parser::{
-    JsonResumeParser, LinkedInParser, Parser as ResumeParser, ReactiveResumeV3Parser,
-};
+use rustume_parser::{parse_resume, ResumeFormat};
 use rustume_render::{get_template_theme, Renderer, TypstRenderer, TEMPLATES};
 use rustume_schema::ResumeData;
 use std::fs;
@@ -135,6 +133,17 @@ enum InputFormat {
     Rrv3,
     /// Native Rustume format
     Rustume,
+}
+
+impl From<InputFormat> for ResumeFormat {
+    fn from(format: InputFormat) -> Self {
+        match format {
+            InputFormat::JsonResume => Self::JsonResume,
+            InputFormat::LinkedIn => Self::LinkedIn,
+            InputFormat::Rrv3 => Self::Rrv3,
+            InputFormat::Rustume => Self::Rustume,
+        }
+    }
 }
 
 fn main() {
@@ -277,20 +286,14 @@ fn cmd_parse(
         None => detect_format(input, &data)?,
     };
 
-    let resume = match format {
-        InputFormat::JsonResume => JsonResumeParser
-            .parse(&data)
-            .context("Failed to parse JSON Resume")?,
-        InputFormat::LinkedIn => LinkedInParser
-            .parse(&data)
-            .context("Failed to parse LinkedIn export")?,
-        InputFormat::Rrv3 => ReactiveResumeV3Parser
-            .parse(&data)
-            .context("Failed to parse Reactive Resume v3")?,
-        InputFormat::Rustume => {
-            serde_json::from_slice(&data).context("Failed to parse Rustume JSON")?
-        }
+    let context_msg = match format {
+        InputFormat::JsonResume => "Failed to parse JSON Resume",
+        InputFormat::LinkedIn => "Failed to parse LinkedIn export",
+        InputFormat::Rrv3 => "Failed to parse Reactive Resume v3",
+        InputFormat::Rustume => "Failed to parse Rustume JSON",
     };
+
+    let resume = parse_resume(format.into(), &data).context(context_msg)?;
 
     let json = if pretty {
         serde_json::to_string_pretty(&resume)?
