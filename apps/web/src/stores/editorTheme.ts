@@ -4,6 +4,7 @@ import { toast } from "../components/ui";
 
 const STORAGE_KEY = "rustume-editor-theme";
 const DEFAULT_THEME_ID = "catppuccin-mocha";
+const LIGHT_DEFAULT_THEME_ID = "catppuccin-latte";
 
 export type { ThemeFlavor, ThemeTokens };
 
@@ -35,6 +36,18 @@ export interface EditorThemeState {
   flavorsReady: boolean;
 }
 
+function getSystemDefaultThemeId(): string {
+  try {
+    const mediaQuery = window.matchMedia?.("(prefers-color-scheme: dark)");
+    if (mediaQuery && !mediaQuery.matches) {
+      return LIGHT_DEFAULT_THEME_ID;
+    }
+  } catch {
+    // fall through to dark default
+  }
+  return DEFAULT_THEME_ID;
+}
+
 function getInitialThemeId(): { themeId: string; failed: boolean } {
   if (typeof window === "undefined") {
     return { themeId: DEFAULT_THEME_ID, failed: false };
@@ -48,7 +61,7 @@ function getInitialThemeId(): { themeId: string; failed: boolean } {
     console.error("Failed to read theme from localStorage");
     return { themeId: DEFAULT_THEME_ID, failed: true };
   }
-  return { themeId: DEFAULT_THEME_ID, failed: false };
+  return { themeId: getSystemDefaultThemeId(), failed: false };
 }
 
 const initialTheme = getInitialThemeId();
