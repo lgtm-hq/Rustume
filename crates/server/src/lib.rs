@@ -166,6 +166,25 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_validate_malformed_body_returns_bad_request() {
+        let app = create_router();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/validate")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"basics":"not-an-object"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
     async fn test_validate_partial_resume_still_valid() {
         let app = create_router();
 

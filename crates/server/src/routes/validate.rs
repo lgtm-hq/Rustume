@@ -4,6 +4,7 @@ use serde_json::Value;
 use validator::Validate;
 
 use crate::dto::ValidationResponse;
+use crate::error::ApiError;
 
 /// Top-level `ResumeData` fields (serde `camelCase` names).
 const RESUME_DATA_TOP_LEVEL_FIELDS: &[&str] = &["basics", "sections", "metadata"];
@@ -32,35 +33,28 @@ pub fn has_recognized_resume_shape(value: &Value) -> bool {
         (status = 200, description = "Validation result", body = ValidationResponse)
     )
 )]
-pub async fn validate(Json(value): Json<Value>) -> Json<ValidationResponse> {
+pub async fn validate(Json(value): Json<Value>) -> Result<Json<ValidationResponse>, ApiError> {
     if !has_recognized_resume_shape(&value) {
-        return Json(ValidationResponse {
+        return Ok(Json(ValidationResponse {
             valid: false,
             errors: Some(vec![
                 "No recognized resume fields found in request body".to_string()
             ]),
-        });
+        }));
     }
 
-    let resume: ResumeData = match serde_json::from_value(value) {
-        Ok(resume) => resume,
-        Err(_) => {
-            return Json(ValidationResponse {
-                valid: false,
-                errors: Some(vec!["Invalid resume data format".to_string()]),
-            });
-        }
-    };
+    let resume: ResumeData =
+        serde_json::from_value(value).map_err(|_| ApiError::new("Invalid resume data format"))?;
 
     match resume.validate() {
-        Ok(_) => Json(ValidationResponse {
+        Ok(_) => Ok(Json(ValidationResponse {
             valid: true,
             errors: None,
-        }),
-        Err(e) => Json(ValidationResponse {
+        })),
+        Err(e) => Ok(Json(ValidationResponse {
             valid: false,
             errors: Some(validation_errors(&e)),
-        }),
+        })),
     }
 }
 
