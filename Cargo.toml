@@ -101,7 +101,7 @@ utoipa = { version = "5", features = ["axum_extras"] }
 lru = "0.18"
 
 # Rate limiting
-governor = "0.8"
+governor = "0.10"
 dashmap = "6"
 
 # Cloud / database
