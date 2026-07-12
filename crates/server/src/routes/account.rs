@@ -1,21 +1,25 @@
 //! Account lifecycle routes for Rustume Cloud.
 
 use axum::{
+    body::Body,
     extract::State,
     http::{header, HeaderMap, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
     Json,
 };
 use axum_extra::extract::cookie::CookieJar;
+use bytes::Bytes;
 use chrono::{DateTime, Utc};
-use futures::TryStreamExt;
+use futures::{stream, Stream, TryStreamExt};
 use serde::Serialize;
+use std::io;
+use tokio::sync::mpsc;
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
 use crate::audit::{record_event, record_event_required, AuditEvent};
 use crate::auth::session::SESSION_COOKIE;
-use crate::config::{MAX_BODY_SIZE, MAX_RESUME_JSON_BYTES};
+use crate::config::MAX_RESUME_JSON_BYTES;
 use crate::db::{
     AccountDataExport, AccountExportProfile, DeleteAccountRequest, DeleteAccountResponse,
     ResumeExportItem,
@@ -58,9 +62,7 @@ pub async fn export_account(
     let ip_address = trusted_client_ip(&headers, net::trusted_proxy_enabled());
     let ip = ip_address.as_deref();
 
-    let exported_at = Utc::now();
-    let account = AccountExportProfile::from_user(&user);
-    let (body, resume_count) = build_export_body(&cloud.db, user.id, exported_at, &account).await?;
+    let resume_count = account_resume_count(&cloud.db, user.id).await?;
 
     record_event_required(
         &cloud.db,
@@ -75,20 +77,18 @@ pub async fn export_account(
     )
     .await?;
 
+    let exported_at = Utc::now();
+    let account = AccountExportProfile::from_user(&user);
+    let export_stream = stream_account_export(cloud.db.clone(), user.id, exported_at, account);
+
     let content_disposition =
         HeaderValue::from_static("attachment; filename=\"rustume-account-export.json\"");
-    Ok((
-        StatusCode::OK,
-        [
-            (
-                header::CONTENT_TYPE,
-                HeaderValue::from_static("application/json"),
-            ),
-            (header::CONTENT_DISPOSITION, content_disposition),
-        ],
-        body,
-    )
-        .into_response())
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "application/json")
+        .header(header::CONTENT_DISPOSITION, content_disposition)
+        .body(Body::from_stream(export_stream))
+        .map_err(|err| ApiError::internal(format!("failed to build export response: {err}")))
 }
 
 /// Permanently delete the authenticated user's account and all associated data.
@@ -206,12 +206,7 @@ fn is_valid_delete_confirmation(confirmation: &str) -> bool {
     confirmation == DELETE_CONFIRMATION
 }
 
-async fn build_export_body(
-    db: &sqlx::PgPool,
-    user_id: Uuid,
-    exported_at: DateTime<Utc>,
-    account: &AccountExportProfile,
-) -> Result<(Vec<u8>, usize), ApiError> {
+async fn account_resume_count(db: &sqlx::PgPool, user_id: Uuid) -> Result<usize, ApiError> {
     let resume_count = sqlx::query_scalar::<_, i64>(
         r#"
         SELECT COUNT(*)
@@ -224,62 +219,112 @@ async fn build_export_body(
     .await
     .map_err(internal_db_error)?;
 
+    Ok(resume_count as usize)
+}
+
+fn build_export_prefix(
+    exported_at: DateTime<Utc>,
+    account: &AccountExportProfile,
+) -> Result<Vec<u8>, ApiError> {
     let mut body = Vec::new();
     body.push(b'{');
     append_json_field(&mut body, "exported_at", &exported_at, true)?;
     append_json_field(&mut body, "account", account, false)?;
     body.extend_from_slice(br#","resumes":["#);
+    Ok(body)
+}
 
-    let mut rows = sqlx::query_as::<_, ExportResumeRow>(
-        r#"
-        SELECT id, title, data
-        FROM resumes
-        WHERE user_id = $1
-        ORDER BY updated_at DESC
-        "#,
-    )
-    .bind(user_id)
-    .fetch(db);
+fn stream_account_export(
+    db: sqlx::PgPool,
+    user_id: Uuid,
+    exported_at: DateTime<Utc>,
+    account: AccountExportProfile,
+) -> impl Stream<Item = Result<Bytes, io::Error>> + Send + 'static {
+    let (tx, rx) = mpsc::channel::<Result<Bytes, io::Error>>(8);
 
-    let mut first_resume = true;
-    while let Some(row) = rows.try_next().await.map_err(internal_db_error)? {
-        let data_bytes = serde_json::to_vec(&row.data).map_err(|err| {
-            error!("account export resume serialization failed: {err}");
-            ApiError::internal("failed to export account data")
-        })?;
-        if data_bytes.len() > MAX_RESUME_JSON_BYTES {
-            return Err(ApiError::payload_too_large(format!(
-                "Resume JSON exceeds maximum size of {MAX_RESUME_JSON_BYTES} bytes"
-            )));
-        }
-
-        if !first_resume {
-            body.push(b',');
-        } else {
-            first_resume = false;
-        }
-
-        let item = ResumeExportItem {
-            id: row.id,
-            title: row.title,
-            data: row.data,
+    tokio::spawn(async move {
+        let prefix = match build_export_prefix(exported_at, &account) {
+            Ok(prefix) => prefix,
+            Err(err) => {
+                let _ = tx.send(Err(io::Error::other(err.error))).await;
+                return;
+            }
         };
-        serde_json::to_writer(&mut body, &item).map_err(|err| {
-            error!("account export resume serialization failed: {err}");
-            ApiError::internal("failed to export account data")
-        })?;
 
-        if body.len() > MAX_BODY_SIZE {
-            return Err(export_payload_too_large());
+        if tx.send(Ok(Bytes::from(prefix))).await.is_err() {
+            return;
         }
+
+        let mut rows = sqlx::query_as::<_, ExportResumeRow>(
+            r#"
+            SELECT id, title, data
+            FROM resumes
+            WHERE user_id = $1
+            ORDER BY updated_at DESC
+            "#,
+        )
+        .bind(user_id)
+        .fetch(&db);
+
+        let mut first_resume = true;
+        while let Some(row) = match rows.try_next().await {
+            Ok(row) => row,
+            Err(err) => {
+                let _ = tx
+                    .send(Err(io::Error::other(internal_db_error(err).error)))
+                    .await;
+                return;
+            }
+        } {
+            match serialize_resume_chunk(row, &mut first_resume) {
+                Ok(chunk) => {
+                    if tx.send(Ok(Bytes::from(chunk))).await.is_err() {
+                        return;
+                    }
+                }
+                Err(err) => {
+                    let _ = tx.send(Err(io::Error::other(err.error))).await;
+                    return;
+                }
+            }
+        }
+
+        let _ = tx.send(Ok(Bytes::from_static(b"]}"))).await;
+    });
+
+    stream::unfold(rx, |mut rx| async move {
+        rx.recv().await.map(|item| (item, rx))
+    })
+}
+
+fn serialize_resume_chunk(row: ExportResumeRow, first: &mut bool) -> Result<Vec<u8>, ApiError> {
+    let data_bytes = serde_json::to_vec(&row.data).map_err(|err| {
+        error!("account export resume serialization failed: {err}");
+        ApiError::internal("failed to export account data")
+    })?;
+    if data_bytes.len() > MAX_RESUME_JSON_BYTES {
+        return Err(ApiError::payload_too_large(format!(
+            "Resume JSON exceeds maximum size of {MAX_RESUME_JSON_BYTES} bytes"
+        )));
     }
 
-    body.extend_from_slice(b"]}");
-    if body.len() > MAX_BODY_SIZE {
-        return Err(export_payload_too_large());
-    }
+    let item = ResumeExportItem {
+        id: row.id,
+        title: row.title,
+        data: row.data,
+    };
 
-    Ok((body, resume_count as usize))
+    let mut chunk = Vec::new();
+    if !*first {
+        chunk.push(b',');
+    } else {
+        *first = false;
+    }
+    serde_json::to_writer(&mut chunk, &item).map_err(|err| {
+        error!("account export resume serialization failed: {err}");
+        ApiError::internal("failed to export account data")
+    })?;
+    Ok(chunk)
 }
 
 fn append_json_field(
@@ -298,12 +343,6 @@ fn append_json_field(
         error!("account export serialization failed: {err}");
         ApiError::internal("failed to export account data")
     })
-}
-
-fn export_payload_too_large() -> ApiError {
-    ApiError::payload_too_large(format!(
-        "Account export exceeds maximum size of {MAX_BODY_SIZE} bytes"
-    ))
 }
 
 fn internal_db_error(err: sqlx::Error) -> ApiError {

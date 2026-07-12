@@ -52,6 +52,7 @@ utoipa-swagger-ui = { version = "9", features = ["axum", "reqwest"] }
 
 # Cloud mode
 sqlx.workspace = true
+bytes = "1"
 uuid.workspace = true
 reqwest.workspace = true
 axum-extra.workspace = true
