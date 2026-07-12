@@ -8,6 +8,7 @@ use axum::{
 };
 use axum_extra::extract::cookie::CookieJar;
 use chrono::Utc;
+use futures::TryStreamExt;
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
@@ -56,35 +57,7 @@ pub async fn export_account(
     let ip_address = trusted_client_ip(&headers, net::trusted_proxy_enabled());
     let ip = ip_address.as_deref();
 
-    let rows = fetch_all_resumes(&cloud.db, user.id).await?;
-    let resume_count = rows.len();
-    let mut total_resume_bytes = 0usize;
-    let resumes = rows
-        .into_iter()
-        .map(|row| {
-            let data_bytes = serde_json::to_vec(&row.data).map_err(|err| {
-                error!("account export resume serialization failed: {err}");
-                ApiError::internal("failed to export account data")
-            })?;
-            let data_size = data_bytes.len();
-            if data_size > MAX_RESUME_JSON_BYTES {
-                return Err(ApiError::payload_too_large(format!(
-                    "Resume JSON exceeds maximum size of {MAX_RESUME_JSON_BYTES} bytes"
-                )));
-            }
-            total_resume_bytes = total_resume_bytes.saturating_add(data_size);
-            if total_resume_bytes > MAX_BODY_SIZE {
-                return Err(ApiError::payload_too_large(format!(
-                    "Account export exceeds maximum size of {MAX_BODY_SIZE} bytes"
-                )));
-            }
-            Ok(ResumeExportItem {
-                id: row.id,
-                title: row.title,
-                data: row.data,
-            })
-        })
-        .collect::<Result<Vec<_>, ApiError>>()?;
+    let (resumes, resume_count) = collect_export_resumes(&cloud.db, user.id).await?;
 
     let payload = AccountDataExport {
         exported_at: Utc::now(),
@@ -246,11 +219,11 @@ fn is_valid_delete_confirmation(confirmation: &str) -> bool {
     confirmation == DELETE_CONFIRMATION
 }
 
-async fn fetch_all_resumes(
+async fn collect_export_resumes(
     db: &sqlx::PgPool,
     user_id: Uuid,
-) -> Result<Vec<ExportResumeRow>, ApiError> {
-    sqlx::query_as::<_, ExportResumeRow>(
+) -> Result<(Vec<ResumeExportItem>, usize), ApiError> {
+    let mut rows = sqlx::query_as::<_, ExportResumeRow>(
         r#"
         SELECT id, title, data
         FROM resumes
@@ -259,9 +232,36 @@ async fn fetch_all_resumes(
         "#,
     )
     .bind(user_id)
-    .fetch_all(db)
-    .await
-    .map_err(internal_db_error)
+    .fetch(db);
+
+    let mut resumes = Vec::new();
+    let mut total_resume_bytes = 0usize;
+
+    while let Some(row) = rows.try_next().await.map_err(internal_db_error)? {
+        let data_bytes = serde_json::to_vec(&row.data).map_err(|err| {
+            error!("account export resume serialization failed: {err}");
+            ApiError::internal("failed to export account data")
+        })?;
+        let data_size = data_bytes.len();
+        if data_size > MAX_RESUME_JSON_BYTES {
+            return Err(ApiError::payload_too_large(format!(
+                "Resume JSON exceeds maximum size of {MAX_RESUME_JSON_BYTES} bytes"
+            )));
+        }
+        total_resume_bytes = total_resume_bytes.saturating_add(data_size);
+        if total_resume_bytes > MAX_BODY_SIZE {
+            return Err(ApiError::payload_too_large(format!(
+                "Account export exceeds maximum size of {MAX_BODY_SIZE} bytes"
+            )));
+        }
+        resumes.push(ResumeExportItem {
+            id: row.id,
+            title: row.title,
+            data: row.data,
+        });
+    }
+
+    Ok((resumes, resumes.len()))
 }
 
 fn internal_db_error(err: sqlx::Error) -> ApiError {
