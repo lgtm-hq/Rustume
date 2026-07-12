@@ -253,6 +253,48 @@ pub struct DeleteAccountResponse {
     pub message: String,
 }
 
+/// Account metadata included in GDPR portability export.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct AccountExportProfile {
+    #[schema(value_type = String, format = "uuid")]
+    pub id: Uuid,
+    /// Account email synced from WorkOS, when available.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+    /// Given name synced from WorkOS, when available.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_name: Option<String>,
+    /// Family name synced from WorkOS, when available.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_name: Option<String>,
+    pub plan: String,
+    #[schema(value_type = String, format = "date-time")]
+    pub created_at: DateTime<Utc>,
+}
+
+/// Full account data export payload for `GET /api/account/export`.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct AccountDataExport {
+    #[schema(value_type = String, format = "date-time")]
+    pub exported_at: DateTime<Utc>,
+    pub account: AccountExportProfile,
+    pub resumes: Vec<ResumeExportItem>,
+}
+
+impl AccountExportProfile {
+    /// Build a portability-safe account profile from the authenticated user row.
+    pub fn from_user(user: &User) -> Self {
+        Self {
+            id: user.id,
+            email: user.email.clone(),
+            first_name: user.first_name.clone(),
+            last_name: user.last_name.clone(),
+            plan: user.plan.clone(),
+            created_at: user.created_at,
+        }
+    }
+}
+
 impl AuthUserResponse {
     /// Build a profile response with the hosted require-auth flag.
     pub fn from_user(

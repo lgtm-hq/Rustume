@@ -2,16 +2,21 @@
 
 use axum::{
     extract::State,
-    http::{header, HeaderMap, StatusCode},
+    http::{header, HeaderMap, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
     Json,
 };
 use axum_extra::extract::cookie::CookieJar;
+use chrono::Utc;
 use tracing::{error, info, warn};
+use uuid::Uuid;
 
 use crate::audit::{record_event, AuditEvent};
 use crate::auth::session::SESSION_COOKIE;
-use crate::db::{DeleteAccountRequest, DeleteAccountResponse};
+use crate::db::{
+    AccountDataExport, AccountExportProfile, DeleteAccountRequest, DeleteAccountResponse,
+    ResumeExportItem,
+};
 use crate::email::log_send_failure;
 use crate::error::ApiError;
 use crate::middleware::auth::AuthUser;
@@ -19,6 +24,86 @@ use crate::net::{self, trusted_client_ip};
 use crate::state::AppState;
 
 const DELETE_CONFIRMATION: &str = "DELETE";
+
+/// Resume fields required for account data export.
+#[derive(Debug, sqlx::FromRow)]
+struct ExportResumeRow {
+    id: Uuid,
+    title: String,
+    data: serde_json::Value,
+}
+
+/// Export all account data for GDPR data portability.
+#[utoipa::path(
+    get,
+    path = "/api/account/export",
+    tag = "Account",
+    responses(
+        (status = 200, description = "Account data export", body = AccountDataExport),
+        (status = 401, description = "Not authenticated", body = ApiError),
+        (status = 500, description = "Export failed", body = ApiError),
+    ),
+    security(("cookieAuth" = []))
+)]
+pub async fn export_account(
+    AuthUser(user): AuthUser,
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Response, ApiError> {
+    let cloud = state.cloud()?;
+    let ip_address = trusted_client_ip(&headers, net::trusted_proxy_enabled());
+    let ip = ip_address.as_deref();
+
+    let rows = fetch_all_resumes(&cloud.db, user.id).await?;
+    let resume_count = rows.len();
+    let resumes = rows
+        .into_iter()
+        .map(|row| ResumeExportItem {
+            id: row.id,
+            title: row.title,
+            data: row.data,
+        })
+        .collect();
+
+    let payload = AccountDataExport {
+        exported_at: Utc::now(),
+        account: AccountExportProfile::from_user(&user),
+        resumes,
+    };
+
+    record_event(
+        &cloud.db,
+        AuditEvent {
+            event_type: "account.export",
+            actor_user_id: Some(user.id),
+            resource_type: Some("account"),
+            resource_id: Some(user.id),
+            metadata: serde_json::json!({ "resume_count": resume_count }),
+            ip_address: ip,
+        },
+    )
+    .await;
+
+    let body = serde_json::to_vec(&payload).map_err(|err| {
+        error!("account export serialization failed: {err}");
+        ApiError::internal("failed to export account data")
+    })?;
+
+    let content_disposition =
+        HeaderValue::from_static("attachment; filename=\"rustume-account-export.json\"");
+    Ok((
+        StatusCode::OK,
+        [
+            (
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/json"),
+            ),
+            (header::CONTENT_DISPOSITION, content_disposition),
+        ],
+        body,
+    )
+        .into_response())
+}
 
 /// Permanently delete the authenticated user's account and all associated data.
 #[utoipa::path(
@@ -135,6 +220,24 @@ fn is_valid_delete_confirmation(confirmation: &str) -> bool {
     confirmation == DELETE_CONFIRMATION
 }
 
+async fn fetch_all_resumes(
+    db: &sqlx::PgPool,
+    user_id: Uuid,
+) -> Result<Vec<ExportResumeRow>, ApiError> {
+    sqlx::query_as::<_, ExportResumeRow>(
+        r#"
+        SELECT id, title, data
+        FROM resumes
+        WHERE user_id = $1
+        ORDER BY updated_at DESC
+        "#,
+    )
+    .bind(user_id)
+    .fetch_all(db)
+    .await
+    .map_err(internal_db_error)
+}
+
 fn internal_db_error(err: sqlx::Error) -> ApiError {
     error!("database error: {err}");
     ApiError::internal("internal server error")
@@ -157,6 +260,18 @@ fn append_set_cookie(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::auth::{session::SessionService, workos::WorkOsClient};
+    use crate::cloud::CloudState;
+    use crate::email::EmailService;
+    use crate::error::ApiErrorKind;
+    use crate::routes::export::export_resumes_json;
+    use crate::state::AppState;
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use chrono::{Duration, Utc};
+    use sqlx::postgres::PgPoolOptions;
+    use std::sync::Arc;
+    use tower::ServiceExt;
 
     #[test]
     fn delete_confirmation_requires_exact_match() {
@@ -164,5 +279,269 @@ mod tests {
         assert!(!is_valid_delete_confirmation("delete"));
         assert!(!is_valid_delete_confirmation("DELETE "));
         assert!(!is_valid_delete_confirmation(""));
+    }
+
+    fn looks_like_test_database_url(url: &str) -> bool {
+        let db_name = url
+            .split(['?', '#'])
+            .next()
+            .unwrap_or(url)
+            .rsplit('/')
+            .next()
+            .unwrap_or("");
+        db_name.contains("_test")
+    }
+
+    fn database_url_for_tests() -> Option<String> {
+        let url = std::env::var("TEST_DATABASE_URL")
+            .ok()
+            .map(|url| url.trim().to_owned())
+            .filter(|url| !url.is_empty())
+            .or_else(|| {
+                std::env::var("DATABASE_URL")
+                    .ok()
+                    .map(|url| url.trim().to_owned())
+                    .filter(|url| !url.is_empty())
+            })?;
+
+        if looks_like_test_database_url(&url) {
+            Some(url)
+        } else {
+            eprintln!(
+                "SKIP account export integration tests: set TEST_DATABASE_URL (or DATABASE_URL) to a database whose name contains _test"
+            );
+            None
+        }
+    }
+
+    async fn connect_test_pool(database_url: &str) -> sqlx::PgPool {
+        let pool = PgPoolOptions::new()
+            .max_connections(2)
+            .connect(database_url)
+            .await
+            .expect("connect to test database for account export integration tests");
+        sqlx::migrate!("./src/db/migrations")
+            .run(&pool)
+            .await
+            .expect("run migrations for account export integration tests");
+        pool
+    }
+
+    async fn seed_user_with_resumes(pool: &sqlx::PgPool, count: i64) -> crate::db::User {
+        let user_id = Uuid::new_v4();
+        let workos_id = format!("workos_account_export_{user_id}");
+
+        sqlx::query(
+            r#"
+            INSERT INTO users (id, workos_id, email, first_name, last_name, plan)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            "#,
+        )
+        .bind(user_id)
+        .bind(&workos_id)
+        .bind("dev@example.com")
+        .bind("Ada")
+        .bind("Lovelace")
+        .bind("free")
+        .execute(pool)
+        .await
+        .expect("insert user");
+
+        for index in 0..count {
+            sqlx::query("INSERT INTO resumes (user_id, title, data) VALUES ($1, $2, $3)")
+                .bind(user_id)
+                .bind(format!("Resume {index}"))
+                .bind(serde_json::json!({ "index": index }))
+                .execute(pool)
+                .await
+                .expect("insert resume");
+        }
+
+        sqlx::query_as::<_, crate::db::User>("SELECT * FROM users WHERE id = $1")
+            .bind(user_id)
+            .fetch_one(pool)
+            .await
+            .expect("fetch user")
+    }
+
+    async fn seed_expired_subscription(pool: &sqlx::PgPool, user_id: Uuid) {
+        let expired_at = Utc::now() - Duration::days(30);
+        let subscription_id = Uuid::new_v4();
+        sqlx::query(
+            r#"
+            INSERT INTO subscriptions (
+                user_id,
+                paddle_subscription_id,
+                paddle_price_id,
+                plan,
+                status,
+                current_period_end
+            )
+            VALUES ($1, $2, $3, $4, $5, $6)
+            "#,
+        )
+        .bind(user_id)
+        .bind(format!("sub_expired_{subscription_id}"))
+        .bind("pri_expired_test")
+        .bind("pro")
+        .bind("canceled")
+        .bind(expired_at)
+        .execute(pool)
+        .await
+        .expect("insert expired subscription");
+    }
+
+    async fn cleanup_user(pool: &sqlx::PgPool, user_id: Uuid) {
+        sqlx::query("DELETE FROM users WHERE id = $1")
+            .bind(user_id)
+            .execute(pool)
+            .await
+            .expect("cleanup user");
+    }
+
+    fn test_app_state(pool: sqlx::PgPool) -> AppState {
+        let sessions_pool = pool.clone();
+        AppState::with_require_auth(
+            Arc::new(crate::routes::static_dir()),
+            Some(Arc::new(CloudState {
+                db: pool,
+                workos: WorkOsClient::new("client_test".into(), "api_key_test".into()),
+                sessions: SessionService::new(
+                    sessions_pool,
+                    "test-session-secret-at-least-32-chars".into(),
+                    false,
+                ),
+                workos_redirect_uri: "http://localhost/auth/callback".into(),
+                email: Some(EmailService::new(
+                    "re_test".into(),
+                    "noreply@rustume.com".into(),
+                )),
+            })),
+            false,
+        )
+    }
+
+    async fn read_export_payload(response: Response) -> serde_json::Value {
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("read account export body");
+        serde_json::from_slice(&body).expect("parse account export JSON")
+    }
+
+    #[tokio::test]
+    async fn export_account_returns_account_fields_and_resumes() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+        let pool = connect_test_pool(&database_url).await;
+
+        let user = seed_user_with_resumes(&pool, 2).await;
+        let state = test_app_state(pool.clone());
+
+        let response = export_account(AuthUser(user.clone()), State(state), HeaderMap::new())
+            .await
+            .expect("expected account export to succeed");
+        cleanup_user(&pool, user.id).await;
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get(header::CONTENT_DISPOSITION).unwrap(),
+            "attachment; filename=\"rustume-account-export.json\"",
+        );
+
+        let payload = read_export_payload(response).await;
+        assert_eq!(payload["account"]["id"], user.id.to_string());
+        assert_eq!(payload["account"]["email"], "dev@example.com");
+        assert_eq!(payload["account"]["first_name"], "Ada");
+        assert_eq!(payload["account"]["last_name"], "Lovelace");
+        assert_eq!(payload["account"]["plan"], "free");
+        assert_eq!(payload["resumes"].as_array().map(Vec::len), Some(2));
+        assert_eq!(payload["resumes"][0]["title"], "Resume 0");
+    }
+
+    #[tokio::test]
+    async fn export_account_writes_audit_event() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+        let pool = connect_test_pool(&database_url).await;
+
+        let user = seed_user_with_resumes(&pool, 1).await;
+        let state = test_app_state(pool.clone());
+
+        export_account(AuthUser(user.clone()), State(state), HeaderMap::new())
+            .await
+            .expect("expected account export to succeed");
+
+        let audit_row =
+            sqlx::query_as::<_, (String, Option<Uuid>, Option<String>, serde_json::Value)>(
+                r#"
+            SELECT event_type, actor_user_id, resource_type, metadata
+            FROM audit_events
+            WHERE actor_user_id = $1 AND event_type = 'account.export'
+            ORDER BY created_at DESC
+            LIMIT 1
+            "#,
+            )
+            .bind(user.id)
+            .fetch_one(&pool)
+            .await
+            .expect("fetch account export audit row");
+        cleanup_user(&pool, user.id).await;
+
+        assert_eq!(audit_row.0, "account.export");
+        assert_eq!(audit_row.1, Some(user.id));
+        assert_eq!(audit_row.2.as_deref(), Some("account"));
+        assert_eq!(audit_row.3["resume_count"], 1);
+    }
+
+    #[tokio::test]
+    async fn export_account_succeeds_without_active_subscription() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+        let pool = connect_test_pool(&database_url).await;
+
+        let user = seed_user_with_resumes(&pool, 1).await;
+        seed_expired_subscription(&pool, user.id).await;
+        let state = test_app_state(pool.clone());
+
+        let account_result = export_account(
+            AuthUser(user.clone()),
+            State(state.clone()),
+            HeaderMap::new(),
+        )
+        .await;
+        let resume_result = export_resumes_json(AuthUser(user.clone()), State(state)).await;
+        cleanup_user(&pool, user.id).await;
+
+        account_result.expect("account export should succeed without active subscription");
+        assert!(matches!(
+            resume_result,
+            Err(err) if matches!(err.kind, ApiErrorKind::Forbidden)
+        ));
+    }
+
+    #[tokio::test]
+    async fn export_account_unauthenticated_returns_401() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+        let pool = connect_test_pool(&database_url).await;
+        let state = test_app_state(pool);
+        let app = crate::create_router_with_state(state);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/account/export")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
 }

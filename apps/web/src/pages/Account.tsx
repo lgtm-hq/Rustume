@@ -1,6 +1,6 @@
 import { Show, createEffect, createSignal } from "solid-js";
 import { A, useNavigate } from "@solidjs/router";
-import { deleteAccount } from "../api/account";
+import { deleteAccount, downloadAccountExport } from "../api/account";
 import { downloadResumesJson, downloadResumesPdf } from "../api/export";
 import { listCloudResumesPage } from "../api/resumes";
 import { authStore } from "../stores/auth";
@@ -47,6 +47,7 @@ export default function Account() {
   const [deletingAccount, setDeletingAccount] = createSignal(false);
   const [exportingJson, setExportingJson] = createSignal(false);
   const [exportingPdf, setExportingPdf] = createSignal(false);
+  const [exportingAccount, setExportingAccount] = createSignal(false);
 
   createEffect(() => {
     if (!deleteModalOpen()) {
@@ -107,6 +108,19 @@ export default function Account() {
       toast.error(error instanceof Error ? error.message : "Failed to export PDFs");
     } finally {
       setExportingPdf(false);
+    }
+  };
+
+  const handleExportAccount = async () => {
+    setExportingAccount(true);
+    try {
+      await downloadAccountExport();
+      toast.success("Account data downloaded");
+    } catch (error) {
+      console.error("Account export failed:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to export account data");
+    } finally {
+      setExportingAccount(false);
     }
   };
 
@@ -266,6 +280,21 @@ export default function Account() {
                       title="End-to-end encryption"
                       description="Optional client-side encryption for resume content."
                     />
+                  </section>
+
+                  <section class="rounded-2xl border border-border bg-paper p-6 shadow-card">
+                    <h2 class="font-display text-lg font-semibold text-ink mb-2">Export my data</h2>
+                    <p class="text-sm text-stone mb-4">
+                      Download all account data — profile metadata and cloud resumes — as a JSON
+                      file for data portability.
+                    </p>
+                    <Button
+                      variant="secondary"
+                      onClick={() => void handleExportAccount()}
+                      loading={exportingAccount()}
+                    >
+                      Export my data
+                    </Button>
                   </section>
 
                   <section class="rounded-2xl border border-red-200 bg-red-50/40 p-6 shadow-card">

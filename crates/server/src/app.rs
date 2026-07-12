@@ -27,7 +27,7 @@ use crate::middleware::subscription::require_subscription_render;
 use crate::observability::apply_sentry_layers;
 use crate::openapi::ApiDoc;
 use crate::routes::{
-    callback, create_resume, delete_account, delete_resume, export_resumes_json,
+    callback, create_resume, delete_account, delete_resume, export_account, export_resumes_json,
     export_resumes_pdf, get_resume, health, import_resumes, list_resumes, list_templates, login,
     logout, me, metrics, parse, render_pdf, render_preview, security_txt, spa_fallback, static_dir,
     template_thumbnail, update_resume, validate,
@@ -171,6 +171,7 @@ pub fn create_router_with_state(state: AppState) -> Router {
         }
 
         let account_routes = Router::new()
+            .route("/api/account/export", get(export_account))
             .route("/api/account", delete(delete_account))
             .route_layer(middleware::from_fn_with_state(
                 state.clone(),
