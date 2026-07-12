@@ -42,15 +42,19 @@ jobs:
 
     steps:
       - name: Harden Runner
-        # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/harden-runner@96a42109637efd4c019d176e0902e3be23295716 # v0.45.1
+        # Direct step-security invocation: lgtm-ci removed its harden-runner
+        # composite in v0.50.0 (the action pre hook must install the agent).
+        # Linux-only guard matches the lgtm-ci reusable preambles; the agent
+        # does not support the macOS/Windows matrix legs.
+        if: runner.os == 'Linux' || runner.environment == 'self-hosted'
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
         with:
           egress-policy: audit
 
       - name: Checkout
         if: runner.os != 'Windows'
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@96a42109637efd4c019d176e0902e3be23295716 # v0.45.1
+        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@66cad82ead0e5d119928c895c7d7da9c837989e5 # v0.52.3
 
       - name: Checkout (Windows)
         if: runner.os == 'Windows'
@@ -61,7 +65,7 @@ jobs:
 
       - name: Setup Rust
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/setup-rust@96a42109637efd4c019d176e0902e3be23295716 # v0.45.1
+        uses: lgtm-hq/lgtm-ci/.github/actions/setup-rust@66cad82ead0e5d119928c895c7d7da9c837989e5 # v0.52.3
         with:
           targets: ${{ matrix.target }}
 

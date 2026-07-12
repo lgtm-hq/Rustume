@@ -22,6 +22,28 @@ and this project adheres to
 
 ### Security
 
+## [0.26.0] - 2026-07-12
+
+### Added
+
+- **ci**: add merge_group triggers for merge queue support (#356) (c42509f)
+
+### Changed
+
+- **ci**: adopt 📌 pinning check name and lgtm-ci v0.52.4 (#391) (42e6fa9)
+- **ci**: adopt canonical emoji check names (#388) (dbed92a)
+- **ci**: adopt lgtm-ci v0.52.3 and fix path-filtered CodeQL check (#385) (ebd9b15)
+- **renovate**: drop rules superseded by org preset (#384) (70203b2)
+- **renovate**: migrate fileMatch to managerFilePatterns (#381) (17a738c)
+- **deps**: update rust to 1.96 (minor) (#290) (e8ce1c4)
+- **deps**: update metrics-exporter-prometheus to 0.18.3 (minor) (#285) (fa8f449)
+- **deps**: update axum-extra to 0.12.6 (minor) (#262) (fd7d76d)
+- **deps**: update postgres digest (#227) (59e635d)
+
+### Fixed
+
+- **ci**: unblock release PR egress and pages deploy after v0.52.3 (#390) (8b8ae8e)
+
 ## [0.25.1] - 2026-06-28
 
 ### Fixed
@@ -259,7 +281,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.25.1...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.26.0...HEAD
+[0.26.0]: https://github.com/lgtm-hq/Rustume/compare/v0.25.1...v0.26.0
 [0.25.1]: https://github.com/lgtm-hq/Rustume/compare/v0.25.0...v0.25.1
 [0.25.0]: https://github.com/lgtm-hq/Rustume/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/lgtm-hq/Rustume/compare/v0.23.0...v0.24.0
