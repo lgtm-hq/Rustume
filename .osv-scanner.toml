@@ -75,3 +75,8 @@ name = "lgtm-hq/lgtm-ci/.github/actions/setup-node"
 ecosystem = "GitHub Actions"
 license.override = ["MIT"]
 reason = "MIT licensed composite action from lgtm-ci"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0206"
+ignoreUntil = 2026-10-04
+reason = "rustybuzz — transitive via typst-layout/typst-library/krilla/usvg; informational (unmaintained), no patched version; blocked until typst ecosystem migrates"

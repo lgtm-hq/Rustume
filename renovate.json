@@ -4,8 +4,8 @@
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": [
-        "docker/Dockerfile"
+      "managerFilePatterns": [
+        "/^docker/Dockerfile$/"
       ],
       "matchStrings": [
         "ARG BUN_VERSION=(?<currentValue>\\S+)",
@@ -17,7 +17,7 @@
     },
     {
       "customType": "regex",
-      "fileMatch": ["docker/Dockerfile"],
+      "managerFilePatterns": ["/^docker/Dockerfile$/"],
       "matchStrings": [
         "cargo install cargo-chef@(?<currentValue>\\S+) --locked"
       ],
@@ -26,7 +26,7 @@
     },
     {
       "customType": "regex",
-      "fileMatch": ["scripts/ci/site/preview-pages-local.sh"],
+      "managerFilePatterns": ["/^scripts/ci/site/preview-pages-local\\.sh$/"],
       "matchStrings": [
         "CARGO_LLVM_COV_VERSION=\"\\$\\{CARGO_LLVM_COV_VERSION:-(?<currentValue>\\S+)\\}\""
       ],
@@ -36,20 +36,10 @@
   ],
   "packageRules": [
     {
-      "matchCategories": ["docker"],
-      "pinDigests": true
-    },
-    {
       "matchManagers": ["docker-compose", "dockerfile"],
       "matchUpdateTypes": ["digest"],
       "automerge": true,
       "automergeType": "branch"
-    },
-    {
-      "groupName": "linting tools",
-      "groupSlug": "linting-tools",
-      "matchPackageNames": ["ghcr.io/lgtm-hq/py-lintro"],
-      "automerge": false
     },
     {
       "groupName": "axum ecosystem",
@@ -66,6 +56,18 @@
         "utoipa-swagger-ui",
         "utoipa-axum"
       ]
+    },
+    {
+      "groupName": "typst",
+      "groupSlug": "typst",
+      "matchManagers": ["cargo"],
+      "matchPackageNames": [
+        "typst",
+        "typst-assets",
+        "typst-pdf",
+        "typst-render"
+      ],
+      "matchPackagePatterns": ["^typst-"]
     }
   ]
 }

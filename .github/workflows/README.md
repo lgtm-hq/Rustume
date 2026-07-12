@@ -3,7 +3,7 @@
 This repository uses GitHub Actions for quality gates, coverage, release automation,
 and publishing. Most workflows are thin callers to
 [lgtm-ci](https://github.com/lgtm-hq/lgtm-ci) reusable workflows pinned at
-`96a42109637efd4c019d176e0902e3be23295716` (**v0.45.1** release commit; not the annotated
+`66cad82ead0e5d119928c895c7d7da9c837989e5` (**v0.52.3** release commit; not the annotated
 tag object SHA). All workflow SHA pins include
 trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enforced by
 [lgtm-ci validate-action-pinning](https://github.com/lgtm-hq/lgtm-ci/pull/221) (via
@@ -17,7 +17,7 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
 
 - **test-rust.yml** — Rust workspace compile check via `reusable-test-rust-build`
   (ruleset gate: `rust-build / 🔨 Build Check`)
-- **coverage.yml** — Single-runtime coverage (lgtm-ci v0.45.1
+- **coverage.yml** — Single-runtime coverage (lgtm-ci v0.52.3
   compat/coverage contract): `rust-coverage` and `web-coverage` each use
   `coverage: true` and `publish-test-summary: true`; uploads Pages coverage
   HTML artifacts and distinct PR coverage comments (suite name in heading)
@@ -73,16 +73,17 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
 - **validate-action-pinning.yml** — SHA pin policy via `reusable-validate-action-pinning`
 - **ghcr-cleanup.yml** — GHCR prune (hybrid: `reusable-ghcr-cleanup` for untagged +
   inline tagged retention)
-- **renovate.yml** — Scheduled Renovate runs (lgtm-ci composites)
+- **renovate.yml** — Scheduled Renovate runs (direct `step-security/harden-runner` +
+  lgtm-ci `secure-checkout`; lgtm-ci removed its harden-runner composite in v0.50.0)
 
 ## Pin format
 
 Use the **release commit SHA**, not the annotated tag object SHA:
 
 ```yaml
-uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@96a42109637efd4c019d176e0902e3be23295716 # v0.45.1
+uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@66cad82ead0e5d119928c895c7d7da9c837989e5 # v0.52.3
 with:
-  tooling-ref: '96a42109637efd4c019d176e0902e3be23295716' # v0.45.1 release commit
+  tooling-ref: '66cad82ead0e5d119928c895c7d7da9c837989e5' # v0.52.3 release commit
 ```
 
 Sparse `lgtm-hq` tooling checkouts may use `actions/checkout` when `ref:` is quoted and
