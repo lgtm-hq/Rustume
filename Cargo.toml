@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/*", "bindings/*"]
 
 [workspace.package]
-version = "0.26.1"
+version = "0.26.2"
 edition = "2021"
 license = "AGPL-3.0-only"
 repository = "https://github.com/lgtm-hq/Rustume"
@@ -101,7 +101,7 @@ utoipa = { version = "5", features = ["axum_extras"] }
 lru = "0.18"
 
 # Rate limiting
-governor = "0.8"
+governor = "0.10"
 dashmap = "6"
 
 # Cloud / database
