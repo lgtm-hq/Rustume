@@ -62,14 +62,18 @@ pub struct ApiError {
 }
 
 impl ApiError {
-    /// Create a 400 Bad Request error.
-    pub fn new(error: impl Into<String>) -> Self {
+    fn with_kind(kind: ApiErrorKind, error: impl Into<String>) -> Self {
         Self {
             error: error.into(),
             details: None,
             current_version: None,
-            kind: ApiErrorKind::BadRequest,
+            kind,
         }
+    }
+
+    /// Create a 400 Bad Request error.
+    pub fn new(error: impl Into<String>) -> Self {
+        Self::with_kind(ApiErrorKind::BadRequest, error)
     }
 
     /// Create a 422 Unprocessable Entity error with validation details.
@@ -84,52 +88,27 @@ impl ApiError {
 
     /// Create a 404 Not Found error.
     pub fn not_found(error: impl Into<String>) -> Self {
-        Self {
-            error: error.into(),
-            details: None,
-            current_version: None,
-            kind: ApiErrorKind::NotFound,
-        }
+        Self::with_kind(ApiErrorKind::NotFound, error)
     }
 
     /// Create a 500 Internal Server Error.
     pub fn internal(error: impl Into<String>) -> Self {
-        Self {
-            error: error.into(),
-            details: None,
-            current_version: None,
-            kind: ApiErrorKind::InternalError,
-        }
+        Self::with_kind(ApiErrorKind::InternalError, error)
     }
 
     /// Create a 401 Unauthorized error.
     pub fn unauthorized(error: impl Into<String>) -> Self {
-        Self {
-            error: error.into(),
-            details: None,
-            current_version: None,
-            kind: ApiErrorKind::Unauthorized,
-        }
+        Self::with_kind(ApiErrorKind::Unauthorized, error)
     }
 
     /// Create a 403 Forbidden error.
     pub fn forbidden(error: impl Into<String>) -> Self {
-        Self {
-            error: error.into(),
-            details: None,
-            current_version: None,
-            kind: ApiErrorKind::Forbidden,
-        }
+        Self::with_kind(ApiErrorKind::Forbidden, error)
     }
 
     /// Create a 409 Conflict error.
     pub fn conflict(error: impl Into<String>) -> Self {
-        Self {
-            error: error.into(),
-            details: None,
-            current_version: None,
-            kind: ApiErrorKind::Conflict,
-        }
+        Self::with_kind(ApiErrorKind::Conflict, error)
     }
 
     /// Create a 409 Conflict error with the current resource version.
@@ -144,12 +123,7 @@ impl ApiError {
 
     /// Create a 413 Payload Too Large error.
     pub fn payload_too_large(error: impl Into<String>) -> Self {
-        Self {
-            error: error.into(),
-            details: None,
-            current_version: None,
-            kind: ApiErrorKind::PayloadTooLarge,
-        }
+        Self::with_kind(ApiErrorKind::PayloadTooLarge, error)
     }
 }
 
