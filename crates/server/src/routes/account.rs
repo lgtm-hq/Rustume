@@ -261,7 +261,8 @@ async fn collect_export_resumes(
         });
     }
 
-    Ok((resumes, resumes.len()))
+    let resume_count = resumes.len();
+    Ok((resumes, resume_count))
 }
 
 fn internal_db_error(err: sqlx::Error) -> ApiError {
