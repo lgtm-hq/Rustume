@@ -6,6 +6,7 @@ use tracing::info;
 use crate::app::create_router_with_state;
 use crate::cloud::{cloud_enabled, init_cloud, CloudConfig};
 use crate::config::DEFAULT_PORT;
+use crate::middleware::rate_limit::RateLimitState;
 use crate::observability::init_sentry;
 use crate::routes::{init_metrics, static_dir};
 use crate::shutdown::{health_probe, shutdown_signal};
@@ -38,7 +39,11 @@ pub async fn run() -> anyhow::Result<()> {
         None
     };
 
-    let app = create_router_with_state(AppState::new(static_root.clone(), cloud));
+    let app_state = AppState::new(static_root.clone(), cloud);
+    if let Some(rate_limits) = app_state.rate_limits.clone() {
+        RateLimitState::spawn_eviction_task(rate_limits);
+    }
+    let app = create_router_with_state(app_state);
 
     let port: u16 = std::env::var("PORT")
         .ok()

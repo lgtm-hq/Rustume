@@ -11,8 +11,10 @@ use governor::{
     clock::{Clock, DefaultClock},
     RateLimiter,
 };
+use metrics::gauge;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::{Duration, UNIX_EPOCH};
 use tracing::warn;
 
@@ -91,6 +93,55 @@ impl RateLimitState {
                 Err(RateLimitExceeded::new(wait))
             }
         }
+    }
+
+    /// Remove stale keyed state from all limiters and refresh the Prometheus gauge.
+    pub fn evict_stale(&self) {
+        self.resume_crud.retain_recent();
+        self.resume_crud.shrink_to_fit();
+        self.import.retain_recent();
+        self.import.shrink_to_fit();
+        self.preview.retain_recent();
+        self.preview.shrink_to_fit();
+        self.pdf.retain_recent();
+        self.pdf.shrink_to_fit();
+        self.auth.retain_recent();
+        self.auth.shrink_to_fit();
+        self.health.retain_recent();
+        self.health.shrink_to_fit();
+        self.metrics.retain_recent();
+        self.metrics.shrink_to_fit();
+        self.billable.retain_recent();
+        self.billable.shrink_to_fit();
+        self.unauthenticated.retain_recent();
+        self.unauthenticated.shrink_to_fit();
+
+        gauge!("rustume_rate_limit_keys").set(self.key_count() as f64);
+    }
+
+    /// Total number of keyed entries across all limiters.
+    fn key_count(&self) -> usize {
+        self.resume_crud.len()
+            + self.import.len()
+            + self.preview.len()
+            + self.pdf.len()
+            + self.auth.len()
+            + self.health.len()
+            + self.metrics.len()
+            + self.billable.len()
+            + self.unauthenticated.len()
+    }
+
+    /// Spawn a background task that evicts stale rate-limit keys on a fixed interval.
+    pub fn spawn_eviction_task(rate_limits: Arc<Self>) {
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_secs(5 * 60));
+            interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+            loop {
+                interval.tick().await;
+                rate_limits.evict_stale();
+            }
+        });
     }
 }
 
@@ -316,7 +367,10 @@ pub async fn rate_limit_billable(
 mod tests {
     use super::*;
     use crate::config::RateLimitConfig;
+    use std::num::NonZeroU32;
     use std::sync::Arc;
+    use std::thread;
+    use std::time::Duration;
 
     fn test_rate_limits(limit: u32) -> Arc<RateLimitState> {
         let config = RateLimitConfig {
@@ -331,6 +385,21 @@ mod tests {
             ..Default::default()
         };
         Arc::new(RateLimitState::new(config))
+    }
+
+    fn test_rate_limits_with_quota(quota: governor::Quota) -> RateLimitState {
+        RateLimitState {
+            trusted_proxy: false,
+            resume_crud: RateLimiter::dashmap(quota),
+            import: RateLimiter::dashmap(quota),
+            preview: RateLimiter::dashmap(quota),
+            pdf: RateLimiter::dashmap(quota),
+            auth: RateLimiter::dashmap(quota),
+            health: RateLimiter::dashmap(quota),
+            metrics: RateLimiter::dashmap(quota),
+            billable: RateLimiter::dashmap(quota),
+            unauthenticated: RateLimiter::dashmap(quota),
+        }
     }
 
     #[test]
@@ -360,6 +429,20 @@ mod tests {
         assert!(limits
             .check(RateLimitGroup::Metrics, &key.to_string())
             .is_ok());
+    }
+
+    #[test]
+    fn evict_stale_drops_keys_after_quota_window() {
+        let quota = governor::Quota::per_second(NonZeroU32::new(1).expect("quota"));
+        let limits = test_rate_limits_with_quota(quota);
+        let key = "ip:evict-test".to_string();
+
+        assert!(limits.check(RateLimitGroup::Health, &key).is_ok());
+        assert_eq!(limits.key_count(), 1);
+
+        thread::sleep(Duration::from_secs(2));
+        limits.evict_stale();
+        assert_eq!(limits.key_count(), 0);
     }
 
     #[test]
