@@ -160,6 +160,28 @@ describe("useEditorTheme", () => {
     });
   });
 
+  it("does not persist system default when flavor list lacks light default", async () => {
+    mockMatchMedia(false);
+    const flavorsWithoutLatte = turboThemesMock.flavors.filter(
+      (flavor) => flavor.id !== "catppuccin-latte",
+    );
+    vi.doMock("@lgtm-hq/turbo-themes", () => ({
+      get flavors() {
+        return flavorsWithoutLatte;
+      },
+    }));
+    const { useEditorTheme: useTheme } = await importFreshEditorTheme();
+    await createRoot(async (dispose) => {
+      const { state, ensureFlavorsLoaded } = useTheme();
+      expect(state.themeId).toBe("catppuccin-latte");
+      await ensureFlavorsLoaded();
+      expect(state.themeId).toBe("catppuccin-mocha");
+      expect(localStorage.getItem("rustume-editor-theme")).toBeNull();
+      dispose();
+    });
+    vi.doUnmock("@lgtm-hq/turbo-themes");
+  });
+
   it("setTheme with valid ID updates themeId and saves to localStorage", async () => {
     await createRoot(async (dispose) => {
       const { state, setTheme, ensureFlavorsLoaded } = useEditorTheme();

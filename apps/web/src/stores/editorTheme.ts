@@ -122,12 +122,26 @@ export function useEditorTheme() {
 
       const savedExists = flavors.some((flavor) => flavor.id === state.themeId);
       if (!savedExists) {
-        setState("themeId", DEFAULT_THEME_ID);
+        const systemDefaultId = getSystemDefaultThemeId();
+        const fallbackId = flavors.some((flavor) => flavor.id === systemDefaultId)
+          ? systemDefaultId
+          : DEFAULT_THEME_ID;
+        setState("themeId", fallbackId);
+        // Only persist corrections for explicit saved preferences. System-derived
+        // defaults should stay ephemeral so future visits can re-read color scheme.
+        let hadSavedPreference = false;
         try {
-          localStorage.setItem(STORAGE_KEY, DEFAULT_THEME_ID);
+          hadSavedPreference = localStorage.getItem(STORAGE_KEY) !== null;
         } catch {
-          console.error("Failed to save theme to localStorage");
-          toast.warning("Could not save theme preference");
+          // ignore read errors; treat as no saved preference
+        }
+        if (hadSavedPreference) {
+          try {
+            localStorage.setItem(STORAGE_KEY, fallbackId);
+          } catch {
+            console.error("Failed to save theme to localStorage");
+            toast.warning("Could not save theme preference");
+          }
         }
       }
 
