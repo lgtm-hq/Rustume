@@ -146,7 +146,7 @@ planned feature interacts with E2EE.
 | --- | --- | --- | --- |
 | **A. Passphrase-on-top** | User sets an encryption passphrase independent of WorkOS login. Argon2id derives a master key (MK). | Simple mental model; works with SSO; no server key storage | Forgotten passphrase = data loss unless recovery codes exist; passphrase entry friction on every device |
 | **B. Device-held key + wrapping** | Each device generates a random Data Encryption Key (DEK). DEK is wrapped by MK derived from passphrase, or by a device-specific key stored in secure enclave / IndexedDB non-exportable key. | Better UX after initial unlock; supports "remember on this device" | Key sync across devices requires wrapping key export or recovery flow; more implementation complexity |
-| **C. Recovery codes** | On E2EE enable, server stores **only** a hash of one-time recovery codes (or encrypted MK backup wrapped by recovery code). | Mitigates passphrase loss | Recovery codes are secrets users must store; server storing wrapped MK backups is a weaker trust model than pure E2EE |
+| **C. Recovery codes** | On E2EE enable, server stores `hash(code)` plus encrypted DEK backups wrapped by each code. | Mitigates passphrase loss | Recovery codes are secrets users must store; server-held wrapped DEK backups are weaker than pure E2EE but required for recovery |
 | **D. WorkOS-bound wrapping** | Derive wrapping key from WorkOS session or OIDC token. | No extra passphrase | **Rejected:** session tokens rotate and are server-visible; provides no meaningful E2EE |
 
 **Recommendation:** Option A + B hybrid — passphrase-derived MK wraps a per-account DEK;
@@ -183,13 +183,6 @@ All E2EE resume payloads use a **versioned JSON envelope** stored in `resumes.da
 {
   "e2ee": {
     "version": 1,
-    "kdf": {
-      "algorithm": "argon2id",
-      "memory_kib": 19456,
-      "iterations": 2,
-      "parallelism": 1
-    },
-    "salt": "<base64url, 16 bytes>",
     "nonce": "<base64url, 12 bytes>",
     "ciphertext": "<base64url, ChaCha20-Poly1305 encrypted ResumeData JSON>"
   }
@@ -198,11 +191,11 @@ All E2EE resume payloads use a **versioned JSON envelope** stored in `resumes.da
 
 | Field | Specification |
 | --- | --- |
-| **KDF** | Argon2id (RFC 9106). Default params: `m=19456` KiB, `t=2`, `p=1`. Params stored in envelope so future versions can increase cost. |
-| **Key derivation** | `MK = Argon2id(passphrase, salt, params)` → 32 bytes. `DEK = HKDF-SHA256(MK, info="rustume-dek-v1")` → 32 bytes. |
-| **AEAD** | ChaCha20-Poly1305 (RFC 8439). Key = DEK. Nonce = 12 random bytes per encryption; **must never repeat** for a given DEK. |
+| **KDF** | Argon2id (RFC 9106). Default params: `m=19456` KiB, `t=2`, `p=1`. Params and salt live in `users.e2ee_config` (account-level), not per-resume. |
+| **Key derivation** | `MK = Argon2id(passphrase, salt, params)` → 32 bytes. Account `DEK` is a random 32-byte value generated at E2EE enable and wrapped by MK (not derived from MK). |
+| **AEAD** | ChaCha20-Poly1305 (RFC 8439). Key = account DEK. Nonce = 12 random bytes per encryption; **must never repeat** for a given DEK. |
 | **Plaintext input** | Canonical JSON serialization of `ResumeData` (same as today). |
-| **Detection** | Server and client check for top-level `"e2ee"` object vs plain `ResumeData` shape (`basics` key). Validation middleware skips resume-schema checks for E2EE envelopes and applies byte-size limits only. |
+| **Detection** | Payload is an E2EE envelope only when the top-level object contains **only** an `e2ee` key (no `basics`, `sections`, or `metadata`). Server rejects mixed plaintext+ciphertext shapes and malformed envelopes (`e2ee.version`, `e2ee.nonce`, `e2ee.ciphertext` required) with 422. Valid envelopes skip resume-schema checks; byte-size limits still apply. |
 
 ### Per-account DEK wrapping (unlock flow)
 
@@ -213,8 +206,16 @@ All E2EE resume payloads use a **versioned JSON envelope** stored in `resumes.da
    stores wrapped key only — cannot unwrap without passphrase).
 5. On unlock: client fetches `e2ee_config`, derives MK, unwraps DEK, holds DEK in memory.
 
-Recovery codes encrypt a copy of DEK with each code-derived key; only code hashes stored
-server-side for verification.
+### Recovery codes
+
+On enable, client generates one-time recovery codes. For each code:
+
+1. Derive `RK = HKDF-SHA256(code, info="rustume-recovery-v1")` → 32 bytes.
+2. Encrypt DEK backup: `wrapped_dek_recovery = ChaCha20-Poly1305(RK, nonce, DEK)`.
+3. Upload `wrapped_dek_recovery` to server; server stores `hash(code)` for verification
+   **and** the ciphertext blob (operator cannot decrypt without the code).
+4. On recovery: user submits code → server verifies hash → returns `wrapped_dek_recovery`
+   → client derives RK, unwraps DEK, prompts new passphrase.
 
 ### Where the code lives
 
@@ -246,7 +247,7 @@ decrypt + explicit plaintext handoff), **Exclude** (incompatible when E2EE enabl
 | Version history | #91 | Table exists; no writers | **Degrade** | Store encrypted snapshots in `resume_versions.data`. Server-side diff/preview requires client decrypt. No server-side restore preview. |
 | Operator backups (`pg_dump`) | #334 | Full DB dump includes plaintext | **Keep** | Ciphertext backs up fine. Restore verification requires client decrypt smoke test, not server readability check. |
 | Account export (GDPR) | #353 | Bulk export routes | **Degrade** | Export includes ciphertext envelopes + `e2ee_config`. User decrypts with passphrase. |
-| Local↔cloud import | #338 | `POST /api/resumes/import` upserts by id | **Keep** | Client encrypts before import if E2EE enabled. Document id-preserving flow in linking RFC. |
+| Local↔cloud import | #338 | `POST /api/resumes/import` upserts by id | **Keep** | Client encrypts before import; server rejects non-envelope `data` when `e2ee_enabled`. Document id-preserving flow in linking RFC. |
 | Local IndexedDB storage | — | WASM storage, no encryption | **Keep** | Independent of cloud E2EE; optional local encryption is separate scope |
 | Server-managed at-rest encryption | — | Documented, not implemented (`ENCRYPTION_SECRET`) | **Orthogonal** | AES-256-GCM at rest protects against disk theft, not operator access. Complements but does not replace E2EE. |
 | CRDT sync | #40 | Not implemented | **Degrade** | Document-level envelope is interim; CRDT adoption needs update-level encryption |
@@ -286,9 +287,10 @@ versioned ChaCha20-Poly1305 envelopes in the existing `resumes.data` JSONB colum
 ### Enabling E2EE (plaintext → ciphertext)
 
 1. Client verifies passphrase strength and displays recovery codes (user confirms saved).
-2. Client generates DEK, wraps with MK, uploads `e2ee_config` to server.
+2. Client generates DEK, wraps with MK, uploads `e2ee_config` and recovery backups to server.
 3. Client fetches all resumes (plaintext), encrypts each to v1 envelope, PUTs back.
-4. Server marks account `e2ee_enabled = true` (new column on `users`).
+4. Server sets `e2ee_enabled = true` only after verifying **every** resume row for the
+   account is a valid envelope (reject toggle if any row is still plaintext or a PUT failed).
 5. Audit event recorded (`crates/server/src/audit/`).
 
 All steps are client-driven; server never sees passphrase or unwrapped DEK.
@@ -351,7 +353,7 @@ If this RFC is accepted, file the following implementation sub-issues:
 | --- | --- | --- |
 | 1 | `feat(crypto): add crates/crypto with v1 envelope` | Argon2id, ChaCha20-Poly1305, HKDF, envelope serialize/deserialize, tests with test vectors |
 | 2 | `feat(wasm): expose encrypt/decrypt bindings` | `bindings/wasm` wrappers for web client |
-| 3 | `feat(server): E2EE account config column and detection` | `users.e2ee_config`, envelope detection in validation middleware, skip schema validation for E2EE payloads |
+| 3 | `feat(server): E2EE account config column and detection` | `users.e2ee_config`, strict envelope detection/rejection in validation middleware, reject non-envelope writes when `e2ee_enabled` |
 | 4 | `feat(web): E2EE enable/disable/ unlock UI` | Account settings, passphrase entry, recovery code display, DEK session management |
 | 5 | `feat(web): encrypt on cloud save, decrypt on load` | `cloudStorage.ts` integration with WASM crypto |
 | 6 | `feat(web): client-side bulk export for E2EE accounts` | Replace server-side JSON/PDF export when `e2ee_enabled` |
