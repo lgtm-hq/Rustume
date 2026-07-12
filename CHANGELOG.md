@@ -22,6 +22,15 @@ and this project adheres to
 
 ### Security
 
+## [0.27.0] - 2026-07-12
+
+### Added
+
+- **infra**: scheduled pg_dump-to-R2 backup workflow, verification script, and restore
+  runbook (#405) (d7c714b)
+- **render**: load Typst templates at runtime instead of embedding in binary (#397)
+  (bed05b6)
+
 ## [0.26.3] - 2026-07-12
 
 ### Changed
@@ -315,7 +324,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.26.3...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.27.0...HEAD
+[0.27.0]: https://github.com/lgtm-hq/Rustume/compare/v0.26.3...v0.27.0
 [0.26.3]: https://github.com/lgtm-hq/Rustume/compare/v0.26.2...v0.26.3
 [0.26.2]: https://github.com/lgtm-hq/Rustume/compare/v0.26.1...v0.26.2
 [0.26.1]: https://github.com/lgtm-hq/Rustume/compare/v0.26.0...v0.26.1
