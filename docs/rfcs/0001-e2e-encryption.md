@@ -321,7 +321,9 @@ Requires explicit user action — not reversible by operator alone.
 1. Generate new DEK.
 2. Re-encrypt every resume envelope with new DEK.
 3. Re-wrap new DEK with current MK, update `e2ee_config`.
-4. Increment `e2ee_config.key_generation` counter.
+4. Re-encrypt each recovery-code backup so every `wrapped_dek_recovery` unwraps the
+   new DEK, or invalidate and regenerate recovery codes before completing rotation.
+5. Increment `e2ee_config.key_generation` counter.
 
 ### Existing plaintext rows
 
