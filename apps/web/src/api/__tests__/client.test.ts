@@ -1,5 +1,14 @@
 import { get, post, put, fetchBlob, fetchBlobWithHeaders, ApiError } from "../client";
 
+vi.mock("../../components/ui", () => ({
+  toast: {
+    warning: vi.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+  },
+}));
+
 describe("ApiError", () => {
   it("has status and message properties", () => {
     const error = new ApiError(404, "Not Found");

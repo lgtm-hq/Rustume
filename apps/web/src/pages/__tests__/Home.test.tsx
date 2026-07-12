@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { axe } from "vitest-axe";
 import { render, screen } from "@solidjs/testing-library";
+import { axeConfig } from "../../test/a11y";
 import { Route, Router } from "@solidjs/router";
 import Home from "../Home";
 
@@ -87,5 +89,17 @@ describe("Home cloud sign-in CTA", () => {
     renderHome();
 
     expect(screen.queryByTestId("home-cloud-sign-in")).not.toBeInTheDocument();
+  });
+});
+
+describe("Home accessibility", () => {
+  it("has no axe violations when rendered", async () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = false;
+    mockAuthState.user = null;
+
+    const { container } = renderHome();
+
+    expect(await axe(container, axeConfig)).toHaveNoViolations();
   });
 });

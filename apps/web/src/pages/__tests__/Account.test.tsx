@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { axe } from "vitest-axe";
 import { fireEvent, render, screen } from "@solidjs/testing-library";
+import { axeConfig } from "../../test/a11y";
 import { Route, Router } from "@solidjs/router";
 import Account from "../Account";
 
@@ -135,5 +137,34 @@ describe("Account page", () => {
 
     expect(screen.getByText("Type DELETE to confirm")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete permanently" })).toBeDisabled();
+  });
+});
+
+describe("Account accessibility", () => {
+  it("has no axe violations when signed out", async () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.requireAuth = false;
+    mockAuthState.user = null;
+
+    const { container } = renderAccount();
+
+    expect(await axe(container, axeConfig)).toHaveNoViolations();
+  });
+
+  it("has no axe violations when signed in", async () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.user = {
+      id: "user-1",
+      plan: "free",
+      email: "dev@example.com",
+      first_name: "Ada",
+      last_name: "Lovelace",
+    };
+
+    const { container } = renderAccount();
+
+    expect(await axe(container, axeConfig)).toHaveNoViolations();
   });
 });
