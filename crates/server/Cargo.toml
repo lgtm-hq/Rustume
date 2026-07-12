@@ -59,6 +59,8 @@ cookie = "0.18"
 hmac = "0.12"
 metrics.workspace = true
 sha2 = "0.11"
+# hmac 0.12 needs digest 0.10; drop after #295 lands and this PR is rebased.
+sha2_for_hmac = { package = "sha2", version = "0.10" }
 subtle = "2"
 metrics-exporter-prometheus.workspace = true
 chrono.workspace = true

@@ -4,7 +4,7 @@ use axum_extra::extract::cookie::{Cookie, SameSite};
 use chrono::{Duration, Utc};
 use cookie::time;
 use hmac::{Hmac, Mac};
-use sha2::Sha256;
+use sha2_for_hmac::Sha256;
 use sqlx::PgPool;
 use subtle::ConstantTimeEq;
 use uuid::Uuid;
