@@ -5,7 +5,7 @@ locals {
       in = var.token_allowed_ip_ranges
     }
   } : null
-  assets_bucket_resource = "com.cloudflare.edge.r2.bucket.${var.account_id}_${var.bucket_jurisdiction}_${cloudflare_r2_bucket.assets.name}"
+  assets_bucket_resource  = "com.cloudflare.edge.r2.bucket.${var.account_id}_${var.bucket_jurisdiction}_${cloudflare_r2_bucket.assets.name}"
   backups_bucket_resource = "com.cloudflare.edge.r2.bucket.${var.account_id}_${var.bucket_jurisdiction}_${cloudflare_r2_bucket.backups.name}"
 }
 

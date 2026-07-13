@@ -37,9 +37,9 @@ provider "neon" {}
 provider "cloudflare" {}
 
 provider "grafana" {
-  cloud_access_policy_token      = var.grafana_cloud_access_policy_token
-  connections_api_url            = var.grafana_connections_api_url
-  connections_api_access_token   = var.grafana_connections_api_access_token
+  cloud_access_policy_token    = var.grafana_cloud_access_policy_token
+  connections_api_url          = var.grafana_connections_api_url
+  connections_api_access_token = var.grafana_connections_api_access_token
 }
 
 provider "sentry" {
