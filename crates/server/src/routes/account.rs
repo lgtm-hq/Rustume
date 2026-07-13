@@ -588,7 +588,14 @@ mod tests {
         assert_eq!(payload["account"]["last_name"], "Lovelace");
         assert_eq!(payload["account"]["plan"], "free");
         assert_eq!(payload["resumes"].as_array().map(Vec::len), Some(2));
-        assert_eq!(payload["resumes"][0]["title"], "Resume 0");
+        let titles: Vec<&str> = payload["resumes"]
+            .as_array()
+            .expect("resumes array")
+            .iter()
+            .map(|resume| resume["title"].as_str().expect("resume title"))
+            .collect();
+        assert!(titles.contains(&"Resume 0"));
+        assert!(titles.contains(&"Resume 1"));
     }
 
     #[tokio::test]
