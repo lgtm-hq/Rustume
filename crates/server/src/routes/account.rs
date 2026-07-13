@@ -63,6 +63,7 @@ pub async fn export_account(
     let ip = ip_address.as_deref();
 
     let resume_count = account_resume_count(&cloud.db, user.id).await?;
+    validate_resume_export_sizes(&cloud.db, user.id).await?;
 
     record_event_required(
         &cloud.db,
@@ -220,6 +221,32 @@ async fn account_resume_count(db: &sqlx::PgPool, user_id: Uuid) -> Result<usize,
     .map_err(internal_db_error)?;
 
     Ok(resume_count as usize)
+}
+
+async fn validate_resume_export_sizes(db: &sqlx::PgPool, user_id: Uuid) -> Result<(), ApiError> {
+    let mut rows = sqlx::query_scalar::<_, serde_json::Value>(
+        r#"
+        SELECT data
+        FROM resumes
+        WHERE user_id = $1
+        "#,
+    )
+    .bind(user_id)
+    .fetch(db);
+
+    while let Some(data) = rows.try_next().await.map_err(internal_db_error)? {
+        let data_bytes = serde_json::to_vec(&data).map_err(|err| {
+            error!("account export resume validation failed: {err}");
+            ApiError::internal("failed to export account data")
+        })?;
+        if data_bytes.len() > MAX_RESUME_JSON_BYTES {
+            return Err(ApiError::payload_too_large(format!(
+                "Resume JSON exceeds maximum size of {MAX_RESUME_JSON_BYTES} bytes"
+            )));
+        }
+    }
+
+    Ok(())
 }
 
 fn build_export_prefix(
