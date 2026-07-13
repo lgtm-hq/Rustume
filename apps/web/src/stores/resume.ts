@@ -181,6 +181,24 @@ export function isResumeEmpty(resume: ResumeData): boolean {
   return true;
 }
 
+function ensureCoverLetterSection(resume: ResumeData): void {
+  if (!resume.sections.coverLetter) {
+    resume.sections.coverLetter = {
+      id: "coverLetter",
+      name: "Cover Letter",
+      visible: false,
+      recipient: {
+        name: "",
+        title: "",
+        company: "",
+        address: "",
+        email: "",
+      },
+      content: "",
+    };
+  }
+}
+
 function normalizeResumeForStore(resume: ResumeData): ResumeData {
   if (!resume.basics.picture) {
     resume.basics.picture = createEmptyPicture();
@@ -199,7 +217,11 @@ function normalizeResumeForStore(resume: ResumeData): ResumeData {
 
   const customIds = Object.keys(resume.sections.custom);
   if (resume.metadata.layout.length === 0) {
-    if (customIds.length === 0) return resume;
+    const shouldSeedEmptyLayout =
+      customIds.length > 0 ||
+      (resume.sections.coverLetter != null && resume.sections.coverLetter.visible);
+    if (!shouldSeedEmptyLayout) return resume;
+    ensureCoverLetterSection(resume);
     resume.metadata.layout = [
       [["summary", "coverLetter", ...FIXED_LAYOUT_SECTION_KEYS, ...customIds]],
     ];
@@ -510,6 +532,7 @@ export function useResumeStore() {
 
           s.resume.sections.custom[section.id] = section;
           if (s.resume.metadata.layout.length === 0) {
+            ensureCoverLetterSection(s.resume);
             s.resume.metadata.layout = [
               [["summary", "coverLetter", ...FIXED_LAYOUT_SECTION_KEYS, section.id]],
             ];
