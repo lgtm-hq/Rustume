@@ -382,7 +382,7 @@ interface ToolbarButtonProps {
 }
 
 function ToolbarButton(props: ToolbarButtonProps) {
-  const activate = (event: MouseEvent) => {
+  const activateWithMouse = (event: MouseEvent) => {
     event.preventDefault();
     props.onClick();
   };
@@ -396,8 +396,13 @@ function ToolbarButton(props: ToolbarButtonProps) {
       aria-pressed={props.active}
       disabled={props.disabled}
       tabIndex={props.tabIndex}
-      onMouseDown={activate}
-      onClick={activate}
+      onMouseDown={activateWithMouse}
+      onClick={(event) => {
+        // Keyboard activation fires click without mousedown; mouse is handled above.
+        if (event.detail === 0) {
+          props.onClick();
+        }
+      }}
       class={`focus-ring flex items-center justify-center h-7 w-7 rounded text-xs transition-colors
         ${props.active ? "bg-accent/20 text-accent" : "text-stone hover:bg-surface hover:text-ink"}
         ${props.disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
