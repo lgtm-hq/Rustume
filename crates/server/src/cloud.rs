@@ -175,11 +175,14 @@ pub fn cloud_enabled() -> bool {
 ///
 /// Only meaningful when [`cloud_enabled`] is also true.
 pub fn require_auth_enabled() -> bool {
-    require_auth_from_env(cloud_enabled(), std::env::var("RUSTUME_REQUIRE_AUTH").ok())
+    require_auth_from_env(
+        cloud_enabled(),
+        std::env::var("RUSTUME_REQUIRE_AUTH").ok().as_deref(),
+    )
 }
 
-fn require_auth_from_env(cloud: bool, value: Option<String>) -> bool {
-    cloud && matches!(value.as_deref().map(str::trim), Some("true" | "1"))
+fn require_auth_from_env(cloud: bool, value: Option<&str>) -> bool {
+    cloud && matches!(value.map(str::trim), Some("true" | "1"))
 }
 
 /// Shared cloud services (database, auth providers).
@@ -243,11 +246,11 @@ mod tests {
 
     #[test]
     fn require_auth_from_env_requires_cloud_and_truthy_flag() {
-        assert!(!require_auth_from_env(false, Some("true".to_string())));
+        assert!(!require_auth_from_env(false, Some("true")));
         assert!(!require_auth_from_env(true, None));
-        assert!(!require_auth_from_env(true, Some("false".to_string())));
-        assert!(require_auth_from_env(true, Some("true".to_string())));
-        assert!(require_auth_from_env(true, Some("1".to_string())));
+        assert!(!require_auth_from_env(true, Some("false")));
+        assert!(require_auth_from_env(true, Some("true")));
+        assert!(require_auth_from_env(true, Some("1")));
     }
 
     #[test]

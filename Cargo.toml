@@ -2,6 +2,12 @@
 resolver = "2"
 members = ["crates/*", "bindings/*"]
 
+[workspace.lints.clippy]
+needless_return = "warn"
+redundant_clone = "warn"
+manual_unwrap_or = "warn"
+needless_pass_by_value = "warn"
+
 [workspace.package]
 version = "0.29.0"
 edition = "2021"

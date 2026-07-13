@@ -1,3 +1,6 @@
+[lints]
+workspace = true
+
 [package]
 name = "rustume-server"
 version.workspace = true
