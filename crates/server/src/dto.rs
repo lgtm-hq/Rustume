@@ -1,3 +1,4 @@
+use rustume_parser::ResumeFormat;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -13,6 +14,17 @@ pub enum ParseFormat {
     Rrv3,
     /// Native Rustume format
     Rustume,
+}
+
+impl From<ParseFormat> for ResumeFormat {
+    fn from(format: ParseFormat) -> Self {
+        match format {
+            ParseFormat::JsonResume => Self::JsonResume,
+            ParseFormat::LinkedIn => Self::LinkedIn,
+            ParseFormat::Rrv3 => Self::Rrv3,
+            ParseFormat::Rustume => Self::Rustume,
+        }
+    }
 }
 
 /// Parse request body
