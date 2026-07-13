@@ -64,6 +64,9 @@ jobs:
       platforms: linux/amd64,linux/arm64
       runner-map: '{"linux/arm64":"ubuntu-24.04-arm"}'
       smoke-test-script: scripts/ci/docker/smoke-test.sh
+      # Cold amd64 builds (no registry cache hit) exceed the 60-minute
+      # default: the workspace cargo build alone runs ~50 minutes (#439).
+      timeout-minutes: 120
       scan: true
       scan-exit-code: "1"
       cosign-sign: true
@@ -77,7 +80,14 @@ jobs:
       # Full list = reusable-docker default + gcr.io (distroless base image
       # in docker/Dockerfile) + sigstore hosts (cosign-sign on push runs) +
       # trivy hosts (installer downloads from get.trivy.dev; vulnerability DB
-      # is pulled from ghcr.io with mirror.gcr.io / public.ecr.aws fallbacks).
+      # is pulled from ghcr.io with mirror.gcr.io / public.ecr.aws fallbacks) +
+      # dl-cdn.alpinelinux.org (apk package installs in docker/Dockerfile
+      # build stages run through the host egress proxy under harden-runner) +
+      # rust hosts (rustup target add wasm32 pulls from static.rust-lang.org;
+      # cargo install cargo-chef/wasm-pack/wasm-bindgen-cli fetch the crates
+      # index and .crate files from index.crates.io / static.crates.io) +
+      # registry.npmjs.org (bun install in the web-builder stage downloads
+      # packages from the npm registry on cache-cold builds).
       allowed-endpoints-mode: replace
       allowed-endpoints: >
         github.com:443
@@ -102,3 +112,9 @@ jobs:
         get.trivy.dev:443
         mirror.gcr.io:443
         public.ecr.aws:443
+        dl-cdn.alpinelinux.org:443
+        static.rust-lang.org:443
+        crates.io:443
+        index.crates.io:443
+        static.crates.io:443
+        registry.npmjs.org:443
