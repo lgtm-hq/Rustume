@@ -918,7 +918,9 @@ mod tests {
             AuthUser(user.clone()),
             State(state),
             Path((resume.id, updated.version)),
-            Json(RestoreResumeRequest::default()),
+            Json(RestoreResumeRequest {
+                version: advanced.version,
+            }),
         )
         .await
         .expect("restore version")
@@ -980,7 +982,7 @@ mod tests {
             State(state),
             Path((resume.id, updated.version)),
             Json(RestoreResumeRequest {
-                version: Some(updated.version),
+                version: updated.version,
             }),
         )
         .await;
@@ -1076,7 +1078,9 @@ mod tests {
             AuthUser(other.clone()),
             State(other_state),
             Path((resume.id, updated.version)),
-            Json(RestoreResumeRequest::default()),
+            Json(RestoreResumeRequest {
+                version: updated.version,
+            }),
         )
         .await;
 

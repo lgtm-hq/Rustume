@@ -162,10 +162,10 @@ pub struct UpdateResumeRequest {
 }
 
 /// Request body for `POST /api/resumes/{id}/versions/{version}/restore`.
-#[derive(Debug, Default, Deserialize, ToSchema)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct RestoreResumeRequest {
     /// Expected current resume version for optimistic concurrency control.
-    pub version: Option<i32>,
+    pub version: i32,
 }
 
 /// Version summary returned by `GET /api/resumes/{id}/versions`.

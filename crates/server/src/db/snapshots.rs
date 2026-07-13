@@ -60,7 +60,7 @@ pub async fn restore_resume_snapshot(
     user_id: Uuid,
     resume_id: Uuid,
     version: i32,
-    expected_version: Option<i32>,
+    expected_version: i32,
 ) -> Result<crate::db::ResumeRow, ApiError> {
     let mut tx = db.begin().await.map_err(internal_db_error)?;
 
@@ -82,43 +82,22 @@ pub async fn restore_resume_snapshot(
     .map_err(internal_db_error)?
     .ok_or_else(|| ApiError::not_found("Resume version not found"))?;
 
-    let row = match expected_version {
-        Some(expected) => {
-            sqlx::query_as::<_, crate::db::ResumeRow>(
-                r#"
-                UPDATE resumes
-                SET data = $1,
-                    version = version + 1,
-                    updated_at = now()
-                WHERE id = $2 AND user_id = $3 AND version = $4
-                RETURNING id, user_id, title, data, is_public, public_slug, password_hash, version, created_at, updated_at
-                "#,
-            )
-            .bind(&snapshot.data)
-            .bind(resume_id)
-            .bind(user_id)
-            .bind(expected)
-            .fetch_optional(&mut *tx)
-            .await
-        }
-        None => {
-            sqlx::query_as::<_, crate::db::ResumeRow>(
-                r#"
-                UPDATE resumes
-                SET data = $1,
-                    version = version + 1,
-                    updated_at = now()
-                WHERE id = $2 AND user_id = $3
-                RETURNING id, user_id, title, data, is_public, public_slug, password_hash, version, created_at, updated_at
-                "#,
-            )
-            .bind(&snapshot.data)
-            .bind(resume_id)
-            .bind(user_id)
-            .fetch_optional(&mut *tx)
-            .await
-        }
-    }
+    let row = sqlx::query_as::<_, crate::db::ResumeRow>(
+        r#"
+        UPDATE resumes
+        SET data = $1,
+            version = version + 1,
+            updated_at = now()
+        WHERE id = $2 AND user_id = $3 AND version = $4
+        RETURNING id, user_id, title, data, is_public, public_slug, password_hash, version, created_at, updated_at
+        "#,
+    )
+    .bind(&snapshot.data)
+    .bind(resume_id)
+    .bind(user_id)
+    .bind(expected_version)
+    .fetch_optional(&mut *tx)
+    .await
     .map_err(internal_db_error)?;
 
     match row {
@@ -189,7 +168,7 @@ async fn map_restore_miss(
     db: &PgPool,
     user_id: Uuid,
     resume_id: Uuid,
-    expected_version: Option<i32>,
+    _expected_version: i32,
 ) -> Result<crate::db::ResumeRow, ApiError> {
     let current = sqlx::query_scalar::<_, i32>(
         r#"
@@ -204,12 +183,12 @@ async fn map_restore_miss(
     .await
     .map_err(internal_db_error)?;
 
-    match (current, expected_version) {
-        (Some(current_version), Some(_)) => Err(ApiError::version_conflict(
+    match current {
+        Some(current_version) => Err(ApiError::version_conflict(
             "Resume was modified by another session",
             current_version,
         )),
-        _ => Err(ApiError::not_found("Resume not found")),
+        None => Err(ApiError::not_found("Resume not found")),
     }
 }
 
