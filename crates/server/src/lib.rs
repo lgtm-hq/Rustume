@@ -1007,4 +1007,71 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
+
+    #[tokio::test]
+    async fn test_delete_account_rate_limit_returns_429() {
+        let config = config::RateLimitConfig {
+            resume_crud_per_min: 2,
+            resume_crud_burst: 2,
+            ..Default::default()
+        };
+
+        let state = state::AppState::with_options(
+            std::sync::Arc::new(routes::static_dir()),
+            Some(test_cloud_state()),
+            true,
+            config,
+        );
+        let app = create_router_with_state(state);
+        let body = r#"{"confirmation":"DELETE"}"#;
+
+        for _ in 0..2 {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method("DELETE")
+                        .uri("/api/account")
+                        .header("content-type", "application/json")
+                        .body(Body::from(body))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        }
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri("/api/account")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+        assert_eq!(
+            response.headers().get("X-RateLimit-Remaining").unwrap(),
+            "0"
+        );
+        assert!(response
+            .headers()
+            .get("Retry-After")
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.parse::<u64>().ok())
+            .is_some_and(|retry_after| retry_after >= 1));
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let payload: middleware::rate_limit::RateLimitErrorBody =
+            serde_json::from_slice(&body).unwrap();
+        assert!(payload.retry_after >= 1);
+        assert!(payload.error.contains("Too many requests"));
+    }
 }

@@ -1,5 +1,5 @@
 import { fetchBlob, fetchBlobWithHeaders } from "../client";
-import { renderPreview, getTemplateThumbnailUrl, clearPreviewCache } from "../render";
+import { renderPreview, getCacheKey, getTemplateThumbnailUrl, clearPreviewCache } from "../render";
 import type { ResumeData } from "../../wasm/types";
 
 vi.mock("../client", () => ({
@@ -241,6 +241,51 @@ describe("renderPreview", () => {
       template: "gengar",
       page: 0,
     });
+  });
+});
+
+describe("getCacheKey", () => {
+  beforeEach(() => {
+    vi.mocked(fetchBlob).mockReset();
+    vi.mocked(fetchBlobWithHeaders).mockReset();
+    mockCreateObjectURL.mockClear();
+    mockRevokeObjectURL.mockClear();
+    clearPreviewCache();
+  });
+
+  it("returns distinct keys for payloads that collided under the old 32-bit hash", () => {
+    const resumeA = {
+      ...mockResume,
+      basics: { ...mockResume.basics, name: "\u3A24\u79908" },
+    };
+    const resumeB = {
+      ...mockResume,
+      basics: { ...mockResume.basics, name: "x84120" },
+    };
+
+    const keyA = getCacheKey(resumeA, "rhyhorn", 0);
+    const keyB = getCacheKey(resumeB, "rhyhorn", 0);
+
+    expect(keyA).not.toBe(keyB);
+  });
+
+  it("fetches separately for colliding legacy-hash payloads instead of reusing cache", async () => {
+    const resumeA = {
+      ...mockResume,
+      basics: { ...mockResume.basics, name: "\u3A24\u79908" },
+    };
+    const resumeB = {
+      ...mockResume,
+      basics: { ...mockResume.basics, name: "x84120" },
+    };
+    const mockBlob = new Blob(["png-content"], { type: "image/png" });
+    mockPreviewBlob(mockBlob, "2");
+    mockCreateObjectURL.mockReturnValue("blob:cached-url");
+
+    await renderPreview(resumeA, 0);
+    await renderPreview(resumeB, 0);
+
+    expect(fetchBlobWithHeaders).toHaveBeenCalledTimes(2);
   });
 });
 
