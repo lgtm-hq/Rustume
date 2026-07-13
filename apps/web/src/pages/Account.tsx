@@ -3,6 +3,7 @@ import { A, useNavigate } from "@solidjs/router";
 import { deleteAccount } from "../api/account";
 import { downloadResumesJson, downloadResumesPdf } from "../api/export";
 import { listCloudResumesPage } from "../api/resumes";
+import { ApiKeysSection } from "../components/Auth/ApiKeysSection";
 import { authStore } from "../stores/auth";
 import { Button, Input, Modal, Spinner, toast } from "../components/ui";
 
@@ -230,6 +231,8 @@ export default function Account() {
                       to identify your account.
                     </p>
                   </section>
+
+                  <ApiKeysSection />
 
                   <section
                     id="export"
