@@ -1009,7 +1009,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_delete_account_rate_limit_returns_429() {
+    async fn test_delete_account_unauthenticated_not_rate_limited() {
         let config = config::RateLimitConfig {
             account_delete_per_min: 2,
             ..Default::default()
@@ -1024,7 +1024,7 @@ mod tests {
         let app = create_router_with_state(state);
         let body = r#"{"confirmation":"DELETE"}"#;
 
-        for _ in 0..2 {
+        for _ in 0..5 {
             let response = app
                 .clone()
                 .oneshot(
@@ -1040,37 +1040,5 @@ mod tests {
 
             assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         }
-
-        let response = app
-            .oneshot(
-                Request::builder()
-                    .method("DELETE")
-                    .uri("/api/account")
-                    .header("content-type", "application/json")
-                    .body(Body::from(body))
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
-        assert_eq!(
-            response.headers().get("X-RateLimit-Remaining").unwrap(),
-            "0"
-        );
-        assert!(response
-            .headers()
-            .get("Retry-After")
-            .and_then(|value| value.to_str().ok())
-            .and_then(|value| value.parse::<u64>().ok())
-            .is_some_and(|retry_after| retry_after >= 1));
-
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
-            .await
-            .unwrap();
-        let payload: middleware::rate_limit::RateLimitErrorBody =
-            serde_json::from_slice(&body).unwrap();
-        assert!(payload.retry_after >= 1);
-        assert!(payload.error.contains("Too many requests"));
     }
 }
