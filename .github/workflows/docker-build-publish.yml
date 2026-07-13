@@ -36,6 +36,14 @@ name: Build - Docker Image & Registry
 permissions:
   contents: read
 
+# Cancel superseded PR validate runs; never cancel main/tag/release publishes
+# (a cancelled publish would leave GHCR tags, signatures, and the Railway
+# deploy chain in a partial state).
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: >-
+    ${{ github.event_name == 'pull_request' }}
+
 jobs:
   docker:
     name: 🐳 Docker Build & Publish
