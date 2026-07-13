@@ -109,6 +109,7 @@ jobs:
         fulcio.sigstore.dev:443
         rekor.sigstore.dev:443
         tuf-repo-cdn.sigstore.dev:443
+        timestamp.sigstore.dev:443
         get.trivy.dev:443
         mirror.gcr.io:443
         public.ecr.aws:443
