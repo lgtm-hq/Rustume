@@ -25,6 +25,8 @@ import {
 } from "../components/builder";
 import { resumeStore, isNotFoundError } from "../stores/resume";
 import { uiStore } from "../stores/ui";
+import { authStore } from "../stores/auth";
+import { getCloudResumeVersion } from "../stores/cloudStorage";
 import { isWasmReady } from "../wasm";
 
 const Preview = lazy(() =>
@@ -53,6 +55,9 @@ const ImportModal = lazy(() =>
 );
 const ExportModal = lazy(() =>
   import("../components/export/ExportModal").then((module) => ({ default: module.ExportModal })),
+);
+const ShareModal = lazy(() =>
+  import("../components/export/ShareModal").then((module) => ({ default: module.ShareModal })),
 );
 
 function TabFallback() {
@@ -291,6 +296,11 @@ export default function Editor() {
   useHotkeys(shortcuts);
   useNavigationGuard(() => store.isDirty);
 
+  const showShareButton = () =>
+    authStore.state.user !== null &&
+    store.id !== null &&
+    getCloudResumeVersion(store.id) !== undefined;
+
   async function attemptLoad() {
     if (!params.id) {
       navigate("/");
@@ -484,6 +494,20 @@ export default function Editor() {
             </svg>
             Export
           </Button>
+
+          <Show when={showShareButton()}>
+            <Button variant="secondary" size="sm" onClick={() => openModal("share")}>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                />
+              </svg>
+              Share
+            </Button>
+          </Show>
         </div>
       </div>
 
@@ -594,6 +618,11 @@ export default function Editor() {
       <Show when={ui.modal === "export"}>
         <Suspense fallback={null}>
           <ExportModal />
+        </Suspense>
+      </Show>
+      <Show when={ui.modal === "share" && store.id}>
+        <Suspense fallback={null}>
+          <ShareModal resumeId={store.id!} />
         </Suspense>
       </Show>
       <ShortcutsModal shortcuts={shortcuts} />

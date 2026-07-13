@@ -5,9 +5,15 @@ import { uiStore } from "../../stores/ui";
 import { renderPreview } from "../../api/render";
 import { useDebounce } from "../../hooks/useDebounce";
 import { useOnline } from "../../hooks/useOnline";
+import type { ResumeData } from "../../wasm/types";
 
-export function Preview() {
+export interface PreviewProps {
+  resumeData?: ResumeData;
+}
+
+export function Preview(props: PreviewProps = {}) {
   const { store } = resumeStore;
+  const activeResume = () => props.resumeData ?? store.resume;
   const { store: ui, setPreviewPage, zoomIn, zoomOut } = uiStore;
   const isOnline = useOnline();
 
@@ -61,15 +67,16 @@ export function Preview() {
   };
 
   // Debounce the resume data to avoid too many preview requests
-  const debouncedResume = useDebounce(
-    () => (store.resume ? JSON.stringify(store.resume) : null),
-    500,
-  );
+  const debouncedResume = useDebounce(() => {
+    const resume = activeResume();
+    return resume ? JSON.stringify(resume) : null;
+  }, 500);
 
   // Fetch preview when resume changes
   createEffect(() => {
     const resumeJson = debouncedResume();
-    if (!resumeJson || !store.resume) return;
+    const resume = activeResume();
+    if (!resumeJson || !resume) return;
 
     // Skip if offline — invalidate in-flight requests, keep cached preview
     if (!isOnline()) {
@@ -88,7 +95,7 @@ export function Preview() {
     setIsLoading(true);
     setError(null);
 
-    renderPreview(store.resume, ui.previewPage)
+    renderPreview(resume, ui.previewPage)
       .then((result) => {
         if (currentRequestId !== resumeRequestId) return;
         setPreviewUrl(result.url);
@@ -125,7 +132,8 @@ export function Preview() {
   // Also refresh when page changes
   createEffect(() => {
     const page = ui.previewPage;
-    if (!store.resume) return;
+    const resume = activeResume();
+    if (!resume) return;
 
     // Skip if offline — invalidate in-flight requests, keep cached preview
     if (!isOnline()) {
@@ -144,7 +152,7 @@ export function Preview() {
     setIsLoading(true);
     setError(null);
 
-    renderPreview(store.resume, page)
+    renderPreview(resume, page)
       .then((result) => {
         if (currentRequestId !== pageRequestId) return;
         setPreviewUrl(result.url);
