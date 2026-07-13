@@ -14,8 +14,12 @@ export interface PreviewProps {
 export function Preview(props: PreviewProps = {}) {
   const { store } = resumeStore;
   const activeResume = () => props.resumeData ?? store.resume;
+  const isStandalone = () => props.resumeData !== undefined;
   const { store: ui, setPreviewPage, zoomIn, zoomOut } = uiStore;
   const isOnline = useOnline();
+
+  const [standalonePage, setStandalonePage] = createSignal(0);
+  const previewPage = () => (isStandalone() ? standalonePage() : ui.previewPage);
 
   const [previewUrl, setPreviewUrl] = createSignal<string | null>(null);
   const [isLoading, setIsLoading] = createSignal(false);
@@ -35,10 +39,21 @@ export function Preview(props: PreviewProps = {}) {
 
   const goToPage = (page: number) => {
     const nextPage = resolvePage(page);
-    if (nextPage !== ui.previewPage) {
-      setPreviewPage(nextPage);
+    if (nextPage === previewPage()) return;
+
+    if (isStandalone()) {
+      setStandalonePage(nextPage);
+      return;
     }
+
+    setPreviewPage(nextPage);
   };
+
+  createEffect(() => {
+    if (isStandalone() && activeResume()) {
+      setStandalonePage(0);
+    }
+  });
 
   const goToPageWithCooldown = (page: number) => {
     if (totalPages() <= 1) return false;
@@ -47,7 +62,7 @@ export function Preview(props: PreviewProps = {}) {
     if (now - lastWheelNavigation < 400) return false;
 
     const nextPage = resolvePage(page);
-    if (nextPage === ui.previewPage) return false;
+    if (nextPage === previewPage()) return false;
 
     lastWheelNavigation = now;
     goToPage(nextPage);
@@ -56,13 +71,13 @@ export function Preview(props: PreviewProps = {}) {
 
   const handleWheel = (event: WheelEvent) => {
     if (Math.abs(event.deltaY) < 30) return;
-    if (!goToPageWithCooldown(ui.previewPage + (event.deltaY > 0 ? 1 : -1))) return;
+    if (!goToPageWithCooldown(previewPage() + (event.deltaY > 0 ? 1 : -1))) return;
     event.preventDefault();
   };
 
   const handleKeyDown = (event: KeyboardEvent) => {
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
-    if (!goToPageWithCooldown(ui.previewPage + (event.key === "ArrowDown" ? 1 : -1))) return;
+    if (!goToPageWithCooldown(previewPage() + (event.key === "ArrowDown" ? 1 : -1))) return;
     event.preventDefault();
   };
 
@@ -95,15 +110,15 @@ export function Preview(props: PreviewProps = {}) {
     setIsLoading(true);
     setError(null);
 
-    renderPreview(resume, ui.previewPage)
+    renderPreview(resume, previewPage())
       .then((result) => {
         if (currentRequestId !== resumeRequestId) return;
         setPreviewUrl(result.url);
         setLastCachedUrl(result.url);
         setTotalPages(result.totalPages);
         // Clamp page index when content shrinks (e.g., user deletes text)
-        if (ui.previewPage >= result.totalPages) {
-          setPreviewPage(Math.max(0, result.totalPages - 1));
+        if (previewPage() >= result.totalPages) {
+          goToPage(Math.max(0, result.totalPages - 1));
         }
         setError(null);
         lastToastedError = "";
@@ -131,7 +146,7 @@ export function Preview(props: PreviewProps = {}) {
 
   // Also refresh when page changes
   createEffect(() => {
-    const page = ui.previewPage;
+    const page = previewPage();
     const resume = activeResume();
     if (!resume) return;
 
@@ -192,8 +207,8 @@ export function Preview(props: PreviewProps = {}) {
               disabled:opacity-30 disabled:cursor-not-allowed"
             aria-label="Previous page"
             title="Previous page"
-            onClick={() => goToPage(ui.previewPage - 1)}
-            disabled={ui.previewPage === 0}
+            onClick={() => goToPage(previewPage() - 1)}
+            disabled={previewPage() === 0}
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -205,7 +220,7 @@ export function Preview(props: PreviewProps = {}) {
             </svg>
           </button>
           <span class="text-sm font-mono text-stone min-w-[60px] text-center">
-            {ui.previewPage + 1} / {totalPages()}
+            {previewPage() + 1} / {totalPages()}
           </span>
           <button
             type="button"
@@ -213,8 +228,8 @@ export function Preview(props: PreviewProps = {}) {
               disabled:opacity-30 disabled:cursor-not-allowed"
             aria-label="Next page"
             title="Next page"
-            onClick={() => goToPage(ui.previewPage + 1)}
-            disabled={ui.previewPage >= totalPages() - 1}
+            onClick={() => goToPage(previewPage() + 1)}
+            disabled={previewPage() >= totalPages() - 1}
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
