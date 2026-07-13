@@ -22,6 +22,26 @@ and this project adheres to
 
 ### Security
 
+## [0.29.0] - 2026-07-13
+
+### Added
+
+- **web**: add automated axe-core accessibility checks to the vitest suite (#406)
+  (6497d21)
+
+### Changed
+
+- **deps**: update rust docker tag to 1.97 (minor) (#413) (58c51c4)
+- **parser**: share resume format dispatch between server and CLI (#396) (bc73795)
+- **server**: small cleanups — ApiError dedup, urlencoding, drop ImportItemError (#399)
+  (59e4911)
+- **server**: drop env-mutating CORS integration test (#415) (a91c422)
+
+### Fixed
+
+- **ci**: run DB-backed integration tests against a Postgres service (#404) (02dbc8f)
+- **server**: reject unknown-shaped JSON in /api/validate (#395) (6b2bca5)
+
 ## [0.28.0] - 2026-07-12
 
 ### Added
@@ -334,7 +354,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.28.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.29.0...HEAD
+[0.29.0]: https://github.com/lgtm-hq/Rustume/compare/v0.28.0...v0.29.0
 [0.28.0]: https://github.com/lgtm-hq/Rustume/compare/v0.27.0...v0.28.0
 [0.27.0]: https://github.com/lgtm-hq/Rustume/compare/v0.26.3...v0.27.0
 [0.26.3]: https://github.com/lgtm-hq/Rustume/compare/v0.26.2...v0.26.3
