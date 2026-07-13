@@ -553,7 +553,6 @@ mod tests {
         let response = export_account(AuthUser(user.clone()), State(state), HeaderMap::new())
             .await
             .expect("expected account export to succeed");
-        cleanup_user(&pool, user.id).await;
 
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(
@@ -562,6 +561,7 @@ mod tests {
         );
 
         let payload = read_export_payload(response).await;
+        cleanup_user(&pool, user.id).await;
         assert_eq!(payload["account"]["id"], user.id.to_string());
         assert_eq!(
             payload["account"]["email"],
@@ -591,9 +591,10 @@ mod tests {
         let user = seed_user_with_resumes(&pool, 1).await;
         let state = test_app_state(pool.clone());
 
-        export_account(AuthUser(user.clone()), State(state), HeaderMap::new())
+        let response = export_account(AuthUser(user.clone()), State(state), HeaderMap::new())
             .await
             .expect("expected account export to succeed");
+        let _ = read_export_payload(response).await;
 
         let audit_row =
             sqlx::query_as::<_, (String, Option<Uuid>, Option<String>, serde_json::Value)>(
@@ -635,9 +636,12 @@ mod tests {
         )
         .await;
         let resume_result = export_resumes_json(AuthUser(user.clone()), State(state)).await;
+
+        let account_response =
+            account_result.expect("account export should succeed without active subscription");
+        let _ = read_export_payload(account_response).await;
         cleanup_user(&pool, user.id).await;
 
-        account_result.expect("account export should succeed without active subscription");
         assert!(matches!(
             resume_result,
             Err(err) if matches!(err.kind, ApiErrorKind::Forbidden)
@@ -657,10 +661,10 @@ mod tests {
         let response = export_account(AuthUser(user.clone()), State(state), HeaderMap::new())
             .await
             .expect("account export should include every resume for portability");
-        cleanup_user(&pool, user.id).await;
 
         assert_eq!(response.status(), StatusCode::OK);
         let payload = read_export_payload(response).await;
+        cleanup_user(&pool, user.id).await;
         assert_eq!(payload["resumes"].as_array().map(Vec::len), Some(51));
     }
 
