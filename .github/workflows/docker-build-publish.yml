@@ -64,6 +64,9 @@ jobs:
       platforms: linux/amd64,linux/arm64
       runner-map: '{"linux/arm64":"ubuntu-24.04-arm"}'
       smoke-test-script: scripts/ci/docker/smoke-test.sh
+      # Cold amd64 builds (no registry cache hit) exceed the 60-minute
+      # default: the workspace cargo build alone runs ~50 minutes (#439).
+      timeout-minutes: 120
       scan: true
       scan-exit-code: "1"
       cosign-sign: true
