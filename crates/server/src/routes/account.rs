@@ -62,8 +62,9 @@ pub async fn export_account(
     let ip_address = trusted_client_ip(&headers, net::trusted_proxy_enabled());
     let ip = ip_address.as_deref();
 
-    let resume_count = account_resume_count(&cloud.db, user.id).await?;
-    validate_resume_export_sizes(&cloud.db, user.id).await?;
+    let mut tx = cloud.db.begin().await.map_err(internal_db_error)?;
+    let resume_count = account_resume_count(&mut *tx, user.id).await?;
+    validate_resume_export_sizes(&mut *tx, user.id).await?;
 
     record_event_required(
         &cloud.db,
@@ -80,7 +81,8 @@ pub async fn export_account(
 
     let exported_at = Utc::now();
     let account = AccountExportProfile::from_user(&user);
-    let export_stream = stream_account_export(cloud.db.clone(), user.id, exported_at, account);
+    let prefix = build_export_prefix(exported_at, &account)?;
+    let export_stream = stream_account_export(tx, user.id, prefix);
 
     let content_disposition =
         HeaderValue::from_static("attachment; filename=\"rustume-account-export.json\"");
@@ -207,7 +209,10 @@ fn is_valid_delete_confirmation(confirmation: &str) -> bool {
     confirmation == DELETE_CONFIRMATION
 }
 
-async fn account_resume_count(db: &sqlx::PgPool, user_id: Uuid) -> Result<usize, ApiError> {
+async fn account_resume_count<'e, E>(db: E, user_id: Uuid) -> Result<usize, ApiError>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+{
     let resume_count = sqlx::query_scalar::<_, i64>(
         r#"
         SELECT COUNT(*)
@@ -223,7 +228,10 @@ async fn account_resume_count(db: &sqlx::PgPool, user_id: Uuid) -> Result<usize,
     Ok(resume_count as usize)
 }
 
-async fn validate_resume_export_sizes(db: &sqlx::PgPool, user_id: Uuid) -> Result<(), ApiError> {
+async fn validate_resume_export_sizes<'e, E>(db: E, user_id: Uuid) -> Result<(), ApiError>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+{
     let mut rows = sqlx::query_scalar::<_, serde_json::Value>(
         r#"
         SELECT data
@@ -262,23 +270,16 @@ fn build_export_prefix(
 }
 
 fn stream_account_export(
-    db: sqlx::PgPool,
+    db_tx: sqlx::Transaction<'static, sqlx::Postgres>,
     user_id: Uuid,
-    exported_at: DateTime<Utc>,
-    account: AccountExportProfile,
+    prefix: Vec<u8>,
 ) -> impl Stream<Item = Result<Bytes, io::Error>> + Send + 'static {
-    let (tx, rx) = mpsc::channel::<Result<Bytes, io::Error>>(8);
+    let (chunk_tx, chunk_rx) = mpsc::channel::<Result<Bytes, io::Error>>(8);
 
     tokio::spawn(async move {
-        let prefix = match build_export_prefix(exported_at, &account) {
-            Ok(prefix) => prefix,
-            Err(err) => {
-                let _ = tx.send(Err(io::Error::other(err.error))).await;
-                return;
-            }
-        };
+        let mut db_tx = db_tx;
 
-        if tx.send(Ok(Bytes::from(prefix))).await.is_err() {
+        if chunk_tx.send(Ok(Bytes::from(prefix))).await.is_err() {
             return;
         }
 
@@ -291,50 +292,44 @@ fn stream_account_export(
             "#,
         )
         .bind(user_id)
-        .fetch(&db);
+        .fetch(&mut *db_tx);
 
         let mut first_resume = true;
         while let Some(row) = match rows.try_next().await {
             Ok(row) => row,
             Err(err) => {
-                let _ = tx
+                let _ = chunk_tx
                     .send(Err(io::Error::other(internal_db_error(err).error)))
                     .await;
                 return;
             }
         } {
-            match serialize_resume_chunk(row, &mut first_resume) {
+            match serialize_resume_row(row, &mut first_resume) {
                 Ok(chunk) => {
-                    if tx.send(Ok(Bytes::from(chunk))).await.is_err() {
+                    if chunk_tx.send(Ok(Bytes::from(chunk))).await.is_err() {
                         return;
                     }
                 }
                 Err(err) => {
-                    let _ = tx.send(Err(io::Error::other(err.error))).await;
+                    let _ = chunk_tx.send(Err(io::Error::other(err.error))).await;
                     return;
                 }
             }
         }
 
-        let _ = tx.send(Ok(Bytes::from_static(b"]}"))).await;
+        drop(rows);
+        let _ = chunk_tx.send(Ok(Bytes::from_static(b"]}"))).await;
+        if let Err(err) = db_tx.commit().await {
+            error!("account export transaction commit failed: {err}");
+        }
     });
 
-    stream::unfold(rx, |mut rx| async move {
-        rx.recv().await.map(|item| (item, rx))
+    stream::unfold(chunk_rx, |mut chunk_rx| async move {
+        chunk_rx.recv().await.map(|item| (item, chunk_rx))
     })
 }
 
-fn serialize_resume_chunk(row: ExportResumeRow, first: &mut bool) -> Result<Vec<u8>, ApiError> {
-    let data_bytes = serde_json::to_vec(&row.data).map_err(|err| {
-        error!("account export resume serialization failed: {err}");
-        ApiError::internal("failed to export account data")
-    })?;
-    if data_bytes.len() > MAX_RESUME_JSON_BYTES {
-        return Err(ApiError::payload_too_large(format!(
-            "Resume JSON exceeds maximum size of {MAX_RESUME_JSON_BYTES} bytes"
-        )));
-    }
-
+fn serialize_resume_row(row: ExportResumeRow, first: &mut bool) -> Result<Vec<u8>, ApiError> {
     let item = ResumeExportItem {
         id: row.id,
         title: row.title,
@@ -585,7 +580,10 @@ mod tests {
 
         let payload = read_export_payload(response).await;
         assert_eq!(payload["account"]["id"], user.id.to_string());
-        assert_eq!(payload["account"]["email"], user.email);
+        assert_eq!(
+            payload["account"]["email"],
+            user.email.as_deref().unwrap_or_default()
+        );
         assert_eq!(payload["account"]["first_name"], "Ada");
         assert_eq!(payload["account"]["last_name"], "Lovelace");
         assert_eq!(payload["account"]["plan"], "free");
