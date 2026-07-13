@@ -16,6 +16,7 @@
     "astro": "astro"
   },
   "dependencies": {
+    "@astrojs/markdown-remark": "^7.2.1",
     "@astrojs/sitemap": "^3.7.2",
     "@lgtm-hq/turbo-themes": "^0.21.0",
     "astro": "^7.0.0",
@@ -24,10 +25,10 @@
   "devDependencies": {
     "@astrojs/check": "0.9.9",
     "@pagefind/default-ui": "1.5.2",
-    "pagefind": "1.5.2",
     "@types/sanitize-html": "2.16.1",
     "@vitest/coverage-v8": "4.1.10",
-    "typescript": "7.0.2",
+    "pagefind": "1.5.2",
+    "typescript": "6.0.3",
     "vitest": "4.1.10",
     "yaml": "2.9.0"
   },

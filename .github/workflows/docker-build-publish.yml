@@ -77,7 +77,9 @@ jobs:
       # Full list = reusable-docker default + gcr.io (distroless base image
       # in docker/Dockerfile) + sigstore hosts (cosign-sign on push runs) +
       # trivy hosts (installer downloads from get.trivy.dev; vulnerability DB
-      # is pulled from ghcr.io with mirror.gcr.io / public.ecr.aws fallbacks).
+      # is pulled from ghcr.io with mirror.gcr.io / public.ecr.aws fallbacks) +
+      # dl-cdn.alpinelinux.org (apk package installs in docker/Dockerfile
+      # build stages run through the host egress proxy under harden-runner).
       allowed-endpoints-mode: replace
       allowed-endpoints: >
         github.com:443
@@ -102,3 +104,4 @@ jobs:
         get.trivy.dev:443
         mirror.gcr.io:443
         public.ecr.aws:443
+        dl-cdn.alpinelinux.org:443
