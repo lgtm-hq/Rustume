@@ -97,7 +97,7 @@ export default function Account() {
       await exportFn();
       toast.success(successMessage);
     } catch (error) {
-      console.error(`${failureLogLabel}:`, error);
+      console.error(failureLogLabel, error);
       toast.error(error instanceof Error ? error.message : failureMessage);
     } finally {
       setLoading(false);
@@ -109,7 +109,7 @@ export default function Account() {
       setExportingJson,
       downloadResumesJson,
       "Resume export downloaded",
-      "JSON export failed",
+      "JSON export failed:",
       "Failed to export resumes",
     );
 
@@ -118,7 +118,7 @@ export default function Account() {
       setExportingPdf,
       downloadResumesPdf,
       "PDF export downloaded",
-      "PDF export failed",
+      "PDF export failed:",
       "Failed to export PDFs",
     );
 
@@ -127,7 +127,7 @@ export default function Account() {
       setExportingAccount,
       downloadAccountExport,
       "Account data downloaded",
-      "Account export failed",
+      "Account export failed:",
       "Failed to export account data",
     );
 
