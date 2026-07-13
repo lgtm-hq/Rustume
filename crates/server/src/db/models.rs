@@ -161,6 +161,28 @@ pub struct UpdateResumeRequest {
     pub version: Option<i32>,
 }
 
+/// Version summary returned by `GET /api/resumes/{id}/versions`.
+#[derive(Debug, Clone, FromRow, Serialize, ToSchema)]
+pub struct ResumeVersionSummary {
+    pub version: i32,
+    #[schema(value_type = String, format = "date-time")]
+    pub created_at: DateTime<Utc>,
+}
+
+/// Full snapshot returned by `GET /api/resumes/{id}/versions/{version}`.
+#[derive(Debug, Clone, FromRow, Serialize, ToSchema)]
+pub struct ResumeSnapshot {
+    #[schema(value_type = String, format = "uuid")]
+    pub id: Uuid,
+    #[schema(value_type = String, format = "uuid")]
+    pub resume_id: Uuid,
+    pub version: i32,
+    #[schema(value_type = Object)]
+    pub data: serde_json::Value,
+    #[schema(value_type = String, format = "date-time")]
+    pub created_at: DateTime<Utc>,
+}
+
 /// Single resume payload within an import batch.
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct ImportResumeItem {
