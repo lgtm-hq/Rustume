@@ -34,4 +34,4 @@ tracing.workspace = true
 [dev-dependencies]
 rstest.workspace = true
 rustume-parser = { path = "../parser" }
-tempfile = "3"
+tempfile = "=3.27.0"
