@@ -33,6 +33,23 @@ pub const DEFAULT_PORT: u16 = 3000;
 /// Default location for the production web bundle in the container image.
 pub const DEFAULT_STATIC_DIR: &str = "/app/web";
 
+/// Base URL for public resume pages (e.g. `https://rustume.com`).
+///
+/// When unset, OG meta tags use relative URLs for `og:image` and `og:url`.
+pub fn public_base_url() -> Option<String> {
+    match std::env::var("PUBLIC_BASE_URL") {
+        Ok(value) => {
+            let trimmed = value.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.trim_end_matches('/').to_string())
+            }
+        }
+        Err(_) => None,
+    }
+}
+
 /// Per-route-group rate limits for Rustume Cloud (requests per minute).
 #[derive(Debug, Clone, Copy)]
 pub struct RateLimitConfig {
@@ -246,5 +263,12 @@ mod tests {
         assert!(rate_limits_enabled(Some("false")));
         assert!(!rate_limits_enabled(Some("true")));
         assert!(!rate_limits_enabled(Some("1")));
+    }
+
+    #[test]
+    fn public_base_url_trims_trailing_slash() {
+        std::env::set_var("PUBLIC_BASE_URL", "https://rustume.com/");
+        assert_eq!(public_base_url().as_deref(), Some("https://rustume.com"));
+        std::env::remove_var("PUBLIC_BASE_URL");
     }
 }
