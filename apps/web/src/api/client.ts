@@ -92,6 +92,26 @@ function formatValidationError(endpoint: string, error: z.ZodError): string {
   return `API response validation failed for ${endpoint}: ${error.message}`;
 }
 
+export function extractApiErrorMessage(text: string, fallback: string): string {
+  try {
+    const parsed: unknown = JSON.parse(text);
+    if (typeof parsed === "object" && parsed !== null) {
+      const body = parsed as Record<string, unknown>;
+      if (typeof body.error === "string") {
+        return body.error;
+      }
+    }
+  } catch {
+    // Keep raw text when the body is not JSON.
+  }
+
+  return text || fallback;
+}
+
+function createApiError(status: number, text: string, fallback: string): ApiError {
+  return new ApiError(status, extractApiErrorMessage(text, fallback), text);
+}
+
 async function request<T>(
   endpoint: string,
   options: RequestInit = {},
@@ -125,12 +145,12 @@ async function request<T>(
     }
 
     await maybeShowRateLimitToast(endpoint, method);
-    throw new ApiError(response.status, text || response.statusText);
+    throw createApiError(response.status, text, response.statusText);
   }
 
   if (!response.ok) {
     const text = await response.text();
-    throw new ApiError(response.status, text || response.statusText);
+    throw createApiError(response.status, text, response.statusText);
   }
 
   // Check if response is JSON
@@ -159,6 +179,7 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    public readonly body?: string,
   ) {
     super(message);
     this.name = "ApiError";
@@ -266,12 +287,12 @@ async function fetchBlobWithHeadersInternal(
     }
 
     await maybeShowRateLimitToast(endpoint, "POST");
-    throw new ApiError(response.status, text || response.statusText);
+    throw createApiError(response.status, text, response.statusText);
   }
 
   if (!response.ok) {
     const text = await response.text();
-    throw new ApiError(response.status, text || response.statusText);
+    throw createApiError(response.status, text, response.statusText);
   }
 
   return { blob: await response.blob(), headers: response.headers };

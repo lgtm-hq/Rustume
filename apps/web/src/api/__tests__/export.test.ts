@@ -41,6 +41,7 @@ describe("export API", () => {
     await expect(exportResumesJson()).rejects.toMatchObject({
       name: "ApiError",
       status: 403,
+      message: "Cloud subscription expired",
     });
   });
 

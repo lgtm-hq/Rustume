@@ -93,7 +93,7 @@ function upgradeOrRethrow409(error: ApiError): never {
     throw error;
   }
 
-  const body = parseApiErrorBody(error.message);
+  const body = parseApiErrorBody(error.body ?? error.message);
   if (body?.current_version !== undefined) {
     throw new ResumeVersionConflictError(body.error, body.current_version);
   }
@@ -144,7 +144,11 @@ export async function updateCloudResume(
   payload: UpdateResumePayload,
 ): Promise<CloudResumeRow> {
   try {
-    return (await put(`/resumes/${id}`, payload, cloudResumeRowSchema)) as unknown as CloudResumeRow;
+    return (await put(
+      `/resumes/${id}`,
+      payload,
+      cloudResumeRowSchema,
+    )) as unknown as CloudResumeRow;
   } catch (error: unknown) {
     if (error instanceof ApiError) {
       upgradeOrRethrow409(error);

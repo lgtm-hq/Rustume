@@ -1,4 +1,4 @@
-import { ApiError, get } from "./client";
+import { ApiError, extractApiErrorMessage, get } from "./client";
 import { resumeBulkExportSchema } from "./schemas";
 
 export interface ResumeExportItem {
@@ -22,16 +22,7 @@ export async function exportResumesPdf(): Promise<Blob> {
   const response = await fetch("/api/resumes/export/pdf", { credentials: "include" });
   if (!response.ok) {
     const text = await response.text();
-    let message = text;
-    try {
-      const json = JSON.parse(text) as { error?: string };
-      if (typeof json.error === "string") {
-        message = json.error;
-      }
-    } catch {
-      // Keep raw text when the body is not JSON.
-    }
-    throw new ApiError(response.status, message || response.statusText);
+    throw new ApiError(response.status, extractApiErrorMessage(text, response.statusText), text);
   }
   return response.blob();
 }

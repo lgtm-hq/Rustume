@@ -89,6 +89,21 @@ describe("get", () => {
     });
   });
 
+  it("extracts JSON error field from error responses", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      statusText: "Forbidden",
+      text: () => Promise.resolve(JSON.stringify({ error: "Cloud subscription expired" })),
+    });
+
+    await expect(get("/resumes/export")).rejects.toMatchObject({
+      status: 403,
+      message: "Cloud subscription expired",
+      body: JSON.stringify({ error: "Cloud subscription expired" }),
+    });
+  });
+
   it("throws ApiValidationError when schema validation fails", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
