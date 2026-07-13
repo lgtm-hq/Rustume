@@ -473,7 +473,7 @@ mod tests {
         )
         .bind(user_id)
         .bind(&workos_id)
-        .bind("dev@example.com")
+        .bind(format!("account-export-{user_id}@example.com"))
         .bind("Ada")
         .bind("Lovelace")
         .bind("free")
@@ -585,7 +585,7 @@ mod tests {
 
         let payload = read_export_payload(response).await;
         assert_eq!(payload["account"]["id"], user.id.to_string());
-        assert_eq!(payload["account"]["email"], "dev@example.com");
+        assert_eq!(payload["account"]["email"], user.email);
         assert_eq!(payload["account"]["first_name"], "Ada");
         assert_eq!(payload["account"]["last_name"], "Lovelace");
         assert_eq!(payload["account"]["plan"], "free");
