@@ -15,4 +15,6 @@ module "dns" {
 
 ## Custom hostnames
 
-`custom_hostname_placeholder` output documents the hook for [#336](https://github.com/lgtm-hq/Rustume/issues/336). Add `cloudflare_custom_hostname` resources in a follow-up when tenant domains are codified.
+`custom_hostname_placeholder` output documents the hook for
+[#336](https://github.com/lgtm-hq/Rustume/issues/336). Add `cloudflare_custom_hostname`
+resources in a follow-up when tenant domains are codified.

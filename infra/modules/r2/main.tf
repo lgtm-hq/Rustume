@@ -1,11 +1,12 @@
 locals {
-  account_resource  = "com.cloudflare.api.account.${var.account_id}"
   retention_seconds = var.backup_retention_days * 86400
   token_ip_condition = length(var.token_allowed_ip_ranges) > 0 ? {
     request_ip = {
       in = var.token_allowed_ip_ranges
     }
   } : null
+  assets_bucket_resource = "com.cloudflare.edge.r2.bucket.${var.account_id}_${var.bucket_jurisdiction}_${cloudflare_r2_bucket.assets.name}"
+  backups_bucket_resource = "com.cloudflare.edge.r2.bucket.${var.account_id}_${var.bucket_jurisdiction}_${cloudflare_r2_bucket.backups.name}"
 }
 
 resource "cloudflare_r2_bucket" "assets" {
@@ -78,7 +79,7 @@ resource "cloudflare_api_token" "assets" {
       id = var.r2_read_write_permission_group_id
     }]
     resources = jsonencode({
-      (local.account_resource) = "*"
+      (local.assets_bucket_resource) = "*"
     })
   }]
 
@@ -94,7 +95,7 @@ resource "cloudflare_api_token" "backups" {
       id = var.r2_read_write_permission_group_id
     }]
     resources = jsonencode({
-      (local.account_resource) = "*"
+      (local.backups_bucket_resource) = "*"
     })
   }]
 

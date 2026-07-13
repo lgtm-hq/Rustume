@@ -12,6 +12,7 @@ module "r2" {
   assets_bucket_name                = var.r2_assets_bucket_name
   backups_bucket_name               = var.r2_backups_bucket_name
   r2_read_write_permission_group_id = var.r2_read_write_permission_group_id
+  token_allowed_ip_ranges           = var.r2_token_allowed_ip_ranges
 }
 
 module "cloudflare_dns" {

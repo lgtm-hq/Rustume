@@ -39,6 +39,12 @@ variable "r2_read_write_permission_group_id" {
   type        = string
 }
 
+variable "r2_token_allowed_ip_ranges" {
+  description = "CIDR ranges restricting R2 API token usage. Required for production applies."
+  type        = list(string)
+  default     = []
+}
+
 variable "railway_cname_target" {
   description = "Railway custom-domain CNAME target for app.rustume.com."
   type        = string
@@ -112,6 +118,19 @@ variable "cloudflare_api_token" {
 
 variable "grafana_cloud_access_policy_token" {
   description = "Grafana Cloud access policy token for stack management."
+  type        = string
+  sensitive   = true
+  default     = null
+}
+
+variable "grafana_connections_api_url" {
+  description = "Grafana Connections API URL for metrics endpoint scrape jobs (from stack.connections_api_url)."
+  type        = string
+  default     = null
+}
+
+variable "grafana_connections_api_access_token" {
+  description = "Grafana Connections API access token with integration-management scopes."
   type        = string
   sensitive   = true
   default     = null

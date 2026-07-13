@@ -19,9 +19,15 @@ module "r2" {
 }
 ```
 
-Token values are sensitive outputs — inject into Railway/CI secrets at apply time, never in tfvars committed to git.
+Token values are sensitive outputs — inject into Railway/CI secrets at apply time, never
+in tfvars committed to git.
 
 ## Notes
 
 - Lifecycle `max_age` is in **seconds** (provider quirk).
-- Bucket-scoped token policies depend on Cloudflare permission-group IDs; look up via dashboard or API before apply.
+- API tokens are scoped to individual buckets via
+  `com.cloudflare.edge.r2.bucket.<account>_<jurisdiction>_<bucket>` resources.
+- Set `token_allowed_ip_ranges` before production apply; empty defaults are for CI
+  validation only.
+- Bucket-scoped token policies depend on Cloudflare permission-group IDs; look up via
+  dashboard or API before apply.

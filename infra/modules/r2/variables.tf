@@ -42,8 +42,14 @@ variable "r2_read_write_permission_group_id" {
   type        = string
 }
 
+variable "bucket_jurisdiction" {
+  description = "R2 bucket jurisdiction segment used in API token resource identifiers (default for non-jurisdiction buckets)."
+  type        = string
+  default     = "default"
+}
+
 variable "token_allowed_ip_ranges" {
-  description = "Optional CIDR ranges restricting R2 API token usage."
+  description = "CIDR ranges restricting R2 API token usage. Leave empty only for local validation; set before production apply."
   type        = list(string)
   default     = []
 }

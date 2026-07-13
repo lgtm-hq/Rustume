@@ -9,6 +9,14 @@ resource "railway_service" "rustume" {
 
   source_image = var.source_image
 
+  dynamic "regions" {
+    for_each = var.regions
+    content {
+      region       = regions.value.region
+      num_replicas = regions.value.num_replicas
+    }
+  }
+
   source_image_registry_username = local.ghcr_token_provided ? var.ghcr_username : null
   source_image_registry_password = local.ghcr_token_provided ? var.ghcr_read_token : null
 
