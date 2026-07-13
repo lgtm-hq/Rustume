@@ -73,7 +73,10 @@ export function isNotFoundError(error: unknown): boolean {
   return false;
 }
 
-export const FIXED_LAYOUT_SECTION_KEYS: (keyof Omit<Sections, "summary" | "custom">)[] = [
+export const FIXED_LAYOUT_SECTION_KEYS: (keyof Omit<
+  Sections,
+  "summary" | "custom" | "coverLetter"
+>)[] = [
   "experience",
   "education",
   "skills",
@@ -197,7 +200,9 @@ function normalizeResumeForStore(resume: ResumeData): ResumeData {
   const customIds = Object.keys(resume.sections.custom);
   if (resume.metadata.layout.length === 0) {
     if (customIds.length === 0) return resume;
-    resume.metadata.layout = [[["summary", ...FIXED_LAYOUT_SECTION_KEYS, ...customIds]]];
+    resume.metadata.layout = [
+      [["summary", "coverLetter", ...FIXED_LAYOUT_SECTION_KEYS, ...customIds]],
+    ];
     return resume;
   }
 
@@ -505,7 +510,9 @@ export function useResumeStore() {
 
           s.resume.sections.custom[section.id] = section;
           if (s.resume.metadata.layout.length === 0) {
-            s.resume.metadata.layout = [[["summary", ...FIXED_LAYOUT_SECTION_KEYS, section.id]]];
+            s.resume.metadata.layout = [
+              [["summary", "coverLetter", ...FIXED_LAYOUT_SECTION_KEYS, section.id]],
+            ];
             return;
           }
 

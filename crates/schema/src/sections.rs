@@ -296,7 +296,7 @@ pub struct CoverLetterRecipient {
 
 /// Cover letter section (special - recipient block plus rich-text body).
 #[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", default)]
 pub struct CoverLetterSection {
     pub id: String,
 
