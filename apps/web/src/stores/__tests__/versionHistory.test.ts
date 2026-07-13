@@ -49,6 +49,20 @@ describe("versionHistory store", () => {
     expect(oldest?.basics.name).toBe("Version A");
   });
 
+  it("retains both snapshots when concurrent saves are triggered", async () => {
+    await Promise.all([
+      saveSnapshot("resume-1", createResume("Concurrent A")),
+      saveSnapshot("resume-1", createResume("Concurrent B")),
+    ]);
+
+    const snapshots = await listSnapshots("resume-1");
+    expect(snapshots).toHaveLength(2);
+
+    const timestamps = snapshots.map((snapshot) => snapshot.timestamp);
+    expect(new Set(timestamps).size).toBe(2);
+    expect(timestamps[0]).toBeGreaterThan(timestamps[1]);
+  });
+
   it("retains all snapshots on rapid consecutive saves without timestamp collisions", async () => {
     for (let i = 0; i < 5; i++) {
       await saveSnapshot("resume-1", createResume(`Rapid ${i}`));

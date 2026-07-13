@@ -98,35 +98,54 @@ async function pruneSnapshots(resumeId: string): Promise<void> {
   });
 }
 
+const saveSnapshotChains = new Map<string, Promise<void>>();
+
+async function saveSnapshotRecord(resumeId: string, data: ResumeData): Promise<void> {
+  const clone = structuredClone(data);
+  const latest = await getLatestSnapshotRecord(resumeId);
+  if (latest && JSON.stringify(latest.data) === JSON.stringify(clone)) {
+    return;
+  }
+
+  const timestamp = latest ? Math.max(Date.now(), latest.timestamp + 1) : Date.now();
+  const record: SnapshotRecord = {
+    key: snapshotKey(resumeId, timestamp),
+    resumeId,
+    timestamp,
+    data: clone,
+  };
+
+  await withDatabase(async (db) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    store.put(record);
+    await transactionDone(tx);
+  });
+
+  await pruneSnapshots(resumeId);
+}
+
 /** Persist a resume snapshot in local IndexedDB. No-op when IndexedDB is unavailable. */
 export async function saveSnapshot(resumeId: string, data: ResumeData): Promise<void> {
   if (!isIndexedDbAvailable()) return;
 
+  const previous = saveSnapshotChains.get(resumeId) ?? Promise.resolve();
+  let release!: () => void;
+  const current = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  saveSnapshotChains.set(resumeId, current);
+
+  await previous;
   try {
-    const clone = structuredClone(data);
-    const latest = await getLatestSnapshotRecord(resumeId);
-    if (latest && JSON.stringify(latest.data) === JSON.stringify(clone)) {
-      return;
-    }
-
-    const timestamp = latest ? Math.max(Date.now(), latest.timestamp + 1) : Date.now();
-    const record: SnapshotRecord = {
-      key: snapshotKey(resumeId, timestamp),
-      resumeId,
-      timestamp,
-      data: clone,
-    };
-
-    await withDatabase(async (db) => {
-      const tx = db.transaction(STORE_NAME, "readwrite");
-      const store = tx.objectStore(STORE_NAME);
-      store.put(record);
-      await transactionDone(tx);
-    });
-
-    await pruneSnapshots(resumeId);
+    await saveSnapshotRecord(resumeId, data);
   } catch (error) {
     console.error("Failed to save resume snapshot:", error);
+  } finally {
+    release();
+    if (saveSnapshotChains.get(resumeId) === current) {
+      saveSnapshotChains.delete(resumeId);
+    }
   }
 }
 
