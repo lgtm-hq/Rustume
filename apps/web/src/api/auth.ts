@@ -14,7 +14,7 @@ export interface AuthUser {
 
 export type AuthProbeResult =
   | { mode: "self-hosted" }
-  | { mode: "cloud"; user: AuthUser | null; requireAuth: boolean };
+  | { mode: "cloud"; user: AuthUser | null; requireAuth: boolean; billingEnabled: boolean };
 
 function parseRequireAuth(payload: unknown): boolean {
   if (typeof payload !== "object" || payload === null) {
@@ -24,7 +24,19 @@ function parseRequireAuth(payload: unknown): boolean {
   return (payload as { require_auth?: boolean }).require_auth === true;
 }
 
-function parseAuthUserPayload(payload: unknown): { user: AuthUser; requireAuth: boolean } {
+function parseBillingEnabled(payload: unknown): boolean {
+  if (typeof payload !== "object" || payload === null) {
+    return false;
+  }
+
+  return (payload as { billing_enabled?: boolean }).billing_enabled === true;
+}
+
+function parseAuthUserPayload(payload: unknown): {
+  user: AuthUser;
+  requireAuth: boolean;
+  billingEnabled: boolean;
+} {
   if (typeof payload !== "object" || payload === null) {
     throw new Error("Auth probe failed: invalid /auth/me response");
   }
@@ -63,7 +75,11 @@ function parseAuthUserPayload(payload: unknown): { user: AuthUser; requireAuth: 
     }
   }
 
-  return { user, requireAuth: record.require_auth === true };
+  return {
+    user,
+    requireAuth: record.require_auth === true,
+    billingEnabled: record.billing_enabled === true,
+  };
 }
 
 /** Build a display label from profile fields, falling back to email or a generic label. */
@@ -90,7 +106,12 @@ export async function probeAuth(): Promise<AuthProbeResult> {
 
   if (response.status === 401) {
     const payload = await response.json().catch(() => ({}));
-    return { mode: "cloud", user: null, requireAuth: parseRequireAuth(payload) };
+    return {
+      mode: "cloud",
+      user: null,
+      requireAuth: parseRequireAuth(payload),
+      billingEnabled: parseBillingEnabled(payload),
+    };
   }
 
   if (!response.ok) {
@@ -98,11 +119,12 @@ export async function probeAuth(): Promise<AuthProbeResult> {
   }
 
   const payload = await response.json();
-  const { user, requireAuth } = parseAuthUserPayload(payload);
+  const { user, requireAuth, billingEnabled } = parseAuthUserPayload(payload);
   return {
     mode: "cloud",
     user,
     requireAuth,
+    billingEnabled,
   };
 }
 

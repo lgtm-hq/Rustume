@@ -179,6 +179,74 @@ fn trusted_proxy_from_env() -> bool {
     matches!(std::env::var("TRUSTED_PROXY").as_deref(), Ok("true" | "1"))
 }
 
+/// Paddle Billing credentials loaded from the environment.
+#[derive(Clone, Debug)]
+pub struct BillingConfig {
+    /// Server-side Paddle API key (`PADDLE_API_KEY`).
+    pub api_key: String,
+    /// Webhook destination secret for signature verification (`PADDLE_WEBHOOK_SECRET`).
+    pub webhook_secret: String,
+    /// Default hosted price ID for checkout (`PADDLE_PRICE_ID`).
+    pub price_id: String,
+    /// Client-side token for Paddle.js (`PADDLE_CLIENT_TOKEN`).
+    pub client_token: String,
+    /// Paddle API base URL (`PADDLE_API_BASE`, default production).
+    pub api_base: String,
+    /// When true, Paddle.js should use the sandbox environment.
+    pub sandbox: bool,
+}
+
+impl BillingConfig {
+    /// Load billing settings when all required env vars are present.
+    pub fn from_env() -> Option<Self> {
+        let api_key = optional_non_empty_env("PADDLE_API_KEY")?;
+        let webhook_secret = optional_non_empty_env("PADDLE_WEBHOOK_SECRET")?;
+        let price_id = optional_non_empty_env("PADDLE_PRICE_ID")?;
+        let client_token = optional_non_empty_env("PADDLE_CLIENT_TOKEN")?;
+
+        let api_base = optional_non_empty_env("PADDLE_API_BASE")
+            .unwrap_or_else(|| "https://api.paddle.com".to_string());
+        let sandbox = matches!(std::env::var("PADDLE_SANDBOX").as_deref(), Ok("true" | "1"))
+            || api_base.contains("sandbox");
+
+        Some(Self {
+            api_key,
+            webhook_secret,
+            price_id,
+            client_token,
+            api_base,
+            sandbox,
+        })
+    }
+}
+
+impl std::fmt::Display for BillingConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BillingConfig")
+            .field("api_key", &"<redacted>")
+            .field("webhook_secret", &"<redacted>")
+            .field("price_id", &self.price_id)
+            .field("client_token", &"<redacted>")
+            .field("api_base", &self.api_base)
+            .field("sandbox", &self.sandbox)
+            .finish()
+    }
+}
+
+fn optional_non_empty_env(key: &str) -> Option<String> {
+    match std::env::var(key) {
+        Ok(value) => {
+            let trimmed = value.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_string())
+            }
+        }
+        Err(_) => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -197,5 +265,24 @@ mod tests {
         assert_eq!(config.unauthenticated_per_min, 30);
         assert_eq!(config.billable_per_min, 30);
         assert!(!config.trusted_proxy);
+    }
+
+    #[test]
+    fn billing_config_requires_all_vars() {
+        std::env::set_var("PADDLE_API_KEY", "api_test");
+        std::env::set_var("PADDLE_WEBHOOK_SECRET", "secret_test");
+        std::env::set_var("PADDLE_PRICE_ID", "pri_test");
+        std::env::set_var("PADDLE_CLIENT_TOKEN", "client_test");
+
+        let config = BillingConfig::from_env().expect("billing config");
+        assert_eq!(config.price_id, "pri_test");
+        assert!(!config.sandbox);
+
+        std::env::remove_var("PADDLE_CLIENT_TOKEN");
+        assert!(BillingConfig::from_env().is_none());
+
+        std::env::remove_var("PADDLE_API_KEY");
+        std::env::remove_var("PADDLE_WEBHOOK_SECRET");
+        std::env::remove_var("PADDLE_PRICE_ID");
     }
 }

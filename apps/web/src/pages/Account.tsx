@@ -1,6 +1,7 @@
 import { Show, createEffect, createSignal } from "solid-js";
 import { A, useNavigate } from "@solidjs/router";
 import { deleteAccount } from "../api/account";
+import { openCheckout, redirectToPortal } from "../api/billing";
 import { downloadResumesJson, downloadResumesPdf } from "../api/export";
 import { listCloudResumesPage } from "../api/resumes";
 import { authStore } from "../stores/auth";
@@ -36,7 +37,7 @@ function ComingSoonRow(props: { title: string; description: string }) {
 }
 
 export default function Account() {
-  const { state, signIn, signOut, clearUser, displayName } = authStore;
+  const { state, signIn, signOut, clearUser, displayName, refresh } = authStore;
   const navigate = useNavigate();
   const [signingOut, setSigningOut] = createSignal(false);
   const [signingIn, setSigningIn] = createSignal(false);
@@ -47,6 +48,8 @@ export default function Account() {
   const [deletingAccount, setDeletingAccount] = createSignal(false);
   const [exportingJson, setExportingJson] = createSignal(false);
   const [exportingPdf, setExportingPdf] = createSignal(false);
+  const [openingCheckout, setOpeningCheckout] = createSignal(false);
+  const [openingPortal, setOpeningPortal] = createSignal(false);
 
   createEffect(() => {
     if (!deleteModalOpen()) {
@@ -83,6 +86,34 @@ export default function Account() {
     setSigningIn(true);
     signIn();
   };
+
+  const handleSubscribe = async () => {
+    setOpeningCheckout(true);
+    try {
+      await openCheckout(() => {
+        void refresh();
+      });
+    } catch (error) {
+      console.error("Checkout failed:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to open checkout");
+    } finally {
+      setOpeningCheckout(false);
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    setOpeningPortal(true);
+    try {
+      await redirectToPortal();
+    } catch (error) {
+      console.error("Portal redirect failed:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to open billing portal");
+      setOpeningPortal(false);
+    }
+  };
+
+  const canManageSubscription = (user: { plan: string; subscription?: { status: string } }) =>
+    user.plan !== "free" || Boolean(user.subscription);
 
   const handleExportJson = async () => {
     setExportingJson(true);
@@ -257,11 +288,43 @@ export default function Account() {
                     </div>
                   </section>
 
+                  <section class="rounded-2xl border border-border bg-paper p-6 shadow-card">
+                    <h2 class="font-display text-lg font-semibold text-ink mb-2">Billing</h2>
+                    <p class="text-sm text-stone mb-4">
+                      Rustume Cloud billing pays for operated hosting — sync, storage, and managed
+                      infrastructure. It does not unlock exclusive application features.
+                    </p>
+                    <Show
+                      when={state.billingEnabled}
+                      fallback={
+                        <p class="text-sm text-stone">
+                          Hosted billing is not configured on this deployment.
+                        </p>
+                      }
+                    >
+                      <Show
+                        when={canManageSubscription(user())}
+                        fallback={
+                          <Button
+                            onClick={() => void handleSubscribe()}
+                            loading={openingCheckout()}
+                          >
+                            Subscribe to Rustume Cloud
+                          </Button>
+                        }
+                      >
+                        <Button
+                          variant="secondary"
+                          onClick={() => void handleManageSubscription()}
+                          loading={openingPortal()}
+                        >
+                          Manage subscription
+                        </Button>
+                      </Show>
+                    </Show>
+                  </section>
+
                   <section class="rounded-2xl border border-border bg-paper px-6 py-2 shadow-card">
-                    <ComingSoonRow
-                      title="Billing"
-                      description="Manage your subscription and payment details."
-                    />
                     <ComingSoonRow
                       title="End-to-end encryption"
                       description="Optional client-side encryption for resume content."

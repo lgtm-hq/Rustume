@@ -16,6 +16,7 @@ use tower_http::{
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
+use crate::billing::{checkout, customer_portal, paddle_webhook};
 use crate::config::MAX_BODY_SIZE;
 use crate::middleware::auth::require_auth_when_enabled;
 use crate::middleware::rate_limit::{
@@ -210,6 +211,20 @@ pub fn create_router_with_state(state: AppState) -> Router {
             .merge(export_json_routes)
             .merge(export_pdf_routes)
             .merge(account_routes);
+
+        if state.billing.is_some() {
+            let billing_routes = Router::new()
+                .route("/api/billing/checkout", post(checkout))
+                .route("/api/billing/portal", get(customer_portal))
+                .route_layer(middleware::from_fn_with_state(
+                    state.clone(),
+                    require_auth_when_enabled,
+                ));
+
+            let webhook_routes = Router::new().route("/webhooks/paddle", post(paddle_webhook));
+
+            router = router.merge(billing_routes).merge(webhook_routes);
+        }
     }
 
     let router = router

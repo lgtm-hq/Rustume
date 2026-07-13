@@ -212,6 +212,8 @@ pub struct AuthUserResponse {
     /// Subscription lifecycle state for grace-period UX and local sync.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub subscription: Option<SubscriptionInfo>,
+    /// Whether Paddle billing checkout and portal routes are registered.
+    pub billing_enabled: bool,
 }
 
 /// Single resume in a bulk JSON export.
@@ -237,6 +239,26 @@ pub struct ResumeBulkExport {
 pub struct AuthMeUnauthorizedResponse {
     pub error: String,
     pub require_auth: bool,
+    /// Whether Paddle billing checkout and portal routes are registered.
+    pub billing_enabled: bool,
+}
+
+/// Paddle.js checkout overlay settings returned by `POST /api/billing/checkout`.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct BillingCheckoutResponse {
+    pub client_token: String,
+    pub price_id: String,
+    pub email: String,
+    #[schema(value_type = Object)]
+    pub custom_data: serde_json::Value,
+    /// Paddle.js environment (`sandbox` or `production`).
+    pub environment: String,
+}
+
+/// Authenticated customer portal URL returned by `GET /api/billing/portal`.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct BillingPortalResponse {
+    pub url: String,
 }
 
 /// Request body for `DELETE /api/account`.
@@ -259,6 +281,7 @@ impl AuthUserResponse {
         user: User,
         require_auth: bool,
         subscription: Option<SubscriptionInfo>,
+        billing_enabled: bool,
     ) -> Self {
         Self {
             id: user.id,
@@ -268,6 +291,7 @@ impl AuthUserResponse {
             last_name: user.last_name,
             require_auth,
             subscription,
+            billing_enabled,
         }
     }
 }
@@ -291,7 +315,7 @@ mod tests {
             updated_at: Utc::now(),
         };
 
-        let response = AuthUserResponse::from_user(user, true, None);
+        let response = AuthUserResponse::from_user(user, true, None, false);
         let json = serde_json::to_value(&response).unwrap();
 
         assert_eq!(json["id"], Uuid::nil().to_string());
@@ -317,7 +341,8 @@ mod tests {
             updated_at: Utc::now(),
         };
 
-        let json = serde_json::to_value(AuthUserResponse::from_user(user, false, None)).unwrap();
+        let json =
+            serde_json::to_value(AuthUserResponse::from_user(user, false, None, false)).unwrap();
 
         assert!(json.get("email").is_none());
         assert!(json.get("first_name").is_none());
@@ -345,6 +370,7 @@ mod tests {
                 status: "canceled".to_string(),
                 expires_at: Some(expires_at),
             }),
+            true,
         );
         let json = serde_json::to_value(&response).unwrap();
 

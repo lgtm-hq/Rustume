@@ -10,6 +10,7 @@ const { mockAuthState, signInMock, signOutMock } = vi.hoisted(() => ({
     loading: false,
     cloudEnabled: true,
     requireAuth: false,
+    billingEnabled: false,
     user: null as {
       id: string;
       plan: string;
@@ -30,6 +31,7 @@ vi.mock("../../stores/auth", () => ({
     signIn: signInMock,
     signOut: signOutMock,
     clearUser: vi.fn(),
+    refresh: vi.fn(),
     // Mirrors userDisplayName — vi.mock hoisting prevents importing the real function.
     displayName: (user: { email?: string; first_name?: string; last_name?: string }) => {
       const parts = [user.first_name, user.last_name].filter(Boolean);
@@ -41,6 +43,11 @@ vi.mock("../../stores/auth", () => ({
 
 vi.mock("../../api/account", () => ({
   deleteAccount: vi.fn(),
+}));
+
+vi.mock("../../api/billing", () => ({
+  openCheckout: vi.fn(),
+  redirectToPortal: vi.fn(),
 }));
 
 vi.mock("../../api/resumes", () => ({
@@ -116,10 +123,43 @@ describe("Account page", () => {
       screen.getByText(/email and name are stored by both WorkOS and Rustume/i),
     ).toBeInTheDocument();
     expect(screen.getByText("Billing")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Hosted billing is not configured on this deployment/i),
+    ).toBeInTheDocument();
     expect(screen.getByText("End-to-end encryption")).toBeInTheDocument();
-    expect(screen.getAllByText("Coming soon").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Coming soon").length).toBe(1);
     expect(screen.getByText("Danger zone")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete my account" })).toBeInTheDocument();
+  });
+
+  it("shows subscribe when billing is enabled for free users", () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.billingEnabled = true;
+    mockAuthState.user = {
+      id: "user-1",
+      plan: "free",
+      email: "dev@example.com",
+    };
+
+    renderAccount();
+
+    expect(screen.getByRole("button", { name: "Subscribe to Rustume Cloud" })).toBeInTheDocument();
+  });
+
+  it("shows manage subscription when billing is enabled and the user has a paid plan", () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.billingEnabled = true;
+    mockAuthState.user = {
+      id: "user-1",
+      plan: "pro",
+      email: "dev@example.com",
+    };
+
+    renderAccount();
+
+    expect(screen.getByRole("button", { name: "Manage subscription" })).toBeInTheDocument();
   });
 
   it("opens the delete confirmation modal", () => {
