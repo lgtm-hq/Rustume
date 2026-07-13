@@ -7,9 +7,9 @@ use utoipa::OpenApi;
 use crate::db::{
     AuthMeUnauthorizedResponse, AuthUserResponse, CreateResumeRequest, DeleteAccountRequest,
     DeleteAccountResponse, ImportFailure, ImportResumeItem, ImportResumesRequest,
-    ImportResumesResponse, PaginatedResumeSummaries, ResumeBulkExport, ResumeExportItem,
-    ResumeListQuery, ResumeRow, ResumeSnapshot, ResumeSummary, ResumeVersionSummary,
-    SubscriptionInfo, UpdateResumeRequest,
+    ImportResumesResponse, PaginatedResumeSummaries, RestoreResumeRequest, ResumeBulkExport,
+    ResumeExportItem, ResumeListQuery, ResumeRow, ResumeSnapshot, ResumeSummary,
+    ResumeVersionSummary, SubscriptionInfo, UpdateResumeRequest,
 };
 use crate::dto::{
     ParseFormat, ParseRequest, RenderPdfRequest, RenderPreviewRequest, TemplateInfo, ThemeInfo,
@@ -88,6 +88,7 @@ impl Modify for CookieAuthAddon {
             ResumeVersionSummary,
             CreateResumeRequest,
             UpdateResumeRequest,
+            RestoreResumeRequest,
             ImportResumesRequest,
             ImportResumesResponse,
             ImportFailure,

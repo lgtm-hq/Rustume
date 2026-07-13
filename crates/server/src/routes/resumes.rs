@@ -12,8 +12,8 @@ use crate::audit::{record_event, AuditEvent};
 use crate::db::{
     capture_resume_snapshot, get_resume_snapshot, list_resume_snapshots, restore_resume_snapshot,
     CreateResumeRequest, ImportFailure, ImportResumeItem, ImportResumesRequest,
-    ImportResumesResponse, PaginatedResumeSummaries, ResumeListQuery, ResumeRow, ResumeSnapshot,
-    ResumeSummary, ResumeVersionSummary, UpdateResumeRequest,
+    ImportResumesResponse, PaginatedResumeSummaries, RestoreResumeRequest, ResumeListQuery,
+    ResumeRow, ResumeSnapshot, ResumeSummary, ResumeVersionSummary, UpdateResumeRequest,
 };
 use crate::error::ApiError;
 use crate::middleware::auth::AuthUser;
@@ -250,10 +250,12 @@ pub async fn get_resume_version(
         ("id" = String, Path, description = "Resume ID"),
         ("version" = i32, Path, description = "Snapshot version to restore"),
     ),
+    request_body = RestoreResumeRequest,
     responses(
         (status = 200, description = "Resume restored", body = ResumeRow),
         (status = 401, description = "Not authenticated", body = ApiError),
         (status = 404, description = "Resume or version not found", body = ApiError),
+        (status = 409, description = "Resume version conflict", body = ApiError),
     ),
     security(("cookieAuth" = []))
 )]
@@ -261,11 +263,12 @@ pub async fn restore_resume_version(
     AuthUser(user): AuthUser,
     State(state): State<AppState>,
     Path((id, version)): Path<(Uuid, i32)>,
+    Json(body): Json<RestoreResumeRequest>,
 ) -> Result<Json<ResumeRow>, ApiError> {
     let cloud = state.cloud()?;
     let access = subscription::load_access(&cloud.db, user.id).await?;
     access.ensure_write()?;
-    let row = restore_resume_snapshot(&cloud.db, user.id, id, version).await?;
+    let row = restore_resume_snapshot(&cloud.db, user.id, id, version, body.version).await?;
     Ok(Json(row))
 }
 
@@ -914,6 +917,7 @@ mod tests {
             AuthUser(user.clone()),
             State(state),
             Path((resume.id, updated.version)),
+            Json(RestoreResumeRequest::default()),
         )
         .await
         .expect("restore version")
@@ -931,6 +935,62 @@ mod tests {
         assert_eq!(restored.version, updated.version + 1);
         assert_eq!(restored.data, historical);
         assert_eq!(snapshot_count, 3);
+    }
+
+    #[tokio::test]
+    async fn restore_resume_version_rejects_stale_expected_version() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+        let pool = connect_test_pool(&database_url).await;
+        let user = seed_user(&pool).await;
+        let resume = seed_resume(&pool, user.id, sample_data("current")).await;
+        let state = test_app_state(pool.clone());
+
+        let updated = update_resume(
+            AuthUser(user.clone()),
+            State(state.clone()),
+            Path(resume.id),
+            Json(UpdateResumeRequest {
+                title: None,
+                data: Some(sample_data("historical")),
+                version: Some(resume.version),
+            }),
+        )
+        .await
+        .expect("seed historical snapshot")
+        .0;
+
+        let _ = update_resume(
+            AuthUser(user.clone()),
+            State(state.clone()),
+            Path(resume.id),
+            Json(UpdateResumeRequest {
+                title: None,
+                data: Some(sample_data("newer")),
+                version: Some(updated.version),
+            }),
+        )
+        .await
+        .expect("advance current state");
+
+        let restore_result = restore_resume_version(
+            AuthUser(user.clone()),
+            State(state),
+            Path((resume.id, updated.version)),
+            Json(RestoreResumeRequest {
+                version: Some(updated.version),
+            }),
+        )
+        .await;
+
+        cleanup_user(&pool, user.id).await;
+
+        assert!(matches!(
+            restore_result,
+            Err(err) if matches!(err.kind, ApiErrorKind::Conflict)
+                && err.current_version == Some(updated.version + 1)
+        ));
     }
 
     #[tokio::test]
@@ -1015,6 +1075,7 @@ mod tests {
             AuthUser(other.clone()),
             State(other_state),
             Path((resume.id, updated.version)),
+            Json(RestoreResumeRequest::default()),
         )
         .await;
 
