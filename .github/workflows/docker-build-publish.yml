@@ -85,7 +85,9 @@ jobs:
       # build stages run through the host egress proxy under harden-runner) +
       # rust hosts (rustup target add wasm32 pulls from static.rust-lang.org;
       # cargo install cargo-chef/wasm-pack/wasm-bindgen-cli fetch the crates
-      # index and .crate files from index.crates.io / static.crates.io).
+      # index and .crate files from index.crates.io / static.crates.io) +
+      # registry.npmjs.org (bun install in the web-builder stage downloads
+      # packages from the npm registry on cache-cold builds).
       allowed-endpoints-mode: replace
       allowed-endpoints: >
         github.com:443
@@ -115,3 +117,4 @@ jobs:
         crates.io:443
         index.crates.io:443
         static.crates.io:443
+        registry.npmjs.org:443
