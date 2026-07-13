@@ -22,6 +22,23 @@ and this project adheres to
 
 ### Security
 
+## [0.29.1] - 2026-07-13
+
+### Changed
+
+- **deps**: lock file maintenance (#428) (d18db88)
+- **deps**: lock file maintenance (#427) (babe1c0)
+- **deps**: update renovatebot/github-action action to v46.1.19 (patch) (#418) (fa8421d)
+- **deps**: lock file maintenance (#425) (2b6893e)
+- **deps**: update all major dependencies (major) (#297) (994e1d1)
+- **deps**: pin dependencies (#419) (0f81e5c)
+
+### Fixed
+
+- **ci**: allow timestamp.sigstore.dev egress for cosign signing on main (#464)
+  (0388337)
+- **ci**: restore green main workflows and unblock GitHub Releases (#440) (adc90ee)
+
 ## [0.29.0] - 2026-07-13
 
 ### Added
@@ -354,7 +371,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.29.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.29.1...HEAD
+[0.29.1]: https://github.com/lgtm-hq/Rustume/compare/v0.29.0...v0.29.1
 [0.29.0]: https://github.com/lgtm-hq/Rustume/compare/v0.28.0...v0.29.0
 [0.28.0]: https://github.com/lgtm-hq/Rustume/compare/v0.27.0...v0.28.0
 [0.27.0]: https://github.com/lgtm-hq/Rustume/compare/v0.26.3...v0.27.0
