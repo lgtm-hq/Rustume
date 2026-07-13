@@ -37,15 +37,3 @@ variable "environment_variables" {
   type        = map(string)
   default     = {}
 }
-
-variable "regions" {
-  description = "Desired Railway regions and replica counts. Provider v0.6.x does not expose regions on railway_service; configure in the Railway dashboard until supported."
-  type = list(object({
-    region       = string
-    num_replicas = optional(number, 1)
-  }))
-  default = [{
-    region       = "us-west2"
-    num_replicas = 1
-  }]
-}

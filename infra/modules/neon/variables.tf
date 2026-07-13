@@ -44,7 +44,7 @@ variable "history_retention_seconds" {
   default     = 86400
 
   validation {
-    condition = floor(var.history_retention_seconds) == var.history_retention_seconds && var.history_retention_seconds >= 0 && var.history_retention_seconds <= 2592000
+    condition     = floor(var.history_retention_seconds) == var.history_retention_seconds && var.history_retention_seconds >= 0 && var.history_retention_seconds <= 2592000
     error_message = "history_retention_seconds must be an integer between 0 and 2592000."
   }
 }
