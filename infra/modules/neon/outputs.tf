@@ -33,10 +33,10 @@ output "database_url" {
   description = "PostgreSQL connection URL for the application role."
   value = format(
     "postgresql://%s:%s@%s/%s?sslmode=require",
-    neon_role.app.name,
-    neon_role.app.password,
+    urlencode(neon_role.app.name),
+    urlencode(neon_role.app.password),
     neon_project.rustume.branch.endpoint.host,
-    neon_database.app.name,
+    urlencode(neon_database.app.name),
   )
   sensitive = true
 }

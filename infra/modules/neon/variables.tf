@@ -13,6 +13,11 @@ variable "pg_version" {
   description = "PostgreSQL major version for the Neon project."
   type        = number
   default     = 16
+
+  validation {
+    condition     = floor(var.pg_version) == var.pg_version && var.pg_version >= 14 && var.pg_version <= 18
+    error_message = "pg_version must be an integer between 14 and 18."
+  }
 }
 
 variable "branch_name" {
@@ -37,6 +42,11 @@ variable "history_retention_seconds" {
   description = "Point-in-time recovery retention window in seconds."
   type        = number
   default     = 86400
+
+  validation {
+    condition = floor(var.history_retention_seconds) == var.history_retention_seconds && var.history_retention_seconds >= 0 && var.history_retention_seconds <= 2592000
+    error_message = "history_retention_seconds must be an integer between 0 and 2592000."
+  }
 }
 
 variable "endpoint_min_cu" {

@@ -26,6 +26,17 @@ variable "pages_ipv4_addresses" {
   ]
 }
 
+variable "pages_ipv6_addresses" {
+  description = "GitHub Pages apex AAAA record targets."
+  type        = list(string)
+  default = [
+    "2606:50c0:8000::153",
+    "2606:50c0:8001::153",
+    "2606:50c0:8002::153",
+    "2606:50c0:8003::153",
+  ]
+}
+
 variable "railway_cname_target" {
   description = "Railway custom-domain CNAME target for app.rustume.com."
   type        = string

@@ -14,15 +14,20 @@ variable "backups_bucket_name" {
 }
 
 variable "location" {
-  description = "R2 bucket location (for example WEUR, ENAM)."
+  description = "R2 bucket location (for example weur, enam)."
   type        = string
-  default     = "ENAM"
+  default     = "enam"
 }
 
 variable "backup_retention_days" {
   description = "Days to retain backup objects before lifecycle deletion."
   type        = number
   default     = 30
+
+  validation {
+    condition     = floor(var.backup_retention_days) == var.backup_retention_days && var.backup_retention_days > 0
+    error_message = "backup_retention_days must be a positive integer."
+  }
 }
 
 variable "assets_token_name" {

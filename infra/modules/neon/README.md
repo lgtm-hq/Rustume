@@ -2,14 +2,14 @@
 
 Provision a Neon PostgreSQL project with a primary branch, application role, and database.
 
-Provider: [`terraform-community-providers/neon`](https://registry.terraform.io/providers/terraform-community-providers/neon/latest/docs)
-(Neon API token via `NEON_TOKEN` or provider `token`).
+Provider: [`terraform-community-providers/neon`](https://registry.terraform.io/providers/terraform-community-providers/neon/0.1.15/docs)
+(`~> 0.1.15`; Neon API token via `NEON_TOKEN` or provider `token`).
 
 ## Usage
 
 ```hcl
 module "neon" {
-  source = "../modules/neon"
+  source = "./modules/neon"
 
   project_name = "rustume-cloud-production"
   region_id    = "aws-us-west-2"

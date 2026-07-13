@@ -13,6 +13,7 @@ resource "cloudflare_r2_bucket" "assets" {
   account_id    = var.account_id
   name          = var.assets_bucket_name
   location      = var.location
+  jurisdiction  = var.bucket_jurisdiction
   storage_class = "Standard"
 }
 
@@ -20,6 +21,7 @@ resource "cloudflare_r2_bucket" "backups" {
   account_id    = var.account_id
   name          = var.backups_bucket_name
   location      = var.location
+  jurisdiction  = var.bucket_jurisdiction
   storage_class = "Standard"
 }
 

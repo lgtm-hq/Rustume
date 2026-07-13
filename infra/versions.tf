@@ -32,9 +32,13 @@ terraform {
   }
 }
 
-provider "neon" {}
+provider "neon" {
+  token = var.neon_api_token
+}
 
-provider "cloudflare" {}
+provider "cloudflare" {
+  api_token = var.cloudflare_api_token
+}
 
 provider "grafana" {
   cloud_access_policy_token    = var.grafana_cloud_access_policy_token

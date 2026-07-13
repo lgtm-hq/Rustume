@@ -23,8 +23,14 @@ Terraform modules and environment wiring for the operated Rustume Cloud stack.
 | Placeholder tfvars (no secrets) | Provider API tokens / secrets injection |
 | | `terraform plan` / `apply` against production |
 
-Secrets are `sensitive = true` variables sourced from environment at apply time. Never commit
-token values or `*.auto.tfvars` with credentials.
+Secrets use `sensitive = true` variables, which redact values in logs and CLI output only.
+Set required inputs before `terraform plan` or `terraform apply`:
+
+- Module variables: export `TF_VAR_<name>` (for example `TF_VAR_neon_api_token`).
+- Provider credentials: use each provider's documented environment variables when a
+  `TF_VAR_*` token is not set (`NEON_TOKEN`, `CLOUDFLARE_API_TOKEN`, etc.).
+
+Never commit token values or `*.auto.tfvars` with credentials.
 
 ## Deploy model
 
