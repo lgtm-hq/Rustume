@@ -21,7 +21,6 @@ use crate::audit::{record_event, record_event_required, AuditEvent};
 use crate::auth::session::SESSION_COOKIE;
 use crate::db::{
     AccountDataExport, AccountExportProfile, DeleteAccountRequest, DeleteAccountResponse,
-    ResumeExportItem,
 };
 use crate::email::log_send_failure;
 use crate::error::ApiError;
@@ -30,13 +29,15 @@ use crate::net::{self, trusted_client_ip};
 use crate::state::AppState;
 
 const DELETE_CONFIRMATION: &str = "DELETE";
+const EXPORT_STREAM_CHUNK_BYTES: usize = 64 * 1024;
+const EXPORT_STREAM_CHANNEL_CAPACITY: usize = 2;
 
 /// Resume fields required for account data export.
 #[derive(Debug, sqlx::FromRow)]
 struct ExportResumeRow {
     id: Uuid,
     title: String,
-    data: serde_json::Value,
+    data_json: String,
 }
 
 /// Export all account data for GDPR data portability.
@@ -242,7 +243,8 @@ fn stream_account_export(
     user_id: Uuid,
     prefix: Vec<u8>,
 ) -> impl Stream<Item = Result<Bytes, io::Error>> + Send + 'static {
-    let (chunk_tx, chunk_rx) = mpsc::channel::<Result<Bytes, io::Error>>(8);
+    let (chunk_tx, chunk_rx) =
+        mpsc::channel::<Result<Bytes, io::Error>>(EXPORT_STREAM_CHANNEL_CAPACITY);
 
     tokio::spawn(async move {
         let mut db_tx = db_tx;
@@ -253,7 +255,7 @@ fn stream_account_export(
 
         let mut rows = sqlx::query_as::<_, ExportResumeRow>(
             r#"
-            SELECT id, title, data
+            SELECT id, title, data::text AS data_json
             FROM resumes
             WHERE user_id = $1
             ORDER BY updated_at DESC
@@ -272,16 +274,9 @@ fn stream_account_export(
                 return;
             }
         } {
-            match serialize_resume_row(row, &mut first_resume) {
-                Ok(chunk) => {
-                    if chunk_tx.send(Ok(Bytes::from(chunk))).await.is_err() {
-                        return;
-                    }
-                }
-                Err(err) => {
-                    let _ = chunk_tx.send(Err(io::Error::other(err.error))).await;
-                    return;
-                }
+            if let Err(err) = stream_resume_row(&chunk_tx, row, &mut first_resume).await {
+                let _ = chunk_tx.send(Err(io::Error::other(err.error))).await;
+                return;
             }
         }
 
@@ -297,24 +292,44 @@ fn stream_account_export(
     })
 }
 
-fn serialize_resume_row(row: ExportResumeRow, first: &mut bool) -> Result<Vec<u8>, ApiError> {
-    let item = ResumeExportItem {
-        id: row.id,
-        title: row.title,
-        data: row.data,
-    };
-
-    let mut chunk = Vec::new();
-    if !*first {
-        chunk.push(b',');
-    } else {
-        *first = false;
-    }
-    serde_json::to_writer(&mut chunk, &item).map_err(|err| {
-        error!("account export resume serialization failed: {err}");
+async fn stream_resume_row(
+    chunk_tx: &mpsc::Sender<Result<Bytes, io::Error>>,
+    row: ExportResumeRow,
+    first: &mut bool,
+) -> Result<(), ApiError> {
+    let title_json = serde_json::to_string(&row.title).map_err(|err| {
+        error!("account export title serialization failed: {err}");
         ApiError::internal("failed to export account data")
     })?;
-    Ok(chunk)
+    let prefix = if *first {
+        *first = false;
+        String::new()
+    } else {
+        ",".to_string()
+    };
+    let header = format!(
+        r#"{prefix}{{"id":"{}","title":{},"data":"#,
+        row.id, title_json
+    );
+    if chunk_tx.send(Ok(Bytes::from(header))).await.is_err() {
+        return Ok(());
+    }
+
+    for chunk in row.data_json.as_bytes().chunks(EXPORT_STREAM_CHUNK_BYTES) {
+        if chunk_tx
+            .send(Ok(Bytes::copy_from_slice(chunk)))
+            .await
+            .is_err()
+        {
+            return Ok(());
+        }
+    }
+
+    if chunk_tx.send(Ok(Bytes::from_static(b"}"))).await.is_err() {
+        return Ok(());
+    }
+
+    Ok(())
 }
 
 fn append_json_field(
