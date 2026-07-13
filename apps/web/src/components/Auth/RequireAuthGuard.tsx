@@ -16,7 +16,8 @@ function isProtectedPath(pathname: string): boolean {
     return false;
   }
 
-  if (PUBLIC_POLICY_PATHS.has(pathname)) {
+  const normalizedPathname = pathname.replace(/\/$/, "") || "/";
+  if (PUBLIC_POLICY_PATHS.has(normalizedPathname)) {
     return false;
   }
 

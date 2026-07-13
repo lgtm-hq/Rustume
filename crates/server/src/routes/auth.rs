@@ -149,7 +149,12 @@ async fn callback_inner(
     let user = upsert.user;
 
     if upsert.is_new {
-        record_signup_policy_acceptances(&cloud.db, user.id, ip).await;
+        record_signup_policy_acceptances(&cloud.db, user.id, ip)
+            .await
+            .map_err(|err| {
+                error!("policy acceptance failed: {err}");
+                "server_error"
+            })?;
     }
 
     let (_session, cookie) = cloud.sessions.create(user.id).await.map_err(|err| {
@@ -336,7 +341,7 @@ async fn audit_callback_failure(state: &AppState, reason: &str, ip_address: Opti
 
 #[cfg(test)]
 mod policy_acceptance_tests {
-    use super::*;
+    
     use crate::auth::workos::{upsert_user, WorkOsUser};
     use crate::config;
     use crate::policy::record_signup_policy_acceptances;
@@ -430,7 +435,9 @@ mod policy_acceptance_tests {
             .expect("first upsert");
         assert!(first.is_new);
 
-        record_signup_policy_acceptances(&pool, first.user.id, Some("203.0.113.10")).await;
+        record_signup_policy_acceptances(&pool, first.user.id, Some("203.0.113.10"))
+            .await
+            .expect("record signup policy acceptances");
 
         assert_eq!(count_policy_acceptances(&pool, first.user.id).await, 2);
 
