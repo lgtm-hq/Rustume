@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
-import { render } from "@solidjs/testing-library";
+import { render, screen } from "@solidjs/testing-library";
 import { Route, Router } from "@solidjs/router";
 import { axeConfig } from "../../../test/a11y";
 import { AppShell } from "../AppShell";
@@ -44,6 +44,25 @@ vi.mock("@solidjs/router", async (importOriginal) => {
 });
 
 describe("AppShell accessibility", () => {
+  it("includes a skip link targeting the main landmark", () => {
+    render(() => (
+      <Router>
+        <Route
+          path="*"
+          component={() => (
+            <AppShell>
+              <div>Page content</div>
+            </AppShell>
+          )}
+        />
+      </Router>
+    ));
+
+    const skipLink = screen.getByRole("link", { name: "Skip to content" });
+    expect(skipLink).toHaveAttribute("href", "#main-content");
+    expect(document.getElementById("main-content")).toBeTruthy();
+  });
+
   it("has no axe violations when rendered", async () => {
     const { container } = render(() => (
       <Router>

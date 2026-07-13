@@ -40,7 +40,10 @@ export function EditorThemeSelector() {
       }
     >
       <DropdownMenu>
-        <DropdownMenu.Trigger class="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-surface transition-colors text-sm">
+        <DropdownMenu.Trigger
+          aria-label="Editor theme"
+          class="focus-ring flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-surface transition-colors text-sm"
+        >
           <div class="flex items-center gap-1.5">
             <div
               class="w-3 h-3 rounded-full border border-border"

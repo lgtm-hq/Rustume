@@ -13,6 +13,10 @@ export const AppShell: ParentComponent = (props) => {
 
   return (
     <div class="min-h-screen bg-paper flex flex-col">
+      <a href="#main-content" class="skip-link">
+        Skip to content
+      </a>
+
       {/* Top Bar */}
       <header class="h-14 border-b border-border bg-paper/80 backdrop-blur-sm sticky top-0 z-30">
         <div class="h-full px-4 flex items-center justify-between">
@@ -53,7 +57,9 @@ export const AppShell: ParentComponent = (props) => {
       </header>
 
       {/* Main Content */}
-      <main class="flex-1">{props.children}</main>
+      <main id="main-content" class="flex-1" tabindex={-1}>
+        {props.children}
+      </main>
     </div>
   );
 };

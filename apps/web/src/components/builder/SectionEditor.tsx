@@ -1,6 +1,8 @@
 import { For, Show, createSignal, type JSX } from "solid-js";
 import { Button, Input } from "../ui";
 import { LazyRichTextEditor as RichTextEditor } from "../ui/LazyRichTextEditor";
+import { LiveRegion, announceLive } from "../ui/LiveRegion";
+import { reorderAnnouncement } from "../../lib/reorderAnnounce";
 import { resumeStore, type SectionKey } from "../../stores/resume";
 import { generateId, createEmptyUrl } from "../../wasm/types";
 import type {
@@ -54,6 +56,7 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
   const { store, addSectionItem, updateSectionItem, removeSectionItem, reorderSectionItem } =
     resumeStore;
   const [expandedIndex, setExpandedIndex] = createSignal<number | null>(null);
+  const [announcement, setAnnouncement] = createSignal("");
 
   const items = () => {
     if (!store.resume) return [];
@@ -77,15 +80,21 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
 
   const handleMoveUp = (index: number) => {
     if (index > 0) {
+      const item = items()[index];
+      const title = props.getItemTitle(item) || "Untitled";
       reorderSectionItem(props.sectionKey, index, index - 1);
       setExpandedIndex(index - 1);
+      announceLive(setAnnouncement, reorderAnnouncement(title, index - 1, items().length));
     }
   };
 
   const handleMoveDown = (index: number) => {
     if (index < items().length - 1) {
+      const item = items()[index];
+      const title = props.getItemTitle(item) || "Untitled";
       reorderSectionItem(props.sectionKey, index, index + 1);
       setExpandedIndex(index + 1);
+      announceLive(setAnnouncement, reorderAnnouncement(title, index + 1, items().length));
     }
   };
 
@@ -127,45 +136,94 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
       <div class="space-y-2">
         <For each={items()}>
           {(item, index) => (
-            <div class="border border-border rounded-lg overflow-hidden">
+            <div class="border border-border rounded-lg overflow-hidden group">
               {/* Item Header */}
-              <button
-                class="w-full px-4 py-3 flex items-center justify-between
-                  bg-surface hover:bg-border/30 transition-colors text-left"
-                onClick={() => setExpandedIndex(expandedIndex() === index() ? null : index())}
-              >
-                <div class="flex items-center gap-3 min-w-0">
-                  <div
-                    class={`w-2 h-2 rounded-full flex-shrink-0 ${
-                      item.visible ? "bg-green-500" : "bg-stone/30"
-                    }`}
-                  />
-                  <div class="min-w-0">
-                    <div class="font-body font-medium text-ink truncate">
-                      {props.getItemTitle(item) || "Untitled"}
-                    </div>
-                    <Show when={props.getItemSubtitle?.(item)}>
-                      <div class="text-sm text-stone truncate">{props.getItemSubtitle!(item)}</div>
-                    </Show>
-                  </div>
+              <div class="flex items-stretch">
+                <div class="flex items-center gap-1 px-2 opacity-0 group-focus-within:opacity-100 focus-within:opacity-100 transition-opacity">
+                  <button
+                    type="button"
+                    class="focus-ring p-1.5 text-stone hover:text-ink hover:bg-surface rounded
+                      disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMoveUp(index());
+                    }}
+                    disabled={index() === 0}
+                    aria-label="Move up"
+                    title="Move up"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M5 15l7-7 7 7"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    class="focus-ring p-1.5 text-stone hover:text-ink hover:bg-surface rounded
+                      disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMoveDown(index());
+                    }}
+                    disabled={index() === items().length - 1}
+                    aria-label="Move down"
+                    title="Move down"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
                 </div>
-
-                <svg
-                  class={`w-5 h-5 text-stone transition-transform flex-shrink-0 ${
-                    expandedIndex() === index() ? "rotate-180" : ""
-                  }`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+                <button
+                  type="button"
+                  class="focus-ring flex-1 px-4 py-3 flex items-center justify-between
+                    bg-surface hover:bg-border/30 transition-colors text-left"
+                  onClick={() => setExpandedIndex(expandedIndex() === index() ? null : index())}
                 >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </button>
+                  <div class="flex items-center gap-3 min-w-0">
+                    <div
+                      class={`w-2 h-2 rounded-full flex-shrink-0 ${
+                        item.visible ? "bg-green-500" : "bg-stone/30"
+                      }`}
+                    />
+                    <div class="min-w-0">
+                      <div class="font-body font-medium text-ink truncate">
+                        {props.getItemTitle(item) || "Untitled"}
+                      </div>
+                      <Show when={props.getItemSubtitle?.(item)}>
+                        <div class="text-sm text-stone truncate">
+                          {props.getItemSubtitle!(item)}
+                        </div>
+                      </Show>
+                    </div>
+                  </div>
+
+                  <svg
+                    class={`w-5 h-5 text-stone transition-transform flex-shrink-0 ${
+                      expandedIndex() === index() ? "rotate-180" : ""
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+              </div>
 
               {/* Item Content */}
               <Show when={expandedIndex() === index()}>
@@ -174,10 +232,12 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
                   <div class="flex items-center justify-between pb-3 border-b border-border">
                     <div class="flex items-center gap-2">
                       <button
-                        class="p-1.5 text-stone hover:text-ink hover:bg-surface rounded
+                        type="button"
+                        class="focus-ring p-1.5 text-stone hover:text-ink hover:bg-surface rounded
                           disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                         onClick={() => handleMoveUp(index())}
                         disabled={index() === 0}
+                        aria-label="Move up"
                         title="Move up"
                       >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -190,10 +250,12 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
                         </svg>
                       </button>
                       <button
-                        class="p-1.5 text-stone hover:text-ink hover:bg-surface rounded
+                        type="button"
+                        class="focus-ring p-1.5 text-stone hover:text-ink hover:bg-surface rounded
                           disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                         onClick={() => handleMoveDown(index())}
                         disabled={index() === items().length - 1}
+                        aria-label="Move down"
                         title="Move down"
                       >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -208,26 +270,36 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
                     </div>
 
                     <div class="flex items-center gap-3">
-                      <label class="flex items-center gap-2 cursor-pointer">
-                        <span class="text-xs font-mono text-stone">Visible</span>
-                        <div
-                          class={`w-8 h-5 rounded-full transition-colors relative ${
+                      <div class="flex items-center gap-2">
+                        <span
+                          id={`section-item-${props.sectionKey}-${index()}-visible-label`}
+                          class="text-xs font-mono text-stone"
+                        >
+                          Visible
+                        </span>
+                        <button
+                          type="button"
+                          aria-pressed={item.visible}
+                          aria-labelledby={`section-item-${props.sectionKey}-${index()}-visible-label`}
+                          class={`focus-ring w-8 h-5 rounded-full transition-colors relative ${
                             item.visible ? "bg-accent" : "bg-border"
                           }`}
                           onClick={() =>
                             handleUpdate(index())({ visible: !item.visible } as Partial<T>)
                           }
                         >
-                          <div
+                          <span
                             class={`absolute top-0.5 w-4 h-4 bg-paper rounded-full shadow-sm
                               transition-transform ${item.visible ? "translate-x-3.5" : "translate-x-0.5"}`}
                           />
-                        </div>
-                      </label>
+                        </button>
+                      </div>
 
                       <button
-                        class="p-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                        type="button"
+                        class="focus-ring p-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                         onClick={() => handleRemove(index())}
+                        aria-label="Remove"
                         title="Remove"
                       >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -259,6 +331,8 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
           </div>
         </Show>
       </div>
+
+      <LiveRegion message={announcement()} />
     </div>
   );
 }
