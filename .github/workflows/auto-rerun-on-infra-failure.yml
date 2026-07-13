@@ -21,6 +21,7 @@ name: Auto Rerun on Infra Failure
       - Rust Build (workspace)
       - Quality - Lint & Format
     types: [completed]
+    branches: [main]
 
 permissions: {}
 
