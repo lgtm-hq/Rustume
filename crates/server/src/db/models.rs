@@ -65,10 +65,10 @@ pub struct ImportResumesResponse {
 
 /// Authenticated user record stored in PostgreSQL.
 ///
-/// Profile fields (`email`, `first_name`, `last_name`) are synced from WorkOS
-/// on each sign-in. WorkOS requires an email for every user and may receive
-/// name fields from the identity provider (Google, GitHub, SSO, etc.).
-/// Rustume stores these so the account UI can greet the user by name.
+/// Profile fields (`email`, `username`) support account display and settings.
+/// WorkOS requires an email for every user; Rustume stores it for transactional
+/// messages. The username is a friendly, editable display handle generated on
+/// signup — legal names remain in WorkOS only.
 ///
 /// Resume documents (stored separately) may contain additional personal data.
 #[derive(Debug, Clone, FromRow, Serialize)]
@@ -83,10 +83,8 @@ pub struct User {
     pub paddle_customer_id: Option<String>,
     /// Account email synced from WorkOS on sign-in.
     pub email: Option<String>,
-    /// Given name synced from WorkOS on sign-in, when available.
-    pub first_name: Option<String>,
-    /// Family name synced from WorkOS on sign-in, when available.
-    pub last_name: Option<String>,
+    /// Friendly display handle; unique and user-editable.
+    pub username: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -190,8 +188,8 @@ pub struct SubscriptionInfo {
 
 /// Authenticated user profile returned by `GET /auth/me`.
 ///
-/// Includes account identity and display-friendly profile fields synced from
-/// WorkOS. Resume content is not included.
+/// Includes account identity and the editable display username. Resume content
+/// is not included.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct AuthUserResponse {
     #[schema(value_type = String, format = "uuid")]
@@ -201,12 +199,8 @@ pub struct AuthUserResponse {
     /// Account email from WorkOS, when available.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
-    /// Given name from WorkOS, when available.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub first_name: Option<String>,
-    /// Family name from WorkOS, when available.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub last_name: Option<String>,
+    /// Friendly display handle for the account.
+    pub username: String,
     /// Whether billable routes require sign-in on this deployment.
     pub require_auth: bool,
     /// Subscription lifecycle state for grace-period UX and local sync.
@@ -239,6 +233,19 @@ pub struct AuthMeUnauthorizedResponse {
     pub require_auth: bool,
 }
 
+/// Request body for `PATCH /api/account`.
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct UpdateAccountRequest {
+    /// New display username.
+    pub username: String,
+}
+
+/// Response body for `PATCH /api/account`.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct UpdateAccountResponse {
+    pub username: String,
+}
+
 /// Request body for `DELETE /api/account`.
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct DeleteAccountRequest {
@@ -264,8 +271,7 @@ impl AuthUserResponse {
             id: user.id,
             plan: user.plan,
             email: user.email,
-            first_name: user.first_name,
-            last_name: user.last_name,
+            username: user.username,
             require_auth,
             subscription,
         }
@@ -278,15 +284,14 @@ mod tests {
     use chrono::Utc;
 
     #[test]
-    fn auth_user_response_includes_profile_fields() {
+    fn auth_user_response_includes_username() {
         let user = User {
             id: Uuid::nil(),
             workos_id: "user_01".to_string(),
             plan: "free".to_string(),
             paddle_customer_id: None,
             email: Some("dev@example.com".to_string()),
-            first_name: Some("Ada".to_string()),
-            last_name: Some("Lovelace".to_string()),
+            username: "swift-otter-4821".to_string(),
             created_at: Utc::now(),
             updated_at: Utc::now(),
         };
@@ -297,22 +302,22 @@ mod tests {
         assert_eq!(json["id"], Uuid::nil().to_string());
         assert_eq!(json["plan"], "free");
         assert_eq!(json["email"], "dev@example.com");
-        assert_eq!(json["first_name"], "Ada");
-        assert_eq!(json["last_name"], "Lovelace");
+        assert_eq!(json["username"], "swift-otter-4821");
         assert_eq!(json["require_auth"], true);
         assert!(json.get("subscription").is_none());
+        assert!(json.get("first_name").is_none());
+        assert!(json.get("last_name").is_none());
     }
 
     #[test]
-    fn auth_user_response_omits_empty_profile_fields() {
+    fn auth_user_response_omits_empty_email() {
         let user = User {
             id: Uuid::nil(),
             workos_id: "user_01".to_string(),
             plan: "free".to_string(),
             paddle_customer_id: None,
             email: None,
-            first_name: None,
-            last_name: None,
+            username: "calm-finch-1234".to_string(),
             created_at: Utc::now(),
             updated_at: Utc::now(),
         };
@@ -320,8 +325,7 @@ mod tests {
         let json = serde_json::to_value(AuthUserResponse::from_user(user, false, None)).unwrap();
 
         assert!(json.get("email").is_none());
-        assert!(json.get("first_name").is_none());
-        assert!(json.get("last_name").is_none());
+        assert_eq!(json["username"], "calm-finch-1234");
     }
 
     #[test]
@@ -332,8 +336,7 @@ mod tests {
             plan: "pro".to_string(),
             paddle_customer_id: None,
             email: None,
-            first_name: None,
-            last_name: None,
+            username: "bold-wolf-9001".to_string(),
             created_at: Utc::now(),
             updated_at: Utc::now(),
         };

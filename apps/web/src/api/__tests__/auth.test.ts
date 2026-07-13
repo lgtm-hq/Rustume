@@ -2,22 +2,16 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { probeAuth, userDisplayName } from "../auth";
 
 describe("userDisplayName", () => {
-  it("prefers first and last name when both are present", () => {
+  it("returns the username when present", () => {
     expect(
       userDisplayName({
-        first_name: "Ada",
-        last_name: "Lovelace",
-        email: "ada@example.com",
+        username: "swift-otter-4821",
       }),
-    ).toBe("Ada Lovelace");
+    ).toBe("swift-otter-4821");
   });
 
-  it("falls back to email when names are missing", () => {
-    expect(userDisplayName({ email: "dev@example.com" })).toBe("dev@example.com");
-  });
-
-  it("returns a generic label when profile fields are empty", () => {
-    expect(userDisplayName({})).toBe("Account");
+  it("returns a generic label when username is empty", () => {
+    expect(userDisplayName({ username: "" })).toBe("Account");
   });
 });
 
@@ -33,7 +27,7 @@ describe("probeAuth", () => {
     fetchMock.mockReset();
   });
 
-  it("maps extended profile fields from /auth/me", async () => {
+  it("maps username from /auth/me", async () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
@@ -41,8 +35,7 @@ describe("probeAuth", () => {
         id: "user-1",
         plan: "free",
         email: "dev@example.com",
-        first_name: "Grace",
-        last_name: "Hopper",
+        username: "swift-otter-4821",
       }),
     });
 
@@ -54,8 +47,7 @@ describe("probeAuth", () => {
         id: "user-1",
         plan: "free",
         email: "dev@example.com",
-        first_name: "Grace",
-        last_name: "Hopper",
+        username: "swift-otter-4821",
       },
       requireAuth: false,
     });
@@ -68,6 +60,7 @@ describe("probeAuth", () => {
       json: async () => ({
         id: "user-1",
         plan: "pro",
+        username: "calm-finch-1234",
         subscription: {
           status: "canceled",
           expires_at: "2026-07-15T00:00:00Z",
@@ -82,6 +75,7 @@ describe("probeAuth", () => {
       user: {
         id: "user-1",
         plan: "pro",
+        username: "calm-finch-1234",
         subscription: {
           status: "canceled",
           expires_at: "2026-07-15T00:00:00Z",
@@ -98,6 +92,7 @@ describe("probeAuth", () => {
       json: async () => ({
         id: "user-1",
         plan: "pro",
+        username: "bold-wolf-9001",
         subscription: { status: "canceled" },
       }),
     });
@@ -109,6 +104,7 @@ describe("probeAuth", () => {
       user: {
         id: "user-1",
         plan: "pro",
+        username: "bold-wolf-9001",
         subscription: { status: "canceled" },
       },
       requireAuth: false,
@@ -122,6 +118,7 @@ describe("probeAuth", () => {
       json: async () => ({
         id: "user-1",
         plan: "free",
+        username: "minty-lynx-5555",
       }),
     });
 
@@ -129,7 +126,7 @@ describe("probeAuth", () => {
 
     expect(result).toEqual({
       mode: "cloud",
-      user: { id: "user-1", plan: "free" },
+      user: { id: "user-1", plan: "free", username: "minty-lynx-5555" },
       requireAuth: false,
     });
   });
@@ -141,6 +138,7 @@ describe("probeAuth", () => {
       json: async () => ({
         id: "user-1",
         plan: "pro",
+        username: "minty-lynx-5555",
         subscription: { status: 42, expires_at: "2026-07-15T00:00:00Z" },
       }),
     });
@@ -149,7 +147,7 @@ describe("probeAuth", () => {
 
     expect(result).toEqual({
       mode: "cloud",
-      user: { id: "user-1", plan: "pro" },
+      user: { id: "user-1", plan: "pro", username: "minty-lynx-5555" },
       requireAuth: false,
     });
   });
@@ -161,6 +159,7 @@ describe("probeAuth", () => {
       json: async () => ({
         id: "user-1",
         plan: "free",
+        username: "minty-lynx-5555",
         require_auth: true,
       }),
     });
@@ -169,7 +168,7 @@ describe("probeAuth", () => {
 
     expect(result).toEqual({
       mode: "cloud",
-      user: { id: "user-1", plan: "free" },
+      user: { id: "user-1", plan: "free", username: "minty-lynx-5555" },
       requireAuth: true,
     });
   });

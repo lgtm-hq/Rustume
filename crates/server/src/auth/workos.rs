@@ -4,6 +4,7 @@ use reqwest::Client;
 use serde::Deserialize;
 use std::time::Duration;
 
+use crate::auth::username::generate_username;
 use crate::db::User;
 
 const WORKOS_API_BASE: &str = "https://api.workos.com";
@@ -161,15 +162,54 @@ pub async fn upsert_user(
     pool: &sqlx::PgPool,
     workos_user: &WorkOsUser,
 ) -> Result<User, sqlx::Error> {
+    const MAX_USERNAME_ATTEMPTS: u8 = 8;
+
+    for _ in 0..MAX_USERNAME_ATTEMPTS {
+        let username = generate_username();
+        match sqlx::query_as::<_, User>(
+            r#"
+            INSERT INTO users (workos_id, plan, email, username)
+            VALUES ($1, 'free', $2, $3)
+            ON CONFLICT (workos_id) DO UPDATE
+            SET
+                email = EXCLUDED.email,
+                updated_at = now()
+            RETURNING
+                id,
+                workos_id,
+                plan,
+                paddle_customer_id,
+                email,
+                username,
+                created_at,
+                updated_at
+            "#,
+        )
+        .bind(&workos_user.id)
+        .bind(&workos_user.email)
+        .bind(&username)
+        .fetch_one(pool)
+        .await
+        {
+            Ok(user) => return Ok(user),
+            Err(sqlx::Error::Database(db_err)) if db_err.code().as_deref() == Some("23505") => {
+                continue;
+            }
+            Err(err) => return Err(err),
+        }
+    }
+
+    let fallback = format!(
+        "user-{}",
+        &workos_user.id[workos_user.id.len().saturating_sub(8)..]
+    );
     sqlx::query_as::<_, User>(
         r#"
-        INSERT INTO users (workos_id, plan, email, first_name, last_name)
-        VALUES ($1, 'free', $2, $3, $4)
+        INSERT INTO users (workos_id, plan, email, username)
+        VALUES ($1, 'free', $2, $3)
         ON CONFLICT (workos_id) DO UPDATE
         SET
             email = EXCLUDED.email,
-            first_name = EXCLUDED.first_name,
-            last_name = EXCLUDED.last_name,
             updated_at = now()
         RETURNING
             id,
@@ -177,16 +217,14 @@ pub async fn upsert_user(
             plan,
             paddle_customer_id,
             email,
-            first_name,
-            last_name,
+            username,
             created_at,
             updated_at
         "#,
     )
     .bind(&workos_user.id)
     .bind(&workos_user.email)
-    .bind(&workos_user.first_name)
-    .bind(&workos_user.last_name)
+    .bind(&fallback)
     .fetch_one(pool)
     .await
 }

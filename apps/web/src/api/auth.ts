@@ -7,8 +7,7 @@ export interface AuthUser {
   id: string;
   plan: string;
   email?: string;
-  first_name?: string;
-  last_name?: string;
+  username: string;
   subscription?: SubscriptionInfo;
 }
 
@@ -32,21 +31,16 @@ function parseAuthUserPayload(payload: unknown): { user: AuthUser; requireAuth: 
   const record = payload as Record<string, unknown>;
   const id = record.id;
   const plan = record.plan;
+  const username = record.username;
 
-  if (typeof id !== "string" || typeof plan !== "string") {
+  if (typeof id !== "string" || typeof plan !== "string" || typeof username !== "string") {
     throw new Error("Auth probe failed: invalid /auth/me response");
   }
 
-  const user: AuthUser = { id, plan };
+  const user: AuthUser = { id, plan, username };
 
   if (typeof record.email === "string") {
     user.email = record.email;
-  }
-  if (typeof record.first_name === "string") {
-    user.first_name = record.first_name;
-  }
-  if (typeof record.last_name === "string") {
-    user.last_name = record.last_name;
   }
 
   const subscription = record.subscription;
@@ -66,16 +60,10 @@ function parseAuthUserPayload(payload: unknown): { user: AuthUser; requireAuth: 
   return { user, requireAuth: record.require_auth === true };
 }
 
-/** Build a display label from profile fields, falling back to email or a generic label. */
-export function userDisplayName(
-  user: Pick<AuthUser, "email" | "first_name" | "last_name">,
-): string {
-  const parts = [user.first_name, user.last_name].filter(Boolean);
-  if (parts.length > 0) {
-    return parts.join(" ");
-  }
-  if (user.email) {
-    return user.email;
+/** Build a display label from the username, falling back to a generic label. */
+export function userDisplayName(user: Pick<AuthUser, "username">): string {
+  if (user.username) {
+    return user.username;
   }
   return "Account";
 }

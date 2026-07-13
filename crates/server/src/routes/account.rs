@@ -11,7 +11,10 @@ use tracing::{error, info, warn};
 
 use crate::audit::{record_event, AuditEvent};
 use crate::auth::session::SESSION_COOKIE;
-use crate::db::{DeleteAccountRequest, DeleteAccountResponse};
+use crate::auth::username::{normalize_username, validate_username};
+use crate::db::{
+    DeleteAccountRequest, DeleteAccountResponse, UpdateAccountRequest, UpdateAccountResponse,
+};
 use crate::email::log_send_failure;
 use crate::error::ApiError;
 use crate::middleware::auth::AuthUser;
@@ -19,6 +22,76 @@ use crate::net::{self, trusted_client_ip};
 use crate::state::AppState;
 
 const DELETE_CONFIRMATION: &str = "DELETE";
+
+/// Update the authenticated user's display username.
+#[utoipa::path(
+    patch,
+    path = "/api/account",
+    tag = "Account",
+    request_body = UpdateAccountRequest,
+    responses(
+        (status = 200, description = "Username updated", body = UpdateAccountResponse),
+        (status = 400, description = "Invalid username", body = ApiError),
+        (status = 401, description = "Not authenticated", body = ApiError),
+        (status = 409, description = "Username already taken", body = ApiError),
+        (status = 500, description = "Update failed", body = ApiError),
+    ),
+    security(("cookieAuth" = []))
+)]
+pub async fn update_account(
+    AuthUser(user): AuthUser,
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(body): Json<UpdateAccountRequest>,
+) -> Result<Json<UpdateAccountResponse>, ApiError> {
+    let cloud = state.cloud()?;
+    let username = normalize_username(&body.username);
+
+    if let Err(message) = validate_username(&username) {
+        return Err(ApiError::new(message));
+    }
+
+    if username == user.username {
+        return Ok(Json(UpdateAccountResponse { username }));
+    }
+
+    let ip_address = trusted_client_ip(&headers, net::trusted_proxy_enabled());
+    let ip = ip_address.as_deref();
+
+    let updated = sqlx::query_scalar::<_, String>(
+        r#"
+        UPDATE users
+        SET username = $1, updated_at = now()
+        WHERE id = $2
+        RETURNING username
+        "#,
+    )
+    .bind(&username)
+    .bind(user.id)
+    .fetch_optional(&cloud.db)
+    .await
+    .map_err(map_account_db_error)?;
+
+    let username = updated.ok_or_else(|| ApiError::internal("failed to update username"))?;
+
+    record_event(
+        &cloud.db,
+        AuditEvent {
+            event_type: "account.username_changed",
+            actor_user_id: Some(user.id),
+            resource_type: Some("account"),
+            resource_id: Some(user.id),
+            metadata: serde_json::json!({
+                "previous_username": user.username,
+                "new_username": username,
+            }),
+            ip_address: ip,
+        },
+    )
+    .await;
+
+    Ok(Json(UpdateAccountResponse { username }))
+}
 
 /// Permanently delete the authenticated user's account and all associated data.
 #[utoipa::path(
@@ -138,6 +211,15 @@ fn is_valid_delete_confirmation(confirmation: &str) -> bool {
 fn internal_db_error(err: sqlx::Error) -> ApiError {
     error!("database error: {err}");
     ApiError::internal("internal server error")
+}
+
+fn map_account_db_error(err: sqlx::Error) -> ApiError {
+    if let sqlx::Error::Database(db_err) = &err {
+        if db_err.code().as_deref() == Some("23505") {
+            return ApiError::conflict("username already taken");
+        }
+    }
+    internal_db_error(err)
 }
 
 fn append_set_cookie(
