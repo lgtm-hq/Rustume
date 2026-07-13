@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { axe } from "vitest-axe";
 import { fireEvent, render, screen } from "@solidjs/testing-library";
 import { axeConfig } from "../../test/a11y";
@@ -74,6 +74,16 @@ function renderAccount() {
 }
 
 describe("Account page", () => {
+  beforeEach(() => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.requireAuth = false;
+    mockAuthState.billingEnabled = false;
+    mockAuthState.user = null;
+    signInMock.mockReset();
+    signOutMock.mockReset();
+  });
+
   it("shows a sign-in CTA when cloud is enabled and the user is signed out", () => {
     mockAuthState.loading = false;
     mockAuthState.cloudEnabled = true;

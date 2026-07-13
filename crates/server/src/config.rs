@@ -180,7 +180,9 @@ fn trusted_proxy_from_env() -> bool {
 }
 
 /// Paddle Billing credentials loaded from the environment.
-#[derive(Clone, Debug)]
+///
+/// Secrets are redacted via [`Display`]; do not derive `Debug` (it would leak them).
+#[derive(Clone)]
 pub struct BillingConfig {
     /// Server-side Paddle API key (`PADDLE_API_KEY`).
     pub api_key: String,
@@ -269,10 +271,28 @@ mod tests {
 
     #[test]
     fn billing_config_requires_all_vars() {
+        static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        let _guard = ENV_LOCK.lock().expect("env lock");
+
+        let keys = [
+            "PADDLE_API_KEY",
+            "PADDLE_WEBHOOK_SECRET",
+            "PADDLE_PRICE_ID",
+            "PADDLE_CLIENT_TOKEN",
+            "PADDLE_API_BASE",
+            "PADDLE_SANDBOX",
+        ];
+        let previous: Vec<(String, Option<String>)> = keys
+            .iter()
+            .map(|key| ((*key).to_string(), std::env::var(key).ok()))
+            .collect();
+
         std::env::set_var("PADDLE_API_KEY", "api_test");
         std::env::set_var("PADDLE_WEBHOOK_SECRET", "secret_test");
         std::env::set_var("PADDLE_PRICE_ID", "pri_test");
         std::env::set_var("PADDLE_CLIENT_TOKEN", "client_test");
+        std::env::remove_var("PADDLE_API_BASE");
+        std::env::remove_var("PADDLE_SANDBOX");
 
         let config = BillingConfig::from_env().expect("billing config");
         assert_eq!(config.price_id, "pri_test");
@@ -281,8 +301,11 @@ mod tests {
         std::env::remove_var("PADDLE_CLIENT_TOKEN");
         assert!(BillingConfig::from_env().is_none());
 
-        std::env::remove_var("PADDLE_API_KEY");
-        std::env::remove_var("PADDLE_WEBHOOK_SECRET");
-        std::env::remove_var("PADDLE_PRICE_ID");
+        for (key, value) in previous {
+            match value {
+                Some(value) => std::env::set_var(&key, value),
+                None => std::env::remove_var(&key),
+            }
+        }
     }
 }

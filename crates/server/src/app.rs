@@ -21,7 +21,7 @@ use crate::config::MAX_BODY_SIZE;
 use crate::middleware::auth::require_auth_when_enabled;
 use crate::middleware::rate_limit::{
     rate_limit_auth, rate_limit_billable, rate_limit_health, rate_limit_import, rate_limit_metrics,
-    rate_limit_pdf, rate_limit_preview, rate_limit_resume_crud,
+    rate_limit_pdf, rate_limit_preview, rate_limit_resume_crud, rate_limit_unauthenticated,
 };
 use crate::middleware::security::security_headers;
 use crate::middleware::subscription::require_subscription_render;
@@ -213,15 +213,27 @@ pub fn create_router_with_state(state: AppState) -> Router {
             .merge(account_routes);
 
         if state.billing.is_some() {
-            let billing_routes = Router::new()
+            let mut billing_routes = Router::new()
                 .route("/api/billing/checkout", post(checkout))
                 .route("/api/billing/portal", get(customer_portal))
                 .route_layer(middleware::from_fn_with_state(
                     state.clone(),
                     require_auth_when_enabled,
                 ));
+            if cloud_rate_limits {
+                billing_routes = billing_routes.route_layer(middleware::from_fn_with_state(
+                    state_for_layers.clone(),
+                    rate_limit_auth,
+                ));
+            }
 
-            let webhook_routes = Router::new().route("/webhooks/paddle", post(paddle_webhook));
+            let mut webhook_routes = Router::new().route("/webhooks/paddle", post(paddle_webhook));
+            if cloud_rate_limits {
+                webhook_routes = webhook_routes.route_layer(middleware::from_fn_with_state(
+                    state_for_layers.clone(),
+                    rate_limit_unauthenticated,
+                ));
+            }
 
             router = router.merge(billing_routes).merge(webhook_routes);
         }

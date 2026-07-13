@@ -169,16 +169,13 @@ describe("billing api", () => {
       Paddle: undefined,
     });
 
-    const appendChild = vi
-      .spyOn(document.head, "appendChild")
-      .mockImplementationOnce((node) => {
-        if (node instanceof HTMLScriptElement) {
+    const originalAppendChild = document.head.appendChild.bind(document.head);
+    const appendChild = vi.spyOn(document.head, "appendChild").mockImplementation((node) => {
+      const inserted = originalAppendChild(node);
+      if (node instanceof HTMLScriptElement) {
+        if (appendChild.mock.calls.length === 1) {
           queueMicrotask(() => node.onerror?.(new Event("error")));
-        }
-        return node;
-      })
-      .mockImplementationOnce((node) => {
-        if (node instanceof HTMLScriptElement) {
+        } else {
           queueMicrotask(() => {
             window.Paddle = {
               Initialize: initialize,
@@ -187,8 +184,9 @@ describe("billing api", () => {
             node.onload?.(new Event("load"));
           });
         }
-        return node;
-      });
+      }
+      return inserted;
+    });
 
     fetchMock.mockResolvedValue({
       ok: true,
@@ -202,6 +200,10 @@ describe("billing api", () => {
     });
 
     await expect(openCheckout()).rejects.toThrow("Failed to load Paddle.js");
+    expect(
+      document.querySelector('script[src="https://cdn.paddle.com/paddle/v2/paddle.js"]'),
+    ).toBeNull();
+
     await openCheckout();
 
     appendChild.mockRestore();

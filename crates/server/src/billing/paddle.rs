@@ -11,6 +11,7 @@ use hmac::{Hmac, KeyInit, Mac};
 use serde::Deserialize;
 use serde_json::Value;
 use sha2::Sha256;
+use std::time::Duration;
 use subtle::ConstantTimeEq;
 use tracing::{debug, error, warn};
 use uuid::Uuid;
@@ -33,6 +34,9 @@ const HOSTED_PLAN: &str = "pro";
 
 /// Plan assigned when no active Paddle subscription remains.
 const FREE_PLAN: &str = "free";
+
+/// HTTP timeout for Paddle Billing API calls.
+const PADDLE_HTTP_TIMEOUT_SECS: u64 = 10;
 
 /// Return Paddle.js checkout overlay settings for the authenticated user.
 #[utoipa::path(
@@ -168,7 +172,13 @@ async fn create_portal_session(
         billing.api_base.trim_end_matches('/')
     );
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(PADDLE_HTTP_TIMEOUT_SECS))
+        .build()
+        .map_err(|err| {
+            error!("paddle HTTP client build failed: {err}");
+            ApiError::internal("failed to create customer portal session")
+        })?;
     let response = client
         .post(&url)
         .bearer_auth(&billing.api_key)

@@ -75,7 +75,8 @@ function loadPaddleScript(): Promise<void> {
   }
 
   paddleScriptPromise ??= new Promise<void>((resolve, reject) => {
-    const fail = (error: Error) => {
+    const fail = (script: HTMLScriptElement, error: Error) => {
+      script.remove();
       paddleScriptPromise = null;
       reject(error);
     };
@@ -85,9 +86,11 @@ function loadPaddleScript(): Promise<void> {
     );
     if (existing) {
       existing.addEventListener("load", () => resolve(), { once: true });
-      existing.addEventListener("error", () => fail(new Error("Failed to load Paddle.js")), {
-        once: true,
-      });
+      existing.addEventListener(
+        "error",
+        () => fail(existing, new Error("Failed to load Paddle.js")),
+        { once: true },
+      );
       return;
     }
 
@@ -95,7 +98,7 @@ function loadPaddleScript(): Promise<void> {
     script.src = PADDLE_SCRIPT_SRC;
     script.async = true;
     script.onload = () => resolve();
-    script.onerror = () => fail(new Error("Failed to load Paddle.js"));
+    script.onerror = () => fail(script, new Error("Failed to load Paddle.js"));
     document.head.appendChild(script);
   });
 
