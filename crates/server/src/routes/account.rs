@@ -62,6 +62,10 @@ pub async fn export_account(
     let ip = ip_address.as_deref();
 
     let mut tx = cloud.db.begin().await.map_err(internal_db_error)?;
+    sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+        .execute(&mut *tx)
+        .await
+        .map_err(internal_db_error)?;
     let resume_count = account_resume_count(&mut *tx, user.id).await?;
 
     record_event_required(

@@ -1,17 +1,9 @@
 import { ApiError } from "./client";
+import { readApiErrorMessage } from "./errors";
 
 async function throwApiError(response: Response): Promise<never> {
-  const text = await response.text();
-  let message = text;
-  try {
-    const json = JSON.parse(text) as { error?: string };
-    if (typeof json.error === "string") {
-      message = json.error;
-    }
-  } catch {
-    // Keep raw text when the body is not JSON.
-  }
-  throw new ApiError(response.status, message || response.statusText);
+  const message = await readApiErrorMessage(response);
+  throw new ApiError(response.status, message);
 }
 
 export interface ResumeExportItem {

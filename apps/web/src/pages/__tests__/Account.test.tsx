@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
-import { fireEvent, render, screen } from "@solidjs/testing-library";
+import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { axeConfig } from "../../test/a11y";
 import { Route, Router } from "@solidjs/router";
 import Account from "../Account";
@@ -122,7 +122,7 @@ describe("Account page", () => {
     expect(screen.getAllByText("Coming soon").length).toBeGreaterThan(0);
     expect(screen.getByText("Danger zone")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete my account" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Export my data" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Export account data" })).toBeInTheDocument();
   });
 
   it("triggers account data export", async () => {
@@ -136,9 +136,11 @@ describe("Account page", () => {
 
     renderAccount();
 
-    fireEvent.click(screen.getByRole("button", { name: "Export my data" }));
+    fireEvent.click(screen.getByRole("button", { name: "Export account data" }));
 
     expect(downloadAccountExport).toHaveBeenCalledTimes(1);
+    const { toast } = await import("../../components/ui");
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Account data downloaded"));
   });
 
   it("opens the delete confirmation modal", () => {

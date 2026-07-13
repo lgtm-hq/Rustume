@@ -85,44 +85,51 @@ export default function Account() {
     signIn();
   };
 
-  const handleExportJson = async () => {
-    setExportingJson(true);
+  const runExport = async (
+    setLoading: (value: boolean) => void,
+    exportFn: () => Promise<void>,
+    successMessage: string,
+    failureLogLabel: string,
+    failureMessage: string,
+  ) => {
+    setLoading(true);
     try {
-      await downloadResumesJson();
-      toast.success("Resume export downloaded");
+      await exportFn();
+      toast.success(successMessage);
     } catch (error) {
-      console.error("JSON export failed:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to export resumes");
+      console.error(`${failureLogLabel}:`, error);
+      toast.error(error instanceof Error ? error.message : failureMessage);
     } finally {
-      setExportingJson(false);
+      setLoading(false);
     }
   };
 
-  const handleExportPdf = async () => {
-    setExportingPdf(true);
-    try {
-      await downloadResumesPdf();
-      toast.success("PDF export downloaded");
-    } catch (error) {
-      console.error("PDF export failed:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to export PDFs");
-    } finally {
-      setExportingPdf(false);
-    }
-  };
+  const handleExportJson = () =>
+    runExport(
+      setExportingJson,
+      downloadResumesJson,
+      "Resume export downloaded",
+      "JSON export failed",
+      "Failed to export resumes",
+    );
 
-  const handleExportAccount = async () => {
-    setExportingAccount(true);
-    try {
-      await downloadAccountExport();
-      toast.success("Account data downloaded");
-    } catch (error) {
-      console.error("Account export failed:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to export account data");
-    } finally {
-      setExportingAccount(false);
-    }
-  };
+  const handleExportPdf = () =>
+    runExport(
+      setExportingPdf,
+      downloadResumesPdf,
+      "PDF export downloaded",
+      "PDF export failed",
+      "Failed to export PDFs",
+    );
+
+  const handleExportAccount = () =>
+    runExport(
+      setExportingAccount,
+      downloadAccountExport,
+      "Account data downloaded",
+      "Account export failed",
+      "Failed to export account data",
+    );
 
   const handleDeleteAccount = async () => {
     setDeletingAccount(true);
@@ -249,9 +256,9 @@ export default function Account() {
                     id="export"
                     class="rounded-2xl border border-border bg-paper p-6 shadow-card"
                   >
-                    <h2 class="font-display text-lg font-semibold text-ink mb-2">Export data</h2>
+                    <h2 class="font-display text-lg font-semibold text-ink mb-2">Export resumes</h2>
                     <p class="text-sm text-stone mb-4">
-                      Download all cloud resumes for backup or migration to self-hosted Rustume.
+                      Download cloud resumes only for backup or migration to self-hosted Rustume.
                     </p>
                     <div class="flex flex-wrap gap-3">
                       <Button
@@ -283,7 +290,9 @@ export default function Account() {
                   </section>
 
                   <section class="rounded-2xl border border-border bg-paper p-6 shadow-card">
-                    <h2 class="font-display text-lg font-semibold text-ink mb-2">Export my data</h2>
+                    <h2 class="font-display text-lg font-semibold text-ink mb-2">
+                      Export account data
+                    </h2>
                     <p class="text-sm text-stone mb-4">
                       Download all account data — profile metadata and cloud resumes — as a JSON
                       file for data portability.
@@ -293,7 +302,7 @@ export default function Account() {
                       onClick={() => void handleExportAccount()}
                       loading={exportingAccount()}
                     >
-                      Export my data
+                      Export account data
                     </Button>
                   </section>
 

@@ -26,31 +26,7 @@ pub struct AuditEvent<'a> {
 
 /// Insert an audit event without failing the primary request on persistence errors.
 pub async fn record_event(pool: &PgPool, event: AuditEvent<'_>) {
-    let result = sqlx::query(
-        r#"
-        INSERT INTO audit_events (
-            event_type,
-            actor_user_id,
-            resource_type,
-            resource_id,
-            metadata,
-            ip_address
-        )
-        VALUES ($1, $2, $3, $4, $5, $6::inet)
-        "#,
-    )
-    .bind(event.event_type)
-    .bind(event.actor_user_id)
-    .bind(event.resource_type)
-    .bind(event.resource_id)
-    .bind(event.metadata)
-    .bind(event.ip_address)
-    .execute(pool)
-    .await;
-
-    if let Err(err) = result {
-        error!("audit log insert failed: {err}");
-    }
+    let _ = record_event_required(pool, event).await;
 }
 
 /// Insert an audit event and fail the request when persistence errors.
