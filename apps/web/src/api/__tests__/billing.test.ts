@@ -138,6 +138,8 @@ describe("billing api", () => {
     expect(initialize).toHaveBeenCalledTimes(2);
     expect(initialize).toHaveBeenNthCalledWith(1, { token: "first_token" });
     expect(initialize).toHaveBeenNthCalledWith(2, { token: "second_token" });
+    expect(setEnvironment).toHaveBeenCalledWith("sandbox");
+    expect(setEnvironment).toHaveBeenLastCalledWith("production");
   });
 
   it("redirectToPortal navigates to the returned URL", async () => {

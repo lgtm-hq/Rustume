@@ -21,8 +21,8 @@ function ensurePaddleInitialized(
   settings: BillingCheckoutSettings,
   paddle: NonNullable<Window["Paddle"]>,
 ): void {
-  if (settings.environment === "sandbox" && paddle.Environment) {
-    paddle.Environment.set("sandbox");
+  if (paddle.Environment) {
+    paddle.Environment.set(settings.environment);
   }
 
   const needsReinit =
