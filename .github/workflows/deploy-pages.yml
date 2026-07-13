@@ -48,6 +48,7 @@ jobs:
         codeload.github.com:443
         objects.githubusercontent.com:443
         raw.githubusercontent.com:443
+        release-assets.githubusercontent.com:443
         pipelines.actions.githubusercontent.com:443
         registry.npmjs.org:443
         bun.sh:443
@@ -59,6 +60,7 @@ jobs:
       allowed-endpoints-deploy: >-
         github.com:443
         api.github.com:443
+        uploads.github.com:443
         actions.githubusercontent.com:443
         codeload.github.com:443
         objects.githubusercontent.com:443
