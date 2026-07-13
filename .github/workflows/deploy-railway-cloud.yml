@@ -33,14 +33,52 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Mirror of the classify gate in docker-build-publish.yml (#457): a
+  # release-version-bump-only merge skips the docker build but its run still
+  # concludes "success", so without this gate we would redeploy a byte-
+  # identical :main image. Candidates are nominated by commit message; the
+  # diff classifier decides (bump PRs carrying dependency updates deploy).
+  classify:
+    name: 🔎 Classify Release Bump
+    if: >-
+      github.event_name == 'workflow_run'
+      && startsWith(github.event.workflow_run.head_commit.message,
+      'chore(release): version')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      bump-only: ${{ steps.check.outputs.bump-only }}
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Classify diff
+        id: check
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: bash scripts/ci/docker/classify_release_bump.sh
+
   deploy:
     name: 🚀 Deploy to Railway
+    needs: classify
     if: >-
-      (github.event_name == 'workflow_dispatch' &&
+      always() &&
+      needs.classify.outputs.bump-only != 'true' &&
+      ((github.event_name == 'workflow_dispatch' &&
       github.ref == 'refs/heads/main') ||
       (github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_branch == 'main' &&
-      github.event.workflow_run.head_repository.full_name == github.repository)
+      github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
