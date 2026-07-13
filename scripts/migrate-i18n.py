@@ -151,13 +151,13 @@ REPLACEMENTS: dict[str, tuple[str, str]] = {
 }
 
 
-def flatten(obj: dict, prefix: str = "") -> dict[str, str]:
+def flatten(obj: dict[str, object], prefix: str = "") -> dict[str, str]:
     out: dict[str, str] = {}
     for key, value in obj.items():
         path = f"{prefix}.{key}" if prefix else key
         if isinstance(value, dict):
             out.update(flatten(value, path))
-        else:
+        elif isinstance(value, str):
             out[path] = value
     return out
 
