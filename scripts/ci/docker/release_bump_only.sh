@@ -59,16 +59,21 @@ while IFS= read -r f; do
 	fi
 done <<<"${changed_files}"
 
-# Cargo.toml diff (added/removed lines only) must contain nothing but
-# version stamps.
-toml_diff=$(git diff --unified=0 "${base}" "${head}" -- Cargo.toml |
-	grep -E '^[+-]' | grep -vE '^(\+\+\+|---)' || true)
-if [[ -n "${toml_diff}" ]]; then
-	bad=$(echo "${toml_diff}" |
-		grep -vE '^[+-]version = "[0-9]+\.[0-9]+\.[0-9]+[^"]*"$' || true)
-	if [[ -n "${bad}" ]]; then
-		echo "not bump-only: non-version change in Cargo.toml:" >&2
-		echo "${bad}" >&2
+# Cargo.toml: a bare version-line diff check is section-blind — a
+# `version = "..."` line under [dependencies.foo] looks identical to the
+# crate's own version stamp. Instead, strip the version line from the
+# [package] / [workspace.package] sections of both revisions and require the
+# remainders to be byte-identical: then the ONLY change is the crate version.
+strip_pkg_version() {
+	git show "$1:Cargo.toml" 2>/dev/null | awk '
+		/^\[/ { in_pkg = ($0 == "[package]" || $0 == "[workspace.package]") }
+		!(in_pkg && /^version = "[0-9]+\.[0-9]+\.[0-9]+[^"]*"$/)
+	'
+}
+
+if ! git diff --quiet "${base}" "${head}" -- Cargo.toml; then
+	if ! diff -q <(strip_pkg_version "${base}") <(strip_pkg_version "${head}") >/dev/null; then
+		echo "not bump-only: Cargo.toml changed outside [package]/[workspace.package] version" >&2
 		echo "false"
 		exit 0
 	fi
@@ -94,27 +99,28 @@ parse_lock() {
 }
 
 if ! git diff --quiet "${base}" "${head}" -- Cargo.lock; then
-	base_lock="$(parse_lock "${base}")"
-	head_lock="$(parse_lock "${head}")"
-	# comm prefixes column-2 (head-only) lines with a tab — strip it before
-	# taking the package-name field, or added packages would be missed.
-	changed_pkgs=$(comm -3 <(sort <<<"${base_lock}") <(sort <<<"${head_lock}") |
-		sed 's/^\t//' | cut -f1 | sort -u)
-	while IFS= read -r pkg; do
-		[[ -z "${pkg}" ]] && continue
-		base_entry=$(grep -m1 "^${pkg}	" <<<"${base_lock}" || true)
-		head_entry=$(grep -m1 "^${pkg}	" <<<"${head_lock}" || true)
-		if [[ -z "${base_entry}" || -z "${head_entry}" ]]; then
-			echo "not bump-only: package added/removed in Cargo.lock: ${pkg}" >&2
-			echo "false"
-			exit 0
-		fi
-		if [[ "${base_entry##*	}" != "0" || "${head_entry##*	}" != "0" ]]; then
-			echo "not bump-only: external package changed in Cargo.lock: ${pkg}" >&2
-			echo "false"
-			exit 0
-		fi
-	done <<<"${changed_pkgs}"
+	base_lock="$(parse_lock "${base}" | sort)"
+	head_lock="$(parse_lock "${head}" | sort)"
+	# Compare full (name, version, has-checksum) rows — a name-keyed lookup
+	# would mis-select when the same crate exists at multiple versions.
+	removed_rows=$(comm -23 <(printf '%s\n' "${base_lock}") <(printf '%s\n' "${head_lock}"))
+	added_rows=$(comm -13 <(printf '%s\n' "${base_lock}") <(printf '%s\n' "${head_lock}"))
+	bad_rows=$(printf '%s\n%s\n' "${removed_rows}" "${added_rows}" |
+		awk -F'\t' 'NF && $3 != 0 { print $1 " " $2 }')
+	if [[ -n "${bad_rows}" ]]; then
+		echo "not bump-only: external package changed in Cargo.lock:" >&2
+		echo "${bad_rows}" >&2
+		echo "false"
+		exit 0
+	fi
+	# The multiset of changed package names must match on both sides — a bump
+	# never adds or removes packages.
+	if ! diff -q <(awk -F'\t' 'NF{print $1}' <<<"${removed_rows}" | sort) \
+		<(awk -F'\t' 'NF{print $1}' <<<"${added_rows}" | sort) >/dev/null; then
+		echo "not bump-only: package set changed in Cargo.lock" >&2
+		echo "false"
+		exit 0
+	fi
 fi
 
 echo "true"

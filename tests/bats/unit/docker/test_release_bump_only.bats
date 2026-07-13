@@ -112,6 +112,40 @@ commit_all() {
 	[[ "${output}" == *"false"* ]]
 }
 
+@test "dependency-section version change in Cargo.toml classifies false" {
+	# CodeRabbit on #469: [dependencies.foo] version lines must not pass as
+	# the crate's own version stamp.
+	printf '\n[dependencies.foo]\nversion = "1.0.0"\n' >>"${REPO}/Cargo.toml"
+	git -C "${REPO}" add -A && git -C "${REPO}" commit -qm "add dep"
+	BASE="$(git -C "${REPO}" rev-parse HEAD)"
+	sed -i.bak 's/1\.0\.0/1.0.1/' "${REPO}/Cargo.toml"
+	rm -f "${REPO}"/*.bak
+	commit_all "chore(release): version 0.29.1"
+	run run_script "${BASE}" "${HEAD_SHA}"
+	[ "${status}" -eq 0 ]
+	[[ "${output}" == *"false"* ]]
+}
+
+@test "duplicate crate versions: bumping one external copy classifies false" {
+	# CodeRabbit on #469: name-keyed lookup mis-selects when a crate exists at
+	# multiple versions; full-row comparison must catch the changed copy.
+	cat >>"${REPO}/Cargo.lock" <<-'EOF'
+
+		[[package]]
+		name = "serde"
+		version = "2.0.0"
+		checksum = "dddd"
+	EOF
+	git -C "${REPO}" add -A && git -C "${REPO}" commit -qm "dup versions"
+	BASE="$(git -C "${REPO}" rev-parse HEAD)"
+	sed -i.bak -e 's/2\.0\.0/2.0.1/' -e 's/dddd/eeee/' "${REPO}/Cargo.lock"
+	rm -f "${REPO}"/*.bak
+	commit_all "chore(release): version 0.29.1"
+	run run_script "${BASE}" "${HEAD_SHA}"
+	[ "${status}" -eq 0 ]
+	[[ "${output}" == *"false"* ]]
+}
+
 @test "all-zero base sha classifies false" {
 	run run_script "0000000000000000000000000000000000000000" "${BASE}"
 	[ "${status}" -eq 0 ]
