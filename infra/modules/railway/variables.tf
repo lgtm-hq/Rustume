@@ -39,7 +39,7 @@ variable "environment_variables" {
 }
 
 variable "regions" {
-  description = "Railway regions and replica counts."
+  description = "Desired Railway regions and replica counts. Provider v0.6.x does not expose regions on railway_service; configure in the Railway dashboard until supported."
   type = list(object({
     region       = string
     num_replicas = optional(number, 1)
