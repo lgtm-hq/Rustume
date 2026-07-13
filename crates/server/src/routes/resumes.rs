@@ -8,7 +8,7 @@ use axum::{
 use tracing::error;
 use uuid::Uuid;
 
-use crate::audit::{record_event, AuditEvent};
+use crate::audit::{record_event, record_event_required, AuditEvent};
 use crate::db::{
     CreateResumeRequest, ImportFailure, ImportResumeItem, ImportResumesRequest,
     ImportResumesResponse, PaginatedResumeSummaries, ResumeListQuery, ResumeRow, ResumeSummary,
@@ -216,16 +216,18 @@ pub async fn update_sharing(
     } else {
         None
     };
+    let mut tx = cloud.db.begin().await.map_err(internal_db_error)?;
+
     let sharing =
-        apply_sharing_update(&cloud.db, user.id, id, body.is_public, new_slug.as_deref()).await?;
+        apply_sharing_update(&mut tx, user.id, id, body.is_public, new_slug.as_deref()).await?;
 
     let event_type = if body.is_public {
         "resume.publish"
     } else {
         "resume.unpublish"
     };
-    record_event(
-        &cloud.db,
+    record_event_required(
+        &mut *tx,
         AuditEvent {
             event_type,
             actor_user_id: Some(user.id),
@@ -238,7 +240,10 @@ pub async fn update_sharing(
             ip_address: trusted_client_ip(&headers, net::trusted_proxy_enabled()).as_deref(),
         },
     )
-    .await;
+    .await
+    .map_err(internal_db_error)?;
+
+    tx.commit().await.map_err(internal_db_error)?;
 
     Ok(Json(sharing))
 }
@@ -563,7 +568,7 @@ fn is_slug_unique_violation(err: &sqlx::Error) -> bool {
 }
 
 async fn apply_sharing_update(
-    db: &sqlx::PgPool,
+    db: &mut sqlx::PgConnection,
     user_id: Uuid,
     resume_id: Uuid,
     is_public: bool,
@@ -589,7 +594,7 @@ async fn apply_sharing_update(
         .bind(user_id)
         .bind(is_public)
         .bind(slug.as_deref())
-        .fetch_optional(db)
+        .fetch_optional(&mut *db)
         .await;
 
         match row {
