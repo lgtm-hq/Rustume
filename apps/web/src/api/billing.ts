@@ -17,25 +17,52 @@ let paddleInitialized = false;
 let paddleInitializedToken: string | null = null;
 let paddleInitializedEnvironment: BillingCheckoutSettings["environment"] | null = null;
 
-function ensurePaddleInitialized(
+function resetPaddleScriptState(): void {
+  paddleScriptPromise = null;
+  paddleInitialized = false;
+  paddleInitializedToken = null;
+  paddleInitializedEnvironment = null;
+  delete window.Paddle;
+  document.querySelector(`script[src="${PADDLE_SCRIPT_SRC}"]`)?.remove();
+}
+
+async function reloadPaddleScript(): Promise<NonNullable<Window["Paddle"]>> {
+  resetPaddleScriptState();
+  await loadPaddleScript();
+
+  const paddle = window.Paddle;
+  if (!paddle) {
+    throw new Error("Paddle.js failed to initialize");
+  }
+
+  return paddle;
+}
+
+async function ensurePaddleInitialized(
   settings: BillingCheckoutSettings,
   paddle: NonNullable<Window["Paddle"]>,
-): void {
+): Promise<NonNullable<Window["Paddle"]>> {
+  const configChanged =
+    paddleInitialized &&
+    (paddleInitializedToken !== settings.client_token ||
+      paddleInitializedEnvironment !== settings.environment);
+
+  if (configChanged) {
+    paddle = await reloadPaddleScript();
+  }
+
   if (paddle.Environment) {
     paddle.Environment.set(settings.environment);
   }
 
-  const needsReinit =
-    !paddleInitialized ||
-    paddleInitializedToken !== settings.client_token ||
-    paddleInitializedEnvironment !== settings.environment;
-
-  if (needsReinit) {
+  if (!paddleInitialized) {
     paddle.Initialize({ token: settings.client_token });
     paddleInitialized = true;
     paddleInitializedToken = settings.client_token;
     paddleInitializedEnvironment = settings.environment;
   }
+
+  return paddle;
 }
 
 function loadPaddleScript(): Promise<void> {
@@ -47,13 +74,18 @@ function loadPaddleScript(): Promise<void> {
     return Promise.resolve();
   }
 
-  paddleScriptPromise ??= new Promise((resolve, reject) => {
+  paddleScriptPromise ??= new Promise<void>((resolve, reject) => {
+    const fail = (error: Error) => {
+      paddleScriptPromise = null;
+      reject(error);
+    };
+
     const existing = document.querySelector<HTMLScriptElement>(
       `script[src="${PADDLE_SCRIPT_SRC}"]`,
     );
     if (existing) {
       existing.addEventListener("load", () => resolve(), { once: true });
-      existing.addEventListener("error", () => reject(new Error("Failed to load Paddle.js")), {
+      existing.addEventListener("error", () => fail(new Error("Failed to load Paddle.js")), {
         once: true,
       });
       return;
@@ -63,7 +95,7 @@ function loadPaddleScript(): Promise<void> {
     script.src = PADDLE_SCRIPT_SRC;
     script.async = true;
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Failed to load Paddle.js"));
+    script.onerror = () => fail(new Error("Failed to load Paddle.js"));
     document.head.appendChild(script);
   });
 
@@ -118,12 +150,12 @@ export async function openCheckout(onComplete?: () => void): Promise<void> {
   const settings = await fetchCheckoutSettings();
   await loadPaddleScript();
 
-  const paddle = window.Paddle;
+  let paddle = window.Paddle;
   if (!paddle) {
     throw new Error("Paddle.js failed to initialize");
   }
 
-  ensurePaddleInitialized(settings, paddle);
+  paddle = await ensurePaddleInitialized(settings, paddle);
 
   paddle.Checkout.open({
     items: [{ priceId: settings.price_id, quantity: 1 }],
@@ -148,10 +180,7 @@ export async function redirectToPortal(): Promise<void> {
 
 /** Reset cached Paddle.js state (for tests). */
 export function resetPaddleClientForTests(): void {
-  paddleScriptPromise = null;
-  paddleInitialized = false;
-  paddleInitializedToken = null;
-  paddleInitializedEnvironment = null;
+  resetPaddleScriptState();
 }
 
 declare global {

@@ -96,17 +96,33 @@ describe("billing api", () => {
     );
   });
 
-  it("openCheckout reinitializes Paddle when the client token changes", async () => {
+  it("openCheckout reloads Paddle when checkout settings change", async () => {
     const initialize = vi.fn();
     const open = vi.fn();
     const setEnvironment = vi.fn();
+    let paddleInstance = {
+      Environment: { set: setEnvironment },
+      Initialize: initialize,
+      Checkout: { open },
+    };
+
+    const appendChild = vi.spyOn(document.head, "appendChild").mockImplementation((node) => {
+      if (node instanceof HTMLScriptElement) {
+        queueMicrotask(() => {
+          window.Paddle = paddleInstance;
+          node.onload?.(new Event("load"));
+        });
+      }
+      return node;
+    });
 
     vi.stubGlobal("window", {
       ...globalThis.window,
-      Paddle: {
-        Environment: { set: setEnvironment },
-        Initialize: initialize,
-        Checkout: { open },
+      get Paddle() {
+        return paddleInstance;
+      },
+      set Paddle(value) {
+        paddleInstance = value as typeof paddleInstance;
       },
     });
 
@@ -135,11 +151,61 @@ describe("billing api", () => {
     await openCheckout();
     await openCheckout();
 
+    appendChild.mockRestore();
+
     expect(initialize).toHaveBeenCalledTimes(2);
     expect(initialize).toHaveBeenNthCalledWith(1, { token: "first_token" });
     expect(initialize).toHaveBeenNthCalledWith(2, { token: "second_token" });
     expect(setEnvironment).toHaveBeenCalledWith("sandbox");
     expect(setEnvironment).toHaveBeenLastCalledWith("production");
+  });
+
+  it("loadPaddleScript retries after a failed script load", async () => {
+    const initialize = vi.fn();
+    const open = vi.fn();
+
+    vi.stubGlobal("window", {
+      ...globalThis.window,
+      Paddle: undefined,
+    });
+
+    const appendChild = vi
+      .spyOn(document.head, "appendChild")
+      .mockImplementationOnce((node) => {
+        if (node instanceof HTMLScriptElement) {
+          queueMicrotask(() => node.onerror?.(new Event("error")));
+        }
+        return node;
+      })
+      .mockImplementationOnce((node) => {
+        if (node instanceof HTMLScriptElement) {
+          queueMicrotask(() => {
+            window.Paddle = {
+              Initialize: initialize,
+              Checkout: { open },
+            };
+            node.onload?.(new Event("load"));
+          });
+        }
+        return node;
+      });
+
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        client_token: "test_live_token",
+        price_id: "pri_test",
+        email: "dev@example.com",
+        custom_data: { user_id: "user-1" },
+        environment: "sandbox",
+      }),
+    });
+
+    await expect(openCheckout()).rejects.toThrow("Failed to load Paddle.js");
+    await openCheckout();
+
+    appendChild.mockRestore();
+    expect(initialize).toHaveBeenCalledWith({ token: "test_live_token" });
   });
 
   it("redirectToPortal navigates to the returned URL", async () => {
