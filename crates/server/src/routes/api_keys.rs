@@ -49,6 +49,14 @@ pub async fn create_api_key(
         .ok_or_else(|| ApiError::internal("failed to derive API key prefix"))?;
     let key_hash = hash_token(&token);
 
+    let mut tx = cloud.db.begin().await.map_err(internal_db_error)?;
+
+    sqlx::query("SELECT pg_advisory_xact_lock(hashtext($1::text))")
+        .bind(user.id.to_string())
+        .execute(&mut *tx)
+        .await
+        .map_err(internal_db_error)?;
+
     let row = sqlx::query_as::<_, (Uuid,)>(
         r#"
         INSERT INTO api_keys (user_id, name, key_hash, prefix)
@@ -67,7 +75,7 @@ pub async fn create_api_key(
     .bind(key_hash)
     .bind(&prefix)
     .bind(MAX_ACTIVE_KEYS)
-    .fetch_optional(&cloud.db)
+    .fetch_optional(&mut *tx)
     .await
     .map_err(|err| {
         error!("api key insert failed: {err}");
@@ -79,6 +87,8 @@ pub async fn create_api_key(
             "Maximum of {MAX_ACTIVE_KEYS} active API keys reached"
         )));
     };
+
+    tx.commit().await.map_err(internal_db_error)?;
 
     let key_id = row.0;
     let ip_address = trusted_client_ip(&headers, net::trusted_proxy_enabled());
