@@ -3,7 +3,11 @@
 name: Build - Docker Image & Registry
 # Builds and publishes Docker images to GHCR via lgtm-ci reusable-docker.
 # - PRs: native multi-arch validation (build + smoke + blocking scan, no push)
-# - main/tags/release: publish, cosign sign, SBOM, provenance, registry cache
+# - main/tags: publish, cosign sign, SBOM, provenance, registry cache
+#   (no `release:` trigger: publish-release-on-tag.yml creates the GitHub
+#   Release from the tag, so a release trigger would rebuild the identical
+#   image a second time — see #454. Tag pushes always fire: GitHub does not
+#   evaluate `paths` filters for tag pushes.)
 #
 # Rustume Cloud deploy tags (reusable-docker metadata-action):
 #   main push  -> ghcr.io/lgtm-hq/rustume:main, :sha-<commit>
@@ -29,8 +33,6 @@ name: Build - Docker Image & Registry
   pull_request:
     branches: [main]
     paths: *docker-paths
-  release:
-    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -60,14 +62,11 @@ jobs:
       file: docker/Dockerfile
       image-name: lgtm-hq/rustume
       version: >-
-        ${{ startsWith(github.ref, 'refs/tags/')
-        && github.ref_name
-        || (github.event_name == 'release' && github.event.release.tag_name || '') }}
+        ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
       push: >-
         ${{ github.event_name != 'pull_request'
         && (github.ref == 'refs/heads/main'
-        || startsWith(github.ref, 'refs/tags/v')
-        || github.event_name == 'release') }}
+        || startsWith(github.ref, 'refs/tags/v')) }}
       validate-on-pr: ${{ github.event_name == 'pull_request' }}
       platforms: linux/amd64,linux/arm64
       runner-map: '{"linux/arm64":"ubuntu-24.04-arm"}'
