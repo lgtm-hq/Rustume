@@ -29,6 +29,9 @@ async function clearSnapshotsDb(): Promise<void> {
 describe("versionHistory store", () => {
   beforeEach(async () => {
     await clearSnapshotsDb();
+    for (const id of ["resume-1", "resume-a", "resume-b"]) {
+      localStorage.setItem(`rustume:${id}`, "{}");
+    }
   });
 
   it("saveSnapshot and listSnapshots round-trip, newest first", async () => {
@@ -112,6 +115,24 @@ describe("versionHistory store", () => {
 
     const snapshots = await listSnapshots("resume-1");
     expect(snapshots).toHaveLength(1);
+  });
+
+  it("waits for in-flight saves before deleting snapshots", async () => {
+    await saveSnapshot("resume-1", createResume("Initial"));
+
+    const inFlight = saveSnapshot("resume-1", createResume("Should not survive delete"));
+    await deleteSnapshotsForResume("resume-1");
+    await inFlight;
+
+    expect(await listSnapshots("resume-1")).toHaveLength(0);
+  });
+
+  it("skips snapshot save when resume no longer exists in storage", async () => {
+    localStorage.removeItem("rustume:resume-1");
+
+    await saveSnapshot("resume-1", createResume("After delete"));
+
+    expect(await listSnapshots("resume-1")).toHaveLength(0);
   });
 
   it("deleteSnapshotsForResume removes only that resume's snapshots", async () => {

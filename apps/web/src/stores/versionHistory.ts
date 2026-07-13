@@ -1,7 +1,9 @@
+import { isWasmReady, resumeExists } from "../wasm";
 import type { ResumeData } from "../wasm/types";
 
 const DB_NAME = "rustume-version-history";
 const STORE_NAME = "snapshots";
+const LOCAL_RESUME_PREFIX = "rustume:";
 export const MAX_SNAPSHOTS_PER_RESUME = 50;
 
 export interface SnapshotMetadata {
@@ -98,9 +100,43 @@ async function pruneSnapshots(resumeId: string): Promise<void> {
   });
 }
 
-const saveSnapshotChains = new Map<string, Promise<void>>();
+const resumeSnapshotChains = new Map<string, Promise<void>>();
+
+async function isResumePersisted(resumeId: string): Promise<boolean> {
+  if (isWasmReady()) {
+    return resumeExists(resumeId);
+  }
+  if (typeof localStorage === "undefined") return false;
+  return localStorage.getItem(LOCAL_RESUME_PREFIX + resumeId) !== null;
+}
+
+async function withResumeSnapshotLock(
+  resumeId: string,
+  operation: () => Promise<void>,
+): Promise<void> {
+  const previous = resumeSnapshotChains.get(resumeId) ?? Promise.resolve();
+  let release!: () => void;
+  const current = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  resumeSnapshotChains.set(resumeId, current);
+
+  await previous;
+  try {
+    await operation();
+  } finally {
+    release();
+    if (resumeSnapshotChains.get(resumeId) === current) {
+      resumeSnapshotChains.delete(resumeId);
+    }
+  }
+}
 
 async function saveSnapshotRecord(resumeId: string, data: ResumeData): Promise<void> {
+  if (!(await isResumePersisted(resumeId))) {
+    return;
+  }
+
   const clone = structuredClone(data);
   const latest = await getLatestSnapshotRecord(resumeId);
   if (latest && JSON.stringify(latest.data) === JSON.stringify(clone)) {
@@ -129,23 +165,10 @@ async function saveSnapshotRecord(resumeId: string, data: ResumeData): Promise<v
 export async function saveSnapshot(resumeId: string, data: ResumeData): Promise<void> {
   if (!isIndexedDbAvailable()) return;
 
-  const previous = saveSnapshotChains.get(resumeId) ?? Promise.resolve();
-  let release!: () => void;
-  const current = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  saveSnapshotChains.set(resumeId, current);
-
-  await previous;
   try {
-    await saveSnapshotRecord(resumeId, data);
+    await withResumeSnapshotLock(resumeId, () => saveSnapshotRecord(resumeId, data));
   } catch (error) {
     console.error("Failed to save resume snapshot:", error);
-  } finally {
-    release();
-    if (saveSnapshotChains.get(resumeId) === current) {
-      saveSnapshotChains.delete(resumeId);
-    }
   }
 }
 
@@ -188,21 +211,25 @@ export async function getSnapshot(key: string): Promise<ResumeData | null> {
   }
 }
 
+async function deleteSnapshotRecords(resumeId: string): Promise<void> {
+  await withDatabase(async (db) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    const index = store.index("resumeId");
+    const records = (await requestToPromise(index.getAll(resumeId))) as SnapshotRecord[];
+    for (const record of records) {
+      store.delete(record.key);
+    }
+    await transactionDone(tx);
+  });
+}
+
 /** Remove all snapshots for a resume. */
 export async function deleteSnapshotsForResume(resumeId: string): Promise<void> {
   if (!isIndexedDbAvailable()) return;
 
   try {
-    await withDatabase(async (db) => {
-      const tx = db.transaction(STORE_NAME, "readwrite");
-      const store = tx.objectStore(STORE_NAME);
-      const index = store.index("resumeId");
-      const records = (await requestToPromise(index.getAll(resumeId))) as SnapshotRecord[];
-      for (const record of records) {
-        store.delete(record.key);
-      }
-      await transactionDone(tx);
-    });
+    await withResumeSnapshotLock(resumeId, () => deleteSnapshotRecords(resumeId));
   } catch (error) {
     console.error("Failed to delete resume snapshots:", error);
   }
