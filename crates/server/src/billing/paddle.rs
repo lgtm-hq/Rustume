@@ -121,7 +121,12 @@ pub async fn paddle_webhook(
 
     match payload.event_type.as_str() {
         "subscription.created" | "subscription.updated" => {
-            handle_subscription_upsert(&cloud.db, &payload.data).await?;
+            let status = payload.data.get("status").and_then(Value::as_str);
+            if status == Some(SubscriptionStatus::Canceled.as_str()) {
+                handle_subscription_canceled(&cloud.db, &payload.data).await?;
+            } else {
+                handle_subscription_upsert(&cloud.db, &payload.data).await?;
+            }
         }
         "subscription.canceled" => {
             handle_subscription_canceled(&cloud.db, &payload.data).await?;
