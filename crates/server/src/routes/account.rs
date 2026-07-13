@@ -19,7 +19,6 @@ use uuid::Uuid;
 
 use crate::audit::{record_event, record_event_required, AuditEvent};
 use crate::auth::session::SESSION_COOKIE;
-use crate::config::MAX_RESUME_JSON_BYTES;
 use crate::db::{
     AccountDataExport, AccountExportProfile, DeleteAccountRequest, DeleteAccountResponse,
     ResumeExportItem,
@@ -48,7 +47,6 @@ struct ExportResumeRow {
     responses(
         (status = 200, description = "Account data export", body = AccountDataExport),
         (status = 401, description = "Not authenticated", body = ApiError),
-        (status = 413, description = "Export payload too large", body = ApiError),
         (status = 500, description = "Export failed", body = ApiError),
     ),
     security(("cookieAuth" = []))
@@ -64,7 +62,6 @@ pub async fn export_account(
 
     let mut tx = cloud.db.begin().await.map_err(internal_db_error)?;
     let resume_count = account_resume_count(&mut *tx, user.id).await?;
-    validate_resume_export_sizes(&mut *tx, user.id).await?;
 
     record_event_required(
         &cloud.db,
@@ -226,35 +223,6 @@ where
     .map_err(internal_db_error)?;
 
     Ok(resume_count as usize)
-}
-
-async fn validate_resume_export_sizes<'e, E>(db: E, user_id: Uuid) -> Result<(), ApiError>
-where
-    E: sqlx::Executor<'e, Database = sqlx::Postgres>,
-{
-    let mut rows = sqlx::query_scalar::<_, serde_json::Value>(
-        r#"
-        SELECT data
-        FROM resumes
-        WHERE user_id = $1
-        "#,
-    )
-    .bind(user_id)
-    .fetch(db);
-
-    while let Some(data) = rows.try_next().await.map_err(internal_db_error)? {
-        let data_bytes = serde_json::to_vec(&data).map_err(|err| {
-            error!("account export resume validation failed: {err}");
-            ApiError::internal("failed to export account data")
-        })?;
-        if data_bytes.len() > MAX_RESUME_JSON_BYTES {
-            return Err(ApiError::payload_too_large(format!(
-                "Resume JSON exceeds maximum size of {MAX_RESUME_JSON_BYTES} bytes"
-            )));
-        }
-    }
-
-    Ok(())
 }
 
 fn build_export_prefix(
