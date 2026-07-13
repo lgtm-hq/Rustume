@@ -17,6 +17,7 @@ use crate::auth::workos::upsert_user;
 use crate::db::{AuthMeUnauthorizedResponse, AuthUserResponse};
 use crate::error::ApiError;
 use crate::net::{self, trusted_client_ip};
+use crate::policy::record_signup_policy_acceptances;
 use crate::state::AppState;
 use crate::subscription;
 
@@ -141,10 +142,15 @@ async fn callback_inner(
         }
     };
 
-    let user = upsert_user(&cloud.db, &workos_user).await.map_err(|err| {
+    let upsert = upsert_user(&cloud.db, &workos_user).await.map_err(|err| {
         error!("user upsert failed: {err}");
         "server_error"
     })?;
+    let user = upsert.user;
+
+    if upsert.is_new {
+        record_signup_policy_acceptances(&cloud.db, user.id, ip).await;
+    }
 
     let (_session, cookie) = cloud.sessions.create(user.id).await.map_err(|err| {
         error!("session creation failed: {err}");
@@ -325,6 +331,132 @@ async fn record_auth_failure(pool: &sqlx::PgPool, reason: &str, ip_address: Opti
 async fn audit_callback_failure(state: &AppState, reason: &str, ip_address: Option<&str>) {
     if let Ok(cloud) = state.cloud() {
         record_auth_failure(&cloud.db, reason, ip_address).await;
+    }
+}
+
+#[cfg(test)]
+mod policy_acceptance_tests {
+    use super::*;
+    use crate::auth::workos::{upsert_user, WorkOsUser};
+    use crate::config;
+    use crate::policy::record_signup_policy_acceptances;
+    use sqlx::postgres::PgPoolOptions;
+    use sqlx::Row;
+    use uuid::Uuid;
+
+    fn looks_like_test_database_url(url: &str) -> bool {
+        let db_name = url
+            .split(['?', '#'])
+            .next()
+            .unwrap_or(url)
+            .rsplit('/')
+            .next()
+            .unwrap_or("");
+        db_name.contains("_test")
+    }
+
+    fn database_url_for_tests() -> Option<String> {
+        let url = std::env::var("TEST_DATABASE_URL")
+            .ok()
+            .map(|url| url.trim().to_owned())
+            .filter(|url| !url.is_empty())
+            .or_else(|| {
+                std::env::var("DATABASE_URL")
+                    .ok()
+                    .map(|url| url.trim().to_owned())
+                    .filter(|url| !url.is_empty())
+            })?;
+
+        if looks_like_test_database_url(&url) {
+            Some(url)
+        } else {
+            eprintln!(
+                "SKIP auth policy acceptance tests: set TEST_DATABASE_URL (or DATABASE_URL) to a database whose name contains _test"
+            );
+            None
+        }
+    }
+
+    async fn connect_test_pool(database_url: &str) -> sqlx::PgPool {
+        let pool = PgPoolOptions::new()
+            .max_connections(2)
+            .connect(database_url)
+            .await
+            .expect("connect to test database for auth policy acceptance tests");
+        sqlx::migrate!("./src/db/migrations")
+            .run(&pool)
+            .await
+            .expect("run migrations for auth policy acceptance tests");
+        pool
+    }
+
+    async fn cleanup_user(pool: &sqlx::PgPool, user_id: Uuid) {
+        sqlx::query("DELETE FROM users WHERE id = $1")
+            .bind(user_id)
+            .execute(pool)
+            .await
+            .expect("cleanup user");
+    }
+
+    async fn count_policy_acceptances(pool: &sqlx::PgPool, user_id: Uuid) -> i64 {
+        sqlx::query_scalar("SELECT COUNT(*)::bigint FROM policy_acceptances WHERE user_id = $1")
+            .bind(user_id)
+            .fetch_one(pool)
+            .await
+            .expect("count policy acceptances")
+    }
+
+    fn sample_workos_user(suffix: &str) -> WorkOsUser {
+        WorkOsUser {
+            id: format!("workos_policy_{suffix}"),
+            email: format!("policy-{suffix}@example.com"),
+            first_name: Some("Policy".to_string()),
+            last_name: Some("Tester".to_string()),
+        }
+    }
+
+    #[tokio::test]
+    async fn signup_records_policy_acceptances_for_new_user_only() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+
+        let pool = connect_test_pool(&database_url).await;
+        let suffix = Uuid::new_v4().to_string();
+        let workos_user = sample_workos_user(&suffix);
+
+        let first = upsert_user(&pool, &workos_user)
+            .await
+            .expect("first upsert");
+        assert!(first.is_new);
+
+        record_signup_policy_acceptances(&pool, first.user.id, Some("203.0.113.10")).await;
+
+        assert_eq!(count_policy_acceptances(&pool, first.user.id).await, 2);
+
+        let rows = sqlx::query(
+            "SELECT policy, version FROM policy_acceptances WHERE user_id = $1 ORDER BY policy",
+        )
+        .bind(first.user.id)
+        .fetch_all(&pool)
+        .await
+        .expect("fetch policy acceptances");
+
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].get::<String, _>("policy"), "privacy");
+        assert_eq!(rows[0].get::<String, _>("version"), config::PRIVACY_VERSION);
+        assert_eq!(rows[1].get::<String, _>("policy"), "terms");
+        assert_eq!(rows[1].get::<String, _>("version"), config::TERMS_VERSION);
+
+        let second = upsert_user(&pool, &workos_user)
+            .await
+            .expect("second upsert");
+        assert!(!second.is_new);
+        assert_eq!(second.user.id, first.user.id);
+
+        assert_eq!(count_policy_acceptances(&pool, first.user.id).await, 2);
+
+        cleanup_user(&pool, first.user.id).await;
     }
 }
 

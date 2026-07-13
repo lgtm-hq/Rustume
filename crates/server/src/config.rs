@@ -19,6 +19,14 @@ pub const MAX_RESUME_JSON_BYTES: usize = 2 * 1024 * 1024;
 /// Maximum resume title length in characters.
 pub const MAX_TITLE_LEN: usize = 512;
 
+/// Current Terms of Service version (ISO date).
+/// Must match `apps/web/src/lib/policies.ts` (`TERMS_VERSION`).
+pub const TERMS_VERSION: &str = "2026-07-10";
+
+/// Current Privacy Policy version (ISO date).
+/// Must match `apps/web/src/lib/policies.ts` (`PRIVACY_VERSION`).
+pub const PRIVACY_VERSION: &str = "2026-07-10";
+
 /// Default server port
 pub const DEFAULT_PORT: u16 = 3000;
 
@@ -182,6 +190,13 @@ fn trusted_proxy_from_env() -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn policy_versions_match_web_constants() {
+        // Keep in sync with apps/web/src/lib/policies.ts
+        assert_eq!(TERMS_VERSION, "2026-07-10");
+        assert_eq!(PRIVACY_VERSION, "2026-07-10");
+    }
 
     #[test]
     fn default_limits_match_issue() {

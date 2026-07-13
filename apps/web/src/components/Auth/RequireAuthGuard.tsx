@@ -5,6 +5,7 @@ import { authStore } from "../../stores/auth";
 import { Spinner } from "../ui";
 
 const AUTH_PATH_PREFIX = "/auth/";
+const PUBLIC_POLICY_PATHS = new Set(["/terms", "/privacy"]);
 
 function isProtectedPath(pathname: string): boolean {
   if (pathname.startsWith(AUTH_PATH_PREFIX)) {
@@ -12,6 +13,10 @@ function isProtectedPath(pathname: string): boolean {
   }
 
   if (pathname === "/account" || pathname.startsWith("/account/")) {
+    return false;
+  }
+
+  if (PUBLIC_POLICY_PATHS.has(pathname)) {
     return false;
   }
 

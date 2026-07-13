@@ -39,6 +39,7 @@ pub mod middleware;
 pub mod net;
 pub mod observability;
 pub mod openapi;
+pub mod policy;
 pub mod routes;
 pub mod run;
 pub mod shutdown;

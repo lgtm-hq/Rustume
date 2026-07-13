@@ -156,12 +156,26 @@ pub enum WorkOsAuthError {
     Api { status: u16, body: String },
 }
 
+/// Result of inserting or updating a user from a WorkOS profile.
+#[derive(Debug)]
+pub struct UpsertUserResult {
+    /// Persisted user row.
+    pub user: User,
+    /// Whether this callback created a new user row.
+    pub is_new: bool,
+}
+
 /// Insert or update a user row from a WorkOS profile.
 pub async fn upsert_user(
     pool: &sqlx::PgPool,
     workos_user: &WorkOsUser,
-) -> Result<User, sqlx::Error> {
-    sqlx::query_as::<_, User>(
+) -> Result<UpsertUserResult, sqlx::Error> {
+    let existing = sqlx::query_scalar::<_, uuid::Uuid>("SELECT id FROM users WHERE workos_id = $1")
+        .bind(&workos_user.id)
+        .fetch_optional(pool)
+        .await?;
+
+    let user = sqlx::query_as::<_, User>(
         r#"
         INSERT INTO users (workos_id, plan, email, first_name, last_name)
         VALUES ($1, 'free', $2, $3, $4)
@@ -188,7 +202,12 @@ pub async fn upsert_user(
     .bind(&workos_user.first_name)
     .bind(&workos_user.last_name)
     .fetch_one(pool)
-    .await
+    .await?;
+
+    Ok(UpsertUserResult {
+        user,
+        is_new: existing.is_none(),
+    })
 }
 
 #[cfg(test)]
