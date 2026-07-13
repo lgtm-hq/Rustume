@@ -98,7 +98,7 @@ async fn user_from_session_cookie(
 
     match user {
         Some(user) => Ok(Some(user)),
-        None => Err(unauthorized("Invalid or expired session")),
+        None => Ok(None),
     }
 }
 
