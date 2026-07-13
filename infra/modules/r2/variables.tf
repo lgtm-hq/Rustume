@@ -58,9 +58,4 @@ variable "enforce_ip_allowlist" {
   description = "When true, require non-empty token_allowed_ip_ranges (set by root for staging/production)."
   type        = bool
   default     = false
-
-  validation {
-    condition     = !var.enforce_ip_allowlist || length(var.token_allowed_ip_ranges) > 0
-    error_message = "Set token_allowed_ip_ranges before staging or production apply."
-  }
 }

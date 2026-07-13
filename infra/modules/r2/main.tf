@@ -84,6 +84,13 @@ resource "cloudflare_api_token" "assets" {
   }]
 
   condition = local.token_ip_condition
+
+  lifecycle {
+    precondition {
+      condition     = !var.enforce_ip_allowlist || length(var.token_allowed_ip_ranges) > 0
+      error_message = "Set token_allowed_ip_ranges before staging or production apply."
+    }
+  }
 }
 
 resource "cloudflare_api_token" "backups" {
@@ -100,4 +107,11 @@ resource "cloudflare_api_token" "backups" {
   }]
 
   condition = local.token_ip_condition
+
+  lifecycle {
+    precondition {
+      condition     = !var.enforce_ip_allowlist || length(var.token_allowed_ip_ranges) > 0
+      error_message = "Set token_allowed_ip_ranges before staging or production apply."
+    }
+  }
 }
