@@ -26,6 +26,10 @@ and this project adheres to
 
 ### Changed
 
+- **ci**: skip docker publish and railway deploy on version-bump-only merges (#469)
+  (8117f9e)
+- **release**: version 0.29.1 (#467) (fbcc608)
+- **ci**: remove redundant DB-integration job from coverage workflow (#470) (875ae4b)
 - **ci**: add concurrency groups to coverage and docker workflows (#466) (f664759)
 - **deps**: pin dependencies (#461) (db7cc3e)
 - **release**: version 0.29.1 (#460) (53a3b4e)
