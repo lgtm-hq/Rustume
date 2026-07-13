@@ -22,6 +22,18 @@ jobs:
       tooling-ref: '66cad82ead0e5d119928c895c7d7da9c837989e5' # v0.52.3
       egress-policy: block
       egress-preset: github-tooling
+      # github-tooling preset + api.deps.dev: dependency-review-action
+      # queries deps.dev for license/scorecard data when manifests change;
+      # blocked egress surfaces as an immediate "fetch failed" (#439).
+      allowed-endpoints: >-
+        github.com:443
+        api.github.com:443
+        codeload.github.com:443
+        objects.githubusercontent.com:443
+        raw.githubusercontent.com:443
+        uploads.github.com:443
+        pipelines.actions.githubusercontent.com:443
+        api.deps.dev:443
     permissions:
       contents: read
       pull-requests: read
