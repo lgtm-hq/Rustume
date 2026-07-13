@@ -49,6 +49,26 @@ describe("versionHistory store", () => {
     expect(oldest?.basics.name).toBe("Version A");
   });
 
+  it("retains all snapshots on rapid consecutive saves without timestamp collisions", async () => {
+    for (let i = 0; i < 5; i++) {
+      await saveSnapshot("resume-1", createResume(`Rapid ${i}`));
+    }
+
+    const snapshots = await listSnapshots("resume-1");
+    expect(snapshots).toHaveLength(5);
+
+    const timestamps = snapshots.map((snapshot) => snapshot.timestamp);
+    expect(new Set(timestamps).size).toBe(5);
+    for (let i = 1; i < timestamps.length; i++) {
+      expect(timestamps[i - 1]).toBeGreaterThan(timestamps[i]);
+    }
+
+    const oldest = await getSnapshot(snapshots[4].key);
+    const newest = await getSnapshot(snapshots[0].key);
+    expect(oldest?.basics.name).toBe("Rapid 0");
+    expect(newest?.basics.name).toBe("Rapid 4");
+  });
+
   it("prunes snapshots beyond the keep-last limit", async () => {
     for (let i = 0; i < MAX_SNAPSHOTS_PER_RESUME + 1; i++) {
       await saveSnapshot("resume-1", createResume(`Version ${i}`));

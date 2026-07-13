@@ -103,13 +103,13 @@ export async function saveSnapshot(resumeId: string, data: ResumeData): Promise<
   if (!isIndexedDbAvailable()) return;
 
   try {
-    const latest = await getLatestSnapshotRecord(resumeId);
     const clone = structuredClone(data);
+    const latest = await getLatestSnapshotRecord(resumeId);
     if (latest && JSON.stringify(latest.data) === JSON.stringify(clone)) {
       return;
     }
 
-    const timestamp = Date.now();
+    const timestamp = latest ? Math.max(Date.now(), latest.timestamp + 1) : Date.now();
     const record: SnapshotRecord = {
       key: snapshotKey(resumeId, timestamp),
       resumeId,

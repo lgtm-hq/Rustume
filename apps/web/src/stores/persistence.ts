@@ -242,7 +242,7 @@ async function deleteResume(id: string): Promise<void> {
     deleteLocalResume(id);
   }
   deleteResumeMeta(id);
-  void deleteSnapshotsForResume(id);
+  await deleteSnapshotsForResume(id);
 }
 
 async function resumeExists(id: string): Promise<boolean> {
