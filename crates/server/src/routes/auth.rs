@@ -341,7 +341,7 @@ async fn audit_callback_failure(state: &AppState, reason: &str, ip_address: Opti
 
 #[cfg(test)]
 mod policy_acceptance_tests {
-    
+
     use crate::auth::workos::{upsert_user, WorkOsUser};
     use crate::config;
     use crate::policy::record_signup_policy_acceptances;
