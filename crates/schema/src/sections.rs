@@ -15,6 +15,10 @@ pub struct Sections {
     pub summary: SummarySection,
 
     #[validate(nested)]
+    #[serde(default, rename = "coverLetter")]
+    pub cover_letter: CoverLetterSection,
+
+    #[validate(nested)]
     #[serde(default)]
     pub experience: Section<Experience>,
 
@@ -86,6 +90,7 @@ impl Default for Sections {
     fn default() -> Self {
         Self {
             summary: SummarySection::default(),
+            cover_letter: CoverLetterSection::default(),
             experience: Section::new("experience", "Experience"),
             education: Section::new("education", "Education"),
             skills: Section::new_with_columns("skills", "Skills", 2),
@@ -266,6 +271,59 @@ impl SummarySection {
     /// Check if summary has content.
     pub fn is_empty(&self) -> bool {
         self.content.trim().is_empty() || self.content.trim() == "<p></p>"
+    }
+}
+
+/// Cover letter recipient block.
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, Default, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CoverLetterRecipient {
+    #[serde(default)]
+    pub name: String,
+
+    #[serde(default)]
+    pub title: String,
+
+    #[serde(default)]
+    pub company: String,
+
+    #[serde(default)]
+    pub address: String,
+
+    #[serde(default)]
+    pub email: String,
+}
+
+/// Cover letter section (special - recipient block plus rich-text body).
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CoverLetterSection {
+    pub id: String,
+
+    #[serde(default)]
+    pub name: String,
+
+    #[serde(default)]
+    pub visible: bool,
+
+    #[validate(nested)]
+    #[serde(default)]
+    pub recipient: CoverLetterRecipient,
+
+    /// Cover letter body (HTML/Markdown).
+    #[serde(default)]
+    pub content: String,
+}
+
+impl Default for CoverLetterSection {
+    fn default() -> Self {
+        Self {
+            id: "coverLetter".to_string(),
+            name: "Cover Letter".to_string(),
+            visible: false,
+            recipient: CoverLetterRecipient::default(),
+            content: String::new(),
+        }
     }
 }
 
@@ -1217,5 +1275,47 @@ mod tests {
 
         let tiptap_empty = SummarySection::new("<p></p>");
         assert!(tiptap_empty.is_empty());
+    }
+
+    #[test]
+    fn test_cover_letter_deserializes_without_field() {
+        let json = r#"{"summary":{"id":"summary","name":"Summary","visible":true,"content":""}}"#;
+        let sections: Sections = serde_json::from_str(json).unwrap();
+
+        assert_eq!(sections.cover_letter.id, "coverLetter");
+        assert_eq!(sections.cover_letter.name, "Cover Letter");
+        assert!(!sections.cover_letter.visible);
+        assert!(sections.cover_letter.content.is_empty());
+        assert!(sections.cover_letter.validate().is_ok());
+    }
+
+    #[test]
+    fn test_cover_letter_json_roundtrip() {
+        let mut sections = Sections::default();
+        sections.cover_letter.visible = true;
+        sections.cover_letter.recipient.name = "Jane Smith".to_string();
+        sections.cover_letter.recipient.title = "Hiring Manager".to_string();
+        sections.cover_letter.recipient.company = "Acme Corp".to_string();
+        sections.cover_letter.recipient.address = "123 Main St".to_string();
+        sections.cover_letter.recipient.email = "jane@acme.com".to_string();
+        sections.cover_letter.content = "<p>Dear Jane,</p>".to_string();
+
+        let json = serde_json::to_string(&sections).unwrap();
+        assert!(json.contains("\"coverLetter\""));
+        assert!(json.contains("\"recipient\""));
+        assert!(json.contains("\"title\""));
+
+        let parsed: Sections = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.cover_letter.recipient.name, "Jane Smith");
+        assert_eq!(parsed.cover_letter.recipient.title, "Hiring Manager");
+        assert_eq!(parsed.cover_letter.content, "<p>Dear Jane,</p>");
+        assert!(parsed.validate().is_ok());
+    }
+
+    #[test]
+    fn test_cover_letter_default_validation() {
+        let section = CoverLetterSection::default();
+        assert!(!section.visible);
+        assert!(section.validate().is_ok());
     }
 }

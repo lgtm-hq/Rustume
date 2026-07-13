@@ -44,6 +44,22 @@ export interface SummarySection {
   content: string;
 }
 
+export interface CoverLetterRecipient {
+  name: string;
+  title: string;
+  company: string;
+  address: string;
+  email: string;
+}
+
+export interface CoverLetterSection {
+  id: string;
+  name: string;
+  visible: boolean;
+  recipient: CoverLetterRecipient;
+  content: string;
+}
+
 export interface Section<T> {
   id: string;
   name: string;
@@ -184,6 +200,7 @@ export interface CustomItem {
 
 export interface Sections {
   summary: SummarySection;
+  coverLetter: CoverLetterSection;
   experience: Section<Experience>;
   education: Section<Education>;
   skills: Section<Skill>;

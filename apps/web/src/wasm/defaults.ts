@@ -37,6 +37,19 @@ export function createSampleResume(): ResumeData {
         content:
           "Passionate software engineer with 8+ years of experience building scalable web applications. Expert in React, TypeScript, and cloud architecture. Led teams of 5-10 engineers and delivered products serving millions of users.",
       },
+      coverLetter: {
+        id: "coverLetter",
+        name: "Cover Letter",
+        visible: false,
+        recipient: {
+          name: "",
+          title: "",
+          company: "",
+          address: "",
+          email: "",
+        },
+        content: "",
+      },
       experience: {
         id: "experience",
         name: "Experience",
@@ -277,6 +290,19 @@ export function createDefaultResume(): ResumeData {
         visible: true,
         content:
           "Experienced software engineer with a passion for building great products. Strong background in full-stack development, cloud architecture, and team leadership.",
+      },
+      coverLetter: {
+        id: "coverLetter",
+        name: "Cover Letter",
+        visible: false,
+        recipient: {
+          name: "",
+          title: "",
+          company: "",
+          address: "",
+          email: "",
+        },
+        content: "",
       },
       experience: {
         id: "experience",

@@ -338,6 +338,27 @@ describe("useResumeStore", () => {
     });
   });
 
+  it("importResume preserves coverLetter when normalizing an empty first layout page", () => {
+    createRoot((dispose) => {
+      const { store, importResume } = useResumeStore();
+      const imported = createDefaultResume();
+      imported.metadata.layout = [
+        [
+          /* empty first page */
+        ],
+        [["coverLetter", "experience"]],
+      ];
+
+      importResume(imported);
+
+      expect(store.resume!.metadata.layout[0]).toEqual([["coverLetter", "experience"]]);
+      expect(
+        store.resume!.metadata.layout.flat(2).filter((id) => id === "coverLetter"),
+      ).toHaveLength(1);
+      dispose();
+    });
+  });
+
   it("importResume materializes custom layout sentinel into concrete custom ids", () => {
     createRoot((dispose) => {
       const { store, importResume } = useResumeStore();

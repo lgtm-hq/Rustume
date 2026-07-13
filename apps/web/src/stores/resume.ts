@@ -87,7 +87,11 @@ export const FIXED_LAYOUT_SECTION_KEYS: (keyof Omit<Sections, "summary" | "custo
   "volunteer",
   "references",
 ];
-const FIXED_LAYOUT_SECTION_KEY_SET = new Set<string>(["summary", ...FIXED_LAYOUT_SECTION_KEYS]);
+const FIXED_LAYOUT_SECTION_KEY_SET = new Set<string>([
+  "summary",
+  "coverLetter",
+  ...FIXED_LAYOUT_SECTION_KEYS,
+]);
 
 function uniqueLayoutIds(ids: string[]): string[] {
   const seen = new Set<string>();
@@ -279,8 +283,8 @@ async function getResume(id: string): Promise<ResumeData> {
   return getFromLocalStorage(id);
 }
 
-export type SectionKey = keyof Omit<Sections, "summary" | "custom">;
-export type LayoutSectionKey = SectionKey | "summary" | "custom";
+export type SectionKey = keyof Omit<Sections, "summary" | "coverLetter" | "custom">;
+export type LayoutSectionKey = SectionKey | "summary" | "coverLetter" | "custom";
 export type CustomSectionKey = `custom:${string}`;
 
 function createCustomSection(name: string): Section<CustomItem> {
@@ -420,6 +424,8 @@ export function useResumeStore() {
           if (s.resume) {
             if (sectionKey === "summary") {
               s.resume.sections.summary.visible = !s.resume.sections.summary.visible;
+            } else if (sectionKey === "coverLetter") {
+              s.resume.sections.coverLetter.visible = !s.resume.sections.coverLetter.visible;
             } else if (sectionKey === "custom") {
               const sections = Object.values(s.resume.sections.custom);
               const nextVisible = !sections.some((section) => section.visible);
