@@ -13,6 +13,7 @@ module "r2" {
   backups_bucket_name               = var.r2_backups_bucket_name
   r2_read_write_permission_group_id = var.r2_read_write_permission_group_id
   token_allowed_ip_ranges           = var.r2_token_allowed_ip_ranges
+  enforce_ip_allowlist              = contains(["staging", "production"], var.environment)
 }
 
 module "cloudflare_dns" {
@@ -54,12 +55,5 @@ module "railway" {
     CORS_ORIGIN         = var.cors_origin
     METRICS_TOKEN       = var.metrics_token
     SENTRY_DSN          = module.monitoring.sentry_dsn
-  }
-}
-
-check "r2_token_ip_allowlist" {
-  assert {
-    condition     = !contains(["staging", "production"], var.environment) || length(var.r2_token_allowed_ip_ranges) > 0
-    error_message = "Set r2_token_allowed_ip_ranges in environments/<env>.tfvars before staging or production apply."
   }
 }

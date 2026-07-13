@@ -41,6 +41,7 @@ jobs:
             codeload.github.com:443
             releases.hashicorp.com:443
             registry.terraform.io:443
+            release-assets.githubusercontent.com:443
 
       - name: Checkout
         # yamllint disable-line rule:line-length
