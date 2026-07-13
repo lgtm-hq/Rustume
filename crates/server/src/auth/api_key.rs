@@ -55,7 +55,7 @@ pub fn is_valid_token_format(token: &str) -> bool {
         return false;
     }
     let body = &token[TOKEN_PREFIX.len()..];
-    body.len() == TOKEN_BODY_LEN && body.bytes().all(|b| is_base64url_byte(b))
+    body.len() == TOKEN_BODY_LEN && body.bytes().all(is_base64url_byte)
 }
 
 fn is_base64url_byte(byte: u8) -> bool {

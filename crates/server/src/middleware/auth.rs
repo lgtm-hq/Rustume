@@ -41,7 +41,7 @@ impl FromRequestParts<AppState> for AuthUser {
     ) -> Result<Self, Self::Rejection> {
         let cloud = state.cloud()?;
 
-        if let Some(user) = user_from_session_cookie(parts, state, &cloud).await? {
+        if let Some(user) = user_from_session_cookie(parts, state, cloud).await? {
             return Ok(AuthUser(user));
         }
 
@@ -68,7 +68,7 @@ impl FromRequestParts<AppState> for SessionAuthUser {
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
         let cloud = state.cloud()?;
-        let user = user_from_session_cookie(parts, state, &cloud)
+        let user = user_from_session_cookie(parts, state, cloud)
             .await?
             .ok_or_else(|| unauthorized("Not authenticated"))?;
         Ok(SessionAuthUser(user))
