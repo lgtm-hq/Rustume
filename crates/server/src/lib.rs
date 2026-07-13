@@ -1011,8 +1011,7 @@ mod tests {
     #[tokio::test]
     async fn test_delete_account_rate_limit_returns_429() {
         let config = config::RateLimitConfig {
-            resume_crud_per_min: 2,
-            resume_crud_burst: 2,
+            account_delete_per_min: 2,
             ..Default::default()
         };
 
