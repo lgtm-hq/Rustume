@@ -477,7 +477,7 @@ describe("useResumeStore", () => {
       const sectionId = addCustomSection("Writing");
 
       expect(store.resume!.metadata.layout).toEqual([
-        [["summary", ...FIXED_LAYOUT_SECTION_KEYS, sectionId]],
+        [["summary", "coverLetter", ...FIXED_LAYOUT_SECTION_KEYS, sectionId]],
       ]);
       dispose();
     });
