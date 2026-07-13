@@ -43,24 +43,6 @@ pub async fn create_api_key(
     validate_key_name(&body.name)?;
 
     let cloud = state.cloud()?;
-    let active_count = sqlx::query_scalar::<_, i64>(
-        r#"
-        SELECT COUNT(*)
-        FROM api_keys
-        WHERE user_id = $1
-          AND revoked_at IS NULL
-        "#,
-    )
-    .bind(user.id)
-    .fetch_one(&cloud.db)
-    .await
-    .map_err(internal_db_error)?;
-
-    if active_count >= MAX_ACTIVE_KEYS {
-        return Err(ApiError::conflict(format!(
-            "Maximum of {MAX_ACTIVE_KEYS} active API keys reached"
-        )));
-    }
 
     let token = generate_token();
     let prefix = display_prefix(&token)
@@ -70,7 +52,13 @@ pub async fn create_api_key(
     let row = sqlx::query_as::<_, (Uuid,)>(
         r#"
         INSERT INTO api_keys (user_id, name, key_hash, prefix)
-        VALUES ($1, $2, $3, $4)
+        SELECT $1, $2, $3, $4
+        WHERE (
+            SELECT COUNT(*)
+            FROM api_keys
+            WHERE user_id = $1
+              AND revoked_at IS NULL
+        ) < $5
         RETURNING id
         "#,
     )
@@ -78,12 +66,19 @@ pub async fn create_api_key(
     .bind(body.name.trim())
     .bind(key_hash)
     .bind(&prefix)
-    .fetch_one(&cloud.db)
+    .bind(MAX_ACTIVE_KEYS)
+    .fetch_optional(&cloud.db)
     .await
     .map_err(|err| {
         error!("api key insert failed: {err}");
         ApiError::internal("failed to create API key")
     })?;
+
+    let Some(row) = row else {
+        return Err(ApiError::conflict(format!(
+            "Maximum of {MAX_ACTIVE_KEYS} active API keys reached"
+        )));
+    };
 
     let key_id = row.0;
     let ip_address = trusted_client_ip(&headers, net::trusted_proxy_enabled());
