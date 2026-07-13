@@ -187,6 +187,48 @@ export async function importResumes(resumes: ImportResumeItem[]): Promise<Import
   return { imported, failures };
 }
 
+export interface ResumeVersionSummary {
+  version: number;
+  created_at: string;
+}
+
+export interface ResumeSnapshot {
+  id: string;
+  resume_id: string;
+  version: number;
+  data: ResumeData;
+  created_at: string;
+}
+
+export interface RestoreResumePayload {
+  version: number;
+}
+
+export async function listResumeVersions(id: string): Promise<ResumeVersionSummary[]> {
+  return get<ResumeVersionSummary[]>(`/resumes/${id}/versions`);
+}
+
+export async function getResumeVersion(id: string, version: number): Promise<ResumeSnapshot> {
+  return get<ResumeSnapshot>(`/resumes/${id}/versions/${version}`);
+}
+
+export async function restoreResumeVersion(
+  id: string,
+  version: number,
+  currentVersion: number,
+): Promise<CloudResumeRow> {
+  try {
+    return await post<CloudResumeRow>(`/resumes/${id}/versions/${version}/restore`, {
+      version: currentVersion,
+    } satisfies RestoreResumePayload);
+  } catch (error: unknown) {
+    if (error instanceof ApiError) {
+      upgradeOrRethrow409(error);
+    }
+    throw error;
+  }
+}
+
 export async function upsertCloudResume(
   id: string,
   data: ResumeData,

@@ -54,6 +54,11 @@ const ImportModal = lazy(() =>
 const ExportModal = lazy(() =>
   import("../components/export/ExportModal").then((module) => ({ default: module.ExportModal })),
 );
+const VersionHistory = lazy(() =>
+  import("../components/builder/VersionHistory").then((module) => ({
+    default: module.VersionHistory,
+  })),
+);
 
 function TabFallback() {
   return (
@@ -443,6 +448,18 @@ export default function Editor() {
             Import
           </Button>
 
+          <Button variant="ghost" size="sm" onClick={() => openModal("versionHistory")}>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            History
+          </Button>
+
           {/* Template Button with Current Selection Indicator */}
           <Button variant="ghost" size="sm" onClick={() => openModal("template")} class="gap-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -594,6 +611,11 @@ export default function Editor() {
       <Show when={ui.modal === "export"}>
         <Suspense fallback={null}>
           <ExportModal />
+        </Suspense>
+      </Show>
+      <Show when={ui.modal === "versionHistory"}>
+        <Suspense fallback={null}>
+          <VersionHistory />
         </Suspense>
       </Show>
       <ShortcutsModal shortcuts={shortcuts} />

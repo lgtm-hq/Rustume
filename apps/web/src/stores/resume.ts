@@ -17,6 +17,8 @@ import {
   saveCloudResume,
   showResumeVersionConflictToast,
 } from "./cloudStorage";
+import { recordUndo } from "./editorUndo";
+import { saveSnapshot } from "./versionHistory";
 
 /** Thrown when the requested resume does not exist in storage. */
 export class ResumeNotFoundError extends Error {
@@ -325,6 +327,9 @@ async function persistResume() {
 
   try {
     await saveResume(store.id, store.resume);
+    if (!isCloudAuthenticated()) {
+      void saveSnapshot(store.id, store.resume);
+    }
     batch(() => {
       setStore("isDirty", false);
       setStore("lastSaved", new Date());
@@ -636,6 +641,18 @@ export function useResumeStore() {
     // Import resume data
     importResume(data: ResumeData) {
       // Deep clone so Solid store owns a plain tree (imported objects may be frozen / aliased).
+      const clone = normalizeResumeForStore(JSON.parse(JSON.stringify(data)) as ResumeData);
+      batch(() => {
+        setStore("resume", clone);
+        setStore("isDirty", true);
+        setStore("error", null);
+      });
+      scheduleSave();
+    },
+
+    /** Replace the current resume with a historical snapshot (local mode revert). */
+    revertToSnapshot(data: ResumeData) {
+      recordUndo(store.resume);
       const clone = normalizeResumeForStore(JSON.parse(JSON.stringify(data)) as ResumeData);
       batch(() => {
         setStore("resume", clone);

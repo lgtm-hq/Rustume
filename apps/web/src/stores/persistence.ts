@@ -25,6 +25,7 @@ import {
   saveCloudResume,
   showResumeVersionConflictToast,
 } from "./cloudStorage";
+import { deleteSnapshotsForResume } from "./versionHistory";
 
 export interface ResumeListItem {
   id: string;
@@ -241,6 +242,7 @@ async function deleteResume(id: string): Promise<void> {
     deleteLocalResume(id);
   }
   deleteResumeMeta(id);
+  await deleteSnapshotsForResume(id);
 }
 
 async function resumeExists(id: string): Promise<boolean> {
