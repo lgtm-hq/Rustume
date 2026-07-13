@@ -900,7 +900,7 @@ mod tests {
         .expect("seed historical snapshot")
         .0;
 
-        let _ = update_resume(
+        let advanced = update_resume(
             AuthUser(user.clone()),
             State(state.clone()),
             Path(resume.id),
@@ -911,7 +911,8 @@ mod tests {
             }),
         )
         .await
-        .expect("advance current state");
+        .expect("advance current state")
+        .0;
 
         let restored = restore_resume_version(
             AuthUser(user.clone()),
@@ -932,7 +933,7 @@ mod tests {
 
         cleanup_user(&pool, user.id).await;
 
-        assert_eq!(restored.version, updated.version + 1);
+        assert_eq!(restored.version, advanced.version + 1);
         assert_eq!(restored.data, historical);
         assert_eq!(snapshot_count, 3);
     }
