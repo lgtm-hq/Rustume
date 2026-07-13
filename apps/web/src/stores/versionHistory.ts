@@ -132,12 +132,11 @@ async function withResumeSnapshotLock(
   }
 }
 
-async function saveSnapshotRecord(resumeId: string, data: ResumeData): Promise<void> {
+async function saveSnapshotRecord(resumeId: string, clone: ResumeData): Promise<void> {
   if (!(await isResumePersisted(resumeId))) {
     return;
   }
 
-  const clone = structuredClone(data);
   const latest = await getLatestSnapshotRecord(resumeId);
   if (latest && JSON.stringify(latest.data) === JSON.stringify(clone)) {
     return;
@@ -165,8 +164,10 @@ async function saveSnapshotRecord(resumeId: string, data: ResumeData): Promise<v
 export async function saveSnapshot(resumeId: string, data: ResumeData): Promise<void> {
   if (!isIndexedDbAvailable()) return;
 
+  const snapshotData = structuredClone(data);
+
   try {
-    await withResumeSnapshotLock(resumeId, () => saveSnapshotRecord(resumeId, data));
+    await withResumeSnapshotLock(resumeId, () => saveSnapshotRecord(resumeId, snapshotData));
   } catch (error) {
     console.error("Failed to save resume snapshot:", error);
   }

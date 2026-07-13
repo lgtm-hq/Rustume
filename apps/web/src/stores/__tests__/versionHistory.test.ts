@@ -117,6 +117,19 @@ describe("versionHistory store", () => {
     expect(snapshots).toHaveLength(1);
   });
 
+  it("captures resume state at enqueue time before lock contention", async () => {
+    const resume = createResume("Queued state");
+    const queued = saveSnapshot("resume-1", resume);
+    resume.basics.name = "Mutated after enqueue";
+
+    await queued;
+
+    const snapshots = await listSnapshots("resume-1");
+    expect(snapshots).toHaveLength(1);
+    const saved = await getSnapshot(snapshots[0].key);
+    expect(saved?.basics.name).toBe("Queued state");
+  });
+
   it("waits for in-flight saves before deleting snapshots", async () => {
     await saveSnapshot("resume-1", createResume("Initial"));
 
