@@ -357,7 +357,7 @@ mod tests {
         let user = seed_user_with_resumes(&pool, 51).await;
         let state = test_app_state(pool.clone());
 
-        let result = export_resumes_json(AuthUser(user.clone()), State(state)).await;
+        let result = export_resumes_json(AuthUser::session(user.clone()), State(state)).await;
         cleanup_user(&pool, user.id).await;
 
         assert!(matches!(
@@ -377,7 +377,7 @@ mod tests {
         let user = seed_user_with_resumes(&pool, 50).await;
         let state = test_app_state(pool.clone());
 
-        let result = export_resumes_json(AuthUser(user.clone()), State(state)).await;
+        let result = export_resumes_json(AuthUser::session(user.clone()), State(state)).await;
         cleanup_user(&pool, user.id).await;
 
         let payload = result.expect("expected bulk JSON export to succeed at cap");
@@ -395,7 +395,7 @@ mod tests {
         let user = seed_user_with_resumes(&pool, 51).await;
         let state = test_app_state(pool.clone());
 
-        let result = export_resumes_pdf(AuthUser(user.clone()), State(state)).await;
+        let result = export_resumes_pdf(AuthUser::session(user.clone()), State(state)).await;
         cleanup_user(&pool, user.id).await;
 
         assert!(matches!(
@@ -415,7 +415,7 @@ mod tests {
         let user = seed_user_with_resumes(&pool, 50).await;
         let state = test_app_state(pool.clone());
 
-        let result = export_resumes_pdf(AuthUser(user.clone()), State(state)).await;
+        let result = export_resumes_pdf(AuthUser::session(user.clone()), State(state)).await;
         cleanup_user(&pool, user.id).await;
 
         let response = result.expect("expected bulk PDF export to succeed at cap");
