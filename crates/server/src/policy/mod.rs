@@ -40,6 +40,7 @@ pub async fn record_policy_acceptance(
         r#"
         INSERT INTO policy_acceptances (user_id, policy, version, ip_address)
         VALUES ($1, $2, $3, $4::inet)
+        ON CONFLICT (user_id, policy, version) DO NOTHING
         "#,
     )
     .bind(user_id)
@@ -83,4 +84,29 @@ pub async fn record_signup_policy_acceptances(
         ip_address,
     )
     .await
+}
+
+/// Whether the user still needs to accept the current Terms and Privacy versions.
+pub async fn needs_signup_policy_acceptances(
+    pool: &PgPool,
+    user_id: Uuid,
+) -> Result<bool, sqlx::Error> {
+    let count = sqlx::query_scalar::<_, i64>(
+        r#"
+        SELECT COUNT(*)::bigint
+        FROM policy_acceptances
+        WHERE user_id = $1
+          AND (
+            (policy = 'terms' AND version = $2)
+            OR (policy = 'privacy' AND version = $3)
+          )
+        "#,
+    )
+    .bind(user_id)
+    .bind(config::TERMS_VERSION)
+    .bind(config::PRIVACY_VERSION)
+    .fetch_one(pool)
+    .await?;
+
+    Ok(count < 2)
 }

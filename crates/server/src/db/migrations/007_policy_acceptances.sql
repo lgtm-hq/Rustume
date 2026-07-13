@@ -11,3 +11,6 @@ CREATE TABLE policy_acceptances (
 );
 
 CREATE INDEX policy_acceptances_user_id_idx ON policy_acceptances (user_id);
+
+CREATE UNIQUE INDEX policy_acceptances_user_policy_version_uidx
+    ON policy_acceptances (user_id, policy, version);

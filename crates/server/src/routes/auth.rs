@@ -17,7 +17,7 @@ use crate::auth::workos::upsert_user;
 use crate::db::{AuthMeUnauthorizedResponse, AuthUserResponse};
 use crate::error::ApiError;
 use crate::net::{self, trusted_client_ip};
-use crate::policy::record_signup_policy_acceptances;
+use crate::policy::{needs_signup_policy_acceptances, record_signup_policy_acceptances};
 use crate::state::AppState;
 use crate::subscription;
 
@@ -148,7 +148,13 @@ async fn callback_inner(
     })?;
     let user = upsert.user;
 
-    if upsert.is_new {
+    if needs_signup_policy_acceptances(&cloud.db, user.id)
+        .await
+        .map_err(|err| {
+            error!("policy acceptance lookup failed: {err}");
+            "server_error"
+        })?
+    {
         record_signup_policy_acceptances(&cloud.db, user.id, ip)
             .await
             .map_err(|err| {
