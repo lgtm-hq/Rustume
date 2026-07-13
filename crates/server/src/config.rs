@@ -48,6 +48,8 @@ pub struct RateLimitConfig {
     pub unauthenticated_per_min: u32,
     /// Templates, parse, and validate routes (per user when authenticated).
     pub billable_per_min: u32,
+    /// API-key-authenticated requests (per key id).
+    pub api_key_per_min: u32,
     /// Whether to trust proxy headers (`X-Real-IP`, append-mode `X-Forwarded-For`).
     pub trusted_proxy: bool,
 }
@@ -65,6 +67,7 @@ impl Default for RateLimitConfig {
             metrics_per_min: 60,
             unauthenticated_per_min: 30,
             billable_per_min: 30,
+            api_key_per_min: 300,
             trusted_proxy: false,
         }
     }
@@ -91,6 +94,7 @@ impl RateLimitConfig {
                 defaults.unauthenticated_per_min,
             ),
             billable_per_min: env_u32("RATE_LIMIT_BILLABLE_PER_MIN", defaults.billable_per_min),
+            api_key_per_min: env_u32("RATE_LIMIT_API_KEY_PER_MIN", defaults.api_key_per_min),
             trusted_proxy: trusted_proxy_from_env(),
         }
     }
@@ -152,6 +156,11 @@ impl RateLimitConfig {
     pub fn billable_quota(self) -> Quota {
         Self::quota_per_minute(self.billable_per_min)
     }
+
+    /// Quota for API-key-authenticated requests.
+    pub fn api_key_quota(self) -> Quota {
+        Self::quota_per_minute(self.api_key_per_min)
+    }
 }
 
 fn env_u32(key: &str, default: u32) -> u32 {
@@ -196,6 +205,7 @@ mod tests {
         assert_eq!(config.metrics_per_min, 60);
         assert_eq!(config.unauthenticated_per_min, 30);
         assert_eq!(config.billable_per_min, 30);
+        assert_eq!(config.api_key_per_min, 300);
         assert!(!config.trusted_proxy);
     }
 }

@@ -246,6 +246,50 @@ pub struct DeleteAccountRequest {
     pub confirmation: String,
 }
 
+/// Request body for `POST /api/keys`.
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct CreateApiKeyRequest {
+    /// Human-readable label for the key (1–100 characters).
+    pub name: String,
+}
+
+/// Response body for `POST /api/keys` (plaintext key shown exactly once).
+#[derive(Debug, Serialize, ToSchema)]
+pub struct CreateApiKeyResponse {
+    #[schema(value_type = String, format = "uuid")]
+    pub id: Uuid,
+    pub name: String,
+    pub prefix: String,
+    pub key: String,
+}
+
+/// API key summary returned by `GET /api/keys`.
+#[derive(Debug, Clone, FromRow, Serialize, ToSchema)]
+pub struct ApiKeySummary {
+    #[schema(value_type = String, format = "uuid")]
+    pub id: Uuid,
+    pub name: String,
+    pub prefix: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<String>, format = "date-time")]
+    pub last_used_at: Option<DateTime<Utc>>,
+    #[schema(value_type = String, format = "date-time")]
+    pub created_at: DateTime<Utc>,
+}
+
+/// Server-side API key row.
+#[derive(Debug, Clone, FromRow)]
+pub struct ApiKeyRow {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub name: String,
+    pub key_hash: String,
+    pub prefix: String,
+    pub last_used_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+    pub revoked_at: Option<DateTime<Utc>>,
+}
+
 /// Response body for `DELETE /api/account`.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct DeleteAccountResponse {
@@ -276,6 +320,35 @@ impl AuthUserResponse {
 mod tests {
     use super::*;
     use chrono::Utc;
+
+    #[test]
+    fn create_api_key_response_includes_plaintext_key() {
+        let response = CreateApiKeyResponse {
+            id: Uuid::nil(),
+            name: "CI".to_string(),
+            prefix: "abcd1234".to_string(),
+            key: "rk_plaintext".to_string(),
+        };
+        let json = serde_json::to_value(&response).unwrap();
+
+        assert_eq!(json["key"], "rk_plaintext");
+        assert_eq!(json["prefix"], "abcd1234");
+    }
+
+    #[test]
+    fn api_key_summary_never_includes_key_hash() {
+        let summary = ApiKeySummary {
+            id: Uuid::nil(),
+            name: "CI".to_string(),
+            prefix: "abcd1234".to_string(),
+            last_used_at: None,
+            created_at: Utc::now(),
+        };
+        let json = serde_json::to_value(&summary).unwrap();
+
+        assert!(json.get("key_hash").is_none());
+        assert!(json.get("key").is_none());
+    }
 
     #[test]
     fn auth_user_response_includes_profile_fields() {

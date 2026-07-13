@@ -1,6 +1,7 @@
 //! HTTP route handlers for the Rustume API.
 
 pub mod account;
+pub mod api_keys;
 pub mod auth;
 pub mod export;
 pub mod health;
@@ -14,6 +15,7 @@ pub mod templates;
 pub mod validate;
 
 pub use account::delete_account;
+pub use api_keys::{create_api_key, list_api_keys, revoke_api_key};
 pub use auth::{callback, login, logout, me};
 pub use export::{export_resumes_json, export_resumes_pdf};
 pub use health::health;

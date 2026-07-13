@@ -18,6 +18,7 @@ use std::sync::Arc;
 use std::time::{Duration, UNIX_EPOCH};
 use tracing::warn;
 
+use crate::auth::api_key::{extract_token_from_headers, hash_token};
 use crate::auth::session::SESSION_COOKIE;
 use crate::config::RateLimitConfig;
 use crate::net::trusted_client_ip;
@@ -37,6 +38,7 @@ pub enum RateLimitGroup {
     Health,
     Metrics,
     Billable,
+    ApiKey,
     Unauthenticated,
 }
 
@@ -51,6 +53,7 @@ pub struct RateLimitState {
     health: KeyedRateLimiter,
     metrics: KeyedRateLimiter,
     billable: KeyedRateLimiter,
+    api_key: KeyedRateLimiter,
     unauthenticated: KeyedRateLimiter,
 }
 
@@ -67,6 +70,7 @@ impl RateLimitState {
             health: RateLimiter::dashmap(config.health_quota()),
             metrics: RateLimiter::dashmap(config.metrics_quota()),
             billable: RateLimiter::dashmap(config.billable_quota()),
+            api_key: RateLimiter::dashmap(config.api_key_quota()),
             unauthenticated: RateLimiter::dashmap(config.unauthenticated_quota()),
         }
     }
@@ -81,6 +85,7 @@ impl RateLimitState {
             RateLimitGroup::Health => &self.health,
             RateLimitGroup::Metrics => &self.metrics,
             RateLimitGroup::Billable => &self.billable,
+            RateLimitGroup::ApiKey => &self.api_key,
             RateLimitGroup::Unauthenticated => &self.unauthenticated,
         }
     }
@@ -113,6 +118,8 @@ impl RateLimitState {
         self.metrics.shrink_to_fit();
         self.billable.retain_recent();
         self.billable.shrink_to_fit();
+        self.api_key.retain_recent();
+        self.api_key.shrink_to_fit();
         self.unauthenticated.retain_recent();
         self.unauthenticated.shrink_to_fit();
 
@@ -129,6 +136,7 @@ impl RateLimitState {
             + self.health.len()
             + self.metrics.len()
             + self.billable.len()
+            + self.api_key.len()
             + self.unauthenticated.len()
     }
 
@@ -273,6 +281,27 @@ async fn enforce_ip_rate_limit(
     Ok(next.run(request).await)
 }
 
+async fn api_key_rate_limit_key(state: &AppState, headers: &HeaderMap) -> Option<String> {
+    let token = extract_token_from_headers(headers)?;
+    let key_hash = hash_token(&token);
+    let cloud = state.cloud().ok()?;
+
+    let key_id = sqlx::query_scalar::<_, uuid::Uuid>(
+        r#"
+        SELECT id
+        FROM api_keys
+        WHERE key_hash = $1
+          AND revoked_at IS NULL
+        "#,
+    )
+    .bind(key_hash)
+    .fetch_optional(&cloud.db)
+    .await
+    .ok()??;
+
+    Some(format!("api_key:{key_id}"))
+}
+
 async fn enforce_session_rate_limit(
     state: &AppState,
     rate_limits: &RateLimitState,
@@ -284,6 +313,13 @@ async fn enforce_session_rate_limit(
 ) -> Result<Response, RateLimitExceeded> {
     let trusted_proxy = rate_limits.trusted_proxy;
     let ip_key = ip_rate_limit_key(headers, remote_addr, trusted_proxy);
+
+    if let Some(api_key) = api_key_rate_limit_key(state, headers).await {
+        rate_limits.check(RateLimitGroup::ApiKey, &api_key)?;
+        rate_limits.check(group, &api_key)?;
+        return Ok(next.run(request).await);
+    }
+
     let session_key = session_rate_limit_key(state, headers, remote_addr, trusted_proxy).await;
 
     if session_key != ip_key {
@@ -317,7 +353,8 @@ async fn enforce_rate_limit(
         | RateLimitGroup::Import
         | RateLimitGroup::Preview
         | RateLimitGroup::Pdf
-        | RateLimitGroup::Billable => {
+        | RateLimitGroup::Billable
+        | RateLimitGroup::ApiKey => {
             enforce_session_rate_limit(
                 state,
                 rate_limits,
@@ -398,6 +435,7 @@ mod tests {
             health: RateLimiter::dashmap(quota),
             metrics: RateLimiter::dashmap(quota),
             billable: RateLimiter::dashmap(quota),
+            api_key: RateLimiter::dashmap(quota),
             unauthenticated: RateLimiter::dashmap(quota),
         }
     }

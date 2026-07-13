@@ -1,14 +1,15 @@
 //! OpenAPI specification for the Rustume HTTP API.
 
-use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
+use utoipa::openapi::security::{ApiKey, ApiKeyValue, HttpAuthScheme, HttpBuilder, SecurityScheme};
 use utoipa::Modify;
 use utoipa::OpenApi;
 
 use crate::db::{
-    AuthMeUnauthorizedResponse, AuthUserResponse, CreateResumeRequest, DeleteAccountRequest,
-    DeleteAccountResponse, ImportFailure, ImportResumeItem, ImportResumesRequest,
-    ImportResumesResponse, PaginatedResumeSummaries, ResumeBulkExport, ResumeExportItem,
-    ResumeListQuery, ResumeRow, ResumeSummary, SubscriptionInfo, UpdateResumeRequest,
+    ApiKeySummary, AuthMeUnauthorizedResponse, AuthUserResponse, CreateApiKeyRequest,
+    CreateApiKeyResponse, CreateResumeRequest, DeleteAccountRequest, DeleteAccountResponse,
+    ImportFailure, ImportResumeItem, ImportResumesRequest, ImportResumesResponse,
+    PaginatedResumeSummaries, ResumeBulkExport, ResumeExportItem, ResumeListQuery, ResumeRow,
+    ResumeSummary, SubscriptionInfo, UpdateResumeRequest,
 };
 use crate::dto::{
     ParseFormat, ParseRequest, RenderPdfRequest, RenderPreviewRequest, TemplateInfo, ThemeInfo,
@@ -16,14 +17,33 @@ use crate::dto::{
 };
 use crate::error::ApiError;
 
-struct CookieAuthAddon;
+struct SecurityAddon;
 
-impl Modify for CookieAuthAddon {
+impl Modify for SecurityAddon {
     fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
         if let Some(components) = openapi.components.as_mut() {
             components.add_security_scheme(
                 "cookieAuth",
                 SecurityScheme::ApiKey(ApiKey::Cookie(ApiKeyValue::new("rustume_session"))),
+            );
+            components.add_security_scheme(
+                "bearerAuth",
+                SecurityScheme::Http(
+                    HttpBuilder::new()
+                        .scheme(HttpAuthScheme::Bearer)
+                        .bearer_format("API key")
+                        .description(Some(
+                            "API key token issued via POST /api/keys (prefix `rk_`).",
+                        ))
+                        .build(),
+                ),
+            );
+            components.add_security_scheme(
+                "apiKeyHeader",
+                SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
+                    "x-api-key",
+                    "API key token issued via POST /api/keys (prefix `rk_`).",
+                ))),
             );
         }
     }
@@ -34,14 +54,14 @@ impl Modify for CookieAuthAddon {
     info(
         title = "Rustume API",
         version = env!("CARGO_PKG_VERSION"),
-        description = "REST API for resume parsing, rendering, validation, and Rustume Cloud storage.\n\n## Features\n\n- **Parse**: Import resumes from JSON Resume, LinkedIn exports, or Reactive Resume v3\n- **Render**: Generate PDF or PNG previews of resumes\n- **Validate**: Check resume data against the schema\n- **Templates**: List available resume templates with theme colors\n- **Cloud** (when enabled): WorkOS auth and authenticated resume CRUD",
+        description = "REST API for resume parsing, rendering, validation, and Rustume Cloud storage.\n\n## Features\n\n- **Parse**: Import resumes from JSON Resume, LinkedIn exports, or Reactive Resume v3\n- **Render**: Generate PDF or PNG previews of resumes\n- **Validate**: Check resume data against the schema\n- **Templates**: List available resume templates with theme colors\n- **Cloud** (when enabled): WorkOS auth, API keys, and authenticated resume CRUD",
         license(name = "AGPL-3.0-only", url = "https://www.gnu.org/licenses/agpl-3.0.en.html"),
         contact(name = "Rustume", url = "https://github.com/lgtm-hq/Rustume")
     ),
     servers(
         (url = "/", description = "Local server")
     ),
-    modifiers(&CookieAuthAddon),
+    modifiers(&SecurityAddon),
     paths(
         crate::routes::health::health,
         crate::routes::templates::list_templates,
@@ -60,6 +80,9 @@ impl Modify for CookieAuthAddon {
         crate::routes::export::export_resumes_json,
         crate::routes::export::export_resumes_pdf,
         crate::routes::account::delete_account,
+        crate::routes::api_keys::create_api_key,
+        crate::routes::api_keys::list_api_keys,
+        crate::routes::api_keys::revoke_api_key,
     ),
     components(
         schemas(
@@ -88,6 +111,9 @@ impl Modify for CookieAuthAddon {
             ImportResumeItem,
             DeleteAccountRequest,
             DeleteAccountResponse,
+            CreateApiKeyRequest,
+            CreateApiKeyResponse,
+            ApiKeySummary,
             rustume_schema::ResumeData
         )
     ),
@@ -99,7 +125,8 @@ impl Modify for CookieAuthAddon {
         (name = "Validate", description = "Resume validation"),
         (name = "Auth", description = "Rustume Cloud authentication (cloud mode only)"),
         (name = "Resumes", description = "Authenticated resume storage (cloud mode only)"),
-        (name = "Account", description = "Account lifecycle (cloud mode only)")
+        (name = "Account", description = "Account lifecycle (cloud mode only)"),
+        (name = "API Keys", description = "API key management (session auth only, cloud mode)")
     )
 )]
 /// Generated OpenAPI document served at `/api-docs/openapi.json`.

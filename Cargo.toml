@@ -131,6 +131,10 @@ reqwest = { version = "0.13", default-features = false, features = [
 # Cookies / sessions
 axum-extra = { version = "0.12", features = ["cookie"] }
 
+# API key tokens
+rand = "0.9"
+sha2 = "0.11"
+
 # Metrics
 metrics = "0.24"
 metrics-exporter-prometheus = "0.18"
