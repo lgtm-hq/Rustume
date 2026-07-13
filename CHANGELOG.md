@@ -22,6 +22,67 @@ and this project adheres to
 
 ### Security
 
+## [0.29.0] - 2026-07-13
+
+### Added
+
+- **web**: add automated axe-core accessibility checks to the vitest suite (#406)
+  (6497d21)
+
+### Changed
+
+- **deps**: update rust docker tag to 1.97 (minor) (#413) (58c51c4)
+- **parser**: share resume format dispatch between server and CLI (#396) (bc73795)
+- **server**: small cleanups — ApiError dedup, urlencoding, drop ImportItemError (#399)
+  (59e4911)
+- **server**: drop env-mutating CORS integration test (#415) (a91c422)
+
+### Fixed
+
+- **ci**: run DB-backed integration tests against a Postgres service (#404) (02dbc8f)
+- **server**: reject unknown-shaped JSON in /api/validate (#395) (6b2bca5)
+
+## [0.28.0] - 2026-07-12
+
+### Added
+
+- **web**: respect system color scheme for default theme (#393) (0da1363)
+
+### Fixed
+
+- **server**: evict stale rate limiter keys periodically (#400) (f6d6b43)
+
+## [0.27.0] - 2026-07-12
+
+### Added
+
+- **infra**: scheduled pg_dump-to-R2 backup workflow, verification script, and restore
+  runbook (#405) (d7c714b)
+- **render**: load Typst templates at runtime instead of embedding in binary (#397)
+  (bed05b6)
+
+## [0.26.3] - 2026-07-12
+
+### Changed
+
+- **sync**: RFC for end-to-end encryption design (#394) (04c4625)
+- **deps**: update rust crate governor to 0.10.4 (minor) (#411) (512eeb0)
+
+### Fixed
+
+- **server**: default CORS to same-origin when unset (#407) (9a23987)
+
+## [0.26.2] - 2026-07-12
+
+### Changed
+
+- **deps**: update renovatebot/github-action action to v46.1.18 (patch) (#409) (a3fb238)
+- **deps**: update rust crate reqwest to 0.13.4 (minor) (#289) (e4b46e7)
+
+### Fixed
+
+- **deps**: update rust crate sha2 to 0.11.0 (minor) (#296) (74272b4)
+
 ## [0.26.1] - 2026-07-12
 
 ### Changed
@@ -293,7 +354,12 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.26.1...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.29.0...HEAD
+[0.29.0]: https://github.com/lgtm-hq/Rustume/compare/v0.28.0...v0.29.0
+[0.28.0]: https://github.com/lgtm-hq/Rustume/compare/v0.27.0...v0.28.0
+[0.27.0]: https://github.com/lgtm-hq/Rustume/compare/v0.26.3...v0.27.0
+[0.26.3]: https://github.com/lgtm-hq/Rustume/compare/v0.26.2...v0.26.3
+[0.26.2]: https://github.com/lgtm-hq/Rustume/compare/v0.26.1...v0.26.2
 [0.26.1]: https://github.com/lgtm-hq/Rustume/compare/v0.26.0...v0.26.1
 [0.26.0]: https://github.com/lgtm-hq/Rustume/compare/v0.25.1...v0.26.0
 [0.25.1]: https://github.com/lgtm-hq/Rustume/compare/v0.25.0...v0.25.1

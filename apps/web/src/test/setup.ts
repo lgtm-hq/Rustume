@@ -1,4 +1,9 @@
 import "@testing-library/jest-dom/vitest";
+import * as axeMatchers from "vitest-axe/matchers";
+import { expect } from "vitest";
+import "vitest-axe/extend-expect";
+
+expect.extend(axeMatchers);
 
 // Provide a full localStorage mock — Node.js's built-in localStorage
 // (visible from the --localstorage-file warnings) lacks clear().

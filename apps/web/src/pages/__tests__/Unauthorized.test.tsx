@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { axe } from "vitest-axe";
 import { fireEvent, render, screen } from "@solidjs/testing-library";
+import { axeConfig } from "../../test/a11y";
 import { Route, Router } from "@solidjs/router";
 import Unauthorized from "../Unauthorized";
 
@@ -45,5 +47,17 @@ describe("Unauthorized page", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Sign in to sync across devices" }));
     expect(signInMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Unauthorized accessibility", () => {
+  it("has no axe violations when rendered", async () => {
+    const { container } = render(() => (
+      <Router>
+        <Route path="*" component={Unauthorized} />
+      </Router>
+    ));
+
+    expect(await axe(container, axeConfig)).toHaveNoViolations();
   });
 });

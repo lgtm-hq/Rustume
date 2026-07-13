@@ -95,6 +95,24 @@ cd apps/web && bun run test            # Vitest for web app
 
 See [Architecture overview](/docs/architecture/overview/) for the full test matrix.
 
+## Typst template overrides
+
+Native CLI and server builds embed Typst templates at compile time. To iterate on a template
+without rebuilding Rust, copy `crates/render/src/typst_engine/templates/*.typ` into a directory and
+set `RUSTUME_TEMPLATES_DIR` to that path. Files present in the override directory replace the
+embedded copy on each render; missing names fall back to the embedded defaults. The WASM build
+always uses embedded templates only.
+
+```bash
+mkdir -p ~/rustume-templates
+cp crates/render/src/typst_engine/templates/*.typ ~/rustume-templates/
+export RUSTUME_TEMPLATES_DIR=~/rustume-templates
+# edit templates, then re-run preview/PDF without cargo build
+```
+
+See [Templates](/docs/getting-started/templates/#iterating-on-templates) and
+[Environment variables](/docs/deployment/env-reference/) for more detail.
+
 ## Cloud development
 
 To develop [Rustume Cloud](/docs/cloud/overview/) features locally:

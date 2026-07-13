@@ -313,15 +313,11 @@ pub async fn import_resumes(
     Ok(Json(ImportResumesResponse { imported, failed }))
 }
 
-struct ImportItemError {
-    error: String,
-}
-
 async fn import_single_resume(
     db: &sqlx::PgPool,
     user_id: Uuid,
     item: ImportResumeItem,
-) -> Result<ResumeRow, ImportItemError> {
+) -> Result<ResumeRow, ApiError> {
     let title = item.title.unwrap_or_else(|| "Untitled".to_string());
     let resume_id = item.id.unwrap_or_else(Uuid::new_v4);
 
@@ -343,9 +339,7 @@ async fn import_single_resume(
     .bind(item.data)
     .fetch_one(db)
     .await
-    .map_err(|err| ImportItemError {
-        error: map_import_db_error(err, resume_id).error,
-    })
+    .map_err(|err| map_import_db_error(err, resume_id))
 }
 
 fn internal_db_error(err: impl std::fmt::Display + Send + Sync + 'static) -> ApiError {

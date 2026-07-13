@@ -43,17 +43,82 @@ vi.mock("@lgtm-hq/turbo-themes", () => ({
   },
 }));
 
+function mockMatchMedia(preferDark: boolean | undefined) {
+  if (preferDark === undefined) {
+    Object.defineProperty(window, "matchMedia", {
+      value: undefined,
+      configurable: true,
+      writable: true,
+    });
+    return;
+  }
+
+  Object.defineProperty(window, "matchMedia", {
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: preferDark,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+    configurable: true,
+    writable: true,
+  });
+}
+
+async function importFreshEditorTheme() {
+  vi.resetModules();
+  return import("../editorTheme");
+}
+
 import { useEditorTheme } from "../editorTheme";
 
 describe("useEditorTheme", () => {
   beforeEach(() => {
     localStorage.clear();
     turboThemesMock.failImport = false;
+    mockMatchMedia(true);
   });
 
-  it('initial themeId is "catppuccin-mocha"', () => {
+  it('initial themeId is "catppuccin-mocha" when system prefers dark', async () => {
+    mockMatchMedia(true);
+    const { useEditorTheme: useTheme } = await importFreshEditorTheme();
     createRoot((dispose) => {
-      const { state } = useEditorTheme();
+      const { state } = useTheme();
+      expect(state.themeId).toBe("catppuccin-mocha");
+      dispose();
+    });
+  });
+
+  it('initial themeId is "catppuccin-latte" when system prefers light', async () => {
+    mockMatchMedia(false);
+    const { useEditorTheme: useTheme } = await importFreshEditorTheme();
+    createRoot((dispose) => {
+      const { state } = useTheme();
+      expect(state.themeId).toBe("catppuccin-latte");
+      dispose();
+    });
+  });
+
+  it('initial themeId is "catppuccin-mocha" when matchMedia is unavailable', async () => {
+    mockMatchMedia(undefined);
+    const { useEditorTheme: useTheme } = await importFreshEditorTheme();
+    createRoot((dispose) => {
+      const { state } = useTheme();
+      expect(state.themeId).toBe("catppuccin-mocha");
+      dispose();
+    });
+  });
+
+  it("saved localStorage value wins over system color scheme", async () => {
+    localStorage.setItem("rustume-editor-theme", "catppuccin-mocha");
+    mockMatchMedia(false);
+    const { useEditorTheme: useTheme } = await importFreshEditorTheme();
+    createRoot((dispose) => {
+      const { state } = useTheme();
       expect(state.themeId).toBe("catppuccin-mocha");
       dispose();
     });
@@ -93,6 +158,28 @@ describe("useEditorTheme", () => {
       expect(localStorage.getItem("rustume-editor-theme")).toBe("catppuccin-mocha");
       dispose();
     });
+  });
+
+  it("does not persist system default when flavor list lacks light default", async () => {
+    mockMatchMedia(false);
+    const flavorsWithoutLatte = turboThemesMock.flavors.filter(
+      (flavor) => flavor.id !== "catppuccin-latte",
+    );
+    vi.doMock("@lgtm-hq/turbo-themes", () => ({
+      get flavors() {
+        return flavorsWithoutLatte;
+      },
+    }));
+    const { useEditorTheme: useTheme } = await importFreshEditorTheme();
+    await createRoot(async (dispose) => {
+      const { state, ensureFlavorsLoaded } = useTheme();
+      expect(state.themeId).toBe("catppuccin-latte");
+      await ensureFlavorsLoaded();
+      expect(state.themeId).toBe("catppuccin-mocha");
+      expect(localStorage.getItem("rustume-editor-theme")).toBeNull();
+      dispose();
+    });
+    vi.doUnmock("@lgtm-hq/turbo-themes");
   });
 
   it("setTheme with valid ID updates themeId and saves to localStorage", async () => {

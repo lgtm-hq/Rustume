@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { axe } from "vitest-axe";
 import { fireEvent, render, screen } from "@solidjs/testing-library";
+import { axeConfig } from "../../test/a11y";
 import { Route, Router } from "@solidjs/router";
 import NotFound from "../NotFound";
 
@@ -50,5 +52,17 @@ describe("NotFound page", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Back to resumes" }));
     expect(navigateMock).toHaveBeenCalledWith("/", { replace: true });
+  });
+});
+
+describe("NotFound accessibility", () => {
+  it("has no axe violations when rendered", async () => {
+    const { container } = render(() => (
+      <Router>
+        <Route path="*" component={NotFound} />
+      </Router>
+    ));
+
+    expect(await axe(container, axeConfig)).toHaveNoViolations();
   });
 });

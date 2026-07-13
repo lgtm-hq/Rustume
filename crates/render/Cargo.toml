@@ -22,6 +22,9 @@ typst-assets.workspace = true
 # Date/time for Typst World
 chrono.workspace = true
 
+# Embedded template directory
+include_dir.workspace = true
+
 # Error handling
 thiserror.workspace = true
 
@@ -31,3 +34,4 @@ tracing.workspace = true
 [dev-dependencies]
 rstest.workspace = true
 rustume-parser = { path = "../parser" }
+tempfile = "3"

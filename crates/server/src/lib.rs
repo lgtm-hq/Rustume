@@ -137,6 +137,84 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_validate_unknown_shape() {
+        let app = create_router();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/validate")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"foo":1}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let result: ValidationResponse = serde_json::from_slice(&body).unwrap();
+
+        assert!(
+            !result.valid,
+            "Unknown JSON shape must not return valid:true"
+        );
+        assert!(result.errors.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_validate_malformed_body_returns_bad_request() {
+        let app = create_router();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/validate")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"basics":"not-an-object"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn test_validate_partial_resume_still_valid() {
+        let app = create_router();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/validate")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        r#"{"basics":{"name":"Ada Lovelace","email":"ada@example.com"}}"#,
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let result: ValidationResponse = serde_json::from_slice(&body).unwrap();
+
+        assert!(result.valid);
+        assert!(result.errors.is_none());
+    }
+
+    #[tokio::test]
     async fn test_parse_json_resume() {
         let app = create_router();
 
@@ -244,28 +322,6 @@ mod tests {
 
         // Check PNG magic bytes
         assert!(body.starts_with(&[0x89, 0x50, 0x4E, 0x47]));
-    }
-
-    #[tokio::test]
-    async fn test_cors_headers() {
-        let app = create_router();
-
-        let response = app
-            .oneshot(
-                Request::builder()
-                    .method("OPTIONS")
-                    .uri("/api/templates")
-                    .header("origin", "http://localhost:3000")
-                    .header("access-control-request-method", "GET")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert!(response
-            .headers()
-            .contains_key("access-control-allow-origin"));
     }
 
     #[tokio::test]

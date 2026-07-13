@@ -59,9 +59,7 @@ axum-extra.workspace = true
 cookie = "0.18"
 hmac = "0.13"
 metrics.workspace = true
-sha2 = "0.10"
-# Companion for hmac 0.13 (digest 0.11); #296 owns promoting sha2 itself.
-sha2_digest11 = { package = "sha2", version = "0.11" }
+sha2 = "0.11"
 subtle = "2"
 metrics-exporter-prometheus.workspace = true
 chrono.workspace = true
@@ -71,6 +69,7 @@ sentry-tower.workspace = true
 governor.workspace = true
 dashmap.workspace = true
 zip = { version = "3.0", default-features = false, features = ["deflate"] }
+urlencoding.workspace = true
 
 # Use jemalloc on musl to avoid musl's slower default allocator
 [target.'cfg(target_env = "musl")'.dependencies]

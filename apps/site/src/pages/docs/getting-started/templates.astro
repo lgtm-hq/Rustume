@@ -107,4 +107,25 @@ rustume preview resume.json -t azurill -o preview.png`}</code></pre>
     The web editor includes a visual theme editor for adjusting colors without editing JSON directly.
     See also: <a href={`${base}docs/getting-started/quickstart/`}>Quickstart</a>.
   </p>
+
+  <h2 id="iterating-on-templates">Iterating on templates</h2>
+  <p>
+    Typst templates ship embedded in the native CLI and server binary. To iterate on a template
+    without rebuilding Rust, copy the files from
+    <code>crates/render/src/typst_engine/templates/</code> into a working directory and point
+    <code>RUSTUME_TEMPLATES_DIR</code> at it. Matching <code>&lt;name&gt;.typ</code> files override
+    the embedded copy on each render; other templates still load from the embedded defaults.
+  </p>
+
+  <pre class="astro-code"><code>{`mkdir -p ~/rustume-templates
+cp crates/render/src/typst_engine/templates/*.typ ~/rustume-templates/
+export RUSTUME_TEMPLATES_DIR=~/rustume-templates
+# edit ~/rustume-templates/rhyhorn.typ, then re-run preview/PDF — no cargo build needed
+rustume preview resume.json -t rhyhorn -o preview.png`}</code></pre>
+
+  <p>
+    The browser WASM build always uses embedded templates only. See
+    <a href={`${base}docs/deployment/env-reference/`}>Environment variables</a> for deployment
+    configuration.
+  </p>
 </DocsStandaloneLayout>
