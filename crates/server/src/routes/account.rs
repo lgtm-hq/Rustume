@@ -56,7 +56,7 @@ pub async fn update_account(
     }
 
     let ip_address = trusted_client_ip(&headers, net::trusted_proxy_enabled());
-    let ip = ip_address.as_deref();
+    let ip = net::audit_ip(ip_address.as_deref());
 
     let mut tx = cloud.db.begin().await.map_err(internal_db_error)?;
 
@@ -128,7 +128,7 @@ pub async fn delete_account(
 
     let cloud = state.cloud()?;
     let ip_address = trusted_client_ip(&headers, net::trusted_proxy_enabled());
-    let ip = ip_address.as_deref();
+    let ip = net::audit_ip(ip_address.as_deref());
 
     let resume_count = sqlx::query_scalar::<_, i64>(
         r#"

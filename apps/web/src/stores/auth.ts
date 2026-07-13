@@ -65,6 +65,12 @@ function createAuthStore() {
     setState("user", null);
   }
 
+  function updateLocalUsername(username: string) {
+    if (state.user) {
+      setState("user", "username", username);
+    }
+  }
+
   return {
     get state() {
       return state;
@@ -74,6 +80,7 @@ function createAuthStore() {
     signOut,
     clearUser,
     displayName,
+    updateLocalUsername,
   };
 }
 

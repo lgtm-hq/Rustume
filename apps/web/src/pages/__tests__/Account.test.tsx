@@ -10,6 +10,7 @@ const {
   signInMock,
   signOutMock,
   refreshMock,
+  updateLocalUsernameMock,
   updateUsernameMock,
   deleteAccountMock,
 } = vi.hoisted(() => ({
@@ -27,6 +28,7 @@ const {
   signInMock: vi.fn(),
   signOutMock: vi.fn(),
   refreshMock: vi.fn().mockResolvedValue(undefined),
+  updateLocalUsernameMock: vi.fn(),
   updateUsernameMock: vi.fn(),
   deleteAccountMock: vi.fn(),
 }));
@@ -40,6 +42,7 @@ vi.mock("../../stores/auth", () => ({
     signOut: signOutMock,
     clearUser: vi.fn(),
     refresh: refreshMock,
+    updateLocalUsername: updateLocalUsernameMock,
     displayName: (user: { username: string }) => user.username || "Account",
   },
 }));
@@ -161,7 +164,7 @@ describe("Account page", () => {
 
     await waitFor(() => {
       expect(updateUsernameMock).toHaveBeenCalledWith("calm-finch-1234");
-      expect(refreshMock).toHaveBeenCalled();
+      expect(updateLocalUsernameMock).toHaveBeenCalledWith("calm-finch-1234");
     });
   });
 

@@ -36,7 +36,7 @@ function ComingSoonRow(props: { title: string; description: string }) {
 }
 
 export default function Account() {
-  const { state, signIn, signOut, clearUser, displayName, refresh } = authStore;
+  const { state, signIn, signOut, clearUser, displayName, updateLocalUsername } = authStore;
   const navigate = useNavigate();
   const [signingOut, setSigningOut] = createSignal(false);
   const [signingIn, setSigningIn] = createSignal(false);
@@ -162,15 +162,8 @@ export default function Account() {
     setSavingUsername(true);
     setUsernameError(null);
     try {
-      await updateUsername(normalized);
-      try {
-        await refresh();
-      } catch (refreshError) {
-        console.error("Username saved but auth refresh failed:", refreshError);
-        cancelEditingUsername();
-        toast.success("Username updated");
-        return;
-      }
+      const result = await updateUsername(normalized);
+      updateLocalUsername(result.username);
       cancelEditingUsername();
       toast.success("Username updated");
     } catch (error) {
