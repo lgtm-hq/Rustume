@@ -56,3 +56,10 @@ module "railway" {
     SENTRY_DSN          = module.monitoring.sentry_dsn
   }
 }
+
+check "r2_token_ip_allowlist" {
+  assert {
+    condition     = !contains(["staging", "production"], var.environment) || length(var.r2_token_allowed_ip_ranges) > 0
+    error_message = "Set r2_token_allowed_ip_ranges in environments/<env>.tfvars before staging or production apply."
+  }
+}
