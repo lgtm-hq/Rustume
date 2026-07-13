@@ -45,7 +45,7 @@ variable "r2_token_allowed_ip_ranges" {
   default     = []
 
   validation {
-    condition = contains(["staging", "production"], var.environment) ? length(var.r2_token_allowed_ip_ranges) > 0 : true
+    condition     = contains(["staging", "production"], var.environment) ? length(var.r2_token_allowed_ip_ranges) > 0 : true
     error_message = "Set r2_token_allowed_ip_ranges in environments/<env>.tfvars before staging or production apply."
   }
 }
