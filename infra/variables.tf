@@ -40,9 +40,14 @@ variable "r2_read_write_permission_group_id" {
 }
 
 variable "r2_token_allowed_ip_ranges" {
-  description = "CIDR ranges restricting R2 API token usage. Required for production applies."
+  description = "CIDR ranges restricting R2 API token usage. Required for staging and production applies."
   type        = list(string)
   default     = []
+
+  validation {
+    condition = contains(["staging", "production"], var.environment) ? length(var.r2_token_allowed_ip_ranges) > 0 : true
+    error_message = "Set r2_token_allowed_ip_ranges in environments/<env>.tfvars before staging or production apply."
+  }
 }
 
 variable "railway_cname_target" {

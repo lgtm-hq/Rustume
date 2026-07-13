@@ -10,6 +10,8 @@ r2_assets_bucket_name  = "rustume-assets-production"
 r2_backups_bucket_name = "rustume-backups-production"
 # Look up via Cloudflare API/dashboard before apply.
 r2_read_write_permission_group_id = "00000000000000000000000000000000"
+# Replace with Railway egress and operator CIDRs before apply (see infra/modules/r2/README.md).
+r2_token_allowed_ip_ranges = ["203.0.113.10/32"]
 
 railway_cname_target   = "responsible-celebration-production-8280.up.railway.app"
 railway_project_id     = "83fe27c6-ab4b-444e-97bb-f7773c92c87a"
