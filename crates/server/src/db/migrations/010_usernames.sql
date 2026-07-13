@@ -2,7 +2,7 @@
 ALTER TABLE users ADD COLUMN username TEXT;
 
 UPDATE users
-SET username = 'user-' || substr(md5(id::text), 1, 8)
+SET username = replace(id::text, '-', '')
 WHERE username IS NULL;
 
 CREATE UNIQUE INDEX idx_users_username_unique ON users (username);

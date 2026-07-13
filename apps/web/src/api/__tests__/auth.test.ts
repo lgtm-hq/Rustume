@@ -193,6 +193,31 @@ describe("probeAuth", () => {
     });
   });
 
+  it("falls back to a generated username when /auth/me omits username", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        plan: "free",
+        email: "dev@example.com",
+      }),
+    });
+
+    const result = await probeAuth();
+
+    expect(result).toEqual({
+      mode: "cloud",
+      user: {
+        id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        plan: "free",
+        email: "dev@example.com",
+        username: "user-aaaaaaaa",
+      },
+      requireAuth: false,
+    });
+  });
+
   it("rejects invalid authenticated /auth/me payloads", async () => {
     fetchMock.mockResolvedValue({
       ok: true,

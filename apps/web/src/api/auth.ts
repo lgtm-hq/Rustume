@@ -31,11 +31,15 @@ function parseAuthUserPayload(payload: unknown): { user: AuthUser; requireAuth: 
   const record = payload as Record<string, unknown>;
   const id = record.id;
   const plan = record.plan;
-  const username = record.username;
 
-  if (typeof id !== "string" || typeof plan !== "string" || typeof username !== "string") {
+  if (typeof id !== "string" || typeof plan !== "string") {
     throw new Error("Auth probe failed: invalid /auth/me response");
   }
+
+  const username =
+    typeof record.username === "string" && record.username.length > 0
+      ? record.username
+      : `user-${id.slice(0, 8)}`;
 
   const user: AuthUser = { id, plan, username };
 

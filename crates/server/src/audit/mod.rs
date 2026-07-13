@@ -22,9 +22,11 @@ pub struct AuditEvent<'a> {
     pub ip_address: Option<&'a str>,
 }
 
-/// Insert an audit event without failing the primary request on persistence errors.
-pub async fn record_event(pool: &PgPool, event: AuditEvent<'_>) {
-    let result = sqlx::query(
+async fn insert_event<'e, E>(executor: E, event: AuditEvent<'_>) -> Result<(), sqlx::Error>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+{
+    sqlx::query(
         r#"
         INSERT INTO audit_events (
             event_type,
@@ -43,10 +45,22 @@ pub async fn record_event(pool: &PgPool, event: AuditEvent<'_>) {
     .bind(event.resource_id)
     .bind(event.metadata)
     .bind(event.ip_address)
-    .execute(pool)
-    .await;
+    .execute(executor)
+    .await
+    .map(|_| ())
+}
 
-    if let Err(err) = result {
+/// Insert an audit event without failing the primary request on persistence errors.
+pub async fn record_event(pool: &PgPool, event: AuditEvent<'_>) {
+    if let Err(err) = insert_event(pool, event).await {
         error!("audit log insert failed: {err}");
     }
+}
+
+/// Insert an audit event inside a transaction; callers should roll back on failure.
+pub async fn record_event_in_tx(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    event: AuditEvent<'_>,
+) -> Result<(), sqlx::Error> {
+    insert_event(&mut **tx, event).await
 }

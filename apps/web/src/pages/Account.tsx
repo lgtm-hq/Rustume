@@ -163,7 +163,14 @@ export default function Account() {
     setUsernameError(null);
     try {
       await updateUsername(normalized);
-      await refresh();
+      try {
+        await refresh();
+      } catch (refreshError) {
+        console.error("Username saved but auth refresh failed:", refreshError);
+        cancelEditingUsername();
+        toast.success("Username updated");
+        return;
+      }
       cancelEditingUsername();
       toast.success("Username updated");
     } catch (error) {

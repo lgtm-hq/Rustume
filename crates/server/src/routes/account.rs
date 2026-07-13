@@ -9,7 +9,7 @@ use axum::{
 use axum_extra::extract::cookie::CookieJar;
 use tracing::{error, info, warn};
 
-use crate::audit::{record_event, AuditEvent};
+use crate::audit::{record_event, record_event_in_tx, AuditEvent};
 use crate::auth::session::SESSION_COOKIE;
 use crate::auth::username::{normalize_username, validate_username};
 use crate::db::{
@@ -58,6 +58,8 @@ pub async fn update_account(
     let ip_address = trusted_client_ip(&headers, net::trusted_proxy_enabled());
     let ip = ip_address.as_deref();
 
+    let mut tx = cloud.db.begin().await.map_err(internal_db_error)?;
+
     let updated = sqlx::query_scalar::<_, String>(
         r#"
         UPDATE users
@@ -68,14 +70,14 @@ pub async fn update_account(
     )
     .bind(&username)
     .bind(user.id)
-    .fetch_optional(&cloud.db)
+    .fetch_optional(&mut *tx)
     .await
     .map_err(map_account_db_error)?;
 
-    let username = updated.ok_or_else(|| ApiError::internal("failed to update username"))?;
+    let username = updated.ok_or_else(|| ApiError::not_found("account not found"))?;
 
-    record_event(
-        &cloud.db,
+    record_event_in_tx(
+        &mut tx,
         AuditEvent {
             event_type: "account.username_changed",
             actor_user_id: Some(user.id),
@@ -88,7 +90,13 @@ pub async fn update_account(
             ip_address: ip,
         },
     )
-    .await;
+    .await
+    .map_err(|err| {
+        error!("audit log insert failed: {err}");
+        ApiError::internal("failed to update username")
+    })?;
+
+    tx.commit().await.map_err(internal_db_error)?;
 
     Ok(Json(UpdateAccountResponse { username }))
 }

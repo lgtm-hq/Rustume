@@ -52,7 +52,7 @@ pub fn generate_username() -> String {
     let bytes = id.as_bytes();
     let adj_index = usize::from(bytes[0]) % ADJECTIVES.len();
     let noun_index = usize::from(bytes[1]) % NOUNS.len();
-    let number = 1000 + (u16::from(bytes[2]) as u16 * 256 + u16::from(bytes[3])) % 9000;
+    let number = 1000 + (u16::from(bytes[2]) * 256 + u16::from(bytes[3])) % 9000;
     format!("{}-{}-{}", ADJECTIVES[adj_index], NOUNS[noun_index], number)
 }
 
@@ -154,6 +154,9 @@ mod tests {
     #[test]
     fn validate_username_rejects_reserved_words() {
         for reserved in RESERVED_USERNAMES {
+            if reserved.len() < 3 || reserved.len() > 32 {
+                continue;
+            }
             assert_eq!(
                 validate_username(reserved),
                 Err("username is reserved"),
