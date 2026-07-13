@@ -87,6 +87,31 @@ commit_all() {
 	[ "${output}" = "true" ]
 }
 
+@test "external dep version-only change (checksum untouched) classifies false" {
+	# Greptile P1 on #469: a diff touching only version lines must not pass
+	# when the changed package is external (has a checksum).
+	sed -i.bak 's/1\.0\.22/1.0.23/' "${REPO}/Cargo.lock"
+	rm -f "${REPO}"/*.bak
+	commit_all "chore(release): version 0.29.1"
+	run run_script "${BASE}" "${HEAD_SHA}"
+	[ "${status}" -eq 0 ]
+	[[ "${output}" == *"false"* ]]
+}
+
+@test "package added to Cargo.lock classifies false" {
+	cat >>"${REPO}/Cargo.lock" <<-'EOF'
+
+		[[package]]
+		name = "newdep"
+		version = "0.1.0"
+		checksum = "cccc"
+	EOF
+	commit_all "chore(release): version 0.29.1"
+	run run_script "${BASE}" "${HEAD_SHA}"
+	[ "${status}" -eq 0 ]
+	[[ "${output}" == *"false"* ]]
+}
+
 @test "all-zero base sha classifies false" {
 	run run_script "0000000000000000000000000000000000000000" "${BASE}"
 	[ "${status}" -eq 0 ]

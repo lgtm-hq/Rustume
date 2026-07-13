@@ -59,22 +59,62 @@ while IFS= read -r f; do
 	fi
 done <<<"${changed_files}"
 
-# Diff content lines (added/removed only, no context/headers) must all be
-# version stamps in the two manifest files.
-for manifest in "Cargo.toml" "Cargo.lock"; do
-	diff_lines=$(git diff --unified=0 "${base}" "${head}" -- "${manifest}" |
-		grep -E '^[+-]' | grep -vE '^(\+\+\+|---)' || true)
-	if [[ -z "${diff_lines}" ]]; then
-		continue
-	fi
-	bad=$(echo "${diff_lines}" |
+# Cargo.toml diff (added/removed lines only) must contain nothing but
+# version stamps.
+toml_diff=$(git diff --unified=0 "${base}" "${head}" -- Cargo.toml |
+	grep -E '^[+-]' | grep -vE '^(\+\+\+|---)' || true)
+if [[ -n "${toml_diff}" ]]; then
+	bad=$(echo "${toml_diff}" |
 		grep -vE '^[+-]version = "[0-9]+\.[0-9]+\.[0-9]+[^"]*"$' || true)
 	if [[ -n "${bad}" ]]; then
-		echo "not bump-only: non-version change in ${manifest}:" >&2
+		echo "not bump-only: non-version change in Cargo.toml:" >&2
 		echo "${bad}" >&2
 		echo "false"
 		exit 0
 	fi
-done
+fi
+
+# Cargo.lock: a line-level version check is spoofable — a dependency bump
+# whose diff happens to touch only `version = "..."` lines would pass. So
+# parse both revisions into (name, version, has-checksum) entries and require
+# every changed package to be checksum-less in both revisions: workspace
+# members carry no checksum, external/registry packages always do. Package
+# additions or removals never qualify as a bump.
+parse_lock() {
+	git show "$1:Cargo.lock" 2>/dev/null | awk '
+		/^name = /     { gsub(/"/, ""); name = $3 }
+		/^version = /  { gsub(/"/, ""); ver = $3 }
+		/^checksum = / { ck = 1 }
+		/^$/ {
+			if (name != "") { print name "\t" ver "\t" (ck + 0) }
+			name = ""; ver = ""; ck = 0
+		}
+		END { if (name != "") { print name "\t" ver "\t" ck } }
+	'
+}
+
+if ! git diff --quiet "${base}" "${head}" -- Cargo.lock; then
+	base_lock="$(parse_lock "${base}")"
+	head_lock="$(parse_lock "${head}")"
+	# comm prefixes column-2 (head-only) lines with a tab — strip it before
+	# taking the package-name field, or added packages would be missed.
+	changed_pkgs=$(comm -3 <(sort <<<"${base_lock}") <(sort <<<"${head_lock}") |
+		sed 's/^\t//' | cut -f1 | sort -u)
+	while IFS= read -r pkg; do
+		[[ -z "${pkg}" ]] && continue
+		base_entry=$(grep -m1 "^${pkg}	" <<<"${base_lock}" || true)
+		head_entry=$(grep -m1 "^${pkg}	" <<<"${head_lock}" || true)
+		if [[ -z "${base_entry}" || -z "${head_entry}" ]]; then
+			echo "not bump-only: package added/removed in Cargo.lock: ${pkg}" >&2
+			echo "false"
+			exit 0
+		fi
+		if [[ "${base_entry##*	}" != "0" || "${head_entry##*	}" != "0" ]]; then
+			echo "not bump-only: external package changed in Cargo.lock: ${pkg}" >&2
+			echo "false"
+			exit 0
+		fi
+	done <<<"${changed_pkgs}"
+fi
 
 echo "true"
