@@ -36,9 +36,9 @@ impl WorkOsClient {
     pub fn authorize_url(&self, redirect_uri: &str, state: &str) -> String {
         format!(
             "{WORKOS_API_BASE}/user_management/authorize?response_type=code&client_id={}&redirect_uri={}&provider=authkit&state={}&prompt=login",
-            url_encode(&self.client_id),
-            url_encode(redirect_uri),
-            url_encode(state),
+            urlencoding::encode(&self.client_id),
+            urlencoding::encode(redirect_uri),
+            urlencoding::encode(state),
         )
     }
 
@@ -191,15 +191,34 @@ pub async fn upsert_user(
     .await
 }
 
-fn url_encode(value: &str) -> String {
-    let mut encoded = String::with_capacity(value.len());
-    for byte in value.bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                encoded.push(byte as char);
+#[cfg(test)]
+mod tests {
+    fn legacy_url_encode(value: &str) -> String {
+        let mut encoded = String::with_capacity(value.len());
+        for byte in value.bytes() {
+            match byte {
+                b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                    encoded.push(byte as char);
+                }
+                _ => encoded.push_str(&format!("%{byte:02X}")),
             }
-            _ => encoded.push_str(&format!("%{byte:02X}")),
+        }
+        encoded
+    }
+
+    #[test]
+    fn urlencoding_matches_legacy_rfc3986_unreserved_set() {
+        let cases = [
+            ("client_123", "client_123"),
+            ("redirect-uri.test~", "redirect-uri.test~"),
+            ("space here", "space%20here"),
+            ("a+b&c=d/e:h", "a%2Bb%26c%3Dd%2Fe%3Ah"),
+            ("café", "caf%C3%A9"),
+        ];
+
+        for (input, expected) in cases {
+            assert_eq!(legacy_url_encode(input), expected);
+            assert_eq!(urlencoding::encode(input), expected);
         }
     }
-    encoded
 }
