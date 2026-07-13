@@ -17,6 +17,7 @@ import {
   saveCloudResume,
   showResumeVersionConflictToast,
 } from "./cloudStorage";
+import { saveSnapshot } from "./versionHistory";
 
 /** Thrown when the requested resume does not exist in storage. */
 export class ResumeNotFoundError extends Error {
@@ -325,6 +326,9 @@ async function persistResume() {
 
   try {
     await saveResume(store.id, store.resume);
+    if (!isCloudAuthenticated()) {
+      void saveSnapshot(store.id, store.resume);
+    }
     batch(() => {
       setStore("isDirty", false);
       setStore("lastSaved", new Date());
