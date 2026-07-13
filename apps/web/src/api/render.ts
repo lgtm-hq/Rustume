@@ -1,4 +1,5 @@
 import { fetchBlob, fetchBlobWithHeaders, get, post } from "./client";
+import { resumeDataSchema, templateListSchema, validationResultSchema } from "./schemas";
 import type { ResumeData, TemplateInfo, ValidationResult } from "../wasm/types";
 
 /** Plain snapshot for HTTP JSON bodies — avoids edge cases with reactive proxies. */
@@ -119,7 +120,7 @@ export async function downloadPdf(
 }
 
 export async function fetchTemplates(): Promise<TemplateInfo[]> {
-  return get<TemplateInfo[]>("/templates");
+  return get("/templates", templateListSchema) as unknown as Promise<TemplateInfo[]>;
 }
 
 export function getTemplateThumbnailUrl(templateId: string): string {
@@ -132,11 +133,15 @@ export function getTemplateThumbnailUrl(templateId: string): string {
 }
 
 export async function validateResumeServer(resume: ResumeData): Promise<ValidationResult> {
-  return post<ValidationResult>("/validate", cloneResumeForApi(resume));
+  return post(
+    "/validate",
+    cloneResumeForApi(resume),
+    validationResultSchema,
+  ) as unknown as Promise<ValidationResult>;
 }
 
 export async function parseResume(request: ParseRequest): Promise<ResumeData> {
-  return post<ResumeData>("/parse", request);
+  return post("/parse", request, resumeDataSchema) as unknown as Promise<ResumeData>;
 }
 
 // Cleanup function to revoke all cached URLs

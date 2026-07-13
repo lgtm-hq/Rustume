@@ -1,3 +1,5 @@
+import type { z } from "zod";
+
 const API_BASE = "/api";
 
 const defaultFetchOptions: RequestInit = {
@@ -55,7 +57,7 @@ function isPdfEndpoint(endpoint: string): boolean {
   return endpoint.includes("/render/pdf");
 }
 
-function shouldRetryOnRateLimit(endpoint: string, method: string): boolean {
+function shouldRetryOnRateLimit(_endpoint: string, method: string): boolean {
   return isSaveMethod(method);
 }
 
@@ -86,7 +88,16 @@ async function maybeShowRateLimitToast(endpoint: string, method: string): Promis
   toast.warning("Saving paused briefly — too many rapid changes");
 }
 
-async function request<T>(endpoint: string, options: RequestInit = {}, attempt = 0): Promise<T> {
+function formatValidationError(endpoint: string, error: z.ZodError): string {
+  return `API response validation failed for ${endpoint}: ${error.message}`;
+}
+
+async function request<T>(
+  endpoint: string,
+  options: RequestInit = {},
+  attempt = 0,
+  schema?: z.ZodType<T>,
+): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
 
   // Only set Content-Type for methods that send a body
@@ -110,7 +121,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}, attempt =
 
     if (shouldRetryOnRateLimit(endpoint, method) && attempt < MAX_RATE_LIMIT_RETRIES) {
       await sleep(retryAfterMs);
-      return request<T>(endpoint, options, attempt + 1);
+      return request<T>(endpoint, options, attempt + 1, schema);
     }
 
     await maybeShowRateLimitToast(endpoint, method);
@@ -125,7 +136,19 @@ async function request<T>(endpoint: string, options: RequestInit = {}, attempt =
   // Check if response is JSON
   const contentType = response.headers.get("content-type");
   if (contentType?.includes("application/json")) {
-    return response.json();
+    const json: unknown = await response.json();
+    if (schema) {
+      const parsed = schema.safeParse(json);
+      if (!parsed.success) {
+        throw new ApiValidationError(
+          endpoint,
+          formatValidationError(endpoint, parsed.error),
+          parsed.error,
+        );
+      }
+      return parsed.data;
+    }
+    return json as T;
   }
 
   // Return text body for non-JSON responses
@@ -142,22 +165,59 @@ export class ApiError extends Error {
   }
 }
 
-export async function get<T>(endpoint: string): Promise<T> {
-  return request<T>(endpoint, { method: "GET" });
+export class ApiValidationError extends Error {
+  constructor(
+    public endpoint: string,
+    message: string,
+    public zodError?: z.ZodError,
+  ) {
+    super(message);
+    this.name = "ApiValidationError";
+  }
 }
 
-export async function post<T>(endpoint: string, body?: unknown): Promise<T> {
-  return request<T>(endpoint, {
-    method: "POST",
-    body: body !== undefined && body !== null ? JSON.stringify(body) : undefined,
-  });
+export async function get<T>(endpoint: string, schema?: z.ZodType<T>): Promise<T> {
+  return request<T>(endpoint, { method: "GET" }, 0, schema);
 }
 
-export async function put<T>(endpoint: string, body?: unknown): Promise<T> {
-  return request<T>(endpoint, {
-    method: "PUT",
-    body: body !== undefined && body !== null ? JSON.stringify(body) : undefined,
-  });
+export async function post<T>(endpoint: string, body?: unknown, schema?: z.ZodType<T>): Promise<T> {
+  return request<T>(
+    endpoint,
+    {
+      method: "POST",
+      body: body !== undefined && body !== null ? JSON.stringify(body) : undefined,
+    },
+    0,
+    schema,
+  );
+}
+
+export async function put<T>(endpoint: string, body?: unknown, schema?: z.ZodType<T>): Promise<T> {
+  return request<T>(
+    endpoint,
+    {
+      method: "PUT",
+      body: body !== undefined && body !== null ? JSON.stringify(body) : undefined,
+    },
+    0,
+    schema,
+  );
+}
+
+export async function delJson<T>(
+  endpoint: string,
+  body: unknown,
+  schema: z.ZodType<T>,
+): Promise<T> {
+  return request<T>(
+    endpoint,
+    {
+      method: "DELETE",
+      body: JSON.stringify(body),
+    },
+    0,
+    schema,
+  );
 }
 
 export async function del(endpoint: string): Promise<void> {
