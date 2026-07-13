@@ -6,6 +6,7 @@ pub mod export;
 pub mod health;
 pub mod metrics;
 pub mod parse;
+pub mod public;
 pub mod render;
 pub mod resumes;
 pub mod security_txt;
@@ -19,6 +20,7 @@ pub use export::{export_resumes_json, export_resumes_pdf};
 pub use health::health;
 pub use metrics::{init_metrics, metrics};
 pub use parse::parse;
+pub use public::{public_resume_data, public_resume_page, public_resume_preview, robots_txt};
 pub use render::{render_pdf, render_preview};
 pub use resumes::{
     create_resume, delete_resume, get_resume, import_resumes, list_resumes, update_resume,

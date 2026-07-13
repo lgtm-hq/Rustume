@@ -26,6 +26,8 @@ fn is_reserved_server_path(path: &str) -> bool {
         || path == "/metrics"
         || path.starts_with("/auth/")
         || path == "/auth"
+        || path == "/r"
+        || path.starts_with("/r/")
 }
 
 pub fn sanitize_static_path(path: &str) -> Option<PathBuf> {
@@ -124,4 +126,24 @@ pub async fn spa_fallback(
             ApiError::not_found(format!("Web UI assets not found in {}", root.display()))
                 .into_response()
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_reserved_server_path;
+
+    #[test]
+    fn reserved_paths_include_public_resume_prefix() {
+        assert!(is_reserved_server_path("/r"));
+        assert!(is_reserved_server_path("/r/"));
+        assert!(is_reserved_server_path("/r/abc"));
+        assert!(is_reserved_server_path("/r/abc/preview.png"));
+    }
+
+    #[test]
+    fn non_reserved_paths_are_not_blocked() {
+        assert!(!is_reserved_server_path("/"));
+        assert!(!is_reserved_server_path("/editor"));
+        assert!(!is_reserved_server_path("/resume"));
+    }
 }
