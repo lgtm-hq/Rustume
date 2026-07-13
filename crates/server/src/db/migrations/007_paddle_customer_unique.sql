@@ -1,18 +1,26 @@
--- Clear all duplicate paddle_customer_id links before enforcing uniqueness.
--- Prefer leaving ambiguous rows unlinked so later webhooks can re-attach via
--- custom_data.user_id rather than keeping a potentially wrong owner.
-UPDATE users AS u
-SET
-    paddle_customer_id = NULL,
-    updated_at = now()
-FROM (
-    SELECT paddle_customer_id
-    FROM users
-    WHERE paddle_customer_id IS NOT NULL
-    GROUP BY paddle_customer_id
-    HAVING COUNT(*) > 1
-) AS duplicates
-WHERE u.paddle_customer_id = duplicates.paddle_customer_id;
+-- Enforce uniqueness without guessing owners or wiping valid links.
+-- If pre-existing duplicates are found, fail loudly so an operator can
+-- remediate before the unique index is created.
+DO $$
+DECLARE
+    duplicate_count integer;
+BEGIN
+    SELECT COUNT(*)
+    INTO duplicate_count
+    FROM (
+        SELECT paddle_customer_id
+        FROM users
+        WHERE paddle_customer_id IS NOT NULL
+        GROUP BY paddle_customer_id
+        HAVING COUNT(*) > 1
+    ) AS duplicates;
+
+    IF duplicate_count > 0 THEN
+        RAISE EXCEPTION
+            'Found % duplicate paddle_customer_id value(s). Keep one users row per customer id (clear the others), then re-run migrations.',
+            duplicate_count;
+    END IF;
+END $$;
 
 CREATE UNIQUE INDEX IF NOT EXISTS users_paddle_customer_id_unique
 ON users (paddle_customer_id)
