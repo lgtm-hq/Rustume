@@ -111,6 +111,22 @@ fn absolute_url(base: Option<&str>, path: &str) -> String {
     }
 }
 
+/// Derive an absolute origin from proxy-aware request headers.
+fn request_base_url(headers: &HeaderMap) -> Option<String> {
+    let host = headers.get(header::HOST)?.to_str().ok()?;
+    let scheme = headers
+        .get("x-forwarded-proto")
+        .and_then(|value| value.to_str().ok())
+        .filter(|value| *value == "http" || *value == "https")
+        .unwrap_or("https");
+    Some(format!("{scheme}://{host}"))
+}
+
+/// Resolve the public page origin from config or incoming request headers.
+fn resolve_base_url(headers: &HeaderMap) -> Option<String> {
+    public_base_url().or_else(|| request_base_url(headers))
+}
+
 fn build_og_meta_tags(
     row: &PublicResumeRow,
     resume: &ResumeData,
@@ -167,11 +183,17 @@ fn parse_resume_data(data: &serde_json::Value) -> Result<ResumeData, ApiError> {
         .map_err(|_| ApiError::internal("Invalid resume data in database"))
 }
 
+fn etag_entity_tag(candidate: &str) -> &str {
+    let trimmed = candidate.trim();
+    let without_weak = trimmed.strip_prefix("W/").unwrap_or(trimmed);
+    without_weak.trim_matches('"')
+}
+
 fn etag_matches(if_none_match: &str, etag: &str) -> bool {
-    if_none_match.split(',').any(|candidate| {
-        let candidate = candidate.trim();
-        candidate == etag || candidate == etag.trim_matches('"')
-    })
+    let entity = etag_entity_tag(etag);
+    if_none_match
+        .split(',')
+        .any(|candidate| etag_entity_tag(candidate) == entity)
 }
 
 /// Serve `GET /robots.txt` for crawlers.
@@ -201,10 +223,11 @@ pub async fn robots_txt() -> Response {
 pub async fn public_resume_page(
     State(state): State<AppState>,
     Path(slug): Path<String>,
+    headers: HeaderMap,
 ) -> Result<Response, ApiError> {
     let row = fetch_public_resume(&state, &slug).await?;
     let resume = parse_resume_data(&row.data)?;
-    let base_url = public_base_url();
+    let base_url = resolve_base_url(&headers);
     let meta_tags = build_og_meta_tags(&row, &resume, &slug, base_url.as_deref());
 
     let index_path = state.static_dir.join("index.html");
@@ -386,5 +409,32 @@ mod tests {
             "W/\"other\", 550e8400-e29b-41d4-a716-446655440000-2",
             &etag
         ));
+        assert!(etag_matches(
+            "W/\"550e8400-e29b-41d4-a716-446655440000-2\"",
+            &etag
+        ));
+    }
+
+    #[test]
+    fn request_base_url_uses_host_and_forwarded_proto() {
+        let mut headers = HeaderMap::new();
+        headers.insert(header::HOST, HeaderValue::from_static("rustume.com"));
+        headers.insert("x-forwarded-proto", HeaderValue::from_static("https"));
+        assert_eq!(
+            request_base_url(&headers).as_deref(),
+            Some("https://rustume.com")
+        );
+    }
+
+    #[test]
+    fn resolve_base_url_prefers_config_over_request_headers() {
+        std::env::set_var("PUBLIC_BASE_URL", "https://cdn.rustume.com/");
+        let mut headers = HeaderMap::new();
+        headers.insert(header::HOST, HeaderValue::from_static("rustume.com"));
+        assert_eq!(
+            resolve_base_url(&headers).as_deref(),
+            Some("https://cdn.rustume.com")
+        );
+        std::env::remove_var("PUBLIC_BASE_URL");
     }
 }
