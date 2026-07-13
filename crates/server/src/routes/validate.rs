@@ -1,8 +1,24 @@
 use axum::Json;
 use rustume_schema::ResumeData;
+use serde_json::Value;
 use validator::Validate;
 
 use crate::dto::ValidationResponse;
+use crate::error::ApiError;
+
+/// Top-level `ResumeData` fields (serde `camelCase` names).
+const RESUME_DATA_TOP_LEVEL_FIELDS: &[&str] = &["basics", "sections", "metadata"];
+
+/// Returns true when the JSON object contains at least one recognized resume field.
+pub fn has_recognized_resume_shape(value: &Value) -> bool {
+    let Some(obj) = value.as_object() else {
+        return false;
+    };
+
+    RESUME_DATA_TOP_LEVEL_FIELDS
+        .iter()
+        .any(|field| obj.contains_key(*field))
+}
 
 /// Validate resume data
 ///
@@ -17,16 +33,28 @@ use crate::dto::ValidationResponse;
         (status = 200, description = "Validation result", body = ValidationResponse)
     )
 )]
-pub async fn validate(Json(resume): Json<ResumeData>) -> Json<ValidationResponse> {
+pub async fn validate(Json(value): Json<Value>) -> Result<Json<ValidationResponse>, ApiError> {
+    if !has_recognized_resume_shape(&value) {
+        return Ok(Json(ValidationResponse {
+            valid: false,
+            errors: Some(vec![
+                "No recognized resume fields found in request body".to_string()
+            ]),
+        }));
+    }
+
+    let resume: ResumeData =
+        serde_json::from_value(value).map_err(|_| ApiError::new("Invalid resume data format"))?;
+
     match resume.validate() {
-        Ok(_) => Json(ValidationResponse {
+        Ok(_) => Ok(Json(ValidationResponse {
             valid: true,
             errors: None,
-        }),
-        Err(e) => Json(ValidationResponse {
+        })),
+        Err(e) => Ok(Json(ValidationResponse {
             valid: false,
             errors: Some(validation_errors(&e)),
-        }),
+        })),
     }
 }
 
@@ -83,4 +111,28 @@ pub fn validation_errors(errors: &validator::ValidationErrors) -> Vec<String> {
     let mut result = Vec::new();
     collect_errors(errors, "", &mut result);
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn has_recognized_resume_shape_accepts_known_fields() {
+        assert!(has_recognized_resume_shape(&json!({"basics": {}})));
+        assert!(has_recognized_resume_shape(&json!({"sections": {}})));
+        assert!(has_recognized_resume_shape(&json!({"metadata": {}})));
+        assert!(has_recognized_resume_shape(
+            &json!({"basics": {}, "foo": 1})
+        ));
+    }
+
+    #[test]
+    fn has_recognized_resume_shape_rejects_unknown_input() {
+        assert!(!has_recognized_resume_shape(&json!({"foo": 1})));
+        assert!(!has_recognized_resume_shape(&json!({})));
+        assert!(!has_recognized_resume_shape(&json!([])));
+        assert!(!has_recognized_resume_shape(&json!("resume")));
+    }
 }
