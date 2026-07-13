@@ -31,6 +31,9 @@ const WEBHOOK_MAX_SKEW_SECS: i64 = 300;
 /// Default hosted plan when a single Paddle price is configured.
 const HOSTED_PLAN: &str = "pro";
 
+/// Plan assigned when no active Paddle subscription remains.
+const FREE_PLAN: &str = "free";
+
 /// Return Paddle.js checkout overlay settings for the authenticated user.
 #[utoipa::path(
     post,
@@ -339,16 +342,17 @@ async fn handle_subscription_upsert(pool: &sqlx::PgPool, data: &Value) -> Result
         sqlx::query(
             r#"
             UPDATE users
-            SET plan = $2, paddle_customer_id = COALESCE(paddle_customer_id, $3), updated_at = now()
+            SET plan = $2, updated_at = now()
             WHERE id = $1
             "#,
         )
         .bind(user_id)
         .bind(HOSTED_PLAN)
-        .bind(customer_id)
         .execute(pool)
         .await
         .map_err(internal_db_error)?;
+
+        link_paddle_customer(pool, user_id, &customer_id).await?;
     }
 
     Ok(())
@@ -359,25 +363,31 @@ async fn handle_subscription_canceled(pool: &sqlx::PgPool, data: &Value) -> Resu
     let period_end = extract_period_end(data);
     let status = SubscriptionStatus::Canceled.as_str();
 
-    let result = sqlx::query(
+    let user_id = sqlx::query_scalar(
         r#"
         UPDATE subscriptions
         SET status = $2,
             current_period_end = COALESCE($3, current_period_end),
             updated_at = now()
         WHERE paddle_subscription_id = $1
+        RETURNING user_id
         "#,
     )
     .bind(subscription_id)
     .bind(status)
     .bind(period_end)
-    .execute(pool)
+    .fetch_optional(pool)
     .await
     .map_err(internal_db_error)?;
 
-    if result.rows_affected() == 0 {
+    let user_id = if let Some(user_id) = user_id {
+        user_id
+    } else {
         handle_subscription_upsert(pool, data).await?;
-    }
+        resolve_user_id(pool, data, data.get("customer_id").and_then(Value::as_str)).await?
+    };
+
+    downgrade_user_plan_if_no_active_subscription(pool, user_id).await?;
 
     Ok(())
 }
@@ -386,11 +396,29 @@ async fn handle_customer_created(pool: &sqlx::PgPool, data: &Value) -> Result<()
     let customer_id = required_str(data, "id")?;
     let user_id = resolve_user_id(pool, data, None).await?;
 
-    sqlx::query(
+    link_paddle_customer(pool, user_id, &customer_id).await?;
+
+    Ok(())
+}
+
+async fn link_paddle_customer(
+    pool: &sqlx::PgPool,
+    user_id: Uuid,
+    customer_id: &str,
+) -> Result<(), ApiError> {
+    let result = sqlx::query(
         r#"
         UPDATE users
         SET paddle_customer_id = $2, updated_at = now()
-        WHERE id = $1 AND paddle_customer_id IS NULL
+        WHERE id = $1
+          AND (
+            paddle_customer_id IS NULL
+            OR paddle_customer_id = $2
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM users
+            WHERE paddle_customer_id = $2 AND id != $1
+          )
         "#,
     )
     .bind(user_id)
@@ -398,6 +426,58 @@ async fn handle_customer_created(pool: &sqlx::PgPool, data: &Value) -> Result<()
     .execute(pool)
     .await
     .map_err(internal_db_error)?;
+
+    if result.rows_affected() == 0 {
+        let existing: Option<String> =
+            sqlx::query_scalar("SELECT paddle_customer_id FROM users WHERE id = $1")
+                .bind(user_id)
+                .fetch_optional(pool)
+                .await
+                .map_err(internal_db_error)?;
+
+        if existing.as_deref() != Some(customer_id) {
+            warn!(
+                user_id = %user_id,
+                customer_id = %customer_id,
+                "unable to link Paddle customer id; already assigned to another user"
+            );
+        }
+    }
+
+    Ok(())
+}
+
+async fn downgrade_user_plan_if_no_active_subscription(
+    pool: &sqlx::PgPool,
+    user_id: Uuid,
+) -> Result<(), ApiError> {
+    let active_count: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*)
+        FROM subscriptions
+        WHERE user_id = $1
+          AND status IN ('active', 'trialing')
+        "#,
+    )
+    .bind(user_id)
+    .fetch_one(pool)
+    .await
+    .map_err(internal_db_error)?;
+
+    if active_count == 0 {
+        sqlx::query(
+            r#"
+            UPDATE users
+            SET plan = $2, updated_at = now()
+            WHERE id = $1
+            "#,
+        )
+        .bind(user_id)
+        .bind(FREE_PLAN)
+        .execute(pool)
+        .await
+        .map_err(internal_db_error)?;
+    }
 
     Ok(())
 }
@@ -411,7 +491,7 @@ async fn resolve_user_id(
         return Ok(user_id);
     }
 
-    if let Some(email) = data.get("email").and_then(Value::as_str) {
+    if let Some(email) = extract_email(data) {
         if let Some(user_id) = lookup_user_id_by_email(pool, email).await? {
             return Ok(user_id);
         }
@@ -448,6 +528,14 @@ async fn lookup_user_id_by_customer(
         .fetch_optional(pool)
         .await
         .map_err(internal_db_error)
+}
+
+fn extract_email(data: &Value) -> Option<&str> {
+    data.get("email").and_then(Value::as_str).or_else(|| {
+        data.get("customer")
+            .and_then(|customer| customer.get("email"))
+            .and_then(Value::as_str)
+    })
 }
 
 fn extract_custom_user_id(data: &Value) -> Option<Uuid> {
@@ -551,6 +639,17 @@ mod tests {
         let err = verify_webhook_signature(&header, body.as_bytes(), secret)
             .expect_err("stale timestamp");
         assert!(err.error.contains("too old"));
+    }
+
+    #[test]
+    fn extract_email_reads_top_level_and_nested_customer_email() {
+        let top_level = serde_json::json!({ "email": "dev@example.com" });
+        assert_eq!(extract_email(&top_level), Some("dev@example.com"));
+
+        let nested = serde_json::json!({
+            "customer": { "email": "nested@example.com" }
+        });
+        assert_eq!(extract_email(&nested), Some("nested@example.com"));
     }
 
     #[test]

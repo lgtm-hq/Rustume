@@ -96,6 +96,50 @@ describe("billing api", () => {
     );
   });
 
+  it("openCheckout reinitializes Paddle when the client token changes", async () => {
+    const initialize = vi.fn();
+    const open = vi.fn();
+    const setEnvironment = vi.fn();
+
+    vi.stubGlobal("window", {
+      ...globalThis.window,
+      Paddle: {
+        Environment: { set: setEnvironment },
+        Initialize: initialize,
+        Checkout: { open },
+      },
+    });
+
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          client_token: "first_token",
+          price_id: "pri_test",
+          email: "dev@example.com",
+          custom_data: { user_id: "user-1" },
+          environment: "sandbox",
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          client_token: "second_token",
+          price_id: "pri_test",
+          email: "dev@example.com",
+          custom_data: { user_id: "user-1" },
+          environment: "production",
+        }),
+      });
+
+    await openCheckout();
+    await openCheckout();
+
+    expect(initialize).toHaveBeenCalledTimes(2);
+    expect(initialize).toHaveBeenNthCalledWith(1, { token: "first_token" });
+    expect(initialize).toHaveBeenNthCalledWith(2, { token: "second_token" });
+  });
+
   it("redirectToPortal navigates to the returned URL", async () => {
     const assign = vi.fn();
     vi.stubGlobal("window", {
