@@ -375,6 +375,23 @@ describe("useResumeStore", () => {
     });
   });
 
+  it("importResume backfills missing coverLetter for legacy resumes with layout", () => {
+    createRoot((dispose) => {
+      const { store, importResume } = useResumeStore();
+      const imported = createDefaultResume();
+      delete (imported.sections as { coverLetter?: unknown }).coverLetter;
+      imported.metadata.layout = [[["summary", "experience"]]];
+
+      importResume(imported);
+
+      expect(store.resume!.sections.coverLetter).toMatchObject({
+        id: "coverLetter",
+        name: "Cover Letter",
+      });
+      dispose();
+    });
+  });
+
   it("addCustomSection backfills coverLetter section before seeding empty layout", () => {
     createRoot((dispose) => {
       const { store, importResume, addCustomSection } = useResumeStore();

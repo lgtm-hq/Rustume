@@ -214,6 +214,7 @@ function normalizeResumeForStore(resume: ResumeData): ResumeData {
   if (!Array.isArray(resume.metadata.layout)) {
     resume.metadata.layout = [];
   }
+  ensureCoverLetterSection(resume);
 
   const customIds = Object.keys(resume.sections.custom);
   if (resume.metadata.layout.length === 0) {
