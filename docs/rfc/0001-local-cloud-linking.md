@@ -113,6 +113,10 @@ sequenceDiagram
         CC-->>CU: Display code (e.g. RUST-7X4K), 10 min TTL
         LU->>LC: User enters code + cloud URL
         LC->>CC: POST /api/link/exchange {code, instance_meta}
+        CC-->>LC: pending_link_id, instance_fingerprint (for confirmation)
+        LC->>LU: Show fingerprint; user confirms instance
+        LU->>LC: Confirm pairing
+        LC->>CC: POST /api/link/confirm {pending_link_id, instance_meta}
         CC-->>LC: link_token (scoped API key), link_id, cloud_user_id
     else Local-initiated (local → cloud link)
         LU->>LC: User clicks "Link to Rustume Cloud"
@@ -120,6 +124,10 @@ sequenceDiagram
         Note over CC,CU: *Local opens cloud OAuth in browser; user signs in
         CC-->>LU: Display code for confirmation
         LC->>CC: POST /api/link/exchange {code, instance_meta}
+        CC-->>LC: pending_link_id, instance_fingerprint
+        LC->>LU: Show fingerprint; user confirms instance
+        LU->>LC: Confirm pairing
+        LC->>CC: POST /api/link/confirm {pending_link_id, instance_meta}
         CC-->>LC: link_token, link_id, cloud_user_id
     end
     LC->>LC: Store link_token securely
@@ -136,7 +144,7 @@ the local instance exchanges it without holding a browser cookie.
 | Property | Value |
 | --- | --- |
 | Format | API key per [#85](https://github.com/lgtm-hq/Rustume/issues/85) — `rsume_link_*` prefix, stored as hash server-side |
-| Scopes | `sync:read`, `sync:write`, `link:manage` (revoke self) |
+| Scopes | `sync:read`, `sync:write`, `link:manage` (revoke/unlink self only — no account or billing access) |
 | Binding | Tied to `link_id` + `instance_fingerprint` (see below) |
 | Lifetime | Long-lived until revoked or unlinked; rotatable |
 | Transport | `Authorization: Bearer <token>` on sync endpoints |
@@ -157,7 +165,7 @@ A link token is rejected if the fingerprint does not match the registered instan
 
 | Flavor | Storage | Rotation |
 | --- | --- | --- |
-| Browser-only | `sessionStorage` for active tab; optional `localStorage` encrypted wrapper when [#44](https://github.com/lgtm-hq/Rustume/issues/44) E2E is on | `POST /api/link/rotate` returns new token; old invalidated atomically |
+| Browser-only | `sessionStorage` for active tab; optional `localStorage` encrypted wrapper when [#44](https://github.com/lgtm-hq/Rustume/issues/44) E2E is on; user may opt in to persist across tab restarts | `POST /api/link/rotate` returns new token; old invalidated atomically |
 | Self-hosted | Postgres `link_credentials` table or env-sealed secret file | Server admin can rotate from settings UI; audit event recorded |
 
 Revocation paths:
@@ -213,7 +221,7 @@ Per-resume sync metadata (new `sync_state` table / IndexedDB store):
 | Field | Purpose |
 | --- | --- |
 | `resume_id` | UUID — global identity |
-| `content_hash` | SHA-256 of canonical JSON (sorted keys, stable serialization) |
+| `content_hash` | SHA-256 of canonical JSON (see Canonicalization below) |
 | `updated_at` | Replica timestamp from `resumes.updated_at` |
 | `version` | Integer optimistic-lock counter (per replica, not comparable across replicas) |
 | `last_synced_hash` | Hash at last successful sync |
@@ -229,6 +237,27 @@ mitigation (see Security).
 Rejected: **version integer alone** — `version` is per-database autoincrement,
 not globally meaningful across instances (local self-hosted may not have a
 `version` column until #254; browser IndexedDB has no version today).
+
+#### Canonicalization
+
+Both Rust (`crates/schema`) and TypeScript (`apps/web`) MUST compute
+`content_hash` with the same algorithm:
+
+1. Serialize `ResumeData` to JSON with **sorted object keys** at every nesting level.
+2. Use UTF-8 encoding with no insignificant whitespace (compact JSON).
+3. Numbers: no trailing zeros beyond JSON spec; no locale-specific formatting.
+4. Strings: standard JSON escaping (RFC 8259).
+5. Hash the UTF-8 bytes with SHA-256; store lowercase hex.
+
+Implementation ships as a shared test vector crate/module before sync lands.
+
+#### Timestamp trust
+
+`updated_at` is supplied by each replica. For LWW, the server records
+`received_at` and rejects pushes where `updated_at` is more than ±2 minutes
+ahead of server time. Clients MUST NOT treat their own `updated_at` as
+authoritative for conflict resolution without a matching `content_hash` change
+verified against `last_synced_hash`.
 
 ## Initial reconciliation on link
 
@@ -282,11 +311,15 @@ sequenceDiagram
     Note over U: "12 new local, 3 new cloud, 2 conflicts"
     U->>LC: Confirm / cancel / per-conflict choice
     alt Confirmed
-        LC->>CC: POST /api/sync/reconcile (batched mutations)
+        LC->>CC: POST /api/sync/reconcile (batched mutations, Idempotency-Key)
         CC-->>LC: Results + sync cursor
         LC->>LC: Persist sync_state for each resume
     end
 ```
+
+`POST /api/sync/reconcile` accepts an `Idempotency-Key` header and per-mutation
+`operation_id` (UUID). The server stores `(link_id, operation_id) → result` for
+24 h so partial batches can be retried safely after network failure.
 
 **Summary categories shown to user:**
 
@@ -319,14 +352,16 @@ New endpoints under `/api/sync/`:
 - `POST /api/sync/reconcile` — batched first-sync (idempotent)
 
 Reuse existing validation (`validate_resume_json`, `validate_title` in
-`crates/server/src/routes/resumes.rs`) and rate limits (`import_per_min` /
-`resume_crud_per_min` in `crates/server/src/config.rs`).
+`crates/server/src/routes/resumes.rs`). Add dedicated sync rate limits
+(`sync_pull_per_min`, `sync_push_per_min`) separate from one-time import and
+human CRUD quotas (`import_per_min`, `resume_crud_per_min` in
+`crates/server/src/config.rs`).
 
 ### Offline queue ([#42](https://github.com/lgtm-hq/Rustume/issues/42))
 
 Extend the planned single-backend offline queue to tag mutations with `link_id`:
 
-- Queue entries: `{resume_id, mutation_type, payload, content_hash, queued_at}`
+- Queue entries: `{operation_id, resume_id, mutation_type, payload, content_hash, base_hash, queued_at}`
 - On reconnect, replay in `queued_at` order; abort batch on unrecoverable conflict
 - Subscription read-only mode (`SubscriptionReadOnlyError` in `cloudStorage.ts`)
   blocks pushes but still allows queueing for post-resubscribe replay
@@ -379,7 +414,7 @@ ASCII equivalent:
 | Flow | Local effect | Cloud effect |
 | --- | --- | --- |
 | **Go local-only** (unlink from local) | Revoke token locally; delete link metadata; **keep all local resumes** | Invalidate link token; **keep cloud resumes**; link record → `unlinked` |
-| **Go cloud-only** (unlink from cloud) | Push `unlink` command; local receives on next pull → prompt to wipe or keep local copy | Invalidate token; **keep cloud resumes** |
+| **Go cloud-only** (unlink from cloud) | Push `unlink` command with grace period; local receives on next pull (token remains valid until `unlink_ack`) → prompt to wipe or keep local copy | Schedule token revocation after `unlink_ack` or 24 h grace; **keep cloud resumes** |
 | **Delete cloud account** | Next pull fails auth → local shows "link dead"; user keeps local data | Standard account deletion flow |
 
 ### In-flight / unsynced edits at unlink
@@ -387,9 +422,12 @@ ASCII equivalent:
 1. **Warn** if offline queue non-empty or conflicts unresolved.
 2. Offer: **Sync now then unlink** (default), **Discard unsynced local**, or
    **Cancel**.
-3. On forced unlink with pending local edits: local mutations after
+3. When subscription is read-only, default to **Discard unsynced local** or
+   **Cancel** — queued edits cannot be pushed while writes return 403; surface
+   this explicitly before unlink proceeds.
+4. On forced unlink with pending local edits: local mutations after
    `last_synced_at` are **not** pushed; user explicitly acknowledges loss.
-4. Cloud unsynced edits similarly not pulled unless user runs final sync.
+5. Cloud unsynced edits similarly not pulled unless user runs final sync.
 
 ## Encryption interplay ([#44](https://github.com/lgtm-hq/Rustume/issues/44))
 
@@ -399,7 +437,9 @@ Per [RFC 0001 E2E encryption](../rfcs/0001-e2e-encryption.md) (proposed):
 
 When E2E is enabled on either side, sync MUST transport **ciphertext** blobs
 only — the cloud operator cannot read resume content. `resumes.data` stores
-encrypted payloads; `content_hash` is computed over the ciphertext canonical form.
+encrypted payloads; `content_hash` is computed over the **plaintext** canonical
+form before encryption. Logical equality uses plaintext hash; ciphertext may
+differ across re-encryption because nonces are randomized per the E2E RFC.
 
 ### Key availability
 
@@ -418,7 +458,7 @@ recovery key (out of scope for v1; see E2E RFC).
 
 | Threat | Mitigation |
 | --- | --- |
-| **Link token theft** | Scoped to `sync:*` only; bound to `instance_id`; rotatable; HTTPS only; never logged (`audit_events` metadata excludes secrets per `crates/server/src/audit/mod.rs`) |
+| **Link token theft** | Scoped to `sync:read`, `sync:write`, `link:manage` only; bound to `instance_id`; rotatable; HTTPS only; never logged (`audit_events` metadata excludes secrets and token values per `crates/server/src/audit/mod.rs`) |
 | **Pairing code phishing** | Short TTL (10 min); single use; display instance fingerprint on cloud confirmation screen; rate-limit `POST /api/link/exchange` per IP |
 | **Cross-account link** | Exchange requires valid code tied to initiating `user_id`; code cannot be replayed across accounts |
 | **Clock skew** | Compare `updated_at` with ±2 min tolerance; prefer `content_hash` equality as tie-break |
@@ -471,12 +511,12 @@ Implementation sub-issues in dependency order:
 | --- | --- | --- | --- |
 | 1 | **Pairing & trust: link tokens + exchange API** | [#85](https://github.com/lgtm-hq/Rustume/issues/85) API keys | New |
 | 2 | **Link metadata schema** (`links`, `sync_state` tables) | #1 | New |
-| 3 | **Sync protocol & reconciliation engine** | #1, #2 | Extends [#42](https://github.com/lgtm-hq/Rustume/issues/42) |
-| 4 | **Conflict merge UI** | #3 | Extends [#43](https://github.com/lgtm-hq/Rustume/issues/43) |
-| 5 | **Unlink lifecycle + retention UX** | #1, #3 | New |
-| 6 | **Linking UI (local + cloud)** | #1–#5 | Replaces `CloudImportPrompt.tsx` flow |
-| 7 | **Self-hosted sync client** | [#254](https://github.com/lgtm-hq/Rustume/issues/254), #3 | New |
-| 8 | **E2E ciphertext sync** | [#44](https://github.com/lgtm-hq/Rustume/issues/44), #3 | Extends E2E RFC |
+| 3 | **Sync protocol & reconciliation engine** | Order 1, Order 2 | Extends [#42](https://github.com/lgtm-hq/Rustume/issues/42) |
+| 4 | **Conflict merge UI** | Order 3 | Extends [#43](https://github.com/lgtm-hq/Rustume/issues/43) |
+| 5 | **Unlink lifecycle + retention UX** | Order 1, Order 3 | New |
+| 6 | **Linking UI (local + cloud)** | Orders 1–5 | Replaces `CloudImportPrompt.tsx` flow |
+| 7 | **Self-hosted sync client** | [#254](https://github.com/lgtm-hq/Rustume/issues/254), Order 3 | New |
+| 8 | **E2E ciphertext sync** | [#44](https://github.com/lgtm-hq/Rustume/issues/44), Order 3 | Extends E2E RFC |
 | — | CRDT evaluation (deferred) | — | [#40](https://github.com/lgtm-hq/Rustume/issues/40) stays deferred |
 
 Suggested issue creation after this RFC is **Accepted**.

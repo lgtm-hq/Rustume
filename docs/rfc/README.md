@@ -18,8 +18,9 @@ docs/rfc/NNNN-short-slug.md
 - The slug is a lowercase, hyphenated summary of the topic.
 
 > **Note:** An earlier E2E encryption proposal lives at
-> `docs/rfcs/0001-e2e-encryption.md` (plural `rfcs/`). New RFCs use this
-> `docs/rfc/` directory and numbering continues here.
+> `docs/rfcs/0001-e2e-encryption.md` (plural `rfcs/`). This linking RFC is the
+> first document in `docs/rfc/` (singular) and is intentionally numbered `0001`
+> in that namespace. Consolidate the two directories in a follow-up tracked from #338.
 
 ## Statuses
 
@@ -29,7 +30,7 @@ docs/rfc/NNNN-short-slug.md
 | **Accepted** | Maintainers have agreed; implementation issues may be opened. |
 | **Superseded** | Replaced by a newer RFC; kept for history. |
 
-Update the status field in the RFC front matter when the document moves between
+Update the status field in the RFC metadata table when the document moves between
 states. Accepted RFCs should link to the implementation issues they spawned.
 
 ## Process
