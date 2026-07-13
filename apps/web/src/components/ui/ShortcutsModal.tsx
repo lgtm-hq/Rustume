@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n";
 import { createMemo, For } from "solid-js";
 import { Modal } from "./Modal";
 import { formatShortcut, type Shortcut } from "../../hooks/useHotkeys";
@@ -8,6 +9,7 @@ export interface ShortcutsModalProps {
 }
 
 export function ShortcutsModal(props: ShortcutsModalProps) {
+  const { t } = useI18n();
   const { store: ui, closeModal } = uiStore;
 
   const grouped = createMemo(() => {
@@ -24,7 +26,7 @@ export function ShortcutsModal(props: ShortcutsModalProps) {
     <Modal
       open={ui.modal === "shortcuts"}
       onOpenChange={(open) => !open && closeModal()}
-      title="Keyboard Shortcuts"
+      title={t("editor.shortcuts.title")}
       size="md"
     >
       <div class="space-y-5 max-h-80 overflow-y-auto -mx-1 px-1">

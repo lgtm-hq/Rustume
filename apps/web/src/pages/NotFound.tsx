@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from "@solidjs/router";
 import { StatusPage } from "../components/errors/StatusPage";
+import { useI18n } from "../i18n";
 
 function MissingPageIcon() {
   return (
@@ -22,6 +23,7 @@ function MissingPageIcon() {
 }
 
 export default function NotFound() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -35,15 +37,15 @@ export default function NotFound() {
       testId="not-found-page"
       titleId="not-found-page-title"
       statusCode="404"
-      title="Page not found"
-      description={`We couldn't find a page at ${pathLabel()}. Your resumes are still safe — head back home or open one from your list.`}
+      title={t("errors.notFound.title")}
+      description={t("errors.notFound.description", { path: pathLabel() })}
       icon={<MissingPageIcon />}
       primaryAction={{
-        label: "Back to resumes",
+        label: t("errors.notFound.primaryAction"),
         onClick: () => navigate("/", { replace: true }),
       }}
       secondaryAction={{
-        label: "Open account",
+        label: t("errors.notFound.secondaryAction"),
         href: "/account",
       }}
     />

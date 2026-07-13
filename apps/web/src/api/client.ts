@@ -1,3 +1,4 @@
+import { translate } from "../i18n/translate";
 const API_BASE = "/api";
 
 const defaultFetchOptions: RequestInit = {
@@ -74,16 +75,16 @@ async function maybeShowRateLimitToast(endpoint: string, method: string): Promis
 
   const { toast } = await import("../components/ui");
   if (isPreviewEndpoint(endpoint)) {
-    toast.warning("Preview paused briefly — too many rapid updates");
+    toast.warning(translate("preview.toasts.throttled"));
     return;
   }
 
   if (isPdfEndpoint(endpoint)) {
-    toast.warning("PDF export paused briefly — too many rapid requests");
+    toast.warning(translate("preview.toasts.pdfThrottled"));
     return;
   }
 
-  toast.warning("Saving paused briefly — too many rapid changes");
+  toast.warning(translate("storage.toasts.saveThrottled"));
 }
 
 async function request<T>(endpoint: string, options: RequestInit = {}, attempt = 0): Promise<T> {

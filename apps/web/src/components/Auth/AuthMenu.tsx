@@ -1,10 +1,12 @@
 import { DropdownMenu } from "@kobalte/core/dropdown-menu";
 import { useNavigate } from "@solidjs/router";
 import { createSignal, Show } from "solid-js";
+import { useI18n } from "../../i18n";
 import { authStore } from "../../stores/auth";
 import { Button, Spinner } from "../ui";
 
 export function AuthMenu() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const { state, signIn, signOut, displayName } = authStore;
   const [signingIn, setSigningIn] = createSignal(false);
@@ -19,7 +21,7 @@ export function AuthMenu() {
   return (
     <Show
       when={!state.loading}
-      fallback={<Spinner class="w-4 h-4 text-stone" ariaLabel="Loading authentication" />}
+      fallback={<Spinner class="w-4 h-4 text-stone" ariaLabel={t("auth.loading")} />}
     >
       <Show when={state.cloudEnabled} fallback={null}>
         <Show
@@ -31,9 +33,9 @@ export function AuthMenu() {
                 size="sm"
                 onClick={handleSignIn}
                 loading={signingIn()}
-                title="Sign in to sync resumes across devices with Rustume Cloud"
+                title={t("auth.signInTitle")}
               >
-                Sign in to sync
+                {t("common.actions.signIn")}
               </Button>
             </Show>
           }
@@ -44,7 +46,7 @@ export function AuthMenu() {
                 class="flex items-center gap-2 max-w-[12rem] px-2.5 py-1.5 rounded-lg
                   hover:bg-surface transition-colors text-sm text-ink focus-visible:outline-none
                   focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-                aria-label="Account menu"
+                aria-label={t("auth.accountMenu")}
               >
                 <div
                   class="w-7 h-7 rounded-full bg-accent/10 text-accent flex items-center
@@ -53,7 +55,7 @@ export function AuthMenu() {
                 >
                   {(displayName(user()) || "A").slice(0, 1)}
                 </div>
-                <span class="hidden sm:block truncate text-left font-medium">
+                <span class="hidden sm:block truncate text-start font-medium">
                   {displayName(user())}
                 </span>
                 <svg
@@ -84,14 +86,14 @@ export function AuthMenu() {
                       hover:bg-surface focus:bg-surface data-[highlighted]:bg-surface"
                     onSelect={() => navigate("/account")}
                   >
-                    Account
+                    {t("common.labels.account")}
                   </DropdownMenu.Item>
                   <DropdownMenu.Item
                     class="px-3 py-2 text-sm rounded-md cursor-pointer outline-none text-red-600
                       hover:bg-red-50 focus:bg-red-50 data-[highlighted]:bg-red-50"
                     onSelect={() => void signOut()}
                   >
-                    Sign out
+                    {t("common.actions.signOut")}
                   </DropdownMenu.Item>
                 </DropdownMenu.Content>
               </DropdownMenu.Portal>

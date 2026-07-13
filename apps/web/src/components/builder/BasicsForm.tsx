@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n";
 import { Show } from "solid-js";
 import { Input } from "../ui";
 import { resumeStore } from "../../stores/resume";
@@ -5,6 +6,7 @@ import { ImageUpload } from "./ImageUpload";
 import type { Picture } from "../../wasm/types";
 
 export function BasicsForm() {
+  const { t } = useI18n();
   const { store, updateBasics } = resumeStore;
 
   function handlePictureChange(picture: Picture) {
@@ -26,8 +28,8 @@ export function BasicsForm() {
           </svg>
         </div>
         <div>
-          <h2 class="font-display text-lg font-semibold text-ink">Personal Information</h2>
-          <p class="text-sm text-stone">Your basic contact details</p>
+          <h2 class="font-display text-lg font-semibold text-ink">{t("builder.basics.title")}</h2>
+          <p class="text-sm text-stone">{t("builder.basics.subtitle")}</p>
         </div>
       </div>
 
@@ -36,8 +38,8 @@ export function BasicsForm() {
           <div class="space-y-4">
             {/* Name */}
             <Input
-              label="Full Name"
-              placeholder="John Doe"
+              label={t("builder.basics.fullName")}
+              placeholder={t("builder.basics.fullNamePlaceholder")}
               value={resume().basics.name}
               onInput={(value) => updateBasics("name", value)}
               required
@@ -45,9 +47,9 @@ export function BasicsForm() {
 
             {/* Headline */}
             <Input
-              label="Headline"
-              placeholder="Senior Software Engineer"
-              description="Your professional title or tagline"
+              label={t("builder.basics.headline")}
+              placeholder={t("builder.basics.headlinePlaceholder")}
+              description={t("builder.basics.headlineDescription")}
               value={resume().basics.headline}
               onInput={(value) => updateBasics("headline", value)}
             />
@@ -55,17 +57,17 @@ export function BasicsForm() {
             {/* Contact Grid */}
             <div class="grid grid-cols-2 gap-4">
               <Input
-                label="Email"
+                label={t("builder.basics.email")}
                 type="email"
-                placeholder="john@example.com"
+                placeholder={t("builder.basics.emailPlaceholder")}
                 value={resume().basics.email}
                 onInput={(value) => updateBasics("email", value)}
               />
 
               <Input
-                label="Phone"
+                label={t("builder.basics.phone")}
                 type="tel"
-                placeholder="+1 (555) 123-4567"
+                placeholder={t("builder.basics.phonePlaceholder")}
                 value={resume().basics.phone}
                 onInput={(value) => updateBasics("phone", value)}
               />
@@ -73,8 +75,8 @@ export function BasicsForm() {
 
             {/* Location */}
             <Input
-              label="Location"
-              placeholder="San Francisco, CA"
+              label={t("builder.fields.location")}
+              placeholder={t("builder.fields.locationPlaceholder")}
               value={resume().basics.location}
               onInput={(value) => updateBasics("location", value)}
             />
@@ -84,15 +86,15 @@ export function BasicsForm() {
               <h3 class="font-mono text-xs uppercase tracking-wider text-stone">Website</h3>
               <div class="grid grid-cols-2 gap-4">
                 <Input
-                  label="Label"
-                  placeholder="Portfolio"
+                  label={t("builder.basics.label")}
+                  placeholder={t("builder.basics.labelPlaceholder")}
                   value={resume().basics.url.label}
                   onInput={(value) => updateBasics("url", { ...resume().basics.url, label: value })}
                 />
                 <Input
-                  label="URL"
+                  label={t("builder.basics.url")}
                   type="url"
-                  placeholder="https://johndoe.com"
+                  placeholder={t("builder.basics.urlPlaceholder")}
                   value={resume().basics.url.href}
                   onInput={(value) => updateBasics("url", { ...resume().basics.url, href: value })}
                 />

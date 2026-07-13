@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n";
 import { createEffect, createSignal, on, Show } from "solid-js";
 import { importResumes } from "../../api/resumes";
 import { Button, Modal, toast } from "../ui";
@@ -13,6 +14,7 @@ import { authStore } from "../../stores/auth";
 const dismissedKey = (userId: string) => `rustume:cloud-import-dismissed:${userId}`;
 
 export function CloudImportPrompt() {
+  const { t } = useI18n();
   const [open, setOpen] = createSignal(false);
   const [count, setCount] = createSignal(0);
   const [importing, setImporting] = createSignal(false);
@@ -71,14 +73,14 @@ export function CloudImportPrompt() {
       }
 
       if (resumes.length === 0) {
-        toast.error("No local resumes could be imported");
+        toast.error(t("cloudImport.toasts.noneImported"));
         return;
       }
 
       const { imported, failures } = await importResumes(resumes);
 
       if (imported.length === 0) {
-        toast.error(failures[0]?.message ?? "No local resumes could be imported");
+        toast.error(failures[0]?.message ?? t("cloudImport.toasts.noneImported"));
         return;
       }
 
@@ -98,7 +100,7 @@ export function CloudImportPrompt() {
       );
     } catch (error: unknown) {
       console.error("Cloud import failed:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to import resumes");
+      toast.error(error instanceof Error ? error.message : t("cloudImport.toasts.failed"));
     } finally {
       setImporting(false);
     }
@@ -113,8 +115,8 @@ export function CloudImportPrompt() {
             if (!value) dismiss(userId());
             else setOpen(value);
           }}
-          title="Import local resumes?"
-          description="We found resumes saved on this device. Import them to your Rustume Cloud account?"
+          title={t("cloudImport.title")}
+          description={t("cloudImport.description")}
           size="md"
         >
           <div class="px-6 py-5 space-y-4">
@@ -131,7 +133,7 @@ export function CloudImportPrompt() {
                 loading={importing()}
                 disabled={importing()}
               >
-                <Show when={!importing()} fallback="Importing...">
+                <Show when={!importing()} fallback={t("cloudImport.importing")}>
                   Import to cloud
                 </Show>
               </Button>

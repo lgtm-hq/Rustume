@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n";
 import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
 import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
@@ -19,6 +20,7 @@ export interface RichTextEditorProps {
 let editorIdCounter = 0;
 
 export function RichTextEditor(props: RichTextEditorProps) {
+  const { t } = useI18n();
   const editorId = `rte-${++editorIdCounter}`;
   const labelId = `${editorId}-label`;
   const [editorEl, setEditorEl] = createSignal<HTMLDivElement>();
@@ -168,7 +170,7 @@ export function RichTextEditor(props: RichTextEditorProps) {
             active={isActive("bold")}
             onClick={toggleBold}
             disabled={props.disabled}
-            title="Bold"
+            title={t("richText.bold")}
           >
             <span class="font-bold">B</span>
           </ToolbarButton>
@@ -176,7 +178,7 @@ export function RichTextEditor(props: RichTextEditorProps) {
             active={isActive("italic")}
             onClick={toggleItalic}
             disabled={props.disabled}
-            title="Italic"
+            title={t("richText.italic")}
           >
             <span class="italic">I</span>
           </ToolbarButton>
@@ -184,7 +186,7 @@ export function RichTextEditor(props: RichTextEditorProps) {
             active={isActive("underline")}
             onClick={toggleUnderline}
             disabled={props.disabled}
-            title="Underline"
+            title={t("richText.underline")}
           >
             <span class="underline">U</span>
           </ToolbarButton>
@@ -195,7 +197,7 @@ export function RichTextEditor(props: RichTextEditorProps) {
             active={isActive("link")}
             onClick={setLink}
             disabled={props.disabled}
-            title="Link"
+            title={t("richText.link")}
           >
             <svg
               aria-hidden="true"
@@ -216,7 +218,7 @@ export function RichTextEditor(props: RichTextEditorProps) {
             active={isActive("bulletList")}
             onClick={toggleBulletList}
             disabled={props.disabled}
-            title="Bullet List"
+            title={t("richText.bulletList")}
           >
             <svg
               aria-hidden="true"
@@ -238,7 +240,7 @@ export function RichTextEditor(props: RichTextEditorProps) {
             active={isActive("orderedList")}
             onClick={toggleOrderedList}
             disabled={props.disabled}
-            title="Ordered List"
+            title={t("richText.orderedList")}
           >
             <svg
               aria-hidden="true"

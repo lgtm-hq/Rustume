@@ -1,6 +1,7 @@
+import { useI18n } from "../../i18n";
 import { Show } from "solid-js";
 import { createSortable, transformStyle, useDragDropContext } from "@thisbeyond/solid-dnd";
-import { SECTIONS, type SectionInfo } from "../builder/constants";
+import { getSections, type SectionInfo } from "../builder/constants";
 
 interface DraggableSectionProps {
   id: string;
@@ -11,10 +12,11 @@ interface DraggableSectionProps {
 
 /** Look up the human-friendly label and icon for a section ID. */
 function getSectionInfo(id: string): SectionInfo | undefined {
-  return SECTIONS.find((s) => s.key === id);
+  return getSections().find((s) => s.key === id);
 }
 
 export function DraggableSection(props: DraggableSectionProps) {
+  const { t } = useI18n();
   const sortable = createSortable(props.id);
   const ctx = useDragDropContext();
 
@@ -27,7 +29,7 @@ export function DraggableSection(props: DraggableSectionProps) {
       ref={sortable.ref}
       tabindex="0"
       role="option"
-      aria-roledescription="draggable section"
+      aria-roledescription={t("builder.layout.draggableSection")}
       aria-selected={props.kbActive ?? false}
       data-section-id={props.id}
       class="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-paper

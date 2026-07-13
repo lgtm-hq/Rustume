@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n";
 import { For, Show, createSignal, type JSX } from "solid-js";
 import { Button, Input } from "../ui";
 import { LazyRichTextEditor as RichTextEditor } from "../ui/LazyRichTextEditor";
@@ -51,6 +52,7 @@ interface SectionEditorProps<T> {
 export function SectionEditor<T extends { id: string; visible: boolean }>(
   props: SectionEditorProps<T>,
 ) {
+  const { t } = useI18n();
   const { store, addSectionItem, updateSectionItem, removeSectionItem, reorderSectionItem } =
     resumeStore;
   const [expandedIndex, setExpandedIndex] = createSignal<number | null>(null);
@@ -119,7 +121,7 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
               d="M12 4v16m8-8H4"
             />
           </svg>
-          Add
+          {t("common.actions.add")}
         </Button>
       </div>
 
@@ -178,7 +180,7 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
                           disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                         onClick={() => handleMoveUp(index())}
                         disabled={index() === 0}
-                        title="Move up"
+                        title={t("builder.actions.moveUp")}
                       >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path
@@ -194,7 +196,7 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
                           disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                         onClick={() => handleMoveDown(index())}
                         disabled={index() === items().length - 1}
-                        title="Move down"
+                        title={t("builder.actions.moveDown")}
                       >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path
@@ -209,7 +211,9 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
 
                     <div class="flex items-center gap-3">
                       <label class="flex items-center gap-2 cursor-pointer">
-                        <span class="text-xs font-mono text-stone">Visible</span>
+                        <span class="text-xs font-mono text-stone">
+                          {t("common.status.visible")}
+                        </span>
                         <div
                           class={`w-8 h-5 rounded-full transition-colors relative ${
                             item.visible ? "bg-accent" : "bg-border"
@@ -228,7 +232,7 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
                       <button
                         class="p-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                         onClick={() => handleRemove(index())}
-                        title="Remove"
+                        title={t("common.actions.remove")}
                       >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path
@@ -252,7 +256,7 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
 
         <Show when={items().length === 0}>
           <div class="py-8 text-center">
-            <p class="text-stone text-sm mb-3">No items yet</p>
+            <p class="text-stone text-sm mb-3">{t("common.labels.noItemsYet")}</p>
             <Button variant="secondary" size="sm" onClick={handleAdd}>
               Add your first {singularize(props.title)}
             </Button>
@@ -266,10 +270,11 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
 // Pre-configured section editors
 
 export function ExperienceEditor() {
+  const { t } = useI18n();
   return (
     <SectionEditor<Experience>
       sectionKey="experience"
-      title="Experience"
+      title={t("builder.sections.experience")}
       icon="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
       createItem={() => ({
         id: generateId(),
@@ -287,49 +292,49 @@ export function ExperienceEditor() {
         <div class="space-y-4">
           <div class="grid grid-cols-2 gap-4">
             <Input
-              label="Position"
-              placeholder="Software Engineer"
+              label={t("builder.fields.position")}
+              placeholder={t("builder.fields.positionPlaceholder")}
               value={item.position}
               onInput={(v) => update({ position: v })}
             />
             <Input
-              label="Company"
-              placeholder="Acme Inc."
+              label={t("builder.fields.company")}
+              placeholder={t("builder.fields.companyPlaceholder")}
               value={item.company}
               onInput={(v) => update({ company: v })}
             />
           </div>
           <div class="grid grid-cols-2 gap-4">
             <Input
-              label="Location"
-              placeholder="San Francisco, CA"
+              label={t("builder.fields.location")}
+              placeholder={t("builder.fields.locationPlaceholder")}
               value={item.location}
               onInput={(v) => update({ location: v })}
             />
             <Input
-              label="Date"
-              placeholder="Jan 2020 - Present"
+              label={t("builder.fields.date")}
+              placeholder={t("builder.fields.datePlaceholder")}
               value={item.date}
               onInput={(v) => update({ date: v })}
             />
           </div>
           <RichTextEditor
-            label="Summary"
-            placeholder="Describe your responsibilities and achievements..."
+            label={t("builder.fields.summary")}
+            placeholder={t("builder.fields.summaryPlaceholder")}
             value={item.summary}
             onInput={(v) => update({ summary: v })}
           />
           <div class="grid grid-cols-2 gap-4">
             <Input
-              label="Link Label"
+              label={t("builder.fields.linkLabel")}
               placeholder="Company website"
               value={item.url.label}
               onInput={(v) => update({ url: { ...item.url, label: v } })}
             />
             <Input
-              label="Link URL"
+              label={t("builder.fields.linkUrl")}
               type="url"
-              placeholder="https://..."
+              placeholder={t("builder.fields.publicationUrlPlaceholder")}
               value={item.url.href}
               onInput={(v) => update({ url: { ...item.url, href: v } })}
             />
@@ -344,7 +349,7 @@ export function EducationEditor() {
   return (
     <SectionEditor<Education>
       sectionKey="education"
-      title="Education"
+      title={t("builder.sections.education")}
       icon="M12 14l9-5-9-5-9 5 9 5z M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"
       createItem={() => ({
         id: generateId(),
@@ -362,42 +367,42 @@ export function EducationEditor() {
       renderItem={(item, _index, update) => (
         <div class="space-y-4">
           <Input
-            label="Institution"
-            placeholder="University of California"
+            label={t("builder.fields.institution")}
+            placeholder={t("builder.fields.institutionPlaceholder")}
             value={item.institution}
             onInput={(v) => update({ institution: v })}
           />
           <div class="grid grid-cols-2 gap-4">
             <Input
-              label="Area of Study"
-              placeholder="Computer Science"
+              label={t("builder.fields.area")}
+              placeholder={t("builder.fields.areaPlaceholder")}
               value={item.area}
               onInput={(v) => update({ area: v })}
             />
             <Input
-              label="Degree"
-              placeholder="Bachelor of Science"
+              label={t("builder.fields.degree")}
+              placeholder={t("builder.fields.degreePlaceholder")}
               value={item.studyType}
               onInput={(v) => update({ studyType: v })}
             />
           </div>
           <div class="grid grid-cols-2 gap-4">
             <Input
-              label="Date"
-              placeholder="2016 - 2020"
+              label={t("builder.fields.date")}
+              placeholder={t("builder.fields.educationDatePlaceholder")}
               value={item.date}
               onInput={(v) => update({ date: v })}
             />
             <Input
-              label="Score/GPA"
-              placeholder="3.8 / 4.0"
+              label={t("builder.fields.score")}
+              placeholder={t("builder.fields.scorePlaceholder")}
               value={item.score}
               onInput={(v) => update({ score: v })}
             />
           </div>
           <RichTextEditor
-            label="Summary"
-            placeholder="Notable achievements, activities..."
+            label={t("builder.fields.summary")}
+            placeholder={t("builder.fields.educationSummaryPlaceholder")}
             value={item.summary}
             onInput={(v) => update({ summary: v })}
           />
@@ -411,7 +416,7 @@ export function SkillsEditor() {
   return (
     <SectionEditor<Skill>
       sectionKey="skills"
-      title="Skills"
+      title={t("builder.sections.skills")}
       icon="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
       createItem={() => ({
         id: generateId(),
@@ -426,14 +431,14 @@ export function SkillsEditor() {
       renderItem={(item, _index, update) => (
         <div class="space-y-4">
           <Input
-            label="Skill Name"
-            placeholder="Web Development"
+            label={t("builder.fields.skillName")}
+            placeholder={t("builder.fields.skillNamePlaceholder")}
             value={item.name}
             onInput={(v) => update({ name: v })}
           />
           <Input
-            label="Description"
-            placeholder="Brief description"
+            label={t("builder.fields.description")}
+            placeholder={t("builder.fields.descriptionPlaceholder")}
             value={item.description}
             onInput={(v) => update({ description: v })}
           />
@@ -451,8 +456,8 @@ export function SkillsEditor() {
             />
           </div>
           <Input
-            label="Keywords"
-            placeholder="React, TypeScript, Node.js (comma separated)"
+            label={t("builder.fields.keywords")}
+            placeholder={t("builder.fields.keywordsPlaceholder")}
             value={item.keywords.join(", ")}
             onInput={(v) =>
               update({
@@ -473,7 +478,7 @@ export function ProjectsEditor() {
   return (
     <SectionEditor<Project>
       sectionKey="projects"
-      title="Projects"
+      title={t("builder.sections.projects")}
       icon="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
       createItem={() => ({
         id: generateId(),
@@ -490,32 +495,32 @@ export function ProjectsEditor() {
       renderItem={(item, _index, update) => (
         <div class="space-y-4">
           <Input
-            label="Project Name"
-            placeholder="My Awesome Project"
+            label={t("builder.fields.projectName")}
+            placeholder={t("builder.fields.projectNamePlaceholder")}
             value={item.name}
             onInput={(v) => update({ name: v })}
           />
           <Input
-            label="Description"
-            placeholder="A brief one-liner"
+            label={t("builder.fields.description")}
+            placeholder={t("builder.fields.projectDescriptionPlaceholder")}
             value={item.description}
             onInput={(v) => update({ description: v })}
           />
           <Input
-            label="Date"
-            placeholder="2023"
+            label={t("builder.fields.date")}
+            placeholder={t("builder.fields.publicationDatePlaceholder")}
             value={item.date}
             onInput={(v) => update({ date: v })}
           />
           <RichTextEditor
-            label="Summary"
-            placeholder="Detailed description..."
+            label={t("builder.fields.summary")}
+            placeholder={t("builder.fields.projectSummaryPlaceholder")}
             value={item.summary}
             onInput={(v) => update({ summary: v })}
           />
           <Input
-            label="Technologies"
-            placeholder="React, Rust, PostgreSQL (comma separated)"
+            label={t("builder.fields.technologies")}
+            placeholder={t("builder.fields.technologiesPlaceholder")}
             value={item.keywords.join(", ")}
             onInput={(v) =>
               update({
@@ -528,15 +533,15 @@ export function ProjectsEditor() {
           />
           <div class="grid grid-cols-2 gap-4">
             <Input
-              label="Link Label"
-              placeholder="View Project"
+              label={t("builder.fields.linkLabel")}
+              placeholder={t("builder.fields.viewProjectPlaceholder")}
               value={item.url.label}
               onInput={(v) => update({ url: { ...item.url, label: v } })}
             />
             <Input
-              label="Link URL"
+              label={t("builder.fields.linkUrl")}
               type="url"
-              placeholder="https://..."
+              placeholder={t("builder.fields.publicationUrlPlaceholder")}
               value={item.url.href}
               onInput={(v) => update({ url: { ...item.url, href: v } })}
             />
@@ -551,7 +556,7 @@ export function ProfilesEditor() {
   return (
     <SectionEditor<Profile>
       sectionKey="profiles"
-      title="Profiles"
+      title={t("builder.sections.profiles")}
       icon="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
       createItem={() => ({
         id: generateId(),
@@ -567,35 +572,35 @@ export function ProfilesEditor() {
         <div class="space-y-4">
           <div class="grid grid-cols-2 gap-4">
             <Input
-              label="Network"
-              placeholder="GitHub"
+              label={t("builder.fields.network")}
+              placeholder={t("builder.fields.networkPlaceholder")}
               value={item.network}
               onInput={(v) => update({ network: v, icon: v.toLowerCase() })}
             />
             <Input
-              label="Username"
-              placeholder="johndoe"
+              label={t("builder.fields.username")}
+              placeholder={t("builder.fields.usernamePlaceholder")}
               value={item.username}
               onInput={(v) => update({ username: v })}
             />
           </div>
           <Input
-            label="Icon"
-            placeholder="github (auto-set from network)"
+            label={t("builder.fields.icon")}
+            placeholder={t("builder.fields.iconPlaceholder")}
             value={item.icon}
             onInput={(v) => update({ icon: v })}
           />
           <div class="grid grid-cols-2 gap-4">
             <Input
-              label="Link Label"
-              placeholder="Profile"
+              label={t("builder.fields.linkLabel")}
+              placeholder={t("builder.fields.profileLinkPlaceholder")}
               value={item.url.label}
               onInput={(v) => update({ url: { ...item.url, label: v } })}
             />
             <Input
-              label="Link URL"
+              label={t("builder.fields.linkUrl")}
               type="url"
-              placeholder="https://github.com/johndoe"
+              placeholder={t("builder.fields.profileUrlPlaceholder")}
               value={item.url.href}
               onInput={(v) => update({ url: { ...item.url, href: v } })}
             />
@@ -610,7 +615,7 @@ export function AwardsEditor() {
   return (
     <SectionEditor<Award>
       sectionKey="awards"
-      title="Awards"
+      title={t("builder.sections.awards")}
       icon="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
       createItem={() => ({
         id: generateId(),
@@ -626,42 +631,42 @@ export function AwardsEditor() {
       renderItem={(item, _index, update) => (
         <div class="space-y-4">
           <Input
-            label="Title"
-            placeholder="Best Paper Award"
+            label={t("builder.fields.awardTitle")}
+            placeholder={t("builder.fields.awardTitlePlaceholder")}
             value={item.title}
             onInput={(v) => update({ title: v })}
           />
           <div class="grid grid-cols-2 gap-4">
             <Input
-              label="Awarder"
-              placeholder="IEEE"
+              label={t("builder.fields.awarder")}
+              placeholder={t("builder.fields.publisherPlaceholder")}
               value={item.awarder}
               onInput={(v) => update({ awarder: v })}
             />
             <Input
-              label="Date"
-              placeholder="2023"
+              label={t("builder.fields.date")}
+              placeholder={t("builder.fields.publicationDatePlaceholder")}
               value={item.date}
               onInput={(v) => update({ date: v })}
             />
           </div>
           <RichTextEditor
-            label="Summary"
-            placeholder="Describe the award and why you received it..."
+            label={t("builder.fields.summary")}
+            placeholder={t("builder.fields.awardSummaryPlaceholder")}
             value={item.summary}
             onInput={(v) => update({ summary: v })}
           />
           <div class="grid grid-cols-2 gap-4">
             <Input
-              label="Link Label"
-              placeholder="Award page"
+              label={t("builder.fields.linkLabel")}
+              placeholder={t("builder.fields.awardLinkPlaceholder")}
               value={item.url.label}
               onInput={(v) => update({ url: { ...item.url, label: v } })}
             />
             <Input
-              label="Link URL"
+              label={t("builder.fields.linkUrl")}
               type="url"
-              placeholder="https://..."
+              placeholder={t("builder.fields.publicationUrlPlaceholder")}
               value={item.url.href}
               onInput={(v) => update({ url: { ...item.url, href: v } })}
             />
@@ -676,7 +681,7 @@ export function CertificationsEditor() {
   return (
     <SectionEditor<Certification>
       sectionKey="certifications"
-      title="Certifications"
+      title={t("builder.sections.certifications")}
       icon="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
       createItem={() => ({
         id: generateId(),
@@ -693,41 +698,41 @@ export function CertificationsEditor() {
         <div class="space-y-4">
           <Input
             label="Certification Name"
-            placeholder="AWS Solutions Architect"
+            placeholder={t("builder.fields.certificationNamePlaceholder")}
             value={item.name}
             onInput={(v) => update({ name: v })}
           />
           <div class="grid grid-cols-2 gap-4">
             <Input
-              label="Issuer"
-              placeholder="Amazon Web Services"
+              label={t("builder.fields.issuer")}
+              placeholder={t("builder.fields.issuerPlaceholder")}
               value={item.issuer}
               onInput={(v) => update({ issuer: v })}
             />
             <Input
-              label="Date"
-              placeholder="2023"
+              label={t("builder.fields.date")}
+              placeholder={t("builder.fields.publicationDatePlaceholder")}
               value={item.date}
               onInput={(v) => update({ date: v })}
             />
           </div>
           <RichTextEditor
-            label="Summary"
+            label={t("builder.fields.summary")}
             placeholder="Details about the certification..."
             value={item.summary}
             onInput={(v) => update({ summary: v })}
           />
           <div class="grid grid-cols-2 gap-4">
             <Input
-              label="Link Label"
+              label={t("builder.fields.linkLabel")}
               placeholder="Verify credential"
               value={item.url.label}
               onInput={(v) => update({ url: { ...item.url, label: v } })}
             />
             <Input
-              label="Link URL"
+              label={t("builder.fields.linkUrl")}
               type="url"
-              placeholder="https://..."
+              placeholder={t("builder.fields.publicationUrlPlaceholder")}
               value={item.url.href}
               onInput={(v) => update({ url: { ...item.url, href: v } })}
             />
@@ -742,7 +747,7 @@ export function PublicationsEditor() {
   return (
     <SectionEditor<Publication>
       sectionKey="publications"
-      title="Publications"
+      title={t("builder.sections.publications")}
       icon="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
       createItem={() => ({
         id: generateId(),
@@ -765,33 +770,33 @@ export function PublicationsEditor() {
           />
           <div class="grid grid-cols-2 gap-4">
             <Input
-              label="Publisher"
+              label={t("builder.fields.publisher")}
               placeholder="IEEE / ACM / Springer"
               value={item.publisher}
               onInput={(v) => update({ publisher: v })}
             />
             <Input
-              label="Date"
-              placeholder="2023"
+              label={t("builder.fields.date")}
+              placeholder={t("builder.fields.publicationDatePlaceholder")}
               value={item.date}
               onInput={(v) => update({ date: v })}
             />
           </div>
           <RichTextEditor
-            label="Summary"
-            placeholder="Abstract or description of the publication..."
+            label={t("builder.fields.summary")}
+            placeholder={t("builder.fields.publicationSummaryPlaceholder")}
             value={item.summary}
             onInput={(v) => update({ summary: v })}
           />
           <div class="grid grid-cols-2 gap-4">
             <Input
-              label="Link Label"
+              label={t("builder.fields.linkLabel")}
               placeholder="Read paper"
               value={item.url.label}
               onInput={(v) => update({ url: { ...item.url, label: v } })}
             />
             <Input
-              label="Link URL"
+              label={t("builder.fields.linkUrl")}
               type="url"
               placeholder="https://doi.org/..."
               value={item.url.href}
@@ -808,7 +813,7 @@ export function LanguagesEditor() {
   return (
     <SectionEditor<Language>
       sectionKey="languages"
-      title="Languages"
+      title={t("builder.sections.languages")}
       icon="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"
       createItem={() => ({
         id: generateId(),
@@ -822,8 +827,8 @@ export function LanguagesEditor() {
       renderItem={(item, _index, update) => (
         <div class="space-y-4">
           <Input
-            label="Language"
-            placeholder="English"
+            label={t("builder.fields.languageName")}
+            placeholder={t("builder.fields.languageNamePlaceholder")}
             value={item.name}
             onInput={(v) => update({ name: v })}
           />
@@ -856,7 +861,7 @@ export function InterestsEditor() {
   return (
     <SectionEditor<Interest>
       sectionKey="interests"
-      title="Interests"
+      title={t("builder.sections.interests")}
       icon="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
       createItem={() => ({
         id: generateId(),
@@ -869,13 +874,13 @@ export function InterestsEditor() {
       renderItem={(item, _index, update) => (
         <div class="space-y-4">
           <Input
-            label="Interest"
+            label={t("builder.fields.interestName")}
             placeholder="Open Source"
             value={item.name}
             onInput={(v) => update({ name: v })}
           />
           <Input
-            label="Keywords"
+            label={t("builder.fields.keywords")}
             placeholder="Linux, Rust, WebAssembly (comma separated)"
             value={item.keywords.join(", ")}
             onInput={(v) =>
@@ -897,7 +902,7 @@ export function VolunteerEditor() {
   return (
     <SectionEditor<Volunteer>
       sectionKey="volunteer"
-      title="Volunteer"
+      title={t("builder.sections.volunteer")}
       icon="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
       createItem={() => ({
         id: generateId(),
@@ -915,13 +920,13 @@ export function VolunteerEditor() {
         <div class="space-y-4">
           <div class="grid grid-cols-2 gap-4">
             <Input
-              label="Position"
+              label={t("builder.fields.position")}
               placeholder="Volunteer Coordinator"
               value={item.position}
               onInput={(v) => update({ position: v })}
             />
             <Input
-              label="Organization"
+              label={t("builder.fields.organization")}
               placeholder="Red Cross"
               value={item.organization}
               onInput={(v) => update({ organization: v })}
@@ -929,35 +934,35 @@ export function VolunteerEditor() {
           </div>
           <div class="grid grid-cols-2 gap-4">
             <Input
-              label="Location"
+              label={t("builder.fields.location")}
               placeholder="New York, NY"
               value={item.location}
               onInput={(v) => update({ location: v })}
             />
             <Input
-              label="Date"
-              placeholder="Jan 2020 - Present"
+              label={t("builder.fields.date")}
+              placeholder={t("builder.fields.datePlaceholder")}
               value={item.date}
               onInput={(v) => update({ date: v })}
             />
           </div>
           <RichTextEditor
-            label="Summary"
+            label={t("builder.fields.summary")}
             placeholder="Describe your volunteer activities and impact..."
             value={item.summary}
             onInput={(v) => update({ summary: v })}
           />
           <div class="grid grid-cols-2 gap-4">
             <Input
-              label="Link Label"
+              label={t("builder.fields.linkLabel")}
               placeholder="Organization website"
               value={item.url.label}
               onInput={(v) => update({ url: { ...item.url, label: v } })}
             />
             <Input
-              label="Link URL"
+              label={t("builder.fields.linkUrl")}
               type="url"
-              placeholder="https://..."
+              placeholder={t("builder.fields.publicationUrlPlaceholder")}
               value={item.url.href}
               onInput={(v) => update({ url: { ...item.url, href: v } })}
             />
@@ -972,7 +977,7 @@ export function ReferencesEditor() {
   return (
     <SectionEditor<Reference>
       sectionKey="references"
-      title="References"
+      title={t("builder.sections.references")}
       icon="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
       createItem={() => ({
         id: generateId(),
@@ -987,34 +992,34 @@ export function ReferencesEditor() {
       renderItem={(item, _index, update) => (
         <div class="space-y-4">
           <Input
-            label="Name"
-            placeholder="Jane Smith"
+            label={t("builder.fields.customItemName")}
+            placeholder={t("builder.fields.referenceNamePlaceholder")}
             value={item.name}
             onInput={(v) => update({ name: v })}
           />
           <Input
-            label="Description"
+            label={t("builder.fields.description")}
             placeholder="Former Manager at Acme Inc."
             value={item.description}
             onInput={(v) => update({ description: v })}
           />
           <RichTextEditor
-            label="Summary"
+            label={t("builder.fields.summary")}
             placeholder="Reference details or testimonial..."
             value={item.summary}
             onInput={(v) => update({ summary: v })}
           />
           <div class="grid grid-cols-2 gap-4">
             <Input
-              label="Link Label"
-              placeholder="LinkedIn"
+              label={t("builder.fields.linkLabel")}
+              placeholder={t("import.linkedin")}
               value={item.url.label}
               onInput={(v) => update({ url: { ...item.url, label: v } })}
             />
             <Input
-              label="Link URL"
+              label={t("builder.fields.linkUrl")}
               type="url"
-              placeholder="https://..."
+              placeholder={t("builder.fields.publicationUrlPlaceholder")}
               value={item.url.href}
               onInput={(v) => update({ url: { ...item.url, href: v } })}
             />

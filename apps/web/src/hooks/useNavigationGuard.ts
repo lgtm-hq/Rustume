@@ -1,5 +1,6 @@
 import { type Accessor, createEffect, onCleanup } from "solid-js";
 import { useBeforeLeave } from "@solidjs/router";
+import { translate } from "../i18n/translate";
 
 /**
  * Blocks navigation when the provided condition is true.
@@ -7,11 +8,13 @@ import { useBeforeLeave } from "@solidjs/router";
  * browser-level events (tab close, refresh, back button).
  */
 export function useNavigationGuard(isDirty: Accessor<boolean>) {
+  const message = () => translate("editor.navigationGuard.message");
+
   // Guard in-app route changes
   useBeforeLeave((e) => {
     if (isDirty() && !e.defaultPrevented) {
       e.preventDefault();
-      if (window.confirm("You have unsaved changes. Leave anyway?")) {
+      if (window.confirm(message())) {
         e.retry(true);
       }
     }

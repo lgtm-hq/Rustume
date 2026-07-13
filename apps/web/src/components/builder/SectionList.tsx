@@ -1,8 +1,10 @@
+import { useI18n } from "../../i18n";
 import { For, Show } from "solid-js";
 import { resumeStore, type LayoutSectionKey } from "../../stores/resume";
 import { SECTIONS } from "./constants";
 
 export function SectionList() {
+  const { t } = useI18n();
   const { store, toggleSectionVisibility, addCustomSection } = resumeStore;
 
   const handleAddCustomSection = () => {
@@ -47,14 +49,16 @@ export function SectionList() {
           </svg>
         </div>
         <div>
-          <h2 class="font-display text-lg font-semibold text-ink">Sections</h2>
+          <h2 class="font-display text-lg font-semibold text-ink">
+            {t("builder.sectionPanel.title")}
+          </h2>
           <p class="text-sm text-stone">Toggle section visibility</p>
         </div>
         <button
           type="button"
           class="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-stone transition-colors hover:bg-surface hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
-          title="Add custom section"
-          aria-label="Add custom section"
+          title={t("builder.customSection.addSection")}
+          aria-label={t("builder.customSection.addSection")}
           onClick={handleAddCustomSection}
         >
           <svg

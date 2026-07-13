@@ -1,3 +1,4 @@
+import { translate } from "../i18n/translate";
 import { createStore } from "solid-js/store";
 import type { ThemeFlavor, ThemeTokens } from "@lgtm-hq/turbo-themes";
 import { toast } from "../components/ui";
@@ -116,7 +117,7 @@ export function useEditorTheme() {
       setState("flavorsReady", true);
 
       if (state.savedThemeLoadFailed) {
-        toast.warning("Could not load saved theme preference");
+        toast.warning(translate("theme.toasts.loadFailed"));
         setState("savedThemeLoadFailed", false);
       }
 
@@ -140,7 +141,7 @@ export function useEditorTheme() {
             localStorage.setItem(STORAGE_KEY, fallbackId);
           } catch {
             console.error("Failed to save theme to localStorage");
-            toast.warning("Could not save theme preference");
+            toast.warning(translate("theme.toasts.saveFailed"));
           }
         }
       }
@@ -166,7 +167,7 @@ export function useEditorTheme() {
         localStorage.setItem(STORAGE_KEY, themeId);
       } catch {
         console.error("Failed to save theme to localStorage");
-        toast.warning("Could not save theme preference");
+        toast.warning(translate("theme.toasts.saveFailed"));
       }
       applyTheme(theme);
     },

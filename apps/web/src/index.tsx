@@ -2,6 +2,7 @@ import { render } from "solid-js/web";
 import { Router, Route } from "@solidjs/router";
 import { lazy } from "solid-js";
 import App from "./App";
+import { I18nProvider } from "./i18n";
 import "./index.css";
 
 const Home = lazy(() => import("./pages/Home"));
@@ -17,12 +18,14 @@ if (!root) {
 
 render(
   () => (
-    <Router root={App}>
-      <Route path="/" component={Home} />
-      <Route path="/account" component={Account} />
-      <Route path="/edit/:id" component={Editor} />
-      <Route path="*404" component={NotFound} />
-    </Router>
+    <I18nProvider>
+      <Router root={App}>
+        <Route path="/" component={Home} />
+        <Route path="/account" component={Account} />
+        <Route path="/edit/:id" component={Editor} />
+        <Route path="*404" component={NotFound} />
+      </Router>
+    </I18nProvider>
   ),
   root,
 );

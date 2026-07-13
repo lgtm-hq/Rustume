@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n";
 import { createSignal, Show } from "solid-js";
 import { Button, Modal, toast } from "../ui";
 import { uiStore } from "../../stores/ui";
@@ -72,6 +73,7 @@ function uint8ArrayToBase64(data: Uint8Array): string {
 }
 
 export function ImportModal() {
+  const { t } = useI18n();
   const { store: ui, closeModal } = uiStore;
   const { importResume } = resumeStore;
 
@@ -130,7 +132,7 @@ export function ImportModal() {
             // JSON Resume format
             parsed = parseJsonResume(text);
           } else {
-            throw new Error("Unrecognized resume format");
+            throw new Error(t("import.unrecognized"));
           }
         } else {
           // Use server API
@@ -150,12 +152,12 @@ export function ImportModal() {
         importResume(normalizeImportedResume(parsed));
       }
 
-      toast.success("Resume imported successfully");
+      toast.success(t("import.toasts.success"));
       closeModal();
     } catch (e) {
       console.error("Import error:", e);
-      toast.error(e instanceof Error ? e.message : "Failed to import file");
-      setError(e instanceof Error ? e.message : "Failed to import file");
+      toast.error(e instanceof Error ? e.message : t("import.toasts.failed"));
+      setError(e instanceof Error ? e.message : t("import.toasts.failed"));
     } finally {
       setIsLoading(false);
     }
@@ -192,8 +194,8 @@ export function ImportModal() {
     <Modal
       open={isOpen()}
       onOpenChange={(open) => !open && closeModal()}
-      title="Import Resume"
-      description="Import from JSON Resume, Reactive Resume, or LinkedIn export"
+      title={t("import.title")}
+      description={t("import.description")}
     >
       <div class="space-y-4">
         {/* Drop Zone */}

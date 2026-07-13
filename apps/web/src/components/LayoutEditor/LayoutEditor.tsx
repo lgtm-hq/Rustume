@@ -9,7 +9,7 @@ import {
 import type { DragEvent } from "@thisbeyond/solid-dnd";
 import { resumeStore } from "../../stores/resume";
 import { toast } from "../ui";
-import { SECTIONS } from "../builder/constants";
+import { sectionDisplayName, SECTIONS } from "../builder/constants";
 import { DroppableColumn } from "./DroppableColumn";
 import { ColumnControls } from "./ColumnControls";
 
@@ -155,9 +155,7 @@ export function LayoutEditor() {
 
   /** Look up the human-friendly label for a section ID. */
   function sectionLabel(id: string): string {
-    return (
-      SECTIONS.find((s) => s.key === id)?.name ?? store.resume?.sections.custom[id]?.name ?? id
-    );
+    return store.resume?.sections.custom[id]?.name ?? sectionDisplayName(id);
   }
 
   const sortableIds = () => columns().flat();

@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n";
 import { createSignal, Show } from "solid-js";
 import { Button, Modal, toast } from "../ui";
 import { uiStore } from "../../stores/ui";
@@ -6,6 +7,7 @@ import { downloadPdf } from "../../api/render";
 import { resumeToJson, isWasmReady } from "../../wasm";
 
 export function ExportModal() {
+  const { t } = useI18n();
   const { store: ui, closeModal } = uiStore;
   const { store } = resumeStore;
 
@@ -15,7 +17,7 @@ export function ExportModal() {
   const isOpen = () => ui.modal === "export";
 
   const getFileName = () => {
-    const name = store.resume?.basics.name || "resume";
+    const name = store.resume?.basics.name || t("cloudImport.resume");
     // Remove characters that are problematic in filenames
     return (
       name
@@ -23,7 +25,7 @@ export function ExportModal() {
         .replace(/[<>:"/\\|?*]/g, "")
         .replace(/\s+/g, "-")
         .replace(/-+/g, "-")
-        .replace(/^-|-$/g, "") || "resume"
+        .replace(/^-|-$/g, "") || t("cloudImport.resume")
     );
   };
 
@@ -35,12 +37,12 @@ export function ExportModal() {
 
     try {
       await downloadPdf(store.resume, `${getFileName()}.pdf`);
-      toast.success("PDF exported successfully");
+      toast.success(t("export.toasts.pdfSuccess"));
       closeModal();
     } catch (e) {
       console.error("Export error:", e);
-      toast.error(e instanceof Error ? e.message : "Failed to export PDF");
-      setError(e instanceof Error ? e.message : "Failed to export PDF");
+      toast.error(e instanceof Error ? e.message : t("export.toasts.pdfFailed"));
+      setError(e instanceof Error ? e.message : t("export.toasts.pdfFailed"));
     } finally {
       setIsExporting(false);
     }
@@ -69,12 +71,12 @@ export function ExportModal() {
       document.body.removeChild(a);
 
       URL.revokeObjectURL(url);
-      toast.success("JSON exported successfully");
+      toast.success(t("export.toasts.jsonSuccess"));
       closeModal();
     } catch (e) {
       console.error("Export error:", e);
-      toast.error(e instanceof Error ? e.message : "Failed to export JSON");
-      setError(e instanceof Error ? e.message : "Failed to export JSON");
+      toast.error(e instanceof Error ? e.message : t("export.toasts.jsonFailed"));
+      setError(e instanceof Error ? e.message : t("export.toasts.jsonFailed"));
     }
   };
 
@@ -82,8 +84,8 @@ export function ExportModal() {
     <Modal
       open={isOpen()}
       onOpenChange={(open) => !open && closeModal()}
-      title="Export Resume"
-      description="Download your resume in various formats"
+      title={t("export.title")}
+      description={t("export.description")}
     >
       <div class="space-y-4">
         {/* Export Options */}

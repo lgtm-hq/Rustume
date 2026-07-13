@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n";
 import { createResource, For, Show, createMemo, onMount } from "solid-js";
 import { DropdownMenu } from "@kobalte/core/dropdown-menu";
 import { editorThemeStore, loadThemeFlavors, type ThemeFlavor } from "../../stores/editorTheme";
@@ -9,6 +10,7 @@ interface ThemeGroup {
 }
 
 export function EditorThemeSelector() {
+  const { t } = useI18n();
   const [flavors] = createResource(loadThemeFlavors);
 
   onMount(() => {
@@ -23,8 +25,8 @@ export function EditorThemeSelector() {
     const light = loaded.filter((flavor) => flavor.appearance === "light");
     const dark = loaded.filter((flavor) => flavor.appearance === "dark");
     return [
-      { label: "Light", themes: light },
-      { label: "Dark", themes: dark },
+      { label: t("theme.selector.light"), themes: light },
+      { label: t("theme.selector.dark"), themes: dark },
     ];
   });
 
@@ -52,7 +54,7 @@ export function EditorThemeSelector() {
             />
           </div>
           <span class="font-mono text-xs text-stone hidden sm:inline">
-            {currentTheme()?.label ?? "Theme"}
+            {currentTheme()?.label ?? t("theme.editor.title")}
           </span>
           <svg class="w-3 h-3 text-stone" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path

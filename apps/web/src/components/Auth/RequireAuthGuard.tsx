@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n";
 import { useLocation } from "@solidjs/router";
 import { Show, type ParentComponent } from "solid-js";
 import Unauthorized from "../../pages/Unauthorized";
@@ -20,6 +21,7 @@ function isProtectedPath(pathname: string): boolean {
 
 /** Block protected routes with a sign-in page when hosted require-auth mode is active. */
 export const RequireAuthGuard: ParentComponent = (props) => {
+  const { t } = useI18n();
   const location = useLocation();
   const { state } = authStore;
 
@@ -35,7 +37,7 @@ export const RequireAuthGuard: ParentComponent = (props) => {
       when={!state.loading}
       fallback={
         <div class="flex min-h-[calc(100vh-3.5rem)] items-center justify-center">
-          <Spinner class="h-6 w-6 text-accent" ariaLabel="Loading authentication" />
+          <Spinner class="h-6 w-6 text-accent" ariaLabel={t("auth.loading")} />
         </div>
       }
     >

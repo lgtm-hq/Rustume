@@ -1,29 +1,31 @@
 import { For, Show, createSignal } from "solid-js";
 import { A, useNavigate } from "@solidjs/router";
 import { Button, Spinner, toast } from "../components/ui";
+import { useI18n } from "../i18n";
+import { translate } from "../i18n/translate";
 import { useResumeList } from "../stores/persistence";
 import { authStore } from "../stores/auth";
 import { generateId } from "../wasm/types";
+import type { I18nContextValue } from "../i18n";
 
 /** Format a Date as a human-readable relative or absolute string. */
-function formatUpdatedAt(date: Date): string {
+function formatUpdatedAt(date: Date, t: I18nContextValue["t"]): string {
   const now = Date.now();
   const diff = now - date.getTime();
 
-  // Guard against future dates (e.g. clock skew)
-  if (diff < 0) return "just now";
-  if (diff < 60_000) return "just now";
+  if (diff < 0) return t("home.time.justNow");
+  if (diff < 60_000) return t("home.time.justNow");
   if (diff < 3_600_000) {
     const mins = Math.floor(diff / 60_000);
-    return `${mins}m ago`;
+    return t("home.time.minutesAgo", { count: mins });
   }
   if (diff < 86_400_000) {
     const hrs = Math.floor(diff / 3_600_000);
-    return `${hrs}h ago`;
+    return t("home.time.hoursAgo", { count: hrs });
   }
   if (diff < 604_800_000) {
     const days = Math.floor(diff / 86_400_000);
-    return `${days}d ago`;
+    return t("home.time.daysAgo", { count: days });
   }
   return date.toLocaleDateString(undefined, {
     month: "short",
@@ -33,6 +35,7 @@ function formatUpdatedAt(date: Date): string {
 }
 
 export default function Home() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const { state: authState, signIn } = authStore;
   const { resumes, loading, deleteResume, duplicateResume, renameResume, refresh } =
@@ -60,15 +63,15 @@ export default function Home() {
     event.preventDefault();
     event.stopPropagation();
 
-    if (!confirm("Are you sure you want to delete this resume?")) return;
+    if (!confirm(t("common.confirm.deleteResume"))) return;
 
     setDeletingId(id);
     try {
       await deleteResume(id);
-      toast.success("Resume deleted");
+      toast.success(translate("home.toasts.deleted"));
     } catch (err) {
       console.error("Failed to delete:", err);
-      toast.error(err instanceof Error ? err.message : "Failed to delete resume");
+      toast.error(err instanceof Error ? err.message : translate("home.toasts.deleteFailed"));
     } finally {
       setDeletingId(null);
     }
@@ -81,10 +84,10 @@ export default function Home() {
     setDuplicatingId(id);
     try {
       await duplicateResume(id);
-      toast.success("Resume duplicated");
+      toast.success(translate("home.toasts.duplicated"));
     } catch (err) {
       console.error("Failed to duplicate:", err);
-      toast.error(err instanceof Error ? err.message : "Failed to duplicate resume");
+      toast.error(err instanceof Error ? err.message : translate("home.toasts.duplicateFailed"));
     } finally {
       setDuplicatingId(null);
     }
@@ -102,10 +105,10 @@ export default function Home() {
     if (trimmed) {
       try {
         await renameResume(id, trimmed);
-        toast.success("Resume renamed");
+        toast.success(translate("home.toasts.renamed"));
       } catch (err) {
         console.error("Failed to rename:", err);
-        toast.error(err instanceof Error ? err.message : "Failed to rename resume");
+        toast.error(err instanceof Error ? err.message : translate("home.toasts.renameFailed"));
         return;
       }
     }
@@ -124,11 +127,8 @@ export default function Home() {
         <div class="border-b border-border bg-surface/60">
           <div class="max-w-4xl mx-auto px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <p class="text-sm font-medium text-ink">Working locally on this device</p>
-              <p class="text-sm text-stone mt-1">
-                Sign in to Rustume Cloud to sync resumes across devices. Local copies stay here
-                until you import them.
-              </p>
+              <p class="text-sm font-medium text-ink">{t("home.cloudCta.title")}</p>
+              <p class="text-sm text-stone mt-1">{t("home.cloudCta.description")}</p>
             </div>
             <Button
               variant="secondary"
@@ -138,25 +138,24 @@ export default function Home() {
               loading={signingIn()}
               data-testid="home-cloud-sign-in"
             >
-              Sign in to sync
+              {t("common.actions.signIn")}
             </Button>
           </div>
         </div>
       </Show>
 
-      {/* Hero Section */}
       <div class="py-16 px-4">
         <div class="max-w-4xl mx-auto text-center">
           <h1 class="font-display text-4xl md:text-5xl font-bold text-ink mb-4 animate-slide-up">
-            Build your resume
+            {t("home.hero.title")}
             <br />
-            <span class="text-accent">with precision</span>
+            <span class="text-accent">{t("home.hero.titleAccent")}</span>
           </h1>
           <p
             class="text-lg text-stone max-w-xl mx-auto mb-8 animate-slide-up"
             style={{ "animation-delay": "50ms" }}
           >
-            Privacy-first, offline-capable resume builder. Your data stays on your device.
+            {t("home.hero.subtitle")}
           </p>
           <div
             class="flex items-center justify-center gap-4 animate-slide-up"
@@ -177,22 +176,21 @@ export default function Home() {
                   d="M12 4v16m8-8H4"
                 />
               </svg>
-              Create New Resume
+              {t("home.hero.createNew")}
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Resume List */}
       <div class="max-w-4xl mx-auto px-4 pb-16">
         <div class="flex items-center justify-between mb-6">
-          <h2 class="font-display text-xl font-semibold text-ink">Your Resumes</h2>
+          <h2 class="font-display text-xl font-semibold text-ink">{t("home.list.title")}</h2>
           <button
             type="button"
             class="p-2 text-stone hover:text-ink hover:bg-surface rounded-lg transition-colors"
             onClick={refresh}
-            title="Refresh"
-            aria-label="Refresh resume list"
+            title={t("common.actions.refresh")}
+            aria-label={t("home.list.refreshAria")}
           >
             <svg
               class="w-5 h-5"
@@ -239,10 +237,12 @@ export default function Home() {
                     />
                   </svg>
                 </div>
-                <h3 class="font-display text-lg font-semibold text-ink mb-2">No resumes yet</h3>
-                <p class="text-stone text-sm mb-6">Create your first resume to get started</p>
+                <h3 class="font-display text-lg font-semibold text-ink mb-2">
+                  {t("home.list.emptyTitle")}
+                </h3>
+                <p class="text-stone text-sm mb-6">{t("home.list.emptyDescription")}</p>
                 <Button variant="secondary" onClick={handleNew}>
-                  Create Resume
+                  {t("home.list.createResume")}
                 </Button>
               </div>
             }
@@ -279,7 +279,7 @@ export default function Home() {
                               type="text"
                               class="font-body font-medium text-ink bg-surface border border-border
                                 rounded px-2 py-0.5 text-sm focus:outline-none focus:border-accent w-48"
-                              aria-label="Rename resume"
+                              aria-label={t("home.list.renameAria")}
                               value={renameValue()}
                               onInput={(e) => setRenameValue(e.currentTarget.value)}
                               onKeyDown={(e) => {
@@ -293,8 +293,8 @@ export default function Home() {
                               type="button"
                               class="p-1 text-accent hover:text-accent/80 transition-colors"
                               onClick={() => confirmRename(resume.id)}
-                              title="Confirm rename"
-                              aria-label="Confirm rename"
+                              title={t("home.list.confirmRename")}
+                              aria-label={t("home.list.confirmRename")}
                             >
                               <svg
                                 class="w-4 h-4"
@@ -315,8 +315,8 @@ export default function Home() {
                               type="button"
                               class="p-1 text-stone hover:text-ink transition-colors"
                               onClick={() => cancelRename()}
-                              title="Cancel rename"
-                              aria-label="Cancel rename"
+                              title={t("home.list.cancelRename")}
+                              aria-label={t("home.list.cancelRename")}
                             >
                               <svg
                                 class="w-4 h-4"
@@ -359,7 +359,9 @@ export default function Home() {
                             {resume.name}
                           </h3>
                           <p class="text-sm text-stone">
-                            Updated {formatUpdatedAt(resume.updatedAt)}
+                            {t("home.list.updated", {
+                              time: formatUpdatedAt(resume.updatedAt, t),
+                            })}
                           </p>
                         </div>
                       </A>
@@ -374,8 +376,8 @@ export default function Home() {
                         disabled={
                           deletingId() !== null || duplicatingId() !== null || renamingId() !== null
                         }
-                        title="Rename"
-                        aria-label="Rename resume"
+                        title={t("common.actions.rename")}
+                        aria-label={t("home.list.renameAria")}
                       >
                         <svg
                           class="w-5 h-5"
@@ -401,8 +403,8 @@ export default function Home() {
                         disabled={
                           deletingId() !== null || duplicatingId() !== null || renamingId() !== null
                         }
-                        title="Delete"
-                        aria-label="Delete resume"
+                        title={t("common.actions.delete")}
+                        aria-label={t("home.list.deleteAria")}
                       >
                         <Show
                           when={deletingId() !== resume.id}
@@ -433,8 +435,8 @@ export default function Home() {
                         disabled={
                           duplicatingId() !== null || deletingId() !== null || renamingId() !== null
                         }
-                        title="Duplicate"
-                        aria-label="Duplicate resume"
+                        title={t("common.actions.duplicate")}
+                        aria-label={t("home.list.duplicateAria")}
                       >
                         <Show
                           when={duplicatingId() !== resume.id}
@@ -457,7 +459,11 @@ export default function Home() {
                         </Show>
                       </button>
 
-                      <A href={`/edit/${resume.id}`} class="p-1" aria-label={`Edit ${resume.name}`}>
+                      <A
+                        href={`/edit/${resume.id}`}
+                        class="p-1"
+                        aria-label={t("home.list.editAria", { name: resume.name })}
+                      >
                         <svg
                           class="w-5 h-5 text-stone group-hover:text-accent transition-colors"
                           fill="none"
@@ -482,11 +488,10 @@ export default function Home() {
         </Show>
       </div>
 
-      {/* Features */}
       <div class="bg-surface border-t border-border py-16 px-4">
         <div class="max-w-4xl mx-auto">
           <h2 class="font-display text-2xl font-semibold text-ink text-center mb-12">
-            Why Rustume?
+            {t("home.features.title")}
           </h2>
 
           <div class="grid md:grid-cols-3 gap-8">
@@ -507,10 +512,10 @@ export default function Home() {
                   />
                 </svg>
               </div>
-              <h3 class="font-display font-semibold text-ink mb-2">Privacy First</h3>
-              <p class="text-sm text-stone">
-                Your data stays on your device. No accounts, no tracking.
-              </p>
+              <h3 class="font-display font-semibold text-ink mb-2">
+                {t("home.features.privacy.title")}
+              </h3>
+              <p class="text-sm text-stone">{t("home.features.privacy.description")}</p>
             </div>
 
             <div class="text-center">
@@ -530,10 +535,10 @@ export default function Home() {
                   />
                 </svg>
               </div>
-              <h3 class="font-display font-semibold text-ink mb-2">Works Offline</h3>
-              <p class="text-sm text-stone">
-                Edit anywhere. Install as a PWA for the best experience.
-              </p>
+              <h3 class="font-display font-semibold text-ink mb-2">
+                {t("home.features.offline.title")}
+              </h3>
+              <p class="text-sm text-stone">{t("home.features.offline.description")}</p>
             </div>
 
             <div class="text-center">
@@ -553,10 +558,10 @@ export default function Home() {
                   />
                 </svg>
               </div>
-              <h3 class="font-display font-semibold text-ink mb-2">Lightning Fast</h3>
-              <p class="text-sm text-stone">
-                Built with Rust and WebAssembly for native performance.
-              </p>
+              <h3 class="font-display font-semibold text-ink mb-2">
+                {t("home.features.performance.title")}
+              </h3>
+              <p class="text-sm text-stone">{t("home.features.performance.description")}</p>
             </div>
           </div>
         </div>

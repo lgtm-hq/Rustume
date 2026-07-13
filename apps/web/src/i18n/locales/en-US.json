@@ -1,0 +1,621 @@
+{
+  "meta": {
+    "title": "Rustume",
+    "description": "Privacy-first resume builder"
+  },
+  "common": {
+    "actions": {
+      "add": "Add",
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "delete": "Delete",
+      "dismiss": "Dismiss",
+      "duplicate": "Duplicate",
+      "export": "Export",
+      "import": "Import",
+      "refresh": "Refresh",
+      "remove": "Remove",
+      "rename": "Rename",
+      "retry": "Retry",
+      "save": "Save",
+      "signIn": "Sign in to sync",
+      "signOut": "Sign out"
+    },
+    "status": {
+      "comingSoon": "Coming soon",
+      "importing": "Importing...",
+      "loading": "Loading...",
+      "offline": "Offline",
+      "saved": "Saved",
+      "saving": "Saving...",
+      "unsaved": "Unsaved",
+      "visible": "Visible"
+    },
+    "labels": {
+      "account": "Account",
+      "items": "{{ count }} items",
+      "noItemsYet": "No items yet",
+      "plan": "Plan: {{ plan }}",
+      "theme": "Theme",
+      "untitled": "Untitled"
+    },
+    "confirm": {
+      "deleteResume": "Are you sure you want to delete this resume?"
+    }
+  },
+  "app": {
+    "wasmNotice": {
+      "message": "Browser import features are using the server fallback because the WASM module did not load. Run make setup in development, or continue if you are using the hosted app."
+    }
+  },
+  "shell": {
+    "brand": "Rustume",
+    "saveStatus": {
+      "saved": "Saved",
+      "saving": "Saving...",
+      "unsaved": "Unsaved"
+    },
+    "offline": "Offline"
+  },
+  "auth": {
+    "loading": "Loading authentication",
+    "accountMenu": "Account menu",
+    "signInTitle": "Sign in to sync resumes across devices with Rustume Cloud",
+    "signedIn": "You're signed in to Rustume Cloud.",
+    "errors": {
+      "invalidState": "Sign-in was interrupted. Please try again.",
+      "authenticationFailed": "We couldn't sign you in. Please try again.",
+      "serverError": "Something went wrong on our end. Please try again later.",
+      "generic": "Sign-in failed. Please try again."
+    },
+    "unauthorized": {
+      "title": "Sign in required",
+      "description": "Rustume Cloud on this deployment requires an account. Sign in to open, edit, and sync your resumes across devices.",
+      "primaryAction": "Sign in to sync across devices",
+      "secondaryAction": "Learn about cloud accounts"
+    }
+  },
+  "home": {
+    "hero": {
+      "title": "Build your resume",
+      "titleAccent": "with precision",
+      "subtitle": "Privacy-first, offline-capable resume builder. Your data stays on your device.",
+      "createNew": "Create New Resume"
+    },
+    "cloudCta": {
+      "title": "Working locally on this device",
+      "description": "Sign in to Rustume Cloud to sync resumes across devices. Local copies stay here until you import them."
+    },
+    "list": {
+      "title": "Your Resumes",
+      "refreshAria": "Refresh resume list",
+      "emptyTitle": "No resumes yet",
+      "emptyDescription": "Create your first resume to get started",
+      "createResume": "Create Resume",
+      "updated": "Updated {{ time }}",
+      "renameAria": "Rename resume",
+      "confirmRename": "Confirm rename",
+      "cancelRename": "Cancel rename",
+      "deleteAria": "Delete resume",
+      "duplicateAria": "Duplicate resume",
+      "editAria": "Edit {{ name }}"
+    },
+    "time": {
+      "justNow": "just now",
+      "minutesAgo": "{{ count }}m ago",
+      "hoursAgo": "{{ count }}h ago",
+      "daysAgo": "{{ count }}d ago"
+    },
+    "features": {
+      "title": "Why Rustume?",
+      "privacy": {
+        "title": "Privacy First",
+        "description": "Your data stays on your device. No accounts, no tracking."
+      },
+      "offline": {
+        "title": "Works Offline",
+        "description": "Edit anywhere. Install as a PWA for the best experience."
+      },
+      "performance": {
+        "title": "Lightning Fast",
+        "description": "Built with Rust and WebAssembly for native performance."
+      }
+    },
+    "toasts": {
+      "deleted": "Resume deleted",
+      "deleteFailed": "Failed to delete resume",
+      "duplicated": "Resume duplicated",
+      "duplicateFailed": "Failed to duplicate resume",
+      "renamed": "Resume renamed",
+      "renameFailed": "Failed to rename resume"
+    }
+  },
+  "account": {
+    "title": "Account",
+    "loadingAria": "Loading account information",
+    "cloudDisabled": "Cloud accounts are only available on Rustume Cloud deployments.",
+    "signIn": {
+      "title": "Sign in to Rustume Cloud",
+      "requiredDescription": "Sign in is required to use Rustume Cloud on this deployment.",
+      "optionalDescription": "Sync resumes across devices with your Rustume Cloud account. Your local copies stay on this device until you choose to import them.",
+      "localOnly": "Prefer local-only?",
+      "continueWithoutSignIn": "Continue without signing in"
+    },
+    "profile": {
+      "description": "Manage your Rustume Cloud profile and sync settings."
+    },
+    "cloudSync": {
+      "title": "Cloud sync",
+      "description": "Resumes saved to your Rustume Cloud account are available on any signed-in device. Edits sync automatically while you're online."
+    },
+    "privacy": {
+      "title": "Privacy and data",
+      "descriptionBefore": "Rustume Cloud uses",
+      "descriptionAfter": "for authentication. Your email and name are stored by both WorkOS and Rustume to identify your account.",
+      "workosLink": "WorkOS AuthKit"
+    },
+    "language": {
+      "title": "Language",
+      "description": "Choose your preferred interface language. Changes apply immediately without reloading."
+    },
+    "export": {
+      "title": "Export data",
+      "description": "Download all cloud resumes for backup or migration to self-hosted Rustume.",
+      "json": "Download as JSON",
+      "pdf": "Download as PDF (ZIP)",
+      "jsonSuccess": "Resume export downloaded",
+      "pdfSuccess": "PDF export downloaded",
+      "jsonFailed": "Failed to export resumes",
+      "pdfFailed": "Failed to export PDFs"
+    },
+    "comingSoon": {
+      "billing": {
+        "title": "Billing",
+        "description": "Manage your subscription and payment details."
+      },
+      "e2e": {
+        "title": "End-to-end encryption",
+        "description": "Optional client-side encryption for resume content."
+      }
+    },
+    "dangerZone": {
+      "title": "Danger zone",
+      "description": "Permanently delete your account, all cloud resumes, and version history. This action cannot be undone.",
+      "deleteAccount": "Delete my account"
+    },
+    "deleteModal": {
+      "title": "Delete account",
+      "description": "This permanently removes your Rustume Cloud account and data.",
+      "intro": "This will permanently delete:",
+      "items": {
+        "profile": "Your account and profile",
+        "allResumes": "All cloud resumes",
+        "resumeCount": "All {{ count }} {{ label }}",
+        "resume": "resume",
+        "resumes": "resumes",
+        "history": "All version history",
+        "subscription": "Your subscription (if active)"
+      },
+      "exportReminder": "Export your resumes from the account page before deleting if you need local copies.",
+      "confirmLabel": "Type DELETE to confirm",
+      "confirmPlaceholder": "DELETE",
+      "deletePermanently": "Delete permanently"
+    },
+    "toasts": {
+      "signedOut": "Signed out",
+      "signOutFailed": "Failed to sign out. Please try again.",
+      "accountDeleted": "Account deleted",
+      "deleteFailed": "Failed to delete account. Please try again."
+    }
+  },
+  "errors": {
+    "notFound": {
+      "title": "Page not found",
+      "description": "We couldn't find a page at {{ path }}. Your resumes are still safe — head back home or open one from your list.",
+      "primaryAction": "Back to resumes",
+      "secondaryAction": "Open account"
+    }
+  },
+  "editor": {
+    "panels": {
+      "editor": "Editor",
+      "split": "Split",
+      "preview": "Preview"
+    },
+    "toolbar": {
+      "import": "Import",
+      "template": "Template",
+      "export": "Export"
+    },
+    "sidebar": {
+      "groups": {
+        "content": "Content",
+        "custom": "Custom",
+        "settings": "Settings"
+      },
+      "tabs": {
+        "basics": "Basics",
+        "summary": "Summary",
+        "layout": "Layout",
+        "experience": "Experience",
+        "education": "Education",
+        "skills": "Skills",
+        "projects": "Projects",
+        "profiles": "Profiles",
+        "awards": "Awards",
+        "certifications": "Certs",
+        "publications": "Pubs",
+        "languages": "Langs",
+        "interests": "Interests",
+        "volunteer": "Volunteer",
+        "references": "Refs",
+        "custom": "Custom",
+        "theme": "Theme"
+      }
+    },
+    "loading": "Loading resume...",
+    "loadError": {
+      "title": "Failed to load resume",
+      "backHome": "Back to Home"
+    },
+    "shortcuts": {
+      "title": "Keyboard Shortcuts",
+      "categories": {
+        "general": "General",
+        "view": "View"
+      },
+      "labels": {
+        "save": "Save",
+        "exportPdf": "Export PDF",
+        "closeModal": "Close modal",
+        "showShortcuts": "Show shortcuts",
+        "editorPanel": "Editor panel",
+        "splitView": "Split view",
+        "previewPanel": "Preview panel"
+      }
+    },
+    "toasts": {
+      "saved": "Saved",
+      "newResume": "New resume created",
+      "createFailed": "Failed to create new resume — redirecting to home",
+      "loadFailed": "Failed to load resume — your data has not been modified"
+    },
+    "navigationGuard": {
+      "message": "You have unsaved changes. Leave anyway?"
+    }
+  },
+  "builder": {
+    "basics": {
+      "title": "Personal Information",
+      "subtitle": "Your basic contact details",
+      "fullName": "Full Name",
+      "fullNamePlaceholder": "John Doe",
+      "headline": "Headline",
+      "headlinePlaceholder": "Senior Software Engineer",
+      "headlineDescription": "Your professional title or tagline",
+      "email": "Email",
+      "emailPlaceholder": "john@example.com",
+      "phone": "Phone",
+      "phonePlaceholder": "+1 (555) 123-4567",
+      "location": "Location",
+      "locationPlaceholder": "San Francisco, CA",
+      "website": "Website",
+      "label": "Label",
+      "labelPlaceholder": "Portfolio",
+      "url": "URL",
+      "urlPlaceholder": "https://johndoe.com"
+    },
+    "sections": {
+      "summary": "Summary",
+      "experience": "Experience",
+      "education": "Education",
+      "skills": "Skills",
+      "projects": "Projects",
+      "profiles": "Profiles",
+      "certifications": "Certifications",
+      "awards": "Awards",
+      "publications": "Publications",
+      "languages": "Languages",
+      "interests": "Interests",
+      "volunteer": "Volunteer",
+      "references": "References",
+      "customSections": "Custom Sections"
+    },
+    "singular": {
+      "experience": "experience",
+      "education": "education",
+      "skill": "skill",
+      "project": "project",
+      "profile": "profile",
+      "certification": "certification",
+      "award": "award",
+      "publication": "publication",
+      "language": "language",
+      "interest": "interest",
+      "volunteer": "volunteer",
+      "reference": "reference"
+    },
+    "actions": {
+      "addFirst": "Add your first {{ item }}",
+      "moveUp": "Move up",
+      "moveDown": "Move down"
+    },
+    "fields": {
+      "position": "Position",
+      "positionPlaceholder": "Software Engineer",
+      "company": "Company",
+      "companyPlaceholder": "Acme Inc.",
+      "location": "Location",
+      "locationPlaceholder": "San Francisco, CA",
+      "date": "Date",
+      "datePlaceholder": "Jan 2020 - Present",
+      "summary": "Summary",
+      "summaryPlaceholder": "Describe your responsibilities and achievements...",
+      "linkLabel": "Link Label",
+      "linkUrl": "Link URL",
+      "linkUrlPlaceholder": "https://...",
+      "institution": "Institution",
+      "institutionPlaceholder": "University of California",
+      "area": "Area of Study",
+      "areaPlaceholder": "Computer Science",
+      "degree": "Degree",
+      "degreePlaceholder": "Bachelor of Science",
+      "educationDatePlaceholder": "2016 - 2020",
+      "score": "Score/GPA",
+      "scorePlaceholder": "3.8 / 4.0",
+      "educationSummaryPlaceholder": "Notable achievements, activities...",
+      "skillName": "Skill Name",
+      "skillNamePlaceholder": "Web Development",
+      "description": "Description",
+      "descriptionPlaceholder": "Brief description",
+      "keywords": "Keywords",
+      "keywordsPlaceholder": "React, TypeScript, Node.js (comma separated)",
+      "projectName": "Project Name",
+      "projectNamePlaceholder": "My Awesome Project",
+      "projectDescriptionPlaceholder": "A brief one-liner",
+      "projectDatePlaceholder": "2023",
+      "projectSummaryPlaceholder": "Detailed description...",
+      "technologies": "Technologies",
+      "technologiesPlaceholder": "React, Rust, PostgreSQL (comma separated)",
+      "viewProjectPlaceholder": "View Project",
+      "network": "Network",
+      "networkPlaceholder": "GitHub",
+      "username": "Username",
+      "usernamePlaceholder": "johndoe",
+      "icon": "Icon",
+      "iconPlaceholder": "github (auto-set from network)",
+      "profileLinkPlaceholder": "Profile",
+      "profileUrlPlaceholder": "https://github.com/johndoe",
+      "awardTitle": "Title",
+      "awardTitlePlaceholder": "Best Paper Award",
+      "awarder": "Awarder",
+      "awarderPlaceholder": "IEEE",
+      "awardDatePlaceholder": "2023",
+      "awardSummaryPlaceholder": "Describe the award and why you received it...",
+      "awardLinkPlaceholder": "Award page",
+      "certificationName": "Name",
+      "certificationNamePlaceholder": "AWS Solutions Architect",
+      "issuer": "Issuer",
+      "issuerPlaceholder": "Amazon Web Services",
+      "certificationDatePlaceholder": "2023",
+      "certificationUrlPlaceholder": "https://...",
+      "publicationName": "Name",
+      "publicationNamePlaceholder": "Paper Title",
+      "publisher": "Publisher",
+      "publisherPlaceholder": "IEEE",
+      "publicationDatePlaceholder": "2023",
+      "publicationSummaryPlaceholder": "Abstract or description of the publication...",
+      "publicationUrlPlaceholder": "https://...",
+      "languageName": "Language",
+      "languageNamePlaceholder": "English",
+      "fluency": "Fluency",
+      "fluencyPlaceholder": "Native speaker",
+      "interestName": "Interest",
+      "interestNamePlaceholder": "Photography",
+      "interestKeywordsPlaceholder": "Landscape, Portrait (comma separated)",
+      "organization": "Organization",
+      "organizationPlaceholder": "Code for Good",
+      "role": "Role",
+      "rolePlaceholder": "Volunteer Developer",
+      "volunteerDatePlaceholder": "2022 - Present",
+      "volunteerSummaryPlaceholder": "Describe your volunteer work...",
+      "referenceName": "Name",
+      "referenceNamePlaceholder": "Jane Smith",
+      "referenceSummaryPlaceholder": "Relationship and context...",
+      "customSectionName": "Section Name",
+      "customSectionNamePlaceholder": "Tooling",
+      "customItemName": "Name",
+      "customItemNamePlaceholder": "Playwright",
+      "customItemDatePlaceholder": "2024",
+      "customItemLocationPlaceholder": "Remote",
+      "customItemSummaryPlaceholder": "Describe this item...",
+      "customKeywordsPlaceholder": "Playwright, Vitest, Jest (comma separated)"
+    },
+    "summaryEditor": {
+      "title": "Professional Summary",
+      "subtitle": "A brief overview of your experience and goals",
+      "placeholder": "Write a compelling summary..."
+    },
+    "customSection": {
+      "title": "Custom Section",
+      "delete": "Delete custom section",
+      "showSection": "Show section",
+      "hideSection": "Hide section",
+      "empty": "No custom sections yet",
+      "addSection": "Add custom section"
+    },
+    "imageUpload": {
+      "title": "Profile photo",
+      "hiddenTitle": "Profile photo (hidden)",
+      "choose": "Choose profile photo",
+      "size": "Size",
+      "borderRadius": "Border radius",
+      "border": "Border",
+      "borderDescription": "Show a border around the photo",
+      "grayscale": "Grayscale",
+      "grayscaleDescription": "Apply grayscale filter",
+      "hidden": "Hidden",
+      "hiddenDescription": "Hide photo from resume",
+      "invalidType": "Please upload a JPG, PNG, or WebP image.",
+      "tooLarge": "Image must be smaller than 5 MB.",
+      "loadFailed": "Failed to load image",
+      "processFailed": "Failed to process image",
+      "canvasFailed": "Could not get canvas context",
+      "uploaded": "Profile photo uploaded",
+      "removed": "Profile photo removed"
+    },
+    "sectionPanel": {
+      "title": "Sections",
+      "aria": "Section visibility controls",
+      "show": "Show section controls",
+      "hide": "Hide section controls",
+      "core": "Core sections",
+      "custom": "Custom sections"
+    },
+    "layout": {
+      "title": "Layout",
+      "subtitle": "Drag sections between columns",
+      "leftColumn": "Left column",
+      "rightColumn": "Right column",
+      "addColumn": "Add column",
+      "removeColumn": "Remove column",
+      "draggableSection": "draggable section",
+      "updatedOne": "Layout updated to 1 column",
+      "updatedMany": "Layout updated to {{ count }} columns"
+    }
+  },
+  "export": {
+    "title": "Export Resume",
+    "description": "Download your resume in various formats",
+    "pdf": {
+      "title": "PDF Document",
+      "description": "Best for printing and sharing"
+    },
+    "json": {
+      "title": "JSON Data",
+      "description": "Portable format for backups"
+    },
+    "toasts": {
+      "pdfSuccess": "PDF exported successfully",
+      "pdfFailed": "Failed to export PDF",
+      "jsonSuccess": "JSON exported successfully",
+      "jsonFailed": "Failed to export JSON"
+    }
+  },
+  "import": {
+    "title": "Import Resume",
+    "description": "Import from JSON Resume, Reactive Resume, or LinkedIn export",
+    "dropzone": "Drop your file here, or",
+    "browse": "browse",
+    "formats": "Supports JSON Resume, Reactive Resume V3, LinkedIn ZIP",
+    "importing": "Importing...",
+    "supportedFormats": "Supported Formats",
+    "jsonResume": "JSON Resume",
+    "reactiveResume": "Reactive Resume",
+    "linkedin": "LinkedIn",
+    "zipExport": ".zip export",
+    "unrecognized": "Unrecognized resume format",
+    "toasts": {
+      "success": "Resume imported successfully",
+      "failed": "Failed to import file"
+    }
+  },
+  "templates": {
+    "title": "Choose Template",
+    "description": "Select a design that fits your style",
+    "preview": "Preview",
+    "useTemplate": "Use template",
+    "backToTemplates": "Back to templates",
+    "useTemplateAction": "Use Template",
+    "previewAlt": "{{ name }} template preview",
+    "loadFailed": "Failed to load templates. Please try again.",
+    "empty": "No templates available. Check that the server is running and try again.",
+    "colors": {
+      "primary": "Primary color",
+      "text": "Text color",
+      "background": "Background color"
+    }
+  },
+  "theme": {
+    "editor": {
+      "title": "Theme",
+      "subtitle": "Customize colors and typography",
+      "background": "Background",
+      "text": "Text",
+      "primary": "Primary",
+      "pickColor": "Click to pick a color",
+      "placeholder": "#000000"
+    },
+    "selector": {
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "toasts": {
+      "loadFailed": "Could not load saved theme preference",
+      "saveFailed": "Could not save theme preference"
+    }
+  },
+  "preview": {
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "zoomOut": "Zoom out",
+    "zoomIn": "Zoom in",
+    "dismiss": "Dismiss",
+    "renderFailed": "Preview rendering failed",
+    "toasts": {
+      "throttled": "Preview paused briefly — too many rapid updates",
+      "pdfThrottled": "PDF export paused briefly — too many rapid requests"
+    }
+  },
+  "richText": {
+    "bold": "Bold",
+    "italic": "Italic",
+    "underline": "Underline",
+    "link": "Link",
+    "bulletList": "Bullet List",
+    "orderedList": "Ordered List"
+  },
+  "cloudImport": {
+    "title": "Import local resumes?",
+    "description": "We found resumes saved on this device. Import them to your Rustume Cloud account?",
+    "body": "{{ count }} local {{ label }} can be copied to cloud storage. Your local copies will remain on this device.",
+    "resume": "resume",
+    "resumes": "resumes",
+    "notNow": "Not now",
+    "importing": "Importing...",
+    "importToCloud": "Import to cloud",
+    "toasts": {
+      "noneImported": "No local resumes could be imported",
+      "partialFailure": "Imported {{ imported }} {{ importedLabel }}, but {{ failures }} {{ failureLabel }} failed",
+      "batch": "batch",
+      "batches": "batches",
+      "success": "Imported {{ count }} {{ label }} to the cloud",
+      "failed": "Failed to import resumes"
+    }
+  },
+  "subscription": {
+    "message": "Your cloud subscription ends on {{ date }} ({{ remaining }} {{ dayLabel }} remaining). Export your resumes before access ends.",
+    "day": "day",
+    "days": "days",
+    "exportData": "Export data"
+  },
+  "storage": {
+    "toasts": {
+      "idCorrupted": "Resume ID data was corrupted — it has been reset",
+      "metaFailed": "Resume saved but metadata could not be updated — storage may be full",
+      "listCorrupted": "Resume list data was corrupted — it has been reset",
+      "full": "Local storage is full — could not save resume",
+      "listNotUpdated": "Local storage is full — resume saved but list not updated",
+      "listLoadFailed": "Failed to load resume list",
+      "deleteFailed": "Failed to delete resume",
+      "duplicateFailed": "Failed to duplicate resume",
+      "renameFailed": "Failed to rename resume",
+      "conflict": "Resume was updated elsewhere. Reload to see latest changes.",
+      "saveThrottled": "Saving paused briefly — too many rapid changes"
+    }
+  },
+  "modal": {
+    "confirmTitle": "Confirm action",
+    "confirmDescription": "Review the details before continuing."
+  }
+}

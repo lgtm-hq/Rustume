@@ -1,5 +1,6 @@
 import { createSignal } from "solid-js";
 import { StatusPage } from "../components/errors/StatusPage";
+import { useI18n } from "../i18n";
 import { authStore } from "../stores/auth";
 
 function LockIcon() {
@@ -23,6 +24,7 @@ function LockIcon() {
 
 /** Shown when hosted Rustume Cloud requires sign-in before using the app. */
 export default function Unauthorized() {
+  const { t } = useI18n();
   const { signIn } = authStore;
   const [signingIn, setSigningIn] = createSignal(false);
 
@@ -40,16 +42,16 @@ export default function Unauthorized() {
       testId="unauthorized-page"
       titleId="unauthorized-page-title"
       statusCode="401"
-      title="Sign in required"
-      description="Rustume Cloud on this deployment requires an account. Sign in to open, edit, and sync your resumes across devices."
+      title={t("auth.unauthorized.title")}
+      description={t("auth.unauthorized.description")}
       icon={<LockIcon />}
       primaryAction={{
-        label: "Sign in to sync across devices",
+        label: t("auth.unauthorized.primaryAction"),
         onClick: handleSignIn,
         loading: signingIn(),
       }}
       secondaryAction={{
-        label: "Learn about cloud accounts",
+        label: t("auth.unauthorized.secondaryAction"),
         href: "/account",
       }}
     />

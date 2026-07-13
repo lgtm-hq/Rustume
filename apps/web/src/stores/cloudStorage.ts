@@ -1,3 +1,4 @@
+import { translate } from "../i18n/translate";
 import {
   createCloudResume,
   deleteCloudResume,
@@ -94,7 +95,7 @@ function rethrowSubscriptionForbidden(error: unknown): void {
 
 export function showResumeVersionConflictToast(id: string): void {
   blockCloudWritesUntilReload(id);
-  toast.warning("Resume was updated elsewhere. Reload to see latest changes.", "Conflict", {
+  toast.warning(translate("storage.toasts.conflict"), "Conflict", {
     label: "Reload",
     onClick: () => window.location.reload(),
   });
