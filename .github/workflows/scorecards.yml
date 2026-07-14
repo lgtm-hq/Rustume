@@ -17,10 +17,11 @@ concurrency:
 jobs:
   scorecards:
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-scorecards.yml@66cad82ead0e5d119928c895c7d7da9c837989e5 # v0.52.3
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-scorecards.yml@31c25ef2e8992960e218524780e34f44f51271b5 # v0.54.0
     with:
       job-name: "🛡️ Scorecard Analysis"
-      tooling-ref: '66cad82ead0e5d119928c895c7d7da9c837989e5' # v0.52.3
+      # v0.54.0 hard-cut the no-op tooling-ref / egress-preset /
+      # allowed-endpoints-mode inputs on reusable-scorecards (#540).
       # publish_results:true enforces an allowlist of actions that excludes
       # lgtm-ci local composites (checkout-and-harden). That makes every run
       # fail with "job has unallowed step". Keep SARIF upload to the Security
@@ -28,11 +29,6 @@ jobs:
       # uses allowlisted actions.
       publish-results: false
       egress-policy: block
-      egress-preset: scorecard
-      # replace: harden-runner pre reads inputs only (not resolved presets).
-      # Full list = scorecard reusable default + StepSecurity/sigstore/OSSF
-      # hosts used by this job.
-      allowed-endpoints-mode: replace
       allowed-endpoints: >
         github.com:443
         api.github.com:443
