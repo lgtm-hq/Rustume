@@ -58,10 +58,19 @@ export function ApiKeysSection() {
   };
 
   const handleCreateModalChange = (open: boolean) => {
+    // Keep the one-time key visible until the user explicitly clicks Done.
+    if (!open && createdKey()) {
+      return;
+    }
     setCreateModalOpen(open);
     if (!open) {
       resetCreateModal();
     }
+  };
+
+  const dismissCreatedKey = () => {
+    setCreateModalOpen(false);
+    resetCreateModal();
   };
 
   const handleCreateKey = async () => {
@@ -189,6 +198,7 @@ export function ApiKeysSection() {
             : "Give your key a name so you can identify it later."
         }
         size="md"
+        dismissible={!createdKey()}
       >
         <Show
           when={createdKey()}
@@ -228,7 +238,7 @@ export function ApiKeysSection() {
                 <Button variant="secondary" onClick={() => void handleCopyKey(key().key)}>
                   Copy
                 </Button>
-                <Button onClick={() => handleCreateModalChange(false)}>Done</Button>
+                <Button onClick={dismissCreatedKey}>Done</Button>
               </div>
             </div>
           )}
