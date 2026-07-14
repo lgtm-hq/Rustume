@@ -213,12 +213,17 @@ On enable, client generates one-time recovery codes. For each code:
 1. Derive `RK = HKDF-SHA256(code, info="rustume-recovery-v1")` → 32 bytes.
 2. Sample a fresh 12-byte nonce (`nonce_recovery`). Encrypt the DEK backup:
    `wrapped_dek_recovery = ChaCha20-Poly1305(RK, nonce_recovery, DEK)`.
-3. Upload the recovery backup blob to the server. The stored format **must** include
-   both `nonce_recovery` and the ciphertext (e.g. `{ "nonce": "...", "ciphertext": "..." }`
-   as base64url fields). Server also stores `hash(code)` for verification (operator
+3. Upload the recovery backup blob to the server. Each recovery code is stored as one
+   row (or JSON object) that **atomically associates**:
+   - `code_hash` = `hash(code)` (lookup / verification key)
+   - `backup` = `{ "nonce": "<base64url>", "ciphertext": "<base64url>" }` (the
+     `nonce_recovery` + ciphertext pair for that same code)
+   The server must never store a ciphertext without its nonce, and must never return a
+   backup blob that is not the one paired with the matched `code_hash` (operator still
    cannot decrypt without the code).
-4. On recovery: user submits code → server verifies hash → returns the recovery backup
-   blob → client derives RK, unwraps DEK with the stored nonce, prompts new passphrase.
+4. On recovery: user submits code → server finds the row where `code_hash` matches →
+   returns that row's `backup` blob → client derives RK, unwraps DEK with the stored
+   nonce, prompts new passphrase.
 
 **Nonce freshness (RK-keyed):** each recovery backup is keyed by `RK`, not the account
 DEK. The DEK-envelope nonce rule above does **not** cover these blobs. Reusing
@@ -335,8 +340,12 @@ Requires explicit user action — not reversible by operator alone.
 3. Re-wrap new DEK with current MK, update `e2ee_config`.
 4. Re-encrypt each recovery-code backup with a **fresh** `nonce_recovery` so every
    stored recovery blob unwraps the new DEK (never reuse a prior recovery nonce under
-   the same `RK`), or invalidate and regenerate recovery codes before completing
-   rotation.
+   the same `RK`), **or** invalidate and regenerate recovery codes before completing
+   rotation. Invalidation **must** delete (or mark unusable and refuse to return) every
+   prior `code_hash` + `backup` row for the account in the same transaction that
+   writes the new recovery set / new DEK wrap — old codes must be unreachable before
+   rotation is considered complete. Leaving old rows active while adding new ones is
+   forbidden: an old code must not return a stale backup that unwraps the previous DEK.
 5. Increment `e2ee_config.key_generation` counter.
 
 ### Existing plaintext rows
