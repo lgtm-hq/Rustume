@@ -1,26 +1,26 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 ---
-name: Test - Backup Shell Scripts
+name: Test - Docker Shell Scripts
 
 "on":
   pull_request:
     branches: [main]
     paths:
-      - 'scripts/ci/backup/**'
+      - 'scripts/ci/docker/**'
       - 'tests/bats/**'
-      - '.github/workflows/test-backup-shell.yml'
+      - '.github/workflows/test-docker-shell.yml'
   push:
     branches: [main]
     paths:
-      - 'scripts/ci/backup/**'
+      - 'scripts/ci/docker/**'
       - 'tests/bats/**'
-      - '.github/workflows/test-backup-shell.yml'
+      - '.github/workflows/test-docker-shell.yml'
 
 permissions:
   contents: read
 
 concurrency:
-  group: test-backup-shell-${{ github.ref }}
+  group: test-docker-shell-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -32,9 +32,10 @@ jobs:
     uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-shell.yml@31c25ef2e8992960e218524780e34f44f51271b5 # v0.54.0
     with:
       tooling-ref: '31c25ef2e8992960e218524780e34f44f51271b5' # v0.54.0
-      job-name: Backup Shell Tests
-      test-path: tests/bats/unit/backup
+      job-name: Docker Shell Tests
+      test-path: tests/bats/unit/docker
       coverage: true
+      # kcov reports 0% for bash via BATS; non-zero fails CI until measurement fixed
       coverage-threshold: 0
       upload-coverage: false
       egress-policy: block
