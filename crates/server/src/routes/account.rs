@@ -278,9 +278,17 @@ fn stream_account_export(
                 return;
             }
         } {
-            if let Err(err) = stream_resume_row(&chunk_tx, row, &mut first_resume).await {
-                let _ = chunk_tx.send(Err(io::Error::other(err.error))).await;
-                return;
+            match stream_resume_row(&chunk_tx, row, &mut first_resume).await {
+                Ok(true) => {}
+                Ok(false) => {
+                    // Client disconnected: stop fetching so the cursor and
+                    // transaction are dropped immediately.
+                    return;
+                }
+                Err(err) => {
+                    let _ = chunk_tx.send(Err(io::Error::other(err.error))).await;
+                    return;
+                }
             }
         }
 
@@ -296,11 +304,13 @@ fn stream_account_export(
     })
 }
 
+/// Stream one resume row. Returns `Ok(false)` when the client disconnects so
+/// the caller can abort the DB cursor immediately.
 async fn stream_resume_row(
     chunk_tx: &mpsc::Sender<Result<Bytes, io::Error>>,
     row: ExportResumeRow,
     first: &mut bool,
-) -> Result<(), ApiError> {
+) -> Result<bool, ApiError> {
     let title_json = serde_json::to_string(&row.title).map_err(|err| {
         error!("account export title serialization failed: {err}");
         ApiError::internal("failed to export account data")
@@ -316,7 +326,7 @@ async fn stream_resume_row(
         row.id, title_json
     );
     if chunk_tx.send(Ok(Bytes::from(header))).await.is_err() {
-        return Ok(());
+        return Ok(false);
     }
 
     for chunk in row.data_json.as_bytes().chunks(EXPORT_STREAM_CHUNK_BYTES) {
@@ -325,15 +335,15 @@ async fn stream_resume_row(
             .await
             .is_err()
         {
-            return Ok(());
+            return Ok(false);
         }
     }
 
     if chunk_tx.send(Ok(Bytes::from_static(b"}"))).await.is_err() {
-        return Ok(());
+        return Ok(false);
     }
 
-    Ok(())
+    Ok(true)
 }
 
 fn append_json_field(
