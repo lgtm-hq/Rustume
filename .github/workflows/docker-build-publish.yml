@@ -3,7 +3,11 @@
 name: Build - Docker Image & Registry
 # Builds and publishes Docker images to GHCR via lgtm-ci reusable-docker.
 # - PRs: native multi-arch validation (build + smoke + blocking scan, no push)
-# - main/tags/release: publish, cosign sign, SBOM, provenance, registry cache
+# - main/tags: publish, cosign sign, SBOM, provenance, registry cache
+#   (no `release:` trigger: publish-release-on-tag.yml creates the GitHub
+#   Release from the tag, so a release trigger would rebuild the identical
+#   image a second time — see #454. Tag pushes always fire: GitHub does not
+#   evaluate `paths` filters for tag pushes.)
 #
 # Rustume Cloud deploy tags (reusable-docker metadata-action):
 #   main push  -> ghcr.io/lgtm-hq/rustume:main, :sha-<commit>
@@ -29,18 +33,66 @@ name: Build - Docker Image & Registry
   pull_request:
     branches: [main]
     paths: *docker-paths
-  release:
-    types: [published]
   workflow_dispatch:
 
 permissions:
   contents: read
 
+# Cancel superseded PR validate runs; never cancel main/tag/release publishes
+# (a cancelled publish would leave GHCR tags, signatures, and the Railway
+# deploy chain in a partial state).
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: >-
+    ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  # Skip the publish for release-version-bump-only merges (#457): the bump
+  # commit changes nothing that reaches the image, and the tag build that
+  # follows produces the release image anyway. The commit-message check only
+  # nominates candidates; the diff classifier decides (a bump PR that also
+  # carries dependency updates, or a hand-crafted bump-looking commit that
+  # touches code, still builds). Note: on a skipped build this run still
+  # concludes "success" (classify ran), so deploy-railway-cloud.yml carries
+  # its own matching classify gate to skip the redundant redeploy.
+  classify:
+    name: 🔎 Classify Release Bump
+    if: >-
+      github.event_name == 'push'
+      && github.ref == 'refs/heads/main'
+      && startsWith(github.event.head_commit.message, 'chore(release): version')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      bump-only: ${{ steps.check.outputs.bump-only }}
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Classify diff
+        id: check
+        env:
+          BASE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: bash scripts/ci/docker/classify_release_bump.sh
+
   docker:
     name: 🐳 Docker Build & Publish
+    needs: classify
+    if: >-
+      always() && needs.classify.outputs.bump-only != 'true'
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@66cad82ead0e5d119928c895c7d7da9c837989e5 # v0.52.3
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@31c25ef2e8992960e218524780e34f44f51271b5 # v0.54.0
     permissions:
       contents: read
       packages: write
@@ -48,22 +100,22 @@ jobs:
       attestations: write
       security-events: write
     with:
-      tooling-ref: '66cad82ead0e5d119928c895c7d7da9c837989e5' # v0.52.3
+      tooling-ref: '31c25ef2e8992960e218524780e34f44f51271b5' # v0.54.0
       file: docker/Dockerfile
       image-name: lgtm-hq/rustume
       version: >-
-        ${{ startsWith(github.ref, 'refs/tags/')
-        && github.ref_name
-        || (github.event_name == 'release' && github.event.release.tag_name || '') }}
+        ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
       push: >-
         ${{ github.event_name != 'pull_request'
         && (github.ref == 'refs/heads/main'
-        || startsWith(github.ref, 'refs/tags/v')
-        || github.event_name == 'release') }}
+        || startsWith(github.ref, 'refs/tags/v')) }}
       validate-on-pr: ${{ github.event_name == 'pull_request' }}
       platforms: linux/amd64,linux/arm64
       runner-map: '{"linux/arm64":"ubuntu-24.04-arm"}'
       smoke-test-script: scripts/ci/docker/smoke-test.sh
+      # Cold amd64 builds (no registry cache hit) exceed the 60-minute
+      # default: the workspace cargo build alone runs ~50 minutes (#439).
+      timeout-minutes: 120
       scan: true
       scan-exit-code: "1"
       cosign-sign: true
@@ -77,7 +129,14 @@ jobs:
       # Full list = reusable-docker default + gcr.io (distroless base image
       # in docker/Dockerfile) + sigstore hosts (cosign-sign on push runs) +
       # trivy hosts (installer downloads from get.trivy.dev; vulnerability DB
-      # is pulled from ghcr.io with mirror.gcr.io / public.ecr.aws fallbacks).
+      # is pulled from ghcr.io with mirror.gcr.io / public.ecr.aws fallbacks) +
+      # dl-cdn.alpinelinux.org (apk package installs in docker/Dockerfile
+      # build stages run through the host egress proxy under harden-runner) +
+      # rust hosts (rustup target add wasm32 pulls from static.rust-lang.org;
+      # cargo install cargo-chef/wasm-pack/wasm-bindgen-cli fetch the crates
+      # index and .crate files from index.crates.io / static.crates.io) +
+      # registry.npmjs.org (bun install in the web-builder stage downloads
+      # packages from the npm registry on cache-cold builds).
       allowed-endpoints-mode: replace
       allowed-endpoints: >
         github.com:443
@@ -99,6 +158,13 @@ jobs:
         fulcio.sigstore.dev:443
         rekor.sigstore.dev:443
         tuf-repo-cdn.sigstore.dev:443
+        timestamp.sigstore.dev:443
         get.trivy.dev:443
         mirror.gcr.io:443
         public.ecr.aws:443
+        dl-cdn.alpinelinux.org:443
+        static.rust-lang.org:443
+        crates.io:443
+        index.crates.io:443
+        static.crates.io:443
+        registry.npmjs.org:443
