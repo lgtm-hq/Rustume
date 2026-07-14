@@ -24,6 +24,7 @@ chrono = { version = "0.4", features = ["serde"] }
 
 # PDF Generation / Typst ecosystem
 typst = "0.15.0"
+typst-layout = "0.15.0"
 typst-pdf = "0.15.0"
 typst-render = "0.15.0"
 typst-assets = { version = "0.15.0", features = ["fonts"] }
