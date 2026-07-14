@@ -152,9 +152,8 @@ pub struct RustumeWorld {
 
 /// Build a project-root [`FileId`] for a virtual path string.
 fn project_file_id(path: &str) -> Result<FileId, RenderError> {
-    let vpath = VirtualPath::new(path).map_err(|err| {
-        RenderError::RenderFailed(format!("invalid Typst path '{path}': {err}"))
-    })?;
+    let vpath = VirtualPath::new(path)
+        .map_err(|err| RenderError::RenderFailed(format!("invalid Typst path '{path}': {err}")))?;
     Ok(FileId::new(RootedPath::new(VirtualRoot::Project, vpath)))
 }
 
@@ -339,7 +338,9 @@ impl typst::World for RustumeWorld {
 
     fn file(&self, id: FileId) -> FileResult<Bytes> {
         // For now, we only support source files, not binary files
-        Err(FileError::NotFound(PathBuf::from(id.vpath().get_without_slash())))
+        Err(FileError::NotFound(PathBuf::from(
+            id.vpath().get_without_slash(),
+        )))
     }
 
     fn font(&self, index: usize) -> Option<Font> {
@@ -357,7 +358,11 @@ impl typst::World for RustumeWorld {
                 // Offset is relative to UTC when provided (Typst World contract).
                 let secs = offset.seconds().round() as i64;
                 let adjusted = chrono::Utc::now() + chrono::Duration::seconds(secs);
-                (adjusted.year(), adjusted.month() as u8, adjusted.day() as u8)
+                (
+                    adjusted.year(),
+                    adjusted.month() as u8,
+                    adjusted.day() as u8,
+                )
             }
         };
         Datetime::from_ymd(year, month, day)
