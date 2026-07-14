@@ -22,8 +22,8 @@ render(
     <Router root={App}>
       <Route path="/" component={Home} />
       <Route path="/account" component={Account} />
-      <Route path="/terms" component={Terms} />
-      <Route path="/privacy" component={Privacy} />
+      <Route path={["/terms", "/terms/"]} component={Terms} />
+      <Route path={["/privacy", "/privacy/"]} component={Privacy} />
       <Route path="/edit/:id" component={Editor} />
       <Route path="*404" component={NotFound} />
     </Router>
