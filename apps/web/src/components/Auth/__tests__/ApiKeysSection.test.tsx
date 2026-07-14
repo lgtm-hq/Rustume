@@ -146,6 +146,37 @@ describe("ApiKeysSection", () => {
     });
   });
 
+  it("keeps the one-time key visible until Done is clicked", async () => {
+    createApiKeyMock.mockResolvedValue({
+      id: "key-3",
+      name: "Automation",
+      prefix: "zzzz9999",
+      key: "rk_plaintext_once",
+    });
+    listApiKeysMock.mockResolvedValue([]);
+
+    render(() => <ApiKeysSection />);
+    await screen.findByText(/No API keys yet/i);
+
+    fireEvent.click(screen.getByRole("button", { name: "Create key" }));
+    const createDialog = await screen.findByRole("dialog");
+    fireEvent.input(within(createDialog).getByLabelText("Key name"), {
+      target: { value: "Automation" },
+    });
+    fireEvent.click(within(createDialog).getByRole("button", { name: "Create key" }));
+    await screen.findByText("rk_plaintext_once");
+
+    expect(screen.queryByRole("button", { name: /close/i })).not.toBeInTheDocument();
+
+    fireEvent.keyDown(createDialog, { key: "Escape" });
+    expect(screen.getByText("rk_plaintext_once")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    await waitFor(() => {
+      expect(screen.queryByText("rk_plaintext_once")).not.toBeInTheDocument();
+    });
+  });
+
   it("asks for confirmation before revoking a key", async () => {
     revokeApiKeyMock.mockResolvedValue(undefined);
 
