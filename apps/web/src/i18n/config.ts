@@ -9,10 +9,9 @@ export interface LocaleEntry {
   dir: TextDirection;
 }
 
-/** Registered locales. Non-default catalogs are lazy-loaded in #371. */
+/** Registered locales that ship a catalog in this PR. Additional locales land in #371. */
 export const LOCALE_REGISTRY: readonly LocaleEntry[] = [
   { id: "en-US", nativeName: "English (US)", dir: "ltr" },
-  { id: "ar-SA", nativeName: "العربية", dir: "rtl" },
 ] as const;
 
 /** Region → preferred locale when an exact match is unavailable. */

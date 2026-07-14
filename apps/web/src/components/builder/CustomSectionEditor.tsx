@@ -329,7 +329,7 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
                       <div class="grid grid-cols-2 gap-4">
                         <Input
                           label={t("builder.fields.customItemName")}
-                          placeholder={t("builder.fields.customSectionNamePlaceholder")}
+                          placeholder={t("builder.fields.customItemNamePlaceholder")}
                           value={item.name}
                           onInput={(name) => updateItem(index())({ name })}
                         />

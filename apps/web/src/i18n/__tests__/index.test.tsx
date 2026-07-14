@@ -20,9 +20,15 @@ describe("i18n config", () => {
   });
 
   it("prefers saved locale over navigator", () => {
+    localStorage.setItem(LOCALE_STORAGE_KEY, "en-US");
+    vi.stubGlobal("navigator", { language: "zz-ZZ" });
+    expect(detectLocale()).toBe("en-US");
+  });
+
+  it("ignores saved locales that are not registered yet", () => {
     localStorage.setItem(LOCALE_STORAGE_KEY, "ar-SA");
     vi.stubGlobal("navigator", { language: "en-US" });
-    expect(detectLocale()).toBe("ar-SA");
+    expect(detectLocale()).toBe(DEFAULT_LOCALE);
   });
 
   it("falls back from region to mapped locale when registered", () => {
@@ -35,9 +41,9 @@ describe("i18n config", () => {
     expect(detectLocale()).toBe(DEFAULT_LOCALE);
   });
 
-  it("sets rtl direction for rtl locales", () => {
-    expect(getLocaleEntry("ar-SA")?.dir).toBe("rtl");
+  it("exposes direction metadata for registered locales", () => {
     expect(getLocaleEntry("en-US")?.dir).toBe("ltr");
+    expect(getLocaleEntry("ar-SA")).toBeUndefined();
   });
 });
 
