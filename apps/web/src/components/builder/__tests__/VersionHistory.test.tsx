@@ -5,6 +5,7 @@ import type { ResumeData } from "../../../wasm/types";
 import { VersionHistory } from "../VersionHistory";
 import { resumeStore } from "../../../stores/resume";
 import { uiStore } from "../../../stores/ui";
+import { ResumeVersionConflictError } from "../../../api/resumes";
 
 const renderPreviewMock = vi.fn();
 const listSnapshotsMock = vi.fn();
@@ -14,9 +15,12 @@ const getResumeVersionMock = vi.fn();
 const restoreResumeVersionMock = vi.fn();
 const isCloudAuthenticatedMock = vi.fn();
 const getCloudResumeVersionMock = vi.fn();
+const showResumeVersionConflictToastMock = vi.fn();
+const recordUndoMock = vi.fn();
 const confirmMock = vi.fn();
 const toastSuccessMock = vi.fn();
 const toastErrorMock = vi.fn();
+const toastWarningMock = vi.fn();
 
 vi.mock("../../../api/render", () => ({
   renderPreview: (...args: unknown[]) => renderPreviewMock(...args),
@@ -31,11 +35,15 @@ vi.mock("../../../stores/versionHistory", async (importOriginal) => {
   };
 });
 
-vi.mock("../../../api/resumes", () => ({
-  listResumeVersions: (...args: unknown[]) => listResumeVersionsMock(...args),
-  getResumeVersion: (...args: unknown[]) => getResumeVersionMock(...args),
-  restoreResumeVersion: (...args: unknown[]) => restoreResumeVersionMock(...args),
-}));
+vi.mock("../../../api/resumes", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../api/resumes")>();
+  return {
+    ...actual,
+    listResumeVersions: (...args: unknown[]) => listResumeVersionsMock(...args),
+    getResumeVersion: (...args: unknown[]) => getResumeVersionMock(...args),
+    restoreResumeVersion: (...args: unknown[]) => restoreResumeVersionMock(...args),
+  };
+});
 
 vi.mock("../../../stores/cloudStorage", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../stores/cloudStorage")>();
@@ -43,8 +51,15 @@ vi.mock("../../../stores/cloudStorage", async (importOriginal) => {
     ...actual,
     isCloudAuthenticated: () => isCloudAuthenticatedMock(),
     getCloudResumeVersion: (...args: unknown[]) => getCloudResumeVersionMock(...args),
+    showResumeVersionConflictToast: (...args: unknown[]) =>
+      showResumeVersionConflictToastMock(...args),
   };
 });
+
+vi.mock("../../../stores/editorUndo", () => ({
+  recordUndo: (...args: unknown[]) => recordUndoMock(...args),
+  setUndoRecorder: vi.fn(),
+}));
 
 vi.mock("../../../components/ui", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../components/ui")>();
@@ -54,6 +69,7 @@ vi.mock("../../../components/ui", async (importOriginal) => {
       ...actual.toast,
       success: (...args: unknown[]) => toastSuccessMock(...args),
       error: (...args: unknown[]) => toastErrorMock(...args),
+      warning: (...args: unknown[]) => toastWarningMock(...args),
     },
   };
 });
@@ -204,8 +220,40 @@ describe("VersionHistory", () => {
       expect(restoreResumeVersionMock).toHaveBeenCalledWith("resume-history-test", 3, 4);
       expect(loadResumeSpy).toHaveBeenCalledWith("resume-history-test");
       expect(toastSuccessMock).toHaveBeenCalledWith("Reverted to selected version");
+      expect(recordUndoMock).toHaveBeenCalled();
     });
 
     loadResumeSpy.mockRestore();
+  });
+
+  it("routes cloud restore conflicts through the shared conflict toast", async () => {
+    isCloudAuthenticatedMock.mockReturnValue(true);
+    getCloudResumeVersionMock.mockReturnValue(4);
+    listResumeVersionsMock.mockResolvedValue([
+      { version: 3, created_at: "2026-01-02T00:00:00.000Z" },
+    ]);
+    getResumeVersionMock.mockResolvedValue({
+      id: "snap-1",
+      resume_id: "resume-history-test",
+      version: 3,
+      data: resumeWithName("Cloud Snapshot"),
+      created_at: "2026-01-02T00:00:00.000Z",
+    });
+    restoreResumeVersionMock.mockRejectedValue(
+      new ResumeVersionConflictError("Resume was modified by another session", 5),
+    );
+
+    render(() => <VersionHistory />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Revert to this version" })).toBeEnabled();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Revert to this version" }));
+
+    await waitFor(() => {
+      expect(showResumeVersionConflictToastMock).toHaveBeenCalledWith("resume-history-test");
+      expect(toastErrorMock).not.toHaveBeenCalled();
+    });
   });
 });

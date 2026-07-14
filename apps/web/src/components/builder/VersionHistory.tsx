@@ -8,7 +8,13 @@ import {
   type ResumeVersionSummary,
 } from "../../api/resumes";
 import { formatRelativeTime } from "../../lib/formatRelativeTime";
-import { isCloudAuthenticated, getCloudResumeVersion } from "../../stores/cloudStorage";
+import {
+  getCloudResumeVersion,
+  isCloudAuthenticated,
+  isResumeVersionConflictError,
+  showResumeVersionConflictToast,
+} from "../../stores/cloudStorage";
+import { recordUndo } from "../../stores/editorUndo";
 import { resumeStore } from "../../stores/resume";
 import { uiStore } from "../../stores/ui";
 import { getSnapshot, listSnapshots, type SnapshotMetadata } from "../../stores/versionHistory";
@@ -189,6 +195,7 @@ export function VersionHistory() {
         if (currentVersion === undefined) {
           throw new Error("Current resume version is unknown — reload and try again.");
         }
+        recordUndo(store.resume);
         await restoreResumeVersion(id, Number(entryKey), currentVersion);
         await loadResume(id);
       } else {
@@ -198,7 +205,11 @@ export function VersionHistory() {
       closeModal();
     } catch (error) {
       console.error("Failed to revert resume version:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to revert version");
+      if (isResumeVersionConflictError(error) && id) {
+        showResumeVersionConflictToast(id);
+      } else {
+        toast.error(error instanceof Error ? error.message : "Failed to revert version");
+      }
     } finally {
       setIsReverting(false);
     }
