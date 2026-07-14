@@ -72,14 +72,26 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
     props.onDeleted?.();
   };
 
+  const focusReorderControl = (itemIndex: number, direction: "up" | "down") => {
+    queueMicrotask(() => {
+      document
+        .querySelector<HTMLButtonElement>(
+          `[data-reorder="${props.sectionId}-${itemIndex}-${direction}"]`,
+        )
+        ?.focus();
+    });
+  };
+
   const handleMoveUp = (index: number) => {
     if (index > 0) {
       const item = items()[index];
       const title = item.name || "Untitled";
-      reorderCustomSectionItem(props.sectionId, index, index - 1);
+      const nextIndex = index - 1;
+      reorderCustomSectionItem(props.sectionId, index, nextIndex);
       touch();
-      setExpandedIndex(index - 1);
-      announceLive(setAnnouncement, reorderAnnouncement(title, index - 1, items().length));
+      setExpandedIndex(nextIndex);
+      announceLive(setAnnouncement, reorderAnnouncement(title, nextIndex, items().length));
+      focusReorderControl(nextIndex, "up");
     }
   };
 
@@ -87,10 +99,12 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
     if (index < items().length - 1) {
       const item = items()[index];
       const title = item.name || "Untitled";
-      reorderCustomSectionItem(props.sectionId, index, index + 1);
+      const nextIndex = index + 1;
+      reorderCustomSectionItem(props.sectionId, index, nextIndex);
       touch();
-      setExpandedIndex(index + 1);
-      announceLive(setAnnouncement, reorderAnnouncement(title, index + 1, items().length));
+      setExpandedIndex(nextIndex);
+      announceLive(setAnnouncement, reorderAnnouncement(title, nextIndex, items().length));
+      focusReorderControl(nextIndex, "down");
     }
   };
 
@@ -240,6 +254,7 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
                           type="button"
                           class="focus-ring p-1.5 text-stone hover:text-ink hover:bg-surface rounded
                               disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                          data-reorder={`${props.sectionId}-${index()}-up`}
                           onClick={() => handleMoveUp(index())}
                           disabled={index() === 0}
                           aria-label="Move up"
@@ -263,6 +278,7 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
                           type="button"
                           class="focus-ring p-1.5 text-stone hover:text-ink hover:bg-surface rounded
                               disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                          data-reorder={`${props.sectionId}-${index()}-down`}
                           onClick={() => handleMoveDown(index())}
                           disabled={index() === items().length - 1}
                           aria-label="Move down"

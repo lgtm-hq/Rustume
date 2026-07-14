@@ -78,13 +78,25 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
     setExpandedIndex(null);
   };
 
+  const focusReorderControl = (itemIndex: number, direction: "up" | "down") => {
+    queueMicrotask(() => {
+      document
+        .querySelector<HTMLButtonElement>(
+          `[data-reorder="${props.sectionKey}-${itemIndex}-${direction}"]`,
+        )
+        ?.focus();
+    });
+  };
+
   const handleMoveUp = (index: number) => {
     if (index > 0) {
       const item = items()[index];
       const title = props.getItemTitle(item) || "Untitled";
-      reorderSectionItem(props.sectionKey, index, index - 1);
-      setExpandedIndex(index - 1);
-      announceLive(setAnnouncement, reorderAnnouncement(title, index - 1, items().length));
+      const nextIndex = index - 1;
+      reorderSectionItem(props.sectionKey, index, nextIndex);
+      setExpandedIndex(nextIndex);
+      announceLive(setAnnouncement, reorderAnnouncement(title, nextIndex, items().length));
+      focusReorderControl(nextIndex, "up");
     }
   };
 
@@ -92,9 +104,11 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
     if (index < items().length - 1) {
       const item = items()[index];
       const title = props.getItemTitle(item) || "Untitled";
-      reorderSectionItem(props.sectionKey, index, index + 1);
-      setExpandedIndex(index + 1);
-      announceLive(setAnnouncement, reorderAnnouncement(title, index + 1, items().length));
+      const nextIndex = index + 1;
+      reorderSectionItem(props.sectionKey, index, nextIndex);
+      setExpandedIndex(nextIndex);
+      announceLive(setAnnouncement, reorderAnnouncement(title, nextIndex, items().length));
+      focusReorderControl(nextIndex, "down");
     }
   };
 
@@ -139,50 +153,54 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
             <div class="border border-border rounded-lg overflow-hidden group">
               {/* Item Header */}
               <div class="flex items-stretch">
-                <div class="flex items-center gap-1 px-2 opacity-0 group-focus-within:opacity-100 focus-within:opacity-100 transition-opacity">
-                  <button
-                    type="button"
-                    class="focus-ring p-1.5 text-stone hover:text-ink hover:bg-surface rounded
+                <Show when={expandedIndex() !== index()}>
+                  <div class="flex items-center gap-1 px-2 opacity-0 group-focus-within:opacity-100 focus-within:opacity-100 transition-opacity">
+                    <button
+                      type="button"
+                      class="focus-ring p-1.5 text-stone hover:text-ink hover:bg-surface rounded
                       disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleMoveUp(index());
-                    }}
-                    disabled={index() === 0}
-                    aria-label="Move up"
-                    title="Move up"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M5 15l7-7 7 7"
-                      />
-                    </svg>
-                  </button>
-                  <button
-                    type="button"
-                    class="focus-ring p-1.5 text-stone hover:text-ink hover:bg-surface rounded
+                      data-reorder={`${props.sectionKey}-${index()}-up`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMoveUp(index());
+                      }}
+                      disabled={index() === 0}
+                      aria-label="Move up"
+                      title="Move up"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M5 15l7-7 7 7"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      class="focus-ring p-1.5 text-stone hover:text-ink hover:bg-surface rounded
                       disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleMoveDown(index());
-                    }}
-                    disabled={index() === items().length - 1}
-                    aria-label="Move down"
-                    title="Move down"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </button>
-                </div>
+                      data-reorder={`${props.sectionKey}-${index()}-down`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMoveDown(index());
+                      }}
+                      disabled={index() === items().length - 1}
+                      aria-label="Move down"
+                      title="Move down"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                </Show>
                 <button
                   type="button"
                   class="focus-ring flex-1 px-4 py-3 flex items-center justify-between
@@ -235,6 +253,7 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
                         type="button"
                         class="focus-ring p-1.5 text-stone hover:text-ink hover:bg-surface rounded
                           disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        data-reorder={`${props.sectionKey}-${index()}-up`}
                         onClick={() => handleMoveUp(index())}
                         disabled={index() === 0}
                         aria-label="Move up"
@@ -253,6 +272,7 @@ export function SectionEditor<T extends { id: string; visible: boolean }>(
                         type="button"
                         class="focus-ring p-1.5 text-stone hover:text-ink hover:bg-surface rounded
                           disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        data-reorder={`${props.sectionKey}-${index()}-down`}
                         onClick={() => handleMoveDown(index())}
                         disabled={index() === items().length - 1}
                         aria-label="Move down"
