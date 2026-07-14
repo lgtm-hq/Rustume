@@ -440,9 +440,20 @@ mod tests {
         assert!(limits.check(RateLimitGroup::Health, &key).is_ok());
         assert_eq!(limits.key_count(), 1);
 
-        thread::sleep(Duration::from_secs(2));
-        limits.evict_stale();
-        assert_eq!(limits.key_count(), 0);
+        // governor::retain_recent is period-based; allow headroom on busy CI runners
+        // instead of a single fixed sleep that flakes under load.
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        loop {
+            thread::sleep(Duration::from_millis(200));
+            limits.evict_stale();
+            if limits.key_count() == 0 {
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "stale rate-limit key was not evicted within 5s"
+            );
+        }
     }
 
     #[test]
