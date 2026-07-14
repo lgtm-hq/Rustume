@@ -26,6 +26,13 @@ and this project adheres to
 
 ### Changed
 
+- **ci**: skip docker publish and railway deploy on version-bump-only merges (#469)
+  (8117f9e)
+- **release**: version 0.29.1 (#467) (fbcc608)
+- **ci**: remove redundant DB-integration job from coverage workflow (#470) (875ae4b)
+- **ci**: add concurrency groups to coverage and docker workflows (#466) (f664759)
+- **deps**: pin dependencies (#461) (db7cc3e)
+- **release**: version 0.29.1 (#460) (53a3b4e)
 - **deps**: lock file maintenance (#428) (d18db88)
 - **deps**: lock file maintenance (#427) (babe1c0)
 - **deps**: update renovatebot/github-action action to v46.1.19 (patch) (#418) (fa8421d)
@@ -35,6 +42,7 @@ and this project adheres to
 
 ### Fixed
 
+- **ci**: remove duplicate release trigger from docker publish (#468) (448988c)
 - **ci**: allow timestamp.sigstore.dev egress for cosign signing on main (#464)
   (0388337)
 - **ci**: restore green main workflows and unblock GitHub Releases (#440) (adc90ee)
