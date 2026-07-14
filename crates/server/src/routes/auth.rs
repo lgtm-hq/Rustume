@@ -163,6 +163,19 @@ async fn callback_inner(
             })?;
     }
 
+    // Concurrent OAuth callbacks can race on first-time acceptance writes. Refuse
+    // session creation unless both current policy rows are durable right now.
+    if needs_signup_policy_acceptances(&cloud.db, user.id)
+        .await
+        .map_err(|err| {
+            error!("policy acceptance re-check failed: {err}");
+            "server_error"
+        })?
+    {
+        error!("policy acceptances incomplete before session creation");
+        return Err("server_error");
+    }
+
     let (_session, cookie) = cloud.sessions.create(user.id).await.map_err(|err| {
         error!("session creation failed: {err}");
         "server_error"
