@@ -4,13 +4,6 @@
 # --- validator ecosystem: blocked on upstream proc-macro-error2 migration ---
 
 [[IgnoredVulns]]
-id = "RUSTSEC-2026-0173"
-ignoreUntil = 2026-10-04
-reason = "proc-macro-error2 — transitive via validator -> validator_derive; unmaintained, no patched version; track validator upgrade"
-
-# --- Typst ecosystem: blocked on syntect/hayagriva upgrades ---
-
-[[IgnoredVulns]]
 id = "RUSTSEC-2024-0320"
 ignoreUntil = 2026-10-04
 reason = "yaml-rust — transitive via typst -> syntect; blocked until syntect migrates to yaml-rust2"
