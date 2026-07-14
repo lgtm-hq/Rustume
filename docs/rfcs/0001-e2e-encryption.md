@@ -341,11 +341,15 @@ Requires explicit user action — not reversible by operator alone.
 4. Re-encrypt each recovery-code backup with a **fresh** `nonce_recovery` so every
    stored recovery blob unwraps the new DEK (never reuse a prior recovery nonce under
    the same `RK`), **or** invalidate and regenerate recovery codes before completing
-   rotation. Invalidation **must** delete (or mark unusable and refuse to return) every
-   prior `code_hash` + `backup` row for the account in the same transaction that
-   writes the new recovery set / new DEK wrap — old codes must be unreachable before
-   rotation is considered complete. Leaving old rows active while adding new ones is
-   forbidden: an old code must not return a stale backup that unwraps the previous DEK.
+   rotation. When keeping the same codes, each `code_hash` row's `backup` **must be
+   replaced atomically** (single-row upsert / delete-then-insert in one transaction) so
+   lookup never observes both an old and a new backup for the same hash. Invalidation
+   **must** delete (or mark unusable and refuse to return) every prior `code_hash` +
+   `backup` row for the account in the same transaction that writes the new recovery
+   set / new DEK wrap — old codes must be unreachable before rotation is considered
+   complete. Leaving old rows active while adding new ones is forbidden: an old or
+   stale backup must not unwrap the previous DEK after resumes have moved to the new
+   DEK.
 5. Increment `e2ee_config.key_generation` counter.
 
 ### Existing plaintext rows
