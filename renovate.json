@@ -63,9 +63,9 @@
         "typst",
         "typst-assets",
         "typst-pdf",
-        "typst-render"
-      ],
-      "matchPackagePatterns": ["^typst-"]
+        "typst-render",
+        "/^typst-/"
+      ]
     },
     {
       "description": "apps/site must stay on TypeScript 6 until @astrojs/check supports the TypeScript 7 native API (astro#17268)",
