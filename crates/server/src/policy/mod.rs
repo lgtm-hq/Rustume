@@ -36,7 +36,7 @@ pub async fn record_policy_acceptance(
 ) -> Result<(), sqlx::Error> {
     let ip_address = valid_inet_ip(ip_address);
 
-    sqlx::query(
+    let result = sqlx::query(
         r#"
         INSERT INTO policy_acceptances (user_id, policy, version, ip_address)
         VALUES ($1, $2, $3, $4::inet)
@@ -50,21 +50,26 @@ pub async fn record_policy_acceptance(
     .execute(pool)
     .await?;
 
-    record_event(
-        pool,
-        AuditEvent {
-            event_type: "policy.accept",
-            actor_user_id: Some(user_id),
-            resource_type: Some("policy"),
-            resource_id: None,
-            metadata: serde_json::json!({
-                "policy": policy,
-                "version": version,
-            }),
-            ip_address,
-        },
-    )
-    .await;
+    // Only emit audit when this call inserted a row. Concurrent retries can race
+    // past the missing-acceptance check; ON CONFLICT is idempotent but must not
+    // produce duplicate policy.accept events.
+    if result.rows_affected() > 0 {
+        record_event(
+            pool,
+            AuditEvent {
+                event_type: "policy.accept",
+                actor_user_id: Some(user_id),
+                resource_type: Some("policy"),
+                resource_id: None,
+                metadata: serde_json::json!({
+                    "policy": policy,
+                    "version": version,
+                }),
+                ip_address,
+            },
+        )
+        .await;
+    }
 
     Ok(())
 }
