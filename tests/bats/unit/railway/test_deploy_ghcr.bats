@@ -65,33 +65,20 @@ teardown() {
 	assert_equal "new-deploy" "$(get_github_output deployment_id)"
 }
 
+install_ghcr_curl_mock() {
+	local mock_bin="$1"
+	mkdir -p "${mock_bin}"
+	cp "${PROJECT_ROOT}/tests/bats/fixtures/railway/mock-curl-ghcr.sh" "${mock_bin}/curl"
+	chmod +x "${mock_bin}/curl"
+}
+
 @test "deploy-ghcr: graphql-only fails when serviceInstanceUpdate returns errors" {
 	local mock_bin="${BATS_TEST_TMPDIR}/bin"
-	mkdir -p "${mock_bin}"
-
-	cat >"${mock_bin}/curl" <<'EOF'
-#!/usr/bin/env bash
-payload=""
-while (($# > 0)); do
-	if [[ "$1" == "-d" && $# -ge 2 ]]; then
-		payload="$2"
-		shift 2
-	else
-		shift
-	fi
-done
-if [[ "${payload}" == *"deployments"* ]]; then
-	echo '{"data":{"deployments":{"edges":[{"node":{"id":"old-deploy","status":"SUCCESS"}}]}}}'
-elif [[ "${payload}" == *"serviceInstanceUpdate"* ]]; then
-	echo '{"errors":[{"message":"update failed"}]}'
-else
-	echo '{"data":{}}'
-fi
-EOF
-	chmod +x "${mock_bin}/curl"
+	install_ghcr_curl_mock "${mock_bin}"
 
 	run bash -c "
 		PATH='${mock_bin}:'\"\${PATH}\" \
+		MOCK_CURL_MODE='update_error' \
 		RAILWAY_TOKEN='test-token' \
 		bash '${RAILWAY_SCRIPTS_DIR}/deploy-ghcr.sh' --graphql-only
 	"
@@ -102,33 +89,11 @@ EOF
 
 @test "deploy-ghcr: graphql-only fails when serviceInstanceDeployV2 returns errors" {
 	local mock_bin="${BATS_TEST_TMPDIR}/bin"
-	mkdir -p "${mock_bin}"
-
-	cat >"${mock_bin}/curl" <<'EOF'
-#!/usr/bin/env bash
-payload=""
-while (($# > 0)); do
-	if [[ "$1" == "-d" && $# -ge 2 ]]; then
-		payload="$2"
-		shift 2
-	else
-		shift
-	fi
-done
-if [[ "${payload}" == *"deployments"* ]]; then
-	echo '{"data":{"deployments":{"edges":[{"node":{"id":"old-deploy","status":"SUCCESS"}}]}}}'
-elif [[ "${payload}" == *"serviceInstanceUpdate"* ]]; then
-	echo '{"data":{"serviceInstanceUpdate":true}}'
-elif [[ "${payload}" == *"serviceInstanceDeployV2"* ]]; then
-	echo '{"errors":[{"message":"deploy failed"}]}'
-else
-	echo '{"data":{}}'
-fi
-EOF
-	chmod +x "${mock_bin}/curl"
+	install_ghcr_curl_mock "${mock_bin}"
 
 	run bash -c "
 		PATH='${mock_bin}:'\"\${PATH}\" \
+		MOCK_CURL_MODE='deploy_error' \
 		RAILWAY_TOKEN='test-token' \
 		bash '${RAILWAY_SCRIPTS_DIR}/deploy-ghcr.sh' --graphql-only
 	"
@@ -139,29 +104,11 @@ EOF
 
 @test "deploy-ghcr: graphql-only fails when pre-deploy deployment query returns errors" {
 	local mock_bin="${BATS_TEST_TMPDIR}/bin"
-	mkdir -p "${mock_bin}"
-
-	cat >"${mock_bin}/curl" <<'EOF'
-#!/usr/bin/env bash
-payload=""
-while (($# > 0)); do
-	if [[ "$1" == "-d" && $# -ge 2 ]]; then
-		payload="$2"
-		shift 2
-	else
-		shift
-	fi
-done
-if [[ "${payload}" == *"deployments"* ]]; then
-	echo '{"errors":[{"message":"deployments query failed"}]}'
-else
-	echo '{"data":{}}'
-fi
-EOF
-	chmod +x "${mock_bin}/curl"
+	install_ghcr_curl_mock "${mock_bin}"
 
 	run bash -c "
 		PATH='${mock_bin}:'\"\${PATH}\" \
+		MOCK_CURL_MODE='predeploy_error' \
 		RAILWAY_TOKEN='test-token' \
 		bash '${RAILWAY_SCRIPTS_DIR}/deploy-ghcr.sh' --graphql-only
 	"
@@ -173,45 +120,12 @@ EOF
 @test "deploy-ghcr: graphql-only fails when polling deployment query returns errors" {
 	local mock_bin="${BATS_TEST_TMPDIR}/bin"
 	local counter_file="${BATS_TEST_TMPDIR}/curl_calls"
-	mkdir -p "${mock_bin}"
+	install_ghcr_curl_mock "${mock_bin}"
 	echo "0" >"${counter_file}"
-
-	cat >"${mock_bin}/curl" <<'EOF'
-#!/usr/bin/env bash
-payload=""
-while (($# > 0)); do
-	if [[ "$1" == "-d" && $# -ge 2 ]]; then
-		payload="$2"
-		shift 2
-	else
-		shift
-	fi
-done
-if [[ -z "${COUNTER_FILE:-}" ]]; then
-	echo "COUNTER_FILE must be set" >&2
-	exit 1
-fi
-count="$(cat "${COUNTER_FILE}")"
-count=$((count + 1))
-echo "${count}" >"${COUNTER_FILE}"
-if [[ "${payload}" == *"serviceInstanceUpdate"* ]]; then
-	echo '{"data":{"serviceInstanceUpdate":true}}'
-elif [[ "${payload}" == *"serviceInstanceDeployV2"* ]]; then
-	echo '{"data":{"serviceInstanceDeployV2":true}}'
-elif [[ "${payload}" == *"deployments"* ]]; then
-	if [[ "${count}" -le 1 ]]; then
-		echo '{"data":{"deployments":{"edges":[{"node":{"id":"old-deploy","status":"SUCCESS"}}]}}}'
-	else
-		echo '{"errors":[{"message":"polling query failed"}]}'
-	fi
-else
-	echo '{"data":{}}'
-fi
-EOF
-	chmod +x "${mock_bin}/curl"
 
 	run bash -c "
 		PATH='${mock_bin}:'\"\${PATH}\" \
+		MOCK_CURL_MODE='poll_error' \
 		COUNTER_FILE='${counter_file}' \
 		RAILWAY_TOKEN='test-token' \
 		DEPLOY_ID_REGISTER_TIMEOUT='5' \
