@@ -4,9 +4,7 @@
   "customManagers": [
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/^docker/Dockerfile$/"
-      ],
+      "managerFilePatterns": ["/^docker/Dockerfile$/"],
       "matchStrings": [
         "ARG BUN_VERSION=(?<currentValue>\\S+)",
         "BUN_VERSION=\"\\$\\{BUN_VERSION:-(?<currentValue>\\S+)\\}\""
@@ -68,6 +66,13 @@
         "typst-render"
       ],
       "matchPackagePatterns": ["^typst-"]
+    },
+    {
+      "description": "apps/site must stay on TypeScript 6 until @astrojs/check supports the TypeScript 7 native API (astro#17268)",
+      "matchFileNames": ["apps/site/package.json"],
+      "matchPackageNames": ["typescript"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
     }
   ]
 }
