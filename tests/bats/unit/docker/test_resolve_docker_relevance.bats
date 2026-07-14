@@ -64,8 +64,10 @@ is_listed() {
 
 	local missing=()
 	local entry
+	# Use the committed tree (not the working directory) so local build artifacts
+	# like `target/` or `.venv/` cannot fail the drift check.
 	while IFS= read -r entry; do
-		[[ -z "${entry}" || "${entry}" == "." || "${entry}" == ".." ]] && continue
+		[[ -z "${entry}" ]] && continue
 		if [[ "${entry}" == .* && "${entry}" != ".github" ]]; then
 			continue
 		fi
@@ -75,7 +77,7 @@ is_listed() {
 			continue
 		fi
 		missing+=("${entry}")
-	done < <(cd "${PROJECT_ROOT}" && ls -A)
+	done < <(cd "${PROJECT_ROOT}" && git ls-tree --name-only HEAD)
 
 	[[ "${#missing[@]}" -eq 0 ]] || {
 		echo "# Uncategorized top-level paths: ${missing[*]}" >&2
