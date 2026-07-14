@@ -32,7 +32,7 @@ function mergeRel(node: Element): void {
     return;
   }
 
-  const existing = node.properties?.rel;
+  const existing: unknown = node.properties?.rel;
   const tokens = new Set<string>();
   if (typeof existing === "string") {
     existing
@@ -47,7 +47,7 @@ function mergeRel(node: Element): void {
   }
   tokens.add("noopener");
   tokens.add("noreferrer");
-  node.properties = { ...node.properties, rel: [...tokens].join(" ") };
+  node.properties = { ...node.properties, rel: [...tokens] };
 }
 
 function transformFormatAnchors(tree: Root, base: string): void {
@@ -73,7 +73,7 @@ function transformFormatAnchors(tree: Root, base: string): void {
         node.properties = {
           ...node.properties,
           target: "_blank",
-          rel: "noopener noreferrer",
+          rel: ["noopener", "noreferrer"],
         };
       }
       return;
