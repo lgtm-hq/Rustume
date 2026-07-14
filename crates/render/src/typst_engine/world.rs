@@ -19,8 +19,8 @@ use crate::traits::RenderError;
 use chrono::Datelike;
 use include_dir::{include_dir, Dir};
 use typst::diag::{FileError, FileResult};
-use typst::foundations::{Bytes, Datetime};
-use typst::syntax::{FileId, Source, VirtualPath};
+use typst::foundations::{Bytes, Datetime, Duration};
+use typst::syntax::{FileId, RootedPath, Source, VirtualPath, VirtualRoot};
 use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
 use typst::{Library, LibraryExt};
@@ -150,13 +150,20 @@ pub struct RustumeWorld {
     sources: Mutex<HashMap<FileId, Source>>,
 }
 
+/// Build a project-root [`FileId`] for a virtual path string.
+fn project_file_id(path: &str) -> Result<FileId, RenderError> {
+    let vpath = VirtualPath::new(path)
+        .map_err(|err| RenderError::RenderFailed(format!("invalid Typst path '{path}': {err}")))?;
+    Ok(FileId::new(RootedPath::new(VirtualRoot::Project, vpath)))
+}
+
 impl RustumeWorld {
     /// Create a new world with the given main source content.
     ///
     /// Template overrides are resolved lazily in [`typst::World::source`] so a
     /// broken override for an unused template cannot block rendering another.
     pub fn new(main_content: String) -> Result<Self, RenderError> {
-        let main_id = FileId::new(None, VirtualPath::new("main.typ"));
+        let main_id = project_file_id("main.typ")?;
         let main = Source::new(main_id, main_content);
 
         Ok(Self {
@@ -169,14 +176,13 @@ impl RustumeWorld {
 
     /// Resolve `templates/<name>.typ` from an override dir or embedded defaults.
     fn load_template_source(id: FileId) -> FileResult<Source> {
-        let path = id.vpath().as_rootless_path();
-        let path_str = path.to_string_lossy();
+        let path_str = id.vpath().get_without_slash();
         let Some(name) = path_str
             .strip_prefix("templates/")
             .and_then(|rest| rest.strip_suffix(".typ"))
             .filter(|name| !name.is_empty() && !name.contains('/'))
         else {
-            return Err(FileError::NotFound(path.into()));
+            return Err(FileError::NotFound(PathBuf::from(path_str)));
         };
 
         let content = resolve_template_content(name)
@@ -332,7 +338,9 @@ impl typst::World for RustumeWorld {
 
     fn file(&self, id: FileId) -> FileResult<Bytes> {
         // For now, we only support source files, not binary files
-        Err(FileError::NotFound(id.vpath().as_rootless_path().into()))
+        Err(FileError::NotFound(PathBuf::from(
+            id.vpath().get_without_slash(),
+        )))
     }
 
     fn font(&self, index: usize) -> Option<Font> {
@@ -340,15 +348,24 @@ impl typst::World for RustumeWorld {
         fonts.get(index).cloned()
     }
 
-    fn today(&self, offset: Option<i64>) -> Option<Datetime> {
-        let now = chrono::Utc::now();
-        let offset_hours = offset.unwrap_or(0);
-        let adjusted = now + chrono::Duration::hours(offset_hours);
-        Datetime::from_ymd(
-            adjusted.year(),
-            adjusted.month() as u8,
-            adjusted.day() as u8,
-        )
+    fn today(&self, offset: Option<Duration>) -> Option<Datetime> {
+        let (year, month, day) = match offset {
+            None => {
+                let now = chrono::Local::now();
+                (now.year(), now.month() as u8, now.day() as u8)
+            }
+            Some(offset) => {
+                // Offset is relative to UTC when provided (Typst World contract).
+                let secs = offset.seconds().round() as i64;
+                let adjusted = chrono::Utc::now() + chrono::Duration::seconds(secs);
+                (
+                    adjusted.year(),
+                    adjusted.month() as u8,
+                    adjusted.day() as u8,
+                )
+            }
+        };
+        Datetime::from_ymd(year, month, day)
     }
 }
 
@@ -509,11 +526,11 @@ mod tests {
 
         let world = RustumeWorld::new("// unused-override isolation".into())
             .expect("world construction must ignore unused overrides");
-        let rhyhorn_id = FileId::new(None, VirtualPath::new("templates/rhyhorn.typ"));
+        let rhyhorn_id = project_file_id("templates/rhyhorn.typ").expect("rhyhorn path");
         let source = typst::World::source(&world, rhyhorn_id).expect("rhyhorn should load");
         assert!(!source.text().is_empty());
 
-        let azurill_id = FileId::new(None, VirtualPath::new("templates/azurill.typ"));
+        let azurill_id = project_file_id("templates/azurill.typ").expect("azurill path");
         assert!(
             typst::World::source(&world, azurill_id).is_err(),
             "broken azurill override should still fail when requested"
