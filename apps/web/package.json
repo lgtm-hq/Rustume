@@ -38,6 +38,7 @@
     "workbox-window": "^7.4.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.12.1",
     "@playwright/test": "1.61.1",
     "@solidjs/testing-library": "0.8.10",
     "@testing-library/jest-dom": "6.9.1",

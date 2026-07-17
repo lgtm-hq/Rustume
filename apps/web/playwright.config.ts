@@ -8,6 +8,11 @@ export const BASE_URL = `http://127.0.0.1:${PORT}`;
 // to opt in to Firefox and WebKit runs.
 const allBrowsers = !process.env.CI && process.env.PLAYWRIGHT_ALL_BROWSERS === "1";
 
+// Visual comparisons run in their own project so they can opt out of retries:
+// a missing committed baseline must fail the run (Playwright writes the
+// baseline on the first attempt, so a retry would silently pass against it).
+const VISUAL_SPEC = /visual\.spec\.ts/;
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -17,6 +22,14 @@ export default defineConfig({
   reporter: process.env.CI
     ? [["html", { open: "never" }], ["github"]]
     : [["html", { open: "never" }], ["list"]],
+  // Baselines are CI (Linux) generated, so the platform suffix is omitted.
+  snapshotPathTemplate: "{testDir}/__screenshots__/{testFileName}/{arg}{ext}",
+  expect: {
+    toHaveScreenshot: {
+      // Tolerate minor anti-aliasing drift across Chromium releases.
+      maxDiffPixelRatio: 0.02,
+    },
+  },
   use: {
     baseURL: BASE_URL,
     trace: "retain-on-failure",
@@ -25,11 +38,25 @@ export default defineConfig({
     serviceWorkers: "block",
   },
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    { name: "chromium", use: { ...devices["Desktop Chrome"] }, testIgnore: VISUAL_SPEC },
+    {
+      name: "visual",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: VISUAL_SPEC,
+      retries: 0,
+    },
     ...(allBrowsers
       ? [
-          { name: "firefox", use: { ...devices["Desktop Firefox"] } },
-          { name: "webkit", use: { ...devices["Desktop Safari"] } },
+          {
+            name: "firefox",
+            use: { ...devices["Desktop Firefox"] },
+            testIgnore: VISUAL_SPEC,
+          },
+          {
+            name: "webkit",
+            use: { ...devices["Desktop Safari"] },
+            testIgnore: VISUAL_SPEC,
+          },
         ]
       : []),
   ],

@@ -1,9 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 ---
 name: Test - Web E2E
-# Runs the Playwright smoke suite for the web app (apps/web/e2e). The suite is
-# self-contained: it builds the WASM module, builds the production bundle, and
-# serves it via `vite preview` from the Playwright webServer block.
+# Runs the Playwright suites for the web app (apps/web/e2e): smoke, per-flow
+# E2E (CRUD, templates, export, import, offline), visual regression, and
+# accessibility. The run is self-contained: it builds the WASM module, builds
+# the production bundle, and serves it via `vite preview` from the Playwright
+# webServer block. Visual baselines live in apps/web/e2e/__screenshots__ and
+# are generated on this runner (Linux) — on baseline changes, download the
+# playwright-report artifact and commit the updated screenshots.
 
 "on":
   push:
@@ -42,8 +46,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  playwright-smoke:
-    name: 🎭 Web E2E Smoke
+  playwright-e2e:
+    name: 🎭 Web E2E
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     if: >-
@@ -118,7 +122,7 @@ jobs:
       - name: Install wasm-pack
         run: ./scripts/ci/testing/web/install-wasm-pack.sh
 
-      - name: Run Playwright smoke suite
+      - name: Run Playwright suites
         run: ./scripts/ci/testing/web/e2e.sh
 
       - name: Upload Playwright report
@@ -127,8 +131,13 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: playwright-report
+          # __screenshots__ is included on purpose: when a visual baseline
+          # is missing, Playwright writes the freshly rendered (Linux)
+          # baseline there and fails the run — committing it from this
+          # artifact is how baselines are (re)generated.
           path: |
             apps/web/playwright-report/
             apps/web/test-results/
+            apps/web/e2e/__screenshots__/
           retention-days: 7
           if-no-files-found: ignore
