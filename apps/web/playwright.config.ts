@@ -38,7 +38,9 @@ export default defineConfig({
   webServer: {
     command: "bun run e2e:server",
     url: BASE_URL,
-    reuseExistingServer: !process.env.CI,
+    // Opt-in reuse only: a stray server on the port would otherwise serve
+    // stale or unrelated content.
+    reuseExistingServer: process.env.PLAYWRIGHT_REUSE_SERVER === "1",
     timeout: 600_000,
   },
 });

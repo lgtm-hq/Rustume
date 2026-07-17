@@ -21,4 +21,5 @@ echo "::group::Build WASM module"
 bun run build:wasm
 echo "::endgroup::"
 
-bunx playwright test
+# The module was just built above — tell the webServer build to reuse it.
+E2E_WASM_PREBUILT=1 bunx playwright test

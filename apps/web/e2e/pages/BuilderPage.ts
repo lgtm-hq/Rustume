@@ -41,6 +41,11 @@ export default class BuilderPage extends BasePage {
     await expect(this.savedIndicator).toBeVisible();
   }
 
+  /** There are pending edits (header indicator shows Unsaved). */
+  async assertUnsaved(): Promise<void> {
+    await expect(this.unsavedIndicator).toBeVisible();
+  }
+
   async assertPreviewVisible(): Promise<void> {
     await expect(this.previewImage).toBeVisible();
   }

@@ -1,8 +1,9 @@
-// Build the production bundle (and the WASM module when missing) so the
-// Playwright webServer can serve a self-contained app via `vite preview`.
+// Build the WASM module and the production bundle so the Playwright
+// webServer can serve a self-contained app via `vite preview`.
 //
-// The WASM build is skipped when apps/web/wasm/ already contains a build
-// (local `make setup` output or a CI pre-build step) to keep e2e runs fast.
+// The WASM module is rebuilt by default so tests never run against stale
+// sources; set E2E_WASM_PREBUILT=1 (as CI does after its own build step)
+// to skip the rebuild when a verified build is already in apps/web/wasm/.
 import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
@@ -17,8 +18,11 @@ function run(command) {
   execSync(command, { cwd: root, stdio: "inherit" });
 }
 
-if (existsSync(wasmEntry)) {
-  console.log("[e2e-build] wasm/ already built — skipping WASM build");
+if (process.env.E2E_WASM_PREBUILT === "1") {
+  if (!existsSync(wasmEntry)) {
+    throw new Error("[e2e-build] E2E_WASM_PREBUILT=1 but wasm/ is missing");
+  }
+  console.log("[e2e-build] E2E_WASM_PREBUILT=1 — skipping WASM build");
 } else {
   run("bun run build:wasm");
 }

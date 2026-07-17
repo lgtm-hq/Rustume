@@ -50,10 +50,12 @@ test.describe("smoke", () => {
     await homePage.createResume();
     await builderPage.assertEditorOpen();
 
-    // Let the initial creation auto-save settle first, so the next Saved
-    // state can only come from persisting the typed name.
+    // Let the initial creation auto-save settle first, then anchor on the
+    // Unsaved state so the final Saved assertion can only come from the
+    // debounced save that persists the typed name.
     await builderPage.assertSaved();
     await builderPage.fillFullName(FULL_NAME);
+    await builderPage.assertUnsaved();
     await builderPage.assertSaved();
 
     await page.reload();
