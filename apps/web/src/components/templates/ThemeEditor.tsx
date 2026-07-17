@@ -29,7 +29,13 @@ export function ThemeEditor() {
       {/* Header */}
       <div class="flex items-center gap-3 pb-4 border-b border-border">
         <div class="w-10 h-10 bg-accent/10 rounded-lg flex items-center justify-center">
-          <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            class="w-5 h-5 text-accent"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -201,7 +207,13 @@ function PresetCard(props: PresetCardProps) {
       {/* Selected indicator */}
       <Show when={props.isSelected}>
         <div class="absolute -top-1 -right-1 w-4 h-4 bg-accent rounded-full flex items-center justify-center">
-          <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            class="w-2.5 h-2.5 text-white"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -255,6 +267,7 @@ function ColorInput(props: ColorInputProps) {
           transition-all hover:border-accent hover:scale-[1.02] hover:shadow-lg
           focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
         style={{ background: props.value }}
+        aria-label={`Pick ${props.label.toLowerCase()} color`}
         title="Click to pick a color"
       >
         {/* Hidden native color input */}
@@ -263,6 +276,7 @@ function ColorInput(props: ColorInputProps) {
           type="color"
           value={props.value}
           onInput={(e) => props.onChange(e.currentTarget.value)}
+          aria-label={`${props.label} color`}
           class="sr-only"
         />
       </button>
@@ -272,6 +286,7 @@ function ColorInput(props: ColorInputProps) {
         type="text"
         value={props.value}
         onInput={(e) => handleTextInput(e.currentTarget.value)}
+        aria-label={`${props.label} hex value`}
         class="w-full px-2 py-1.5 text-xs font-mono text-center bg-surface border border-border
           rounded-lg focus:outline-none focus:border-accent uppercase"
         maxLength={7}

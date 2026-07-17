@@ -210,12 +210,19 @@ export function ImportModal() {
             type="file"
             accept=".json,.zip"
             onChange={handleFileInput}
+            aria-label="Choose a resume file to import"
             class="absolute inset-0 opacity-0 cursor-pointer"
           />
 
           <div class="space-y-3">
             <div class="w-12 h-12 mx-auto bg-surface rounded-xl flex items-center justify-center">
-              <svg class="w-6 h-6 text-stone" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                class="w-6 h-6 text-stone"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -238,8 +245,12 @@ export function ImportModal() {
 
         {/* Loading */}
         <Show when={isLoading()}>
-          <div class="flex items-center justify-center gap-2 py-2 text-stone">
-            <svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24">
+          <div
+            role="status"
+            aria-live="polite"
+            class="flex items-center justify-center gap-2 py-2 text-stone"
+          >
+            <svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" aria-hidden="true">
               <circle
                 class="opacity-25"
                 cx="12"
@@ -261,7 +272,10 @@ export function ImportModal() {
 
         {/* Error */}
         <Show when={error()}>
-          <div class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          <div
+            role="alert"
+            class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700"
+          >
             {error()}
           </div>
         </Show>

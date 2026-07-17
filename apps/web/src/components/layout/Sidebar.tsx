@@ -62,7 +62,7 @@ export function Sidebar(props: SidebarProps) {
   };
 
   const renderIcon = (icon: string, className = "w-5 h-5") => (
-    <svg class={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg class={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d={icon} />
     </svg>
   );
@@ -92,6 +92,7 @@ export function Sidebar(props: SidebarProps) {
             fill={isPinned() ? "currentColor" : "none"}
             stroke="currentColor"
             viewBox="0 0 24 24"
+            aria-hidden="true"
           >
             <path
               stroke-linecap="round"
@@ -110,7 +111,7 @@ export function Sidebar(props: SidebarProps) {
       <div class="h-px bg-border mx-2 mb-2" />
 
       {/* Navigation Items */}
-      <nav class="flex-1 overflow-auto px-2">
+      <nav aria-label="Resume sections" class="flex-1 overflow-auto px-2">
         <For each={props.items}>
           {(item, index) => (
             <div class={startsGroup(index()) ? "mt-3 first:mt-0" : "mt-1"}>

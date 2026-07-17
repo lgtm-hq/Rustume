@@ -1,6 +1,7 @@
 import { For, Show, createSignal } from "solid-js";
 import { A, useNavigate } from "@solidjs/router";
 import { Button, Spinner, toast } from "../components/ui";
+import { usePageTitle } from "../hooks/usePageTitle";
 import { useResumeList } from "../stores/persistence";
 import { authStore } from "../stores/auth";
 import { generateId } from "../wasm/types";
@@ -33,6 +34,7 @@ function formatUpdatedAt(date: Date): string {
 }
 
 export default function Home() {
+  usePageTitle("Your resumes");
   const navigate = useNavigate();
   const { state: authState, signIn } = authStore;
   const { resumes, loading, deleteResume, duplicateResume, renameResume, refresh } =

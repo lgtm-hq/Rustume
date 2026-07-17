@@ -2,6 +2,7 @@ import { createMemo, createSignal, lazy, onMount, Show, Suspense } from "solid-j
 import { useParams, useNavigate } from "@solidjs/router";
 import { Button, toast, ShortcutsModal, Spinner } from "../components/ui";
 import { useHotkeys, type Shortcut } from "../hooks/useHotkeys";
+import { usePageTitle } from "../hooks/usePageTitle";
 import { useNavigationGuard } from "../hooks/useNavigationGuard";
 import { SplitPane } from "../components/layout/SplitPane";
 import { Sidebar, type SidebarItem } from "../components/layout/Sidebar";
@@ -212,6 +213,11 @@ export default function Editor() {
   const navigate = useNavigate();
   const { store, loadResume, createNewResume } = resumeStore;
   const { store: ui, openModal, closeModal, setPanel } = uiStore;
+
+  usePageTitle(() => {
+    const name = store.resume?.basics.name.trim();
+    return name ? `${name} · Editor` : "Editor";
+  });
 
   const [activeTab, setActiveTab] = createSignal<EditorTab>("basics");
   const [isLoading, setIsLoading] = createSignal(true);
@@ -496,8 +502,12 @@ export default function Editor() {
               <Show
                 when={loadError()}
                 fallback={
-                  <div class="text-center">
-                    <svg class="w-8 h-8 animate-spin text-accent mx-auto mb-4" viewBox="0 0 24 24">
+                  <div role="status" aria-live="polite" class="text-center">
+                    <svg
+                      class="w-8 h-8 animate-spin text-accent mx-auto mb-4"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
                       <circle
                         class="opacity-25"
                         cx="12"

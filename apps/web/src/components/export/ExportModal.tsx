@@ -90,13 +90,20 @@ export function ExportModal() {
         <div class="space-y-3">
           {/* PDF */}
           <button
+            type="button"
             class="w-full p-4 flex items-center gap-4 border border-border rounded-xl
               hover:border-accent hover:bg-accent/5 transition-colors text-left group"
             onClick={handleExportPdf}
             disabled={isExporting()}
+            aria-busy={isExporting()}
           >
             <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
-              <svg class="w-6 h-6 text-red-600" viewBox="0 0 24 24" fill="currentColor">
+              <svg
+                class="w-6 h-6 text-red-600"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden="true"
+              >
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zM8.5 13.5a1 1 0 1 1 0 2h-1a.5.5 0 0 0-.5.5v1.5h-.5a.5.5 0 0 1 0-1H7v-1a1.5 1.5 0 0 1 1.5-1.5zm6.5 0a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-1.5a.5.5 0 0 1-.5-.5v-3a.5.5 0 0 1 .5-.5H15zm-2.5 0a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-1 0v-1h-.5a.5.5 0 0 1 0-1h.5v-1a.5.5 0 0 1 .5-.5z" />
               </svg>
             </div>
@@ -109,7 +116,11 @@ export function ExportModal() {
             <Show
               when={!isExporting()}
               fallback={
-                <svg class="w-5 h-5 animate-spin text-accent" viewBox="0 0 24 24">
+                <svg
+                  class="w-5 h-5 animate-spin text-accent"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
                   <circle
                     class="opacity-25"
                     cx="12"
@@ -132,6 +143,7 @@ export function ExportModal() {
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                aria-hidden="true"
               >
                 <path
                   stroke-linecap="round"
@@ -145,12 +157,18 @@ export function ExportModal() {
 
           {/* JSON */}
           <button
+            type="button"
             class="w-full p-4 flex items-center gap-4 border border-border rounded-xl
               hover:border-accent hover:bg-accent/5 transition-colors text-left group"
             onClick={handleExportJson}
           >
             <div class="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
-              <svg class="w-6 h-6 text-amber-600" viewBox="0 0 24 24" fill="currentColor">
+              <svg
+                class="w-6 h-6 text-amber-600"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden="true"
+              >
                 <path d="M5 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H5zm4.5 5a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 1 .5-.5zm5 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 .5.5h.5a.5.5 0 0 1 0 1H15a1.5 1.5 0 0 1-1.5-1.5v-2a.5.5 0 0 1 .5-.5zM8 14a.5.5 0 0 1 .5.5v1a.5.5 0 0 0 .5.5h.5a.5.5 0 0 1 0 1H9a1.5 1.5 0 0 1-1.5-1.5v-1A.5.5 0 0 1 8 14z" />
               </svg>
             </div>
@@ -165,6 +183,7 @@ export function ExportModal() {
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
+              aria-hidden="true"
             >
               <path
                 stroke-linecap="round"
@@ -178,7 +197,10 @@ export function ExportModal() {
 
         {/* Error */}
         <Show when={error()}>
-          <div class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          <div
+            role="alert"
+            class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700"
+          >
             {error()}
           </div>
         </Show>

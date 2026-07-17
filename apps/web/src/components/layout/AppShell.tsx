@@ -17,17 +17,22 @@ export const AppShell: ParentComponent = (props) => {
       <header class="h-14 border-b border-border bg-paper/80 backdrop-blur-sm sticky top-0 z-30">
         <div class="h-full px-4 flex items-center justify-between">
           {/* Logo */}
-          <A href="/" class="flex items-center gap-2 group">
-            <div class="w-8 h-8 bg-ink rounded flex items-center justify-center">
-              <span class="text-paper font-display font-bold text-lg">R</span>
-            </div>
-            <span
-              class="font-display text-xl font-semibold text-ink
-              group-hover:text-accent transition-colors"
-            >
-              Rustume
-            </span>
-          </A>
+          <nav aria-label="Primary">
+            <A href="/" class="flex items-center gap-2 group">
+              <div
+                class="w-8 h-8 bg-ink rounded flex items-center justify-center"
+                aria-hidden="true"
+              >
+                <span class="text-paper font-display font-bold text-lg">R</span>
+              </div>
+              <span
+                class="font-display text-xl font-semibold text-ink
+                group-hover:text-accent transition-colors"
+              >
+                Rustume
+              </span>
+            </A>
+          </nav>
 
           {/* Status Indicators */}
           <div class="flex items-center gap-4">
@@ -62,10 +67,14 @@ function SaveIndicator() {
   const { store } = resumeStore;
 
   return (
-    <div class="flex items-center gap-2 text-xs font-mono text-stone">
+    <div
+      role="status"
+      aria-live="polite"
+      class="flex items-center gap-2 text-xs font-mono text-stone"
+    >
       <Show when={store.isSaving}>
         <div class="flex items-center gap-1.5">
-          <svg class="w-3 h-3 animate-spin" viewBox="0 0 24 24">
+          <svg class="w-3 h-3 animate-spin" viewBox="0 0 24 24" aria-hidden="true">
             <circle
               class="opacity-25"
               cx="12"
@@ -87,14 +96,20 @@ function SaveIndicator() {
 
       <Show when={!store.isSaving && store.isDirty}>
         <div class="flex items-center gap-1.5">
-          <div class="w-1.5 h-1.5 bg-accent rounded-full" />
+          <div class="w-1.5 h-1.5 bg-accent rounded-full" aria-hidden="true" />
           <span>Unsaved</span>
         </div>
       </Show>
 
       <Show when={!store.isSaving && !store.isDirty && store.lastSaved}>
         <div class="flex items-center gap-1.5">
-          <svg class="w-3 h-3 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <svg
+            class="w-3 h-3 text-green-600"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            aria-hidden="true"
+          >
             <path
               stroke-linecap="round"
               stroke-linejoin="round"

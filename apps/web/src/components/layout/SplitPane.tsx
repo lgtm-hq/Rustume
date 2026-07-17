@@ -73,6 +73,10 @@ export const SplitPane: ParentComponent<SplitPaneProps> = (props) => {
         <div
           role="separator"
           aria-orientation="vertical"
+          aria-label="Resize editor and preview panels"
+          aria-valuenow={Math.round(ratio() * 100)}
+          aria-valuemin={0}
+          aria-valuemax={100}
           class="w-1 bg-border hover:bg-accent cursor-col-resize
             transition-colors duration-150 flex-shrink-0 relative group"
           classList={{ "bg-accent": isDragging() }}

@@ -5,6 +5,7 @@ import { downloadResumesJson, downloadResumesPdf } from "../api/export";
 import { listCloudResumesPage } from "../api/resumes";
 import { authStore } from "../stores/auth";
 import { Button, Input, Modal, Spinner, toast } from "../components/ui";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 function ProfileAvatar(props: { label: string }) {
   return (
@@ -36,6 +37,7 @@ function ComingSoonRow(props: { title: string; description: string }) {
 }
 
 export default function Account() {
+  usePageTitle("Account");
   const { state, signIn, signOut, clearUser, displayName } = authStore;
   const navigate = useNavigate();
   const [signingOut, setSigningOut] = createSignal(false);

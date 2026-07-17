@@ -225,8 +225,13 @@ export function ImageUpload(props: ImageUploadProps) {
               <Show
                 when={!isProcessing()}
                 fallback={
-                  <div class="flex flex-col items-center gap-2">
-                    <svg class="w-8 h-8 text-accent animate-spin" fill="none" viewBox="0 0 24 24">
+                  <div role="status" aria-live="polite" class="flex flex-col items-center gap-2">
+                    <svg
+                      class="w-8 h-8 text-accent animate-spin"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
                       <circle
                         class="opacity-25"
                         cx="12"
@@ -252,6 +257,7 @@ export function ImageUpload(props: ImageUploadProps) {
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
+                    aria-hidden="true"
                   >
                     <path
                       stroke-linecap="round"

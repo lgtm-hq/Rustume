@@ -187,7 +187,13 @@ export function Preview() {
             onClick={() => goToPage(ui.previewPage - 1)}
             disabled={ui.previewPage === 0}
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -208,7 +214,13 @@ export function Preview() {
             onClick={() => goToPage(ui.previewPage + 1)}
             disabled={ui.previewPage >= totalPages() - 1}
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -229,7 +241,13 @@ export function Preview() {
               }}
               title={`Content spans ${totalPages()} pages`}
             >
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                class="w-3 h-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -241,11 +259,19 @@ export function Preview() {
             </span>
           </Show>
           <button
+            type="button"
             class="p-1.5 text-stone hover:text-ink hover:bg-surface rounded transition-colors"
             onClick={zoomOut}
+            aria-label="Zoom out"
             title="Zoom out"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
             </svg>
           </button>
@@ -253,11 +279,19 @@ export function Preview() {
             {Math.round(ui.previewZoom * 100)}%
           </span>
           <button
+            type="button"
             class="p-1.5 text-stone hover:text-ink hover:bg-surface rounded transition-colors"
             onClick={zoomIn}
+            aria-label="Zoom in"
             title="Zoom in"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -305,7 +339,9 @@ export function Preview() {
                     fallback={
                       <div class="text-center text-stone">
                         <Show when={error()}>
-                          <p class="text-sm mb-2">{error()}</p>
+                          <p role="alert" class="text-sm mb-2">
+                            {error()}
+                          </p>
                         </Show>
                         <Show when={!isOnline()}>
                           <div class="flex items-center justify-center gap-2 text-offline">
@@ -314,6 +350,7 @@ export function Preview() {
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
+                              aria-hidden="true"
                             >
                               <path
                                 stroke-linecap="round"
@@ -331,8 +368,12 @@ export function Preview() {
                       </div>
                     }
                   >
-                    <div class="flex flex-col items-center gap-3">
-                      <svg class="w-8 h-8 animate-spin text-accent" viewBox="0 0 24 24">
+                    <div role="status" aria-live="polite" class="flex flex-col items-center gap-3">
+                      <svg
+                        class="w-8 h-8 animate-spin text-accent"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
                         <circle
                           class="opacity-25"
                           cx="12"
@@ -365,8 +406,12 @@ export function Preview() {
 
           {/* Loading overlay */}
           <Show when={isLoading() && previewUrl()}>
-            <div class="absolute inset-0 flex items-center justify-center bg-white/50">
-              <svg class="w-6 h-6 animate-spin text-accent" viewBox="0 0 24 24">
+            <div
+              role="status"
+              aria-label="Updating preview"
+              class="absolute inset-0 flex items-center justify-center bg-white/50"
+            >
+              <svg class="w-6 h-6 animate-spin text-accent" viewBox="0 0 24 24" aria-hidden="true">
                 <circle
                   class="opacity-25"
                   cx="12"
