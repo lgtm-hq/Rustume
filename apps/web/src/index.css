@@ -17,17 +17,39 @@
   --turbo-state-danger: #f38ba8;
   --turbo-border-default: #6c7086;
   --turbo-selection-bg: #7f849c;
+
+  /*
+   * WCAG AA derived tokens.
+   *
+   * Several turbo-themes palettes ship secondary-text, accent, and border
+   * tokens that fall short of WCAG AA when used on the base/surface
+   * backgrounds (e.g. catppuccin-latte text.secondary #6c6f85 on #e6e9ef is
+   * 4.06:1, brand.primary #1e66f5 on #e6e9ef is 4.04:1, border #9ca0b0 on
+   * #eff1f5 is 2.30:1). Nudging each token toward the theme's primary text
+   * color raises contrast in every theme while preserving its hue:
+   *   - stone (muted text):  latte 4.06:1 -> 4.56:1 (>= 4.5:1 AA text)
+   *   - accent (link text):  latte 4.04:1 -> 4.65:1 (>= 4.5:1 AA text)
+   *   - border (UI/inputs):  latte 2.14:1 -> 3.41:1 (>= 3:1 AA non-text)
+   * Dark defaults (catppuccin-mocha) already pass and only gain contrast.
+   */
+  --a11y-text-secondary: color-mix(
+    in srgb,
+    var(--turbo-text-secondary) 75%,
+    var(--turbo-text-primary)
+  );
+  --a11y-accent: color-mix(in srgb, var(--turbo-brand-primary) 75%, var(--turbo-text-primary));
+  --a11y-border: color-mix(in srgb, var(--turbo-border-default) 55%, var(--turbo-text-primary));
 }
 
 @theme {
-  /* Colors - mapped from turbo-themes */
+  /* Colors - mapped from turbo-themes (via WCAG AA derived tokens above) */
   --color-ink: var(--turbo-text-primary);
   --color-paper: var(--turbo-bg-base);
-  --color-stone: var(--turbo-text-secondary);
-  --color-accent: var(--turbo-brand-primary);
+  --color-stone: var(--a11y-text-secondary);
+  --color-accent: var(--a11y-accent);
   --color-accent-light: var(--turbo-bg-overlay);
   --color-surface: var(--turbo-bg-surface);
-  --color-border: var(--turbo-border-default);
+  --color-border: var(--a11y-border);
   --color-shadow: rgba(0, 0, 0, 0.15);
   --color-offline: var(--turbo-state-warning);
 
