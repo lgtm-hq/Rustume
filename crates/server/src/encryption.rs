@@ -175,19 +175,27 @@ fn read_key_file(path: &Path) -> anyhow::Result<[u8; KEY_LEN]> {
         .map_err(|err| anyhow::anyhow!("invalid encryption key file {path:?}: {err}"))
 }
 
-/// Atomically create the key file with owner-only permissions.
+/// Atomically publish the key file with owner-only permissions.
+///
+/// The key is written and fsynced to a mode-0600 temporary sibling first, then
+/// hard-linked into place — the final path only ever holds a complete key, and
+/// linking fails (without overwriting) if another process published first.
 ///
 /// Returns `Ok(false)` when the file already exists (a concurrent process
 /// persisted a key first); the caller should reload it instead.
 fn write_key_file(path: &Path, key: &[u8; KEY_LEN]) -> anyhow::Result<bool> {
     use std::io::Write;
 
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|err| {
-            anyhow::anyhow!("failed to create encryption key directory {parent:?}: {err}")
-        })?;
+    if path.exists() {
+        return Ok(false);
     }
 
+    let parent = path.parent().unwrap_or_else(|| Path::new("."));
+    std::fs::create_dir_all(parent).map_err(|err| {
+        anyhow::anyhow!("failed to create encryption key directory {parent:?}: {err}")
+    })?;
+
+    let tmp_path = path.with_extension(format!("tmp.{}", std::process::id()));
     let mut options = std::fs::OpenOptions::new();
     options.write(true).create_new(true);
     #[cfg(unix)]
@@ -198,20 +206,28 @@ fn write_key_file(path: &Path, key: &[u8; KEY_LEN]) -> anyhow::Result<bool> {
         options.mode(0o600);
     }
 
-    let mut file = match options.open(path) {
-        Ok(file) => file,
-        Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => return Ok(false),
-        Err(err) => {
-            return Err(anyhow::anyhow!(
-                "failed to create encryption key file {path:?}: {err}"
-            ))
-        }
-    };
-    file.write_all(hex::encode(key).as_bytes())
-        .and_then(|()| file.sync_all())
-        .map_err(|err| anyhow::anyhow!("failed to write encryption key file {path:?}: {err}"))?;
+    let write_result = options
+        .open(&tmp_path)
+        .and_then(|mut file| {
+            file.write_all(hex::encode(key).as_bytes())?;
+            file.sync_all()
+        })
+        .map_err(|err| anyhow::anyhow!("failed to write encryption key file {tmp_path:?}: {err}"));
+    if let Err(err) = write_result {
+        let _ = std::fs::remove_file(&tmp_path);
+        return Err(err);
+    }
 
-    Ok(true)
+    // Hard-link is atomic and never overwrites: exactly one process wins.
+    let publish = std::fs::hard_link(&tmp_path, path);
+    let _ = std::fs::remove_file(&tmp_path);
+    match publish {
+        Ok(()) => Ok(true),
+        Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => Ok(false),
+        Err(err) => Err(anyhow::anyhow!(
+            "failed to publish encryption key file {path:?}: {err}"
+        )),
+    }
 }
 
 #[cfg(test)]

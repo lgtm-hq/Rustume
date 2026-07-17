@@ -37,6 +37,9 @@ pub async fn run() -> anyhow::Result<()> {
     let storage = match StorageConfig::from_env(cloud_mode)? {
         Some(config) => Some(init_storage(config).await?),
         None => {
+            if crate::cloud::cloud_flag_enabled() {
+                anyhow::bail!("DATABASE_URL must be set when RUSTUME_CLOUD is enabled");
+            }
             warn!(
                 "DATABASE_URL is not set — running in stateless fallback mode; resume data \
                  stays in the browser and is not persisted server-side"

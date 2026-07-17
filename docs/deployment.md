@@ -154,15 +154,19 @@ Two artifacts are needed for full recovery — the database dump alone is
 encrypted garbage without the key, and the key alone has nothing to decrypt:
 
 ```bash
-# 1. Encryption key (once — it never changes)
+# 1. Encryption key (once — it never changes). If you set
+#    RUSTUME_ENCRYPTION_KEY_FILE, copy that path instead.
 docker compose cp rustume:/data/.encryption_key ./rustume-encryption.key.backup
 
-# 2. Postgres data (regularly)
-docker compose exec postgres pg_dump -U rustume rustume > rustume-backup.sql
+# 2. Postgres data (regularly) — uses the credentials the container runs with
+docker compose exec postgres sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"'   > rustume-backup.sql
 ```
 
-Restore by placing the key back at `/data/.encryption_key` (or setting
-`RUSTUME_ENCRYPTION_KEY` to its hex contents) and restoring the SQL dump.
+To restore, stop the server first (`docker compose stop rustume`), place the
+key back at the configured key file path (or set `RUSTUME_ENCRYPTION_KEY` to
+its hex contents), restore the SQL dump, then start the server again. The
+server refuses to start if encrypted rows exist that the configured key
+cannot decrypt.
 
 `docker compose down` preserves the named volumes (`rustume_pgdata`,
 `rustume_data`). **`docker compose down -v` destroys all resume data and the

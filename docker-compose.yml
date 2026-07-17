@@ -28,7 +28,11 @@ services:
       PORT: "3000"
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       RUSTUME_CLOUD: ${RUSTUME_CLOUD:-false}
-      DATABASE_URL: ${DATABASE_URL:-postgres://rustume:rustume@postgres:5432/rustume}
+      # Defaults stay aligned with the postgres service credentials below.
+      # yamllint disable-line rule:line-length
+      DATABASE_URL: ${DATABASE_URL:-postgres://${POSTGRES_USER:-rustume}:${POSTGRES_PASSWORD:-rustume}@postgres:5432/${POSTGRES_DB:-rustume}}
+      # Compose defaults encryption ON. For cloud dev (RUSTUME_CLOUD=true) set
+      # RUSTUME_ENCRYPT_AT_REST=false explicitly to match the cloud default.
       RUSTUME_ENCRYPT_AT_REST: ${RUSTUME_ENCRYPT_AT_REST:-true}
       WORKOS_CLIENT_ID: ${WORKOS_CLIENT_ID:-}
       WORKOS_API_KEY: ${WORKOS_API_KEY:-}
@@ -59,7 +63,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rustume}
       POSTGRES_DB: ${POSTGRES_DB:-rustume}
     ports:
-      - "5432:5432"
+      # Loopback-only: never expose default-credential Postgres beyond the host.
+      - "127.0.0.1:5432:5432"
     volumes:
       - rustume_pgdata:/var/lib/postgresql/data
     healthcheck:

@@ -289,6 +289,7 @@ pub async fn init_storage(config: StorageConfig) -> anyhow::Result<Arc<StorageSt
     } else {
         None
     };
+    verify_encryption_key(&db, encryption.as_ref()).await?;
     info!(
         encrypt_at_rest = config.encrypt_at_rest,
         "Resume storage initialized"
@@ -299,6 +300,40 @@ pub async fn init_storage(config: StorageConfig) -> anyhow::Result<Arc<StorageSt
         encryption,
         config.encrypt_at_rest,
     )))
+}
+
+/// Guard against silent key loss or mismatch at startup.
+///
+/// If encrypted rows already exist, the configured key must decrypt them —
+/// otherwise a regenerated key file or a wrong `RUSTUME_ENCRYPTION_KEY` would
+/// quietly split the dataset across two keys.
+async fn verify_encryption_key(
+    db: &PgPool,
+    encryption: Option<&EncryptionService>,
+) -> anyhow::Result<()> {
+    let sample = sqlx::query_as::<_, (Uuid, Vec<u8>)>(
+        "SELECT id, data_encrypted FROM resumes WHERE data_encrypted IS NOT NULL LIMIT 1",
+    )
+    .fetch_optional(db)
+    .await?;
+    let Some((id, blob)) = sample else {
+        return Ok(());
+    };
+
+    let Some(encryption) = encryption else {
+        anyhow::bail!(
+            "encrypted resume data exists but no encryption key is configured — restore \
+             RUSTUME_ENCRYPTION_KEY or the key file before starting"
+        );
+    };
+    encryption.decrypt(&blob, id.as_bytes()).map_err(|_| {
+        anyhow::anyhow!(
+            "encrypted resume data exists but the configured encryption key cannot decrypt it \
+             — the key file may have been regenerated or RUSTUME_ENCRYPTION_KEY is wrong; \
+             restore the original key before starting"
+        )
+    })?;
+    Ok(())
 }
 
 #[cfg(test)]

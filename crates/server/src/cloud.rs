@@ -150,9 +150,15 @@ fn email_service_from_config(config: &CloudConfig) -> anyhow::Result<Option<Emai
     }
 }
 
+/// Returns `true` when the `RUSTUME_CLOUD` flag itself is set, regardless of
+/// whether `DATABASE_URL` is configured.
+pub fn cloud_flag_enabled() -> bool {
+    matches!(std::env::var("RUSTUME_CLOUD").as_deref(), Ok("true" | "1"))
+}
+
 /// Returns `true` when `RUSTUME_CLOUD` is enabled and `DATABASE_URL` is set.
 pub fn cloud_enabled() -> bool {
-    matches!(std::env::var("RUSTUME_CLOUD").as_deref(), Ok("true" | "1"))
+    cloud_flag_enabled()
         && std::env::var("DATABASE_URL")
             .ok()
             .is_some_and(|url| !url.trim().is_empty())
