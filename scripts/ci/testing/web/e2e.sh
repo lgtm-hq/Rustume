@@ -18,7 +18,10 @@ bunx playwright install --with-deps chromium
 echo "::endgroup::"
 
 echo "::group::Build WASM module"
-bun run build:wasm
+# Unlike the local `bun run build:wasm` (--mode no-install), let wasm-pack
+# fetch the matching wasm-bindgen/binaryen binaries from GitHub releases —
+# CI runners have no preinstalled wasm-bindgen CLI.
+(cd "${ROOT}/bindings/wasm" && wasm-pack build --release --target web --out-dir ../../apps/web/wasm)
 echo "::endgroup::"
 
 # The module was just built above — tell the webServer build to reuse it.
