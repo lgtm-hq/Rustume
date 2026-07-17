@@ -103,7 +103,12 @@ const menuId = `nav-menu-${label.toLowerCase().replace(/\s+/g, "-")}`;
 
       dropdown.addEventListener("mouseenter", open);
       dropdown.addEventListener("mouseleave", scheduleClose);
-      dropdown.addEventListener("focusin", open);
+      dropdown.addEventListener("focusin", () => {
+        // Ignore the synthetic focusin fired by trigger.focus() during an
+        // Escape-close, which would otherwise reopen the panel immediately.
+        if (dropdown.classList.contains("is-escaped")) return;
+        open();
+      });
       dropdown.addEventListener("focusout", (event) => {
         const next = event.relatedTarget;
         if (next instanceof Node && dropdown.contains(next)) return;

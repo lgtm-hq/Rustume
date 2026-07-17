@@ -408,9 +408,9 @@ export function Preview() {
           <Show when={isLoading() && previewUrl()}>
             <div
               role="status"
-              aria-label="Updating preview"
               class="absolute inset-0 flex items-center justify-center bg-white/50"
             >
+              <span class="sr-only">Updating preview</span>
               <svg class="w-6 h-6 animate-spin text-accent" viewBox="0 0 24 24" aria-hidden="true">
                 <circle
                   class="opacity-25"
