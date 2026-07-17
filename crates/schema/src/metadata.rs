@@ -243,9 +243,11 @@ fn default_true() -> bool {
 fn default_layout() -> Vec<Vec<Vec<String>>> {
     vec![vec![
         vec![
+            // Rendered as a dedicated page before the resume body; listed
+            // first because its column position does not affect placement.
+            "coverLetter".to_string(),
             "profiles".to_string(),
             "summary".to_string(),
-            "coverLetter".to_string(),
             "experience".to_string(),
             "education".to_string(),
             "projects".to_string(),

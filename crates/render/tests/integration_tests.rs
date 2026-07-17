@@ -637,7 +637,7 @@ fn test_templates_render_cover_letter_as_dedicated_page(#[case] template_name: &
     let mut with = sample_resume();
     with.metadata.template = template_name.to_string();
     fill_cover_letter(&mut with, true);
-    let (_, pages) = renderer
+    let (with_page_0, pages) = renderer
         .render_preview(&with, 0)
         .unwrap_or_else(|e| panic!("Cover letter preview failed for '{template_name}': {e:?}"));
 
@@ -646,6 +646,26 @@ fn test_templates_render_cover_letter_as_dedicated_page(#[case] template_name: &
         base_pages + 1,
         "Expected '{template_name}' to render the cover letter as exactly one dedicated \
          extra page (baseline {base_pages} pages, got {pages})"
+    );
+
+    // Ordering: the cover letter is prepended, so page 1 of the cover letter
+    // render must match page 0 of the baseline resume pixel-for-pixel, and
+    // page 0 must differ from the baseline first page.
+    let (base_page_0, _) = renderer
+        .render_preview(&without, 0)
+        .unwrap_or_else(|e| panic!("Baseline preview failed for '{template_name}': {e:?}"));
+    let (with_page_1, _) = renderer
+        .render_preview(&with, 1)
+        .unwrap_or_else(|e| panic!("Second-page preview failed for '{template_name}': {e:?}"));
+    assert_ne!(
+        with_page_0, base_page_0,
+        "Expected the first page of '{template_name}' to be the cover letter, \
+         not the resume"
+    );
+    assert_eq!(
+        with_page_1, base_page_0,
+        "Expected the resume to start on page 2 in '{template_name}' when the \
+         cover letter is visible"
     );
 }
 
@@ -737,6 +757,10 @@ fn test_cover_letter_source_contains_converted_markup() {
     assert!(
         !source.contains("<strong>"),
         "Cover letter HTML must be converted to Typst markup before embedding"
+    );
+    assert!(
+        source.contains("excited"),
+        "Cover letter body text must be preserved through conversion"
     );
 }
 

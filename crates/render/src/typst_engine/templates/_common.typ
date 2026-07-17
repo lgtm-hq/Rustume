@@ -242,10 +242,10 @@
 /// the template's heading style. Content arrives pre-converted to Typst
 /// markup by the engine's rich-text preprocessing.
 #let render-cover-letter(data, heading, size: 10pt, muted: none) = {
-  let section = data.sections.coverLetter
-  heading(section.name)
-  render-cover-letter-recipient(section.recipient, size: size, muted: muted)
-  render-rich-text(section.content, size: size)
+  let section = data.sections.at("coverLetter", default: (:))
+  heading(section.at("name", default: "Cover Letter"))
+  render-cover-letter-recipient(section.at("recipient", default: (:)), size: size, muted: muted)
+  render-rich-text(section.at("content", default: ""), size: size)
 }
 
 /// Render the cover letter as a dedicated page before the resume content.
