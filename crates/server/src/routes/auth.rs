@@ -363,7 +363,7 @@ mod policy_acceptance_tests {
 
     use crate::auth::workos::{upsert_user, WorkOsUser};
     use crate::config;
-    use crate::policy::record_signup_policy_acceptances;
+    use crate::policy::{record_policy_acceptance, record_signup_policy_acceptances};
     use sqlx::postgres::PgPoolOptions;
     use sqlx::Row;
     use uuid::Uuid;
@@ -430,6 +430,21 @@ mod policy_acceptance_tests {
             .expect("count policy acceptances")
     }
 
+    async fn count_policy_accept_audit_events(pool: &sqlx::PgPool, user_id: Uuid) -> i64 {
+        sqlx::query_scalar(
+            r#"
+            SELECT COUNT(*)::bigint
+            FROM audit_events
+            WHERE event_type = 'policy.accept'
+              AND actor_user_id = $1
+            "#,
+        )
+        .bind(user_id)
+        .fetch_one(pool)
+        .await
+        .expect("count policy.accept audit events")
+    }
+
     fn sample_workos_user(suffix: &str) -> WorkOsUser {
         WorkOsUser {
             id: format!("workos_policy_{suffix}"),
@@ -483,6 +498,69 @@ mod policy_acceptance_tests {
         assert_eq!(count_policy_acceptances(&pool, first.user.id).await, 2);
 
         cleanup_user(&pool, first.user.id).await;
+    }
+
+    #[tokio::test]
+    async fn repeated_policy_acceptance_emits_single_audit_event() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+
+        let pool = connect_test_pool(&database_url).await;
+        let suffix = Uuid::new_v4().to_string();
+        let workos_user = sample_workos_user(&suffix);
+
+        let upserted = upsert_user(&pool, &workos_user).await.expect("upsert");
+        let user_id = upserted.user.id;
+
+        record_policy_acceptance(&pool, user_id, "terms", config::TERMS_VERSION, None)
+            .await
+            .expect("first acceptance");
+        record_policy_acceptance(&pool, user_id, "terms", config::TERMS_VERSION, None)
+            .await
+            .expect("second acceptance");
+
+        assert_eq!(count_policy_acceptances(&pool, user_id).await, 1);
+        assert_eq!(count_policy_accept_audit_events(&pool, user_id).await, 1);
+
+        cleanup_user(&pool, user_id).await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn concurrent_policy_acceptance_emits_single_audit_event() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+
+        let pool = connect_test_pool(&database_url).await;
+        let suffix = Uuid::new_v4().to_string();
+        let workos_user = sample_workos_user(&suffix);
+
+        let upserted = upsert_user(&pool, &workos_user).await.expect("upsert");
+        let user_id = upserted.user.id;
+
+        // Spawn both acceptances on a multi-threaded runtime so the inserts are
+        // genuinely in flight at the same time, not merely interleaved.
+        let spawn_acceptance = |pool: sqlx::PgPool| {
+            tokio::spawn(async move {
+                record_policy_acceptance(&pool, user_id, "privacy", config::PRIVACY_VERSION, None)
+                    .await
+            })
+        };
+        let first_task = spawn_acceptance(pool.clone());
+        let second_task = spawn_acceptance(pool.clone());
+        let (first, second) = tokio::join!(first_task, second_task);
+        first
+            .expect("first acceptance task")
+            .expect("first concurrent acceptance");
+        second
+            .expect("second acceptance task")
+            .expect("second concurrent acceptance");
+
+        assert_eq!(count_policy_acceptances(&pool, user_id).await, 1);
+        assert_eq!(count_policy_accept_audit_events(&pool, user_id).await, 1);
+
+        cleanup_user(&pool, user_id).await;
     }
 }
 
