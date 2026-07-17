@@ -13,7 +13,6 @@ const menuId = `nav-menu-${label.toLowerCase().replace(/\s+/g, "-")}`;
   <a
     href={href}
     class="nav-link nav-dropdown-trigger"
-    aria-haspopup={groups.length > 0 ? "true" : undefined}
     aria-expanded={groups.length > 0 ? "false" : undefined}
     aria-controls={groups.length > 0 ? menuId : undefined}
   >
@@ -119,7 +118,9 @@ const menuId = `nav-menu-${label.toLowerCase().replace(/\s+/g, "-")}`;
         dropdown.classList.add("is-escaped");
         dropdown.querySelector<HTMLElement>(".nav-dropdown-trigger")?.focus();
       });
-      dropdown.addEventListener("focusout", () => {
+      dropdown.addEventListener("focusout", (event) => {
+        const next = event.relatedTarget;
+        if (next instanceof Node && dropdown.contains(next)) return;
         dropdown.classList.remove("is-escaped");
       });
     }

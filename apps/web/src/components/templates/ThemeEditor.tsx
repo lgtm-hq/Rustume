@@ -178,10 +178,12 @@ interface PresetCardProps {
 function PresetCard(props: PresetCardProps) {
   return (
     <button
+      type="button"
       onClick={props.onSelect}
       class={`relative p-2 rounded-lg border-2 transition-all hover:scale-105 ${
         props.isSelected ? "border-accent shadow-md" : "border-border hover:border-accent/50"
       }`}
+      aria-pressed={props.isSelected}
       title={props.preset.name}
     >
       {/* Color Preview */}
