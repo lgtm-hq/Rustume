@@ -33,10 +33,23 @@
   --shadow-xl: var(--rust-warm-shadow);
   --shadow-glow-sm: 0 0 0 3px color-mix(in srgb, var(--rust-forge) 30%, transparent);
 
+  /*
+   * WCAG AA derived token: some turbo theme palettes ship a secondary text
+   * color below the 4.5:1 AA contrast ratio on base/surface backgrounds
+   * (e.g. solarized-light #657b83 on #eee8d5 is 3.64:1). Mixing it toward
+   * the theme's primary text color keeps the hue while guaranteeing more
+   * contrast in every theme; craft (default) already passes and only gains.
+   */
+  --a11y-text-secondary: color-mix(
+    in srgb,
+    var(--turbo-text-secondary) 75%,
+    var(--turbo-text-primary)
+  );
+
   /* Aliases for legacy token names */
-  --turbo-text-muted: var(--turbo-text-secondary);
+  --turbo-text-muted: var(--a11y-text-secondary);
   --turbo-text-default: var(--turbo-text-primary);
-  --turbo-text-tertiary: var(--turbo-text-secondary);
+  --turbo-text-tertiary: var(--a11y-text-secondary);
 }
 
 /* Turbo theme accent bridge (craft sets these in craft-theme.css) */
@@ -98,6 +111,27 @@ body::after {
 .site-footer {
   position: relative;
   z-index: 1;
+}
+
+/* Skip-to-content link: visually hidden until keyboard-focused */
+.skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 2000;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--turbo-border-default);
+  background: var(--turbo-bg-surface);
+  color: var(--turbo-text-primary);
+  font-weight: 600;
+  transform: translateY(calc(-100% - 1.5rem));
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+  text-decoration: none;
+  color: var(--turbo-text-primary);
 }
 
 h1, h2, h3, h4 {
@@ -497,7 +531,7 @@ th {
 .sidebar-link {
   display: block;
   padding: 0.4rem 1.25rem;
-  color: var(--turbo-text-secondary);
+  color: var(--a11y-text-secondary);
   font-size: 0.9rem;
   text-decoration: none;
   border-left: 2px solid transparent;
@@ -687,7 +721,7 @@ th {
   padding: 0.32rem 0.7rem;
   border: 1px solid var(--turbo-border-default);
   border-radius: var(--radius-full);
-  color: var(--turbo-text-secondary);
+  color: var(--a11y-text-secondary);
   font-size: 0.84rem;
   text-decoration: none;
   background: var(--turbo-bg-surface);
@@ -767,7 +801,7 @@ th {
 .cloud-doc-figure figcaption {
   margin-top: 0.65rem;
   font-size: 0.875rem;
-  color: var(--turbo-text-secondary);
+  color: var(--a11y-text-secondary);
   text-align: center;
 }
 
@@ -794,7 +828,7 @@ th {
   font-family: var(--font-body, var(--turbo-font-sans));
   font-size: 0.85rem;
   font-weight: 500;
-  color: var(--turbo-text-secondary);
+  color: var(--a11y-text-secondary);
 }
 
 .plans-table .plan-unlimited {
@@ -1031,7 +1065,7 @@ th {
   background: color-mix(in srgb, var(--turbo-bg-surface) 85%, transparent);
   border: 1px solid var(--turbo-border-default);
   font-size: 0.92rem;
-  color: var(--turbo-text-secondary);
+  color: var(--a11y-text-secondary);
 }
 
 .craft-privacy-num {
@@ -1156,7 +1190,7 @@ th {
 }
 
 .feature-tile-description {
-  color: var(--turbo-text-secondary);
+  color: var(--a11y-text-secondary);
   margin: 0;
   font-size: 0.8125rem;
   line-height: 1.45;
@@ -1174,12 +1208,12 @@ th {
 .tag-outline {
   background: transparent;
   border: 1px solid var(--turbo-border-default);
-  color: var(--turbo-text-secondary);
+  color: var(--a11y-text-secondary);
 }
 
 .feature-tile-tag {
   background: var(--turbo-bg-surface);
-  color: var(--turbo-text-secondary);
+  color: var(--a11y-text-secondary);
   padding: 0.125rem 0.5rem;
   border-radius: var(--radius-full, 9999px);
   font-size: 0.6875rem;
@@ -1240,7 +1274,7 @@ th {
 }
 
 .card.card-feature .card-body > p {
-  color: var(--turbo-text-secondary);
+  color: var(--a11y-text-secondary);
   font-size: 0.92rem;
   line-height: 1.55;
   margin: 0;
@@ -1370,7 +1404,7 @@ th {
 
 .callout-banner p,
 .callout-banner ul {
-  color: var(--turbo-text-secondary);
+  color: var(--a11y-text-secondary);
   line-height: 1.65;
 }
 
@@ -1417,7 +1451,7 @@ th {
 
 .link-card span {
   font-size: 0.82rem;
-  color: var(--turbo-text-secondary);
+  color: var(--a11y-text-secondary);
 }
 
 .doc-categories {
@@ -1453,7 +1487,7 @@ th {
 }
 
 .doc-category span {
-  color: var(--turbo-text-secondary);
+  color: var(--a11y-text-secondary);
   font-size: 0.88rem;
 }
 
@@ -1609,7 +1643,7 @@ th {
   font-size: 0.62rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--site-accent-light, var(--turbo-text-secondary));
+  color: var(--site-accent-light, var(--a11y-text-secondary));
 }
 
 .theme-picker-options {
@@ -1661,7 +1695,7 @@ th {
   font-size: 0.58rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--turbo-text-secondary);
+  color: var(--a11y-text-secondary);
   opacity: 0.85;
 }
 

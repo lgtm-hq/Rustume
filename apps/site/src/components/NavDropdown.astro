@@ -10,7 +10,13 @@ const menuId = `nav-menu-${label.toLowerCase().replace(/\s+/g, "-")}`;
 ---
 
 <div class="nav-dropdown" data-nav-dropdown>
-  <a href={href} class="nav-link nav-dropdown-trigger">
+  <a
+    href={href}
+    class="nav-link nav-dropdown-trigger"
+    aria-haspopup={groups.length > 0 ? "true" : undefined}
+    aria-expanded={groups.length > 0 ? "false" : undefined}
+    aria-controls={groups.length > 0 ? menuId : undefined}
+  >
     {label}
     <svg class="nav-dropdown-chevron" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
       <path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
@@ -18,7 +24,7 @@ const menuId = `nav-menu-${label.toLowerCase().replace(/\s+/g, "-")}`;
   </a>
   {
     groups.length > 0 && (
-      <div class="nav-dropdown-panel" id={menuId} role="navigation" aria-label={`${label} pages`}>
+      <div class="nav-dropdown-panel" id={menuId} role="group" aria-label={`${label} pages`}>
         <div class="nav-dropdown-panel-inner">
           {
             groups.map((group) => (
@@ -52,9 +58,17 @@ const menuId = `nav-menu-${label.toLowerCase().replace(/\s+/g, "-")}`;
     }
   }
 
+  function setExpanded(dropdown: HTMLElement, expanded: boolean): void {
+    const trigger = dropdown.querySelector<HTMLElement>(".nav-dropdown-trigger");
+    if (trigger?.hasAttribute("aria-expanded")) {
+      trigger.setAttribute("aria-expanded", String(expanded));
+    }
+  }
+
   function closeDropdown(dropdown: HTMLElement): void {
     clearCloseTimer(dropdown);
     dropdown.classList.remove("is-open");
+    setExpanded(dropdown, false);
   }
 
   function closeOtherDropdowns(active: HTMLElement): void {
@@ -71,7 +85,9 @@ const menuId = `nav-menu-${label.toLowerCase().replace(/\s+/g, "-")}`;
       const open = (): void => {
         closeOtherDropdowns(dropdown);
         clearCloseTimer(dropdown);
+        dropdown.classList.remove("is-escaped");
         dropdown.classList.add("is-open");
+        setExpanded(dropdown, true);
       };
 
       const scheduleClose = (): void => {
@@ -80,6 +96,7 @@ const menuId = `nav-menu-${label.toLowerCase().replace(/\s+/g, "-")}`;
           dropdown,
           setTimeout(() => {
             dropdown.classList.remove("is-open");
+            setExpanded(dropdown, false);
             closeTimers.delete(dropdown);
           }, CLOSE_DELAY_MS),
         );
@@ -92,6 +109,28 @@ const menuId = `nav-menu-${label.toLowerCase().replace(/\s+/g, "-")}`;
         const next = event.relatedTarget;
         if (next instanceof Node && dropdown.contains(next)) return;
         scheduleClose();
+      });
+      dropdown.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape" || !dropdown.classList.contains("is-open")) return;
+        event.stopPropagation();
+        closeDropdown(dropdown);
+        // Suppress the :focus-within fallback until focus moves or the
+        // dropdown is reopened, so Escape visually closes the panel.
+        dropdown.classList.add("is-escaped");
+        dropdown.querySelector<HTMLElement>(".nav-dropdown-trigger")?.focus();
+      });
+      dropdown.addEventListener("focusout", () => {
+        dropdown.classList.remove("is-escaped");
+      });
+    }
+
+    if (document.body.dataset.navDropdownOutsideBound !== "true") {
+      document.body.dataset.navDropdownOutsideBound = "true";
+      document.addEventListener("click", (event) => {
+        for (const dropdown of document.querySelectorAll<HTMLElement>("[data-nav-dropdown]")) {
+          if (event.target instanceof Node && dropdown.contains(event.target)) continue;
+          closeDropdown(dropdown);
+        }
       });
     }
   }
@@ -145,6 +184,14 @@ const menuId = `nav-menu-${label.toLowerCase().replace(/\s+/g, "-")}`;
 
   .nav-dropdown:not(.is-open):not(:focus-within) .nav-dropdown-panel {
     transition: none;
+  }
+
+  /* Escape closes the panel even while the trigger keeps focus */
+  .nav-dropdown.is-escaped .nav-dropdown-panel {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-4px);
+    pointer-events: none;
   }
 
   .nav-dropdown-panel-inner {
