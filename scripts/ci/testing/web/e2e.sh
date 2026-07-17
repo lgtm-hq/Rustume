@@ -24,5 +24,11 @@ echo "::group::Build WASM module"
 (cd "${ROOT}/bindings/wasm" && wasm-pack build --release --target web --out-dir ../../apps/web/wasm)
 echo "::endgroup::"
 
-# The module was just built above — tell the webServer build to reuse it.
-E2E_WASM_PREBUILT=1 bunx playwright test
+echo "::group::Build app bundle"
+# Build outside the Playwright webServer so build logs stay visible and the
+# webServer step reduces to serving the prebuilt dist/.
+E2E_WASM_PREBUILT=1 node scripts/e2e-build.js
+echo "::endgroup::"
+
+# Both artifacts were just built above — the webServer only runs vite preview.
+E2E_WASM_PREBUILT=1 E2E_APP_PREBUILT=1 bunx playwright test

@@ -44,5 +44,7 @@ export default defineConfig({
     // stale or unrelated content.
     reuseExistingServer: process.env.PLAYWRIGHT_REUSE_SERVER === "1",
     timeout: 600_000,
+    stdout: "pipe",
+    stderr: "pipe",
   },
 });

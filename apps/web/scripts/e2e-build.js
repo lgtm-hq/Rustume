@@ -27,4 +27,11 @@ if (process.env.E2E_WASM_PREBUILT === "1") {
   run("bun run build:wasm");
 }
 
-run("bun run build");
+if (process.env.E2E_APP_PREBUILT === "1") {
+  if (!existsSync(resolve(root, "dist", "index.html"))) {
+    throw new Error("[e2e-build] E2E_APP_PREBUILT=1 but dist/ is missing");
+  }
+  console.log("[e2e-build] E2E_APP_PREBUILT=1 — skipping app build");
+} else {
+  run("bun run build");
+}
