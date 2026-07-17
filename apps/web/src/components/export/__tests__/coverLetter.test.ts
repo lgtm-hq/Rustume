@@ -43,6 +43,12 @@ describe("buildCoverLetterOnlyResume", () => {
     expect(clone.sections.coverLetter.visible).toBe(true);
   });
 
+  it("throws when the section is missing entirely", () => {
+    const resume = createDefaultResume();
+    delete (resume.sections as { coverLetter?: unknown }).coverLetter;
+    expect(() => buildCoverLetterOnlyResume(resume)).toThrow("Resume has no cover letter section");
+  });
+
   it("does not mutate the original resume", () => {
     const resume = createResumeWithCoverLetter();
     resume.sections.coverLetter.visible = false;

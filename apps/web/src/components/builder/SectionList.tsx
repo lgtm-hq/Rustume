@@ -1,5 +1,5 @@
 import { For, Show } from "solid-js";
-import { resumeStore, type LayoutSectionKey } from "../../stores/resume";
+import { isHtmlEmpty, resumeStore, type LayoutSectionKey } from "../../stores/resume";
 import { SECTIONS } from "./constants";
 
 export function SectionList() {
@@ -14,7 +14,9 @@ export function SectionList() {
   const getItemCount = (key: LayoutSectionKey): number => {
     if (!store.resume) return 0;
     if (key === "summary") return store.resume.sections.summary.content ? 1 : 0;
-    if (key === "coverLetter") return store.resume.sections.coverLetter.content ? 1 : 0;
+    if (key === "coverLetter") {
+      return isHtmlEmpty(store.resume.sections.coverLetter.content) ? 0 : 1;
+    }
     if (key === "custom") {
       return Object.values(store.resume.sections.custom).reduce(
         (total, section) => total + section.items.length,

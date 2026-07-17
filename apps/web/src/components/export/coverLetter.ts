@@ -14,9 +14,14 @@ export function hasCoverLetterContent(resume: ResumeData): boolean {
  * The render/export APIs accept full resume data and honor `metadata.layout`,
  * so a separate cover letter PDF needs no server changes: export a clone whose
  * layout contains only the `coverLetter` section, forced visible.
+ *
+ * @throws {Error} When the resume has no cover letter section.
  */
 export function buildCoverLetterOnlyResume(resume: ResumeData): ResumeData {
   const clone = JSON.parse(JSON.stringify(resume)) as ResumeData;
+  if (!clone.sections.coverLetter) {
+    throw new Error("Resume has no cover letter section");
+  }
   clone.sections.coverLetter.visible = true;
   clone.metadata.layout = [[["coverLetter"]]];
   return clone;

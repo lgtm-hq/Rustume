@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
-import { render, screen, waitFor } from "@solidjs/testing-library";
+import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { Route, MemoryRouter, createMemoryHistory } from "@solidjs/router";
 import { axeConfig } from "../../test/a11y";
 import Editor from "../Editor";
@@ -64,6 +64,17 @@ vi.mock("../../components/ui", async (importOriginal) => {
   };
 });
 
+// TipTap does not run under jsdom; replace the lazy editor with a plain textarea.
+vi.mock("../../components/ui/LazyRichTextEditor", () => ({
+  LazyRichTextEditor: (props: { value?: string; placeholder?: string }) => (
+    <textarea
+      aria-label="Rich text body"
+      placeholder={props.placeholder}
+      value={props.value ?? ""}
+    />
+  ),
+}));
+
 vi.mock("@solidjs/router", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@solidjs/router")>();
   return {
@@ -99,5 +110,32 @@ describe("Editor accessibility", () => {
     );
 
     expect(await axe(container, axeConfig)).toHaveNoViolations();
+  }, 15000);
+});
+
+describe("Editor cover letter tab", () => {
+  beforeEach(() => {
+    navigateMock.mockClear();
+  });
+
+  it("renders the cover letter editor when the sidebar tab is selected", async () => {
+    renderEditor();
+
+    await waitFor(
+      () => {
+        expect(screen.getByText("Full Name")).toBeInTheDocument();
+      },
+      { timeout: 10000 },
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Cover Letter" }));
+
+    await waitFor(
+      () => {
+        expect(screen.getByText("Recipient")).toBeInTheDocument();
+        expect(screen.getByLabelText("Name")).toBeInTheDocument();
+      },
+      { timeout: 10000 },
+    );
   }, 15000);
 });
