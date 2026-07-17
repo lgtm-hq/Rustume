@@ -38,6 +38,11 @@ const SummaryEditor = lazy(() =>
     default: module.SummaryEditor,
   })),
 );
+const CoverLetterEditor = lazy(() =>
+  import("../components/builder/CoverLetterEditor").then((module) => ({
+    default: module.CoverLetterEditor,
+  })),
+);
 const ThemeEditor = lazy(() =>
   import("../components/templates/ThemeEditor").then((module) => ({
     default: module.ThemeEditor,
@@ -66,6 +71,7 @@ function TabFallback() {
 type EditorTab =
   | "basics"
   | "summary"
+  | "coverLetter"
   | "layout"
   | "experience"
   | "education"
@@ -95,6 +101,11 @@ const TABS: SidebarItem[] = [
     id: "summary",
     label: "Summary",
     icon: "M4 6h16M4 12h16M4 18h7",
+  },
+  {
+    id: "coverLetter",
+    label: "Cover Letter",
+    icon: "M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z",
   },
   {
     id: "layout",
@@ -176,6 +187,7 @@ const TABS: SidebarItem[] = [
 const CONTENT_TAB_IDS = new Set([
   "basics",
   "summary",
+  "coverLetter",
   "experience",
   "education",
   "skills",
@@ -344,6 +356,12 @@ export default function Editor() {
         return (
           <Suspense fallback={<TabFallback />}>
             <SummaryEditor />
+          </Suspense>
+        );
+      case "coverLetter":
+        return (
+          <Suspense fallback={<TabFallback />}>
+            <CoverLetterEditor />
           </Suspense>
         );
       case "layout":

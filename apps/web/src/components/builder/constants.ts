@@ -1,13 +1,18 @@
 import type { SectionKey } from "../../stores/resume";
 
 export interface SectionInfo {
-  key: SectionKey | "summary" | "custom";
+  key: SectionKey | "summary" | "coverLetter" | "custom";
   name: string;
   icon: string;
 }
 
 export const SECTIONS: SectionInfo[] = [
   { key: "summary", name: "Summary", icon: "M4 6h16M4 12h16M4 18h7" },
+  {
+    key: "coverLetter",
+    name: "Cover Letter",
+    icon: "M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z",
+  },
   {
     key: "experience",
     name: "Experience",
