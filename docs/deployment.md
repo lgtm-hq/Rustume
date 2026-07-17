@@ -109,6 +109,10 @@ the image instead of compiling from GitHub source. Staging tracks `:main` (or a 
 | `RUST_LOG` | `info` | Rust tracing filter. Use `debug` for more server logs. |
 | `CORS_ORIGIN` | `*` | Comma-separated allowed origins for API requests. Set explicitly in production (e.g. `https://your-domain.com`). |
 | `RUSTUME_STATIC_DIR` | `/app/web` | Directory containing the built web app. |
+| `DATABASE_URL` | compose: local postgres | PostgreSQL connection string for persistent resume storage. When unset, the server falls back to stateless mode (browser-only storage). |
+| `RUSTUME_ENCRYPT_AT_REST` | `true` (self-hosted) / `false` (cloud) | Encrypt resume payloads with AES-256-GCM before writing to Postgres. |
+| `RUSTUME_ENCRYPTION_KEY` | unset | Hex-encoded 32-byte key (`openssl rand -hex 32`). Takes priority over the key file. |
+| `RUSTUME_ENCRYPTION_KEY_FILE` | `/data/.encryption_key` | Key file location; a random key is auto-generated here on first start if no key is configured. |
 
 The root `docker-compose.yml` sets `CORS_ORIGIN` to `http://localhost:3000`.
 The server binary defaults to `*` when unset.
@@ -129,6 +133,37 @@ rustume.example.com {
 
 ## Persistence
 
-The server is stateless. Resume data is stored in the browser by the web app and
-sent to the API only when parsing, previewing, or exporting. Back up browser data
-by exporting resumes from the UI.
+`docker compose up` runs Postgres alongside the server. Resume data is stored
+server-side in the `rustume_pgdata` volume and encrypted at rest by default,
+so it survives browser wipes, reinstalls, and device switches. On first start
+the server seeds an implicit local user (no login required) and auto-generates
+an encryption key at `/data/.encryption_key` (the `rustume_data` volume).
+
+If `DATABASE_URL` is not set (for example when running the bare binary), the
+server falls back to the legacy stateless mode: resume data stays in the
+browser and is sent to the API only for parsing, previewing, or exporting.
+
+Self-hosted mode trusts the local network: the resume API requires no
+authentication, so anyone who can reach the server can read and write resumes.
+Keep it on a trusted LAN or add access control at a reverse proxy. Change the
+default Postgres credentials if the database port is exposed.
+
+## Backup
+
+Two artifacts are needed for full recovery — the database dump alone is
+encrypted garbage without the key, and the key alone has nothing to decrypt:
+
+```bash
+# 1. Encryption key (once — it never changes)
+docker compose cp rustume:/data/.encryption_key ./rustume-encryption.key.backup
+
+# 2. Postgres data (regularly)
+docker compose exec postgres pg_dump -U rustume rustume > rustume-backup.sql
+```
+
+Restore by placing the key back at `/data/.encryption_key` (or setting
+`RUSTUME_ENCRYPTION_KEY` to its hex contents) and restoring the SQL dump.
+
+`docker compose down` preserves the named volumes (`rustume_pgdata`,
+`rustume_data`). **`docker compose down -v` destroys all resume data and the
+encryption key.**
