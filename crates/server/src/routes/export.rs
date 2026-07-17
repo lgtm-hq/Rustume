@@ -1,4 +1,4 @@
-//! Bulk resume export routes for Rustume Cloud data portability.
+//! Bulk resume export routes for data portability (self-hosted and cloud).
 
 use axum::{
     extract::State,
@@ -29,12 +29,13 @@ fn reject_export_over_resume_cap() -> ApiError {
     ))
 }
 
-/// Resume fields required for bulk export.
+/// Resume fields required for bulk export, prior to decryption.
 #[derive(Debug, sqlx::FromRow)]
 struct ExportResumeRow {
     id: Uuid,
     title: String,
-    data: serde_json::Value,
+    data: Option<serde_json::Value>,
+    data_encrypted: Option<Vec<u8>>,
 }
 
 /// Export all resumes for the authenticated user as JSON.
@@ -54,19 +55,22 @@ pub async fn export_resumes_json(
     AuthUser(user): AuthUser,
     State(state): State<AppState>,
 ) -> Result<Json<ResumeBulkExport>, ApiError> {
-    let cloud = state.cloud()?;
-    let access = subscription::load_access(&cloud.db, user.id).await?;
+    let storage = state.storage()?;
+    let access = subscription::load_access(&storage.db, user.id).await?;
     access.ensure_export()?;
 
-    let rows = fetch_all_resumes(&cloud.db, user.id).await?;
+    let rows = fetch_all_resumes(&storage.db, user.id).await?;
     let resumes = rows
         .into_iter()
-        .map(|row| ResumeExportItem {
-            id: row.id,
-            title: row.title,
-            data: row.data,
+        .map(|row| {
+            let data = storage.decode_resume_data(row.data, row.data_encrypted)?;
+            Ok(ResumeExportItem {
+                id: row.id,
+                title: row.title,
+                data,
+            })
         })
-        .collect();
+        .collect::<Result<Vec<_>, ApiError>>()?;
 
     Ok(Json(ResumeBulkExport {
         exported_at: Utc::now(),
@@ -91,17 +95,20 @@ pub async fn export_resumes_pdf(
     AuthUser(user): AuthUser,
     State(state): State<AppState>,
 ) -> Result<Response, ApiError> {
-    let cloud = state.cloud()?;
-    let access = subscription::load_access(&cloud.db, user.id).await?;
+    let storage = state.storage()?;
+    let access = subscription::load_access(&storage.db, user.id).await?;
     access.ensure_export()?;
 
-    let rows = fetch_all_resumes(&cloud.db, user.id).await?;
+    let rows = fetch_all_resumes(&storage.db, user.id).await?;
     let renderer = state.renderer.clone();
     let mut archive = ZipWriter::new(std::io::Cursor::new(Vec::new()));
     let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
     for row in rows {
-        let resume: ResumeData = serde_json::from_value(row.data)
+        let data = state
+            .storage()?
+            .decode_resume_data(row.data, row.data_encrypted)?;
+        let resume: ResumeData = serde_json::from_value(data)
             .map_err(|_| ApiError::new("Invalid resume data format"))?;
         let file_name = export_pdf_filename(&row.id, &row.title);
         let pdf = tokio::task::spawn_blocking({
@@ -154,7 +161,7 @@ async fn fetch_all_resumes(
     let fetch_limit = MAX_EXPORT_RESUMES + 1;
     let rows = sqlx::query_as::<_, ExportResumeRow>(
         r#"
-        SELECT id, title, data
+        SELECT id, title, data, data_encrypted
         FROM resumes
         WHERE user_id = $1
         ORDER BY updated_at DESC
@@ -326,8 +333,14 @@ mod tests {
 
     fn test_app_state(pool: sqlx::PgPool) -> AppState {
         let sessions_pool = pool.clone();
+        let storage = Arc::new(crate::storage::StorageState {
+            db: pool.clone(),
+            encryption: None,
+            encrypt_at_rest: false,
+        });
         AppState::with_require_auth(
             Arc::new(crate::routes::static_dir()),
+            Some(storage),
             Some(Arc::new(CloudState {
                 db: pool,
                 workos: WorkOsClient::new("client_test".into(), "api_key_test".into()),

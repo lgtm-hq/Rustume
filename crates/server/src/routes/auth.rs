@@ -1,4 +1,4 @@
-//! WorkOS AuthKit login, callback, logout, and session probe routes.
+//! WorkOS AuthKit login, callback, logout, and the mode-aware identity probe.
 
 use axum::{
     extract::{Query, State},
@@ -216,20 +216,25 @@ pub async fn logout(
     Ok(response)
 }
 
-/// Return the currently authenticated user (requires session cookie).
+/// Return the current identity: the implicit local user in self-hosted mode,
+/// or the session-cookie user in cloud mode.
 #[utoipa::path(
     get,
     path = "/auth/me",
     tag = "Auth",
     responses(
-        (status = 200, description = "Authenticated user", body = AuthUserResponse),
-        (status = 401, description = "Not authenticated", body = AuthMeUnauthorizedResponse),
-        (status = 404, description = "Cloud auth not enabled", body = ApiError),
+        (status = 200, description = "Current identity (mode: local or cloud)", body = AuthUserResponse),
+        (status = 401, description = "Not authenticated (cloud mode)", body = AuthMeUnauthorizedResponse),
+        (status = 404, description = "No persistent storage configured", body = ApiError),
     ),
     security(("cookieAuth" = []))
 )]
 pub async fn me(State(state): State<AppState>, jar: CookieJar) -> Result<Response, ApiError> {
-    let cloud = state.cloud()?;
+    let Some(cloud) = state.cloud.as_deref() else {
+        // Self-hosted: no sessions — report the implicit local user.
+        let user = state.storage()?.local_user().await?;
+        return Ok(Json(AuthUserResponse::from_local_user(user)).into_response());
+    };
     let require_auth = state.require_auth;
 
     if let Some(cookie) = jar.get(SESSION_COOKIE) {

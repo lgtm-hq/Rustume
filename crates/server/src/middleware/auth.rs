@@ -1,4 +1,5 @@
-//! Session cookie authentication extractor for cloud routes.
+//! Authenticated-user extractor: session cookies in cloud mode, the implicit
+//! local user in self-hosted mode.
 
 use axum::{
     extract::{FromRequestParts, Request, State},
@@ -24,7 +25,11 @@ impl FromRequestParts<AppState> for AuthUser {
         parts: &mut Parts,
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
-        let cloud = state.cloud()?;
+        let Some(cloud) = state.cloud.as_deref() else {
+            // Self-hosted mode: no auth — resolve the implicit local user.
+            let user = state.storage()?.local_user().await?;
+            return Ok(AuthUser(user));
+        };
         let jar = CookieJar::from_request_parts(parts, state)
             .await
             .map_err(|_| unauthorized("Missing session cookie"))?;

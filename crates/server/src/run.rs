@@ -1,7 +1,7 @@
 use anyhow::Context;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::app::create_router_with_state;
 use crate::cloud::{cloud_enabled, init_cloud, CloudConfig};
@@ -11,8 +11,10 @@ use crate::observability::init_sentry;
 use crate::routes::{init_metrics, static_dir};
 use crate::shutdown::{health_probe, shutdown_signal};
 use crate::state::AppState;
+use crate::storage::{init_storage, seed_local_user, StorageConfig};
 
-/// Start the HTTP server, optionally initializing Rustume Cloud when configured.
+/// Start the HTTP server: always initialize storage when `DATABASE_URL` is
+/// set, and layer Rustume Cloud auth on top when `RUSTUME_CLOUD` is enabled.
 pub async fn run() -> anyhow::Result<()> {
     if std::env::args().any(|a| a == "--health") {
         std::process::exit(health_probe());
@@ -30,16 +32,34 @@ pub async fn run() -> anyhow::Result<()> {
     init_metrics();
 
     let static_root = Arc::new(static_dir());
-    let cloud = if cloud_enabled() {
-        let config = CloudConfig::from_env()?;
-        info!("Rustume Cloud mode enabled");
-        Some(init_cloud(config).await?)
-    } else {
-        info!("Running in self-hosted stateless mode");
-        None
+    let cloud_mode = cloud_enabled();
+
+    let storage = match StorageConfig::from_env(cloud_mode)? {
+        Some(config) => Some(init_storage(config).await?),
+        None => {
+            warn!(
+                "DATABASE_URL is not set — running in stateless fallback mode; resume data \
+                 stays in the browser and is not persisted server-side"
+            );
+            None
+        }
     };
 
-    let app_state = AppState::new(static_root.clone(), cloud);
+    let cloud = match (&storage, cloud_mode) {
+        (Some(storage), true) => {
+            let config = CloudConfig::from_env()?;
+            info!("Rustume Cloud mode enabled");
+            Some(init_cloud(config, storage.db.clone())?)
+        }
+        (Some(storage), false) => {
+            seed_local_user(&storage.db).await?;
+            info!("Running in self-hosted mode with persistent server-side storage");
+            None
+        }
+        (None, _) => None,
+    };
+
+    let app_state = AppState::new(static_root.clone(), storage, cloud);
     if let Some(rate_limits) = app_state.rate_limits.clone() {
         RateLimitState::spawn_eviction_task(rate_limits);
     }

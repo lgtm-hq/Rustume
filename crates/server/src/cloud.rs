@@ -1,10 +1,11 @@
-//! Rustume Cloud bootstrap: PostgreSQL pool, WorkOS client, and session service.
+//! Rustume Cloud bootstrap: WorkOS client, session service, and email.
+//!
+//! The PostgreSQL pool itself is owned by [`crate::storage`]; cloud mode
+//! layers auth services on top of that shared pool.
 
-use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
 use std::env::VarError;
 use std::sync::Arc;
-use std::time::Duration;
 use tracing::info;
 
 use crate::auth::session::SessionService;
@@ -14,8 +15,6 @@ use crate::email::EmailService;
 /// Cloud-specific configuration loaded from environment variables.
 #[derive(Clone)]
 pub struct CloudConfig {
-    /// PostgreSQL connection string (`DATABASE_URL`).
-    pub database_url: String,
     /// WorkOS AuthKit client ID.
     pub workos_client_id: String,
     /// WorkOS API key (server-side secret).
@@ -24,10 +23,6 @@ pub struct CloudConfig {
     pub workos_redirect_uri: String,
     /// Secret used to sign session cookies.
     pub session_secret: String,
-    /// Maximum PostgreSQL pool connections (`DB_MAX_CONNECTIONS`, default 10).
-    pub db_max_connections: u32,
-    /// Pool acquire timeout in seconds (`DB_ACQUIRE_TIMEOUT_SECS`, default 5).
-    pub db_acquire_timeout_secs: u64,
     /// Resend API key when transactional email is enabled (`RESEND_API_KEY`).
     pub resend_api_key: Option<String>,
     /// Sender address when transactional email is enabled (`EMAIL_FROM`).
@@ -37,21 +32,16 @@ pub struct CloudConfig {
 impl CloudConfig {
     /// Load required cloud settings from the process environment.
     pub fn from_env() -> anyhow::Result<Self> {
-        let database_url = required_non_empty_env("DATABASE_URL")?;
-
         let session_secret = required_non_empty_env("SESSION_SECRET")?;
         if session_secret.len() < 32 {
             anyhow::bail!("SESSION_SECRET must be at least 32 characters");
         }
 
         Ok(Self {
-            database_url,
             workos_client_id: required_non_empty_env("WORKOS_CLIENT_ID")?,
             workos_api_key: required_non_empty_env("WORKOS_API_KEY")?,
             workos_redirect_uri: required_non_empty_env("WORKOS_REDIRECT_URI")?,
             session_secret,
-            db_max_connections: optional_env_u32("DB_MAX_CONNECTIONS", 10)?,
-            db_acquire_timeout_secs: optional_env_u64("DB_ACQUIRE_TIMEOUT_SECS", 5)?,
             resend_api_key: optional_non_empty_env("RESEND_API_KEY")?,
             email_from: optional_non_empty_env("EMAIL_FROM")?,
         })
@@ -61,13 +51,10 @@ impl CloudConfig {
 impl std::fmt::Debug for CloudConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CloudConfig")
-            .field("database_url", &"<redacted>")
             .field("workos_client_id", &self.workos_client_id)
             .field("workos_api_key", &"<redacted>")
             .field("workos_redirect_uri", &self.workos_redirect_uri)
             .field("session_secret", &"<redacted>")
-            .field("db_max_connections", &self.db_max_connections)
-            .field("db_acquire_timeout_secs", &self.db_acquire_timeout_secs)
             .field(
                 "resend_api_key",
                 &self.resend_api_key.as_ref().map(|_| "<redacted>"),
@@ -96,11 +83,11 @@ where
     }
 }
 
-fn optional_env_u32(key: &str, default: u32) -> anyhow::Result<u32> {
+pub(crate) fn optional_env_u32(key: &str, default: u32) -> anyhow::Result<u32> {
     optional_env(key, default)
 }
 
-fn optional_env_u64(key: &str, default: u64) -> anyhow::Result<u64> {
+pub(crate) fn optional_env_u64(key: &str, default: u64) -> anyhow::Result<u64> {
     optional_env(key, default)
 }
 
@@ -197,18 +184,8 @@ pub struct CloudState {
     pub email: Option<EmailService>,
 }
 
-/// Connect to PostgreSQL, run migrations, and wire cloud auth services.
-pub async fn init_cloud(config: CloudConfig) -> anyhow::Result<Arc<CloudState>> {
-    let db = PgPoolOptions::new()
-        .max_connections(config.db_max_connections)
-        .acquire_timeout(Duration::from_secs(config.db_acquire_timeout_secs))
-        .connect(&config.database_url)
-        .await?;
-
-    sqlx::migrate!("./src/db/migrations").run(&db).await?;
-
-    info!("PostgreSQL migrations applied");
-
+/// Wire cloud auth services (WorkOS, sessions, email) on top of the shared pool.
+pub fn init_cloud(config: CloudConfig, db: PgPool) -> anyhow::Result<Arc<CloudState>> {
     let email = match email_service_from_config(&config)? {
         Some(service) => {
             info!("Transactional email enabled");
@@ -253,13 +230,10 @@ mod tests {
     #[test]
     fn email_service_from_config_requires_both_vars() {
         let config = CloudConfig {
-            database_url: "postgres://localhost/rustume".to_string(),
             workos_client_id: "client".to_string(),
             workos_api_key: "key".to_string(),
             workos_redirect_uri: "http://localhost/auth/callback".to_string(),
             session_secret: "test-session-secret-at-least-32-chars".to_string(),
-            db_max_connections: 10,
-            db_acquire_timeout_secs: 5,
             resend_api_key: Some("re_test".to_string()),
             email_from: None,
         };
