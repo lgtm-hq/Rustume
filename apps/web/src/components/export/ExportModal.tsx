@@ -4,15 +4,18 @@ import { uiStore } from "../../stores/ui";
 import { resumeStore } from "../../stores/resume";
 import { downloadPdf } from "../../api/render";
 import { resumeToJson, isWasmReady } from "../../wasm";
+import { buildCoverLetterOnlyResume, hasCoverLetterContent } from "./coverLetter";
 
 export function ExportModal() {
   const { store: ui, closeModal } = uiStore;
   const { store } = resumeStore;
 
   const [isExporting, setIsExporting] = createSignal(false);
+  const [isExportingCoverLetter, setIsExportingCoverLetter] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
 
   const isOpen = () => ui.modal === "export";
+  const canExportCoverLetter = () => store.resume != null && hasCoverLetterContent(store.resume);
 
   const getFileName = () => {
     const name = store.resume?.basics.name || "resume";
@@ -43,6 +46,28 @@ export function ExportModal() {
       setError(e instanceof Error ? e.message : "Failed to export PDF");
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleExportCoverLetterPdf = async () => {
+    if (!store.resume || !canExportCoverLetter()) return;
+
+    setIsExportingCoverLetter(true);
+    setError(null);
+
+    try {
+      await downloadPdf(
+        buildCoverLetterOnlyResume(store.resume),
+        `${getFileName()}-cover-letter.pdf`,
+      );
+      toast.success("Cover letter exported successfully");
+      closeModal();
+    } catch (e) {
+      console.error("Export error:", e);
+      toast.error(e instanceof Error ? e.message : "Failed to export cover letter");
+      setError(e instanceof Error ? e.message : "Failed to export cover letter");
+    } finally {
+      setIsExportingCoverLetter(false);
     }
   };
 
@@ -93,7 +118,7 @@ export function ExportModal() {
             class="w-full p-4 flex items-center gap-4 border border-border rounded-xl
               hover:border-accent hover:bg-accent/5 transition-colors text-left group"
             onClick={handleExportPdf}
-            disabled={isExporting()}
+            disabled={isExporting() || isExportingCoverLetter()}
           >
             <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
               <svg class="w-6 h-6 text-red-600" viewBox="0 0 24 24" fill="currentColor">
@@ -108,6 +133,82 @@ export function ExportModal() {
             </div>
             <Show
               when={!isExporting()}
+              fallback={
+                <svg class="w-5 h-5 animate-spin text-accent" viewBox="0 0 24 24">
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                    fill="none"
+                  />
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+              }
+            >
+              <svg
+                class="w-5 h-5 text-stone group-hover:text-accent transition-colors"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                />
+              </svg>
+            </Show>
+          </button>
+
+          {/* Cover Letter PDF */}
+          <button
+            class="w-full p-4 flex items-center gap-4 border border-border rounded-xl
+              hover:border-accent hover:bg-accent/5 transition-colors text-left group
+              disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-border
+              disabled:hover:bg-transparent"
+            onClick={handleExportCoverLetterPdf}
+            disabled={isExporting() || isExportingCoverLetter() || !canExportCoverLetter()}
+            title={
+              canExportCoverLetter()
+                ? undefined
+                : "Write a cover letter in the editor to enable this export"
+            }
+          >
+            <div class="w-12 h-12 bg-sky-100 rounded-xl flex items-center justify-center flex-shrink-0">
+              <svg
+                class="w-6 h-6 text-sky-600"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                />
+              </svg>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="font-display font-semibold text-ink group-hover:text-accent transition-colors">
+                Cover Letter PDF
+              </div>
+              <div class="text-sm text-stone">
+                {canExportCoverLetter()
+                  ? "Standalone cover letter document"
+                  : "Write a cover letter to enable"}
+              </div>
+            </div>
+            <Show
+              when={!isExportingCoverLetter()}
               fallback={
                 <svg class="w-5 h-5 animate-spin text-accent" viewBox="0 0 24 24">
                   <circle
