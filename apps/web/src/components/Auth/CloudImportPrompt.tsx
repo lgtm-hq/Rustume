@@ -114,13 +114,18 @@ export function CloudImportPrompt() {
             else setOpen(value);
           }}
           title="Import local resumes?"
-          description="We found resumes saved on this device. Import them to your Rustume Cloud account?"
+          description={
+            authStore.state.localMode
+              ? "We found resumes saved in this browser. Import them to the server so they persist outside this device?"
+              : "We found resumes saved on this device. Import them to your Rustume Cloud account?"
+          }
           size="md"
         >
           <div class="px-6 py-5 space-y-4">
             <p class="text-sm text-stone">
-              {count()} local resume{count() === 1 ? "" : "s"} can be copied to cloud storage. Your
-              local copies will remain on this device.
+              {count()} local resume{count() === 1 ? "" : "s"} can be copied to{" "}
+              {authStore.state.localMode ? "server storage" : "cloud storage"}. Your local copies
+              will remain on this device.
             </p>
             <div class="flex justify-end gap-3">
               <Button variant="ghost" onClick={() => dismiss(userId())} disabled={importing()}>
@@ -132,7 +137,7 @@ export function CloudImportPrompt() {
                 disabled={importing()}
               >
                 <Show when={!importing()} fallback="Importing...">
-                  Import to cloud
+                  {authStore.state.localMode ? "Import to server" : "Import to cloud"}
                 </Show>
               </Button>
             </div>

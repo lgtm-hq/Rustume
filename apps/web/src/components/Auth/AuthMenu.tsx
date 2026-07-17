@@ -21,7 +21,7 @@ export function AuthMenu() {
       when={!state.loading}
       fallback={<Spinner class="w-4 h-4 text-stone" ariaLabel="Loading authentication" />}
     >
-      <Show when={state.cloudEnabled} fallback={null}>
+      <Show when={state.cloudEnabled && !state.localMode} fallback={null}>
         <Show
           when={state.user}
           fallback={

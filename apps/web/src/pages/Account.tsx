@@ -142,7 +142,7 @@ export default function Account() {
           }
         >
           <Show
-            when={state.cloudEnabled}
+            when={state.cloudEnabled && !state.localMode}
             fallback={
               <div class="text-center py-16">
                 <h1 class="font-display text-2xl font-semibold text-ink mb-3">Account</h1>
