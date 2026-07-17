@@ -4,7 +4,16 @@
 # Verifies the archive against a pinned SHA-256 before installing.
 set -euo pipefail
 
-WASM_PACK_VERSION="${WASM_PACK_VERSION:-0.15.0}"
+DEFAULT_WASM_PACK_VERSION="0.15.0"
+WASM_PACK_VERSION="${WASM_PACK_VERSION:-${DEFAULT_WASM_PACK_VERSION}}"
+
+# The bundled checksums only cover the default version — a version override
+# must bring its own checksum or the verification failure would be opaque.
+if [[ "${WASM_PACK_VERSION}" != "${DEFAULT_WASM_PACK_VERSION}" && -z "${WASM_PACK_SHA256:-}" ]]; then
+	echo "install-wasm-pack.sh: WASM_PACK_VERSION=${WASM_PACK_VERSION} overrides the default" \
+		"(${DEFAULT_WASM_PACK_VERSION}) — set WASM_PACK_SHA256 for that release too" >&2
+	exit 1
+fi
 
 arch="$(uname -m)"
 case "${arch}" in
