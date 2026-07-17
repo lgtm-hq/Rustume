@@ -629,7 +629,7 @@ fn test_templates_render_cover_letter_as_dedicated_page(#[case] template_name: &
     let mut without = sample_resume();
     without.metadata.template = template_name.to_string();
     fill_cover_letter(&mut without, false);
-    let (_, base_pages) = renderer
+    let (base_page_0, base_pages) = renderer
         .render_preview(&without, 0)
         .unwrap_or_else(|e| panic!("Baseline preview failed for '{template_name}': {e:?}"));
 
@@ -651,9 +651,6 @@ fn test_templates_render_cover_letter_as_dedicated_page(#[case] template_name: &
     // Ordering: the cover letter is prepended, so page 1 of the cover letter
     // render must match page 0 of the baseline resume pixel-for-pixel, and
     // page 0 must differ from the baseline first page.
-    let (base_page_0, _) = renderer
-        .render_preview(&without, 0)
-        .unwrap_or_else(|e| panic!("Baseline preview failed for '{template_name}': {e:?}"));
     let (with_page_1, _) = renderer
         .render_preview(&with, 1)
         .unwrap_or_else(|e| panic!("Second-page preview failed for '{template_name}': {e:?}"));

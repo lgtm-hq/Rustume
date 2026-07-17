@@ -192,14 +192,13 @@
   }
 }
 
-/// Return all page-0 layout keys across every column (empty when no layout).
-#let layout-page-keys(data) = {
-  if data.metadata.layout.len() == 0 {
-    return ()
-  }
+/// Return all layout keys across every page and column (empty when no layout).
+#let layout-section-keys(data) = {
   let keys = ()
-  for column in data.metadata.layout.at(0) {
-    keys = keys + column
+  for page in data.metadata.layout {
+    for column in page {
+      keys = keys + column
+    }
   }
   keys
 }
@@ -211,7 +210,7 @@
   if not ("coverLetter" in data.sections) { return false }
   let section = data.sections.coverLetter
   if not section.at("visible", default: false) { return false }
-  let keys = layout-page-keys(data)
+  let keys = layout-section-keys(data)
   keys.len() == 0 or "coverLetter" in keys
 }
 
