@@ -132,7 +132,7 @@ pub async fn create_resume(
     validate_title(title.as_str())?;
     validate_resume_json(&body.data)?;
     let resume_id = body.id.unwrap_or_else(Uuid::new_v4);
-    let payload = storage.encode_resume_data(body.data)?;
+    let payload = storage.encode_resume_data(body.data, resume_id)?;
 
     let row = sqlx::query_as::<_, StoredResumeRow>(
         r#"
@@ -189,7 +189,7 @@ pub async fn update_resume(
     }
     let payload = body
         .data
-        .map(|data| storage.encode_resume_data(data))
+        .map(|data| storage.encode_resume_data(data, id))
         .transpose()?;
 
     let row = apply_resume_update(storage, user.id, id, &title, payload, body.version).await?;
@@ -331,7 +331,7 @@ async fn import_single_resume(
 ) -> Result<ResumeRow, ApiError> {
     let title = item.title.unwrap_or_else(|| "Untitled".to_string());
     let resume_id = item.id.unwrap_or_else(Uuid::new_v4);
-    let payload = storage.encode_resume_data(item.data)?;
+    let payload = storage.encode_resume_data(item.data, resume_id)?;
 
     let row = sqlx::query_as::<_, StoredResumeRow>(
         r#"

@@ -60,9 +60,9 @@ pub(crate) async fn connect_test_pool(database_url: &str) -> sqlx::PgPool {
 
 /// Build a storage state around an existing pool with a fixed test key.
 pub(crate) fn storage_state(pool: sqlx::PgPool, encrypt_at_rest: bool) -> Arc<StorageState> {
-    Arc::new(StorageState {
-        db: pool,
-        encryption: Some(EncryptionService::from_key(&[42u8; 32])),
+    Arc::new(StorageState::new(
+        pool,
+        Some(EncryptionService::from_key(&[42u8; 32])),
         encrypt_at_rest,
-    })
+    ))
 }

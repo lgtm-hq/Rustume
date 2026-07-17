@@ -8,7 +8,7 @@
 //!
 //! Encrypted blobs are laid out as `nonce (12 bytes) || ciphertext`.
 
-use aes_gcm::aead::{Aead, OsRng};
+use aes_gcm::aead::{Aead, OsRng, Payload};
 use aes_gcm::{AeadCore, Aes256Gcm, Key, KeyInit};
 use std::path::{Path, PathBuf};
 use tracing::{info, warn};
@@ -89,23 +89,39 @@ impl EncryptionService {
         }
 
         let key: [u8; KEY_LEN] = Aes256Gcm::generate_key(OsRng).into();
-        write_key_file(key_file, &key)?;
-        warn!(
-            path = %key_file.display(),
-            "Auto-generated encryption key at {} — back up this file. If lost, encrypted \
-             resume data is unrecoverable.",
-            key_file.display()
-        );
+        if write_key_file(key_file, &key)? {
+            warn!(
+                path = %key_file.display(),
+                "Auto-generated encryption key at {} — back up this file. If lost, encrypted \
+                 resume data is unrecoverable.",
+                key_file.display()
+            );
+            return Ok(Self::from_key(&key));
+        }
+
+        // Lost a concurrent-startup race: another process persisted a key
+        // first. Discard ours and use the on-disk key so all instances agree.
+        let key = read_key_file(key_file)?;
+        info!(path = %key_file.display(), "Encryption key loaded from key file");
         Ok(Self::from_key(&key))
     }
 
     /// Encrypt resume JSON into a `nonce || ciphertext` blob.
-    pub fn encrypt(&self, data: &serde_json::Value) -> anyhow::Result<Vec<u8>> {
+    ///
+    /// `aad` (associated data, e.g. the resume ID) is authenticated but not
+    /// encrypted: decryption fails if the blob is moved to a different row.
+    pub fn encrypt(&self, data: &serde_json::Value, aad: &[u8]) -> anyhow::Result<Vec<u8>> {
         let plaintext = serde_json::to_vec(data)?;
         let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
         let ciphertext = self
             .cipher
-            .encrypt(&nonce, plaintext.as_slice())
+            .encrypt(
+                &nonce,
+                Payload {
+                    msg: plaintext.as_slice(),
+                    aad,
+                },
+            )
             .map_err(|_| anyhow::anyhow!("encryption failed"))?;
 
         let mut blob = Vec::with_capacity(NONCE_LEN + ciphertext.len());
@@ -115,14 +131,22 @@ impl EncryptionService {
     }
 
     /// Decrypt a `nonce || ciphertext` blob back into resume JSON.
-    pub fn decrypt(&self, blob: &[u8]) -> anyhow::Result<serde_json::Value> {
+    ///
+    /// `aad` must match the associated data supplied at encryption time.
+    pub fn decrypt(&self, blob: &[u8], aad: &[u8]) -> anyhow::Result<serde_json::Value> {
         if blob.len() <= NONCE_LEN {
             anyhow::bail!("encrypted blob is too short");
         }
         let (nonce, ciphertext) = blob.split_at(NONCE_LEN);
         let plaintext = self
             .cipher
-            .decrypt(nonce.into(), ciphertext)
+            .decrypt(
+                nonce.into(),
+                Payload {
+                    msg: ciphertext,
+                    aad,
+                },
+            )
             .map_err(|_| anyhow::anyhow!("decryption failed: wrong key or corrupted data"))?;
         Ok(serde_json::from_slice(&plaintext)?)
     }
@@ -151,24 +175,43 @@ fn read_key_file(path: &Path) -> anyhow::Result<[u8; KEY_LEN]> {
         .map_err(|err| anyhow::anyhow!("invalid encryption key file {path:?}: {err}"))
 }
 
-fn write_key_file(path: &Path, key: &[u8; KEY_LEN]) -> anyhow::Result<()> {
+/// Atomically create the key file with owner-only permissions.
+///
+/// Returns `Ok(false)` when the file already exists (a concurrent process
+/// persisted a key first); the caller should reload it instead.
+fn write_key_file(path: &Path, key: &[u8; KEY_LEN]) -> anyhow::Result<bool> {
+    use std::io::Write;
+
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|err| {
             anyhow::anyhow!("failed to create encryption key directory {parent:?}: {err}")
         })?;
     }
-    std::fs::write(path, hex::encode(key))
-        .map_err(|err| anyhow::anyhow!("failed to write encryption key file {path:?}: {err}"))?;
 
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
     #[cfg(unix)]
     {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)).map_err(|err| {
-            anyhow::anyhow!("failed to restrict encryption key file permissions: {err}")
-        })?;
+        use std::os::unix::fs::OpenOptionsExt;
+        // 0600 from the very first syscall — no umask-dependent window where
+        // the key is readable by other users.
+        options.mode(0o600);
     }
 
-    Ok(())
+    let mut file = match options.open(path) {
+        Ok(file) => file,
+        Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => return Ok(false),
+        Err(err) => {
+            return Err(anyhow::anyhow!(
+                "failed to create encryption key file {path:?}: {err}"
+            ))
+        }
+    };
+    file.write_all(hex::encode(key).as_bytes())
+        .and_then(|()| file.sync_all())
+        .map_err(|err| anyhow::anyhow!("failed to write encryption key file {path:?}: {err}"))?;
+
+    Ok(true)
 }
 
 #[cfg(test)]
@@ -179,16 +222,31 @@ mod tests {
         [seed; KEY_LEN]
     }
 
+    const AAD: &[u8] = b"resume-1";
+
     #[test]
     fn encrypt_decrypt_roundtrip() {
         let service = EncryptionService::from_key(&test_key(1));
         let data = serde_json::json!({"basics": {"name": "Ada Lovelace"}, "n": 42});
 
-        let blob = service.encrypt(&data).expect("encrypt");
+        let blob = service.encrypt(&data, AAD).expect("encrypt");
         assert_ne!(blob, serde_json::to_vec(&data).expect("serialize"));
 
-        let decrypted = service.decrypt(&blob).expect("decrypt");
+        let decrypted = service.decrypt(&blob, AAD).expect("decrypt");
         assert_eq!(decrypted, data);
+    }
+
+    #[test]
+    fn decrypt_with_wrong_aad_fails() {
+        let service = EncryptionService::from_key(&test_key(1));
+        let blob = service
+            .encrypt(&serde_json::json!({"secret": true}), AAD)
+            .expect("encrypt");
+
+        assert!(
+            service.decrypt(&blob, b"resume-2").is_err(),
+            "a blob moved to another row must not decrypt"
+        );
     }
 
     #[test]
@@ -196,8 +254,8 @@ mod tests {
         let service = EncryptionService::from_key(&test_key(1));
         let data = serde_json::json!({"a": 1});
 
-        let first = service.encrypt(&data).expect("encrypt");
-        let second = service.encrypt(&data).expect("encrypt");
+        let first = service.encrypt(&data, AAD).expect("encrypt");
+        let second = service.encrypt(&data, AAD).expect("encrypt");
         assert_ne!(first, second, "nonces must be random per encryption");
     }
 
@@ -206,10 +264,12 @@ mod tests {
         let encryptor = EncryptionService::from_key(&test_key(1));
         let attacker = EncryptionService::from_key(&test_key(2));
         let blob = encryptor
-            .encrypt(&serde_json::json!({"secret": true}))
+            .encrypt(&serde_json::json!({"secret": true}), AAD)
             .expect("encrypt");
 
-        let err = attacker.decrypt(&blob).expect_err("wrong key must fail");
+        let err = attacker
+            .decrypt(&blob, AAD)
+            .expect_err("wrong key must fail");
         assert!(err.to_string().contains("decryption failed"));
     }
 
@@ -217,18 +277,18 @@ mod tests {
     fn decrypt_rejects_tampered_ciphertext() {
         let service = EncryptionService::from_key(&test_key(1));
         let mut blob = service
-            .encrypt(&serde_json::json!({"secret": true}))
+            .encrypt(&serde_json::json!({"secret": true}), AAD)
             .expect("encrypt");
         let last = blob.len() - 1;
         blob[last] ^= 0xff;
 
-        assert!(service.decrypt(&blob).is_err());
+        assert!(service.decrypt(&blob, AAD).is_err());
     }
 
     #[test]
     fn decrypt_rejects_truncated_blob() {
         let service = EncryptionService::from_key(&test_key(1));
-        assert!(service.decrypt(&[0u8; NONCE_LEN]).is_err());
+        assert!(service.decrypt(&[0u8; NONCE_LEN], AAD).is_err());
     }
 
     #[test]
@@ -242,10 +302,10 @@ mod tests {
         let expected = EncryptionService::from_key(&test_key(7));
 
         let blob = service
-            .encrypt(&serde_json::json!({"x": 1}))
+            .encrypt(&serde_json::json!({"x": 1}), AAD)
             .expect("encrypt");
         assert_eq!(
-            expected.decrypt(&blob).expect("decrypt with same key"),
+            expected.decrypt(&blob, AAD).expect("decrypt with same key"),
             serde_json::json!({"x": 1})
         );
         assert!(!key_file.exists(), "env key must not touch the key file");
@@ -270,10 +330,12 @@ mod tests {
 
         let second = EncryptionService::init_with(None, &key_file).expect("reload key");
         let blob = first
-            .encrypt(&serde_json::json!({"persisted": true}))
+            .encrypt(&serde_json::json!({"persisted": true}), AAD)
             .expect("encrypt");
         assert_eq!(
-            second.decrypt(&blob).expect("decrypt with reloaded key"),
+            second
+                .decrypt(&blob, AAD)
+                .expect("decrypt with reloaded key"),
             serde_json::json!({"persisted": true}),
             "reloaded key must match the generated key"
         );

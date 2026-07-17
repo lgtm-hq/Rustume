@@ -63,7 +63,7 @@ pub async fn export_resumes_json(
     let resumes = rows
         .into_iter()
         .map(|row| {
-            let data = storage.decode_resume_data(row.data, row.data_encrypted)?;
+            let data = storage.decode_resume_data(row.data, row.data_encrypted, row.id)?;
             Ok(ResumeExportItem {
                 id: row.id,
                 title: row.title,
@@ -107,7 +107,7 @@ pub async fn export_resumes_pdf(
     for row in rows {
         let data = state
             .storage()?
-            .decode_resume_data(row.data, row.data_encrypted)?;
+            .decode_resume_data(row.data, row.data_encrypted, row.id)?;
         let resume: ResumeData = serde_json::from_value(data)
             .map_err(|_| ApiError::new("Invalid resume data format"))?;
         let file_name = export_pdf_filename(&row.id, &row.title);
@@ -333,11 +333,7 @@ mod tests {
 
     fn test_app_state(pool: sqlx::PgPool) -> AppState {
         let sessions_pool = pool.clone();
-        let storage = Arc::new(crate::storage::StorageState {
-            db: pool.clone(),
-            encryption: None,
-            encrypt_at_rest: false,
-        });
+        let storage = Arc::new(crate::storage::StorageState::new(pool.clone(), None, false));
         AppState::with_require_auth(
             Arc::new(crate::routes::static_dir()),
             Some(storage),

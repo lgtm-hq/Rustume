@@ -749,11 +749,11 @@ mod tests {
         let pool = PgPoolOptions::new()
             .connect_lazy("postgres://localhost/rustume_test")
             .expect("lazy pool");
-        std::sync::Arc::new(storage::StorageState {
-            db: pool,
-            encryption: Some(encryption::EncryptionService::from_key(&[7u8; 32])),
-            encrypt_at_rest: false,
-        })
+        std::sync::Arc::new(storage::StorageState::new(
+            pool,
+            Some(encryption::EncryptionService::from_key(&[7u8; 32])),
+            false,
+        ))
     }
 
     fn test_cloud_state() -> std::sync::Arc<cloud::CloudState> {

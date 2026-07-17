@@ -9,6 +9,7 @@ use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::OnceCell;
 use tracing::{error, info};
 use uuid::Uuid;
 
@@ -68,7 +69,7 @@ impl StorageConfig {
             database_url,
             db_max_connections: crate::cloud::optional_env_u32("DB_MAX_CONNECTIONS", 10)?,
             db_acquire_timeout_secs: crate::cloud::optional_env_u64("DB_ACQUIRE_TIMEOUT_SECS", 5)?,
-            encrypt_at_rest: encrypt_at_rest_enabled(cloud),
+            encrypt_at_rest: encrypt_at_rest_enabled(cloud)?,
         }))
     }
 }
@@ -76,16 +77,20 @@ impl StorageConfig {
 /// Resolve the `RUSTUME_ENCRYPT_AT_REST` toggle.
 ///
 /// Defaults to `true` for self-hosted deployments and `false` for cloud.
-#[must_use]
-pub fn encrypt_at_rest_enabled(cloud: bool) -> bool {
+/// Fails fast on unrecognized values so a typo cannot silently change how
+/// resume data is persisted.
+pub fn encrypt_at_rest_enabled(cloud: bool) -> anyhow::Result<bool> {
     encrypt_at_rest_from_env(cloud, std::env::var("RUSTUME_ENCRYPT_AT_REST").ok())
 }
 
-fn encrypt_at_rest_from_env(cloud: bool, value: Option<String>) -> bool {
+fn encrypt_at_rest_from_env(cloud: bool, value: Option<String>) -> anyhow::Result<bool> {
     match value.as_deref().map(str::trim) {
-        Some("true" | "1") => true,
-        Some("false" | "0") => false,
-        _ => !cloud,
+        Some("true" | "1") => Ok(true),
+        Some("false" | "0") => Ok(false),
+        Some("") | None => Ok(!cloud),
+        Some(other) => {
+            anyhow::bail!("RUSTUME_ENCRYPT_AT_REST must be one of true, false, 1, 0; got {other:?}")
+        }
     }
 }
 
@@ -107,13 +112,31 @@ pub struct StorageState {
     pub encryption: Option<EncryptionService>,
     /// Whether new resume writes are encrypted.
     pub encrypt_at_rest: bool,
+    /// Lazily cached implicit local user (self-hosted mode), shared across
+    /// clones so the per-request `AuthUser` extraction skips the database.
+    local_user_cell: Arc<OnceCell<User>>,
 }
 
 impl StorageState {
+    /// Build a storage state around an existing pool.
+    #[must_use]
+    pub fn new(db: PgPool, encryption: Option<EncryptionService>, encrypt_at_rest: bool) -> Self {
+        Self {
+            db,
+            encryption,
+            encrypt_at_rest,
+            local_user_cell: Arc::new(OnceCell::new()),
+        }
+    }
+
     /// Encode resume JSON for persistence, encrypting when enabled.
+    ///
+    /// The resume ID is bound as associated data so an encrypted blob copied
+    /// into a different row fails to decrypt.
     pub fn encode_resume_data(
         &self,
         data: serde_json::Value,
+        resume_id: Uuid,
     ) -> Result<EncodedResumeData, ApiError> {
         if !self.encrypt_at_rest {
             return Ok(EncodedResumeData {
@@ -126,10 +149,12 @@ impl StorageState {
             error!("encrypt-at-rest enabled but no encryption key is configured");
             ApiError::internal("internal server error")
         })?;
-        let blob = encryption.encrypt(&data).map_err(|err| {
-            error!("resume encryption failed: {err}");
-            ApiError::internal("internal server error")
-        })?;
+        let blob = encryption
+            .encrypt(&data, resume_id.as_bytes())
+            .map_err(|err| {
+                error!("resume encryption failed: {err}");
+                ApiError::internal("internal server error")
+            })?;
         Ok(EncodedResumeData {
             data: None,
             data_encrypted: Some(blob),
@@ -141,6 +166,7 @@ impl StorageState {
         &self,
         data: Option<serde_json::Value>,
         data_encrypted: Option<Vec<u8>>,
+        resume_id: Uuid,
     ) -> Result<serde_json::Value, ApiError> {
         if let Some(data) = data {
             return Ok(data);
@@ -154,10 +180,12 @@ impl StorageState {
             error!("encrypted resume data present but no encryption key is configured");
             ApiError::internal("internal server error")
         })?;
-        encryption.decrypt(&blob).map_err(|err| {
-            error!("resume decryption failed: {err}");
-            ApiError::internal("internal server error")
-        })
+        encryption
+            .decrypt(&blob, resume_id.as_bytes())
+            .map_err(|err| {
+                error!("resume decryption failed: {err}");
+                ApiError::internal("internal server error")
+            })
     }
 
     /// Convert a stored row into the API row, decrypting the payload as needed.
@@ -175,7 +203,7 @@ impl StorageState {
             created_at,
             updated_at,
         } = row;
-        let data = self.decode_resume_data(data, data_encrypted)?;
+        let data = self.decode_resume_data(data, data_encrypted, id)?;
         Ok(ResumeRow {
             id,
             user_id,
@@ -191,20 +219,30 @@ impl StorageState {
     }
 
     /// Fetch the implicit self-hosted user, seeding it if missing.
+    ///
+    /// The row is immutable after seeding (until future cloud linking), so it
+    /// is cached after the first lookup to avoid a per-request query.
     pub async fn local_user(&self) -> Result<User, ApiError> {
-        if let Some(user) = fetch_local_user(&self.db).await? {
-            return Ok(user);
-        }
-
-        seed_local_user(&self.db).await.map_err(|err| {
-            error!("local user seed failed: {err}");
-            ApiError::internal("internal server error")
-        })?;
-        fetch_local_user(&self.db).await?.ok_or_else(|| {
-            error!("local user missing after seed");
-            ApiError::internal("internal server error")
-        })
+        self.local_user_cell
+            .get_or_try_init(|| fetch_or_seed_local_user(&self.db))
+            .await
+            .cloned()
     }
+}
+
+async fn fetch_or_seed_local_user(db: &PgPool) -> Result<User, ApiError> {
+    if let Some(user) = fetch_local_user(db).await? {
+        return Ok(user);
+    }
+
+    seed_local_user(db).await.map_err(|err| {
+        error!("local user seed failed: {err}");
+        ApiError::internal("internal server error")
+    })?;
+    fetch_local_user(db).await?.ok_or_else(|| {
+        error!("local user missing after seed");
+        ApiError::internal("internal server error")
+    })
 }
 
 async fn fetch_local_user(db: &PgPool) -> Result<Option<User>, ApiError> {
@@ -256,11 +294,11 @@ pub async fn init_storage(config: StorageConfig) -> anyhow::Result<Arc<StorageSt
         "Resume storage initialized"
     );
 
-    Ok(Arc::new(StorageState {
+    Ok(Arc::new(StorageState::new(
         db,
         encryption,
-        encrypt_at_rest: config.encrypt_at_rest,
-    }))
+        config.encrypt_at_rest,
+    )))
 }
 
 #[cfg(test)]
@@ -269,17 +307,24 @@ mod tests {
 
     #[test]
     fn encrypt_at_rest_defaults_on_for_self_hosted() {
-        assert!(encrypt_at_rest_from_env(false, None));
-        assert!(!encrypt_at_rest_from_env(true, None));
+        assert!(encrypt_at_rest_from_env(false, None).unwrap());
+        assert!(!encrypt_at_rest_from_env(true, None).unwrap());
+        assert!(encrypt_at_rest_from_env(false, Some(String::new())).unwrap());
     }
 
     #[test]
     fn encrypt_at_rest_env_overrides_defaults() {
-        assert!(!encrypt_at_rest_from_env(false, Some("false".to_string())));
-        assert!(!encrypt_at_rest_from_env(false, Some("0".to_string())));
-        assert!(encrypt_at_rest_from_env(true, Some("true".to_string())));
-        assert!(encrypt_at_rest_from_env(true, Some("1".to_string())));
-        assert!(encrypt_at_rest_from_env(false, Some("garbage".to_string())));
+        assert!(!encrypt_at_rest_from_env(false, Some("false".to_string())).unwrap());
+        assert!(!encrypt_at_rest_from_env(false, Some("0".to_string())).unwrap());
+        assert!(encrypt_at_rest_from_env(true, Some("true".to_string())).unwrap());
+        assert!(encrypt_at_rest_from_env(true, Some("1".to_string())).unwrap());
+    }
+
+    #[test]
+    fn encrypt_at_rest_rejects_unrecognized_values() {
+        let err = encrypt_at_rest_from_env(false, Some("garbage".to_string()))
+            .expect_err("typo must fail fast");
+        assert!(err.to_string().contains("RUSTUME_ENCRYPT_AT_REST"));
     }
 
     #[test]
