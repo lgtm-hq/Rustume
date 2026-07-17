@@ -245,6 +245,7 @@ fn default_layout() -> Vec<Vec<Vec<String>>> {
         vec![
             "profiles".to_string(),
             "summary".to_string(),
+            "coverLetter".to_string(),
             "experience".to_string(),
             "education".to_string(),
             "projects".to_string(),
