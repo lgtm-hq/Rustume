@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-only
-# Run the web app Playwright smoke suite.
+# Run the web app Playwright suites (smoke, per-flow E2E, visual, a11y).
 # Pre-builds the WASM module so the Playwright webServer only needs a fast
 # Vite build before serving the app.
 set -euo pipefail
