@@ -98,7 +98,8 @@ test.describe("resume CRUD", () => {
 
     await homePage.renameResume(listedTitle, "Dream Job 2026");
     await homePage.assertResumeListed("Dream Job 2026");
-    await homePage.assertResumeNotListed(FULL_NAME);
+    // The old title (whichever variant was shown) is gone from the list.
+    await homePage.assertResumeNotListed(listedTitle);
   });
 
   test("duplicates a resume from the home list", async ({ builderPage, homePage }) => {

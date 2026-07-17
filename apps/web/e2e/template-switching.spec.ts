@@ -36,16 +36,16 @@ test.describe("template switching", () => {
     await builderPage.openTemplatePicker(DEFAULT_TEMPLATE_ID);
     await templatePickerModal.assertOpen();
 
-    // Selecting a template triggers a re-render request for it, still
-    // carrying the resume content.
-    const previewRequest = page.waitForRequest((request) => {
-      if (!request.url().includes("/api/render/preview")) return false;
-      const body = request.postData() ?? "";
+    // Selecting a template triggers a re-render for it, still carrying the
+    // resume content, and the render must complete successfully.
+    const previewResponse = page.waitForResponse((response) => {
+      if (!response.url().includes("/api/render/preview")) return false;
+      const body = response.request().postData() ?? "";
       return body.includes(`"${TARGET.id}"`) && body.includes(FULL_NAME);
     });
     await templatePickerModal.selectTemplate(TARGET.name);
     await templatePickerModal.assertClosed();
-    await previewRequest;
+    expect((await previewResponse).ok()).toBe(true);
 
     await builderPage.assertSelectedTemplate(TARGET.id);
     await builderPage.assertPreviewVisible();

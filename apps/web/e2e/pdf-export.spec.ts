@@ -35,6 +35,7 @@ test.describe("PDF export", () => {
     expect(download.suggestedFilename()).toBe("ada-lovelace.pdf");
 
     const filePath = await download.path();
+    expect(filePath).toBeTruthy();
     const bytes = await readFile(filePath);
     expect(bytes.length).toBeGreaterThan(0);
     expect(bytes.equals(PDF_STUB)).toBe(true);
@@ -57,6 +58,7 @@ test.describe("PDF export", () => {
     expect(download.suggestedFilename()).toBe("ada-lovelace.json");
 
     const filePath = await download.path();
+    expect(filePath).toBeTruthy();
     const parsed = JSON.parse(await readFile(filePath, "utf8")) as {
       basics: { name: string };
       sections: unknown;

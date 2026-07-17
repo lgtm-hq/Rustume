@@ -1,4 +1,4 @@
-import { test } from "./support/fixtures";
+import { test, expect } from "./support/fixtures";
 
 const FULL_NAME = "Ada Lovelace";
 const OFFLINE_EDIT = "Ada Lovelace, Countess";
@@ -34,6 +34,9 @@ test.describe("offline behavior", () => {
     await builderPage.assertEditorOpen();
 
     // Back online: a full reload serves the state persisted while offline.
+    // Reconnecting first is deliberate — the harness blocks service workers
+    // (playwright.config.ts) so route stubbing stays reliable, which means
+    // the app shell itself cannot be served while the network is down.
     await context.setOffline(false);
     await page.reload();
     await builderPage.assertEditorOpen();
@@ -60,15 +63,16 @@ test.describe("offline behavior", () => {
     await builderPage.assertSaved();
 
     // Reconnect: removing only the outage handler restores the stub, and the
-    // next edit triggers a successful re-render.
+    // next edit triggers a re-render that must complete successfully with
+    // the latest content.
     await page.unroute("**/api/render/preview", dropPreview);
-    const previewRequest = page.waitForRequest(
-      (request) =>
-        request.url().includes("/api/render/preview") &&
-        (request.postData() ?? "").includes(OFFLINE_EDIT),
+    const previewResponse = page.waitForResponse(
+      (response) =>
+        response.url().includes("/api/render/preview") &&
+        (response.request().postData() ?? "").includes(OFFLINE_EDIT),
     );
     await builderPage.fillFullName(OFFLINE_EDIT);
-    await previewRequest;
+    expect((await previewResponse).ok()).toBe(true);
     await builderPage.assertPreviewVisible();
   });
 });

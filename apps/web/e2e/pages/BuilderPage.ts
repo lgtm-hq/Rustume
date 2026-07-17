@@ -72,7 +72,11 @@ export default class BuilderPage extends BasePage {
     await this.addItemButton.click();
   }
 
-  /** The active section editor header reports the given item count. */
+  /**
+   * The active section editor header reports the given item count. The UI
+   * renders the invariant "N items" label for every count, including 1
+   * (`SectionEditor.tsx`), so no singular form is needed here.
+   */
   async assertSectionItemCount(count: number): Promise<void> {
     await expect(this.page.getByText(`${count} items`, { exact: true })).toBeVisible();
   }
