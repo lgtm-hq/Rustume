@@ -430,16 +430,22 @@ mod policy_acceptance_tests {
             .expect("count policy acceptances")
     }
 
-    async fn count_policy_accept_audit_events(pool: &sqlx::PgPool, user_id: Uuid) -> i64 {
+    async fn count_policy_accept_audit_events(
+        pool: &sqlx::PgPool,
+        user_id: Uuid,
+        policy: &str,
+    ) -> i64 {
         sqlx::query_scalar(
             r#"
             SELECT COUNT(*)::bigint
             FROM audit_events
             WHERE event_type = 'policy.accept'
               AND actor_user_id = $1
+              AND (metadata->>'policy') = $2
             "#,
         )
         .bind(user_id)
+        .bind(policy)
         .fetch_one(pool)
         .await
         .expect("count policy.accept audit events")
@@ -521,7 +527,10 @@ mod policy_acceptance_tests {
             .expect("second acceptance");
 
         assert_eq!(count_policy_acceptances(&pool, user_id).await, 1);
-        assert_eq!(count_policy_accept_audit_events(&pool, user_id).await, 1);
+        assert_eq!(
+            count_policy_accept_audit_events(&pool, user_id, "terms").await,
+            1
+        );
 
         cleanup_user(&pool, user_id).await;
     }
@@ -539,16 +548,26 @@ mod policy_acceptance_tests {
         let upserted = upsert_user(&pool, &workos_user).await.expect("upsert");
         let user_id = upserted.user.id;
 
-        // Spawn both acceptances on a multi-threaded runtime so the inserts are
-        // genuinely in flight at the same time, not merely interleaved.
-        let spawn_acceptance = |pool: sqlx::PgPool| {
-            tokio::spawn(async move {
-                record_policy_acceptance(&pool, user_id, "privacy", config::PRIVACY_VERSION, None)
+        // Spawn both acceptances on a multi-threaded runtime and gate them on a
+        // shared barrier so the inserts are genuinely in flight at the same
+        // time, not merely interleaved.
+        let barrier = std::sync::Arc::new(tokio::sync::Barrier::new(2));
+        let spawn_acceptance =
+            |pool: sqlx::PgPool, barrier: std::sync::Arc<tokio::sync::Barrier>| {
+                tokio::spawn(async move {
+                    barrier.wait().await;
+                    record_policy_acceptance(
+                        &pool,
+                        user_id,
+                        "privacy",
+                        config::PRIVACY_VERSION,
+                        None,
+                    )
                     .await
-            })
-        };
-        let first_task = spawn_acceptance(pool.clone());
-        let second_task = spawn_acceptance(pool.clone());
+                })
+            };
+        let first_task = spawn_acceptance(pool.clone(), barrier.clone());
+        let second_task = spawn_acceptance(pool.clone(), barrier.clone());
         let (first, second) = tokio::join!(first_task, second_task);
         first
             .expect("first acceptance task")
@@ -558,7 +577,10 @@ mod policy_acceptance_tests {
             .expect("second concurrent acceptance");
 
         assert_eq!(count_policy_acceptances(&pool, user_id).await, 1);
-        assert_eq!(count_policy_accept_audit_events(&pool, user_id).await, 1);
+        assert_eq!(
+            count_policy_accept_audit_events(&pool, user_id, "privacy").await,
+            1
+        );
 
         cleanup_user(&pool, user_id).await;
     }
