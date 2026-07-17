@@ -227,7 +227,7 @@ pub async fn logout(
         (status = 401, description = "Not authenticated (cloud mode)", body = AuthMeUnauthorizedResponse),
         (status = 404, description = "No persistent storage configured", body = ApiError),
     ),
-    security(("cookieAuth" = []))
+    security((), ("cookieAuth" = []))
 )]
 pub async fn me(State(state): State<AppState>, jar: CookieJar) -> Result<Response, ApiError> {
     let Some(cloud) = state.cloud.as_deref() else {

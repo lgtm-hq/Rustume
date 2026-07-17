@@ -62,9 +62,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-rustume}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rustume}
       POSTGRES_DB: ${POSTGRES_DB:-rustume}
-    ports:
-      # Loopback-only: never expose default-credential Postgres beyond the host.
-      - "127.0.0.1:5432:5432"
+    # No host port mapping by default: the database runs with default
+    # credentials and is only reachable on the compose network. For direct
+    # psql access, add a compose override that maps 127.0.0.1:5432:5432.
     volumes:
       - rustume_pgdata:/var/lib/postgresql/data
     healthcheck:

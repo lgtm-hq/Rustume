@@ -443,6 +443,81 @@ mod tests {
         );
     }
 
+    async fn seed_encrypted_resume(
+        pool: &sqlx::PgPool,
+        encryption: &crate::encryption::EncryptionService,
+        user_id: Uuid,
+        data: &serde_json::Value,
+    ) -> Uuid {
+        let resume_id = Uuid::new_v4();
+        let blob = encryption
+            .encrypt(data, resume_id.as_bytes())
+            .expect("encrypt seed payload");
+        sqlx::query(
+            "INSERT INTO resumes (id, user_id, title, data, data_encrypted) \
+             VALUES ($1, $2, $3, NULL, $4)",
+        )
+        .bind(resume_id)
+        .bind(user_id)
+        .bind("Encrypted resume")
+        .bind(blob)
+        .execute(pool)
+        .await
+        .expect("insert encrypted resume");
+        resume_id
+    }
+
+    fn encrypted_app_state(
+        pool: sqlx::PgPool,
+        encryption: crate::encryption::EncryptionService,
+    ) -> AppState {
+        let mut state = test_app_state(pool.clone());
+        state.storage = Some(Arc::new(crate::storage::StorageState::new(
+            pool,
+            Some(encryption),
+            true,
+        )));
+        state
+    }
+
+    #[tokio::test]
+    async fn export_resumes_json_decrypts_encrypted_rows() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+        let pool = connect_test_pool(&database_url).await;
+        let encryption = crate::encryption::EncryptionService::from_key(&[9u8; 32]);
+        let user = seed_user_with_resumes(&pool, 0).await;
+        let data = serde_json::json!({"basics": {"name": "Cipher Person"}});
+        seed_encrypted_resume(&pool, &encryption, user.id, &data).await;
+        let state = encrypted_app_state(pool.clone(), encryption);
+
+        let result = export_resumes_json(AuthUser(user.clone()), State(state)).await;
+        cleanup_user(&pool, user.id).await;
+
+        let payload = result.expect("encrypted rows must export as plaintext JSON");
+        assert_eq!(payload.resumes.len(), 1);
+        assert_eq!(payload.resumes[0].data, data);
+    }
+
+    #[tokio::test]
+    async fn export_resumes_pdf_decrypts_encrypted_rows() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+        let pool = connect_test_pool(&database_url).await;
+        let encryption = crate::encryption::EncryptionService::from_key(&[9u8; 32]);
+        let user = seed_user_with_resumes(&pool, 0).await;
+        seed_encrypted_resume(&pool, &encryption, user.id, &serde_json::json!({})).await;
+        let state = encrypted_app_state(pool.clone(), encryption);
+
+        let result = export_resumes_pdf(AuthUser(user.clone()), State(state)).await;
+        cleanup_user(&pool, user.id).await;
+
+        let response = result.expect("encrypted rows must export as PDF ZIP");
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
     #[test]
     fn export_pdf_filename_sanitizes_title() {
         let id = Uuid::nil();

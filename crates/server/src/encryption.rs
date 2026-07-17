@@ -222,12 +222,32 @@ fn write_key_file(path: &Path, key: &[u8; KEY_LEN]) -> anyhow::Result<bool> {
     let publish = std::fs::hard_link(&tmp_path, path);
     let _ = std::fs::remove_file(&tmp_path);
     match publish {
-        Ok(()) => Ok(true),
+        Ok(()) => {
+            sync_dir(parent)?;
+            Ok(true)
+        }
         Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => Ok(false),
         Err(err) => Err(anyhow::anyhow!(
             "failed to publish encryption key file {path:?}: {err}"
         )),
     }
+}
+
+/// Fsync a directory so a freshly published key's directory entry is durable.
+fn sync_dir(dir: &Path) -> anyhow::Result<()> {
+    #[cfg(unix)]
+    {
+        std::fs::File::open(dir)
+            .and_then(|handle| handle.sync_all())
+            .map_err(|err| {
+                anyhow::anyhow!("failed to sync encryption key directory {dir:?}: {err}")
+            })?;
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = dir;
+    }
+    Ok(())
 }
 
 #[cfg(test)]

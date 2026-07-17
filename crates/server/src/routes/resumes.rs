@@ -341,6 +341,7 @@ async fn import_single_resume(
             title = EXCLUDED.title,
             data = EXCLUDED.data,
             data_encrypted = EXCLUDED.data_encrypted,
+            version = resumes.version + 1,
             updated_at = now()
         WHERE resumes.user_id = EXCLUDED.user_id
         RETURNING id, user_id, title, data, data_encrypted, is_public, public_slug, password_hash, version, created_at, updated_at
@@ -659,6 +660,20 @@ mod tests {
 
         assert_eq!(updated.0.data, updated_data);
         assert_eq!(updated.0.version, 2);
+
+        let (data, data_encrypted) =
+            sqlx::query_as::<_, (Option<serde_json::Value>, Option<Vec<u8>>)>(
+                "SELECT data, data_encrypted FROM resumes WHERE id = $1",
+            )
+            .bind(resume_id)
+            .fetch_one(&pool)
+            .await
+            .expect("fetch raw row after update");
+        assert!(data.is_none(), "update must not write plaintext");
+        assert!(
+            data_encrypted.is_some(),
+            "update must re-encrypt the payload"
+        );
 
         cleanup_local_resume(&pool, resume_id).await;
     }

@@ -311,8 +311,16 @@ async fn verify_encryption_key(
     db: &PgPool,
     encryption: Option<&EncryptionService>,
 ) -> anyhow::Result<()> {
+    // Version rows bind their parent resume ID as associated data, so both
+    // samples decrypt against the returned UUID.
     let sample = sqlx::query_as::<_, (Uuid, Vec<u8>)>(
-        "SELECT id, data_encrypted FROM resumes WHERE data_encrypted IS NOT NULL LIMIT 1",
+        r#"
+        SELECT id, data_encrypted FROM resumes WHERE data_encrypted IS NOT NULL
+        UNION ALL
+        SELECT resume_id, data_encrypted FROM resume_versions
+        WHERE data_encrypted IS NOT NULL
+        LIMIT 1
+        "#,
     )
     .fetch_optional(db)
     .await?;
