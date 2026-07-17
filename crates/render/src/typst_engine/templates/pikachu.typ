@@ -304,6 +304,9 @@
     justify: false,
   )
 
+  // Cover letter — dedicated page before the resume content
+  render-cover-letter-page(data, main-section, muted: muted-color)
+
   let sidebar-wrapper(body) = {
     set text(fill: sidebar-text-color)
     body

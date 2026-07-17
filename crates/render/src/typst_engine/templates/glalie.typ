@@ -380,6 +380,9 @@
     justify: true,
   )
 
+  // Cover letter — dedicated page before the resume content
+  render-cover-letter-page(data, section-heading, muted: muted-color)
+
   let sidebar-before = () => [
     // Header: Name, headline, contact info
     #text(size: 18pt, weight: "bold", fill: text-color)[#data.basics.name]

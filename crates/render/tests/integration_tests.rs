@@ -594,6 +594,152 @@ fn test_templates_render_multi_page_content(#[case] template_name: &str) {
     );
 }
 
+/// Populate the sample resume's cover letter with recipient and body content.
+fn fill_cover_letter(resume: &mut ResumeData, visible: bool) {
+    resume.sections.cover_letter.visible = visible;
+    resume.sections.cover_letter.recipient.name = "Jane Smith".to_string();
+    resume.sections.cover_letter.recipient.title = "Hiring Manager".to_string();
+    resume.sections.cover_letter.recipient.company = "Acme Corp".to_string();
+    resume.sections.cover_letter.recipient.address = "123 Main St, San Francisco, CA".to_string();
+    resume.sections.cover_letter.recipient.email = "jane@acme.com".to_string();
+    resume.sections.cover_letter.content =
+        "<p>Dear Jane,</p><p>I am <strong>excited</strong> to apply for the Senior Software \
+         Engineer role at Acme Corp. My experience building scalable systems aligns closely \
+         with your team's mission.</p><p>Sincerely,<br>John Doe</p>"
+            .to_string();
+}
+
+#[rstest]
+#[case("rhyhorn")]
+#[case("azurill")]
+#[case("pikachu")]
+#[case("nosepass")]
+#[case("bronzor")]
+#[case("chikorita")]
+#[case("ditto")]
+#[case("gengar")]
+#[case("glalie")]
+#[case("kakuna")]
+#[case("leafish")]
+#[case("onyx")]
+fn test_templates_render_cover_letter_as_dedicated_page(#[case] template_name: &str) {
+    let renderer = TypstRenderer::new();
+
+    // Baseline: cover letter data present but not visible.
+    let mut without = sample_resume();
+    without.metadata.template = template_name.to_string();
+    fill_cover_letter(&mut without, false);
+    let (_, base_pages) = renderer
+        .render_preview(&without, 0)
+        .unwrap_or_else(|e| panic!("Baseline preview failed for '{template_name}': {e:?}"));
+
+    // With a visible cover letter, exactly one extra page renders in front.
+    let mut with = sample_resume();
+    with.metadata.template = template_name.to_string();
+    fill_cover_letter(&mut with, true);
+    let (_, pages) = renderer
+        .render_preview(&with, 0)
+        .unwrap_or_else(|e| panic!("Cover letter preview failed for '{template_name}': {e:?}"));
+
+    assert_eq!(
+        pages,
+        base_pages + 1,
+        "Expected '{template_name}' to render the cover letter as exactly one dedicated \
+         extra page (baseline {base_pages} pages, got {pages})"
+    );
+}
+
+#[rstest]
+#[case("rhyhorn")]
+#[case("azurill")]
+fn test_cover_letter_not_placed_in_layout_is_skipped(#[case] template_name: &str) {
+    let renderer = TypstRenderer::new();
+
+    // Visible cover letter, but an explicit layout that omits "coverLetter".
+    let mut resume = sample_resume();
+    resume.metadata.template = template_name.to_string();
+    fill_cover_letter(&mut resume, true);
+    resume.metadata.layout = vec![vec![
+        vec!["summary".to_string(), "experience".to_string()],
+        vec!["education".to_string(), "skills".to_string()],
+    ]];
+    let (_, pages) = renderer
+        .render_preview(&resume, 0)
+        .unwrap_or_else(|e| panic!("Preview failed for '{template_name}': {e:?}"));
+
+    // Same layout without any cover letter data.
+    let mut baseline = sample_resume();
+    baseline.metadata.template = template_name.to_string();
+    baseline.metadata.layout = vec![vec![
+        vec!["summary".to_string(), "experience".to_string()],
+        vec!["education".to_string(), "skills".to_string()],
+    ]];
+    let (_, base_pages) = renderer
+        .render_preview(&baseline, 0)
+        .unwrap_or_else(|e| panic!("Baseline preview failed for '{template_name}': {e:?}"));
+
+    assert_eq!(
+        pages, base_pages,
+        "Cover letter absent from layout must not add pages in '{template_name}'"
+    );
+}
+
+#[rstest]
+#[case("rhyhorn")]
+#[case("azurill")]
+fn test_cover_letter_placed_in_layout_column_renders_once(#[case] template_name: &str) {
+    let renderer = TypstRenderer::new();
+
+    // "coverLetter" placed among other sections in a layout column: it must
+    // render as a dedicated page (hoisted before the resume body), not inline.
+    let mut resume = sample_resume();
+    resume.metadata.template = template_name.to_string();
+    fill_cover_letter(&mut resume, true);
+    resume.metadata.layout = vec![vec![
+        vec![
+            "summary".to_string(),
+            "coverLetter".to_string(),
+            "experience".to_string(),
+        ],
+        vec!["education".to_string(), "skills".to_string()],
+    ]];
+    let (_, pages) = renderer
+        .render_preview(&resume, 0)
+        .unwrap_or_else(|e| panic!("Preview failed for '{template_name}': {e:?}"));
+
+    let mut baseline = sample_resume();
+    baseline.metadata.template = template_name.to_string();
+    baseline.metadata.layout = vec![vec![
+        vec!["summary".to_string(), "experience".to_string()],
+        vec!["education".to_string(), "skills".to_string()],
+    ]];
+    let (_, base_pages) = renderer
+        .render_preview(&baseline, 0)
+        .unwrap_or_else(|e| panic!("Baseline preview failed for '{template_name}': {e:?}"));
+
+    assert_eq!(
+        pages,
+        base_pages + 1,
+        "Cover letter placed in a layout column must add exactly one page in '{template_name}'"
+    );
+}
+
+#[test]
+fn test_cover_letter_source_contains_converted_markup() {
+    let renderer = TypstRenderer::new();
+    let mut resume = sample_resume();
+    fill_cover_letter(&mut resume, true);
+
+    let source = renderer
+        .generate_source(&resume)
+        .expect("source generation should succeed");
+
+    assert!(
+        !source.contains("<strong>"),
+        "Cover letter HTML must be converted to Typst markup before embedding"
+    );
+}
+
 #[test]
 fn test_templates_use_shared_render_contract() {
     let template_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))

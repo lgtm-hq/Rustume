@@ -380,6 +380,9 @@
     justify: false,
   )
 
+  // Cover letter — dedicated page before the resume content
+  render-cover-letter-page(data, section-heading, muted: muted-color)
+
   // Header - horizontal flex: name/headline left, contact info stacked right
   grid(
     columns: (1fr, auto),

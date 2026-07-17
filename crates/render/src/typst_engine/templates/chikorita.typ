@@ -399,6 +399,9 @@
     justify: false,
   )
 
+  // Cover letter — dedicated page before the resume content
+  render-cover-letter-page(data, main-section, muted: muted-color)
+
   // Header - above columns, left-aligned
   text(size: 26pt, weight: "bold", fill: text-color)[#data.basics.name]
 

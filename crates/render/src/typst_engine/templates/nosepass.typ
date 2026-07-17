@@ -356,6 +356,9 @@
     justify: true,
   )
 
+  // Cover letter — dedicated page before the resume content
+  render-cover-letter-page(data, section-heading, muted: muted-color)
+
   // Header with blue accent bar
   box(
     width: 100%,

@@ -345,6 +345,9 @@
     justify: true,
   )
 
+  // Cover letter — dedicated page before the resume content
+  render-cover-letter-page(data, section-heading, muted: muted-color)
+
   // Header - horizontal layout
   grid(
     columns: (1fr, auto),

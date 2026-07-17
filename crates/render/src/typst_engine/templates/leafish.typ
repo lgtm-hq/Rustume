@@ -414,6 +414,9 @@
     justify: false,
   )
 
+  // Cover letter — dedicated page before the resume content
+  render-cover-letter-page(data, section-heading, muted: muted-color)
+
   // === HEADER: Two-tier design ===
 
   // Tier 1: Name area with light rose background
