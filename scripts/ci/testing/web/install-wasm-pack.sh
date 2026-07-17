@@ -23,9 +23,15 @@ aarch64 | arm64)
 esac
 WASM_PACK_SHA256="${WASM_PACK_SHA256:-${default_sha256}}"
 
+# Only trust a preinstalled binary when it matches the pinned version;
+# anything else is replaced by the checksum-verified release below.
 if command -v wasm-pack >/dev/null 2>&1; then
-	echo "wasm-pack already installed: $(wasm-pack --version)"
-	exit 0
+	installed_version="$(wasm-pack --version | awk '{print $2}')"
+	if [[ "${installed_version}" == "${WASM_PACK_VERSION}" ]]; then
+		echo "wasm-pack ${installed_version} already installed — matches pin"
+		exit 0
+	fi
+	echo "wasm-pack ${installed_version} found but pin is ${WASM_PACK_VERSION} — reinstalling"
 fi
 
 archive="wasm-pack-v${WASM_PACK_VERSION}-${target_triple}.tar.gz"

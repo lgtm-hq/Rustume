@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const PORT = 4173;
+// Single source for the preview port — forwarded to the webServer command.
+const PORT = Number(process.env.E2E_PORT ?? 4173);
 export const BASE_URL = `http://127.0.0.1:${PORT}`;
 
 // Chromium-only by default (and in CI); set PLAYWRIGHT_ALL_BROWSERS=1 locally
@@ -37,6 +38,7 @@ export default defineConfig({
   // a cold wasm-pack build on first local run.
   webServer: {
     command: "bun run e2e:server",
+    env: { E2E_PORT: String(PORT) },
     url: BASE_URL,
     // Opt-in reuse only: a stray server on the port would otherwise serve
     // stale or unrelated content.
