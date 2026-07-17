@@ -1,7 +1,10 @@
 import { test, expect, DEFAULT_TEMPLATE_ID, TEMPLATE_FIXTURES } from "./support/fixtures";
 
 const FULL_NAME = "Ada Lovelace";
-const TARGET = TEMPLATE_FIXTURES[1]; // azurill
+const TARGET_ID = "azurill";
+const target = TEMPLATE_FIXTURES.find((template) => template.id === TARGET_ID);
+if (!target) throw new Error(`Template fixture ${TARGET_ID} missing`);
+const TARGET = target;
 
 test.describe("template switching", () => {
   test.beforeEach(async ({ homePage, builderPage }) => {

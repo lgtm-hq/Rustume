@@ -61,6 +61,9 @@ test.describe("offline behavior", () => {
     await page.route("**/api/render/preview", dropPreview);
     await builderPage.fillFullName(FULL_NAME);
     await builderPage.assertSaved();
+    // The failed render surfaces as an error state replacing the preview
+    // image — proving the outage actually broke the preview pipeline.
+    await expect(builderPage.previewImage).toBeHidden();
 
     // Reconnect: removing only the outage handler restores the stub, and the
     // next edit triggers a re-render that must complete successfully with
