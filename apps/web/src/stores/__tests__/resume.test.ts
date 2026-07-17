@@ -1121,3 +1121,84 @@ describe("section editor parity — all section types", () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Cover letter editing
+// ---------------------------------------------------------------------------
+
+describe("cover letter store actions", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("updateCoverLetterContent sets the letter body", () => {
+    createRoot((dispose) => {
+      const { store, createNewResume, updateCoverLetterContent } = useResumeStore();
+      createNewResume("cover-letter-content-test");
+
+      updateCoverLetterContent("<p>Dear Hiring Manager,</p>");
+
+      expect(store.resume!.sections.coverLetter.content).toBe("<p>Dear Hiring Manager,</p>");
+      expect(store.isDirty).toBe(true);
+      dispose();
+    });
+  });
+
+  it("updateCoverLetterRecipient updates individual recipient fields", () => {
+    createRoot((dispose) => {
+      const { store, createNewResume, updateCoverLetterRecipient } = useResumeStore();
+      createNewResume("cover-letter-recipient-test");
+
+      updateCoverLetterRecipient("name", "Jane Smith");
+      updateCoverLetterRecipient("title", "Hiring Manager");
+      updateCoverLetterRecipient("company", "Acme Corp");
+      updateCoverLetterRecipient("address", "123 Main St");
+      updateCoverLetterRecipient("email", "jane@acme.com");
+
+      expect(store.resume!.sections.coverLetter.recipient).toEqual({
+        name: "Jane Smith",
+        title: "Hiring Manager",
+        company: "Acme Corp",
+        address: "123 Main St",
+        email: "jane@acme.com",
+      });
+      dispose();
+    });
+  });
+
+  it("cover letter actions backfill the section for legacy resumes", () => {
+    createRoot((dispose) => {
+      const { store, importResume, updateCoverLetterContent, updateCoverLetterRecipient } =
+        useResumeStore();
+      const imported = createDefaultResume();
+      delete (imported.sections as { coverLetter?: unknown }).coverLetter;
+      importResume(imported);
+
+      updateCoverLetterContent("<p>Hello</p>");
+      expect(store.resume!.sections.coverLetter.content).toBe("<p>Hello</p>");
+
+      updateCoverLetterRecipient("company", "Acme Corp");
+      expect(store.resume!.sections.coverLetter.recipient.company).toBe("Acme Corp");
+      dispose();
+    });
+  });
+
+  it("toggleSectionVisibility flips coverLetter visibility", () => {
+    createRoot((dispose) => {
+      const { store, createNewResume, toggleSectionVisibility } = useResumeStore();
+      createNewResume("cover-letter-visibility-test");
+
+      const before = store.resume!.sections.coverLetter.visible;
+      toggleSectionVisibility("coverLetter");
+      expect(store.resume!.sections.coverLetter.visible).toBe(!before);
+      toggleSectionVisibility("coverLetter");
+      expect(store.resume!.sections.coverLetter.visible).toBe(before);
+      dispose();
+    });
+  });
+});

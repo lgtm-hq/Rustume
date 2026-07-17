@@ -1,7 +1,15 @@
 import { createStore, produce } from "solid-js/store";
 import { batch } from "solid-js";
 import { toast } from "../components/ui";
-import type { ResumeData, Basics, Sections, Metadata, Section, CustomItem } from "../wasm/types";
+import type {
+  ResumeData,
+  Basics,
+  Sections,
+  Metadata,
+  Section,
+  CustomItem,
+  CoverLetterRecipient,
+} from "../wasm/types";
 import {
   createEmptyResume,
   createEmptyPicture,
@@ -439,6 +447,34 @@ export function useResumeStore() {
         produce((s) => {
           if (s.resume) {
             s.resume.sections.summary.content = content;
+          }
+        }),
+      );
+      markDirty();
+    },
+
+    // Cover letter updates
+    updateCoverLetterContent(content: string) {
+      setStore(
+        produce((s) => {
+          if (s.resume) {
+            ensureCoverLetterSection(s.resume);
+            s.resume.sections.coverLetter.content = content;
+          }
+        }),
+      );
+      markDirty();
+    },
+
+    updateCoverLetterRecipient<K extends keyof CoverLetterRecipient>(
+      field: K,
+      value: CoverLetterRecipient[K],
+    ) {
+      setStore(
+        produce((s) => {
+          if (s.resume) {
+            ensureCoverLetterSection(s.resume);
+            s.resume.sections.coverLetter.recipient[field] = value;
           }
         }),
       );
