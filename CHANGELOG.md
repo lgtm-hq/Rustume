@@ -22,6 +22,18 @@ and this project adheres to
 
 ### Security
 
+## [0.29.3] - 2026-07-18
+
+### Changed
+
+- **rfc**: local↔cloud linking architecture RFC (#420) (848e28e)
+- **rfc**: require recovery-backup nonce storage and freshness (#479) (7626bba)
+- **shell**: commit curl mocks for deploy-ghcr bats as fixtures (#480) (58c1872)
+
+### Fixed
+
+- **ci**: use Postgres trust auth in local CI setup (#478) (4115874)
+
 ## [0.29.2] - 2026-07-18
 
 ### Changed
@@ -398,7 +410,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.29.2...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.29.3...HEAD
+[0.29.3]: https://github.com/lgtm-hq/Rustume/compare/v0.29.2...v0.29.3
 [0.29.2]: https://github.com/lgtm-hq/Rustume/compare/v0.29.1...v0.29.2
 [0.29.1]: https://github.com/lgtm-hq/Rustume/compare/v0.29.0...v0.29.1
 [0.29.0]: https://github.com/lgtm-hq/Rustume/compare/v0.28.0...v0.29.0
