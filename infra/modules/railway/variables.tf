@@ -37,15 +37,3 @@ variable "environment_variables" {
   type        = map(string)
   default     = {}
 }
-
-variable "regions" {
-  description = "Railway regions and replica counts."
-  type = list(object({
-    region       = string
-    num_replicas = optional(number, 1)
-  }))
-  default = [{
-    region       = "us-west2"
-    num_replicas = 1
-  }]
-}
