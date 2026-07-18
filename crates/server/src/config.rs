@@ -40,6 +40,8 @@ pub struct RateLimitConfig {
     pub pdf_per_min: u32,
     /// Auth login/callback/logout/me.
     pub auth_per_min: u32,
+    /// Account deletion (per user when authenticated, per IP otherwise).
+    pub account_delete_per_min: u32,
     /// Unauthenticated health checks (per IP).
     pub health_per_min: u32,
     /// Unauthenticated metrics scrapes (per IP).
@@ -61,6 +63,7 @@ impl Default for RateLimitConfig {
             preview_per_min: 60,
             pdf_per_min: 20,
             auth_per_min: 10,
+            account_delete_per_min: 5,
             health_per_min: 60,
             metrics_per_min: 60,
             unauthenticated_per_min: 30,
@@ -84,6 +87,10 @@ impl RateLimitConfig {
             preview_per_min: env_u32("RATE_LIMIT_PREVIEW_PER_MIN", defaults.preview_per_min),
             pdf_per_min: env_u32("RATE_LIMIT_PDF_PER_MIN", defaults.pdf_per_min),
             auth_per_min: env_u32("RATE_LIMIT_AUTH_PER_MIN", defaults.auth_per_min),
+            account_delete_per_min: env_u32(
+                "RATE_LIMIT_ACCOUNT_DELETE_PER_MIN",
+                defaults.account_delete_per_min,
+            ),
             health_per_min: env_u32("RATE_LIMIT_HEALTH_PER_MIN", defaults.health_per_min),
             metrics_per_min: env_u32("RATE_LIMIT_METRICS_PER_MIN", defaults.metrics_per_min),
             unauthenticated_per_min: env_u32(
@@ -131,6 +138,11 @@ impl RateLimitConfig {
     /// Quota for auth routes.
     pub fn auth_quota(self) -> Quota {
         Self::quota_per_minute(self.auth_per_min)
+    }
+
+    /// Quota for account deletion routes.
+    pub fn account_delete_quota(self) -> Quota {
+        Self::quota_per_minute(self.account_delete_per_min)
     }
 
     /// Quota for unauthenticated health checks.
@@ -192,6 +204,7 @@ mod tests {
         assert_eq!(config.preview_per_min, 60);
         assert_eq!(config.pdf_per_min, 20);
         assert_eq!(config.auth_per_min, 10);
+        assert_eq!(config.account_delete_per_min, 5);
         assert_eq!(config.health_per_min, 60);
         assert_eq!(config.metrics_per_min, 60);
         assert_eq!(config.unauthenticated_per_min, 30);
