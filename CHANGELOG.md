@@ -22,6 +22,12 @@ and this project adheres to
 
 ### Security
 
+## [0.32.0] - 2026-07-18
+
+### Added
+
+- **server**: resume publish/unpublish API with slug management (#432) (b9d9303)
+
 ## [0.31.0] - 2026-07-18
 
 ### Added
@@ -447,7 +453,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.31.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.32.0...HEAD
+[0.32.0]: https://github.com/lgtm-hq/Rustume/compare/v0.31.0...v0.32.0
 [0.31.0]: https://github.com/lgtm-hq/Rustume/compare/v0.30.0...v0.31.0
 [0.30.0]: https://github.com/lgtm-hq/Rustume/compare/v0.29.5...v0.30.0
 [0.29.5]: https://github.com/lgtm-hq/Rustume/compare/v0.29.4...v0.29.5
