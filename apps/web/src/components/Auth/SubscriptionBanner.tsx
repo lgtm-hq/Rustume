@@ -1,4 +1,5 @@
 import { Show, createMemo, createSignal, onCleanup, onMount } from "solid-js";
+import { useI18n } from "../../i18n";
 import { authStore } from "../../stores/auth";
 
 const COUNTDOWN_REFRESH_MS = 60_000;
@@ -19,6 +20,7 @@ function formatExpiryDate(isoDate: string): string {
 
 /** Banner shown during subscription cancellation grace period. */
 export function SubscriptionBanner() {
+  const { t } = useI18n();
   const { state } = authStore;
   const [now, setNow] = createSignal(Date.now());
 
@@ -53,15 +55,17 @@ export function SubscriptionBanner() {
         >
           <div class="mx-auto flex max-w-6xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p>
-              Your cloud subscription ends on {formatExpiryDate(info().expiresAt)} (
-              {info().remaining} {info().remaining === 1 ? "day" : "days"} remaining). Export your
-              resumes before access ends.
+              {t("subscription.message", {
+                date: formatExpiryDate(info().expiresAt),
+                remaining: info().remaining,
+                dayLabel: info().remaining === 1 ? t("subscription.day") : t("subscription.days"),
+              })}
             </p>
             <a
               href="/account#export"
               class="inline-flex items-center justify-center rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-ink hover:bg-border/50"
             >
-              Export data
+              {t("subscription.exportData")}
             </a>
           </div>
         </div>

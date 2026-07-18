@@ -1,3 +1,4 @@
+import { translate } from "../i18n/translate";
 import { createStore, produce } from "solid-js/store";
 import { batch } from "solid-js";
 import { toast } from "../components/ui";
@@ -236,7 +237,7 @@ function saveToLocalStorage(id: string, data: ResumeData): void {
     ids = JSON.parse(localStorage.getItem(STORAGE_KEY_PREFIX + "_ids") || "[]") as string[];
   } catch {
     console.error("Failed to parse resume IDs from localStorage, resetting list");
-    toast.warning("Resume ID data was corrupted — it has been reset");
+    toast.warning(translate("storage.toasts.idCorrupted"));
     ids = [];
   }
   if (!ids.includes(id)) {

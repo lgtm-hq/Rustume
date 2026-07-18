@@ -4,7 +4,8 @@ import { deleteAccount } from "../api/account";
 import { downloadResumesJson, downloadResumesPdf } from "../api/export";
 import { listCloudResumesPage } from "../api/resumes";
 import { authStore } from "../stores/auth";
-import { Button, Input, Modal, Spinner, toast } from "../components/ui";
+import { Button, Input, LanguageSelector, Modal, Spinner, toast } from "../components/ui";
+import { useI18n } from "../i18n";
 
 function ProfileAvatar(props: { label: string }) {
   return (
@@ -18,7 +19,7 @@ function ProfileAvatar(props: { label: string }) {
   );
 }
 
-function ComingSoonRow(props: { title: string; description: string }) {
+function ComingSoonRow(props: { title: string; description: string; badge: string }) {
   return (
     <div class="flex items-start justify-between gap-4 py-4 border-b border-border last:border-b-0">
       <div>
@@ -29,13 +30,14 @@ function ComingSoonRow(props: { title: string; description: string }) {
         class="inline-flex items-center rounded-full bg-surface px-2.5 py-1 text-xs font-mono
           text-stone border border-border flex-shrink-0"
       >
-        Coming soon
+        {props.badge}
       </span>
     </div>
   );
 }
 
 export default function Account() {
+  const { t } = useI18n();
   const { state, signIn, signOut, clearUser, displayName } = authStore;
   const navigate = useNavigate();
   const [signingOut, setSigningOut] = createSignal(false);
@@ -69,11 +71,11 @@ export default function Account() {
     setSigningOut(true);
     try {
       await signOut();
-      toast.success("Signed out");
+      toast.success(t("account.toasts.signedOut"));
       navigate("/");
     } catch (error) {
       console.error("Sign out failed:", error);
-      toast.error("Failed to sign out. Please try again.");
+      toast.error(t("account.toasts.signOutFailed"));
     } finally {
       setSigningOut(false);
     }
@@ -88,10 +90,10 @@ export default function Account() {
     setExportingJson(true);
     try {
       await downloadResumesJson();
-      toast.success("Resume export downloaded");
+      toast.success(t("account.export.jsonSuccess"));
     } catch (error) {
       console.error("JSON export failed:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to export resumes");
+      toast.error(error instanceof Error ? error.message : t("account.export.jsonFailed"));
     } finally {
       setExportingJson(false);
     }
@@ -101,10 +103,10 @@ export default function Account() {
     setExportingPdf(true);
     try {
       await downloadResumesPdf();
-      toast.success("PDF export downloaded");
+      toast.success(t("account.export.pdfSuccess"));
     } catch (error) {
       console.error("PDF export failed:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to export PDFs");
+      toast.error(error instanceof Error ? error.message : t("account.export.pdfFailed"));
     } finally {
       setExportingPdf(false);
     }
@@ -116,19 +118,27 @@ export default function Account() {
       await deleteAccount(deleteConfirmation());
       clearUser();
       setDeleteModalOpen(false);
-      toast.success("Account deleted");
+      toast.success(t("account.toasts.accountDeleted"));
       navigate("/");
     } catch (error) {
       console.error("Account deletion failed:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to delete account. Please try again.",
-      );
+      toast.error(error instanceof Error ? error.message : t("account.toasts.deleteFailed"));
     } finally {
       setDeletingAccount(false);
     }
   };
 
   const deleteConfirmed = () => deleteConfirmation() === "DELETE";
+
+  const resumeCountLabel = () => {
+    const count = resumeCount();
+    if (count === null) {
+      return t("account.deleteModal.items.allResumes");
+    }
+    const label =
+      count === 1 ? t("account.deleteModal.items.resume") : t("account.deleteModal.items.resumes");
+    return t("account.deleteModal.items.resumeCount", { count, label });
+  };
 
   return (
     <div class="min-h-[calc(100vh-3.5rem)] bg-paper">
@@ -137,7 +147,7 @@ export default function Account() {
           when={!state.loading}
           fallback={
             <div class="flex justify-center py-16">
-              <Spinner class="w-6 h-6 text-accent" ariaLabel="Loading account information" />
+              <Spinner class="w-6 h-6 text-accent" ariaLabel={t("account.loadingAria")} />
             </div>
           }
         >
@@ -145,10 +155,10 @@ export default function Account() {
             when={state.cloudEnabled}
             fallback={
               <div class="text-center py-16">
-                <h1 class="font-display text-2xl font-semibold text-ink mb-3">Account</h1>
-                <p class="text-stone">
-                  Cloud accounts are only available on Rustume Cloud deployments.
-                </p>
+                <h1 class="font-display text-2xl font-semibold text-ink mb-3">
+                  {t("account.title")}
+                </h1>
+                <p class="text-stone">{t("account.cloudDisabled")}</p>
               </div>
             }
           >
@@ -157,21 +167,21 @@ export default function Account() {
               fallback={
                 <div class="text-center py-16 border border-border rounded-2xl bg-surface/40 px-6">
                   <h1 class="font-display text-2xl font-semibold text-ink mb-3">
-                    Sign in to Rustume Cloud
+                    {t("account.signIn.title")}
                   </h1>
                   <p class="text-stone text-sm max-w-md mx-auto mb-6">
                     {state.requireAuth
-                      ? "Sign in is required to use Rustume Cloud on this deployment."
-                      : "Sync resumes across devices with your Rustume Cloud account. Your local copies stay on this device until you choose to import them."}
+                      ? t("account.signIn.requiredDescription")
+                      : t("account.signIn.optionalDescription")}
                   </p>
                   <Button onClick={handleSignIn} loading={signingIn()}>
-                    Sign in to sync
+                    {t("common.actions.signIn")}
                   </Button>
                   <Show when={!state.requireAuth}>
                     <p class="mt-4 text-xs text-stone">
-                      Prefer local-only?{" "}
+                      {t("account.signIn.localOnly")}{" "}
                       <A href="/" class="text-accent hover:underline">
-                        Continue without signing in
+                        {t("account.signIn.continueWithoutSignIn")}
                       </A>
                     </p>
                   </Show>
@@ -181,10 +191,10 @@ export default function Account() {
               {(user) => (
                 <div class="space-y-8">
                   <div>
-                    <h1 class="font-display text-3xl font-semibold text-ink mb-2">Account</h1>
-                    <p class="text-stone text-sm">
-                      Manage your Rustume Cloud profile and sync settings.
-                    </p>
+                    <h1 class="font-display text-3xl font-semibold text-ink mb-2">
+                      {t("account.title")}
+                    </h1>
+                    <p class="text-stone text-sm">{t("account.profile.description")}</p>
                   </div>
 
                   <section class="rounded-2xl border border-border bg-paper p-6 shadow-card">
@@ -198,36 +208,42 @@ export default function Account() {
                           {(email) => <p class="text-sm text-stone truncate mt-1">{email()}</p>}
                         </Show>
                         <p class="text-xs font-mono text-stone mt-2 uppercase tracking-wide">
-                          Plan: {user().plan}
+                          {t("common.labels.plan", { plan: user().plan })}
                         </p>
                       </div>
                     </div>
                   </section>
 
                   <section class="rounded-2xl border border-border bg-paper p-6 shadow-card">
-                    <h2 class="font-display text-lg font-semibold text-ink mb-2">Cloud sync</h2>
-                    <p class="text-sm text-stone">
-                      Resumes saved to your Rustume Cloud account are available on any signed-in
-                      device. Edits sync automatically while you're online.
-                    </p>
+                    <h2 class="font-display text-lg font-semibold text-ink mb-2">
+                      {t("account.language.title")}
+                    </h2>
+                    <p class="text-sm text-stone mb-4">{t("account.language.description")}</p>
+                    <LanguageSelector />
                   </section>
 
                   <section class="rounded-2xl border border-border bg-paper p-6 shadow-card">
                     <h2 class="font-display text-lg font-semibold text-ink mb-2">
-                      Privacy and data
+                      {t("account.cloudSync.title")}
+                    </h2>
+                    <p class="text-sm text-stone">{t("account.cloudSync.description")}</p>
+                  </section>
+
+                  <section class="rounded-2xl border border-border bg-paper p-6 shadow-card">
+                    <h2 class="font-display text-lg font-semibold text-ink mb-2">
+                      {t("account.privacy.title")}
                     </h2>
                     <p class="text-sm text-stone">
-                      Rustume Cloud uses{" "}
+                      {t("account.privacy.descriptionBefore")}{" "}
                       <a
                         href="https://workos.com/docs/user-management/authkit"
                         target="_blank"
                         rel="noopener noreferrer"
                         class="text-accent hover:underline"
                       >
-                        WorkOS AuthKit
+                        {t("account.privacy.workosLink")}
                       </a>{" "}
-                      for authentication. Your email and name are stored by both WorkOS and Rustume
-                      to identify your account.
+                      {t("account.privacy.descriptionAfter")}
                     </p>
                   </section>
 
@@ -235,47 +251,48 @@ export default function Account() {
                     id="export"
                     class="rounded-2xl border border-border bg-paper p-6 shadow-card"
                   >
-                    <h2 class="font-display text-lg font-semibold text-ink mb-2">Export data</h2>
-                    <p class="text-sm text-stone mb-4">
-                      Download all cloud resumes for backup or migration to self-hosted Rustume.
-                    </p>
+                    <h2 class="font-display text-lg font-semibold text-ink mb-2">
+                      {t("account.export.title")}
+                    </h2>
+                    <p class="text-sm text-stone mb-4">{t("account.export.description")}</p>
                     <div class="flex flex-wrap gap-3">
                       <Button
                         variant="secondary"
                         onClick={() => void handleExportJson()}
                         loading={exportingJson()}
                       >
-                        Download as JSON
+                        {t("account.export.json")}
                       </Button>
                       <Button
                         variant="secondary"
                         onClick={() => void handleExportPdf()}
                         loading={exportingPdf()}
                       >
-                        Download as PDF (ZIP)
+                        {t("account.export.pdf")}
                       </Button>
                     </div>
                   </section>
 
                   <section class="rounded-2xl border border-border bg-paper px-6 py-2 shadow-card">
                     <ComingSoonRow
-                      title="Billing"
-                      description="Manage your subscription and payment details."
+                      title={t("account.comingSoon.billing.title")}
+                      description={t("account.comingSoon.billing.description")}
+                      badge={t("common.status.comingSoon")}
                     />
                     <ComingSoonRow
-                      title="End-to-end encryption"
-                      description="Optional client-side encryption for resume content."
+                      title={t("account.comingSoon.e2e.title")}
+                      description={t("account.comingSoon.e2e.description")}
+                      badge={t("common.status.comingSoon")}
                     />
                   </section>
 
                   <section class="rounded-2xl border border-red-200 bg-red-50/40 p-6 shadow-card">
-                    <h2 class="font-display text-lg font-semibold text-ink mb-2">Danger zone</h2>
-                    <p class="text-sm text-stone mb-4">
-                      Permanently delete your account, all cloud resumes, and version history. This
-                      action cannot be undone.
-                    </p>
+                    <h2 class="font-display text-lg font-semibold text-ink mb-2">
+                      {t("account.dangerZone.title")}
+                    </h2>
+                    <p class="text-sm text-stone mb-4">{t("account.dangerZone.description")}</p>
                     <Button variant="danger" onClick={() => setDeleteModalOpen(true)}>
-                      Delete my account
+                      {t("account.dangerZone.deleteAccount")}
                     </Button>
                   </section>
 
@@ -285,48 +302,45 @@ export default function Account() {
                       onClick={() => void handleSignOut()}
                       loading={signingOut()}
                     >
-                      Sign out
+                      {t("common.actions.signOut")}
                     </Button>
                   </div>
 
                   <Modal
                     open={deleteModalOpen()}
                     onOpenChange={setDeleteModalOpen}
-                    title="Delete account"
-                    description="This permanently removes your Rustume Cloud account and data."
+                    title={t("account.deleteModal.title")}
+                    description={t("account.deleteModal.description")}
                     size="lg"
                   >
                     <div class="space-y-4">
-                      <p class="text-sm text-stone">This will permanently delete:</p>
-                      <ul class="list-disc pl-5 text-sm text-stone space-y-1">
-                        <li>Your account and profile</li>
+                      <p class="text-sm text-stone">{t("account.deleteModal.intro")}</p>
+                      <ul class="list-disc ps-5 text-sm text-stone space-y-1">
+                        <li>{t("account.deleteModal.items.profile")}</li>
                         <li>
                           <Show
                             when={!loadingResumeCount() && resumeCount() !== null}
-                            fallback="All cloud resumes"
+                            fallback={t("account.deleteModal.items.allResumes")}
                           >
-                            All {resumeCount()} {resumeCount() === 1 ? "resume" : "resumes"}
+                            {resumeCountLabel()}
                           </Show>
                         </li>
-                        <li>All version history</li>
-                        <li>Your subscription (if active)</li>
+                        <li>{t("account.deleteModal.items.history")}</li>
+                        <li>{t("account.deleteModal.items.subscription")}</li>
                       </ul>
 
-                      <p class="text-sm text-stone">
-                        Export your resumes from the account page before deleting if you need local
-                        copies.
-                      </p>
+                      <p class="text-sm text-stone">{t("account.deleteModal.exportReminder")}</p>
 
                       <Input
-                        label="Type DELETE to confirm"
+                        label={t("account.deleteModal.confirmLabel")}
                         value={deleteConfirmation()}
                         onInput={setDeleteConfirmation}
-                        placeholder="DELETE"
+                        placeholder={t("account.deleteModal.confirmPlaceholder")}
                       />
 
                       <div class="flex justify-end gap-3 pt-2">
                         <Button variant="secondary" onClick={() => setDeleteModalOpen(false)}>
-                          Cancel
+                          {t("common.actions.cancel")}
                         </Button>
                         <Button
                           variant="danger"
@@ -334,7 +348,7 @@ export default function Account() {
                           loading={deletingAccount()}
                           disabled={!deleteConfirmed()}
                         >
-                          Delete permanently
+                          {t("account.deleteModal.deletePermanently")}
                         </Button>
                       </div>
                     </div>

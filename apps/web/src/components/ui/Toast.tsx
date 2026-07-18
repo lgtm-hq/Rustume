@@ -1,3 +1,4 @@
+import { translate } from "../../i18n/translate";
 import * as ToastPrimitive from "@kobalte/core/toast";
 import type { Component } from "solid-js";
 
@@ -105,7 +106,7 @@ const ToastContent: Component<ToastContentProps> = (props) => {
 
         <ToastPrimitive.CloseButton
           class="p-1 text-stone hover:text-ink hover:bg-paper rounded transition-colors flex-shrink-0"
-          aria-label="Dismiss"
+          aria-label={translate("preview.dismiss")}
         >
           <svg
             class="w-4 h-4"

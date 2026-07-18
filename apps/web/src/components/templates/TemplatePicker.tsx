@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n";
 import { createResource, createSignal, For, Show } from "solid-js";
 import { Button, Modal } from "../ui";
 import { fetchTemplates, getTemplateThumbnailUrl } from "../../api/render";
@@ -6,6 +7,7 @@ import { uiStore } from "../../stores/ui";
 import type { TemplateInfo } from "../../wasm/types";
 
 export function TemplatePicker() {
+  const { t } = useI18n();
   const { store: ui, closeModal } = uiStore;
   const { store, updateTemplate, updateTheme } = resumeStore;
 
@@ -30,8 +32,8 @@ export function TemplatePicker() {
           closeModal();
         }
       }}
-      title="Choose Template"
-      description="Select a design that fits your style"
+      title={t("templates.title")}
+      description={t("templates.description")}
       size="xl"
     >
       <Show
@@ -235,7 +237,7 @@ function TemplateCard(props: {
               e.stopPropagation();
               props.onPreview(props.template);
             }}
-            title="Preview"
+            title={t("templates.preview")}
             aria-label={`Preview ${props.template.name} template`}
           >
             <svg
@@ -268,7 +270,7 @@ function TemplateCard(props: {
               e.stopPropagation();
               props.onSelect(props.template);
             }}
-            title="Use template"
+            title={t("templates.useTemplate")}
             aria-label={`Use ${props.template.name} template`}
           >
             <svg
@@ -300,17 +302,17 @@ function TemplateCard(props: {
               <div
                 class="w-3 h-3 rounded-full border border-border/50"
                 style={{ background: props.template.theme.primary }}
-                title="Primary color"
+                title={t("templates.colors.primary")}
               />
               <div
                 class="w-3 h-3 rounded-full border border-border/50"
                 style={{ background: props.template.theme.text }}
-                title="Text color"
+                title={t("templates.colors.text")}
               />
               <div
                 class="w-3 h-3 rounded-full border border-border/50"
                 style={{ background: props.template.theme.background }}
-                title="Background color"
+                title={t("templates.colors.background")}
               />
             </div>
           </div>

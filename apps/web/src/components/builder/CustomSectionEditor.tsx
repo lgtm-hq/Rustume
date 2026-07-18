@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n";
 import { For, Show, createSignal } from "solid-js";
 import { Button, Input } from "../ui";
 import { LazyRichTextEditor as RichTextEditor } from "../ui/LazyRichTextEditor";
@@ -28,6 +29,7 @@ function createCustomItem(): CustomItem {
 }
 
 export function CustomSectionEditor(props: CustomSectionEditorProps) {
+  const { t } = useI18n();
   const {
     store,
     updateCustomSection,
@@ -126,7 +128,7 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
               </div>
             </div>
             <Input
-              label="Section Name"
+              label={t("builder.fields.customSectionName")}
               value={currentSection().name}
               onInput={(name) => handleUpdateSection({ name })}
             />
@@ -158,13 +160,13 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
                   d="M12 4v16m8-8H4"
                 />
               </svg>
-              Add
+              {t("common.actions.add")}
             </Button>
             <button
               type="button"
               class="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-              title="Delete custom section"
-              aria-label="Delete custom section"
+              title={t("builder.customSection.delete")}
+              aria-label={t("builder.customSection.delete")}
               onClick={handleRemoveSection}
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -232,7 +234,7 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
                               disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                           onClick={() => handleMoveUp(index())}
                           disabled={index() === 0}
-                          title="Move up"
+                          title={t("builder.actions.moveUp")}
                         >
                           <svg
                             class="w-4 h-4"
@@ -253,7 +255,7 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
                               disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                           onClick={() => handleMoveDown(index())}
                           disabled={index() === items().length - 1}
-                          title="Move down"
+                          title={t("builder.actions.moveDown")}
                         >
                           <svg
                             class="w-4 h-4"
@@ -277,7 +279,7 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
                             id={`custom-item-${props.sectionId}-${index()}-visible-label`}
                             class="text-xs font-mono text-stone"
                           >
-                            Visible
+                            {t("common.status.visible")}
                           </span>
                           <button
                             type="button"
@@ -304,7 +306,7 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
                             touch();
                             setExpandedIndex(null);
                           }}
-                          title="Remove"
+                          title={t("common.actions.remove")}
                         >
                           <svg
                             class="w-4 h-4"
@@ -326,41 +328,41 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
                     <div class="space-y-4">
                       <div class="grid grid-cols-2 gap-4">
                         <Input
-                          label="Name"
-                          placeholder="Tooling"
+                          label={t("builder.fields.customItemName")}
+                          placeholder={t("builder.fields.customItemNamePlaceholder")}
                           value={item.name}
                           onInput={(name) => updateItem(index())({ name })}
                         />
                         <Input
-                          label="Description"
-                          placeholder="Brief description"
+                          label={t("builder.fields.description")}
+                          placeholder={t("builder.fields.descriptionPlaceholder")}
                           value={item.description}
                           onInput={(description) => updateItem(index())({ description })}
                         />
                       </div>
                       <div class="grid grid-cols-2 gap-4">
                         <Input
-                          label="Date"
-                          placeholder="2024"
+                          label={t("builder.fields.date")}
+                          placeholder={t("builder.fields.customItemDatePlaceholder")}
                           value={item.date}
                           onInput={(date) => updateItem(index())({ date })}
                         />
                         <Input
-                          label="Location"
-                          placeholder="Remote"
+                          label={t("builder.fields.location")}
+                          placeholder={t("builder.fields.customItemLocationPlaceholder")}
                           value={item.location}
                           onInput={(location) => updateItem(index())({ location })}
                         />
                       </div>
                       <RichTextEditor
-                        label="Summary"
-                        placeholder="Describe this item..."
+                        label={t("builder.fields.summary")}
+                        placeholder={t("builder.fields.customItemSummaryPlaceholder")}
                         value={item.summary}
                         onInput={(summary) => updateItem(index())({ summary })}
                       />
                       <Input
-                        label="Keywords"
-                        placeholder="Playwright, Vitest, Jest (comma separated)"
+                        label={t("builder.fields.keywords")}
+                        placeholder={t("builder.fields.customKeywordsPlaceholder")}
                         value={item.keywords.join(", ")}
                         onInput={(value) =>
                           updateItem(index())({
@@ -373,15 +375,15 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
                       />
                       <div class="grid grid-cols-2 gap-4">
                         <Input
-                          label="Link Label"
-                          placeholder="Website"
+                          label={t("builder.fields.linkLabel")}
+                          placeholder={t("builder.basics.website")}
                           value={item.url.label}
                           onInput={(label) => updateItem(index())({ url: { ...item.url, label } })}
                         />
                         <Input
-                          label="Link URL"
+                          label={t("builder.fields.linkUrl")}
                           type="url"
-                          placeholder="https://..."
+                          placeholder={t("builder.fields.publicationUrlPlaceholder")}
                           value={item.url.href}
                           onInput={(href) => updateItem(index())({ url: { ...item.url, href } })}
                         />
@@ -395,7 +397,7 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
 
           <Show when={items().length === 0}>
             <div class="py-8 text-center">
-              <p class="text-stone text-sm mb-3">No items yet</p>
+              <p class="text-stone text-sm mb-3">{t("common.labels.noItemsYet")}</p>
               <Button variant="secondary" size="sm" onClick={handleAdd}>
                 Add your first item
               </Button>
@@ -439,7 +441,9 @@ export function CustomSectionsIndex(props: CustomSectionsIndexProps) {
             </svg>
           </div>
           <div class="min-w-0">
-            <h2 class="font-display text-lg font-semibold text-ink">Custom Sections</h2>
+            <h2 class="font-display text-lg font-semibold text-ink">
+              {t("builder.sections.customSections")}
+            </h2>
             <p class="text-sm text-stone">{customSections().length} sections</p>
           </div>
         </div>
@@ -452,7 +456,7 @@ export function CustomSectionsIndex(props: CustomSectionsIndexProps) {
               d="M12 4v16m8-8H4"
             />
           </svg>
-          Add
+          {t("common.actions.add")}
         </Button>
       </div>
 
@@ -478,7 +482,7 @@ export function CustomSectionsIndex(props: CustomSectionsIndexProps) {
                 </button>
                 <div class="min-w-0 flex-1">
                   <Input
-                    label="Section Name"
+                    label={t("builder.fields.customSectionName")}
                     value={section.name}
                     onInput={(name) => updateCustomSection(id, { name })}
                   />
@@ -494,8 +498,8 @@ export function CustomSectionsIndex(props: CustomSectionsIndexProps) {
                   <button
                     type="button"
                     class="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Delete custom section"
-                    aria-label="Delete custom section"
+                    title={t("builder.customSection.delete")}
+                    aria-label={t("builder.customSection.delete")}
                     onClick={() => handleRemove(id, section.name)}
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -515,9 +519,9 @@ export function CustomSectionsIndex(props: CustomSectionsIndexProps) {
 
         <Show when={customSections().length === 0}>
           <div class="py-8 text-center">
-            <p class="text-stone text-sm mb-3">No custom sections yet</p>
+            <p class="text-stone text-sm mb-3">{t("builder.customSection.empty")}</p>
             <Button variant="secondary" size="sm" onClick={handleAdd}>
-              Add custom section
+              {t("builder.customSection.addSection")}
             </Button>
           </div>
         </Show>

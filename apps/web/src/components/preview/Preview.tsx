@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n";
 import { createSignal, createEffect, Show } from "solid-js";
 import { toast } from "../ui";
 import { resumeStore } from "../../stores/resume";
@@ -7,6 +8,7 @@ import { useDebounce } from "../../hooks/useDebounce";
 import { useOnline } from "../../hooks/useOnline";
 
 export function Preview() {
+  const { t } = useI18n();
   const { store } = resumeStore;
   const { store: ui, setPreviewPage, zoomIn, zoomOut } = uiStore;
   const isOnline = useOnline();
@@ -108,7 +110,7 @@ export function Preview() {
         setError(msg);
         if (msg !== lastToastedError) {
           lastToastedError = msg;
-          toast.error("Preview rendering failed");
+          toast.error(t("preview.renderFailed"));
         }
         // Keep showing last cached preview
         if (lastCachedUrl()) {
@@ -160,7 +162,7 @@ export function Preview() {
         setError(msg);
         if (msg !== lastToastedError) {
           lastToastedError = msg;
-          toast.error("Preview rendering failed");
+          toast.error(t("preview.renderFailed"));
         }
         if (lastCachedUrl()) {
           setPreviewUrl(lastCachedUrl());
@@ -182,8 +184,8 @@ export function Preview() {
             type="button"
             class="p-1.5 text-stone hover:text-ink hover:bg-surface rounded transition-colors
               disabled:opacity-30 disabled:cursor-not-allowed"
-            aria-label="Previous page"
-            title="Previous page"
+            aria-label={t("preview.previousPage")}
+            title={t("preview.previousPage")}
             onClick={() => goToPage(ui.previewPage - 1)}
             disabled={ui.previewPage === 0}
           >
@@ -203,8 +205,8 @@ export function Preview() {
             type="button"
             class="p-1.5 text-stone hover:text-ink hover:bg-surface rounded transition-colors
               disabled:opacity-30 disabled:cursor-not-allowed"
-            aria-label="Next page"
-            title="Next page"
+            aria-label={t("preview.nextPage")}
+            title={t("preview.nextPage")}
             onClick={() => goToPage(ui.previewPage + 1)}
             disabled={ui.previewPage >= totalPages() - 1}
           >
@@ -243,7 +245,7 @@ export function Preview() {
           <button
             class="p-1.5 text-stone hover:text-ink hover:bg-surface rounded transition-colors"
             onClick={zoomOut}
-            title="Zoom out"
+            title={t("preview.zoomOut")}
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
@@ -255,7 +257,7 @@ export function Preview() {
           <button
             class="p-1.5 text-stone hover:text-ink hover:bg-surface rounded transition-colors"
             onClick={zoomIn}
-            title="Zoom in"
+            title={t("preview.zoomIn")}
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path

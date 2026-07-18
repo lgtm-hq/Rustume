@@ -1,16 +1,18 @@
+import { useI18n } from "../../i18n";
 import { For, Show } from "solid-js";
 import { resumeStore, type LayoutSectionKey } from "../../stores/resume";
 import { uiStore } from "../../stores/ui";
-import { SECTIONS } from "./constants";
+import { getSections } from "./constants";
 
 export function SectionPanel() {
+  const { t } = useI18n();
   const { store, toggleSectionVisibility, updateCustomSection } = resumeStore;
   const { store: ui, setSectionPanelOpen } = uiStore;
-  const coreSections = () => SECTIONS.filter((section) => section.key !== "custom");
+  const coreSections = () => getSections().filter((section) => section.key !== "custom");
   const customSections = () =>
     Object.entries(store.resume?.sections.custom ?? {}).map(([id, section]) => ({
       id,
-      name: section.name || "Untitled",
+      name: section.name || t("common.labels.untitled"),
       visible: section.visible,
     }));
 
@@ -62,7 +64,7 @@ export function SectionPanel() {
         title={ui.sectionPanelOpen ? "Hide section controls" : "Show section controls"}
         aria-expanded={ui.sectionPanelOpen}
         aria-controls={PANEL_ID}
-        aria-label="Section visibility controls"
+        aria-label={t("builder.sectionPanel.aria")}
       >
         <svg
           class={`h-4 w-4 shrink-0 text-stone transition-transform duration-200 ${
@@ -80,7 +82,9 @@ export function SectionPanel() {
             d="M15 19l-7-7 7-7"
           />
         </svg>
-        <span class="text-xs font-medium leading-none text-stone">Sections</span>
+        <span class="text-xs font-medium leading-none text-stone">
+          {t("builder.sectionPanel.title")}
+        </span>
         <span class="rounded bg-accent/10 px-1 font-mono text-xs text-accent">
           {visibleCount()}
         </span>
@@ -194,7 +198,7 @@ export function SectionPanel() {
                           isVisible("custom") ? "text-ink" : "text-stone/70"
                         }`}
                       >
-                        Custom
+                        {t("editor.sidebar.tabs.custom")}
                       </span>
                       <span class="block truncate text-[11px] text-stone">
                         {customSections().length} sections

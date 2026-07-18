@@ -1,9 +1,11 @@
+import { useI18n } from "../../i18n";
 import { Show, For, createSignal } from "solid-js";
 import { resumeStore } from "../../stores/resume";
 import { getThemePresets } from "../../stores/themePresets";
 import type { ThemePresetInfo } from "../../wasm/types";
 
 export function ThemeEditor() {
+  const { t } = useI18n();
   const { store, updateTheme } = resumeStore;
   const [activeTab, setActiveTab] = createSignal<"presets" | "custom">("presets");
 
@@ -113,17 +115,17 @@ export function ThemeEditor() {
               {/* Color Inputs */}
               <div class="grid grid-cols-3 gap-4">
                 <ColorInput
-                  label="Background"
+                  label={t("theme.editor.background")}
                   value={resume().metadata.theme.background}
                   onChange={(v) => updateTheme({ background: v, preset: undefined })}
                 />
                 <ColorInput
-                  label="Text"
+                  label={t("theme.editor.text")}
                   value={resume().metadata.theme.text}
                   onChange={(v) => updateTheme({ text: v, preset: undefined })}
                 />
                 <ColorInput
-                  label="Primary"
+                  label={t("theme.editor.primary")}
                   value={resume().metadata.theme.primary}
                   onChange={(v) => updateTheme({ primary: v, preset: undefined })}
                 />
@@ -255,7 +257,7 @@ function ColorInput(props: ColorInputProps) {
           transition-all hover:border-accent hover:scale-[1.02] hover:shadow-lg
           focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
         style={{ background: props.value }}
-        title="Click to pick a color"
+        title={t("theme.editor.pickColor")}
       >
         {/* Hidden native color input */}
         <input
@@ -275,7 +277,7 @@ function ColorInput(props: ColorInputProps) {
         class="w-full px-2 py-1.5 text-xs font-mono text-center bg-surface border border-border
           rounded-lg focus:outline-none focus:border-accent uppercase"
         maxLength={7}
-        placeholder="#000000"
+        placeholder={t("theme.editor.placeholder")}
         pattern="^#[0-9A-Fa-f]{6}$"
       />
     </div>

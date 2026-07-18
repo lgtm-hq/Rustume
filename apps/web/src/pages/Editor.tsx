@@ -1,3 +1,5 @@
+import { useI18n } from "../i18n";
+import { translate } from "../i18n/translate";
 import { createMemo, createSignal, lazy, onMount, Show, Suspense } from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
 import { Button, toast, ShortcutsModal, Spinner } from "../components/ui";
@@ -208,6 +210,7 @@ function sidebarGroupOrder(item: SidebarItem): number {
 }
 
 export default function Editor() {
+  const { t } = useI18n();
   const params = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { store, loadResume, createNewResume } = resumeStore;
@@ -238,7 +241,7 @@ export default function Editor() {
       mod: true,
       handler: () => {
         resumeStore.forceSave();
-        toast.success("Saved");
+        toast.success(translate("editor.toasts.saved"));
       },
       label: "Save",
       category: "General",
@@ -315,10 +318,10 @@ export default function Editor() {
         // Resume genuinely does not exist -- safe to create a new one
         try {
           createNewResume(params.id);
-          toast.info("New resume created");
+          toast.info(translate("editor.toasts.newResume"));
         } catch (createError) {
           console.error("Failed to create new resume:", createError);
-          toast.error("Failed to create new resume — redirecting to home");
+          toast.error(translate("editor.toasts.createFailed"));
           navigate("/", { replace: true });
         }
       } else {
@@ -327,7 +330,7 @@ export default function Editor() {
         console.error("Failed to load resume:", error);
         const message = error instanceof Error ? error.message : "An unexpected error occurred";
         setLoadError(message);
-        toast.error("Failed to load resume — your data has not been modified");
+        toast.error(translate("editor.toasts.loadFailed"));
       }
     } finally {
       setIsLoading(false);
@@ -411,21 +414,21 @@ export default function Editor() {
                 ${ui.panel === "editor" ? "bg-paper shadow-sm text-ink" : "text-stone hover:text-ink"}`}
               onClick={() => setPanel("editor")}
             >
-              Editor
+              {t("editor.panels.editor")}
             </button>
             <button
               class={`px-3 py-1 text-xs font-mono rounded transition-colors
                 ${ui.panel === "both" ? "bg-paper shadow-sm text-ink" : "text-stone hover:text-ink"}`}
               onClick={() => setPanel("both")}
             >
-              Split
+              {t("editor.panels.split")}
             </button>
             <button
               class={`px-3 py-1 text-xs font-mono rounded transition-colors
                 ${ui.panel === "preview" ? "bg-paper shadow-sm text-ink" : "text-stone hover:text-ink"}`}
               onClick={() => setPanel("preview")}
             >
-              Preview
+              {t("templates.preview")}
             </button>
           </div>
         </div>
@@ -440,7 +443,7 @@ export default function Editor() {
                 d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
               />
             </svg>
-            Import
+            {t("editor.toolbar.import")}
           </Button>
 
           {/* Template Button with Current Selection Indicator */}
@@ -470,7 +473,7 @@ export default function Editor() {
                 </span>
               )}
             </Show>
-            <Show when={!store.resume}>Template</Show>
+            <Show when={!store.resume}>{t("editor.toolbar.template")}</Show>
           </Button>
 
           <Button size="sm" onClick={() => openModal("export")}>
@@ -482,7 +485,7 @@ export default function Editor() {
                 d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
               />
             </svg>
-            Export
+            {t("editor.toolbar.export")}
           </Button>
         </div>
       </div>
@@ -513,7 +516,7 @@ export default function Editor() {
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                       />
                     </svg>
-                    <p class="text-stone">Loading resume...</p>
+                    <p class="text-stone">{t("editor.loading")}</p>
                   </div>
                 }
               >
@@ -534,15 +537,15 @@ export default function Editor() {
                       />
                     </svg>
                     <h2 class="font-display text-lg font-semibold text-ink mb-2">
-                      Failed to load resume
+                      {t("editor.loadError.title")}
                     </h2>
                     <p class="text-stone text-sm mb-6">{errorMsg()}</p>
                     <div class="flex items-center justify-center gap-3">
                       <Button variant="secondary" onClick={() => attemptLoad()}>
-                        Retry
+                        {t("common.actions.retry")}
                       </Button>
                       <Button variant="ghost" onClick={() => navigate("/", { replace: true })}>
-                        Back to Home
+                        {t("editor.loadError.backHome")}
                       </Button>
                     </div>
                   </div>

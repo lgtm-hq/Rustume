@@ -1,3 +1,4 @@
+import { translate } from "../i18n/translate";
 import { createResource, createEffect, on, onCleanup, onMount } from "solid-js";
 import { toast } from "../components/ui";
 import {
@@ -133,7 +134,7 @@ function maybeUpdateResumeMeta(id: string, title: string): void {
     setResumeMeta(id, title);
   } catch (e) {
     console.error("Failed to update resume metadata:", e);
-    toast.warning("Resume saved but metadata could not be updated — storage may be full");
+    toast.warning(translate("storage.toasts.metaFailed"));
   }
 }
 
@@ -149,7 +150,7 @@ function listLocalResumes(): string[] {
   } catch {
     console.error("Failed to parse resume IDs from localStorage, resetting list");
     localStorage.removeItem(STORAGE_KEY_PREFIX + "_ids");
-    toast.warning("Resume list data was corrupted — it has been reset");
+    toast.warning(translate("storage.toasts.listCorrupted"));
     return [];
   }
 }
@@ -183,7 +184,7 @@ function saveLocalResume(id: string, data: ResumeData): boolean {
     localStorage.setItem(STORAGE_KEY_PREFIX + id, JSON.stringify(data));
   } catch (e) {
     console.error("Failed to save resume to localStorage:", STORAGE_KEY_PREFIX + id, e);
-    toast.error("Local storage is full — could not save resume");
+    toast.error(translate("storage.toasts.full"));
     return false;
   }
   let ids: string[] = [];
@@ -192,7 +193,7 @@ function saveLocalResume(id: string, data: ResumeData): boolean {
     ids = Array.isArray(parsed) ? (parsed as string[]) : [];
   } catch {
     console.error("Failed to parse resume IDs from localStorage, resetting list");
-    toast.warning("Resume ID data was corrupted — it has been reset");
+    toast.warning(translate("storage.toasts.idCorrupted"));
     ids = [];
   }
   if (!ids.includes(id)) {
@@ -212,7 +213,7 @@ function saveLocalResume(id: string, data: ResumeData): boolean {
     setResumeMeta(id, title);
   } catch (e) {
     console.error("Failed to update resume metadata:", e);
-    toast.warning("Resume saved but metadata could not be updated — storage may be full");
+    toast.warning(translate("storage.toasts.metaFailed"));
   }
   return true;
 }
@@ -345,7 +346,7 @@ async function fetchResumeList(): Promise<ResumeListItem[]> {
     });
   } catch (e) {
     console.error("Failed to list resumes:", e);
-    toast.error("Failed to load resume list");
+    toast.error(translate("storage.toasts.listLoadFailed"));
     return [];
   }
 }
@@ -393,7 +394,7 @@ export function useResumeList() {
         await refetch();
       } catch (e) {
         console.error("Failed to delete resume:", e);
-        toast.error("Failed to delete resume");
+        toast.error(translate("storage.toasts.deleteFailed"));
         throw e;
       }
     },
@@ -440,7 +441,7 @@ export function useResumeList() {
           }
         }
         console.error("Failed to duplicate resume:", e);
-        toast.error("Failed to duplicate resume");
+        toast.error(translate("storage.toasts.duplicateFailed"));
         throw e;
       }
     },
@@ -470,7 +471,7 @@ export function useResumeList() {
       } catch (e) {
         console.error("Failed to rename resume:", e);
         if (!isResumeVersionConflictError(e) && !isCloudWriteBlockedError(e)) {
-          toast.error("Failed to rename resume");
+          toast.error(translate("storage.toasts.renameFailed"));
         }
         throw e;
       }

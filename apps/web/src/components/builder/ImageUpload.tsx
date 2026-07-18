@@ -1,3 +1,5 @@
+import { useI18n } from "../../i18n";
+import { translate } from "../../i18n/translate";
 import { Show, createSignal } from "solid-js";
 import { Button, Switch, toast } from "../ui";
 import type { Picture } from "../../wasm/types";
@@ -74,6 +76,7 @@ function validateFile(file: File): string | null {
 }
 
 export function ImageUpload(props: ImageUploadProps) {
+  const { t } = useI18n();
   const [isDragging, setIsDragging] = createSignal(false);
   const [isProcessing, setIsProcessing] = createSignal(false);
 
@@ -100,7 +103,7 @@ export function ImageUpload(props: ImageUploadProps) {
           hidden: props.picture.url ? props.picture.effects.hidden : false,
         },
       });
-      toast.success("Profile photo uploaded");
+      toast.success(translate("builder.imageUpload.uploaded"));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to process image");
     } finally {
@@ -147,7 +150,7 @@ export function ImageUpload(props: ImageUploadProps) {
       url: "",
       effects: { ...props.picture.effects, hidden: true },
     });
-    toast.info("Profile photo removed");
+    toast.info(translate("builder.imageUpload.removed"));
   }
 
   function updateEffect(key: keyof Picture["effects"], value: boolean) {
@@ -199,7 +202,7 @@ export function ImageUpload(props: ImageUploadProps) {
         type="file"
         accept={ACCEPTED_TYPES.join(",")}
         class="hidden"
-        aria-label="Choose profile photo"
+        aria-label={t("builder.imageUpload.choose")}
         onChange={handleInputChange}
       />
 
@@ -282,7 +285,7 @@ export function ImageUpload(props: ImageUploadProps) {
                   >
                     <img
                       src={props.picture.url}
-                      alt="Profile photo (hidden)"
+                      alt={t("builder.imageUpload.hiddenTitle")}
                       class="w-full h-full object-cover"
                     />
                   </div>
@@ -290,7 +293,7 @@ export function ImageUpload(props: ImageUploadProps) {
               >
                 <img
                   src={props.picture.url}
-                  alt="Profile photo"
+                  alt={t("builder.imageUpload.title")}
                   class="object-cover"
                   style={previewStyle()}
                 />
@@ -303,7 +306,7 @@ export function ImageUpload(props: ImageUploadProps) {
                   Replace
                 </Button>
                 <Button variant="danger" size="sm" onClick={handleRemove}>
-                  Remove
+                  {t("common.actions.remove")}
                 </Button>
               </div>
             </div>
@@ -312,7 +315,7 @@ export function ImageUpload(props: ImageUploadProps) {
           {/* Size slider */}
           <div class="space-y-1.5">
             <label class="font-mono text-xs uppercase tracking-wider text-stone flex justify-between">
-              <span>Size</span>
+              <span>{t("builder.imageUpload.size")}</span>
               <span class="font-body normal-case tracking-normal">
                 {props.picture.size || 64}px
               </span>
@@ -325,7 +328,7 @@ export function ImageUpload(props: ImageUploadProps) {
               value={props.picture.size || 64}
               onInput={(e) => updateSize(parseInt(e.currentTarget.value, 10))}
               class="w-full accent-[var(--turbo-brand-primary)]"
-              aria-label="Size"
+              aria-label={t("builder.imageUpload.size")}
             />
           </div>
 
@@ -345,27 +348,27 @@ export function ImageUpload(props: ImageUploadProps) {
               value={props.picture.borderRadius}
               onInput={(e) => updateBorderRadius(parseInt(e.currentTarget.value, 10))}
               class="w-full accent-[var(--turbo-brand-primary)]"
-              aria-label="Border radius"
+              aria-label={t("builder.imageUpload.borderRadius")}
             />
           </div>
 
           {/* Effects toggles */}
           <div class="space-y-2">
             <Switch
-              label="Hidden"
-              description="Hide photo from resume"
+              label={t("builder.imageUpload.hidden")}
+              description={t("builder.imageUpload.hiddenDescription")}
               checked={props.picture.effects.hidden}
               onChange={(val) => updateEffect("hidden", val)}
             />
             <Switch
-              label="Grayscale"
-              description="Apply grayscale filter"
+              label={t("builder.imageUpload.grayscale")}
+              description={t("builder.imageUpload.grayscaleDescription")}
               checked={props.picture.effects.grayscale}
               onChange={(val) => updateEffect("grayscale", val)}
             />
             <Switch
-              label="Border"
-              description="Show a border around the photo"
+              label={t("builder.imageUpload.border")}
+              description={t("builder.imageUpload.borderDescription")}
               checked={props.picture.effects.border}
               onChange={(val) => updateEffect("border", val)}
             />
