@@ -104,9 +104,10 @@ the throwaway branch and verify login, resume load, and export flows.
 
 Only after verification:
 
-1. Update the production `DATABASE_URL` (Railway service variable or Terraform-managed
-   secret) to the restored branch connection string, **or** merge the restored data back
-   into production using Neon’s promote/swap workflow if applicable.
+1. Update the production `DATABASE_URL` (Railway service variable or a secret
+   managed by the `rustume-ops` Terraform) to the restored branch connection
+   string, **or** merge the restored data back into production using Neon’s
+   promote/swap workflow if applicable.
 2. Redeploy or restart Rustume Cloud so connection pools pick up the new URL.
 3. Monitor error rates and Sentry/Grafana dashboards (#333 / #335).
 4. Document measured RPO/RTO in the table above.
