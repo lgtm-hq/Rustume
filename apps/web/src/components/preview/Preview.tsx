@@ -5,11 +5,21 @@ import { uiStore } from "../../stores/ui";
 import { renderPreview } from "../../api/render";
 import { useDebounce } from "../../hooks/useDebounce";
 import { useOnline } from "../../hooks/useOnline";
+import type { ResumeData } from "../../wasm/types";
 
-export function Preview() {
+export interface PreviewProps {
+  resumeData?: ResumeData;
+}
+
+export function Preview(props: PreviewProps = {}) {
   const { store } = resumeStore;
+  const activeResume = () => props.resumeData ?? store.resume;
+  const isStandalone = () => props.resumeData !== undefined;
   const { store: ui, setPreviewPage, zoomIn, zoomOut } = uiStore;
   const isOnline = useOnline();
+
+  const [standalonePage, setStandalonePage] = createSignal(0);
+  const previewPage = () => (isStandalone() ? standalonePage() : ui.previewPage);
 
   const [previewUrl, setPreviewUrl] = createSignal<string | null>(null);
   const [isLoading, setIsLoading] = createSignal(false);
@@ -29,10 +39,21 @@ export function Preview() {
 
   const goToPage = (page: number) => {
     const nextPage = resolvePage(page);
-    if (nextPage !== ui.previewPage) {
-      setPreviewPage(nextPage);
+    if (nextPage === previewPage()) return;
+
+    if (isStandalone()) {
+      setStandalonePage(nextPage);
+      return;
     }
+
+    setPreviewPage(nextPage);
   };
+
+  createEffect(() => {
+    if (isStandalone() && activeResume()) {
+      setStandalonePage(0);
+    }
+  });
 
   const goToPageWithCooldown = (page: number) => {
     if (totalPages() <= 1) return false;
@@ -41,7 +62,7 @@ export function Preview() {
     if (now - lastWheelNavigation < 400) return false;
 
     const nextPage = resolvePage(page);
-    if (nextPage === ui.previewPage) return false;
+    if (nextPage === previewPage()) return false;
 
     lastWheelNavigation = now;
     goToPage(nextPage);
@@ -50,26 +71,27 @@ export function Preview() {
 
   const handleWheel = (event: WheelEvent) => {
     if (Math.abs(event.deltaY) < 30) return;
-    if (!goToPageWithCooldown(ui.previewPage + (event.deltaY > 0 ? 1 : -1))) return;
+    if (!goToPageWithCooldown(previewPage() + (event.deltaY > 0 ? 1 : -1))) return;
     event.preventDefault();
   };
 
   const handleKeyDown = (event: KeyboardEvent) => {
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
-    if (!goToPageWithCooldown(ui.previewPage + (event.key === "ArrowDown" ? 1 : -1))) return;
+    if (!goToPageWithCooldown(previewPage() + (event.key === "ArrowDown" ? 1 : -1))) return;
     event.preventDefault();
   };
 
   // Debounce the resume data to avoid too many preview requests
-  const debouncedResume = useDebounce(
-    () => (store.resume ? JSON.stringify(store.resume) : null),
-    500,
-  );
+  const debouncedResume = useDebounce(() => {
+    const resume = activeResume();
+    return resume ? JSON.stringify(resume) : null;
+  }, 500);
 
   // Fetch preview when resume changes
   createEffect(() => {
     const resumeJson = debouncedResume();
-    if (!resumeJson || !store.resume) return;
+    const resume = activeResume();
+    if (!resumeJson || !resume) return;
 
     // Skip if offline — invalidate in-flight requests, keep cached preview
     if (!isOnline()) {
@@ -88,15 +110,15 @@ export function Preview() {
     setIsLoading(true);
     setError(null);
 
-    renderPreview(store.resume, ui.previewPage)
+    renderPreview(resume, previewPage())
       .then((result) => {
         if (currentRequestId !== resumeRequestId) return;
         setPreviewUrl(result.url);
         setLastCachedUrl(result.url);
         setTotalPages(result.totalPages);
         // Clamp page index when content shrinks (e.g., user deletes text)
-        if (ui.previewPage >= result.totalPages) {
-          setPreviewPage(Math.max(0, result.totalPages - 1));
+        if (previewPage() >= result.totalPages) {
+          goToPage(Math.max(0, result.totalPages - 1));
         }
         setError(null);
         lastToastedError = "";
@@ -124,8 +146,9 @@ export function Preview() {
 
   // Also refresh when page changes
   createEffect(() => {
-    const page = ui.previewPage;
-    if (!store.resume) return;
+    const page = previewPage();
+    const resume = activeResume();
+    if (!resume) return;
 
     // Skip if offline — invalidate in-flight requests, keep cached preview
     if (!isOnline()) {
@@ -144,7 +167,7 @@ export function Preview() {
     setIsLoading(true);
     setError(null);
 
-    renderPreview(store.resume, page)
+    renderPreview(resume, page)
       .then((result) => {
         if (currentRequestId !== pageRequestId) return;
         setPreviewUrl(result.url);
@@ -184,8 +207,8 @@ export function Preview() {
               disabled:opacity-30 disabled:cursor-not-allowed"
             aria-label="Previous page"
             title="Previous page"
-            onClick={() => goToPage(ui.previewPage - 1)}
-            disabled={ui.previewPage === 0}
+            onClick={() => goToPage(previewPage() - 1)}
+            disabled={previewPage() === 0}
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -197,7 +220,7 @@ export function Preview() {
             </svg>
           </button>
           <span class="text-sm font-mono text-stone min-w-[60px] text-center">
-            {ui.previewPage + 1} / {totalPages()}
+            {previewPage() + 1} / {totalPages()}
           </span>
           <button
             type="button"
@@ -205,8 +228,8 @@ export function Preview() {
               disabled:opacity-30 disabled:cursor-not-allowed"
             aria-label="Next page"
             title="Next page"
-            onClick={() => goToPage(ui.previewPage + 1)}
-            disabled={ui.previewPage >= totalPages() - 1}
+            onClick={() => goToPage(previewPage() + 1)}
+            disabled={previewPage() >= totalPages() - 1}
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
