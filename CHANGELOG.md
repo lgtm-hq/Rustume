@@ -22,6 +22,12 @@ and this project adheres to
 
 ### Security
 
+## [0.29.5] - 2026-07-18
+
+### Fixed
+
+- **ci**: run web app typecheck and lint in CI (#421) (d592796)
+
 ## [0.29.4] - 2026-07-18
 
 ### Changed
@@ -420,7 +426,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.29.4...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.29.5...HEAD
+[0.29.5]: https://github.com/lgtm-hq/Rustume/compare/v0.29.4...v0.29.5
 [0.29.4]: https://github.com/lgtm-hq/Rustume/compare/v0.29.3...v0.29.4
 [0.29.3]: https://github.com/lgtm-hq/Rustume/compare/v0.29.2...v0.29.3
 [0.29.2]: https://github.com/lgtm-hq/Rustume/compare/v0.29.1...v0.29.2
