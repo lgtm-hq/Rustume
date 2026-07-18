@@ -36,6 +36,7 @@ is_listed() {
 	local skip_files=(
 		CHANGELOG.md
 		CONTRIBUTING.md
+		LICENSING.md
 		README.md
 		SECURITY.md
 	)
@@ -45,7 +46,6 @@ is_listed() {
 		bindings
 		crates
 		docker
-		infra
 		scripts
 		tests
 		Cargo.lock

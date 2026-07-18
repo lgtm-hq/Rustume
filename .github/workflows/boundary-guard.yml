@@ -1,35 +1,25 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 ---
-name: Quality - Terraform Validate
+name: Quality - Ops Boundary Guard
 
 "on":
   pull_request:
     branches: [main]
-    paths:
-      - 'infra/**'
-      - 'scripts/ci/terraform/**'
-      - 'tests/bats/unit/terraform/**'
-      - '.github/workflows/terraform-validate.yml'
   push:
     branches: [main]
-    paths:
-      - 'infra/**'
-      - 'scripts/ci/terraform/**'
-      - 'tests/bats/unit/terraform/**'
-      - '.github/workflows/terraform-validate.yml'
 
 permissions:
   contents: read
 
 concurrency:
-  group: terraform-validate-${{ github.ref }}
+  group: boundary-guard-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  validate:
-    name: Terraform fmt & validate
+  boundary:
+    name: Ops boundary guard
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
@@ -39,9 +29,10 @@ jobs:
             github.com:443
             api.github.com:443
             codeload.github.com:443
-            releases.hashicorp.com:443
-            registry.terraform.io:443
+            objects.githubusercontent.com:443
             release-assets.githubusercontent.com:443
+            pypi.org:443
+            files.pythonhosted.org:443
 
       - name: Checkout
         # yamllint disable-line rule:line-length
@@ -49,10 +40,13 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
-        with:
-          terraform_version: 1.5.7
+      - name: Path guard
+        run: bash scripts/ci/boundary/check_paths.sh
 
-      - name: Validate Terraform
-        run: bash scripts/ci/terraform/validate.sh
+      - name: Install uv
+        # Pinned pip install instead of setup-uv: the action's version fetch
+        # is blocked by the harden-runner egress policy; PyPI already is not.
+        run: python3 -m pip install --quiet uv==0.11.29
+
+      - name: Content guard (semgrep)
+        run: bash scripts/ci/boundary/check_content.sh

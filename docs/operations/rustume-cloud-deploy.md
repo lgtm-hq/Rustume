@@ -1,8 +1,8 @@
 # Rustume Cloud deployment
 
 Operated Rustume Cloud deploys from CI-built container images published to GHCR. Railway
-(or Terraform via `infra/modules/railway/`) pulls the image; it does not compile Rust from
-the GitHub repository.
+(or the Terraform managed in the private `rustume-ops` repo) pulls the image; it does not
+compile Rust from the GitHub repository.
 
 ## Pipeline
 
@@ -80,7 +80,8 @@ Project: `rustume-cloud` (service historically named `responsible-celebration`).
    **only in Railway** — never in GitHub Actions or the repository.
 5. Remove source-build settings:
    - `RAILWAY_DOCKERFILE_PATH` (and any `Dockerfile.railway` reference) — delete from
-     the service if still present (dashboard or Terraform `environment_variables`)
+     the service if still present (dashboard or the `rustume-ops` Terraform
+     `environment_variables`)
    - GitHub repo / branch deploy hooks used only for source builds
 6. **Disconnect GitHub source:** Settings → Source → Disconnect GitHub repo. The
    deploy workflow is the single deploy authority.
@@ -106,7 +107,8 @@ The `workflow_run` chain (docker publish → deploy) fires only when
 
 ### Terraform
 
-Use `infra/modules/railway/` with `source_image` and `environment_variables`. Do not set
+Terraform for the Railway service lives in the private `rustume-ops` repo (see
+`LICENSING.md`). Use its railway module with `source_image` and `environment_variables`. Do not set
 `source_repo`, `config_path`, or Dockerfile paths on the service.
 
 ## Verification
