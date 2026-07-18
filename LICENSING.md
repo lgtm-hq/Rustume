@@ -49,8 +49,8 @@ here.
   landed the Cloud Terraform tree in this repo because no written boundary said
   otherwise. That tree was migrated to `rustume-ops` (tracked there as issue
   #7), and this document is the decision record preventing a recurrence.
-- **Enforcement:** a CI boundary guard
-  ([#511](https://github.com/lgtm-hq/Rustume/issues/511)) mechanically rejects
+- **Enforcement:** a CI boundary guard (tracked in
+  [#511](https://github.com/lgtm-hq/Rustume/issues/511)) mechanically rejects
   ops-shaped content (Terraform paths, runbook paths, production topology
   patterns) from landing in this repo.
 
