@@ -39,6 +39,7 @@ pub mod middleware;
 pub mod net;
 pub mod observability;
 pub mod openapi;
+pub mod policy;
 pub mod routes;
 pub mod run;
 pub mod shutdown;
@@ -1006,5 +1007,39 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn test_delete_account_unauthenticated_not_rate_limited() {
+        let config = config::RateLimitConfig {
+            account_delete_per_min: 2,
+            ..Default::default()
+        };
+
+        let state = state::AppState::with_options(
+            std::sync::Arc::new(routes::static_dir()),
+            Some(test_cloud_state()),
+            true,
+            config,
+        );
+        let app = create_router_with_state(state);
+        let body = r#"{"confirmation":"DELETE"}"#;
+
+        for _ in 0..5 {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method("DELETE")
+                        .uri("/api/account")
+                        .header("content-type", "application/json")
+                        .body(Body::from(body))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        }
     }
 }

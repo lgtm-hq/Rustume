@@ -31,16 +31,9 @@ export interface PreviewResult {
 const previewCache = new Map<string, { url: string; totalPages: number; timestamp: number }>();
 const CACHE_TTL = 60000; // 1 minute
 
-function getCacheKey(resume: ResumeData, template: string, page: number): string {
-  // Simple hash based on content
-  const content = JSON.stringify({ resume, template, page });
-  let hash = 0;
-  for (let i = 0; i < content.length; i++) {
-    const char = content.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash = hash & hash;
-  }
-  return hash.toString(36);
+/** Build a collision-resistant preview cache key from the full request payload. */
+export function getCacheKey(resume: ResumeData, template: string, page: number): string {
+  return JSON.stringify({ resume, template, page });
 }
 
 // Clean up expired cache entries to prevent memory leaks

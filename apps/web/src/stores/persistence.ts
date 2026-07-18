@@ -186,7 +186,7 @@ function saveLocalResume(id: string, data: ResumeData): boolean {
     toast.error("Local storage is full — could not save resume");
     return false;
   }
-  let ids: string[] = [];
+  let ids: string[];
   try {
     const parsed: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY_PREFIX + "_ids") || "[]");
     ids = Array.isArray(parsed) ? (parsed as string[]) : [];

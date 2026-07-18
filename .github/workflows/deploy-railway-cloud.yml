@@ -5,6 +5,10 @@ name: Deploy - Rustume Cloud (Railway)
 # After a successful GHCR publish on main, deploy to Railway via GraphQL API.
 # Requires repository secret: RAILWAY_API_TOKEN (or RAILWAY_TOKEN).
 #
+# Ops toggle: set repository variable RAILWAY_DEPLOY_ENABLED=false to skip
+# the deploy job (e.g. while Railway billing is unresolved — see #492).
+# Unset or any other value means enabled.
+#
 # Environment IDs target the current single Railway service (production).
 # If a dedicated staging environment is created later, update the IDs below.
 
@@ -73,6 +77,7 @@ jobs:
     needs: classify
     if: >-
       always() &&
+      vars.RAILWAY_DEPLOY_ENABLED != 'false' &&
       needs.classify.outputs.bump-only != 'true' &&
       ((github.event_name == 'workflow_dispatch' &&
       github.ref == 'refs/heads/main') ||

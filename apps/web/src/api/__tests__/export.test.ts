@@ -65,7 +65,12 @@ describe("export API", () => {
       revokeObjectURL,
     });
 
-    const anchor = { click, href: "", download: "", remove: vi.fn() } as HTMLAnchorElement;
+    const anchor = {
+      click,
+      href: "",
+      download: "",
+      remove: vi.fn(),
+    } as unknown as HTMLAnchorElement;
     const appendChild = vi.spyOn(document.body, "appendChild").mockImplementation(() => anchor);
     const createElement = vi.spyOn(document, "createElement").mockReturnValue(anchor);
     vi.useFakeTimers();

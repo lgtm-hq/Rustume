@@ -19,8 +19,9 @@ use utoipa_swagger_ui::SwaggerUi;
 use crate::config::MAX_BODY_SIZE;
 use crate::middleware::auth::require_auth_when_enabled;
 use crate::middleware::rate_limit::{
-    rate_limit_auth, rate_limit_billable, rate_limit_health, rate_limit_import, rate_limit_metrics,
-    rate_limit_pdf, rate_limit_preview, rate_limit_resume_crud,
+    rate_limit_account_delete, rate_limit_auth, rate_limit_billable, rate_limit_health,
+    rate_limit_import, rate_limit_metrics, rate_limit_pdf, rate_limit_preview,
+    rate_limit_resume_crud,
 };
 use crate::middleware::security::security_headers;
 use crate::middleware::subscription::require_subscription_render;
@@ -170,12 +171,17 @@ pub fn create_router_with_state(state: AppState) -> Router {
             ));
         }
 
-        let account_routes = Router::new()
-            .route("/api/account", delete(delete_account))
-            .route_layer(middleware::from_fn_with_state(
-                state.clone(),
-                require_auth_when_enabled,
+        let mut account_routes = Router::new().route("/api/account", delete(delete_account));
+        if cloud_rate_limits {
+            account_routes = account_routes.route_layer(middleware::from_fn_with_state(
+                state_for_layers.clone(),
+                rate_limit_account_delete,
             ));
+        }
+        account_routes = account_routes.route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            require_auth_when_enabled,
+        ));
 
         let mut export_json_routes = Router::new()
             .route("/api/resumes/export", get(export_resumes_json))
@@ -198,7 +204,7 @@ pub fn create_router_with_state(state: AppState) -> Router {
             ));
         if cloud_rate_limits {
             export_pdf_routes = export_pdf_routes.route_layer(middleware::from_fn_with_state(
-                state_for_layers.clone(),
+                state_for_layers,
                 rate_limit_pdf,
             ));
         }

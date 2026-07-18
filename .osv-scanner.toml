@@ -1,13 +1,6 @@
 # OSV-Scanner configuration for Rustume.
 # Suppressions for transitive dependencies blocked on upstream releases.
 
-# --- validator ecosystem: blocked on upstream proc-macro-error2 migration ---
-
-[[IgnoredVulns]]
-id = "RUSTSEC-2026-0173"
-ignoreUntil = 2026-10-04
-reason = "proc-macro-error2 — transitive via validator -> validator_derive; unmaintained, no patched version; track validator upgrade"
-
 # --- Typst ecosystem: blocked on syntect/hayagriva upgrades ---
 
 [[IgnoredVulns]]
@@ -28,12 +21,12 @@ reason = "paste — transitive via typst -> hayagriva; informational (unmaintain
 [[IgnoredVulns]]
 id = "RUSTSEC-2026-0194"
 ignoreUntil = 2026-10-04
-reason = "quick-xml 0.38/0.39 — transitive via typst-library -> hayagriva/citationberg; fix (0.41) blocked until typst upgrades"
+reason = "quick-xml 0.38 — transitive via typst-library -> hayagriva/citationberg; 0.41 present but hayagriva still pins 0.38; blocked until hayagriva upgrades"
 
 [[IgnoredVulns]]
 id = "RUSTSEC-2026-0195"
 ignoreUntil = 2026-10-04
-reason = "quick-xml 0.38/0.39 — transitive via typst-library -> hayagriva/citationberg; fix (0.41) blocked until typst upgrades"
+reason = "quick-xml 0.38 — transitive via typst-library -> hayagriva/citationberg; 0.41 present but hayagriva still pins 0.38; blocked until hayagriva upgrades"
 
 [[IgnoredVulns]]
 id = "RUSTSEC-2026-0192"

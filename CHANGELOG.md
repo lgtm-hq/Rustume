@@ -22,6 +22,68 @@ and this project adheres to
 
 ### Security
 
+## [0.30.0] - 2026-07-18
+
+### Added
+
+- **web**: Terms of Service and Privacy Policy pages (#430) (3eaba1e)
+- **infra**: author Terraform modules, env roots, and fmt/validate CI (#422) (87c7fec)
+
+### Changed
+
+- **server,web**: small hardening batch — ErrorBoundary, account-delete rate limit,
+  preview cache hash (#431) (201304d)
+- **deps**: pin dependency typescript-eslint to 8.64.0 (#499) (a328f66)
+- **deps**: update eslint monorepo to 9.39.5 (patch) (#500) (0e75521)
+- **lint**: enable stricter clippy lints workspace-wide (#426) (40387f3)
+
+## [0.29.5] - 2026-07-18
+
+### Fixed
+
+- **ci**: run web app typecheck and lint in CI (#421) (d592796)
+
+## [0.29.4] - 2026-07-18
+
+### Changed
+
+- **ci**: deny-by-default docker path filtering with drift test (#482) (2c2a1e6)
+
+### Fixed
+
+- **ci**: fix db-backup apt install and extract inline scripts (#481) (44321e2)
+
+## [0.29.3] - 2026-07-18
+
+### Changed
+
+- **rfc**: local↔cloud linking architecture RFC (#420) (848e28e)
+- **rfc**: require recovery-backup nonce storage and freshness (#479) (7626bba)
+- **shell**: commit curl mocks for deploy-ghcr bats as fixtures (#480) (58c1872)
+
+### Fixed
+
+- **ci**: use Postgres trust auth in local CI setup (#478) (4115874)
+
+## [0.29.2] - 2026-07-18
+
+### Changed
+
+- **deps**: update rust:1.97-alpine docker digest to 3c38f3f (#491) (ad20551)
+- **deps**: update gcr.io/distroless/static:nonroot docker digest to f7f8f72 (#483)
+  (9d286ec)
+- **config**: migrate Renovate config (#402) (402c448)
+- **deps**: update dependency typescript to 7.0.2 (major) (#462) (00b62c0)
+- **deps**: update dependency lgtm-hq/lgtm-ci to v0.54.0 (minor) (#475) (2f6f4e5)
+- **deps**: update typst to 0.15.0 (minor) (#424) (1ca1533)
+- **ci**: bump lgtm-ci pins to v0.54.0 and add infra auto-rerun caller (#474) (9ebf183)
+- **deps-dev**: update rust crate http-body-util to 0.1.4 (patch) (#472) (35ac299)
+
+### Fixed
+
+- **ci**: gate Railway deploy behind RAILWAY_DEPLOY_ENABLED repo variable (#493)
+  (7fdb35c)
+
 ## [0.29.1] - 2026-07-13
 
 ### Changed
@@ -379,7 +441,12 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.29.1...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.30.0...HEAD
+[0.30.0]: https://github.com/lgtm-hq/Rustume/compare/v0.29.5...v0.30.0
+[0.29.5]: https://github.com/lgtm-hq/Rustume/compare/v0.29.4...v0.29.5
+[0.29.4]: https://github.com/lgtm-hq/Rustume/compare/v0.29.3...v0.29.4
+[0.29.3]: https://github.com/lgtm-hq/Rustume/compare/v0.29.2...v0.29.3
+[0.29.2]: https://github.com/lgtm-hq/Rustume/compare/v0.29.1...v0.29.2
 [0.29.1]: https://github.com/lgtm-hq/Rustume/compare/v0.29.0...v0.29.1
 [0.29.0]: https://github.com/lgtm-hq/Rustume/compare/v0.28.0...v0.29.0
 [0.28.0]: https://github.com/lgtm-hq/Rustume/compare/v0.27.0...v0.28.0
