@@ -41,7 +41,7 @@ pub async fn login(State(state): State<AppState>) -> Result<Response, ApiError> 
 
     let state_cookie = build_oauth_state_cookie(&oauth_state, &cloud.workos_redirect_uri);
     let mut response = Redirect::temporary(&url).into_response();
-    append_set_cookie(&mut response, state_cookie)?;
+    append_set_cookie(&mut response, &state_cookie)?;
     Ok(response)
 }
 
@@ -152,12 +152,9 @@ async fn callback_inner(
     })?;
 
     let mut response = Redirect::to("/?signed_in=1").into_response();
-    append_set_cookie(&mut response, cookie).map_err(|_| "server_error")?;
-    append_set_cookie(
-        &mut response,
-        clear_oauth_state_cookie(&cloud.workos_redirect_uri),
-    )
-    .map_err(|_| "server_error")?;
+    append_set_cookie(&mut response, &cookie).map_err(|_| "server_error")?;
+    let clear_oauth = clear_oauth_state_cookie(&cloud.workos_redirect_uri);
+    append_set_cookie(&mut response, &clear_oauth).map_err(|_| "server_error")?;
 
     record_event(
         &cloud.db,
@@ -212,7 +209,7 @@ pub async fn logout(
 
     let clear = cloud.sessions.clear_cookie();
     let mut response = (StatusCode::NO_CONTENT, ()).into_response();
-    append_set_cookie(&mut response, clear)?;
+    append_set_cookie(&mut response, &clear)?;
     Ok(response)
 }
 
@@ -296,7 +293,7 @@ fn clear_oauth_state_cookie(redirect_uri: &str) -> Cookie<'static> {
         .into()
 }
 
-fn append_set_cookie(response: &mut Response, cookie: Cookie<'static>) -> Result<(), ApiError> {
+fn append_set_cookie(response: &mut Response, cookie: &Cookie<'static>) -> Result<(), ApiError> {
     let header_value = cookie
         .to_string()
         .parse::<header::HeaderValue>()

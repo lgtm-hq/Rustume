@@ -198,7 +198,7 @@ pub fn create_router_with_state(state: AppState) -> Router {
             ));
         if cloud_rate_limits {
             export_pdf_routes = export_pdf_routes.route_layer(middleware::from_fn_with_state(
-                state_for_layers.clone(),
+                state_for_layers,
                 rate_limit_pdf,
             ));
         }
