@@ -91,7 +91,7 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
       touch();
       setExpandedIndex(nextIndex);
       announceLive(setAnnouncement, reorderAnnouncement(title, nextIndex, items().length));
-      focusReorderControl(nextIndex, "up");
+      focusReorderControl(nextIndex, nextIndex === 0 ? "down" : "up");
     }
   };
 
@@ -104,7 +104,7 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
       touch();
       setExpandedIndex(nextIndex);
       announceLive(setAnnouncement, reorderAnnouncement(title, nextIndex, items().length));
-      focusReorderControl(nextIndex, "down");
+      focusReorderControl(nextIndex, nextIndex === items().length - 1 ? "up" : "down");
     }
   };
 
