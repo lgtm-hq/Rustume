@@ -22,6 +22,25 @@ and this project adheres to
 
 ### Security
 
+## [0.29.2] - 2026-07-18
+
+### Changed
+
+- **deps**: update rust:1.97-alpine docker digest to 3c38f3f (#491) (ad20551)
+- **deps**: update gcr.io/distroless/static:nonroot docker digest to f7f8f72 (#483)
+  (9d286ec)
+- **config**: migrate Renovate config (#402) (402c448)
+- **deps**: update dependency typescript to 7.0.2 (major) (#462) (00b62c0)
+- **deps**: update dependency lgtm-hq/lgtm-ci to v0.54.0 (minor) (#475) (2f6f4e5)
+- **deps**: update typst to 0.15.0 (minor) (#424) (1ca1533)
+- **ci**: bump lgtm-ci pins to v0.54.0 and add infra auto-rerun caller (#474) (9ebf183)
+- **deps-dev**: update rust crate http-body-util to 0.1.4 (patch) (#472) (35ac299)
+
+### Fixed
+
+- **ci**: gate Railway deploy behind RAILWAY_DEPLOY_ENABLED repo variable (#493)
+  (7fdb35c)
+
 ## [0.29.1] - 2026-07-13
 
 ### Changed
@@ -379,7 +398,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.29.1...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.29.2...HEAD
+[0.29.2]: https://github.com/lgtm-hq/Rustume/compare/v0.29.1...v0.29.2
 [0.29.1]: https://github.com/lgtm-hq/Rustume/compare/v0.29.0...v0.29.1
 [0.29.0]: https://github.com/lgtm-hq/Rustume/compare/v0.28.0...v0.29.0
 [0.28.0]: https://github.com/lgtm-hq/Rustume/compare/v0.27.0...v0.28.0
