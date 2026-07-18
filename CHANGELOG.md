@@ -22,6 +22,21 @@ and this project adheres to
 
 ### Security
 
+## [0.30.0] - 2026-07-18
+
+### Added
+
+- **web**: Terms of Service and Privacy Policy pages (#430) (3eaba1e)
+- **infra**: author Terraform modules, env roots, and fmt/validate CI (#422) (87c7fec)
+
+### Changed
+
+- **server,web**: small hardening batch — ErrorBoundary, account-delete rate limit,
+  preview cache hash (#431) (201304d)
+- **deps**: pin dependency typescript-eslint to 8.64.0 (#499) (a328f66)
+- **deps**: update eslint monorepo to 9.39.5 (patch) (#500) (0e75521)
+- **lint**: enable stricter clippy lints workspace-wide (#426) (40387f3)
+
 ## [0.29.5] - 2026-07-18
 
 ### Fixed
@@ -426,7 +441,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.29.5...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.30.0...HEAD
+[0.30.0]: https://github.com/lgtm-hq/Rustume/compare/v0.29.5...v0.30.0
 [0.29.5]: https://github.com/lgtm-hq/Rustume/compare/v0.29.4...v0.29.5
 [0.29.4]: https://github.com/lgtm-hq/Rustume/compare/v0.29.3...v0.29.4
 [0.29.3]: https://github.com/lgtm-hq/Rustume/compare/v0.29.2...v0.29.3
