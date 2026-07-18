@@ -22,6 +22,12 @@ and this project adheres to
 
 ### Security
 
+## [0.31.0] - 2026-07-18
+
+### Added
+
+- **web**: runtime validation of API responses at the client boundary (#429) (ad08dbc)
+
 ## [0.30.0] - 2026-07-18
 
 ### Added
@@ -441,7 +447,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.30.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.31.0...HEAD
+[0.31.0]: https://github.com/lgtm-hq/Rustume/compare/v0.30.0...v0.31.0
 [0.30.0]: https://github.com/lgtm-hq/Rustume/compare/v0.29.5...v0.30.0
 [0.29.5]: https://github.com/lgtm-hq/Rustume/compare/v0.29.4...v0.29.5
 [0.29.4]: https://github.com/lgtm-hq/Rustume/compare/v0.29.3...v0.29.4
