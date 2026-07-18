@@ -19,7 +19,7 @@ terraform {
     }
     grafana = {
       source  = "grafana/grafana"
-      version = "~> 4.29.1"
+      version = "~> 4.41.0"
     }
     sentry = {
       source  = "jianyuan/sentry"
