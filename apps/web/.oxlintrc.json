@@ -6,7 +6,7 @@
     "suspicious": "error"
   },
   "rules": {
-    "no-unused-vars": [
+    "eslint/no-unused-vars": [
       "error",
       { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }
     ]
