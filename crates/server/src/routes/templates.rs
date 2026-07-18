@@ -128,8 +128,8 @@ pub async fn list_templates() -> Json<Vec<TemplateInfo>> {
                 id: name.to_string(),
                 name: display_name,
                 theme: ThemeInfo {
-                    background: theme.background.clone(),
-                    text: theme.text.clone(),
+                    background: theme.background,
+                    text: theme.text,
                     primary: theme.primary,
                 },
             }
