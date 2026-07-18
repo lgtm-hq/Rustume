@@ -231,7 +231,7 @@ const STORAGE_KEY_PREFIX = "rustume:";
 function saveToLocalStorage(id: string, data: ResumeData): void {
   localStorage.setItem(STORAGE_KEY_PREFIX + id, JSON.stringify(data));
   // Also update the list of resume IDs
-  let ids: string[] = [];
+  let ids: string[];
   try {
     ids = JSON.parse(localStorage.getItem(STORAGE_KEY_PREFIX + "_ids") || "[]") as string[];
   } catch {

@@ -55,7 +55,7 @@ function isPdfEndpoint(endpoint: string): boolean {
   return endpoint.includes("/render/pdf");
 }
 
-function shouldRetryOnRateLimit(endpoint: string, method: string): boolean {
+function shouldRetryOnRateLimit(_endpoint: string, method: string): boolean {
   return isSaveMethod(method);
 }
 

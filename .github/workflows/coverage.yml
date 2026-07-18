@@ -64,6 +64,7 @@ jobs:
       node-version: "22"
       working-directory: apps/web
       package-manager: bun
+      pre-test-command: bun run typecheck && bun run lint
       coverage: true
       coverage-format: html
       comment-marker: web-coverage-report
