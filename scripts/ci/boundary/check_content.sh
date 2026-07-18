@@ -8,8 +8,8 @@ set -euo pipefail
 # topology patterns — Neon endpoints, Railway hostnames, R2 account
 # endpoints) and fails on any finding. See LICENSING.md for the policy.
 #
-# Semgrep is provided by the uv "lint" dependency group (via lintro),
-# so versions are locked through uv.lock.
+# Semgrep runs via uvx with a pinned version so local and CI runs are
+# identical and reproducible without a system-wide semgrep install.
 #
 # Usage:
 #   scripts/ci/boundary/check_content.sh
@@ -30,7 +30,7 @@ done
 repo_root="$(git rev-parse --show-toplevel)"
 cd "${repo_root}"
 
-uv run --group lint semgrep scan \
+uvx --from semgrep==1.169.0 semgrep scan \
 	--config .semgrep \
 	--error \
 	--metrics=off \
