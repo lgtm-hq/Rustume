@@ -2,7 +2,7 @@ use axum::{
     extract::DefaultBodyLimit,
     http::{header, HeaderValue, Method},
     middleware,
-    routing::{delete, get, post},
+    routing::{delete, get, post, put},
     Router,
 };
 use std::path::PathBuf;
@@ -31,7 +31,7 @@ use crate::routes::{
     callback, create_resume, delete_account, delete_resume, export_resumes_json,
     export_resumes_pdf, get_resume, health, import_resumes, list_resumes, list_templates, login,
     logout, me, metrics, parse, render_pdf, render_preview, security_txt, spa_fallback, static_dir,
-    template_thumbnail, update_resume, validate,
+    template_thumbnail, update_resume, update_sharing, validate,
 };
 use crate::state::AppState;
 
@@ -147,6 +147,7 @@ pub fn create_router_with_state(state: AppState) -> Router {
                 "/api/resumes/{id}",
                 get(get_resume).put(update_resume).delete(delete_resume),
             )
+            .route("/api/resumes/{id}/sharing", put(update_sharing))
             .route_layer(middleware::from_fn_with_state(
                 state.clone(),
                 require_auth_when_enabled,

@@ -65,6 +65,7 @@ sha2 = "0.11"
 subtle = "2"
 metrics-exporter-prometheus.workspace = true
 chrono.workspace = true
+cuid2.workspace = true
 sentry.workspace = true
 sentry-tower.workspace = true
 governor.workspace = true
