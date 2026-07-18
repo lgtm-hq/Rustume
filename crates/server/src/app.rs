@@ -19,15 +19,16 @@ use utoipa_swagger_ui::SwaggerUi;
 use crate::config::MAX_BODY_SIZE;
 use crate::middleware::auth::require_auth_when_enabled;
 use crate::middleware::rate_limit::{
-    rate_limit_auth, rate_limit_billable, rate_limit_health, rate_limit_import, rate_limit_metrics,
-    rate_limit_pdf, rate_limit_preview, rate_limit_resume_crud,
+    rate_limit_account_export, rate_limit_auth, rate_limit_billable, rate_limit_health,
+    rate_limit_import, rate_limit_metrics, rate_limit_pdf, rate_limit_preview,
+    rate_limit_resume_crud,
 };
 use crate::middleware::security::security_headers;
 use crate::middleware::subscription::require_subscription_render;
 use crate::observability::apply_sentry_layers;
 use crate::openapi::ApiDoc;
 use crate::routes::{
-    callback, create_resume, delete_account, delete_resume, export_resumes_json,
+    callback, create_resume, delete_account, delete_resume, export_account, export_resumes_json,
     export_resumes_pdf, get_resume, health, import_resumes, list_resumes, list_templates, login,
     logout, me, metrics, parse, render_pdf, render_preview, security_txt, spa_fallback, static_dir,
     template_thumbnail, update_resume, validate,
@@ -170,7 +171,19 @@ pub fn create_router_with_state(state: AppState) -> Router {
             ));
         }
 
-        let account_routes = Router::new()
+        let mut account_export_routes = Router::new()
+            .route("/api/account/export", get(export_account))
+            .route_layer(middleware::from_fn_with_state(
+                state.clone(),
+                require_auth_when_enabled,
+            ));
+        if cloud_rate_limits {
+            account_export_routes = account_export_routes.route_layer(
+                middleware::from_fn_with_state(state_for_layers.clone(), rate_limit_account_export),
+            );
+        }
+
+        let account_delete_routes = Router::new()
             .route("/api/account", delete(delete_account))
             .route_layer(middleware::from_fn_with_state(
                 state.clone(),
@@ -209,7 +222,8 @@ pub fn create_router_with_state(state: AppState) -> Router {
             .merge(import_routes)
             .merge(export_json_routes)
             .merge(export_pdf_routes)
-            .merge(account_routes);
+            .merge(account_export_routes)
+            .merge(account_delete_routes);
     }
 
     let router = router

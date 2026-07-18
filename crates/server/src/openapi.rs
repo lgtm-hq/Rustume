@@ -5,10 +5,11 @@ use utoipa::Modify;
 use utoipa::OpenApi;
 
 use crate::db::{
-    AuthMeUnauthorizedResponse, AuthUserResponse, CreateResumeRequest, DeleteAccountRequest,
-    DeleteAccountResponse, ImportFailure, ImportResumeItem, ImportResumesRequest,
-    ImportResumesResponse, PaginatedResumeSummaries, ResumeBulkExport, ResumeExportItem,
-    ResumeListQuery, ResumeRow, ResumeSummary, SubscriptionInfo, UpdateResumeRequest,
+    AccountDataExport, AccountExportProfile, AuthMeUnauthorizedResponse, AuthUserResponse,
+    CreateResumeRequest, DeleteAccountRequest, DeleteAccountResponse, ImportFailure,
+    ImportResumeItem, ImportResumesRequest, ImportResumesResponse, PaginatedResumeSummaries,
+    ResumeBulkExport, ResumeExportItem, ResumeListQuery, ResumeRow, ResumeSummary,
+    SubscriptionInfo, UpdateResumeRequest,
 };
 use crate::dto::{
     ParseFormat, ParseRequest, RenderPdfRequest, RenderPreviewRequest, TemplateInfo, ThemeInfo,
@@ -60,6 +61,7 @@ impl Modify for CookieAuthAddon {
         crate::routes::export::export_resumes_json,
         crate::routes::export::export_resumes_pdf,
         crate::routes::account::delete_account,
+        crate::routes::account::export_account,
     ),
     components(
         schemas(
@@ -88,6 +90,8 @@ impl Modify for CookieAuthAddon {
             ImportResumeItem,
             DeleteAccountRequest,
             DeleteAccountResponse,
+            AccountDataExport,
+            AccountExportProfile,
             rustume_schema::ResumeData
         )
     ),

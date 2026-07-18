@@ -13,7 +13,7 @@ pub mod static_files;
 pub mod templates;
 pub mod validate;
 
-pub use account::delete_account;
+pub use account::{delete_account, export_account};
 pub use auth::{callback, login, logout, me};
 pub use export::{export_resumes_json, export_resumes_pdf};
 pub use health::health;

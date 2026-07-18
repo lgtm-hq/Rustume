@@ -33,6 +33,7 @@ pub enum RateLimitGroup {
     Import,
     Preview,
     Pdf,
+    AccountExport,
     Auth,
     Health,
     Metrics,
@@ -47,6 +48,7 @@ pub struct RateLimitState {
     import: KeyedRateLimiter,
     preview: KeyedRateLimiter,
     pdf: KeyedRateLimiter,
+    account_export: KeyedRateLimiter,
     auth: KeyedRateLimiter,
     health: KeyedRateLimiter,
     metrics: KeyedRateLimiter,
@@ -63,6 +65,7 @@ impl RateLimitState {
             import: RateLimiter::dashmap(config.import_quota()),
             preview: RateLimiter::dashmap(config.preview_quota()),
             pdf: RateLimiter::dashmap(config.pdf_quota()),
+            account_export: RateLimiter::dashmap(config.account_export_quota()),
             auth: RateLimiter::dashmap(config.auth_quota()),
             health: RateLimiter::dashmap(config.health_quota()),
             metrics: RateLimiter::dashmap(config.metrics_quota()),
@@ -77,6 +80,7 @@ impl RateLimitState {
             RateLimitGroup::Import => &self.import,
             RateLimitGroup::Preview => &self.preview,
             RateLimitGroup::Pdf => &self.pdf,
+            RateLimitGroup::AccountExport => &self.account_export,
             RateLimitGroup::Auth => &self.auth,
             RateLimitGroup::Health => &self.health,
             RateLimitGroup::Metrics => &self.metrics,
@@ -105,6 +109,8 @@ impl RateLimitState {
         self.preview.shrink_to_fit();
         self.pdf.retain_recent();
         self.pdf.shrink_to_fit();
+        self.account_export.retain_recent();
+        self.account_export.shrink_to_fit();
         self.auth.retain_recent();
         self.auth.shrink_to_fit();
         self.health.retain_recent();
@@ -125,6 +131,7 @@ impl RateLimitState {
             + self.import.len()
             + self.preview.len()
             + self.pdf.len()
+            + self.account_export.len()
             + self.auth.len()
             + self.health.len()
             + self.metrics.len()
@@ -317,6 +324,7 @@ async fn enforce_rate_limit(
         | RateLimitGroup::Import
         | RateLimitGroup::Preview
         | RateLimitGroup::Pdf
+        | RateLimitGroup::AccountExport
         | RateLimitGroup::Billable => {
             enforce_session_rate_limit(
                 state,
@@ -349,6 +357,7 @@ rate_limit_middleware!(rate_limit_resume_crud, RateLimitGroup::ResumeCrud);
 rate_limit_middleware!(rate_limit_import, RateLimitGroup::Import);
 rate_limit_middleware!(rate_limit_preview, RateLimitGroup::Preview);
 rate_limit_middleware!(rate_limit_pdf, RateLimitGroup::Pdf);
+rate_limit_middleware!(rate_limit_account_export, RateLimitGroup::AccountExport);
 rate_limit_middleware!(rate_limit_auth, RateLimitGroup::Auth);
 rate_limit_middleware!(rate_limit_health, RateLimitGroup::Health);
 rate_limit_middleware!(rate_limit_metrics, RateLimitGroup::Metrics);
@@ -382,6 +391,7 @@ mod tests {
             import_per_min: limit,
             preview_per_min: limit,
             pdf_per_min: limit,
+            account_export_per_min: limit,
             ..Default::default()
         };
         Arc::new(RateLimitState::new(config))
@@ -394,6 +404,7 @@ mod tests {
             import: RateLimiter::dashmap(quota),
             preview: RateLimiter::dashmap(quota),
             pdf: RateLimiter::dashmap(quota),
+            account_export: RateLimiter::dashmap(quota),
             auth: RateLimiter::dashmap(quota),
             health: RateLimiter::dashmap(quota),
             metrics: RateLimiter::dashmap(quota),

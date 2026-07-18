@@ -24,6 +24,7 @@
 //! - `GET /api/resumes/export` - Bulk JSON export
 //! - `GET /api/resumes/export/pdf` - Bulk PDF export (ZIP)
 //! - `DELETE /api/account` - Permanently delete account and all data
+//! - `GET /api/account/export` - Export account data for GDPR portability
 //! - `GET /metrics` - Prometheus metrics
 
 pub mod app;
@@ -1000,6 +1001,29 @@ mod tests {
                     .uri("/api/account")
                     .header("content-type", "application/json")
                     .body(Body::from(r#"{"confirmation":"DELETE"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn test_export_account_unauthenticated_401() {
+        let state = state::AppState::with_require_auth(
+            std::sync::Arc::new(routes::static_dir()),
+            Some(test_cloud_state()),
+            true,
+        );
+        let app = create_router_with_state(state);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/account/export")
+                    .body(Body::empty())
                     .unwrap(),
             )
             .await
