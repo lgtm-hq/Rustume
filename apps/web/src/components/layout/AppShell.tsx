@@ -54,6 +54,19 @@ export const AppShell: ParentComponent = (props) => {
 
       {/* Main Content */}
       <main class="flex-1">{props.children}</main>
+
+      {/* Footer */}
+      <footer class="border-t border-border px-4 py-4 text-center text-xs text-stone">
+        <A href="/terms" class="hover:text-ink underline">
+          Terms of Service
+        </A>
+        <span class="mx-2" aria-hidden="true">
+          ·
+        </span>
+        <A href="/privacy" class="hover:text-ink underline">
+          Privacy Policy
+        </A>
+      </footer>
     </div>
   );
 };
