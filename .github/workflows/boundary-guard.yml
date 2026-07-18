@@ -43,8 +43,10 @@ jobs:
       - name: Path guard
         run: bash scripts/ci/boundary/check_paths.sh
 
-      - name: Setup uv
-        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+      - name: Install uv
+        # Pinned pip install instead of setup-uv: the action's version fetch
+        # is blocked by the harden-runner egress policy; PyPI already is not.
+        run: python3 -m pip install --quiet uv==0.11.29
 
       - name: Content guard (semgrep)
         run: bash scripts/ci/boundary/check_content.sh
