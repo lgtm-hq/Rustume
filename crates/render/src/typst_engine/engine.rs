@@ -192,7 +192,7 @@ impl TypstRenderer {
 )
 
 // Parse the resume data
-#let data = json.decode("{resume_json}")
+#let data = json(bytes("{resume_json}"))
 
 // Render the template
 #template(data)
@@ -213,15 +213,15 @@ impl TypstRenderer {
 
     /// Compile the Typst source to a document.
     #[instrument(skip(self, resume))]
-    fn compile(&self, resume: &ResumeData) -> Result<typst::layout::PagedDocument, RenderError> {
-        use typst::World;
+    fn compile(&self, resume: &ResumeData) -> Result<typst_layout::PagedDocument, RenderError> {
+        use typst::{World, WorldExt};
 
         debug!("Starting Typst compilation");
         let source = self.generate_source(resume)?;
         let world = RustumeWorld::new(source)?;
 
         debug!("Compiling Typst document");
-        let result = typst::compile(&world);
+        let result = typst::compile::<typst_layout::PagedDocument>(&world);
         result.output.map_err(|errors| {
             let messages: Vec<String> = errors
                 .iter()
@@ -229,7 +229,7 @@ impl TypstRenderer {
                     // Try to get source context for the error
                     let file_id = e.span.id().unwrap_or_else(|| world.main());
                     let location = if let Ok(src) = world.source(file_id) {
-                        if let Some(range) = src.range(e.span) {
+                        if let Some(range) = world.range(e.span) {
                             // Find line number by counting newlines before the error position
                             let line = src.text()[..range.start].matches('\n').count();
                             let text = src.text().lines().nth(line).unwrap_or("");
@@ -293,17 +293,17 @@ impl Renderer for TypstRenderer {
     ) -> Result<(Vec<u8>, usize), RenderError> {
         debug!("Rendering preview for page {}", page);
         let document = self.compile(resume)?;
-        let total_pages = document.pages.len();
+        let total_pages = document.pages().len();
 
         // Get the requested page
         let page_content = document
-            .pages
+            .pages()
             .get(page)
             .ok_or_else(|| RenderError::RenderFailed(format!("Page {} not found", page)))?;
 
         debug!("Rendering page to PNG");
-        // Render to PNG at 2x scale for high quality
-        let pixmap = typst_render::render(page_content, 2.0);
+        // Render to PNG at 2x scale for high quality (RenderOptions default is 2.0 px/pt)
+        let pixmap = typst_render::render(page_content, &typst_render::RenderOptions::default());
 
         debug!("Encoding PNG");
         // Encode as PNG

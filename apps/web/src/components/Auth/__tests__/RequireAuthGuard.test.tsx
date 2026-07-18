@@ -140,4 +140,44 @@ describe("RequireAuthGuard", () => {
 
     expect(screen.getByTestId("protected-content")).toBeInTheDocument();
   });
+
+  it("does not block the terms page", () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.requireAuth = true;
+    mockAuthState.user = null;
+
+    renderGuard("/terms");
+    expect(screen.getByTestId("protected-content")).toBeInTheDocument();
+  });
+
+  it("does not block the privacy page", () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.requireAuth = true;
+    mockAuthState.user = null;
+
+    renderGuard("/privacy");
+    expect(screen.getByTestId("protected-content")).toBeInTheDocument();
+  });
+
+  it("does not block the terms page with a trailing slash", () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.requireAuth = true;
+    mockAuthState.user = null;
+
+    renderGuard("/terms/");
+    expect(screen.getByTestId("protected-content")).toBeInTheDocument();
+  });
+
+  it("does not block the privacy page with a trailing slash", () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.requireAuth = true;
+    mockAuthState.user = null;
+
+    renderGuard("/privacy/");
+    expect(screen.getByTestId("protected-content")).toBeInTheDocument();
+  });
 });

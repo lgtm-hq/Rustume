@@ -1,3 +1,6 @@
+[lints]
+workspace = true
+
 [package]
 name = "rustume-render"
 version.workspace = true
@@ -15,6 +18,7 @@ serde_json.workspace = true
 
 # Typst ecosystem
 typst.workspace = true
+typst-layout.workspace = true
 typst-pdf.workspace = true
 typst-render.workspace = true
 typst-assets.workspace = true
