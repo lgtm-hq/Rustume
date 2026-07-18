@@ -35,8 +35,9 @@ cd "${repo_root}"
 allow_file=".boundary-allowlist"
 allowed=""
 if [[ -f "${allow_file}" ]]; then
-	# Strip "# justification" comments and blank lines; keep one path per line.
-	allowed="$(sed -e 's/[[:space:]]*#.*$//' -e '/^[[:space:]]*$/d' "${allow_file}")"
+	# Strip "# justification" comments, surrounding whitespace, and blank
+	# lines; keep one path per line.
+	allowed="$(sed -e 's/[[:space:]]*#.*$//' -e 's/^[[:space:]]*//' -e '/^$/d' "${allow_file}")"
 fi
 
 is_allowed() {

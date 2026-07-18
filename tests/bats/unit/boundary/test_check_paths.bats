@@ -77,7 +77,8 @@ run_guard() {
 	echo 'foo = "bar"' >"${TMP_REPO}/example.tfvars"
 	{
 		echo "# allowlist"
-		echo "example.tfvars  # illustrative example, no real topology"
+		# Leading whitespace must be tolerated.
+		echo "  example.tfvars  # illustrative example, no real topology"
 	} >"${TMP_REPO}/.boundary-allowlist"
 	git -C "${TMP_REPO}" add example.tfvars .boundary-allowlist
 
