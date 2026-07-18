@@ -1,4 +1,4 @@
-//! Bulk resume export routes for Rustume Cloud data portability.
+//! Bulk resume export routes for data portability (self-hosted and cloud).
 
 use axum::{
     extract::State,
@@ -29,12 +29,13 @@ fn reject_export_over_resume_cap() -> ApiError {
     ))
 }
 
-/// Resume fields required for bulk export.
+/// Resume fields required for bulk export, prior to decryption.
 #[derive(Debug, sqlx::FromRow)]
 struct ExportResumeRow {
     id: Uuid,
     title: String,
-    data: serde_json::Value,
+    data: Option<serde_json::Value>,
+    data_encrypted: Option<Vec<u8>>,
 }
 
 /// Export all resumes for the authenticated user as JSON.
@@ -54,19 +55,22 @@ pub async fn export_resumes_json(
     AuthUser(user): AuthUser,
     State(state): State<AppState>,
 ) -> Result<Json<ResumeBulkExport>, ApiError> {
-    let cloud = state.cloud()?;
-    let access = subscription::load_access(&cloud.db, user.id).await?;
+    let storage = state.storage()?;
+    let access = subscription::load_access(&storage.db, user.id).await?;
     access.ensure_export()?;
 
-    let rows = fetch_all_resumes(&cloud.db, user.id).await?;
+    let rows = fetch_all_resumes(&storage.db, user.id).await?;
     let resumes = rows
         .into_iter()
-        .map(|row| ResumeExportItem {
-            id: row.id,
-            title: row.title,
-            data: row.data,
+        .map(|row| {
+            let data = storage.decode_resume_data(row.data, row.data_encrypted, row.id)?;
+            Ok(ResumeExportItem {
+                id: row.id,
+                title: row.title,
+                data,
+            })
         })
-        .collect();
+        .collect::<Result<Vec<_>, ApiError>>()?;
 
     Ok(Json(ResumeBulkExport {
         exported_at: Utc::now(),
@@ -91,17 +95,20 @@ pub async fn export_resumes_pdf(
     AuthUser(user): AuthUser,
     State(state): State<AppState>,
 ) -> Result<Response, ApiError> {
-    let cloud = state.cloud()?;
-    let access = subscription::load_access(&cloud.db, user.id).await?;
+    let storage = state.storage()?;
+    let access = subscription::load_access(&storage.db, user.id).await?;
     access.ensure_export()?;
 
-    let rows = fetch_all_resumes(&cloud.db, user.id).await?;
+    let rows = fetch_all_resumes(&storage.db, user.id).await?;
     let renderer = state.renderer.clone();
     let mut archive = ZipWriter::new(std::io::Cursor::new(Vec::new()));
     let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
     for row in rows {
-        let resume: ResumeData = serde_json::from_value(row.data)
+        let data = state
+            .storage()?
+            .decode_resume_data(row.data, row.data_encrypted, row.id)?;
+        let resume: ResumeData = serde_json::from_value(data)
             .map_err(|_| ApiError::new("Invalid resume data format"))?;
         let file_name = export_pdf_filename(&row.id, &row.title);
         let pdf = tokio::task::spawn_blocking({
@@ -154,7 +161,7 @@ async fn fetch_all_resumes(
     let fetch_limit = MAX_EXPORT_RESUMES + 1;
     let rows = sqlx::query_as::<_, ExportResumeRow>(
         r#"
-        SELECT id, title, data
+        SELECT id, title, data, data_encrypted
         FROM resumes
         WHERE user_id = $1
         ORDER BY updated_at DESC
@@ -326,8 +333,10 @@ mod tests {
 
     fn test_app_state(pool: sqlx::PgPool) -> AppState {
         let sessions_pool = pool.clone();
+        let storage = Arc::new(crate::storage::StorageState::new(pool.clone(), None, false));
         AppState::with_require_auth(
             Arc::new(crate::routes::static_dir()),
+            Some(storage),
             Some(Arc::new(CloudState {
                 db: pool,
                 workos: WorkOsClient::new("client_test".into(), "api_key_test".into()),
@@ -432,6 +441,81 @@ mod tests {
             body.starts_with(b"PK"),
             "expected ZIP archive bytes at cap boundary",
         );
+    }
+
+    async fn seed_encrypted_resume(
+        pool: &sqlx::PgPool,
+        encryption: &crate::encryption::EncryptionService,
+        user_id: Uuid,
+        data: &serde_json::Value,
+    ) -> Uuid {
+        let resume_id = Uuid::new_v4();
+        let blob = encryption
+            .encrypt(data, resume_id.as_bytes())
+            .expect("encrypt seed payload");
+        sqlx::query(
+            "INSERT INTO resumes (id, user_id, title, data, data_encrypted) \
+             VALUES ($1, $2, $3, NULL, $4)",
+        )
+        .bind(resume_id)
+        .bind(user_id)
+        .bind("Encrypted resume")
+        .bind(blob)
+        .execute(pool)
+        .await
+        .expect("insert encrypted resume");
+        resume_id
+    }
+
+    fn encrypted_app_state(
+        pool: sqlx::PgPool,
+        encryption: crate::encryption::EncryptionService,
+    ) -> AppState {
+        let mut state = test_app_state(pool.clone());
+        state.storage = Some(Arc::new(crate::storage::StorageState::new(
+            pool,
+            Some(encryption),
+            true,
+        )));
+        state
+    }
+
+    #[tokio::test]
+    async fn export_resumes_json_decrypts_encrypted_rows() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+        let pool = connect_test_pool(&database_url).await;
+        let encryption = crate::encryption::EncryptionService::from_key(&[9u8; 32]);
+        let user = seed_user_with_resumes(&pool, 0).await;
+        let data = serde_json::json!({"basics": {"name": "Cipher Person"}});
+        seed_encrypted_resume(&pool, &encryption, user.id, &data).await;
+        let state = encrypted_app_state(pool.clone(), encryption);
+
+        let result = export_resumes_json(AuthUser(user.clone()), State(state)).await;
+        cleanup_user(&pool, user.id).await;
+
+        let payload = result.expect("encrypted rows must export as plaintext JSON");
+        assert_eq!(payload.resumes.len(), 1);
+        assert_eq!(payload.resumes[0].data, data);
+    }
+
+    #[tokio::test]
+    async fn export_resumes_pdf_decrypts_encrypted_rows() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+        let pool = connect_test_pool(&database_url).await;
+        let encryption = crate::encryption::EncryptionService::from_key(&[9u8; 32]);
+        let user = seed_user_with_resumes(&pool, 0).await;
+        seed_encrypted_resume(&pool, &encryption, user.id, &serde_json::json!({})).await;
+        let state = encrypted_app_state(pool.clone(), encryption);
+
+        let result = export_resumes_pdf(AuthUser(user.clone()), State(state)).await;
+        cleanup_user(&pool, user.id).await;
+
+        let response = result.expect("encrypted rows must export as PDF ZIP");
+        assert_eq!(response.status(), StatusCode::OK);
     }
 
     #[test]

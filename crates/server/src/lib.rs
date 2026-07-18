@@ -12,17 +12,20 @@
 //! - `POST /api/validate` - Validate resume data
 //! - `GET /swagger-ui` - Swagger UI documentation
 //!
-//! # Cloud endpoints (when `RUSTUME_CLOUD=true`)
+//! # Storage endpoints (when `DATABASE_URL` is set — self-hosted and cloud)
 //!
-//! - `GET /auth/login` - Redirect to WorkOS AuthKit
-//! - `GET /auth/callback` - OAuth callback
-//! - `POST /auth/logout` - Clear session
-//! - `GET /auth/me` - Current user profile
+//! - `GET /auth/me` - Current identity (`mode: "local"` or `mode: "cloud"`)
 //! - `GET/POST /api/resumes` - List and create resumes
 //! - `GET/PUT/DELETE /api/resumes/{id}` - Resume CRUD
 //! - `POST /api/resumes/import` - Bulk import from local storage
 //! - `GET /api/resumes/export` - Bulk JSON export
 //! - `GET /api/resumes/export/pdf` - Bulk PDF export (ZIP)
+//!
+//! # Cloud endpoints (when `RUSTUME_CLOUD=true`)
+//!
+//! - `GET /auth/login` - Redirect to WorkOS AuthKit
+//! - `GET /auth/callback` - OAuth callback
+//! - `POST /auth/logout` - Clear session
 //! - `DELETE /api/account` - Permanently delete account and all data
 //! - `GET /metrics` - Prometheus metrics
 
@@ -34,6 +37,7 @@ pub mod config;
 pub mod db;
 pub mod dto;
 pub mod email;
+pub mod encryption;
 pub mod error;
 pub mod middleware;
 pub mod net;
@@ -43,7 +47,10 @@ pub mod routes;
 pub mod run;
 pub mod shutdown;
 pub mod state;
+pub mod storage;
 pub mod subscription;
+#[cfg(test)]
+pub(crate) mod test_support;
 pub mod validation;
 
 pub use app::{create_router, create_router_with_state, create_router_with_static_dir};
@@ -736,6 +743,19 @@ mod tests {
         );
     }
 
+    fn test_storage_state() -> std::sync::Arc<storage::StorageState> {
+        use sqlx::postgres::PgPoolOptions;
+
+        let pool = PgPoolOptions::new()
+            .connect_lazy("postgres://localhost/rustume_test")
+            .expect("lazy pool");
+        std::sync::Arc::new(storage::StorageState::new(
+            pool,
+            Some(encryption::EncryptionService::from_key(&[7u8; 32])),
+            false,
+        ))
+    }
+
     fn test_cloud_state() -> std::sync::Arc<cloud::CloudState> {
         use auth::{session::SessionService, workos::WorkOsClient};
         use email::EmailService;
@@ -771,6 +791,7 @@ mod tests {
     async fn test_render_pdf_anonymous_ok_when_require_auth_disabled() {
         let state = state::AppState::with_require_auth(
             std::sync::Arc::new(routes::static_dir()),
+            Some(test_storage_state()),
             Some(test_cloud_state()),
             false,
         );
@@ -797,6 +818,7 @@ mod tests {
     async fn test_render_pdf_anonymous_401_when_require_auth_enabled() {
         let state = state::AppState::with_require_auth(
             std::sync::Arc::new(routes::static_dir()),
+            Some(test_storage_state()),
             Some(test_cloud_state()),
             true,
         );
@@ -823,6 +845,7 @@ mod tests {
     async fn test_templates_anonymous_401_when_require_auth_enabled() {
         let state = state::AppState::with_require_auth(
             std::sync::Arc::new(routes::static_dir()),
+            Some(test_storage_state()),
             Some(test_cloud_state()),
             true,
         );
@@ -845,6 +868,7 @@ mod tests {
     async fn test_resumes_anonymous_401_when_require_auth_enabled() {
         let state = state::AppState::with_require_auth(
             std::sync::Arc::new(routes::static_dir()),
+            Some(test_storage_state()),
             Some(test_cloud_state()),
             true,
         );
@@ -867,6 +891,7 @@ mod tests {
     async fn test_auth_me_includes_require_auth_when_signed_out() {
         let state = state::AppState::with_require_auth(
             std::sync::Arc::new(routes::static_dir()),
+            Some(test_storage_state()),
             Some(test_cloud_state()),
             true,
         );
@@ -923,6 +948,7 @@ mod tests {
 
         let state = state::AppState::with_options(
             std::sync::Arc::new(routes::static_dir()),
+            Some(test_storage_state()),
             Some(test_cloud_state()),
             false,
             config,
@@ -988,6 +1014,7 @@ mod tests {
     async fn test_delete_account_unauthenticated_401() {
         let state = state::AppState::with_require_auth(
             std::sync::Arc::new(routes::static_dir()),
+            Some(test_storage_state()),
             Some(test_cloud_state()),
             true,
         );

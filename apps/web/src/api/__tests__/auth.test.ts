@@ -61,6 +61,29 @@ describe("probeAuth", () => {
     });
   });
 
+  it("returns local mode when /auth/me reports server-side storage", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        mode: "local",
+        id: "00000000-0000-0000-0000-000000000001",
+        plan: "self-hosted",
+        require_auth: false,
+      }),
+    });
+
+    const result = await probeAuth();
+
+    expect(result).toEqual({
+      mode: "local",
+      user: {
+        id: "00000000-0000-0000-0000-000000000001",
+        plan: "self-hosted",
+      },
+    });
+  });
+
   it("maps subscription info from /auth/me", async () => {
     fetchMock.mockResolvedValue({
       ok: true,

@@ -13,7 +13,10 @@ export interface AuthUser {
 }
 
 export type AuthProbeResult =
+  /** Legacy stateless server (no DATABASE_URL): resumes stay in the browser. */
   | { mode: "self-hosted" }
+  /** Self-hosted with persistent server storage: implicit user, no auth. */
+  | { mode: "local"; user: AuthUser }
   | { mode: "cloud"; user: AuthUser | null; requireAuth: boolean };
 
 function parseRequireAuth(payload: unknown): boolean {
@@ -99,6 +102,13 @@ export async function probeAuth(): Promise<AuthProbeResult> {
 
   const payload = await response.json();
   const { user, requireAuth } = parseAuthUserPayload(payload);
+  if (
+    typeof payload === "object" &&
+    payload !== null &&
+    (payload as { mode?: unknown }).mode === "local"
+  ) {
+    return { mode: "local", user };
+  }
   return {
     mode: "cloud",
     user,

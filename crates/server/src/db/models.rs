@@ -121,6 +121,26 @@ pub struct ResumeRow {
     pub updated_at: DateTime<Utc>,
 }
 
+/// Raw resume row with both payload columns, prior to decryption.
+///
+/// Exactly one of `data` / `data_encrypted` is set (enforced by a check
+/// constraint). Use [`crate::storage::StorageState::decode_resume_row`] to
+/// produce an API-facing [`ResumeRow`].
+#[derive(Debug, Clone, FromRow)]
+pub struct StoredResumeRow {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub title: String,
+    pub data: Option<serde_json::Value>,
+    pub data_encrypted: Option<Vec<u8>>,
+    pub is_public: bool,
+    pub public_slug: Option<String>,
+    pub password_hash: Option<String>,
+    pub version: i32,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
 /// Lightweight resume summary for list endpoints.
 #[derive(Debug, Clone, FromRow, Serialize, ToSchema)]
 pub struct ResumeSummary {
@@ -194,6 +214,8 @@ pub struct SubscriptionInfo {
 /// WorkOS. Resume content is not included.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct AuthUserResponse {
+    /// Deployment identity mode: `local` (self-hosted, implicit user) or `cloud`.
+    pub mode: &'static str,
     #[schema(value_type = String, format = "uuid")]
     pub id: Uuid,
     /// Hosted-service subscription status for billing.
@@ -254,13 +276,28 @@ pub struct DeleteAccountResponse {
 }
 
 impl AuthUserResponse {
-    /// Build a profile response with the hosted require-auth flag.
+    /// Build a cloud-mode profile response with the hosted require-auth flag.
     pub fn from_user(
         user: User,
         require_auth: bool,
         subscription: Option<SubscriptionInfo>,
     ) -> Self {
+        Self::with_mode("cloud", user, require_auth, subscription)
+    }
+
+    /// Build a local-mode (self-hosted) profile response.
+    pub fn from_local_user(user: User) -> Self {
+        Self::with_mode("local", user, false, None)
+    }
+
+    fn with_mode(
+        mode: &'static str,
+        user: User,
+        require_auth: bool,
+        subscription: Option<SubscriptionInfo>,
+    ) -> Self {
         Self {
+            mode,
             id: user.id,
             plan: user.plan,
             email: user.email,
@@ -294,6 +331,7 @@ mod tests {
         let response = AuthUserResponse::from_user(user, true, None);
         let json = serde_json::to_value(&response).unwrap();
 
+        assert_eq!(json["mode"], "cloud");
         assert_eq!(json["id"], Uuid::nil().to_string());
         assert_eq!(json["plan"], "free");
         assert_eq!(json["email"], "dev@example.com");
@@ -322,6 +360,28 @@ mod tests {
         assert!(json.get("email").is_none());
         assert!(json.get("first_name").is_none());
         assert!(json.get("last_name").is_none());
+    }
+
+    #[test]
+    fn auth_user_response_local_mode_disables_require_auth() {
+        let user = User {
+            id: crate::storage::LOCAL_USER_ID,
+            workos_id: "local".to_string(),
+            plan: "self-hosted".to_string(),
+            paddle_customer_id: None,
+            email: None,
+            first_name: None,
+            last_name: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+
+        let json = serde_json::to_value(AuthUserResponse::from_local_user(user)).unwrap();
+
+        assert_eq!(json["mode"], "local");
+        assert_eq!(json["plan"], "self-hosted");
+        assert_eq!(json["require_auth"], false);
+        assert!(json.get("subscription").is_none());
     }
 
     #[test]

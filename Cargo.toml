@@ -123,6 +123,10 @@ sqlx = { version = "0.9", default-features = false, features = [
 ] }
 uuid = { version = "1", features = ["v4", "serde"] }
 
+# Encryption at rest (self-hosted resume storage)
+aes-gcm = "0.10"
+hex = "0.4"
+
 # HTTP client (WorkOS)
 reqwest = { version = "0.13", default-features = false, features = [
   "json",

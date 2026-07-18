@@ -50,6 +50,10 @@ lru.workspace = true
 utoipa.workspace = true
 utoipa-swagger-ui = { version = "9", features = ["axum", "reqwest"] }
 
+# Encryption at rest (self-hosted resume storage)
+aes-gcm.workspace = true
+hex.workspace = true
+
 # Cloud mode
 sqlx.workspace = true
 uuid.workspace = true

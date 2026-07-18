@@ -72,7 +72,8 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,id=rustume-registry-${TA
     --mount=type=cache,target=/app/target,id=rustume-target-${TARGETARCH} \
     RUST_TARGET="$(cat /tmp/rust_target)" && \
     cargo build --release --target "${RUST_TARGET}" -p rustume-server && \
-    cp "target/${RUST_TARGET}/release/rustume-server" /app/rustume-server
+    cp "target/${RUST_TARGET}/release/rustume-server" /app/rustume-server && \
+    mkdir -p /out/data
 
 # =============================================================================
 # Stage 4: Web builder (WASM bindings + Vite static bundle)
@@ -144,6 +145,10 @@ COPY --from=builder /usr/share/fonts/dejavu /usr/share/fonts/truetype/dejavu
 
 # License texts (AGPL distribution compliance for self-hosted images)
 COPY LICENSE NOTICE THIRD_PARTY_NOTICES /app/legal/
+
+# Writable data directory for the auto-generated encryption key
+# (mounted as the rustume_data volume by docker-compose)
+COPY --from=builder --chown=65532:65532 /out/data /data
 
 # Environment variables
 ENV RUST_LOG=info

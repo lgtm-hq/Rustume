@@ -34,17 +34,20 @@ use crate::routes::{
 };
 use crate::state::AppState;
 
-/// Build the default router in self-hosted (stateless) mode.
+/// Build the default router in stateless fallback mode (no storage, no cloud).
 pub fn create_router() -> Router {
-    create_router_with_state(AppState::new(Arc::new(static_dir()), None))
+    create_router_with_state(AppState::new(Arc::new(static_dir()), None, None))
 }
 
 /// Build a router with a custom static asset directory (used in tests).
 pub fn create_router_with_static_dir(dir: PathBuf) -> Router {
-    create_router_with_state(AppState::new(Arc::new(dir), None))
+    create_router_with_state(AppState::new(Arc::new(dir), None, None))
 }
 
-/// Build the full Axum router, registering cloud routes when `state.cloud` is set.
+/// Build the full Axum router.
+///
+/// Resume CRUD routes are registered whenever `state.storage` is set
+/// (self-hosted and cloud); WorkOS auth and account routes are cloud-only.
 pub fn create_router_with_state(state: AppState) -> Router {
     let cors = build_cors_layer();
     let cloud_rate_limits = state.rate_limits.is_some();
@@ -140,6 +143,21 @@ pub fn create_router_with_state(state: AppState) -> Router {
                 rate_limit_auth,
             ));
 
+        let account_routes = Router::new()
+            .route("/api/account", delete(delete_account))
+            .route_layer(middleware::from_fn_with_state(
+                state.clone(),
+                require_auth_when_enabled,
+            ));
+
+        router = router.merge(auth_routes).merge(account_routes);
+    } else {
+        // Self-hosted: mode probe stays available so the web app can detect
+        // local (server storage) vs stateless (browser storage) mode.
+        router = router.route("/auth/me", get(me));
+    }
+
+    if state.storage.is_some() {
         let mut resume_routes = Router::new()
             .route("/api/resumes", get(list_resumes).post(create_resume))
             .route(
@@ -170,13 +188,6 @@ pub fn create_router_with_state(state: AppState) -> Router {
             ));
         }
 
-        let account_routes = Router::new()
-            .route("/api/account", delete(delete_account))
-            .route_layer(middleware::from_fn_with_state(
-                state.clone(),
-                require_auth_when_enabled,
-            ));
-
         let mut export_json_routes = Router::new()
             .route("/api/resumes/export", get(export_resumes_json))
             .route_layer(middleware::from_fn_with_state(
@@ -204,12 +215,10 @@ pub fn create_router_with_state(state: AppState) -> Router {
         }
 
         router = router
-            .merge(auth_routes)
             .merge(resume_routes)
             .merge(import_routes)
             .merge(export_json_routes)
-            .merge(export_pdf_routes)
-            .merge(account_routes);
+            .merge(export_pdf_routes);
     }
 
     let router = router
