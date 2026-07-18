@@ -22,6 +22,16 @@ and this project adheres to
 
 ### Security
 
+## [0.29.4] - 2026-07-18
+
+### Changed
+
+- **ci**: deny-by-default docker path filtering with drift test (#482) (2c2a1e6)
+
+### Fixed
+
+- **ci**: fix db-backup apt install and extract inline scripts (#481) (44321e2)
+
 ## [0.29.3] - 2026-07-18
 
 ### Changed
@@ -410,7 +420,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.29.3...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.29.4...HEAD
+[0.29.4]: https://github.com/lgtm-hq/Rustume/compare/v0.29.3...v0.29.4
 [0.29.3]: https://github.com/lgtm-hq/Rustume/compare/v0.29.2...v0.29.3
 [0.29.2]: https://github.com/lgtm-hq/Rustume/compare/v0.29.1...v0.29.2
 [0.29.1]: https://github.com/lgtm-hq/Rustume/compare/v0.29.0...v0.29.1
