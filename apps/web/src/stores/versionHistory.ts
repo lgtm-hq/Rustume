@@ -5,6 +5,7 @@ const DB_NAME = "rustume-version-history";
 const STORE_NAME = "snapshots";
 const LOCAL_RESUME_PREFIX = "rustume:";
 export const MAX_SNAPSHOTS_PER_RESUME = 50;
+const MAX_SNAPSHOT_KEY_RETRIES = 5;
 
 export interface SnapshotMetadata {
   key: string;
@@ -132,6 +133,38 @@ async function withResumeSnapshotLock(
   }
 }
 
+function isKeyCollisionError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { name?: unknown }).name === "ConstraintError"
+  );
+}
+
+/**
+ * Insert a snapshot record without overwriting an existing key.
+ *
+ * Uses `add()` (which rejects on duplicate keys) instead of `put()` so a
+ * concurrent save from another tab can never silently replace a snapshot.
+ * Returns `false` when the key is already taken.
+ */
+async function addSnapshotRecord(record: SnapshotRecord): Promise<boolean> {
+  return withDatabase(async (db) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    try {
+      await requestToPromise(store.add(record));
+      await transactionDone(tx);
+      return true;
+    } catch (error) {
+      if (isKeyCollisionError(error)) {
+        return false;
+      }
+      throw error;
+    }
+  });
+}
+
 async function saveSnapshotRecord(resumeId: string, clone: ResumeData): Promise<void> {
   if (!(await isResumePersisted(resumeId))) {
     return;
@@ -142,22 +175,22 @@ async function saveSnapshotRecord(resumeId: string, clone: ResumeData): Promise<
     return;
   }
 
-  const timestamp = latest ? Math.max(Date.now(), latest.timestamp + 1) : Date.now();
-  const record: SnapshotRecord = {
-    key: snapshotKey(resumeId, timestamp),
-    resumeId,
-    timestamp,
-    data: clone,
-  };
-
-  await withDatabase(async (db) => {
-    const tx = db.transaction(STORE_NAME, "readwrite");
-    const store = tx.objectStore(STORE_NAME);
-    store.put(record);
-    await transactionDone(tx);
-  });
-
-  await pruneSnapshots(resumeId);
+  let timestamp = latest ? Math.max(Date.now(), latest.timestamp + 1) : Date.now();
+  for (let attempt = 0; attempt < MAX_SNAPSHOT_KEY_RETRIES; attempt += 1) {
+    const inserted = await addSnapshotRecord({
+      key: snapshotKey(resumeId, timestamp),
+      resumeId,
+      timestamp,
+      data: clone,
+    });
+    if (inserted) {
+      await pruneSnapshots(resumeId);
+      return;
+    }
+    // Another browser context claimed this key; bump the timestamp and retry.
+    timestamp += 1;
+  }
+  throw new Error(`Could not allocate a unique snapshot key for resume ${resumeId}`);
 }
 
 /** Persist a resume snapshot in local IndexedDB. No-op when IndexedDB is unavailable. */

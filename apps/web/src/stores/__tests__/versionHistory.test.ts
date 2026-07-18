@@ -86,6 +86,78 @@ describe("versionHistory store", () => {
     expect(newest?.basics.name).toBe("Rapid 4");
   });
 
+  it("does not overwrite a snapshot written by another tab with the same key", async () => {
+    const now = Date.now();
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(now);
+
+    try {
+      // Simulate another tab writing a record whose key collides with the key
+      // this tab is about to compute, but which the latest-snapshot lookup for
+      // "resume-1" cannot see (the cross-tab race window).
+      const otherTabData = createResume("Other tab");
+      await new Promise<void>((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, 1);
+        request.onupgradeneeded = () => {
+          const store = request.result.createObjectStore("snapshots", { keyPath: "key" });
+          store.createIndex("resumeId", "resumeId", { unique: false });
+        };
+        request.onsuccess = () => {
+          const db = request.result;
+          const tx = db.transaction("snapshots", "readwrite");
+          tx.objectStore("snapshots").put({
+            key: `resume-1_v${now}`,
+            resumeId: "resume-ghost",
+            timestamp: now,
+            data: otherTabData,
+          });
+          tx.oncomplete = () => {
+            db.close();
+            resolve();
+          };
+          tx.onerror = () => reject(tx.error ?? new Error("seed failed"));
+        };
+        request.onerror = () => reject(request.error ?? new Error("open failed"));
+      });
+
+      await saveSnapshot("resume-1", createResume("This tab"));
+
+      // The other tab's snapshot must survive untouched.
+      const otherTabSnapshot = await getSnapshot(`resume-1_v${now}`);
+      expect(otherTabSnapshot?.basics.name).toBe("Other tab");
+
+      // This tab's snapshot lands on the next timestamp instead.
+      const snapshots = await listSnapshots("resume-1");
+      expect(snapshots).toHaveLength(1);
+      expect(snapshots[0].timestamp).toBe(now + 1);
+      const saved = await getSnapshot(snapshots[0].key);
+      expect(saved?.basics.name).toBe("This tab");
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
+  it("keeps the per-resume lock chain usable after a failed operation", async () => {
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const openSpy = vi.spyOn(indexedDB, "open").mockImplementationOnce(() => {
+      throw new Error("IndexedDB unavailable");
+    });
+
+    try {
+      const failing = saveSnapshot("resume-1", createResume("Fails"));
+      const queued = saveSnapshot("resume-1", createResume("Queued behind failure"));
+      await Promise.all([failing, queued]);
+
+      expect(consoleSpy).toHaveBeenCalled();
+      const snapshots = await listSnapshots("resume-1");
+      expect(snapshots).toHaveLength(1);
+      const saved = await getSnapshot(snapshots[0].key);
+      expect(saved?.basics.name).toBe("Queued behind failure");
+    } finally {
+      openSpy.mockRestore();
+      consoleSpy.mockRestore();
+    }
+  });
+
   it("prunes snapshots beyond the keep-last limit", async () => {
     for (let i = 0; i < MAX_SNAPSHOTS_PER_RESUME + 1; i++) {
       await saveSnapshot("resume-1", createResume(`Version ${i}`));
