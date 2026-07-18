@@ -23,7 +23,7 @@ terraform {
     }
     sentry = {
       source  = "jianyuan/sentry"
-      version = "~> 0.14.13"
+      version = "~> 0.15.0"
     }
     railway = {
       source  = "terraform-community-providers/railway"
