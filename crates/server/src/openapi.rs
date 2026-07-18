@@ -8,7 +8,8 @@ use crate::db::{
     AuthMeUnauthorizedResponse, AuthUserResponse, CreateResumeRequest, DeleteAccountRequest,
     DeleteAccountResponse, ImportFailure, ImportResumeItem, ImportResumesRequest,
     ImportResumesResponse, PaginatedResumeSummaries, ResumeBulkExport, ResumeExportItem,
-    ResumeListQuery, ResumeRow, ResumeSummary, SubscriptionInfo, UpdateResumeRequest,
+    ResumeListQuery, ResumeRow, ResumeSummary, SubscriptionInfo, UpdateAccountRequest,
+    UpdateAccountResponse, UpdateResumeRequest,
 };
 use crate::dto::{
     ParseFormat, ParseRequest, RenderPdfRequest, RenderPreviewRequest, TemplateInfo, ThemeInfo,
@@ -60,6 +61,7 @@ impl Modify for CookieAuthAddon {
         crate::routes::export::export_resumes_json,
         crate::routes::export::export_resumes_pdf,
         crate::routes::account::delete_account,
+        crate::routes::account::update_account,
     ),
     components(
         schemas(
@@ -88,6 +90,8 @@ impl Modify for CookieAuthAddon {
             ImportResumeItem,
             DeleteAccountRequest,
             DeleteAccountResponse,
+            UpdateAccountRequest,
+            UpdateAccountResponse,
             rustume_schema::ResumeData
         )
     ),

@@ -2,7 +2,7 @@ use axum::{
     extract::DefaultBodyLimit,
     http::{header, HeaderValue, Method},
     middleware,
-    routing::{delete, get, post},
+    routing::{get, patch, post},
     Router,
 };
 use std::path::PathBuf;
@@ -30,7 +30,7 @@ use crate::routes::{
     callback, create_resume, delete_account, delete_resume, export_resumes_json,
     export_resumes_pdf, get_resume, health, import_resumes, list_resumes, list_templates, login,
     logout, me, metrics, parse, render_pdf, render_preview, security_txt, spa_fallback, static_dir,
-    template_thumbnail, update_resume, validate,
+    template_thumbnail, update_account, update_resume, validate,
 };
 use crate::state::AppState;
 
@@ -171,7 +171,7 @@ pub fn create_router_with_state(state: AppState) -> Router {
         }
 
         let account_routes = Router::new()
-            .route("/api/account", delete(delete_account))
+            .route("/api/account", patch(update_account).delete(delete_account))
             .route_layer(middleware::from_fn_with_state(
                 state.clone(),
                 require_auth_when_enabled,
@@ -235,6 +235,7 @@ fn build_cors_layer_for_origin(origin: Option<String>) -> CorsLayer {
             Method::GET,
             Method::POST,
             Method::PUT,
+            Method::PATCH,
             Method::DELETE,
             Method::OPTIONS,
         ])

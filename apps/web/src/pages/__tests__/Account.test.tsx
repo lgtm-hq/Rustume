@@ -1,11 +1,19 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { axe } from "vitest-axe";
-import { fireEvent, render, screen } from "@solidjs/testing-library";
+import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { axeConfig } from "../../test/a11y";
 import { Route, Router } from "@solidjs/router";
 import Account from "../Account";
 
-const { mockAuthState, signInMock, signOutMock } = vi.hoisted(() => ({
+const {
+  mockAuthState,
+  signInMock,
+  signOutMock,
+  refreshMock,
+  updateLocalUsernameMock,
+  updateUsernameMock,
+  deleteAccountMock,
+} = vi.hoisted(() => ({
   mockAuthState: {
     loading: false,
     cloudEnabled: true,
@@ -14,12 +22,15 @@ const { mockAuthState, signInMock, signOutMock } = vi.hoisted(() => ({
       id: string;
       plan: string;
       email?: string;
-      first_name?: string;
-      last_name?: string;
+      username: string;
     } | null,
   },
   signInMock: vi.fn(),
   signOutMock: vi.fn(),
+  refreshMock: vi.fn().mockResolvedValue(undefined),
+  updateLocalUsernameMock: vi.fn(),
+  updateUsernameMock: vi.fn(),
+  deleteAccountMock: vi.fn(),
 }));
 
 vi.mock("../../stores/auth", () => ({
@@ -30,17 +41,25 @@ vi.mock("../../stores/auth", () => ({
     signIn: signInMock,
     signOut: signOutMock,
     clearUser: vi.fn(),
-    // Mirrors userDisplayName — vi.mock hoisting prevents importing the real function.
-    displayName: (user: { email?: string; first_name?: string; last_name?: string }) => {
-      const parts = [user.first_name, user.last_name].filter(Boolean);
-      if (parts.length > 0) return parts.join(" ");
-      return user.email ?? "Account";
-    },
+    refresh: refreshMock,
+    updateLocalUsername: updateLocalUsernameMock,
+    displayName: (user: { username: string }) => user.username || "Account",
   },
 }));
 
 vi.mock("../../api/account", () => ({
-  deleteAccount: vi.fn(),
+  deleteAccount: deleteAccountMock,
+  updateUsername: updateUsernameMock,
+  validateUsername: (username: string) => {
+    const normalized = username.trim().toLowerCase();
+    if (normalized.length < 3 || normalized.length > 32) {
+      return "Username must be 3-32 characters";
+    }
+    if (!/^[a-z0-9-]+$/.test(normalized)) {
+      return "Username may only contain lowercase letters, digits, and hyphens";
+    }
+    return null;
+  },
 }));
 
 vi.mock("../../api/resumes", () => ({
@@ -67,6 +86,11 @@ function renderAccount() {
 }
 
 describe("Account page", () => {
+  beforeEach(() => {
+    updateUsernameMock.mockReset();
+    refreshMock.mockClear();
+  });
+
   it("shows a sign-in CTA when cloud is enabled and the user is signed out", () => {
     mockAuthState.loading = false;
     mockAuthState.cloudEnabled = true;
@@ -101,25 +125,70 @@ describe("Account page", () => {
       id: "user-1",
       plan: "free",
       email: "dev@example.com",
-      first_name: "Ada",
-      last_name: "Lovelace",
+      username: "swift-otter-4821",
     };
 
     renderAccount();
 
-    expect(screen.getByText("Ada Lovelace")).toBeInTheDocument();
+    expect(screen.getByText("swift-otter-4821")).toBeInTheDocument();
     expect(screen.getByText("dev@example.com")).toBeInTheDocument();
     expect(screen.getByText("Plan: free")).toBeInTheDocument();
     expect(screen.getByText(/Resumes saved to your Rustume Cloud account/i)).toBeInTheDocument();
     expect(screen.getByText(/WorkOS AuthKit/i)).toBeInTheDocument();
-    expect(
-      screen.getByText(/email and name are stored by both WorkOS and Rustume/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/legal name stays with your identity provider/i)).toBeInTheDocument();
     expect(screen.getByText("Billing")).toBeInTheDocument();
     expect(screen.getByText("End-to-end encryption")).toBeInTheDocument();
     expect(screen.getAllByText("Coming soon").length).toBeGreaterThan(0);
     expect(screen.getByText("Danger zone")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete my account" })).toBeInTheDocument();
+  });
+
+  it("saves an edited username", async () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.user = {
+      id: "user-1",
+      plan: "free",
+      email: "dev@example.com",
+      username: "swift-otter-4821",
+    };
+    updateUsernameMock.mockResolvedValue({ username: "calm-finch-1234" });
+
+    renderAccount();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit username" }));
+    fireEvent.input(screen.getByLabelText("Username"), {
+      target: { value: "calm-finch-1234" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save username" }));
+
+    await waitFor(() => {
+      expect(updateUsernameMock).toHaveBeenCalledWith("calm-finch-1234");
+      expect(updateLocalUsernameMock).toHaveBeenCalledWith("calm-finch-1234");
+    });
+  });
+
+  it("surfaces a taken-username error", async () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.user = {
+      id: "user-1",
+      plan: "free",
+      username: "swift-otter-4821",
+    };
+    updateUsernameMock.mockRejectedValue(new Error("username already taken"));
+
+    renderAccount();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit username" }));
+    fireEvent.input(screen.getByLabelText("Username"), {
+      target: { value: "taken-handle" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save username" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("username already taken")).toBeInTheDocument();
+    });
   });
 
   it("opens the delete confirmation modal", () => {
@@ -129,6 +198,7 @@ describe("Account page", () => {
       id: "user-1",
       plan: "free",
       email: "dev@example.com",
+      username: "swift-otter-4821",
     };
 
     renderAccount();
@@ -159,8 +229,7 @@ describe("Account accessibility", () => {
       id: "user-1",
       plan: "free",
       email: "dev@example.com",
-      first_name: "Ada",
-      last_name: "Lovelace",
+      username: "swift-otter-4821",
     };
 
     const { container } = renderAccount();
