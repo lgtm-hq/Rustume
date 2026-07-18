@@ -4228,6 +4228,7 @@ dependencies = [
  "lru",
  "metrics",
  "metrics-exporter-prometheus",
+ "rand 0.9.5",
  "reqwest 0.13.4",
  "rustume-parser",
  "rustume-render",

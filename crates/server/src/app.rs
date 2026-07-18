@@ -27,10 +27,10 @@ use crate::middleware::subscription::require_subscription_render;
 use crate::observability::apply_sentry_layers;
 use crate::openapi::ApiDoc;
 use crate::routes::{
-    callback, create_resume, delete_account, delete_resume, export_resumes_json,
-    export_resumes_pdf, get_resume, health, import_resumes, list_resumes, list_templates, login,
-    logout, me, metrics, parse, render_pdf, render_preview, security_txt, spa_fallback, static_dir,
-    template_thumbnail, update_resume, validate,
+    callback, create_api_key, create_resume, delete_account, delete_resume, export_resumes_json,
+    export_resumes_pdf, get_resume, health, import_resumes, list_api_keys, list_resumes,
+    list_templates, login, logout, me, metrics, parse, render_pdf, render_preview, revoke_api_key,
+    security_txt, spa_fallback, static_dir, template_thumbnail, update_resume, validate,
 };
 use crate::state::AppState;
 
@@ -177,6 +177,10 @@ pub fn create_router_with_state(state: AppState) -> Router {
                 require_auth_when_enabled,
             ));
 
+        let api_key_routes = Router::new()
+            .route("/api/keys", get(list_api_keys).post(create_api_key))
+            .route("/api/keys/{id}", delete(revoke_api_key));
+
         let mut export_json_routes = Router::new()
             .route("/api/resumes/export", get(export_resumes_json))
             .route_layer(middleware::from_fn_with_state(
@@ -209,6 +213,7 @@ pub fn create_router_with_state(state: AppState) -> Router {
             .merge(import_routes)
             .merge(export_json_routes)
             .merge(export_pdf_routes)
+            .merge(api_key_routes)
             .merge(account_routes);
     }
 
@@ -243,6 +248,7 @@ fn build_cors_layer_for_origin(origin: Option<String>) -> CorsLayer {
             header::ACCEPT,
             header::COOKIE,
             header::AUTHORIZATION,
+            "x-api-key".parse::<header::HeaderName>().unwrap(),
         ])
         .expose_headers([
             "X-Total-Pages".parse::<header::HeaderName>().unwrap(),
