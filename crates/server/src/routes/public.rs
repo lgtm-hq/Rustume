@@ -190,6 +190,9 @@ fn etag_entity_tag(candidate: &str) -> &str {
 }
 
 fn etag_matches(if_none_match: &str, etag: &str) -> bool {
+    if if_none_match.trim() == "*" {
+        return true;
+    }
     let entity = etag_entity_tag(etag);
     if_none_match
         .split(',')
@@ -413,6 +416,14 @@ mod tests {
             "W/\"550e8400-e29b-41d4-a716-446655440000-2\"",
             &etag
         ));
+    }
+
+    #[test]
+    fn etag_matches_honors_wildcard() {
+        let etag = format_etag(uuid!("550e8400-e29b-41d4-a716-446655440000"), 2);
+        assert!(etag_matches("*", &etag));
+        assert!(etag_matches("  *  ", &etag));
+        assert!(!etag_matches("\"other\"", &etag));
     }
 
     #[test]
