@@ -136,6 +136,10 @@ axum-extra = { version = "0.12", features = ["cookie"] }
 metrics = "0.24"
 metrics-exporter-prometheus = "0.18"
 
+# Cryptography (Paddle webhook verification)
+hmac = "0.13"
+sha2 = "0.11"
+
 # Error tracking
 sentry = { version = "0.48.2", default-features = false, features = [
   "backtrace",

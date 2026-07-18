@@ -4,7 +4,7 @@ use std::sync::Arc;
 use rustume_render::TypstRenderer;
 
 use crate::cloud::CloudState;
-use crate::config::RateLimitConfig;
+use crate::config::{BillingConfig, RateLimitConfig};
 use crate::middleware::rate_limit::RateLimitState;
 
 /// Shared router state for all handlers.
@@ -17,6 +17,8 @@ pub struct AppState {
     pub require_auth: bool,
     /// In-memory rate limiters (cloud mode only).
     pub rate_limits: Option<Arc<RateLimitState>>,
+    /// Paddle Billing credentials when all billing env vars are set.
+    pub billing: Option<BillingConfig>,
 }
 
 impl AppState {
@@ -31,6 +33,7 @@ impl AppState {
             renderer: Arc::new(TypstRenderer::new()),
             require_auth: crate::cloud::require_auth_enabled(),
             rate_limits,
+            billing: BillingConfig::from_env(),
         }
     }
 
@@ -41,7 +44,7 @@ impl AppState {
         cloud: Option<Arc<CloudState>>,
         require_auth: bool,
     ) -> Self {
-        Self::with_options(static_dir, cloud, require_auth, RateLimitConfig::from_env())
+        Self::with_options_from_env(static_dir, cloud, require_auth, RateLimitConfig::from_env())
     }
 
     /// Build application state with explicit cloud and rate limit settings (tests).
@@ -51,6 +54,7 @@ impl AppState {
         cloud: Option<Arc<CloudState>>,
         require_auth: bool,
         rate_limit_config: RateLimitConfig,
+        billing: Option<BillingConfig>,
     ) -> Self {
         let rate_limits = cloud
             .as_ref()
@@ -61,7 +65,25 @@ impl AppState {
             renderer: Arc::new(TypstRenderer::new()),
             require_auth,
             rate_limits,
+            billing,
         }
+    }
+
+    /// Build application state with explicit cloud and rate limit settings (tests).
+    #[cfg(test)]
+    pub fn with_options_from_env(
+        static_dir: Arc<PathBuf>,
+        cloud: Option<Arc<CloudState>>,
+        require_auth: bool,
+        rate_limit_config: RateLimitConfig,
+    ) -> Self {
+        Self::with_options(
+            static_dir,
+            cloud,
+            require_auth,
+            rate_limit_config,
+            BillingConfig::from_env(),
+        )
     }
 
     /// Return cloud services or a 404 when cloud mode is disabled.

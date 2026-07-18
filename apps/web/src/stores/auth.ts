@@ -13,6 +13,7 @@ interface AuthState {
   loading: boolean;
   cloudEnabled: boolean;
   requireAuth: boolean;
+  billingEnabled: boolean;
   user: AuthUser | null;
 }
 
@@ -21,18 +22,26 @@ function createAuthStore() {
     loading: true,
     cloudEnabled: false,
     requireAuth: false,
+    billingEnabled: false,
     user: null,
   });
 
   function applyProbe(result: AuthProbeResult) {
     if (result.mode === "self-hosted") {
-      setState({ cloudEnabled: false, requireAuth: false, user: null, loading: false });
+      setState({
+        cloudEnabled: false,
+        requireAuth: false,
+        billingEnabled: false,
+        user: null,
+        loading: false,
+      });
       return;
     }
 
     setState({
       cloudEnabled: true,
       requireAuth: result.requireAuth,
+      billingEnabled: result.billingEnabled,
       user: result.user,
       loading: false,
     });
@@ -44,7 +53,13 @@ function createAuthStore() {
       applyProbe(await probeAuth());
     } catch (error) {
       console.error("Failed to probe auth:", error);
-      setState({ cloudEnabled: false, requireAuth: false, user: null, loading: false });
+      setState({
+        cloudEnabled: false,
+        requireAuth: false,
+        billingEnabled: false,
+        user: null,
+        loading: false,
+      });
     }
   }
 
