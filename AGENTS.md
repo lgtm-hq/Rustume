@@ -10,13 +10,14 @@ those. Notes below capture only non-obvious environment caveats for cloud agents
 
 - Requires **Rust >= 1.85** (a transitive dependency needs the `edition2024`
   Cargo feature). The default stable toolchain in this environment is already
-  updated (1.97). If Rust is somehow older, run `rustup update stable && rustup
-  default stable`, then `rustup target add wasm32-unknown-unknown`.
+  updated (check with `rustc --version`). If Rust is somehow older, run
+  `rustup update stable && rustup default stable`, then
+  `rustup target add wasm32-unknown-unknown`.
 - Polyglot tooling installed outside the update script (persisted in the VM
   snapshot; PATH is wired via `~/.bashrc`): `bun` (`~/.bun/bin`), `uv`
   (`~/.local/bin`), and `wasm-pack` + `rustup` targets. If any is missing on a
   fresh machine, reinstall per `CONTRIBUTING.md` (bun.sh, astral.sh/uv,
-  rustwasm wasm-pack installer). The update script only refreshes deps
+  `cargo install wasm-pack`). The update script only refreshes deps
   (`rustup target add`, `cargo fetch`, `bun install` in `apps/web`).
 
 ### Building / running
@@ -27,8 +28,8 @@ those. Notes below capture only non-obvious environment caveats for cloud agents
   `make clean`) or you changed `bindings/wasm` or any core crate, rebuild it with
   `make wasm` before starting the web dev server, or `bun run dev` will fail to
   resolve the wasm import.
-- `make dev` runs the API server (http://localhost:3000) and the Vite web dev
-  server (http://localhost:5173) together; the Vite server proxies `/api` and
+- `make dev` runs the API server (`http://localhost:3000`) and the Vite web dev
+  server (`http://localhost:5173`) together; the Vite server proxies `/api` and
   `/auth` to `:3000`. Open the web app at :5173. Health check:
   `curl -sf http://localhost:3000/health`.
 - Default run is "self-hosted stateless mode" — no database or auth needed.
