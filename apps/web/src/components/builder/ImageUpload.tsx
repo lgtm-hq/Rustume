@@ -11,6 +11,27 @@ const MAX_SIZE_PX = 800;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 
+const HEX_COLOR_REGEX = /^#(?:[0-9A-Fa-f]{3,4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/;
+const BARE_HEX_REGEX = /^(?:[0-9A-Fa-f]{3,4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/;
+
+/** Trim and prepend `#` when the value is bare 3/4/6/8-digit hex. */
+function normalizeHexColor(raw: string): string {
+  const trimmed = raw.trim();
+  return BARE_HEX_REGEX.test(trimmed) ? `#${trimmed}` : trimmed;
+}
+
+/** Expand #RGB / #RGBA shorthand to #RRGGBB / #RRGGBBAA (server validation only accepts long form). */
+function expandShortHex(color: string): string {
+  const digits = color.slice(1);
+  if (digits.length === 3 || digits.length === 4) {
+    return `#${digits
+      .split("")
+      .map((c) => c + c)
+      .join("")}`;
+  }
+  return color;
+}
+
 interface ProcessedImage {
   dataUrl: string;
   aspectRatio: number;
@@ -157,6 +178,19 @@ export function ImageUpload(props: ImageUploadProps) {
     });
   }
 
+  function updateClampedEffect(key: "borderWidth" | "shadowSize", raw: string, max: number) {
+    const parsed = parseInt(raw, 10);
+    if (Number.isNaN(parsed)) return;
+    updateEffect(key, Math.min(max, Math.max(0, parsed)));
+  }
+
+  function updateColorEffect(key: "borderColor" | "shadowColor", raw: string) {
+    const normalized = normalizeHexColor(raw);
+    if (normalized === "" || HEX_COLOR_REGEX.test(normalized)) {
+      updateEffect(key, expandShortHex(normalized));
+    }
+  }
+
   function updateBorderRadius(value: number) {
     props.onPictureChange({
       ...props.picture,
@@ -181,7 +215,8 @@ export function ImageUpload(props: ImageUploadProps) {
     const borderWidth = effects.borderWidth ?? 2;
     const borderColor = effects.borderColor || "var(--turbo-brand-primary)";
     const shadowSize = effects.shadowSize || 0;
-    const shadowOffset = Math.max(1, Math.round(shadowSize / 2));
+    // Match the Typst PDF output: solid diagonal offset (dx = dy = size / 2), no blur.
+    const shadowOffset = shadowSize / 2;
     const filters: string[] = [];
     if (effects.grayscale) {
       filters.push("grayscale(100%)");
@@ -192,10 +227,11 @@ export function ImageUpload(props: ImageUploadProps) {
       "border-radius": `${borderRadiusPx}px`,
       filter: filters.length > 0 ? filters.join(" ") : undefined,
       transform: effects.rotation ? `rotate(${effects.rotation}deg)` : undefined,
-      border: effects.border && borderWidth > 0 ? `${borderWidth}px solid ${borderColor}` : undefined,
+      border:
+        effects.border && borderWidth > 0 ? `${borderWidth}px solid ${borderColor}` : undefined,
       "box-shadow":
         shadowSize > 0
-          ? `0 ${shadowOffset}px ${shadowSize}px ${effects.shadowColor || "#00000040"}`
+          ? `${shadowOffset}px ${shadowOffset}px 0 ${effects.shadowColor || "#00000040"}`
           : undefined,
     };
   };
@@ -410,7 +446,7 @@ export function ImageUpload(props: ImageUploadProps) {
                 <input
                   type="text"
                   value={props.picture.effects.borderColor}
-                  onInput={(e) => updateEffect("borderColor", e.currentTarget.value)}
+                  onInput={(e) => updateColorEffect("borderColor", e.currentTarget.value)}
                   placeholder="Theme primary"
                   class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-ink"
                   aria-label="Border color"
@@ -426,7 +462,7 @@ export function ImageUpload(props: ImageUploadProps) {
                   min="0"
                   max="10"
                   value={props.picture.effects.borderWidth}
-                  onInput={(e) => updateEffect("borderWidth", parseInt(e.currentTarget.value, 10))}
+                  onInput={(e) => updateClampedEffect("borderWidth", e.currentTarget.value, 10)}
                   class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-ink"
                   aria-label="Border width"
                 />
@@ -441,7 +477,7 @@ export function ImageUpload(props: ImageUploadProps) {
                 <input
                   type="text"
                   value={props.picture.effects.shadowColor}
-                  onInput={(e) => updateEffect("shadowColor", e.currentTarget.value)}
+                  onInput={(e) => updateColorEffect("shadowColor", e.currentTarget.value)}
                   placeholder="#00000040"
                   class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-ink"
                   aria-label="Shadow color"
@@ -457,7 +493,7 @@ export function ImageUpload(props: ImageUploadProps) {
                   min="0"
                   max="20"
                   value={props.picture.effects.shadowSize}
-                  onInput={(e) => updateEffect("shadowSize", parseInt(e.currentTarget.value, 10))}
+                  onInput={(e) => updateClampedEffect("shadowSize", e.currentTarget.value, 20)}
                   class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-ink"
                   aria-label="Shadow size"
                 />

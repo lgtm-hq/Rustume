@@ -1,7 +1,15 @@
 import { createStore, produce } from "solid-js/store";
 import { batch } from "solid-js";
 import { toast } from "../components/ui";
-import type { ResumeData, Basics, Sections, Metadata, Section, CustomItem } from "../wasm/types";
+import type {
+  ResumeData,
+  Basics,
+  Sections,
+  Metadata,
+  Picture,
+  Section,
+  CustomItem,
+} from "../wasm/types";
 import {
   createEmptyResume,
   createEmptyPicture,
@@ -178,6 +186,20 @@ function normalizeResumeForStore(resume: ResumeData): ResumeData {
   if (!resume.basics.picture) {
     resume.basics.picture = createEmptyPicture();
   }
+
+  // Backfill effect fields missing from resumes persisted before rotation/border/shadow
+  // effects existed. Defaults must match the Rust serde defaults in crates/schema/src/basics.rs.
+  const effects: Partial<Picture["effects"]> = resume.basics.picture.effects ?? {};
+  resume.basics.picture.effects = {
+    hidden: effects.hidden ?? false,
+    border: effects.border ?? false,
+    grayscale: effects.grayscale ?? false,
+    rotation: effects.rotation ?? 0,
+    borderColor: effects.borderColor ?? "",
+    borderWidth: effects.borderWidth ?? 2,
+    shadowColor: effects.shadowColor ?? "#00000040",
+    shadowSize: effects.shadowSize ?? 0,
+  };
 
   if (
     typeof resume.sections.custom !== "object" ||

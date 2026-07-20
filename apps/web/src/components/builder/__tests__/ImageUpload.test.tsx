@@ -163,6 +163,39 @@ describe("ImageUpload", () => {
     expect((onChange.mock.calls[4][0] as Picture).effects.shadowSize).toBe(12);
   });
 
+  it("guards number effect inputs and normalizes color inputs", () => {
+    const onChange = vi.fn();
+    const picture = createPicture({
+      url: "data:image/png;base64,iVBORw0KGgo=",
+      effects: { hidden: false },
+    });
+    render(() => <ImageUpload picture={picture} onPictureChange={onChange} />);
+
+    // NaN input is ignored, out-of-range values are clamped.
+    fireEvent.input(screen.getByRole("spinbutton", { name: /border width/i }), {
+      target: { value: "" },
+    });
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.input(screen.getByRole("spinbutton", { name: /border width/i }), {
+      target: { value: "99" },
+    });
+    expect((onChange.mock.calls[0][0] as Picture).effects.borderWidth).toBe(10);
+    fireEvent.input(screen.getByRole("spinbutton", { name: /shadow size/i }), {
+      target: { value: "-5" },
+    });
+    expect((onChange.mock.calls[1][0] as Picture).effects.shadowSize).toBe(0);
+
+    // Invalid colors are not committed; bare short hex is normalized and expanded.
+    fireEvent.input(screen.getByRole("textbox", { name: /border color/i }), {
+      target: { value: "not-a-color" },
+    });
+    expect(onChange).toHaveBeenCalledTimes(2);
+    fireEvent.input(screen.getByRole("textbox", { name: /border color/i }), {
+      target: { value: "abc" },
+    });
+    expect((onChange.mock.calls[2][0] as Picture).effects.borderColor).toBe("#aabbcc");
+  });
+
   it("reflects picture effects in preview styles", () => {
     const onChange = vi.fn();
     const picture = createPicture({
@@ -184,6 +217,7 @@ describe("ImageUpload", () => {
 
     expect(style).toContain("transform: rotate(15deg)");
     expect(style).toContain("border: 4px solid rgb(18, 52, 86)");
-    expect(style).toContain("box-shadow: 0 5px 10px #00000080");
+    // Diagonal solid shadow matching the Typst PDF output (dx = dy = size / 2, no blur).
+    expect(style).toContain("box-shadow: 5px 5px 0 #00000080");
   });
 });
