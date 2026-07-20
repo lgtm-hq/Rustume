@@ -39,4 +39,16 @@ describe("customCss", () => {
     expect(styles.length).toBe(1);
     expect(styles[0]?.textContent).toBe(scoped("a { color: green; }"));
   });
+
+  it("strips unmatched closing braces so user CSS cannot escape the scope", () => {
+    syncCustomCssStyle(true, "} * { display: none; }");
+    const style = document.getElementById(CUSTOM_CSS_STYLE_ID);
+    expect(style?.textContent).toBe(scoped(" * { display: none; }"));
+  });
+
+  it("keeps balanced braces and ignores braces inside comments", () => {
+    syncCustomCssStyle(true, "/* } */ a { color: red; }");
+    const style = document.getElementById(CUSTOM_CSS_STYLE_ID);
+    expect(style?.textContent).toBe(scoped(" a { color: red; }"));
+  });
 });

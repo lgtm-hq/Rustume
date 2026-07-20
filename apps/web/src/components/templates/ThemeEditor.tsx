@@ -226,7 +226,6 @@ function CustomCssTab(props: CustomCssTabProps) {
         </label>
         <textarea
           id="custom-css-input"
-          aria-label="Custom CSS"
           value={props.css.value}
           onInput={(e) => handleInput(e.currentTarget.value)}
           rows={10}
