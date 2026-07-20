@@ -353,7 +353,9 @@ export function Preview() {
 
       {/* Preview Area */}
       <div
-        ref={viewportRef}
+        ref={(el) => {
+          viewportRef = el;
+        }}
         class="flex-1 p-6 flex items-start justify-center
           focus:outline-none focus-visible:ring-2 focus-visible:ring-accent
           focus-visible:ring-offset-2 focus-visible:ring-offset-paper"
