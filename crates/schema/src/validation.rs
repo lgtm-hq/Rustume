@@ -58,6 +58,23 @@ pub fn validate_hex_color(color: &str) -> Result<(), ValidationError> {
     }
 }
 
+/// Validate that a hex color is valid (#RRGGBB or #RRGGBBAA format).
+pub fn validate_hex_color_with_optional_alpha(color: &str) -> Result<(), ValidationError> {
+    if color.is_empty() {
+        return Ok(());
+    }
+
+    // Only strip a single leading # (reject ##RRGGBB).
+    let color = color.strip_prefix('#').unwrap_or(color);
+    if (color.len() == 6 || color.len() == 8) && color.chars().all(|c| c.is_ascii_hexdigit()) {
+        Ok(())
+    } else {
+        let mut error = ValidationError::new("invalid_hex_color");
+        error.message = Some("Must be a valid hex color (#RRGGBB or #RRGGBBAA)".into());
+        Err(error)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -109,5 +126,18 @@ mod tests {
         assert!(validate_hex_color("#gggggg").is_err()); // Invalid chars
         assert!(validate_hex_color("red").is_err()); // Named color
         assert!(validate_hex_color("##ffffff").is_err()); // Double hash
+    }
+
+    #[test]
+    fn test_validate_hex_color_with_optional_alpha() {
+        assert!(validate_hex_color_with_optional_alpha("").is_ok());
+        assert!(validate_hex_color_with_optional_alpha("#ffffff").is_ok());
+        assert!(validate_hex_color_with_optional_alpha("#00000040").is_ok());
+        assert!(validate_hex_color_with_optional_alpha("00000040").is_ok());
+
+        assert!(validate_hex_color_with_optional_alpha("#fff").is_err());
+        assert!(validate_hex_color_with_optional_alpha("#0000004000").is_err());
+        assert!(validate_hex_color_with_optional_alpha("#000000gg").is_err());
+        assert!(validate_hex_color_with_optional_alpha("##00000040").is_err());
     }
 }

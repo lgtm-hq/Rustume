@@ -6,6 +6,74 @@
   "url" in item and item.url != none and item.url.href != ""
 }
 
+/// Resolve a hex color, falling back when the input is empty.
+#let resolve-color(value, fallback) = {
+  if value == "" or value == none {
+    fallback
+  } else {
+    rgb(value)
+  }
+}
+
+/// Check whether basics includes a visible profile picture URL.
+#let has-visible-picture(basics) = {
+  if not ("picture" in basics) or basics.picture == none {
+    return false
+  }
+
+  let picture = basics.picture
+  let effects = picture.at("effects", default: (:))
+
+  "url" in picture and picture.url != "" and not effects.at("hidden", default: false)
+}
+
+/// Render a profile picture with shared schema-driven effects.
+#let render-picture(basics, primary-color, default-size: 64pt) = {
+  if not has-visible-picture(basics) {
+    return
+  }
+
+  let picture = basics.picture
+  let effects = picture.at("effects", default: (:))
+  let picture-size = picture.at("size", default: int(default-size / 1pt)) * 1pt
+  let border-radius = calc.min(picture.at("borderRadius", default: 0) * 1pt, picture-size / 2)
+  let border-width = effects.at("borderWidth", default: 2) * 1pt
+  let border-color = resolve-color(effects.at("borderColor", default: ""), primary-color)
+  let shadow-size = effects.at("shadowSize", default: 0) * 1pt
+  let shadow-color = resolve-color(effects.at("shadowColor", default: "#00000040"), rgb("#00000040"))
+  let rotation = effects.at("rotation", default: 0) * 1deg
+  let stroke = if effects.at("border", default: false) and border-width > 0pt {
+    border-width + border-color
+  } else {
+    none
+  }
+  let photo = box(
+    width: picture-size,
+    height: picture-size,
+    radius: border-radius,
+    clip: true,
+    stroke: stroke,
+    image(picture.url, width: picture-size, height: picture-size, fit: "cover")
+  )
+
+  let shadow-offset = shadow-size / 2
+  let content = if shadow-size > 0pt {
+    box(width: picture-size + shadow-size, height: picture-size + shadow-size)[
+      #place(
+        top + left,
+        dx: shadow-offset,
+        dy: shadow-offset,
+        box(width: picture-size, height: picture-size, radius: border-radius, fill: shadow-color)
+      )
+      #place(top + left, photo)
+    ]
+  } else {
+    photo
+  }
+
+  rotate(rotation, reflow: true, content)
+}
+
 /// Format a degree line from studyType and area.
 #let format-degree(studyType, area) = {
   if studyType != "" and area != "" {

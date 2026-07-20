@@ -353,15 +353,8 @@
   // Header - centered with picture area
   align(center)[
     // Picture area
-    #if "picture" in data.basics and data.basics.picture != none and "url" in data.basics.picture and data.basics.picture.url != "" {
-      box(
-        width: 64pt,
-        height: 64pt,
-        radius: 50%,
-        clip: true,
-        stroke: 1.5pt + primary-color,
-        image(data.basics.picture.url, width: 64pt, height: 64pt, fit: "cover")
-      )
+    #if has-visible-picture(data.basics) {
+      render-picture(data.basics, primary-color)
       v(8pt)
     }
 

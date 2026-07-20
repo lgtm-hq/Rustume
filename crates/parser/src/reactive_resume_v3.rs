@@ -111,11 +111,17 @@ pub struct V3Picture {
 }
 
 #[derive(Debug, Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
 pub struct V3PictureEffects {
     pub hidden: Option<bool>,
     pub grayscale: Option<bool>,
     pub border: Option<bool>,
+    pub rotation: Option<f32>,
+    pub border_color: Option<String>,
+    pub border_width: Option<u32>,
+    pub shadow_color: Option<String>,
+    pub shadow_size: Option<u32>,
 }
 
 /// V3 Summary - can be a string OR an object
@@ -578,6 +584,22 @@ fn convert_basics(v3: &V3Basics) -> Basics {
             basics.picture.effects.hidden = effects.hidden.unwrap_or(basics.picture.effects.hidden);
             basics.picture.effects.grayscale = effects.grayscale.unwrap_or(false);
             basics.picture.effects.border = effects.border.unwrap_or(false);
+            basics.picture.effects.rotation =
+                effects.rotation.unwrap_or(basics.picture.effects.rotation);
+            basics.picture.effects.border_color = effects
+                .border_color
+                .clone()
+                .unwrap_or_else(|| basics.picture.effects.border_color.clone());
+            basics.picture.effects.border_width = effects
+                .border_width
+                .unwrap_or(basics.picture.effects.border_width);
+            basics.picture.effects.shadow_color = effects
+                .shadow_color
+                .clone()
+                .unwrap_or_else(|| basics.picture.effects.shadow_color.clone());
+            basics.picture.effects.shadow_size = effects
+                .shadow_size
+                .unwrap_or(basics.picture.effects.shadow_size);
         }
     }
 

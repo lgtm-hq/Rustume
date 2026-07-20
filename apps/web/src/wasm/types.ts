@@ -21,6 +21,11 @@ export interface Picture {
     hidden: boolean;
     border: boolean;
     grayscale: boolean;
+    rotation: number;
+    borderColor: string;
+    borderWidth: number;
+    shadowColor: string;
+    shadowSize: number;
   };
 }
 
@@ -283,6 +288,11 @@ export function createEmptyPicture(): Picture {
       hidden: true,
       border: false,
       grayscale: false,
+      rotation: 0,
+      borderColor: "",
+      borderWidth: 2,
+      shadowColor: "#00000040",
+      shadowSize: 0,
     },
   };
 }
