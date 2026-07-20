@@ -169,7 +169,9 @@ export function CommandPalette(props: CommandPaletteProps) {
                 />
               </svg>
               <input
-                ref={inputRef}
+                ref={(el) => {
+                  inputRef = el;
+                }}
                 type="text"
                 class="flex-1 bg-transparent text-sm text-ink placeholder:text-stone outline-none"
                 placeholder="Search commands..."
@@ -182,7 +184,14 @@ export function CommandPalette(props: CommandPaletteProps) {
               </kbd>
             </div>
 
-            <div ref={listRef} class="max-h-80 overflow-y-auto p-2" role="listbox" aria-label="Commands">
+            <div
+              ref={(el) => {
+                listRef = el;
+              }}
+              class="max-h-80 overflow-y-auto p-2"
+              role="listbox"
+              aria-label="Commands"
+            >
               <Show
                 when={filteredActions().length > 0}
                 fallback={<p class="px-3 py-6 text-center text-sm text-stone">No matching commands</p>}
