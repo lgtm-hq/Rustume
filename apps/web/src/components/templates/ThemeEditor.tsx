@@ -4,8 +4,8 @@ import { getThemePresets } from "../../stores/themePresets";
 import type { ThemePresetInfo } from "../../wasm/types";
 
 export function ThemeEditor() {
-  const { store, updateTheme } = resumeStore;
-  const [activeTab, setActiveTab] = createSignal<"presets" | "custom">("presets");
+  const { store, updateTheme, updateMetadata } = resumeStore;
+  const [activeTab, setActiveTab] = createSignal<"presets" | "custom" | "css">("presets");
 
   // Theme presets are embedded client-side -- no network dependency.
   const presets = getThemePresets();
@@ -60,7 +60,15 @@ export function ThemeEditor() {
             activeTab() === "custom" ? "bg-white text-ink shadow-sm" : "text-stone hover:text-ink"
           }`}
         >
-          Custom
+          Custom Colors
+        </button>
+        <button
+          onClick={() => setActiveTab("css")}
+          class={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            activeTab() === "css" ? "bg-white text-ink shadow-sm" : "text-stone hover:text-ink"
+          }`}
+        >
+          CSS
         </button>
       </div>
 
@@ -108,7 +116,7 @@ export function ThemeEditor() {
               </div>
             </Show>
 
-            {/* Custom Tab */}
+            {/* Custom Colors Tab */}
             <Show when={activeTab() === "custom"}>
               {/* Color Inputs */}
               <div class="grid grid-cols-3 gap-4">
@@ -128,6 +136,14 @@ export function ThemeEditor() {
                   onChange={(v) => updateTheme({ primary: v, preset: undefined })}
                 />
               </div>
+            </Show>
+
+            {/* Custom CSS Tab */}
+            <Show when={activeTab() === "css"}>
+              <CustomCssTab
+                css={resume().metadata.css}
+                onChange={(css) => updateMetadata("css", css)}
+              />
             </Show>
 
             {/* Preview */}
@@ -159,6 +175,71 @@ export function ThemeEditor() {
           </div>
         )}
       </Show>
+    </div>
+  );
+}
+
+interface CustomCssTabProps {
+  css: { value: string; visible: boolean };
+  onChange: (css: { value: string; visible: boolean }) => void;
+}
+
+function CustomCssTab(props: CustomCssTabProps) {
+  const toggleVisible = () => {
+    props.onChange({ ...props.css, visible: !props.css.visible });
+  };
+
+  const handleInput = (value: string) => {
+    props.onChange({ ...props.css, value });
+  };
+
+  return (
+    <div class="space-y-4">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <p class="text-sm font-medium text-ink">Enable custom CSS</p>
+          <p class="text-xs text-stone">Inject styles into HTML and print views</p>
+        </div>
+        <button
+          type="button"
+          role="button"
+          aria-pressed={props.css.visible}
+          aria-label="Enable custom CSS"
+          onClick={toggleVisible}
+          class={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${
+            props.css.visible ? "bg-accent" : "bg-border"
+          }`}
+        >
+          <span
+            class={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-paper shadow-sm transition-transform ${
+              props.css.visible ? "translate-x-4" : "translate-x-0"
+            }`}
+          />
+        </button>
+      </div>
+
+      <div class="space-y-2">
+        <label for="custom-css-input" class="font-mono text-xs uppercase tracking-wider text-stone block">
+          Custom CSS
+        </label>
+        <textarea
+          id="custom-css-input"
+          aria-label="Custom CSS"
+          value={props.css.value}
+          onInput={(e) => handleInput(e.currentTarget.value)}
+          rows={10}
+          spellcheck={false}
+          class="w-full px-3 py-2 text-xs font-mono bg-surface border border-border rounded-lg
+            focus:outline-none focus:border-accent resize-y min-h-[160px]"
+          placeholder={`.resume-title {\n  letter-spacing: 0.05em;\n}`}
+        />
+      </div>
+
+      <p class="text-xs text-stone leading-relaxed">
+        Custom CSS applies to HTML and print surfaces in the editor (for example browser print via
+        Cmd/Ctrl+P). The live preview image and PDF export use Typst templates and theme controls
+        instead — custom CSS does not affect PDF export.
+      </p>
     </div>
   );
 }

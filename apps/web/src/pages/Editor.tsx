@@ -26,6 +26,7 @@ import {
 import { resumeStore, isNotFoundError } from "../stores/resume";
 import { uiStore } from "../stores/ui";
 import { isWasmReady } from "../wasm";
+import { CustomCssInjector } from "../components/templates/CustomCssInjector";
 
 const Preview = lazy(() =>
   import("../components/preview").then((module) => ({ default: module.Preview })),
@@ -401,6 +402,7 @@ export default function Editor() {
 
   return (
     <div class="h-[calc(100vh-3.5rem)] flex flex-col">
+      <CustomCssInjector />
       {/* Toolbar */}
       <div class="h-12 border-b border-border bg-paper flex items-center justify-between px-4">
         <div class="flex items-center gap-2">
