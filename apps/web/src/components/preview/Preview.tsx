@@ -1,14 +1,21 @@
-import { createSignal, createEffect, Show } from "solid-js";
+import { createSignal, createEffect, onCleanup, untrack, Show } from "solid-js";
 import { toast } from "../ui";
 import { resumeStore } from "../../stores/resume";
 import { uiStore } from "../../stores/ui";
 import { renderPreview } from "../../api/render";
 import { useDebounce } from "../../hooks/useDebounce";
 import { useOnline } from "../../hooks/useOnline";
+import {
+  KEYBOARD_PAN_STEP,
+  clampPan,
+  isWheelZoomGesture,
+  shouldResetPan,
+  wheelZoomDelta,
+} from "./previewPan";
 
 export function Preview() {
   const { store } = resumeStore;
-  const { store: ui, setPreviewPage, zoomIn, zoomOut } = uiStore;
+  const { store: ui, setPreviewPage, setPreviewZoom, zoomIn, zoomOut } = uiStore;
   const isOnline = useOnline();
 
   const [previewUrl, setPreviewUrl] = createSignal<string | null>(null);
@@ -16,6 +23,49 @@ export function Preview() {
   const [error, setError] = createSignal<string | null>(null);
   const [lastCachedUrl, setLastCachedUrl] = createSignal<string | null>(null);
   const [totalPages, setTotalPages] = createSignal(1);
+  const [panX, setPanX] = createSignal(0);
+  const [panY, setPanY] = createSignal(0);
+  const [isDragging, setIsDragging] = createSignal(false);
+
+  let viewportRef: HTMLDivElement | undefined;
+  let dragStartX = 0;
+  let dragStartY = 0;
+  let panStartX = 0;
+  let panStartY = 0;
+  let activePointerId: number | null = null;
+
+  const applyPanClamp = (x: number, y: number, zoom = ui.previewZoom) => {
+    const viewport = viewportRef;
+    if (!viewport) return { x: 0, y: 0 };
+    return clampPan(x, y, zoom, viewport.clientWidth, viewport.clientHeight);
+  };
+
+  const resetPan = () => {
+    setPanX(0);
+    setPanY(0);
+  };
+
+  const reclampPan = (zoom = ui.previewZoom) => {
+    if (shouldResetPan(zoom)) {
+      resetPan();
+      return;
+    }
+    const clamped = applyPanClamp(untrack(panX), untrack(panY), zoom);
+    if (clamped.x !== untrack(panX) || clamped.y !== untrack(panY)) {
+      setPanX(clamped.x);
+      setPanY(clamped.y);
+    }
+  };
+
+  // Re-clamp only when zoom changes; pan updates are already clamped at write.
+  createEffect(() => reclampPan(ui.previewZoom));
+
+  // Viewport resizes can leave a previously valid pan out of bounds.
+  const resizeObserver = new ResizeObserver(() => reclampPan());
+  createEffect(() => {
+    if (viewportRef) resizeObserver.observe(viewportRef);
+  });
+  onCleanup(() => resizeObserver.disconnect());
 
   // Request ID to guard against race conditions
   let resumeRequestId = 0;
@@ -49,12 +99,77 @@ export function Preview() {
   };
 
   const handleWheel = (event: WheelEvent) => {
+    if (isWheelZoomGesture(event)) {
+      const nextZoom = wheelZoomDelta(event.deltaY, ui.previewZoom);
+      if (nextZoom !== ui.previewZoom) {
+        setPreviewZoom(nextZoom);
+      }
+      event.preventDefault();
+      return;
+    }
+
     if (Math.abs(event.deltaY) < 30) return;
     if (!goToPageWithCooldown(ui.previewPage + (event.deltaY > 0 ? 1 : -1))) return;
     event.preventDefault();
   };
 
+  const handlePointerDown = (event: PointerEvent) => {
+    if (ui.previewZoom <= 1 || event.button !== 0 || activePointerId !== null) return;
+
+    setIsDragging(true);
+    activePointerId = event.pointerId;
+    dragStartX = event.clientX;
+    dragStartY = event.clientY;
+    panStartX = panX();
+    panStartY = panY();
+    (event.currentTarget as HTMLDivElement).setPointerCapture(event.pointerId);
+    event.preventDefault();
+  };
+
+  const handlePointerMove = (event: PointerEvent) => {
+    if (!isDragging() || event.pointerId !== activePointerId) return;
+
+    const deltaX = event.clientX - dragStartX;
+    const deltaY = event.clientY - dragStartY;
+    const clamped = applyPanClamp(panStartX + deltaX, panStartY + deltaY);
+    setPanX(clamped.x);
+    setPanY(clamped.y);
+  };
+
+  const endDrag = (event: PointerEvent) => {
+    if (!isDragging() || event.pointerId !== activePointerId) return;
+
+    setIsDragging(false);
+    activePointerId = null;
+    const el = event.currentTarget as HTMLDivElement;
+    if (el.hasPointerCapture(event.pointerId)) {
+      el.releasePointerCapture(event.pointerId);
+    }
+  };
+
+  const handleDoubleClick = () => {
+    setPreviewZoom(1);
+    resetPan();
+  };
+
   const handleKeyDown = (event: KeyboardEvent) => {
+    // When zoomed in, arrow keys pan (keyboard equivalent of drag);
+    // at fit zoom, up/down keep navigating pages.
+    if (ui.previewZoom > 1) {
+      const pan: Record<string, [number, number]> = {
+        ArrowUp: [0, KEYBOARD_PAN_STEP],
+        ArrowDown: [0, -KEYBOARD_PAN_STEP],
+        ArrowLeft: [KEYBOARD_PAN_STEP, 0],
+        ArrowRight: [-KEYBOARD_PAN_STEP, 0],
+      };
+      const delta = pan[event.key];
+      if (!delta) return;
+      const clamped = applyPanClamp(panX() + delta[0], panY() + delta[1]);
+      setPanX(clamped.x);
+      setPanY(clamped.y);
+      event.preventDefault();
+      return;
+    }
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
     if (!goToPageWithCooldown(ui.previewPage + (event.key === "ArrowDown" ? 1 : -1))) return;
     event.preventDefault();
@@ -271,18 +386,40 @@ export function Preview() {
 
       {/* Preview Area */}
       <div
-        class="flex-1 overflow-auto p-6 flex items-start justify-center
+        ref={(el) => {
+          viewportRef = el;
+        }}
+        class="flex-1 p-6 flex items-start justify-center
           focus:outline-none focus-visible:ring-2 focus-visible:ring-accent
           focus-visible:ring-offset-2 focus-visible:ring-offset-paper"
+        classList={{
+          "overflow-auto": ui.previewZoom <= 1,
+          "overflow-hidden": ui.previewZoom > 1,
+          "cursor-grab": ui.previewZoom > 1 && !isDragging(),
+          "cursor-grabbing": isDragging(),
+          "select-none": ui.previewZoom > 1,
+        }}
+        style={{ "touch-action": ui.previewZoom > 1 ? "none" : "auto" }}
         tabIndex={0}
+        title={
+          ui.previewZoom > 1
+            ? "Drag or arrow keys to pan · Ctrl/Cmd+scroll to zoom · Double-click to reset"
+            : undefined
+        }
         onWheel={handleWheel}
         onKeyDown={handleKeyDown}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onDblClick={handleDoubleClick}
       >
         <div
           class="relative transition-[width,height] duration-200 origin-top"
           style={{
             width: `${595 * ui.previewZoom}px`,
             height: `${842 * ui.previewZoom}px`,
+            transform: `translate(${panX()}px, ${panY()}px)`,
           }}
         >
           {/* Paper Effect */}
