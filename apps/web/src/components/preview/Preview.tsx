@@ -1,4 +1,4 @@
-import { createSignal, createEffect, Show } from "solid-js";
+import { createSignal, createEffect, onCleanup, untrack, Show } from "solid-js";
 import { toast } from "../ui";
 import { resumeStore } from "../../stores/resume";
 import { uiStore } from "../../stores/ui";
@@ -6,6 +6,7 @@ import { renderPreview } from "../../api/render";
 import { useDebounce } from "../../hooks/useDebounce";
 import { useOnline } from "../../hooks/useOnline";
 import {
+  KEYBOARD_PAN_STEP,
   clampPan,
   isWheelZoomGesture,
   shouldResetPan,
@@ -31,6 +32,7 @@ export function Preview() {
   let dragStartY = 0;
   let panStartX = 0;
   let panStartY = 0;
+  let activePointerId: number | null = null;
 
   const applyPanClamp = (x: number, y: number, zoom = ui.previewZoom) => {
     const viewport = viewportRef;
@@ -43,18 +45,27 @@ export function Preview() {
     setPanY(0);
   };
 
-  createEffect(() => {
-    const zoom = ui.previewZoom;
+  const reclampPan = (zoom = ui.previewZoom) => {
     if (shouldResetPan(zoom)) {
       resetPan();
       return;
     }
-    const clamped = applyPanClamp(panX(), panY(), zoom);
-    if (clamped.x !== panX() || clamped.y !== panY()) {
+    const clamped = applyPanClamp(untrack(panX), untrack(panY), zoom);
+    if (clamped.x !== untrack(panX) || clamped.y !== untrack(panY)) {
       setPanX(clamped.x);
       setPanY(clamped.y);
     }
+  };
+
+  // Re-clamp only when zoom changes; pan updates are already clamped at write.
+  createEffect(() => reclampPan(ui.previewZoom));
+
+  // Viewport resizes can leave a previously valid pan out of bounds.
+  const resizeObserver = new ResizeObserver(() => reclampPan());
+  createEffect(() => {
+    if (viewportRef) resizeObserver.observe(viewportRef);
   });
+  onCleanup(() => resizeObserver.disconnect());
 
   // Request ID to guard against race conditions
   let resumeRequestId = 0;
@@ -103,9 +114,10 @@ export function Preview() {
   };
 
   const handlePointerDown = (event: PointerEvent) => {
-    if (ui.previewZoom <= 1 || event.button !== 0) return;
+    if (ui.previewZoom <= 1 || event.button !== 0 || activePointerId !== null) return;
 
     setIsDragging(true);
+    activePointerId = event.pointerId;
     dragStartX = event.clientX;
     dragStartY = event.clientY;
     panStartX = panX();
@@ -115,7 +127,7 @@ export function Preview() {
   };
 
   const handlePointerMove = (event: PointerEvent) => {
-    if (!isDragging()) return;
+    if (!isDragging() || event.pointerId !== activePointerId) return;
 
     const deltaX = event.clientX - dragStartX;
     const deltaY = event.clientY - dragStartY;
@@ -125,10 +137,14 @@ export function Preview() {
   };
 
   const endDrag = (event: PointerEvent) => {
-    if (!isDragging()) return;
+    if (!isDragging() || event.pointerId !== activePointerId) return;
 
     setIsDragging(false);
-    (event.currentTarget as HTMLDivElement).releasePointerCapture(event.pointerId);
+    activePointerId = null;
+    const el = event.currentTarget as HTMLDivElement;
+    if (el.hasPointerCapture(event.pointerId)) {
+      el.releasePointerCapture(event.pointerId);
+    }
   };
 
   const handleDoubleClick = () => {
@@ -137,6 +153,23 @@ export function Preview() {
   };
 
   const handleKeyDown = (event: KeyboardEvent) => {
+    // When zoomed in, arrow keys pan (keyboard equivalent of drag);
+    // at fit zoom, up/down keep navigating pages.
+    if (ui.previewZoom > 1) {
+      const pan: Record<string, [number, number]> = {
+        ArrowUp: [0, KEYBOARD_PAN_STEP],
+        ArrowDown: [0, -KEYBOARD_PAN_STEP],
+        ArrowLeft: [KEYBOARD_PAN_STEP, 0],
+        ArrowRight: [-KEYBOARD_PAN_STEP, 0],
+      };
+      const delta = pan[event.key];
+      if (!delta) return;
+      const clamped = applyPanClamp(panX() + delta[0], panY() + delta[1]);
+      setPanX(clamped.x);
+      setPanY(clamped.y);
+      event.preventDefault();
+      return;
+    }
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
     if (!goToPageWithCooldown(ui.previewPage + (event.key === "ArrowDown" ? 1 : -1))) return;
     event.preventDefault();
@@ -368,7 +401,11 @@ export function Preview() {
         }}
         style={{ "touch-action": ui.previewZoom > 1 ? "none" : "auto" }}
         tabIndex={0}
-        title={ui.previewZoom > 1 ? "Drag to pan · Ctrl+scroll to zoom · Double-click to reset" : undefined}
+        title={
+          ui.previewZoom > 1
+            ? "Drag or arrow keys to pan · Ctrl/Cmd+scroll to zoom · Double-click to reset"
+            : undefined
+        }
         onWheel={handleWheel}
         onKeyDown={handleKeyDown}
         onPointerDown={handlePointerDown}

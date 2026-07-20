@@ -9,7 +9,9 @@ export function shouldResetPan(zoom: number): boolean {
 
 /**
  * Clamp pan offset so the paper stays within the viewport when zoomed in.
- * Content is centered at rest; translate moves it relative to that center.
+ * The paper is horizontally centered but top-aligned at rest (`items-start
+ * justify-center`), so x pans symmetrically around the center while y may
+ * only move content up — just far enough to reveal the bottom edge.
  */
 export function clampPan(
   panX: number,
@@ -26,13 +28,17 @@ export function clampPan(
   const contentHeight = PREVIEW_PAGE_HEIGHT * zoom;
 
   const maxPanX = Math.max(0, (contentWidth - viewportWidth) / 2);
-  const maxPanY = Math.max(0, (contentHeight - viewportHeight) / 2);
+  const maxPanY = Math.max(0, contentHeight - viewportHeight);
 
   return {
     x: Math.max(-maxPanX, Math.min(maxPanX, panX)),
-    y: Math.max(-maxPanY, Math.min(maxPanY, panY)),
+    // `|| 0` normalizes the -0 that Math.max(-0, ...) can produce.
+    y: Math.max(-maxPanY, Math.min(0, panY)) || 0,
   };
 }
+
+/** Keyboard pan step in CSS pixels per arrow-key press. */
+export const KEYBOARD_PAN_STEP = 48;
 
 /** Ctrl/Meta + wheel zooms; plain wheel keeps page navigation. */
 export function isWheelZoomGesture(event: { ctrlKey: boolean; metaKey: boolean }): boolean {
