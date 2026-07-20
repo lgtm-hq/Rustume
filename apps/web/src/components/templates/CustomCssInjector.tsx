@@ -12,6 +12,11 @@ export function CustomCssInjector() {
       clearCustomCssStyle();
       return;
     }
+    // Inject unconditionally, even if no `[data-custom-css-root]` element is
+    // mounted yet: the CSS is wrapped in `@scope ([data-custom-css-root])`,
+    // so without a matching root it simply applies to nothing. This keeps the
+    // injector safe against pathological rules while staying render-order
+    // independent.
     syncCustomCssStyle(css.visible, css.value);
   });
 

@@ -1,17 +1,24 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { CUSTOM_CSS_STYLE_ID, clearCustomCssStyle, syncCustomCssStyle } from "../customCss";
+import {
+  CUSTOM_CSS_ROOT_ATTRIBUTE,
+  CUSTOM_CSS_STYLE_ID,
+  clearCustomCssStyle,
+  syncCustomCssStyle,
+} from "../customCss";
+
+const scoped = (value: string) => `@scope ([${CUSTOM_CSS_ROOT_ATTRIBUTE}]) {\n${value}\n}`;
 
 describe("customCss", () => {
   afterEach(() => {
     clearCustomCssStyle();
   });
 
-  it("injects a style element when visible with non-empty CSS", () => {
+  it("injects a style element scoped to the custom CSS root when visible", () => {
     syncCustomCssStyle(true, ".resume { color: red; }");
 
     const style = document.getElementById(CUSTOM_CSS_STYLE_ID);
     expect(style).toBeInstanceOf(HTMLStyleElement);
-    expect(style?.textContent).toBe(".resume { color: red; }");
+    expect(style?.textContent).toBe(scoped(".resume { color: red; }"));
   });
 
   it("removes the style element when disabled or empty", () => {
@@ -30,6 +37,6 @@ describe("customCss", () => {
 
     const styles = document.querySelectorAll(`#${CUSTOM_CSS_STYLE_ID}`);
     expect(styles.length).toBe(1);
-    expect(styles[0]?.textContent).toBe("a { color: green; }");
+    expect(styles[0]?.textContent).toBe(scoped("a { color: green; }"));
   });
 });

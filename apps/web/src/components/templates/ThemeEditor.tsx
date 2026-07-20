@@ -141,7 +141,7 @@ export function ThemeEditor() {
             {/* Custom CSS Tab */}
             <Show when={activeTab() === "css"}>
               <CustomCssTab
-                css={resume().metadata.css}
+                css={resume().metadata.css ?? { value: "", visible: false }}
                 onChange={(css) => updateMetadata("css", css)}
               />
             </Show>
@@ -202,7 +202,6 @@ function CustomCssTab(props: CustomCssTabProps) {
         </div>
         <button
           type="button"
-          role="button"
           aria-pressed={props.css.visible}
           aria-label="Enable custom CSS"
           onClick={toggleVisible}
@@ -219,7 +218,10 @@ function CustomCssTab(props: CustomCssTabProps) {
       </div>
 
       <div class="space-y-2">
-        <label for="custom-css-input" class="font-mono text-xs uppercase tracking-wider text-stone block">
+        <label
+          for="custom-css-input"
+          class="font-mono text-xs uppercase tracking-wider text-stone block"
+        >
           Custom CSS
         </label>
         <textarea
@@ -237,8 +239,9 @@ function CustomCssTab(props: CustomCssTabProps) {
 
       <p class="text-xs text-stone leading-relaxed">
         Custom CSS applies to HTML and print surfaces in the editor (for example browser print via
-        Cmd/Ctrl+P). The live preview image and PDF export use Typst templates and theme controls
-        instead — custom CSS does not affect PDF export.
+        Cmd/Ctrl+P). Selectors are scoped to the resume content area and cannot affect the app UI.
+        The live preview image and PDF export use Typst templates and theme controls instead —
+        custom CSS does not affect PDF export.
       </p>
     </div>
   );

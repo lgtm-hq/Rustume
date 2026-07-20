@@ -50,9 +50,12 @@ describe("ThemeEditor custom CSS tab", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "CSS" }));
 
+    expect(screen.getByText(/HTML and print surfaces/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/HTML and print surfaces/i),
+      screen.getByText(/scoped to the resume content area and cannot affect the app UI/i),
     ).toBeInTheDocument();
-    expect(screen.getByText(/PDF export use Typst templates and theme controls/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/PDF export use Typst templates and theme controls/i),
+    ).toBeInTheDocument();
   });
 });
