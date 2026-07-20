@@ -39,10 +39,22 @@ function buildHighlightSegments(text: string, indices: readonly [number, number]
   }
 
   const sorted = [...indices].sort((a, b) => a[0] - b[0]);
+  // Merge overlapping/adjacent ranges so a range starting before the cursor
+  // can't duplicate characters across two highlighted segments.
+  const merged: [number, number][] = [];
+  for (const [start, end] of sorted) {
+    const last = merged[merged.length - 1];
+    if (last && start <= last[1] + 1) {
+      last[1] = Math.max(last[1], end);
+    } else {
+      merged.push([start, end]);
+    }
+  }
+
   const segments: TextSegment[] = [];
   let cursor = 0;
 
-  for (const [start, end] of sorted) {
+  for (const [start, end] of merged) {
     if (start > cursor) {
       segments.push({ text: text.slice(cursor, start), highlighted: false });
     }

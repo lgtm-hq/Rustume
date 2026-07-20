@@ -242,8 +242,10 @@ export default function Home() {
           </button>
         </div>
 
-        <Show when={!loading() && (resumes()?.length ?? 0) > 0}>
-          <div class="mb-6">
+        {/* Keep the input mounted during background refreshes so it doesn't
+            flicker away and lose focus while a populated list reloads. */}
+        <Show when={(resumes()?.length ?? 0) > 0}>
+          <div class="mb-6" classList={{ "opacity-60 pointer-events-none": loading() }}>
             <Input
               label="Search resumes"
               type="text"
