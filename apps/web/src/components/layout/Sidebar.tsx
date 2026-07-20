@@ -50,6 +50,15 @@ export function Sidebar(props: SidebarProps) {
     setIsKeyboardFocused(false);
   };
 
+  // The <Show> wrapper hides the DOM without unmounting the component, so a
+  // pending leave-debounce could fire after the sidebar reappears. Reset
+  // hover state whenever the sidebar visibility toggles.
+  createEffect(() => {
+    void ui.sidebarOpen;
+    if (hoverTimeout) clearTimeout(hoverTimeout);
+    setIsHovered(false);
+  });
+
   onCleanup(() => {
     if (hoverTimeout) clearTimeout(hoverTimeout);
   });
