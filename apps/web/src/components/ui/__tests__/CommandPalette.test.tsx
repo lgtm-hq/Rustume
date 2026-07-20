@@ -34,9 +34,7 @@ describe("CommandPalette", () => {
   it("opens when command palette modal is active", () => {
     uiStore.openModal("commandPalette");
     render(() => (
-      <CommandPalette
-        actions={[{ id: "export-pdf", label: "Export PDF", handler: vi.fn() }]}
-      />
+      <CommandPalette actions={[{ id: "export-pdf", label: "Export PDF", handler: vi.fn() }]} />
     ));
 
     expect(screen.getByLabelText("Search commands")).toBeInTheDocument();
@@ -65,14 +63,56 @@ describe("CommandPalette", () => {
   it("executes selected action on click", () => {
     const handler = vi.fn();
     uiStore.openModal("commandPalette");
-    render(() => (
-      <CommandPalette actions={[{ id: "export-pdf", label: "Export PDF", handler }]} />
-    ));
+    render(() => <CommandPalette actions={[{ id: "export-pdf", label: "Export PDF", handler }]} />);
 
     fireEvent.click(screen.getByText("Export PDF"));
 
     expect(handler).toHaveBeenCalledTimes(1);
     expect(uiStore.store.modal).toBe(null);
+  });
+
+  it("executes action even when sessionStorage writes are blocked", () => {
+    const handler = vi.fn();
+    const setItemSpy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("storage blocked");
+    });
+    try {
+      uiStore.openModal("commandPalette");
+      render(() => (
+        <CommandPalette actions={[{ id: "export-pdf", label: "Export PDF", handler }]} />
+      ));
+
+      fireEvent.click(screen.getByText("Export PDF"));
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(uiStore.store.modal).toBe(null);
+    } finally {
+      setItemSpy.mockRestore();
+    }
+  });
+
+  it("wires combobox ARIA attributes to the listbox and options", () => {
+    uiStore.openModal("commandPalette");
+    render(() => (
+      <CommandPalette
+        actions={[
+          { id: "export-pdf", label: "Export PDF", handler: vi.fn() },
+          { id: "theme", label: "Change Theme", handler: vi.fn() },
+        ]}
+      />
+    ));
+
+    const input = screen.getByRole("combobox");
+    expect(input).toHaveAttribute("aria-expanded", "true");
+    expect(input).toHaveAttribute("aria-controls", "command-palette-listbox");
+    expect(input).toHaveAttribute("aria-activedescendant", "command-option-0");
+
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    expect(input).toHaveAttribute("aria-activedescendant", "command-option-1");
+
+    const options = screen.getAllByRole("option");
+    expect(options[0]).toHaveAttribute("id", "command-option-0");
+    expect(options[1]).toHaveAttribute("aria-selected", "true");
   });
 
   it("executes highlighted action on Enter", () => {

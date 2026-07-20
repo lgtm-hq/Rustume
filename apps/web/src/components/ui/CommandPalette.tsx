@@ -43,9 +43,13 @@ function getRecentIds(): string[] {
 }
 
 function pushRecent(id: string) {
-  const recent = getRecentIds().filter((entry) => entry !== id);
-  recent.unshift(id);
-  sessionStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(recent.slice(0, MAX_RECENT)));
+  try {
+    const recent = getRecentIds().filter((entry) => entry !== id);
+    recent.unshift(id);
+    sessionStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(recent.slice(0, MAX_RECENT)));
+  } catch {
+    // Storage may be blocked (private mode, disabled cookies) -- recents are best-effort.
+  }
 }
 
 export function CommandPalette(props: CommandPaletteProps) {
@@ -120,10 +124,10 @@ export function CommandPalette(props: CommandPaletteProps) {
   };
 
   const executeAction = (action: CommandAction) => {
-    pushRecent(action.id);
-    setRecentIds(getRecentIds());
     closeModal();
     action.handler();
+    pushRecent(action.id);
+    setRecentIds(getRecentIds());
   };
 
   const handleKeyDown = (event: KeyboardEvent) => {
@@ -153,6 +157,7 @@ export function CommandPalette(props: CommandPaletteProps) {
             class="bg-paper rounded-xl shadow-elevated w-full max-w-lg animate-slide-up overflow-hidden"
             onKeyDown={handleKeyDown}
           >
+            <Dialog.Title class="sr-only">Command palette</Dialog.Title>
             <div class="flex items-center gap-3 border-b border-border px-4 py-3">
               <svg
                 class="h-5 w-5 flex-shrink-0 text-stone"
@@ -176,6 +181,12 @@ export function CommandPalette(props: CommandPaletteProps) {
                 class="flex-1 bg-transparent text-sm text-ink placeholder:text-stone outline-none"
                 placeholder="Search commands..."
                 aria-label="Search commands"
+                role="combobox"
+                aria-expanded="true"
+                aria-controls="command-palette-listbox"
+                aria-activedescendant={
+                  filteredActions().length > 0 ? `command-option-${selectedIndex()}` : undefined
+                }
                 value={query()}
                 onInput={(event) => setQuery(event.currentTarget.value)}
               />
@@ -188,13 +199,16 @@ export function CommandPalette(props: CommandPaletteProps) {
               ref={(el) => {
                 listRef = el;
               }}
+              id="command-palette-listbox"
               class="max-h-80 overflow-y-auto p-2"
               role="listbox"
               aria-label="Commands"
             >
               <Show
                 when={filteredActions().length > 0}
-                fallback={<p class="px-3 py-6 text-center text-sm text-stone">No matching commands</p>}
+                fallback={
+                  <p class="px-3 py-6 text-center text-sm text-stone">No matching commands</p>
+                }
               >
                 <For each={filteredActions()}>
                   {(action, index) => (
@@ -205,12 +219,7 @@ export function CommandPalette(props: CommandPaletteProps) {
                         </div>
                       </Show>
                       <Show
-                        when={
-                          !query().trim() &&
-                          recentCount() > 0 &&
-                          index() === recentCount() &&
-                          index() < filteredActions().length
-                        }
+                        when={!query().trim() && recentCount() > 0 && index() === recentCount()}
                       >
                         <div class="px-3 pb-1 pt-3 text-[10px] font-mono uppercase tracking-wider text-stone/70">
                           All commands
@@ -219,6 +228,7 @@ export function CommandPalette(props: CommandPaletteProps) {
                       <button
                         type="button"
                         role="option"
+                        id={`command-option-${index()}`}
                         data-index={index()}
                         aria-selected={selectedIndex() === index()}
                         class={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors

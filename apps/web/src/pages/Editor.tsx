@@ -1,6 +1,22 @@
-import { createMemo, createSignal, lazy, onMount, Show, Suspense } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  lazy,
+  on,
+  onMount,
+  Show,
+  Suspense,
+} from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
-import { Button, toast, ShortcutsModal, Spinner, CommandPalette, type CommandAction } from "../components/ui";
+import {
+  Button,
+  toast,
+  ShortcutsModal,
+  Spinner,
+  CommandPalette,
+  type CommandAction,
+} from "../components/ui";
 import { useHotkeys, type Shortcut } from "../hooks/useHotkeys";
 import { useNavigationGuard } from "../hooks/useNavigationGuard";
 import { SplitPane } from "../components/layout/SplitPane";
@@ -24,6 +40,7 @@ import {
   CustomSectionsIndex,
 } from "../components/builder";
 import { resumeStore, isNotFoundError } from "../stores/resume";
+import { downloadResumeJson } from "../components/export/exportJson";
 import { uiStore } from "../stores/ui";
 import { generateId } from "../wasm/types";
 import { isWasmReady } from "../wasm";
@@ -347,7 +364,16 @@ export default function Editor() {
         id: "export-json",
         label: "Export JSON",
         group: "Actions",
-        handler: () => openModal("export"),
+        handler: () => {
+          if (!store.resume) return;
+          try {
+            downloadResumeJson(store.resume);
+            toast.success("JSON exported successfully");
+          } catch (error) {
+            console.error("Export error:", error);
+            toast.error(error instanceof Error ? error.message : "Failed to export JSON");
+          }
+        },
       },
       {
         id: "create-resume",
@@ -409,6 +435,22 @@ export default function Editor() {
   }
 
   onMount(attemptLoad);
+
+  // The router reuses this component on /edit/:id param changes (no remount),
+  // so reload when the id changes. Flush any pending autosave of the previous
+  // resume first so its in-flight edits are not lost when the store is replaced.
+  createEffect(
+    on(
+      () => params.id,
+      () => {
+        void (async () => {
+          if (store.isDirty) await resumeStore.forceSave();
+          await attemptLoad();
+        })();
+      },
+      { defer: true },
+    ),
+  );
 
   const renderTabContent = () => {
     switch (activeTab()) {
