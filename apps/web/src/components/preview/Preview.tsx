@@ -1,10 +1,11 @@
-import { createSignal, createEffect, Show } from "solid-js";
+import { createSignal, createEffect, Show, For, onCleanup } from "solid-js";
 import { toast } from "../ui";
 import { resumeStore } from "../../stores/resume";
 import { uiStore } from "../../stores/ui";
 import { renderPreview } from "../../api/render";
 import { useDebounce } from "../../hooks/useDebounce";
 import { useOnline } from "../../hooks/useOnline";
+import { clearPrintPageFormat, setPrintPageFormat } from "../../lib/printFormat";
 
 export function Preview() {
   const { store } = resumeStore;
@@ -16,6 +17,9 @@ export function Preview() {
   const [error, setError] = createSignal<string | null>(null);
   const [lastCachedUrl, setLastCachedUrl] = createSignal<string | null>(null);
   const [totalPages, setTotalPages] = createSignal(1);
+  const [printPageUrls, setPrintPageUrls] = createSignal<string[]>([]);
+
+  let printPagesRequestId = 0;
 
   // Request ID to guard against race conditions
   let resumeRequestId = 0;
@@ -173,10 +177,68 @@ export function Preview() {
       });
   });
 
+
+  createEffect(() => {
+    setPrintPageFormat(store.resume?.metadata.page.format ?? "a4");
+  });
+
+  onCleanup(() => {
+    clearPrintPageFormat();
+  });
+
+  createEffect(() => {
+    const resume = store.resume;
+    const count = totalPages();
+    const currentPage = ui.previewPage;
+    const currentUrl = previewUrl();
+
+    if (!resume || !currentUrl) {
+      setPrintPageUrls([]);
+      return;
+    }
+
+    if (!isOnline()) {
+      setPrintPageUrls([currentUrl]);
+      return;
+    }
+
+    const requestId = ++printPagesRequestId;
+
+    void (async () => {
+      try {
+        const urls = await Promise.all(
+          Array.from({ length: count }, async (_, page) => {
+            if (page === currentPage) return currentUrl;
+            const result = await renderPreview(resume, page);
+            return result.url;
+          }),
+        );
+        if (requestId === printPagesRequestId) {
+          setPrintPageUrls(urls);
+        }
+      } catch (printError) {
+        console.error("Failed to load print pages:", printError);
+        if (requestId === printPagesRequestId) {
+          setPrintPageUrls([currentUrl]);
+        }
+      }
+    })();
+  });
+
   return (
     <div class="h-full flex flex-col bg-stone/5">
+      <div data-print-stack aria-hidden="true">
+        <For each={printPageUrls()}>
+          {(url) => (
+            <div data-print-root class="bg-white">
+              <img src={url} alt="Resume page" />
+            </div>
+          )}
+        </For>
+      </div>
+
       {/* Controls */}
-      <div class="flex items-center justify-between px-4 py-2 border-b border-border bg-paper">
+      <div class="flex items-center justify-between px-4 py-2 border-b border-border bg-paper" data-print-hide>
         <div class="flex items-center gap-2">
           <button
             type="button"
@@ -274,6 +336,7 @@ export function Preview() {
         class="flex-1 overflow-auto p-6 flex items-start justify-center
           focus:outline-none focus-visible:ring-2 focus-visible:ring-accent
           focus-visible:ring-offset-2 focus-visible:ring-offset-paper"
+        data-print-screen
         tabIndex={0}
         onWheel={handleWheel}
         onKeyDown={handleKeyDown}
@@ -287,6 +350,7 @@ export function Preview() {
         >
           {/* Paper Effect */}
           <div
+            data-print-root
             class="bg-white rounded-sm shadow-paper paper-texture
               transition-all duration-300 hover:shadow-elevated
               hover:rotate-[0.3deg]"
