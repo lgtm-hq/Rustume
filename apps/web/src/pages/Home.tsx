@@ -1,9 +1,30 @@
-import { For, Show, createSignal } from "solid-js";
+import { For, Show, createEffect, createMemo, createSignal } from "solid-js";
 import { A, useNavigate } from "@solidjs/router";
-import { Button, Spinner, toast } from "../components/ui";
+import { Button, Input, Spinner, toast } from "../components/ui";
+import {
+  filterResumes,
+  getStoredSearchQuery,
+  setStoredSearchQuery,
+  type TextSegment,
+} from "../lib/resumeSearch";
 import { useResumeList } from "../stores/persistence";
 import { authStore } from "../stores/auth";
 import { generateId } from "../wasm/types";
+
+
+function HighlightedText(props: { segments: TextSegment[] }) {
+  return (
+    <For each={props.segments}>
+      {(segment) =>
+        segment.highlighted ? (
+          <mark class="text-accent bg-accent/10 rounded-sm">{segment.text}</mark>
+        ) : (
+          <>{segment.text}</>
+        )
+      }
+    </For>
+  );
+}
 
 /** Format a Date as a human-readable relative or absolute string. */
 function formatUpdatedAt(date: Date): string {
@@ -42,6 +63,13 @@ export default function Home() {
   const [renamingId, setRenamingId] = createSignal<string | null>(null);
   const [renameValue, setRenameValue] = createSignal("");
   const [signingIn, setSigningIn] = createSignal(false);
+  const [searchQuery, setSearchQuery] = createSignal(getStoredSearchQuery());
+
+  createEffect(() => {
+    setStoredSearchQuery(searchQuery());
+  });
+
+  const filteredResumes = createMemo(() => filterResumes(resumes() ?? [], searchQuery()));
 
   const showCloudSignInCta = () =>
     authState.cloudEnabled && !authState.requireAuth && !authState.loading && !authState.user;
@@ -185,7 +213,7 @@ export default function Home() {
 
       {/* Resume List */}
       <div class="max-w-4xl mx-auto px-4 pb-16">
-        <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center justify-between mb-4">
           <h2 class="font-display text-xl font-semibold text-ink">Your Resumes</h2>
           <button
             type="button"
@@ -210,6 +238,20 @@ export default function Home() {
             </svg>
           </button>
         </div>
+
+        <Show when={!loading() && (resumes()?.length ?? 0) > 0}>
+          <div class="mb-6">
+            <Input
+              label="Search resumes"
+              type="text"
+              placeholder="Search by title or name…"
+              value={searchQuery()}
+              onInput={setSearchQuery}
+              class="max-w-md"
+              data-testid="resume-search-input"
+            />
+          </div>
+        </Show>
 
         <Show
           when={!loading()}
@@ -247,9 +289,23 @@ export default function Home() {
               </div>
             }
           >
-            <div class="grid gap-4 stagger-children">
-              <For each={resumes()}>
-                {(resume) => (
+            <Show
+              when={filteredResumes().length > 0}
+              fallback={
+                <div
+                  class="text-center py-16 border-2 border-dashed border-border rounded-xl"
+                  data-testid="resume-search-empty"
+                >
+                  <h3 class="font-display text-lg font-semibold text-ink mb-2">No matching resumes</h3>
+                  <p class="text-stone text-sm">
+                    No resumes match &ldquo;{searchQuery().trim()}&rdquo;. Try a different search.
+                  </p>
+                </div>
+              }
+            >
+              <div class="grid gap-4 stagger-children">
+                <For each={filteredResumes()}>
+                  {({ resume, nameSegments }) => (
                   <div
                     class="group flex items-center justify-between p-4 border border-border
                       rounded-xl hover:border-accent hover:shadow-card transition-all bg-paper"
@@ -356,7 +412,7 @@ export default function Home() {
                         </div>
                         <div class="min-w-0">
                           <h3 class="font-body font-medium text-ink group-hover:text-accent transition-colors truncate">
-                            {resume.name}
+                            <HighlightedText segments={nameSegments} />
                           </h3>
                           <p class="text-sm text-stone">
                             Updated {formatUpdatedAt(resume.updatedAt)}
@@ -475,9 +531,10 @@ export default function Home() {
                       </A>
                     </div>
                   </div>
-                )}
-              </For>
-            </div>
+                  )}
+                </For>
+              </div>
+            </Show>
           </Show>
         </Show>
       </div>
