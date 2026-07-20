@@ -422,8 +422,11 @@ export function Preview() {
             transform: `translate(${panX()}px, ${panY()}px)`,
           }}
         >
-          {/* Paper Effect */}
+          {/* Paper Effect — marked as the custom CSS root so user CSS
+              (scoped via @scope in lib/customCss.ts) can style the resume
+              paper surface but never the surrounding app UI. */}
           <div
+            data-custom-css-root
             class="bg-white rounded-sm shadow-paper paper-texture
               transition-all duration-300 hover:shadow-elevated
               hover:rotate-[0.3deg]"
