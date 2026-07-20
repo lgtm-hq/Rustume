@@ -181,12 +181,28 @@ export function Preview() {
   });
 
   createEffect(() => {
-    setPrintPageFormat(store.resume?.metadata.page.format ?? "a4");
+    const format = store.resume?.metadata.page.format;
+    if (format) {
+      setPrintPageFormat(format);
+    } else {
+      clearPrintPageFormat();
+    }
   });
 
   onCleanup(() => {
     clearPrintPageFormat();
   });
+
+  // The multi-page prefetch is debounced, so a print triggered inside that
+  // window can go out with pages missing — warn rather than print silently
+  // incomplete output.
+  const handleBeforePrint = () => {
+    if (totalPages() > 1 && printPageUrls().length < totalPages()) {
+      toast.error("Print pages are still loading — some pages may be missing");
+    }
+  };
+  window.addEventListener("beforeprint", handleBeforePrint);
+  onCleanup(() => window.removeEventListener("beforeprint", handleBeforePrint));
 
   // Always keep the current page's URL in the print stack synchronously so
   // single-page printing never regresses while the multi-page prefetch idles.
