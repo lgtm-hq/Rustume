@@ -2,6 +2,7 @@ import { For, Show, createEffect, createMemo, createSignal } from "solid-js";
 import { A, useNavigate } from "@solidjs/router";
 import { Button, Input, Spinner, toast } from "../components/ui";
 import {
+  createResumeSearchIndex,
   filterResumes,
   getStoredSearchQuery,
   setStoredSearchQuery,
@@ -10,7 +11,6 @@ import {
 import { useResumeList } from "../stores/persistence";
 import { authStore } from "../stores/auth";
 import { generateId } from "../wasm/types";
-
 
 function HighlightedText(props: { segments: TextSegment[] }) {
   return (
@@ -69,7 +69,10 @@ export default function Home() {
     setStoredSearchQuery(searchQuery());
   });
 
-  const filteredResumes = createMemo(() => filterResumes(resumes() ?? [], searchQuery()));
+  // Build the Fuse index only when the resume list changes; re-run the search
+  // separately as the query changes.
+  const searchIndex = createMemo(() => createResumeSearchIndex(resumes() ?? []));
+  const filteredResumes = createMemo(() => filterResumes(searchIndex(), searchQuery()));
 
   const showCloudSignInCta = () =>
     authState.cloudEnabled && !authState.requireAuth && !authState.loading && !authState.user;
@@ -296,7 +299,9 @@ export default function Home() {
                   class="text-center py-16 border-2 border-dashed border-border rounded-xl"
                   data-testid="resume-search-empty"
                 >
-                  <h3 class="font-display text-lg font-semibold text-ink mb-2">No matching resumes</h3>
+                  <h3 class="font-display text-lg font-semibold text-ink mb-2">
+                    No matching resumes
+                  </h3>
                   <p class="text-stone text-sm">
                     No resumes match &ldquo;{searchQuery().trim()}&rdquo;. Try a different search.
                   </p>
@@ -306,17 +311,100 @@ export default function Home() {
               <div class="grid gap-4 stagger-children">
                 <For each={filteredResumes()}>
                   {({ resume, nameSegments }) => (
-                  <div
-                    class="group flex items-center justify-between p-4 border border-border
+                    <div
+                      class="group flex items-center justify-between p-4 border border-border
                       rounded-xl hover:border-accent hover:shadow-card transition-all bg-paper"
-                  >
-                    <Show
-                      when={renamingId() !== resume.id}
-                      fallback={
-                        <div class="flex items-center gap-4 flex-1 min-w-0">
+                    >
+                      <Show
+                        when={renamingId() !== resume.id}
+                        fallback={
+                          <div class="flex items-center gap-4 flex-1 min-w-0">
+                            <div class="w-12 h-12 bg-surface rounded-lg flex items-center justify-center flex-shrink-0">
+                              <svg
+                                class="w-6 h-6 text-stone"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                              >
+                                <path
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                  stroke-width="1.5"
+                                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                />
+                              </svg>
+                            </div>
+                            <div class="min-w-0 flex items-center gap-2">
+                              <input
+                                type="text"
+                                class="font-body font-medium text-ink bg-surface border border-border
+                                rounded px-2 py-0.5 text-sm focus:outline-none focus:border-accent w-48"
+                                aria-label="Rename resume"
+                                value={renameValue()}
+                                onInput={(e) => setRenameValue(e.currentTarget.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") confirmRename(resume.id);
+                                  if (e.key === "Escape") cancelRename();
+                                }}
+                                ref={(el) => setTimeout(() => el?.focus(), 0)}
+                                data-testid="rename-input"
+                              />
+                              <button
+                                type="button"
+                                class="p-1 text-accent hover:text-accent/80 transition-colors"
+                                onClick={() => confirmRename(resume.id)}
+                                title="Confirm rename"
+                                aria-label="Confirm rename"
+                              >
+                                <svg
+                                  class="w-4 h-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                  aria-hidden="true"
+                                >
+                                  <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M5 13l4 4L19 7"
+                                  />
+                                </svg>
+                              </button>
+                              <button
+                                type="button"
+                                class="p-1 text-stone hover:text-ink transition-colors"
+                                onClick={() => cancelRename()}
+                                title="Cancel rename"
+                                aria-label="Cancel rename"
+                              >
+                                <svg
+                                  class="w-4 h-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                  aria-hidden="true"
+                                >
+                                  <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        }
+                      >
+                        <A
+                          href={`/edit/${resume.id}`}
+                          class="flex items-center gap-4 flex-1 min-w-0"
+                        >
                           <div class="w-12 h-12 bg-surface rounded-lg flex items-center justify-center flex-shrink-0">
                             <svg
-                              class="w-6 h-6 text-stone"
+                              class="w-6 h-6 text-stone group-hover:text-accent transition-colors"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -330,139 +418,30 @@ export default function Home() {
                               />
                             </svg>
                           </div>
-                          <div class="min-w-0 flex items-center gap-2">
-                            <input
-                              type="text"
-                              class="font-body font-medium text-ink bg-surface border border-border
-                                rounded px-2 py-0.5 text-sm focus:outline-none focus:border-accent w-48"
-                              aria-label="Rename resume"
-                              value={renameValue()}
-                              onInput={(e) => setRenameValue(e.currentTarget.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") confirmRename(resume.id);
-                                if (e.key === "Escape") cancelRename();
-                              }}
-                              ref={(el) => setTimeout(() => el?.focus(), 0)}
-                              data-testid="rename-input"
-                            />
-                            <button
-                              type="button"
-                              class="p-1 text-accent hover:text-accent/80 transition-colors"
-                              onClick={() => confirmRename(resume.id)}
-                              title="Confirm rename"
-                              aria-label="Confirm rename"
-                            >
-                              <svg
-                                class="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                                aria-hidden="true"
-                              >
-                                <path
-                                  stroke-linecap="round"
-                                  stroke-linejoin="round"
-                                  stroke-width="2"
-                                  d="M5 13l4 4L19 7"
-                                />
-                              </svg>
-                            </button>
-                            <button
-                              type="button"
-                              class="p-1 text-stone hover:text-ink transition-colors"
-                              onClick={() => cancelRename()}
-                              title="Cancel rename"
-                              aria-label="Cancel rename"
-                            >
-                              <svg
-                                class="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                                aria-hidden="true"
-                              >
-                                <path
-                                  stroke-linecap="round"
-                                  stroke-linejoin="round"
-                                  stroke-width="2"
-                                  d="M6 18L18 6M6 6l12 12"
-                                />
-                              </svg>
-                            </button>
+                          <div class="min-w-0">
+                            <h3 class="font-body font-medium text-ink group-hover:text-accent transition-colors truncate">
+                              <HighlightedText segments={nameSegments} />
+                            </h3>
+                            <p class="text-sm text-stone">
+                              Updated {formatUpdatedAt(resume.updatedAt)}
+                            </p>
                           </div>
-                        </div>
-                      }
-                    >
-                      <A href={`/edit/${resume.id}`} class="flex items-center gap-4 flex-1 min-w-0">
-                        <div class="w-12 h-12 bg-surface rounded-lg flex items-center justify-center flex-shrink-0">
-                          <svg
-                            class="w-6 h-6 text-stone group-hover:text-accent transition-colors"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            aria-hidden="true"
-                          >
-                            <path
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="1.5"
-                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                            />
-                          </svg>
-                        </div>
-                        <div class="min-w-0">
-                          <h3 class="font-body font-medium text-ink group-hover:text-accent transition-colors truncate">
-                            <HighlightedText segments={nameSegments} />
-                          </h3>
-                          <p class="text-sm text-stone">
-                            Updated {formatUpdatedAt(resume.updatedAt)}
-                          </p>
-                        </div>
-                      </A>
-                    </Show>
+                        </A>
+                      </Show>
 
-                    <div class="flex items-center gap-2 flex-shrink-0">
-                      <button
-                        type="button"
-                        class="p-2 text-stone hover:text-accent hover:bg-accent/10 rounded-lg transition-colors
+                      <div class="flex items-center gap-2 flex-shrink-0">
+                        <button
+                          type="button"
+                          class="p-2 text-stone hover:text-accent hover:bg-accent/10 rounded-lg transition-colors
                           disabled:opacity-50 disabled:cursor-not-allowed"
-                        onClick={(e) => startRename(resume.id, resume.name, e)}
-                        disabled={
-                          deletingId() !== null || duplicatingId() !== null || renamingId() !== null
-                        }
-                        title="Rename"
-                        aria-label="Rename resume"
-                      >
-                        <svg
-                          class="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          aria-hidden="true"
-                        >
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                          />
-                        </svg>
-                      </button>
-
-                      <button
-                        type="button"
-                        class="p-2 text-stone hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors
-                          disabled:opacity-50 disabled:cursor-not-allowed"
-                        onClick={(e) => handleDelete(resume.id, e)}
-                        disabled={
-                          deletingId() !== null || duplicatingId() !== null || renamingId() !== null
-                        }
-                        title="Delete"
-                        aria-label="Delete resume"
-                      >
-                        <Show
-                          when={deletingId() !== resume.id}
-                          fallback={<Spinner class="w-5 h-5" />}
+                          onClick={(e) => startRename(resume.id, resume.name, e)}
+                          disabled={
+                            deletingId() !== null ||
+                            duplicatingId() !== null ||
+                            renamingId() !== null
+                          }
+                          title="Rename"
+                          aria-label="Rename resume"
                         >
                           <svg
                             class="w-5 h-5"
@@ -475,29 +454,86 @@ export default function Home() {
                               stroke-linecap="round"
                               stroke-linejoin="round"
                               stroke-width="2"
-                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                             />
                           </svg>
-                        </Show>
-                      </button>
+                        </button>
 
-                      <button
-                        type="button"
-                        class="p-2 text-stone hover:text-accent hover:bg-accent/10 rounded-lg transition-colors
+                        <button
+                          type="button"
+                          class="p-2 text-stone hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors
                           disabled:opacity-50 disabled:cursor-not-allowed"
-                        onClick={(e) => handleDuplicate(resume.id, e)}
-                        disabled={
-                          duplicatingId() !== null || deletingId() !== null || renamingId() !== null
-                        }
-                        title="Duplicate"
-                        aria-label="Duplicate resume"
-                      >
-                        <Show
-                          when={duplicatingId() !== resume.id}
-                          fallback={<Spinner class="w-5 h-5" />}
+                          onClick={(e) => handleDelete(resume.id, e)}
+                          disabled={
+                            deletingId() !== null ||
+                            duplicatingId() !== null ||
+                            renamingId() !== null
+                          }
+                          title="Delete"
+                          aria-label="Delete resume"
+                        >
+                          <Show
+                            when={deletingId() !== resume.id}
+                            fallback={<Spinner class="w-5 h-5" />}
+                          >
+                            <svg
+                              class="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                              aria-hidden="true"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                          </Show>
+                        </button>
+
+                        <button
+                          type="button"
+                          class="p-2 text-stone hover:text-accent hover:bg-accent/10 rounded-lg transition-colors
+                          disabled:opacity-50 disabled:cursor-not-allowed"
+                          onClick={(e) => handleDuplicate(resume.id, e)}
+                          disabled={
+                            duplicatingId() !== null ||
+                            deletingId() !== null ||
+                            renamingId() !== null
+                          }
+                          title="Duplicate"
+                          aria-label="Duplicate resume"
+                        >
+                          <Show
+                            when={duplicatingId() !== resume.id}
+                            fallback={<Spinner class="w-5 h-5" />}
+                          >
+                            <svg
+                              class="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                              aria-hidden="true"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                              />
+                            </svg>
+                          </Show>
+                        </button>
+
+                        <A
+                          href={`/edit/${resume.id}`}
+                          class="p-1"
+                          aria-label={`Edit ${resume.name}`}
                         >
                           <svg
-                            class="w-5 h-5"
+                            class="w-5 h-5 text-stone group-hover:text-accent transition-colors"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -507,30 +543,12 @@ export default function Home() {
                               stroke-linecap="round"
                               stroke-linejoin="round"
                               stroke-width="2"
-                              d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                              d="M9 5l7 7-7 7"
                             />
                           </svg>
-                        </Show>
-                      </button>
-
-                      <A href={`/edit/${resume.id}`} class="p-1" aria-label={`Edit ${resume.name}`}>
-                        <svg
-                          class="w-5 h-5 text-stone group-hover:text-accent transition-colors"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          aria-hidden="true"
-                        >
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M9 5l7 7-7 7"
-                          />
-                        </svg>
-                      </A>
+                        </A>
+                      </div>
                     </div>
-                  </div>
                   )}
                 </For>
               </div>

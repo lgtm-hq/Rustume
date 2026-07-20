@@ -33,10 +33,7 @@ export interface FilteredResumeItem {
   nameSegments: TextSegment[];
 }
 
-function buildHighlightSegments(
-  text: string,
-  indices: readonly [number, number][],
-): TextSegment[] {
+function buildHighlightSegments(text: string, indices: readonly [number, number][]): TextSegment[] {
   if (!indices.length) {
     return [{ text, highlighted: false }];
   }
@@ -60,27 +57,52 @@ function buildHighlightSegments(
   return segments.filter((segment) => segment.text.length > 0);
 }
 
-/** Fuzzy-filter resumes by title/name and return highlight segments for matches. */
-export function filterResumes(
-  resumes: ResumeListItem[],
-  query: string,
-): FilteredResumeItem[] {
+/** Strip diacritics so e.g. "jose" matches "José". */
+function foldDiacritics(text: string): string {
+  return text.normalize("NFD").replace(/\p{M}/gu, "");
+}
+
+export interface ResumeSearchIndex {
+  resumes: ResumeListItem[];
+  fuse: Fuse<ResumeListItem>;
+}
+
+/** Build a reusable Fuse index over resume title, basics.name, and headline. */
+export function createResumeSearchIndex(resumes: ResumeListItem[]): ResumeSearchIndex {
+  const fuse = new Fuse(resumes, {
+    keys: [
+      { name: "name", weight: 2 },
+      { name: "basicsName", weight: 2 },
+      { name: "headline", weight: 1 },
+    ],
+    threshold: 0.4,
+    includeMatches: true,
+    ignoreLocation: true,
+    minMatchCharLength: 2,
+    getFn: (obj, path) => {
+      const key = Array.isArray(path) ? path.join(".") : path;
+      const value = (obj as unknown as Record<string, unknown>)[key];
+      return typeof value === "string" ? foldDiacritics(value) : "";
+    },
+  });
+  return { resumes, fuse };
+}
+
+/**
+ * Fuzzy-filter resumes against a prebuilt index and return highlight segments.
+ * Highlighting applies to the displayed name only; matches on hidden fields
+ * (basics.name, headline) include the item without marks.
+ */
+export function filterResumes(index: ResumeSearchIndex, query: string): FilteredResumeItem[] {
   const trimmed = query.trim();
   if (!trimmed) {
-    return resumes.map((resume) => ({
+    return index.resumes.map((resume) => ({
       resume,
       nameSegments: [{ text: resume.name, highlighted: false }],
     }));
   }
 
-  const fuse = new Fuse(resumes, {
-    keys: ["name"],
-    threshold: 0.4,
-    includeMatches: true,
-    ignoreLocation: true,
-  });
-
-  return fuse.search(trimmed).map((result) => {
+  return index.fuse.search(foldDiacritics(trimmed)).map((result) => {
     const nameMatch = result.matches?.find((match) => match.key === "name");
     const nameSegments = nameMatch
       ? buildHighlightSegments(result.item.name, nameMatch.indices)
