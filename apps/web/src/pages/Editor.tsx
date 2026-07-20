@@ -1,6 +1,6 @@
 import { createMemo, createSignal, lazy, onMount, Show, Suspense } from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
-import { Button, toast, ShortcutsModal, Spinner } from "../components/ui";
+import { Button, toast, ShortcutsModal, Spinner, CommandPalette, type CommandAction } from "../components/ui";
 import { useHotkeys, type Shortcut } from "../hooks/useHotkeys";
 import { useNavigationGuard } from "../hooks/useNavigationGuard";
 import { SplitPane } from "../components/layout/SplitPane";
@@ -25,6 +25,7 @@ import {
 } from "../components/builder";
 import { resumeStore, isNotFoundError } from "../stores/resume";
 import { uiStore } from "../stores/ui";
+import { generateId } from "../wasm/types";
 import { isWasmReady } from "../wasm";
 
 const Preview = lazy(() =>
@@ -234,6 +235,13 @@ export default function Editor() {
 
   const shortcuts: Shortcut[] = [
     {
+      key: "k",
+      mod: true,
+      handler: () => openModal("commandPalette"),
+      label: "Command palette",
+      category: "General",
+    },
+    {
       key: "s",
       mod: true,
       handler: () => {
@@ -290,6 +298,72 @@ export default function Editor() {
 
   useHotkeys(shortcuts);
   useNavigationGuard(() => store.isDirty);
+
+  const commandActions = createMemo<CommandAction[]>(() => {
+    const sectionActions: CommandAction[] = sidebarItems().flatMap((item) => {
+      const actions: CommandAction[] = [
+        {
+          id: `section:${item.id}`,
+          label: `Go to ${item.label}`,
+          group: "Sections",
+          keywords: item.label,
+          handler: () => setActiveTab(item.id as EditorTab),
+        },
+      ];
+
+      for (const child of item.children ?? []) {
+        actions.push({
+          id: `section:${child.id}`,
+          label: `Go to ${child.label}`,
+          group: "Sections",
+          keywords: child.label,
+          handler: () => setActiveTab(child.id as EditorTab),
+        });
+      }
+
+      return actions;
+    });
+
+    return [
+      {
+        id: "template",
+        label: "Switch Template",
+        group: "Actions",
+        handler: () => openModal("template"),
+      },
+      {
+        id: "theme",
+        label: "Change Theme",
+        group: "Actions",
+        handler: () => setActiveTab("theme"),
+      },
+      {
+        id: "export-pdf",
+        label: "Export PDF",
+        group: "Actions",
+        handler: () => openModal("export"),
+      },
+      {
+        id: "export-json",
+        label: "Export JSON",
+        group: "Actions",
+        handler: () => openModal("export"),
+      },
+      {
+        id: "create-resume",
+        label: "Create Resume",
+        group: "Actions",
+        handler: () => navigate(`/edit/${generateId()}`),
+      },
+      {
+        id: "toggle-sidebar",
+        label: "Toggle Sidebar",
+        group: "Actions",
+        handler: () => uiStore.toggleSidebar(),
+      },
+      ...sectionActions,
+    ];
+  });
 
   async function attemptLoad() {
     if (!params.id) {
@@ -597,6 +671,7 @@ export default function Editor() {
         </Suspense>
       </Show>
       <ShortcutsModal shortcuts={shortcuts} />
+      <CommandPalette actions={commandActions()} />
     </div>
   );
 }

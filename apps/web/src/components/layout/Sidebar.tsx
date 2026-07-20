@@ -1,5 +1,6 @@
 import { For, Show, createSignal, createEffect, onCleanup } from "solid-js";
 import { Tooltip } from "@kobalte/core/tooltip";
+import { uiStore } from "../../stores/ui";
 
 export interface SidebarItem {
   id: string;
@@ -16,6 +17,7 @@ interface SidebarProps {
 }
 
 export function Sidebar(props: SidebarProps) {
+  const { store: ui } = uiStore;
   const [isPinned, setIsPinned] = createSignal(false);
   const [isHovered, setIsHovered] = createSignal(false);
   const [isKeyboardFocused, setIsKeyboardFocused] = createSignal(false);
@@ -68,14 +70,15 @@ export function Sidebar(props: SidebarProps) {
   );
 
   return (
-    <div
-      class="h-full bg-surface border-r border-border flex flex-col py-2 transition-all duration-200 ease-out"
-      style={{ width: isExpanded() ? "180px" : "56px" }}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      onFocusIn={() => setIsKeyboardFocused(true)}
-      onFocusOut={handleFocusOut}
-    >
+    <Show when={ui.sidebarOpen}>
+      <div
+        class="h-full bg-surface border-r border-border flex flex-col py-2 transition-all duration-200 ease-out"
+        style={{ width: isExpanded() ? "180px" : "56px" }}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onFocusIn={() => setIsKeyboardFocused(true)}
+        onFocusOut={handleFocusOut}
+      >
       {/* Pin Button */}
       <div class="px-2 mb-2">
         <button
@@ -202,6 +205,7 @@ export function Sidebar(props: SidebarProps) {
           )}
         </For>
       </nav>
-    </div>
+      </div>
+    </Show>
   );
 }

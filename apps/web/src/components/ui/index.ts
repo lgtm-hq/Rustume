@@ -12,3 +12,4 @@ export { Switch, type SwitchProps } from "./Switch";
 export { Spinner, type SpinnerProps } from "./Spinner";
 export { ToastRegion, toast } from "./Toast";
 export { ShortcutsModal, type ShortcutsModalProps } from "./ShortcutsModal";
+export { CommandPalette, fuzzyMatch, type CommandAction, type CommandPaletteProps } from "./CommandPalette";
