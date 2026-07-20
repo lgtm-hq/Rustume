@@ -400,8 +400,10 @@ body {
     padding: 0 !important;
     width: 100% !important;
     max-width: none !important;
-    height: auto !important;
-    overflow: visible !important;
+    /* 100vh equals the page box height in print context; hard-constrain so a
+       rounding pixel of overflow can't insert blank interleaved sheets. */
+    height: 100vh !important;
+    overflow: hidden !important;
     background: #fff !important;
     transform: none !important;
     rotate: none !important;
@@ -423,7 +425,7 @@ body {
   [data-print-root] img {
     display: block;
     width: 100%;
-    height: auto;
+    height: 100%;
     max-width: 100%;
     object-fit: contain;
   }

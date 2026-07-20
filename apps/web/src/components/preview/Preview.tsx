@@ -1,4 +1,4 @@
-import { createSignal, createEffect, Show, For, onCleanup } from "solid-js";
+import { createSignal, createEffect, Show, For, onCleanup, untrack } from "solid-js";
 import { toast } from "../ui";
 import { resumeStore } from "../../stores/resume";
 import { uiStore } from "../../stores/ui";
@@ -20,6 +20,9 @@ export function Preview() {
   const [printPageUrls, setPrintPageUrls] = createSignal<string[]>([]);
 
   let printPagesRequestId = 0;
+
+  // Dedup guard so a degraded print stack only toasts once until a full success
+  let printStackErrorToasted = false;
 
   // Request ID to guard against race conditions
   let resumeRequestId = 0;
@@ -177,7 +180,6 @@ export function Preview() {
       });
   });
 
-
   createEffect(() => {
     setPrintPageFormat(store.resume?.metadata.page.format ?? "a4");
   });
@@ -186,42 +188,69 @@ export function Preview() {
     clearPrintPageFormat();
   });
 
+  // Always keep the current page's URL in the print stack synchronously so
+  // single-page printing never regresses while the multi-page prefetch idles.
   createEffect(() => {
-    const resume = store.resume;
-    const count = totalPages();
-    const currentPage = ui.previewPage;
     const currentUrl = previewUrl();
+    const currentPage = untrack(() => ui.previewPage);
 
-    if (!resume || !currentUrl) {
+    if (!currentUrl) {
       setPrintPageUrls([]);
       return;
     }
 
-    if (!isOnline()) {
-      setPrintPageUrls([currentUrl]);
-      return;
-    }
+    setPrintPageUrls((prev) => {
+      if (currentPage >= prev.length) return [currentUrl];
+      const next = [...prev];
+      next[currentPage] = currentUrl;
+      return next;
+    });
+  });
+
+  // Prefetch the remaining pages for the print stack on a longer idle delay so
+  // rapid edits and page navigation don't multiply server render load.
+  const debouncedPrintStackUrl = useDebounce(previewUrl, 2500);
+
+  createEffect(() => {
+    const currentUrl = debouncedPrintStackUrl();
+    if (!currentUrl) return;
+
+    const resume = untrack(() => store.resume);
+    const count = untrack(totalPages);
+    const currentPage = untrack(() => ui.previewPage);
+
+    if (!resume || count <= 1) return;
+    if (!untrack(isOnline)) return;
 
     const requestId = ++printPagesRequestId;
 
     void (async () => {
-      try {
-        const urls = await Promise.all(
-          Array.from({ length: count }, async (_, page) => {
-            if (page === currentPage) return currentUrl;
-            const result = await renderPreview(resume, page);
-            return result.url;
-          }),
-        );
-        if (requestId === printPagesRequestId) {
-          setPrintPageUrls(urls);
+      const results = await Promise.allSettled(
+        Array.from({ length: count }, async (_, page) => {
+          if (page === currentPage) return currentUrl;
+          const result = await renderPreview(resume, page);
+          return result.url;
+        }),
+      );
+      if (requestId !== printPagesRequestId) return;
+
+      const urls = results
+        .filter((result): result is PromiseFulfilledResult<string> => result.status === "fulfilled")
+        .map((result) => result.value);
+      const failures = results.filter((result) => result.status === "rejected");
+
+      if (failures.length > 0) {
+        console.error("Failed to load print pages:", failures[0].reason);
+        if (!printStackErrorToasted) {
+          printStackErrorToasted = true;
+          toast.error("Some pages may be missing from print output");
         }
-      } catch (printError) {
-        console.error("Failed to load print pages:", printError);
-        if (requestId === printPagesRequestId) {
-          setPrintPageUrls([currentUrl]);
-        }
+      } else {
+        printStackErrorToasted = false;
       }
+
+      // Keep the successfully fetched pages rather than collapsing the stack
+      setPrintPageUrls(urls.length > 0 ? urls : [currentUrl]);
     })();
   });
 
@@ -238,7 +267,10 @@ export function Preview() {
       </div>
 
       {/* Controls */}
-      <div class="flex items-center justify-between px-4 py-2 border-b border-border bg-paper" data-print-hide>
+      <div
+        class="flex items-center justify-between px-4 py-2 border-b border-border bg-paper"
+        data-print-hide
+      >
         <div class="flex items-center gap-2">
           <button
             type="button"
@@ -350,7 +382,6 @@ export function Preview() {
         >
           {/* Paper Effect */}
           <div
-            data-print-root
             class="bg-white rounded-sm shadow-paper paper-texture
               transition-all duration-300 hover:shadow-elevated
               hover:rotate-[0.3deg]"

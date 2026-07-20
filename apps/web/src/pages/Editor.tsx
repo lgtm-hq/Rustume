@@ -402,7 +402,10 @@ export default function Editor() {
   return (
     <div class="h-[calc(100vh-3.5rem)] flex flex-col">
       {/* Toolbar */}
-      <div class="h-12 border-b border-border bg-paper flex items-center justify-between px-4" data-print-hide>
+      <div
+        class="h-12 border-b border-border bg-paper flex items-center justify-between px-4"
+        data-print-hide
+      >
         <div class="flex items-center gap-2">
           {/* Panel Toggle */}
           <div class="flex items-center bg-surface rounded-lg p-0.5">

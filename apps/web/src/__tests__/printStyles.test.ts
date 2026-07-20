@@ -15,8 +15,8 @@ describe("print styles", () => {
   it("supports A4 and letter page sizes via named @page rules", () => {
     expect(css).toContain("@page a4");
     expect(css).toContain("@page letter");
-    expect(css).toContain("html[data-print-format=\"a4\"]");
-    expect(css).toContain("html[data-print-format=\"letter\"]");
+    expect(css).toContain('html[data-print-format="a4"]');
+    expect(css).toContain('html[data-print-format="letter"]');
   });
 
   it("targets the resume preview paper element", () => {
