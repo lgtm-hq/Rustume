@@ -22,6 +22,12 @@ and this project adheres to
 
 ### Security
 
+## [0.38.0] - 2026-07-21
+
+### Added
+
+- **schema**: add picture rotation and shadow effects (#522) (fb0020a)
+
 ## [0.37.0] - 2026-07-21
 
 ### Added
@@ -493,7 +499,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.37.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.38.0...HEAD
+[0.38.0]: https://github.com/lgtm-hq/Rustume/compare/v0.37.0...v0.38.0
 [0.37.0]: https://github.com/lgtm-hq/Rustume/compare/v0.36.0...v0.37.0
 [0.36.0]: https://github.com/lgtm-hq/Rustume/compare/v0.35.0...v0.36.0
 [0.35.0]: https://github.com/lgtm-hq/Rustume/compare/v0.34.0...v0.35.0
