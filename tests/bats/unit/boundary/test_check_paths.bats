@@ -62,6 +62,24 @@ run_guard() {
 	assert_output --partial "deploy/infra/modules/main.txt"
 }
 
+@test "boundary paths: hosted deploy and backup pipeline paths fail" {
+	mkdir -p "${TMP_REPO}/scripts/ci/railway" "${TMP_REPO}/scripts/ci/backup" \
+		"${TMP_REPO}/.github/workflows"
+	echo "echo deploy" >"${TMP_REPO}/scripts/ci/railway/deploy-ghcr.sh"
+	echo "echo backup" >"${TMP_REPO}/scripts/ci/backup/backup-db.sh"
+	echo "name: deploy" >"${TMP_REPO}/.github/workflows/deploy-railway-cloud.yml"
+	echo "name: backup" >"${TMP_REPO}/.github/workflows/db-backup.yml"
+	git -C "${TMP_REPO}" add -A
+
+	run_guard
+
+	assert_failure
+	assert_output --partial "scripts/ci/railway/deploy-ghcr.sh"
+	assert_output --partial "scripts/ci/backup/backup-db.sh"
+	assert_output --partial ".github/workflows/deploy-railway-cloud.yml"
+	assert_output --partial ".github/workflows/db-backup.yml"
+}
+
 @test "boundary paths: runbook document fails" {
 	mkdir -p "${TMP_REPO}/docs"
 	echo "# Incident runbook" >"${TMP_REPO}/docs/incident-runbook.md"

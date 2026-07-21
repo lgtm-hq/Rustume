@@ -9,6 +9,8 @@ set -euo pipefail
 #   - Terraform: *.tf, *.tfvars, .terraform.lock.hcl
 #   - Infra trees: infra/ at any depth
 #   - Runbook/playbook documents
+#   - Hosted deploy/backup pipelines: scripts/ci/railway/, scripts/ci/backup/,
+#     and deploy-railway-cloud / db-backup workflows (migrated in #538)
 #
 # Deliberate exceptions live in .boundary-allowlist at the repo root — one
 # repo-relative path per line, each with a trailing "# justification" comment.
@@ -48,7 +50,7 @@ is_allowed() {
 violations=""
 while IFS=$'\t' read -r lower file; do
 	case "${lower}" in
-	*.tf | *.tfvars | .terraform.lock.hcl | */.terraform.lock.hcl | infra/* | */infra/* | *runbook* | *playbook*)
+	*.tf | *.tfvars | .terraform.lock.hcl | */.terraform.lock.hcl | infra/* | */infra/* | *runbook* | *playbook* | scripts/ci/railway/* | scripts/ci/backup/* | .github/workflows/deploy-railway-cloud.yml | .github/workflows/db-backup.yml | .github/workflows/test-railway-shell.yml | .github/workflows/test-backup-shell.yml)
 		if ! is_allowed "${file}"; then
 			violations="${violations}${file}"$'\n'
 		fi
