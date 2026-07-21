@@ -348,3 +348,89 @@ body {
     transform: translateX(100%);
   }
 }
+
+/* Print — resume preview only (Cmd+P in editor) */
+@page a4 {
+  size: A4;
+  margin: 0;
+}
+
+@page letter {
+  size: letter;
+  margin: 0;
+}
+
+[data-print-stack] {
+  display: none;
+}
+
+@media print {
+  [data-print-hide],
+  [data-print-screen],
+  header,
+  footer,
+  [data-kb-toast-root],
+  [data-kb-dialog-overlay],
+  [data-kb-dialog-content] {
+    display: none !important;
+  }
+
+  html,
+  body,
+  #root,
+  main {
+    background: #fff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  [data-print-stack] {
+    display: block !important;
+  }
+
+  [data-print-root] {
+    page-break-after: always;
+    break-after: page;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    /* 100vh equals the page box height in print context; hard-constrain so a
+       rounding pixel of overflow can't insert blank interleaved sheets. */
+    height: 100vh !important;
+    overflow: hidden !important;
+    background: #fff !important;
+    transform: none !important;
+    rotate: none !important;
+  }
+
+  html[data-print-format="a4"] [data-print-root] {
+    page: a4;
+  }
+
+  html[data-print-format="letter"] [data-print-root] {
+    page: letter;
+  }
+
+  [data-print-root]:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+
+  [data-print-root] img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    object-fit: contain;
+  }
+
+  [data-print-root]::after {
+    display: none !important;
+  }
+}
