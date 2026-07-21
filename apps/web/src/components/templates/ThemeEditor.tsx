@@ -3,8 +3,12 @@ import { resumeStore } from "../../stores/resume";
 import { getThemePresets } from "../../stores/themePresets";
 import type { PageConfig, ThemePresetInfo } from "../../wasm/types";
 
+// Must match the templates wired to sidebar-ratio helpers in
+// crates/render/src/typst_engine/templates/<template>.typ.
 const SIDEBAR_TEMPLATES = new Set(["azurill", "pikachu", "chikorita", "ditto", "gengar", "glalie"]);
 const SIDEBAR_TEMPLATE_RATIO_DEFAULT = 1 / 3;
+// Must match the sidebar-width defaults in
+// crates/render/src/typst_engine/templates/<template>.typ.
 const FIXED_SIDEBAR_WIDTH_PT: Record<string, number> = {
   pikachu: 180,
   ditto: 160,
@@ -249,11 +253,15 @@ function SidebarRatioControl(props: SidebarRatioControlProps) {
       </div>
 
       <div class="space-y-1.5">
-        <label class="font-mono text-xs uppercase tracking-wider text-stone flex justify-between">
+        <label
+          for="sidebar-ratio-input"
+          class="font-mono text-xs uppercase tracking-wider text-stone flex justify-between"
+        >
           <span>Width</span>
           <span class="font-body normal-case tracking-normal">{labelValue()}</span>
         </label>
         <input
+          id="sidebar-ratio-input"
           type="range"
           min="0.10"
           max="0.50"
@@ -262,6 +270,7 @@ function SidebarRatioControl(props: SidebarRatioControlProps) {
           onInput={(e) => props.onChange(parseFloat(e.currentTarget.value))}
           class="w-full accent-[var(--turbo-brand-primary)]"
           aria-label="Sidebar width"
+          aria-valuetext={formatRatio(currentRatio())}
         />
       </div>
     </div>

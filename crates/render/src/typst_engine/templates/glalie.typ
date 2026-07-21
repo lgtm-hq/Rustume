@@ -413,6 +413,7 @@
   render-resume(data, (
     layout: "sidebar-left",
     renderers: renderers,
+    // Default width must match FIXED_SIDEBAR_WIDTH_PT in apps/web/src/components/templates/ThemeEditor.tsx.
     sidebar-width: sidebar-width-from-ratio(data, 170pt),
     sidebar-bg: sidebar-bg,
     sidebar-inset: (x: 16pt, y: 24pt),

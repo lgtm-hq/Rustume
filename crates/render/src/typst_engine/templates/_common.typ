@@ -174,8 +174,19 @@
 }
 
 /// Content width after subtracting resume page margins.
+/// Note: fixed-width sidebar templates set the real page margin to 0/48pt, so
+/// subtracting 2x the metadata margin here is an approximation. The web UI's
+/// default-ratio math (ThemeEditor.tsx) mirrors the same approximation, so the
+/// two stay self-consistent — do not "fix" the math on one side only.
 #let content-width(data) = {
   paper-width(data) - (2 * data.metadata.page.at("margin", default: 18) * 1pt)
+}
+
+/// Clamp a sidebar ratio to the supported [0.1, 0.5] range.
+/// The export path renders stored JSON without schema validation, so
+/// out-of-range stored values must be clamped here as defense-in-depth.
+#let clamp-sidebar-ratio(ratio) = {
+  calc.max(0.1, calc.min(0.5, ratio))
 }
 
 /// Resolve a fixed sidebar width from sidebarRatio, preserving native defaults.
@@ -184,7 +195,7 @@
   if ratio == none {
     default
   } else {
-    ratio * content-width(data)
+    clamp-sidebar-ratio(ratio) * content-width(data)
   }
 }
 
@@ -194,6 +205,7 @@
   if ratio == none {
     return default
   }
+  let ratio = clamp-sidebar-ratio(ratio)
 
   let sidebar-width = ratio * 100fr
   let main-width = (1 - ratio) * 100fr
