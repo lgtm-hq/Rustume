@@ -272,8 +272,8 @@ export default function Editor() {
     {
       key: "p",
       mod: true,
-      handler: () => openModal("export"),
-      label: "Export PDF",
+      handler: () => window.print(),
+      label: "Print",
       category: "General",
     },
     {
@@ -520,7 +520,10 @@ export default function Editor() {
     <div class="h-[calc(100vh-3.5rem)] flex flex-col">
       <CustomCssInjector />
       {/* Toolbar */}
-      <div class="h-12 border-b border-border bg-paper flex items-center justify-between px-4">
+      <div
+        class="h-12 border-b border-border bg-paper flex items-center justify-between px-4"
+        data-print-hide
+      >
         <div class="flex items-center gap-2">
           {/* Panel Toggle */}
           <div class="flex items-center bg-surface rounded-lg p-0.5">
@@ -674,7 +677,7 @@ export default function Editor() {
             showRight={ui.panel !== "editor"}
             defaultRatio={0.45}
             left={
-              <div class="h-full flex">
+              <div class="h-full flex" data-print-hide>
                 {/* Sidebar Navigation */}
                 <Sidebar
                   items={sidebarItems()}

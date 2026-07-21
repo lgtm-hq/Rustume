@@ -1,10 +1,11 @@
-import { createSignal, createEffect, onCleanup, untrack, Show } from "solid-js";
+import { createSignal, createEffect, For, onCleanup, untrack, Show } from "solid-js";
 import { toast } from "../ui";
 import { resumeStore } from "../../stores/resume";
 import { uiStore } from "../../stores/ui";
 import { renderPreview } from "../../api/render";
 import { useDebounce } from "../../hooks/useDebounce";
 import { useOnline } from "../../hooks/useOnline";
+import { clearPrintPageFormat, setPrintPageFormat } from "../../lib/printFormat";
 import {
   KEYBOARD_PAN_STEP,
   clampPan,
@@ -23,6 +24,13 @@ export function Preview() {
   const [error, setError] = createSignal<string | null>(null);
   const [lastCachedUrl, setLastCachedUrl] = createSignal<string | null>(null);
   const [totalPages, setTotalPages] = createSignal(1);
+  const [printPageUrls, setPrintPageUrls] = createSignal<string[]>([]);
+
+  let printPagesRequestId = 0;
+
+  // Dedup guard so a degraded print stack only toasts once until a full success
+  let printStackErrorToasted = false;
+
   const [panX, setPanX] = createSignal(0);
   const [panY, setPanY] = createSignal(0);
   const [isDragging, setIsDragging] = createSignal(false);
@@ -288,10 +296,113 @@ export function Preview() {
       });
   });
 
+  createEffect(() => {
+    const format = store.resume?.metadata.page.format;
+    if (format) {
+      setPrintPageFormat(format);
+    } else {
+      clearPrintPageFormat();
+    }
+  });
+
+  onCleanup(() => {
+    clearPrintPageFormat();
+  });
+
+  // The multi-page prefetch is debounced, so a print triggered inside that
+  // window can go out with pages missing — warn rather than print silently
+  // incomplete output.
+  const handleBeforePrint = () => {
+    if (totalPages() > 1 && printPageUrls().length < totalPages()) {
+      toast.error("Print pages are still loading — some pages may be missing");
+    }
+  };
+  window.addEventListener("beforeprint", handleBeforePrint);
+  onCleanup(() => window.removeEventListener("beforeprint", handleBeforePrint));
+
+  // Always keep the current page's URL in the print stack synchronously so
+  // single-page printing never regresses while the multi-page prefetch idles.
+  createEffect(() => {
+    const currentUrl = previewUrl();
+    const currentPage = untrack(() => ui.previewPage);
+
+    if (!currentUrl) {
+      setPrintPageUrls([]);
+      return;
+    }
+
+    setPrintPageUrls((prev) => {
+      if (currentPage >= prev.length) return [currentUrl];
+      const next = [...prev];
+      next[currentPage] = currentUrl;
+      return next;
+    });
+  });
+
+  // Prefetch the remaining pages for the print stack on a longer idle delay so
+  // rapid edits and page navigation don't multiply server render load.
+  const debouncedPrintStackUrl = useDebounce(previewUrl, 2500);
+
+  createEffect(() => {
+    const currentUrl = debouncedPrintStackUrl();
+    if (!currentUrl) return;
+
+    const resume = untrack(() => store.resume);
+    const count = untrack(totalPages);
+    const currentPage = untrack(() => ui.previewPage);
+
+    if (!resume || count <= 1) return;
+    if (!untrack(isOnline)) return;
+
+    const requestId = ++printPagesRequestId;
+
+    void (async () => {
+      const results = await Promise.allSettled(
+        Array.from({ length: count }, async (_, page) => {
+          if (page === currentPage) return currentUrl;
+          const result = await renderPreview(resume, page);
+          return result.url;
+        }),
+      );
+      if (requestId !== printPagesRequestId) return;
+
+      const urls = results
+        .filter((result): result is PromiseFulfilledResult<string> => result.status === "fulfilled")
+        .map((result) => result.value);
+      const failures = results.filter((result) => result.status === "rejected");
+
+      if (failures.length > 0) {
+        console.error("Failed to load print pages:", failures[0].reason);
+        if (!printStackErrorToasted) {
+          printStackErrorToasted = true;
+          toast.error("Some pages may be missing from print output");
+        }
+      } else {
+        printStackErrorToasted = false;
+      }
+
+      // Keep the successfully fetched pages rather than collapsing the stack
+      setPrintPageUrls(urls.length > 0 ? urls : [currentUrl]);
+    })();
+  });
+
   return (
     <div class="h-full flex flex-col bg-stone/5">
+      <div data-print-stack aria-hidden="true">
+        <For each={printPageUrls()}>
+          {(url) => (
+            <div data-print-root class="bg-white">
+              <img src={url} alt="Resume page" />
+            </div>
+          )}
+        </For>
+      </div>
+
       {/* Controls */}
-      <div class="flex items-center justify-between px-4 py-2 border-b border-border bg-paper">
+      <div
+        class="flex items-center justify-between px-4 py-2 border-b border-border bg-paper"
+        data-print-hide
+      >
         <div class="flex items-center gap-2">
           <button
             type="button"
@@ -392,6 +503,7 @@ export function Preview() {
         class="flex-1 p-6 flex items-start justify-center
           focus:outline-none focus-visible:ring-2 focus-visible:ring-accent
           focus-visible:ring-offset-2 focus-visible:ring-offset-paper"
+        data-print-screen
         classList={{
           "overflow-auto": ui.previewZoom <= 1,
           "overflow-hidden": ui.previewZoom > 1,
