@@ -114,6 +114,45 @@
   }
 }
 
+/// Render a skill/language level in the configured global display style.
+#let render-level(
+  level,
+  display,
+  filled-color,
+  empty-color,
+  width: 6pt,
+  height: 6pt,
+  spacing: 2pt,
+  track-width: 48pt,
+  track-height: 4pt,
+  text-size: 8pt,
+) = {
+  let level = clamp-level(level)
+
+  if display == "hidden" {
+    return
+  } else if display == "circle" {
+    rating-indicators(level, width, height, filled-color, empty-color, 50%, spacing)
+  } else if display == "square" {
+    rating-indicators(level, width, height, filled-color, empty-color, 0pt, spacing)
+  } else if display == "progress-bar" {
+    box(width: track-width, height: track-height, fill: empty-color, radius: track-height / 2)[
+      #box(
+        width: track-width * level / 5,
+        height: track-height,
+        fill: filled-color,
+        radius: track-height / 2,
+      )
+    ]
+  } else if display == "text" {
+    let labels = ("", "Novice", "Beginner", "Intermediate", "Advanced", "Expert")
+    let label = labels.at(level)
+    if label != "" {
+      text(size: text-size, fill: filled-color)[#label]
+    }
+  }
+}
+
 /// Render a pre-processed rich-text string (Typst markup) as content.
 /// Plain text passes through unchanged; Typst markup is evaluated.
 /// Accepts optional text-styling parameters (size, fill, style) to avoid

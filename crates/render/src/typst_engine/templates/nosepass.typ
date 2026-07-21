@@ -9,6 +9,7 @@
   let primary-color = rgb(data.metadata.theme.at("primary", default: "#3b82f6"))
   let text-color = rgb(data.metadata.theme.at("text", default: "#1f2937"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
+  let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
   let muted-color = text-color.lighten(30%)
 
@@ -95,7 +96,7 @@
       [
         #text(size: 9pt, weight: "medium")[#item.name]
         #let level = clamp-level(item.level)
-        #if level > 0 {
+        #if level-display == "template-default" and level > 0 {
           h(4pt)
           for i in range(level) {
             text(fill: primary-color)[●]
@@ -103,6 +104,9 @@
           for i in range(5 - level) {
             text(fill: border-color)[●]
           }
+        } else if level-display != "template-default" and level-display != "hidden" and not (level-display == "text" and level == 0) {
+          h(4pt)
+          render-level(level, level-display, primary-color, border-color)
         }
       ]
     )

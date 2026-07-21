@@ -10,6 +10,7 @@
   let primary-color = rgb(data.metadata.theme.at("primary", default: "#78716c"))
   let text-color = rgb(data.metadata.theme.at("text", default: "#422006"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
+  let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
   let muted-color = text-color.lighten(40%)
 
@@ -30,8 +31,14 @@
   }
 
   let skill-bar(level) = {
-    h(4pt)
-    rating-indicators(level, 8pt, 8pt, primary-color, bg-color.darken(10%), 50%, 2pt)
+    let level = clamp-level(level)
+    if level-display == "template-default" {
+      h(4pt)
+      rating-indicators(level, 8pt, 8pt, primary-color, bg-color.darken(10%), 50%, 2pt)
+    } else if level-display != "hidden" and not (level-display == "text" and level == 0) {
+      h(4pt)
+      render-level(level, level-display, primary-color, bg-color.darken(10%), width: 8pt, height: 8pt)
+    }
   }
 
   let entry-header(left-content, right-content) = {

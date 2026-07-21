@@ -9,6 +9,7 @@
   let primary-color = rgb(data.metadata.theme.at("primary", default: "#d97706"))
   let text-color = rgb(data.metadata.theme.at("text", default: "#1f2937"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
+  let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
   let muted-color = text-color.lighten(40%)
 
@@ -37,7 +38,20 @@
 
   // Rating bars helper (0-5 scale)
   let rating-bars(level) = {
-    rating-indicators(level, 14pt, 4pt, primary-color, bar-empty, 2pt, 2pt)
+    let level = clamp-level(level)
+    if level-display == "template-default" {
+      rating-indicators(level, 14pt, 4pt, primary-color, bar-empty, 2pt, 2pt)
+    } else {
+      render-level(
+        level,
+        level-display,
+        primary-color,
+        bar-empty,
+        width: 14pt,
+        height: 4pt,
+        track-width: 70pt,
+      )
+    }
   }
 
   let render-experience(item) = {
@@ -111,7 +125,10 @@
     }
 
     let level = clamp-level(item.level)
-    if level > 0 {
+    if level-display == "template-default" and level > 0 {
+      v(2pt)
+      rating-bars(level)
+    } else if level-display != "template-default" and level-display != "hidden" and not (level-display == "text" and level == 0) {
       v(2pt)
       rating-bars(level)
     }
@@ -135,7 +152,10 @@
     }
 
     let level = clamp-level(item.level)
-    if level > 0 {
+    if level-display == "template-default" and level > 0 {
+      v(2pt)
+      rating-bars(level)
+    } else if level-display != "template-default" and level-display != "hidden" and not (level-display == "text" and level == 0) {
       v(2pt)
       rating-bars(level)
     }

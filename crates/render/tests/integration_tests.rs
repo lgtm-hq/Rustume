@@ -7,8 +7,8 @@ use rstest::rstest;
 use rustume_parser::{JsonResumeParser, Parser, ReactiveResumeV3Parser};
 use rustume_render::{get_page_size, get_template_theme, Renderer, TypstRenderer, TEMPLATES};
 use rustume_schema::{
-    Basics, CustomItem, Education, Experience, PageFormat, Picture, PictureEffects, ResumeData,
-    Section, Skill,
+    Basics, CustomItem, Education, Experience, LevelDisplay, PageFormat, Picture, PictureEffects,
+    ResumeData, Section, Skill,
 };
 use std::collections::HashMap;
 use std::fs;
@@ -473,6 +473,27 @@ fn test_render_template_with_content(#[case] template_name: &str) {
         "Output for '{}' is not a valid PDF",
         template_name
     );
+}
+
+#[rstest]
+#[case(LevelDisplay::Hidden)]
+#[case(LevelDisplay::Circle)]
+#[case(LevelDisplay::Square)]
+#[case(LevelDisplay::ProgressBar)]
+#[case(LevelDisplay::Text)]
+fn test_render_template_with_level_display_override(#[case] level_display: LevelDisplay) {
+    let renderer = TypstRenderer::new();
+    let mut resume = sample_resume();
+    resume.metadata.template = "rhyhorn".to_string();
+    resume.metadata.level_display = level_display;
+
+    let result = renderer.render_pdf(&resume);
+    assert!(
+        result.is_ok(),
+        "PDF rendering failed for level display '{level_display:?}': {:?}",
+        result.err()
+    );
+    assert!(result.unwrap().starts_with(b"%PDF-"));
 }
 
 #[rstest]

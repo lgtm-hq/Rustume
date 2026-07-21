@@ -180,6 +180,7 @@ const mockResume: ResumeData = {
       underlineLinks: false,
     },
     notes: "",
+    levelDisplay: "template-default",
   },
 };
 
