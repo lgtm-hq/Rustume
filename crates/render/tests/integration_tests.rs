@@ -515,12 +515,17 @@ fn test_sidebar_ratio_changes_layout_and_clamps(#[case] template_name: &str) {
         renderer.render_pdf(&resume).unwrap()
     };
 
-    // Guard: only compare renders if output is byte-deterministic.
+    // These comparisons require byte-deterministic output. Fail loudly if
+    // that ever changes so the assertions get reworked instead of silently
+    // stopping to enforce anything.
     let narrow = render(Some(0.1));
-    if render(Some(0.1)) != narrow {
-        eprintln!("skipping byte comparisons: PDF output is not deterministic");
-        return;
-    }
+    assert_eq!(
+        render(Some(0.1)),
+        narrow,
+        "PDF output is no longer byte-deterministic; rework this test's \
+         comparisons (e.g. compare rendered PNG pixels or generated Typst \
+         source) instead of skipping"
+    );
 
     let wide = render(Some(0.5));
     assert_ne!(
