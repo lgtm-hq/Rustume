@@ -446,7 +446,7 @@
   render-resume(data, (
     layout: "two-column",
     renderers: renderers,
-    columns: (2fr, 1fr),
+    columns: sidebar-ratio-columns(data, (2fr, 1fr), sidebar-side: "right"),
     column-gutter: 20pt,
     left-column: 0,
     left-fallback: default-main-sections + ("custom",),

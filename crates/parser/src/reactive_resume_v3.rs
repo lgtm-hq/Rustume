@@ -1047,6 +1047,7 @@ fn convert_metadata(v3: &V3Metadata) -> Metadata {
                 _ => PageFormat::A4,
             },
             margin: v3.page.margin.unwrap_or(18),
+            sidebar_ratio: None,
             options: PageOptions {
                 break_line: v3
                     .page

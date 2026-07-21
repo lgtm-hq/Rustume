@@ -464,6 +464,8 @@
   render-resume(data, (
     layout: "two-column",
     renderers: renderers,
+    // Intentionally not wired to sidebar-ratio-columns: leafish is excluded from
+    // the adjustable sidebar-ratio template list in issue #84.
     columns: (1fr, 1fr),
     column-gutter: 20pt,
     left-column: 0,
