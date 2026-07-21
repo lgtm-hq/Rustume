@@ -246,6 +246,14 @@ export interface Typography {
   underlineLinks: boolean;
 }
 
+export type LevelDisplay =
+  | "template-default"
+  | "hidden"
+  | "circle"
+  | "square"
+  | "progress-bar"
+  | "text";
+
 export interface Metadata {
   template: string;
   layout: string[][][];
@@ -254,6 +262,8 @@ export interface Metadata {
   theme: Theme;
   typography: Typography;
   notes: string;
+  /** Optional: resumes stored before this field existed lack it. */
+  levelDisplay?: LevelDisplay;
 }
 
 export interface ResumeData {

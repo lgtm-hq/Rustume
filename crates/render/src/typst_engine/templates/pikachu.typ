@@ -9,6 +9,7 @@
   let primary-color = rgb(data.metadata.theme.at("primary", default: "#ca8a04"))
   let text-color = rgb(data.metadata.theme.at("text", default: "#1c1917"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
+  let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
   let muted-color = rgb("#78716c")
 
@@ -36,7 +37,12 @@
   }
 
   let skill-dots(level) = {
-    rating-indicators(level, 6pt, 6pt, primary-color, sidebar-bg.darken(15%), 50%, 3pt)
+    let level = clamp-level(level)
+    if level-display == "template-default" {
+      rating-indicators(level, 6pt, 6pt, primary-color, sidebar-bg.darken(15%), 50%, 3pt)
+    } else {
+      render-level(level, level-display, primary-color, sidebar-bg.darken(15%), spacing: 3pt)
+    }
   }
 
   let render-experience(item) = {
