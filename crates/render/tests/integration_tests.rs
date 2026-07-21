@@ -7,7 +7,8 @@ use rstest::rstest;
 use rustume_parser::{JsonResumeParser, Parser, ReactiveResumeV3Parser};
 use rustume_render::{get_page_size, get_template_theme, Renderer, TypstRenderer, TEMPLATES};
 use rustume_schema::{
-    Basics, CustomItem, Education, Experience, PageFormat, ResumeData, Section, Skill,
+    Basics, CustomItem, Education, Experience, PageFormat, Picture, PictureEffects, ResumeData,
+    Section, Skill,
 };
 use std::collections::HashMap;
 use std::fs;
@@ -592,6 +593,35 @@ fn test_templates_render_multi_page_content(#[case] template_name: &str) {
         total_pages > 1,
         "Expected '{template_name}' to render more than one page"
     );
+}
+
+/// Compile-only smoke test for the shared `render-picture` helper: a resume
+/// with rotation, shadow, and border effects set must still render to a PDF.
+#[test]
+fn test_render_picture_effects_smoke() {
+    // Minimal 1x1 transparent PNG as a data URL.
+    let png_data_url = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+    let renderer = TypstRenderer::new();
+    let mut resume = sample_resume();
+    resume.metadata.template = "bronzor".to_string();
+    resume.basics.picture = Picture::new(png_data_url);
+    resume.basics.picture.effects = PictureEffects {
+        border: true,
+        rotation: 15.0,
+        border_color: "#0891b2".to_string(),
+        border_width: 3,
+        shadow_size: 8,
+        ..Default::default()
+    };
+
+    let result = renderer.render_pdf(&resume);
+    assert!(
+        result.is_ok(),
+        "PDF rendering failed with picture effects: {:?}",
+        result.err()
+    );
+    assert!(result.unwrap().starts_with(b"%PDF-"));
 }
 
 #[test]

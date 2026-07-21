@@ -11,6 +11,27 @@ const MAX_SIZE_PX = 800;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 
+const HEX_COLOR_REGEX = /^#(?:[0-9A-Fa-f]{3,4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/;
+const BARE_HEX_REGEX = /^(?:[0-9A-Fa-f]{3,4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/;
+
+/** Trim and prepend `#` when the value is bare 3/4/6/8-digit hex. */
+function normalizeHexColor(raw: string): string {
+  const trimmed = raw.trim();
+  return BARE_HEX_REGEX.test(trimmed) ? `#${trimmed}` : trimmed;
+}
+
+/** Expand #RGB / #RGBA shorthand to #RRGGBB / #RRGGBBAA (server validation only accepts long form). */
+function expandShortHex(color: string): string {
+  const digits = color.slice(1);
+  if (digits.length === 3 || digits.length === 4) {
+    return `#${digits
+      .split("")
+      .map((c) => c + c)
+      .join("")}`;
+  }
+  return color;
+}
+
 interface ProcessedImage {
   dataUrl: string;
   aspectRatio: number;
@@ -150,11 +171,24 @@ export function ImageUpload(props: ImageUploadProps) {
     toast.info("Profile photo removed");
   }
 
-  function updateEffect(key: keyof Picture["effects"], value: boolean) {
+  function updateEffect<K extends keyof Picture["effects"]>(key: K, value: Picture["effects"][K]) {
     props.onPictureChange({
       ...props.picture,
       effects: { ...props.picture.effects, [key]: value },
     });
+  }
+
+  function updateClampedEffect(key: "borderWidth" | "shadowSize", raw: string, max: number) {
+    const parsed = parseInt(raw, 10);
+    if (Number.isNaN(parsed)) return;
+    updateEffect(key, Math.min(max, Math.max(0, parsed)));
+  }
+
+  function updateColorEffect(key: "borderColor" | "shadowColor", raw: string) {
+    const normalized = normalizeHexColor(raw);
+    if (normalized === "" || HEX_COLOR_REGEX.test(normalized)) {
+      updateEffect(key, expandShortHex(normalized));
+    }
   }
 
   function updateBorderRadius(value: number) {
@@ -177,8 +211,14 @@ export function ImageUpload(props: ImageUploadProps) {
     const br = props.picture.borderRadius;
     const maxRadius = Math.round(size / 2);
     const borderRadiusPx = Math.min(br, maxRadius);
+    const effects = props.picture.effects;
+    const borderWidth = effects.borderWidth ?? 2;
+    const borderColor = effects.borderColor || "var(--turbo-brand-primary)";
+    const shadowSize = effects.shadowSize || 0;
+    // Match the Typst PDF output: solid diagonal offset (dx = dy = size / 2), no blur.
+    const shadowOffset = shadowSize / 2;
     const filters: string[] = [];
-    if (props.picture.effects.grayscale) {
+    if (effects.grayscale) {
       filters.push("grayscale(100%)");
     }
     return {
@@ -186,7 +226,13 @@ export function ImageUpload(props: ImageUploadProps) {
       height: `${size}px`,
       "border-radius": `${borderRadiusPx}px`,
       filter: filters.length > 0 ? filters.join(" ") : undefined,
-      border: props.picture.effects.border ? "2px solid var(--turbo-brand-primary)" : undefined,
+      transform: effects.rotation ? `rotate(${effects.rotation}deg)` : undefined,
+      border:
+        effects.border && borderWidth > 0 ? `${borderWidth}px solid ${borderColor}` : undefined,
+      "box-shadow":
+        shadowSize > 0
+          ? `${shadowOffset}px ${shadowOffset}px 0 ${effects.shadowColor || "#00000040"}`
+          : undefined,
     };
   };
 
@@ -369,6 +415,90 @@ export function ImageUpload(props: ImageUploadProps) {
               checked={props.picture.effects.border}
               onChange={(val) => updateEffect("border", val)}
             />
+          </div>
+
+          {/* Effect controls */}
+          <div class="space-y-3">
+            <div class="space-y-1.5">
+              <label class="font-mono text-xs uppercase tracking-wider text-stone flex justify-between">
+                <span>Rotation</span>
+                <span class="font-body normal-case tracking-normal">
+                  {props.picture.effects.rotation}deg
+                </span>
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="360"
+                step="1"
+                value={props.picture.effects.rotation}
+                onInput={(e) => updateEffect("rotation", parseFloat(e.currentTarget.value))}
+                class="w-full accent-[var(--turbo-brand-primary)]"
+                aria-label="Rotation"
+              />
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <label class="space-y-1.5">
+                <span class="font-mono text-xs uppercase tracking-wider text-stone">
+                  Border Color
+                </span>
+                <input
+                  type="text"
+                  value={props.picture.effects.borderColor}
+                  onInput={(e) => updateColorEffect("borderColor", e.currentTarget.value)}
+                  placeholder="Theme primary"
+                  class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-ink"
+                  aria-label="Border color"
+                />
+              </label>
+
+              <label class="space-y-1.5">
+                <span class="font-mono text-xs uppercase tracking-wider text-stone">
+                  Border Width
+                </span>
+                <input
+                  type="number"
+                  min="0"
+                  max="10"
+                  value={props.picture.effects.borderWidth}
+                  onInput={(e) => updateClampedEffect("borderWidth", e.currentTarget.value, 10)}
+                  class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-ink"
+                  aria-label="Border width"
+                />
+              </label>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <label class="space-y-1.5">
+                <span class="font-mono text-xs uppercase tracking-wider text-stone">
+                  Shadow Color
+                </span>
+                <input
+                  type="text"
+                  value={props.picture.effects.shadowColor}
+                  onInput={(e) => updateColorEffect("shadowColor", e.currentTarget.value)}
+                  placeholder="#00000040"
+                  class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-ink"
+                  aria-label="Shadow color"
+                />
+              </label>
+
+              <label class="space-y-1.5">
+                <span class="font-mono text-xs uppercase tracking-wider text-stone">
+                  Shadow Size
+                </span>
+                <input
+                  type="number"
+                  min="0"
+                  max="20"
+                  value={props.picture.effects.shadowSize}
+                  onInput={(e) => updateClampedEffect("shadowSize", e.currentTarget.value, 20)}
+                  class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-ink"
+                  aria-label="Shadow size"
+                />
+              </label>
+            </div>
           </div>
         </div>
       </Show>

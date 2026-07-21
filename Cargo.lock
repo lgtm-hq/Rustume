@@ -4167,6 +4167,7 @@ dependencies = [
 name = "rustume-render"
 version = "0.37.0"
 dependencies = [
+ "base64",
  "chrono",
  "include_dir",
  "rstest",

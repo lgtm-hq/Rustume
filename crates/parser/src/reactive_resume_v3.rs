@@ -12,10 +12,10 @@
 
 use crate::traits::{ParseError, Parser};
 use rustume_schema::{
-    Award, Basics, Certification, CustomCss, CustomField, CustomItem, Education, Experience,
-    FontConfig, Interest, Language, Metadata, PageConfig, PageFormat, PageOptions, Profile,
-    Project, Publication, Reference, ResumeData, Section, Skill, SummarySection, Theme, Typography,
-    Url, Volunteer,
+    validate_hex_color_with_optional_alpha, Award, Basics, Certification, CustomCss, CustomField,
+    CustomItem, Education, Experience, FontConfig, Interest, Language, Metadata, PageConfig,
+    PageFormat, PageOptions, Profile, Project, Publication, Reference, ResumeData, Section, Skill,
+    SummarySection, Theme, Typography, Url, Volunteer,
 };
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -111,11 +111,17 @@ pub struct V3Picture {
 }
 
 #[derive(Debug, Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
 pub struct V3PictureEffects {
     pub hidden: Option<bool>,
     pub grayscale: Option<bool>,
     pub border: Option<bool>,
+    pub rotation: Option<f32>,
+    pub border_color: Option<String>,
+    pub border_width: Option<u32>,
+    pub shadow_color: Option<String>,
+    pub shadow_size: Option<u32>,
 }
 
 /// V3 Summary - can be a string OR an object
@@ -569,7 +575,8 @@ fn convert_basics(v3: &V3Basics) -> Basics {
         basics.picture.url = pic.url.clone().unwrap_or_default();
         basics.picture.size = pic.size.unwrap_or(64);
         basics.picture.aspect_ratio = pic.aspect_ratio.unwrap_or(1.0);
-        basics.picture.border_radius = pic.border_radius.unwrap_or(0);
+        // Clamp to the schema's documented bound (size/2 = circle).
+        basics.picture.border_radius = pic.border_radius.unwrap_or(0).min(basics.picture.size / 2);
         // Handle picture visible field - visible: false means hidden: true
         if let Some(visible) = pic.visible {
             basics.picture.effects.hidden = !visible;
@@ -578,6 +585,31 @@ fn convert_basics(v3: &V3Basics) -> Basics {
             basics.picture.effects.hidden = effects.hidden.unwrap_or(basics.picture.effects.hidden);
             basics.picture.effects.grayscale = effects.grayscale.unwrap_or(false);
             basics.picture.effects.border = effects.border.unwrap_or(false);
+            // Sanitize effect values to the schema's validation bounds so
+            // out-of-range V3 imports cannot bypass validation and reach
+            // rendering (see PictureEffects in rustume-schema).
+            basics.picture.effects.rotation = effects
+                .rotation
+                .unwrap_or(basics.picture.effects.rotation)
+                .clamp(0.0, 360.0);
+            basics.picture.effects.border_color = effects
+                .border_color
+                .clone()
+                .filter(|c| validate_hex_color_with_optional_alpha(c).is_ok())
+                .unwrap_or_else(|| basics.picture.effects.border_color.clone());
+            basics.picture.effects.border_width = effects
+                .border_width
+                .unwrap_or(basics.picture.effects.border_width)
+                .min(10);
+            basics.picture.effects.shadow_color = effects
+                .shadow_color
+                .clone()
+                .filter(|c| validate_hex_color_with_optional_alpha(c).is_ok())
+                .unwrap_or_else(|| basics.picture.effects.shadow_color.clone());
+            basics.picture.effects.shadow_size = effects
+                .shadow_size
+                .unwrap_or(basics.picture.effects.shadow_size)
+                .min(20);
         }
     }
 
@@ -1274,6 +1306,60 @@ mod tests {
             resume.sections.summary.content,
             "This is a plain string summary."
         );
+    }
+
+    #[test]
+    fn test_v3_picture_effects_sanitized() {
+        let json = r##"{
+            "basics": {
+                "name": "Jane Doe",
+                "picture": {
+                    "url": "https://example.com/photo.jpg",
+                    "size": 64,
+                    "borderRadius": 999,
+                    "effects": {
+                        "rotation": 361.0,
+                        "borderColor": "not-a-color",
+                        "borderWidth": 11,
+                        "shadowColor": "00000040",
+                        "shadowSize": 21
+                    }
+                }
+            },
+            "sections": {
+                "profiles": { "items": [] },
+                "experience": { "items": [] },
+                "education": { "items": [] },
+                "skills": { "items": [] },
+                "languages": { "items": [] },
+                "awards": { "items": [] },
+                "certifications": { "items": [] },
+                "interests": { "items": [] },
+                "projects": { "items": [] },
+                "publications": { "items": [] },
+                "volunteer": { "items": [] },
+                "references": { "items": [] },
+                "custom": {}
+            },
+            "metadata": {}
+        }"##;
+
+        let parser = ReactiveResumeV3Parser;
+        let resume = parser.parse(json.as_bytes()).unwrap();
+
+        let picture = &resume.basics.picture;
+        // borderRadius clamped to size/2 (circle).
+        assert_eq!(picture.border_radius, 32);
+        // Numeric effects clamped to schema bounds.
+        assert_eq!(picture.effects.rotation, 360.0);
+        assert_eq!(picture.effects.border_width, 10);
+        assert_eq!(picture.effects.shadow_size, 20);
+        // Invalid colors fall back to the field defaults.
+        assert_eq!(picture.effects.border_color, "");
+        assert_eq!(picture.effects.shadow_color, "#00000040");
+        // The converted resume passes schema validation.
+        use validator::Validate;
+        assert!(picture.validate().is_ok());
     }
 
     #[test]
