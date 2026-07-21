@@ -13,9 +13,9 @@
 use crate::traits::{ParseError, Parser};
 use rustume_schema::{
     validate_hex_color_with_optional_alpha, Award, Basics, Certification, CustomCss, CustomField,
-    CustomItem, Education, Experience, FontConfig, Interest, Language, Metadata, PageConfig,
-    PageFormat, PageOptions, Profile, Project, Publication, Reference, ResumeData, Section, Skill,
-    SummarySection, Theme, Typography, Url, Volunteer,
+    CustomItem, Education, Experience, FontConfig, Interest, Language, LevelDisplay, Metadata,
+    PageConfig, PageFormat, PageOptions, Profile, Project, Publication, Reference, ResumeData,
+    Section, Skill, SummarySection, Theme, Typography, Url, Volunteer,
 };
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -1112,6 +1112,7 @@ fn convert_metadata(v3: &V3Metadata) -> Metadata {
             underline_links: v3.typography.underline_links.unwrap_or(true),
         },
         notes: String::new(),
+        level_display: LevelDisplay::TemplateDefault,
     }
 }
 

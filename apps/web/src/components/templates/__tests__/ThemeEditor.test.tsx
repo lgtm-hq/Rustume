@@ -58,6 +58,18 @@ describe("ThemeEditor custom CSS tab", () => {
       screen.getByText(/PDF export use Typst templates and theme controls/i),
     ).toBeInTheDocument();
   });
+
+  it("reflects and updates the proficiency display metadata", async () => {
+    render(() => <ThemeEditor />);
+
+    const select = screen.getByLabelText("Proficiency display");
+    expect(select).toHaveValue("template-default");
+
+    fireEvent.change(select, { target: { value: "progress-bar" } });
+
+    expect(resumeStore.store.resume?.metadata.levelDisplay).toBe("progress-bar");
+    expect(select).toHaveValue("progress-bar");
+  });
 });
 
 describe("ThemeEditor sidebar width control", () => {

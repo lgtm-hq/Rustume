@@ -7,8 +7,8 @@ use rstest::rstest;
 use rustume_parser::{JsonResumeParser, Parser, ReactiveResumeV3Parser};
 use rustume_render::{get_page_size, get_template_theme, Renderer, TypstRenderer, TEMPLATES};
 use rustume_schema::{
-    Basics, CustomItem, Education, Experience, PageFormat, Picture, PictureEffects, ResumeData,
-    Section, Skill,
+    Basics, CustomItem, Education, Experience, LevelDisplay, PageFormat, Picture, PictureEffects,
+    ResumeData, Section, Skill,
 };
 use std::collections::HashMap;
 use std::fs;
@@ -494,6 +494,55 @@ fn test_sidebar_templates_render_with_and_without_sidebar_ratio(#[case] template
         assert!(
             result.is_ok(),
             "PDF rendering failed for template '{template_name}' with sidebar ratio {sidebar_ratio:?}: {:?}",
+            result.err()
+        );
+        assert!(result.unwrap().starts_with(b"%PDF-"));
+    }
+}
+
+#[rstest]
+fn test_render_template_with_level_display_override(
+    // rhyhorn covers the grid-cell rendering path, azurill the guarded
+    // per-item rendering path shared by the other templates.
+    #[values("rhyhorn", "azurill")] template_name: &str,
+    #[values(
+        LevelDisplay::Hidden,
+        LevelDisplay::Circle,
+        LevelDisplay::Square,
+        LevelDisplay::ProgressBar,
+        LevelDisplay::Text
+    )]
+    level_display: LevelDisplay,
+) {
+    let renderer = TypstRenderer::new();
+    let mut resume = sample_resume();
+    resume.metadata.template = template_name.to_string();
+    resume.metadata.level_display = level_display;
+
+    let result = renderer.render_pdf(&resume);
+    assert!(
+        result.is_ok(),
+        "PDF rendering failed for template '{template_name}' with level display \
+         '{level_display:?}': {:?}",
+        result.err()
+    );
+    assert!(result.unwrap().starts_with(b"%PDF-"));
+}
+
+/// Every template must compile with a non-default level display so a Typst
+/// syntax error in any template's override branch is caught.
+#[test]
+fn test_render_all_templates_with_circle_level_display() {
+    let renderer = TypstRenderer::new();
+    for template_name in TEMPLATES {
+        let mut resume = sample_resume();
+        resume.metadata.template = (*template_name).to_string();
+        resume.metadata.level_display = LevelDisplay::Circle;
+
+        let result = renderer.render_pdf(&resume);
+        assert!(
+            result.is_ok(),
+            "PDF rendering failed for template '{template_name}' with circle level display: {:?}",
             result.err()
         );
         assert!(result.unwrap().starts_with(b"%PDF-"));

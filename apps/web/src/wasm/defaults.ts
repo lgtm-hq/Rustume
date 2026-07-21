@@ -243,6 +243,7 @@ export function createSampleResume(): ResumeData {
         underlineLinks: false,
       },
       notes: "",
+      levelDisplay: "template-default",
     },
   };
 }
@@ -489,6 +490,7 @@ export function createDefaultResume(): ResumeData {
         underlineLinks: false,
       },
       notes: "",
+      levelDisplay: "template-default",
     },
   };
 }

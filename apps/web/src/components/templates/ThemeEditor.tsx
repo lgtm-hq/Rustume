@@ -1,7 +1,7 @@
 import { Show, For, createSignal } from "solid-js";
 import { resumeStore } from "../../stores/resume";
 import { getThemePresets } from "../../stores/themePresets";
-import type { PageConfig, ThemePresetInfo } from "../../wasm/types";
+import type { Metadata, PageConfig, ThemePresetInfo } from "../../wasm/types";
 
 // Must match the templates wired to sidebar-ratio helpers in
 // crates/render/src/typst_engine/templates/<template>.typ.
@@ -19,6 +19,15 @@ const PAPER_WIDTH_PT: Record<PageConfig["format"], number> = {
   a4: 595.28,
   letter: 612,
 };
+
+const LEVEL_DISPLAY_OPTIONS: { value: Metadata["levelDisplay"]; label: string }[] = [
+  { value: "template-default", label: "Template default" },
+  { value: "hidden", label: "Hidden" },
+  { value: "circle", label: "Circles" },
+  { value: "square", label: "Squares" },
+  { value: "progress-bar", label: "Progress bar" },
+  { value: "text", label: "Text label" },
+];
 
 export function ThemeEditor() {
   const { store, updateTheme, updateMetadata } = resumeStore;
@@ -173,6 +182,28 @@ export function ThemeEditor() {
                 }
               />
             </Show>
+
+            <div class="space-y-2">
+              <label
+                for="proficiency-display"
+                class="font-mono text-xs uppercase tracking-wider text-stone block"
+              >
+                Proficiency display
+              </label>
+              <select
+                id="proficiency-display"
+                value={resume().metadata.levelDisplay ?? "template-default"}
+                onChange={(e) =>
+                  updateMetadata("levelDisplay", e.currentTarget.value as Metadata["levelDisplay"])
+                }
+                class="w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg
+                  focus:outline-none focus:border-accent"
+              >
+                <For each={LEVEL_DISPLAY_OPTIONS}>
+                  {(option) => <option value={option.value}>{option.label}</option>}
+                </For>
+              </select>
+            </div>
 
             {/* Preview */}
             <div class="p-4 rounded-lg border border-border">
