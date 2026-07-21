@@ -427,7 +427,7 @@
   render-resume(data, (
     layout: "full-header-sidebar",
     renderers: renderers,
-    sidebar-width: 160pt,
+    sidebar-width: sidebar-width-from-ratio(data, 160pt),
     sidebar-bg: sidebar-bg,
     body-bg: bg-color,
     sidebar-inset: (x: 14pt, y: 12pt),

@@ -158,6 +158,52 @@
   items
 }
 
+/// Optional sidebar width ratio from metadata.page.sidebarRatio.
+#let sidebar-ratio(data) = {
+  data.metadata.page.at("sidebarRatio", default: none)
+}
+
+/// Paper width in points for supported page formats.
+#let paper-width(data) = {
+  let format = data.metadata.page.at("format", default: "a4")
+  if format == "letter" or format == "us-letter" {
+    612pt
+  } else {
+    595.28pt
+  }
+}
+
+/// Content width after subtracting resume page margins.
+#let content-width(data) = {
+  paper-width(data) - (2 * data.metadata.page.at("margin", default: 18) * 1pt)
+}
+
+/// Resolve a fixed sidebar width from sidebarRatio, preserving native defaults.
+#let sidebar-width-from-ratio(data, default) = {
+  let ratio = sidebar-ratio(data)
+  if ratio == none {
+    default
+  } else {
+    ratio * content-width(data)
+  }
+}
+
+/// Resolve proportional two-column widths, preserving native defaults.
+#let sidebar-ratio-columns(data, default, sidebar-side: "left") = {
+  let ratio = sidebar-ratio(data)
+  if ratio == none {
+    return default
+  }
+
+  let sidebar-width = ratio * 100fr
+  let main-width = (1 - ratio) * 100fr
+  if sidebar-side == "right" {
+    (main-width, sidebar-width)
+  } else {
+    (sidebar-width, main-width)
+  }
+}
+
 /// Fixed-width sidebar plus flowing main content.
 ///
 /// The grid owns the sidebar background while each column receives breakable

@@ -476,6 +476,27 @@ fn test_render_template_with_content(#[case] template_name: &str) {
 }
 
 #[rstest]
+#[case("azurill")]
+#[case("pikachu")]
+fn test_sidebar_templates_render_with_and_without_sidebar_ratio(#[case] template_name: &str) {
+    let renderer = TypstRenderer::new();
+
+    for sidebar_ratio in [None, Some(0.25)] {
+        let mut resume = sample_resume();
+        resume.metadata.template = template_name.to_string();
+        resume.metadata.page.sidebar_ratio = sidebar_ratio;
+
+        let result = renderer.render_pdf(&resume);
+        assert!(
+            result.is_ok(),
+            "PDF rendering failed for template '{template_name}' with sidebar ratio {sidebar_ratio:?}: {:?}",
+            result.err()
+        );
+        assert!(result.unwrap().starts_with(b"%PDF-"));
+    }
+}
+
+#[rstest]
 #[case("rhyhorn")]
 #[case("azurill")]
 #[case("pikachu")]

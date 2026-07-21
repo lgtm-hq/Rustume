@@ -212,6 +212,7 @@ export interface CustomCss {
 export interface PageConfig {
   margin: number;
   format: "a4" | "letter";
+  sidebarRatio?: number;
   breakLine: boolean;
   pageNumbers: boolean;
 }

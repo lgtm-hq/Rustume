@@ -59,3 +59,42 @@ describe("ThemeEditor custom CSS tab", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("ThemeEditor sidebar width control", () => {
+  beforeEach(() => {
+    resumeStore.createNewResume("theme-editor-sidebar-test");
+  });
+
+  it("only shows the sidebar width slider for sidebar templates", async () => {
+    render(() => <ThemeEditor />);
+
+    expect(screen.queryByRole("slider", { name: "Sidebar width" })).not.toBeInTheDocument();
+
+    resumeStore.updateTemplate("azurill");
+
+    expect(screen.getByRole("slider", { name: "Sidebar width" })).toBeInTheDocument();
+  });
+
+  it("updates metadata.page.sidebarRatio when the slider moves", async () => {
+    resumeStore.updateTemplate("pikachu");
+    render(() => <ThemeEditor />);
+
+    const slider = screen.getByRole("slider", { name: "Sidebar width" });
+    fireEvent.input(slider, { target: { value: "0.25" } });
+
+    expect(resumeStore.store.resume?.metadata.page.sidebarRatio).toBe(0.25);
+  });
+
+  it("clears metadata.page.sidebarRatio when reset to template default", async () => {
+    resumeStore.updateTemplate("chikorita");
+    resumeStore.updateMetadata("page", {
+      ...resumeStore.store.resume!.metadata.page,
+      sidebarRatio: 0.25,
+    });
+    render(() => <ThemeEditor />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset to template default" }));
+
+    expect(resumeStore.store.resume?.metadata.page.sidebarRatio).toBeUndefined();
+  });
+});

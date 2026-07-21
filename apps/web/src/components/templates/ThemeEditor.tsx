@@ -1,7 +1,20 @@
 import { Show, For, createSignal } from "solid-js";
 import { resumeStore } from "../../stores/resume";
 import { getThemePresets } from "../../stores/themePresets";
-import type { ThemePresetInfo } from "../../wasm/types";
+import type { PageConfig, ThemePresetInfo } from "../../wasm/types";
+
+const SIDEBAR_TEMPLATES = new Set(["azurill", "pikachu", "chikorita", "ditto", "gengar", "glalie"]);
+const SIDEBAR_TEMPLATE_RATIO_DEFAULT = 1 / 3;
+const FIXED_SIDEBAR_WIDTH_PT: Record<string, number> = {
+  pikachu: 180,
+  ditto: 160,
+  gengar: 170,
+  glalie: 170,
+};
+const PAPER_WIDTH_PT: Record<PageConfig["format"], number> = {
+  a4: 595.28,
+  letter: 612,
+};
 
 export function ThemeEditor() {
   const { store, updateTheme, updateMetadata } = resumeStore;
@@ -23,6 +36,7 @@ export function ThemeEditor() {
   };
 
   const currentPresetId = () => store.resume?.metadata.theme.preset;
+  const isSidebarTemplate = (template: string) => SIDEBAR_TEMPLATES.has(template);
 
   return (
     <div class="space-y-4">
@@ -146,6 +160,16 @@ export function ThemeEditor() {
               />
             </Show>
 
+            <Show when={isSidebarTemplate(resume().metadata.template)}>
+              <SidebarRatioControl
+                template={resume().metadata.template}
+                page={resume().metadata.page}
+                onChange={(sidebarRatio) =>
+                  updateMetadata("page", { ...resume().metadata.page, sidebarRatio })
+                }
+              />
+            </Show>
+
             {/* Preview */}
             <div class="p-4 rounded-lg border border-border">
               <div
@@ -175,6 +199,71 @@ export function ThemeEditor() {
           </div>
         )}
       </Show>
+    </div>
+  );
+}
+
+interface SidebarRatioControlProps {
+  template: string;
+  page: PageConfig;
+  onChange: (sidebarRatio: number | undefined) => void;
+}
+
+function defaultSidebarRatio(template: string, page: PageConfig): number {
+  const fixedWidth = FIXED_SIDEBAR_WIDTH_PT[template];
+  if (fixedWidth === undefined) return SIDEBAR_TEMPLATE_RATIO_DEFAULT;
+
+  const paperWidth = PAPER_WIDTH_PT[page.format] ?? PAPER_WIDTH_PT.a4;
+  const contentWidth = paperWidth - 2 * page.margin;
+  if (contentWidth <= 0) return SIDEBAR_TEMPLATE_RATIO_DEFAULT;
+
+  return Math.min(0.5, Math.max(0.1, fixedWidth / contentWidth));
+}
+
+function formatRatio(value: number): string {
+  return `${Math.round(value * 100)}%`;
+}
+
+function SidebarRatioControl(props: SidebarRatioControlProps) {
+  const currentRatio = () =>
+    props.page.sidebarRatio ?? defaultSidebarRatio(props.template, props.page);
+  const labelValue = () =>
+    props.page.sidebarRatio === undefined
+      ? "Template default"
+      : formatRatio(props.page.sidebarRatio);
+
+  return (
+    <div class="space-y-3 pt-4 border-t border-border">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h3 class="font-mono text-xs uppercase tracking-wider text-stone">Sidebar Width</h3>
+          <p class="text-xs text-stone mt-1">Adjust the sidebar column for this template.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => props.onChange(undefined)}
+          class="text-xs font-medium text-accent hover:text-accent/80"
+        >
+          Reset to template default
+        </button>
+      </div>
+
+      <div class="space-y-1.5">
+        <label class="font-mono text-xs uppercase tracking-wider text-stone flex justify-between">
+          <span>Width</span>
+          <span class="font-body normal-case tracking-normal">{labelValue()}</span>
+        </label>
+        <input
+          type="range"
+          min="0.10"
+          max="0.50"
+          step="0.01"
+          value={currentRatio()}
+          onInput={(e) => props.onChange(parseFloat(e.currentTarget.value))}
+          class="w-full accent-[var(--turbo-brand-primary)]"
+          aria-label="Sidebar width"
+        />
+      </div>
     </div>
   );
 }

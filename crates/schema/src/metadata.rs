@@ -79,6 +79,10 @@ pub struct PageConfig {
     #[serde(default)]
     pub format: PageFormat,
 
+    #[validate(range(min = 0.1, max = 0.5))]
+    #[serde(default)]
+    pub sidebar_ratio: Option<f32>,
+
     #[validate(nested)]
     #[serde(default)]
     pub options: PageOptions,
@@ -89,6 +93,7 @@ impl Default for PageConfig {
         Self {
             margin: default_margin(),
             format: PageFormat::A4,
+            sidebar_ratio: None,
             options: PageOptions::default(),
         }
     }
@@ -260,4 +265,37 @@ fn default_layout() -> Vec<Vec<Vec<String>>> {
             "languages".to_string(),
         ],
     ]]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use validator::Validate;
+
+    #[test]
+    fn page_config_accepts_sidebar_ratio_bounds_and_none() {
+        let none = PageConfig::default();
+        assert!(none.validate().is_ok());
+
+        let valid = PageConfig {
+            sidebar_ratio: Some(0.25),
+            ..Default::default()
+        };
+        assert!(valid.validate().is_ok());
+    }
+
+    #[test]
+    fn page_config_rejects_sidebar_ratio_outside_bounds() {
+        let too_small = PageConfig {
+            sidebar_ratio: Some(0.05),
+            ..Default::default()
+        };
+        assert!(too_small.validate().is_err());
+
+        let too_large = PageConfig {
+            sidebar_ratio: Some(0.6),
+            ..Default::default()
+        };
+        assert!(too_large.validate().is_err());
+    }
 }
