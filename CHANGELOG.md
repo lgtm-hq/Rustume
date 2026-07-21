@@ -22,6 +22,40 @@ and this project adheres to
 
 ### Security
 
+## [0.36.0] - 2026-07-20
+
+### Added
+
+- **web**: add command palette (#523) (d781e07)
+
+## [0.35.0] - 2026-07-20
+
+### Added
+
+- **web**: add custom CSS editor in theme sidebar (#525) (1ef3256)
+
+## [0.34.0] - 2026-07-20
+
+### Added
+
+- **web**: add fuzzy search across resumes (#526) (a17a8b1)
+
+## [0.33.0] - 2026-07-20
+
+### Added
+
+- **web**: pan preview when zoomed (#521) (f6accca)
+
+### Changed
+
+- add AGENTS.md with Cursor Cloud dev environment setup notes (#517) (9bb7764)
+- **licensing**: document the open/closed boundary with rustume-ops (#512) (af80240)
+- **deps**: update github-actions (#519) (c965243)
+- **deps**: lock file maintenance (#516) (be0dda5)
+- **web**: migrate eslint + typescript-eslint to oxlint (#514) (eb21099)
+- **infra**: remove Terraform infra migrated to rustume-ops and add ops-boundary guard
+  (#513) (3271b58)
+
 ## [0.32.0] - 2026-07-18
 
 ### Added
@@ -453,7 +487,11 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.32.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.36.0...HEAD
+[0.36.0]: https://github.com/lgtm-hq/Rustume/compare/v0.35.0...v0.36.0
+[0.35.0]: https://github.com/lgtm-hq/Rustume/compare/v0.34.0...v0.35.0
+[0.34.0]: https://github.com/lgtm-hq/Rustume/compare/v0.33.0...v0.34.0
+[0.33.0]: https://github.com/lgtm-hq/Rustume/compare/v0.32.0...v0.33.0
 [0.32.0]: https://github.com/lgtm-hq/Rustume/compare/v0.31.0...v0.32.0
 [0.31.0]: https://github.com/lgtm-hq/Rustume/compare/v0.30.0...v0.31.0
 [0.30.0]: https://github.com/lgtm-hq/Rustume/compare/v0.29.5...v0.30.0

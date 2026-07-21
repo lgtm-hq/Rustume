@@ -3,7 +3,7 @@ import { Button, Modal, toast } from "../ui";
 import { uiStore } from "../../stores/ui";
 import { resumeStore } from "../../stores/resume";
 import { downloadPdf } from "../../api/render";
-import { resumeToJson, isWasmReady } from "../../wasm";
+import { downloadResumeJson, resumeFileName } from "./exportJson";
 
 export function ExportModal() {
   const { store: ui, closeModal } = uiStore;
@@ -14,19 +14,6 @@ export function ExportModal() {
 
   const isOpen = () => ui.modal === "export";
 
-  const getFileName = () => {
-    const name = store.resume?.basics.name || "resume";
-    // Remove characters that are problematic in filenames
-    return (
-      name
-        .toLowerCase()
-        .replace(/[<>:"/\\|?*]/g, "")
-        .replace(/\s+/g, "-")
-        .replace(/-+/g, "-")
-        .replace(/^-|-$/g, "") || "resume"
-    );
-  };
-
   const handleExportPdf = async () => {
     if (!store.resume) return;
 
@@ -34,7 +21,7 @@ export function ExportModal() {
     setError(null);
 
     try {
-      await downloadPdf(store.resume, `${getFileName()}.pdf`);
+      await downloadPdf(store.resume, `${resumeFileName(store.resume)}.pdf`);
       toast.success("PDF exported successfully");
       closeModal();
     } catch (e) {
@@ -50,25 +37,7 @@ export function ExportModal() {
     if (!store.resume) return;
 
     try {
-      let json: string;
-
-      if (isWasmReady()) {
-        json = resumeToJson(store.resume);
-      } else {
-        json = JSON.stringify(store.resume, null, 2);
-      }
-
-      const blob = new Blob([json], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${getFileName()}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-
-      URL.revokeObjectURL(url);
+      downloadResumeJson(store.resume);
       toast.success("JSON exported successfully");
       closeModal();
     } catch (e) {
