@@ -79,8 +79,10 @@ pub struct PageConfig {
     #[serde(default)]
     pub format: PageFormat,
 
+    // Omit when unset so clients see the field absent (template default)
+    // rather than an explicit null they must special-case.
     #[validate(range(min = 0.1, max = 0.5))]
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sidebar_ratio: Option<f32>,
 
     #[validate(nested)]
@@ -282,6 +284,19 @@ mod tests {
             ..Default::default()
         };
         assert!(valid.validate().is_ok());
+    }
+
+    #[test]
+    fn page_config_omits_unset_sidebar_ratio_when_serialized() {
+        let json = serde_json::to_value(PageConfig::default()).unwrap();
+        assert!(json.get("sidebarRatio").is_none());
+
+        let set = PageConfig {
+            sidebar_ratio: Some(0.25),
+            ..Default::default()
+        };
+        let json = serde_json::to_value(set).unwrap();
+        assert_eq!(json["sidebarRatio"], 0.25);
     }
 
     #[test]

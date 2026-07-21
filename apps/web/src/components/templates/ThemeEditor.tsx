@@ -229,12 +229,14 @@ function formatRatio(value: number): string {
 }
 
 function SidebarRatioControl(props: SidebarRatioControlProps) {
-  const currentRatio = () =>
-    props.page.sidebarRatio ?? defaultSidebarRatio(props.template, props.page);
-  const labelValue = () =>
-    props.page.sidebarRatio === undefined
-      ? "Template default"
-      : formatRatio(props.page.sidebarRatio);
+  // Older server payloads serialized the unset ratio as an explicit null;
+  // normalize so null and undefined both mean "template default".
+  const ratioOverride = () => props.page.sidebarRatio ?? undefined;
+  const currentRatio = () => ratioOverride() ?? defaultSidebarRatio(props.template, props.page);
+  const labelValue = () => {
+    const override = ratioOverride();
+    return override === undefined ? "Template default" : formatRatio(override);
+  };
 
   return (
     <div class="space-y-3 pt-4 border-t border-border">
