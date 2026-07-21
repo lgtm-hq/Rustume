@@ -7,11 +7,15 @@
 }
 
 /// Resolve a hex color, falling back when the input is empty.
+/// Typst's rgb() string form requires a leading #, so prepend one
+/// for legacy stored values that lack it.
 #let resolve-color(value, fallback) = {
   if value == "" or value == none {
     fallback
-  } else {
+  } else if value.starts-with("#") {
     rgb(value)
+  } else {
+    rgb("#" + value)
   }
 }
 
@@ -58,7 +62,11 @@
 
   let shadow-offset = shadow-size / 2
   let content = if shadow-size > 0pt {
-    box(width: picture-size + shadow-size, height: picture-size + shadow-size)[
+    // The outer box is exactly the picture's size so the photo stays the
+    // layout anchor (e.g. inside align(center)). The shadow is place()d
+    // with a diagonal offset and overflows the box (place does not clip),
+    // appearing below-right of the photo.
+    box(width: picture-size, height: picture-size)[
       #place(
         top + left,
         dx: shadow-offset,
