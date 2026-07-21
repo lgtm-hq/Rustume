@@ -500,6 +500,52 @@ fn test_sidebar_templates_render_with_and_without_sidebar_ratio(#[case] template
     }
 }
 
+/// The ratio must actually change the layout (not merely render), and raw
+/// out-of-range values must hit the render-time clamp — the export path
+/// renders stored JSON without schema validation.
+#[rstest]
+#[case("azurill")]
+#[case("pikachu")]
+fn test_sidebar_ratio_changes_layout_and_clamps(#[case] template_name: &str) {
+    let renderer = TypstRenderer::new();
+    let render = |ratio: Option<f32>| {
+        let mut resume = sample_resume();
+        resume.metadata.template = template_name.to_string();
+        resume.metadata.page.sidebar_ratio = ratio;
+        renderer.render_pdf(&resume).unwrap()
+    };
+
+    // These comparisons require byte-deterministic output. Fail loudly if
+    // that ever changes so the assertions get reworked instead of silently
+    // stopping to enforce anything.
+    let narrow = render(Some(0.1));
+    assert_eq!(
+        render(Some(0.1)),
+        narrow,
+        "PDF output is no longer byte-deterministic; rework this test's \
+         comparisons (e.g. compare rendered PNG pixels or generated Typst \
+         source) instead of skipping"
+    );
+
+    let wide = render(Some(0.5));
+    assert_ne!(
+        narrow, wide,
+        "sidebar ratio has no effect on layout for '{template_name}'"
+    );
+
+    // Values outside [0.1, 0.5] clamp to the nearest bound.
+    assert_eq!(
+        render(Some(-1.0)),
+        narrow,
+        "ratio below range should clamp to 0.1 for '{template_name}'"
+    );
+    assert_eq!(
+        render(Some(0.75)),
+        wide,
+        "ratio above range should clamp to 0.5 for '{template_name}'"
+    );
+}
+
 #[rstest]
 fn test_render_template_with_level_display_override(
     // rhyhorn covers the grid-cell rendering path, azurill the guarded
