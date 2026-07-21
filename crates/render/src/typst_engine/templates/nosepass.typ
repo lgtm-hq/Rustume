@@ -104,7 +104,7 @@
           for i in range(5 - level) {
             text(fill: border-color)[●]
           }
-        } else if level-display != "template-default" and level-display != "hidden" and not (level-display == "text" and level == 0) {
+        } else if should-render-level(level, level-display) {
           h(4pt)
           render-level(level, level-display, primary-color, border-color)
         }

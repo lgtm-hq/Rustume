@@ -166,10 +166,7 @@ export function ThemeEditor() {
                 id="proficiency-display"
                 value={resume().metadata.levelDisplay ?? "template-default"}
                 onChange={(e) =>
-                  updateMetadata(
-                    "levelDisplay",
-                    e.currentTarget.value as Metadata["levelDisplay"],
-                  )
+                  updateMetadata("levelDisplay", e.currentTarget.value as Metadata["levelDisplay"])
                 }
                 class="w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg
                   focus:outline-none focus:border-accent"

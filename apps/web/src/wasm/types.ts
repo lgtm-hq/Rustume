@@ -262,7 +262,8 @@ export interface Metadata {
   theme: Theme;
   typography: Typography;
   notes: string;
-  levelDisplay: LevelDisplay;
+  /** Optional: resumes stored before this field existed lack it. */
+  levelDisplay?: LevelDisplay;
 }
 
 export interface ResumeData {

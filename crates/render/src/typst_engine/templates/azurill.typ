@@ -41,16 +41,10 @@
     let level = clamp-level(level)
     if level-display == "template-default" {
       rating-indicators(level, 14pt, 4pt, primary-color, bar-empty, 2pt, 2pt)
+    } else if level-display == "progress-bar" {
+      render-level(level, level-display, primary-color, bar-empty, track-width: 70pt)
     } else {
-      render-level(
-        level,
-        level-display,
-        primary-color,
-        bar-empty,
-        width: 14pt,
-        height: 4pt,
-        track-width: 70pt,
-      )
+      render-level(level, level-display, primary-color, bar-empty)
     }
   }
 
@@ -128,7 +122,7 @@
     if level-display == "template-default" and level > 0 {
       v(2pt)
       rating-bars(level)
-    } else if level-display != "template-default" and level-display != "hidden" and not (level-display == "text" and level == 0) {
+    } else if should-render-level(level, level-display) {
       v(2pt)
       rating-bars(level)
     }
@@ -155,7 +149,7 @@
     if level-display == "template-default" and level > 0 {
       v(2pt)
       rating-bars(level)
-    } else if level-display != "template-default" and level-display != "hidden" and not (level-display == "text" and level == 0) {
+    } else if should-render-level(level, level-display) {
       v(2pt)
       rating-bars(level)
     }

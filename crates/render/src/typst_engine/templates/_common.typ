@@ -114,6 +114,17 @@
   }
 }
 
+/// Whether an overridden level display should render an indicator for `level`.
+/// False for the template's native rendering ("template-default"), for
+/// "hidden", and for a "text" display with no level set (level 0).
+#let should-render-level(level, level-display) = {
+  (
+    level-display != "template-default"
+      and level-display != "hidden"
+      and not (level-display == "text" and level == 0)
+  )
+}
+
 /// Render a skill/language level in the configured global display style.
 #let render-level(
   level,
@@ -136,14 +147,18 @@
   } else if display == "square" {
     rating-indicators(level, width, height, filled-color, empty-color, 0pt, spacing)
   } else if display == "progress-bar" {
-    box(width: track-width, height: track-height, fill: empty-color, radius: track-height / 2)[
-      #box(
+    box(
+      width: track-width,
+      height: track-height,
+      fill: empty-color,
+      radius: track-height / 2,
+      place(top + left, box(
         width: track-width * level / 5,
         height: track-height,
         fill: filled-color,
         radius: track-height / 2,
-      )
-    ]
+      )),
+    )
   } else if display == "text" {
     let labels = ("", "Novice", "Beginner", "Intermediate", "Advanced", "Expert")
     let label = labels.at(level)

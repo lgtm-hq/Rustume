@@ -111,7 +111,7 @@
     if level-display == "template-default" and level > 0 {
       v(2pt)
       rating-indicators(level, 6pt, 6pt, primary-color, bg-color.darken(10%), 50%, 2pt)
-    } else if level-display != "template-default" and level-display != "hidden" and not (level-display == "text" and level == 0) {
+    } else if should-render-level(level, level-display) {
       v(2pt)
       render-level(level, level-display, primary-color, bg-color.darken(10%))
     }
@@ -137,7 +137,7 @@
     if level-display == "template-default" and level > 0 {
       v(2pt)
       rating-indicators(level, 6pt, 6pt, primary-color, bg-color.darken(10%), 50%, 2pt)
-    } else if level-display != "template-default" and level-display != "hidden" and not (level-display == "text" and level == 0) {
+    } else if should-render-level(level, level-display) {
       v(2pt)
       render-level(level, level-display, primary-color, bg-color.darken(10%))
     }

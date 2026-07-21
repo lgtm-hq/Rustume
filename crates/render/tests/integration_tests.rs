@@ -476,24 +476,52 @@ fn test_render_template_with_content(#[case] template_name: &str) {
 }
 
 #[rstest]
-#[case(LevelDisplay::Hidden)]
-#[case(LevelDisplay::Circle)]
-#[case(LevelDisplay::Square)]
-#[case(LevelDisplay::ProgressBar)]
-#[case(LevelDisplay::Text)]
-fn test_render_template_with_level_display_override(#[case] level_display: LevelDisplay) {
+fn test_render_template_with_level_display_override(
+    // rhyhorn covers the grid-cell rendering path, azurill the guarded
+    // per-item rendering path shared by the other templates.
+    #[values("rhyhorn", "azurill")] template_name: &str,
+    #[values(
+        LevelDisplay::Hidden,
+        LevelDisplay::Circle,
+        LevelDisplay::Square,
+        LevelDisplay::ProgressBar,
+        LevelDisplay::Text
+    )]
+    level_display: LevelDisplay,
+) {
     let renderer = TypstRenderer::new();
     let mut resume = sample_resume();
-    resume.metadata.template = "rhyhorn".to_string();
+    resume.metadata.template = template_name.to_string();
     resume.metadata.level_display = level_display;
 
     let result = renderer.render_pdf(&resume);
     assert!(
         result.is_ok(),
-        "PDF rendering failed for level display '{level_display:?}': {:?}",
+        "PDF rendering failed for template '{template_name}' with level display \
+         '{level_display:?}': {:?}",
         result.err()
     );
     assert!(result.unwrap().starts_with(b"%PDF-"));
+}
+
+/// Every template must compile with a non-default level display so a Typst
+/// syntax error in any template's override branch is caught.
+#[test]
+fn test_render_all_templates_with_circle_level_display() {
+    let renderer = TypstRenderer::new();
+    for template_name in TEMPLATES {
+        let mut resume = sample_resume();
+        resume.metadata.template = (*template_name).to_string();
+        resume.metadata.level_display = LevelDisplay::Circle;
+
+        let result = renderer.render_pdf(&resume);
+        assert!(
+            result.is_ok(),
+            "PDF rendering failed for template '{template_name}' with circle level display: {:?}",
+            result.err()
+        );
+        assert!(result.unwrap().starts_with(b"%PDF-"));
+    }
 }
 
 #[rstest]

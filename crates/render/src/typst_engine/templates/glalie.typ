@@ -115,7 +115,7 @@
     if level-display == "template-default" and level > 0 {
       v(2pt)
       skill-dots(level)
-    } else if level-display != "template-default" and level-display != "hidden" and not (level-display == "text" and level == 0) {
+    } else if should-render-level(level, level-display) {
       v(2pt)
       skill-dots(level)
     }
@@ -142,7 +142,7 @@
     if level-display == "template-default" and level > 0 {
       v(2pt)
       skill-dots(level)
-    } else if level-display != "template-default" and level-display != "hidden" and not (level-display == "text" and level == 0) {
+    } else if should-render-level(level, level-display) {
       v(2pt)
       skill-dots(level)
     }

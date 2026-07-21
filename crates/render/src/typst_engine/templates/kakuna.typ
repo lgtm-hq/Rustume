@@ -35,7 +35,7 @@
     if level-display == "template-default" {
       h(4pt)
       rating-indicators(level, 8pt, 8pt, primary-color, bg-color.darken(10%), 50%, 2pt)
-    } else if level-display != "hidden" and not (level-display == "text" and level == 0) {
+    } else if should-render-level(level, level-display) {
       h(4pt)
       render-level(level, level-display, primary-color, bg-color.darken(10%), width: 8pt, height: 8pt)
     }
