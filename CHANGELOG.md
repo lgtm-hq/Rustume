@@ -22,6 +22,18 @@ and this project adheres to
 
 ### Security
 
+## [0.40.1] - 2026-07-22
+
+### Changed
+
+- **deps**: update all major dependencies (major) (#502) (7c6436c)
+- **ops**: purge hosted deploy/backup pipelines migrated to rustume-ops (#539) (4549e06)
+- **render**: assert sidebar ratio changes layout and clamps (#537) (6ef1a7a)
+
+### Fixed
+
+- **deps**: update dependency @lgtm-hq/turbo-themes to 0.29.3 (minor) (#520) (48a0775)
+
 ## [0.40.0] - 2026-07-21
 
 ### Added
@@ -511,7 +523,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.40.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.40.1...HEAD
+[0.40.1]: https://github.com/lgtm-hq/Rustume/compare/v0.40.0...v0.40.1
 [0.40.0]: https://github.com/lgtm-hq/Rustume/compare/v0.39.0...v0.40.0
 [0.39.0]: https://github.com/lgtm-hq/Rustume/compare/v0.38.0...v0.39.0
 [0.38.0]: https://github.com/lgtm-hq/Rustume/compare/v0.37.0...v0.38.0
