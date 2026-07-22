@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@kobalte/core": "^0.13.11",
-    "@lgtm-hq/turbo-themes": "^0.21.0",
+    "@lgtm-hq/turbo-themes": "^0.29.0",
     "@solidjs/router": "^0.16.0",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.2.2",
@@ -58,6 +58,11 @@
     "typescript": "7.0.2",
     "@rollup/plugin-terser": "^1.0.0",
     "@babel/plugin-transform-modules-systemjs": "^8.0.0",
-    "fast-uri": "^4.0.0"
+    "fast-uri": "^4.0.0",
+    "astro": "^7.1.0",
+    "esbuild": "^0.28.1",
+    "h3": "2.0.1-rc.25",
+    "sharp": "^0.35.0",
+    "ws": "^8.21.0"
   }
 }
