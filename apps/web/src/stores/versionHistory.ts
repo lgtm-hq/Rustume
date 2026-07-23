@@ -5,7 +5,6 @@ const DB_NAME = "rustume-version-history";
 const STORE_NAME = "snapshots";
 const LOCAL_RESUME_PREFIX = "rustume:";
 export const MAX_SNAPSHOTS_PER_RESUME = 50;
-const MAX_SNAPSHOT_KEY_RETRIES = 5;
 
 export interface SnapshotMetadata {
   key: string;
@@ -184,7 +183,7 @@ async function saveSnapshotRecord(resumeId: string, clone: ResumeData): Promise<
   }
 
   let timestamp = latest ? Math.max(Date.now(), latest.timestamp + 1) : Date.now();
-  for (let attempt = 0; attempt < MAX_SNAPSHOT_KEY_RETRIES; attempt += 1) {
+  for (;;) {
     const key = snapshotKey(resumeId, timestamp);
     const inserted = await addSnapshotRecord({
       key,
@@ -203,7 +202,6 @@ async function saveSnapshotRecord(resumeId: string, clone: ResumeData): Promise<
     // Another browser context claimed this key; bump the timestamp and retry.
     timestamp += 1;
   }
-  throw new Error(`Could not allocate a unique snapshot key for resume ${resumeId}`);
 }
 
 /** Persist a resume snapshot in local IndexedDB. No-op when IndexedDB is unavailable. */
