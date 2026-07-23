@@ -6,6 +6,18 @@
   "url" in item and item.url != none and item.url.href != ""
 }
 
+/// Visible text for a `{ label, href }` URL: prefer label, then href, then fallback.
+#let url-display-label(url, fallback: "Website") = {
+  if url == none {
+    return fallback
+  }
+  let label = if "label" in url and url.label != none { url.label } else { "" }
+  if label != "" { return label }
+  let href = if "href" in url and url.href != none { url.href } else { "" }
+  if href != "" { return href }
+  fallback
+}
+
 /// Resolve a hex color, falling back when the input is empty.
 /// Typst's rgb() string form requires a leading #, so prepend one
 /// for legacy stored values that lack it.
@@ -186,6 +198,187 @@
   if has-url(item) {
     v(2pt)
     link(item.url.href)[#text(size: 9pt, fill: color)[#item.url.href]]
+  }
+}
+
+/// Normalize a profile network/icon/host string for icon lookup.
+#let normalize-profile-key(value) = {
+  if value == none or value == "" {
+    return ""
+  }
+  lower(value).replace(" ", "").replace("-", "").replace("_", "").replace(".", "")
+}
+
+/// Extract a hostname-ish token from a profile URL for icon fallback.
+#let profile-url-host-key(item) = {
+  if not has-url(item) {
+    return ""
+  }
+  let href = lower(item.url.href)
+  let without-scheme = if href.starts-with("https://") {
+    href.slice(8)
+  } else if href.starts-with("http://") {
+    href.slice(7)
+  } else if href.starts-with("mailto:") {
+    return "email"
+  } else {
+    href
+  }
+  let host = without-scheme.split("/").at(0, default: "")
+  let host = if host.starts-with("www.") { host.slice(4) } else { host }
+  host.split(".").at(0, default: "")
+}
+
+/// Resolve the best icon key for a profile from icon → network → URL host.
+#let profile-icon-key(item) = {
+  let icon = if "icon" in item and item.icon != none { normalize-profile-key(item.icon) } else { "" }
+  if icon != "" { return icon }
+
+  let network = if "network" in item and item.network != none {
+    normalize-profile-key(item.network)
+  } else {
+    ""
+  }
+  if network != "" { return network }
+
+  normalize-profile-key(profile-url-host-key(item))
+}
+
+/// Map a normalized profile key to a bundled SVG stem under `/assets/icons/`.
+/// Returns `none` when no bundled mark exists (text badge fallback).
+#let profile-icon-asset(key) = {
+  if key == "github" or key == "gh" or key == "githuborg" or key == "githuborganization" { "github" }
+  else if key == "gitlab" or key == "gl" { "gitlab" }
+  else if key == "linkedin" or key == "li" { "linkedin" }
+  else if key == "twitter" or key == "x" or key == "xtwitter" { "x" }
+  else if key == "facebook" or key == "fb" { "facebook" }
+  else if key == "instagram" or key == "ig" { "instagram" }
+  else if key == "youtube" or key == "yt" { "youtube" }
+  else if key == "mastodon" { "mastodon" }
+  else if key == "discord" { "discord" }
+  else if key == "stackoverflow" or key == "stack" { "stackoverflow" }
+  else if key == "medium" { "medium" }
+  else if key == "dribbble" { "dribbble" }
+  else if key == "behance" { "behance" }
+  else if key == "telegram" or key == "tg" { "telegram" }
+  else if key == "whatsapp" or key == "wa" { "whatsapp" }
+  else if key == "email" or key == "mail" or key == "envelope" { "email" }
+  else if key == "website" or key == "web" or key == "portfolio" or key == "personal" or key == "homepage" { "website" }
+  else if key == "phone" or key == "tel" or key == "mobile" { "phone" }
+  else { none }
+}
+
+/// Short offline-safe text mark when no bundled SVG exists for the key.
+#let profile-icon-mark(key) = {
+  if key != "" { key.slice(0, calc.min(2, key.len())) }
+  else { "↗" }
+}
+
+/// Whether typography.hideIcons is set.
+#let typography-hide-icons(data) = {
+  data.metadata.typography.at("hideIcons", default: false)
+}
+
+/// Whether typography.underlineLinks is set (defaults to true).
+#let typography-underline-links(data) = {
+  data.metadata.typography.at("underlineLinks", default: true)
+}
+
+/// Compact local icon badge for a profile entry (bundled SVG, text fallback).
+#let render-profile-icon(item, size: 9pt, fill: rgb("#333333")) = {
+  let key = profile-icon-key(item)
+  let asset = profile-icon-asset(key)
+  let box-size = size + 2pt
+  let icon-size = size * 0.72
+  let content = if asset != none {
+    // SVGs use currentColor; inherit fill from surrounding text.
+    text(fill: fill)[
+      #image("/assets/icons/" + asset + ".svg", width: icon-size, height: icon-size)
+    ]
+  } else {
+    text(size: size * 0.55, fill: fill, weight: "bold")[#profile-icon-mark(key)]
+  }
+  box(
+    width: box-size,
+    height: box-size,
+    fill: fill.lighten(82%),
+    radius: 2pt,
+    stroke: 0.4pt + fill.lighten(40%),
+    align(center + horizon, content),
+  )
+}
+
+/// Build the visible label for a profile entry.
+///
+/// Modes:
+/// - `"network"` — network name (fallback username / URL)
+/// - `"username"` — username (fallback network / URL)
+/// - `"network-username"` — `Network: username` when both exist
+/// - `"auto"` — network if set, else username, else URL
+#let profile-entry-label(item, mode: "auto") = {
+  let network = if "network" in item and item.network != none { item.network } else { "" }
+  let username = if "username" in item and item.username != none { item.username } else { "" }
+  let href = if has-url(item) { item.url.href } else { "" }
+
+  if mode == "username" {
+    if username != "" { username }
+    else if network != "" { network }
+    else { href }
+  } else if mode == "network-username" {
+    if network != "" and username != "" { network + ": " + username }
+    else if network != "" { network }
+    else if username != "" { username }
+    else { href }
+  } else {
+    // "network" and "auto" share the same preference order.
+    if network != "" { network }
+    else if username != "" { username }
+    else { href }
+  }
+}
+
+/// Render a profile row with an optional local icon and link styling.
+///
+/// Respects `metadata.typography.hideIcons` and `underlineLinks`.
+/// Pass `fill` / `link-fill` so sidebar templates can keep readable contrast.
+#let render-profile-entry(
+  data,
+  item,
+  size: 9pt,
+  fill: rgb("#333333"),
+  link-fill: none,
+  label-mode: "auto",
+  weight: "regular",
+  icon-gap: 4pt,
+) = {
+  let label = profile-entry-label(item, mode: label-mode)
+  if label == "" or label == none { return }
+
+  let hide-icons = typography-hide-icons(data)
+  let underline-links = typography-underline-links(data)
+  let color = if has-url(item) {
+    if link-fill != none { link-fill } else { fill }
+  } else {
+    fill
+  }
+
+  let body = {
+    if not hide-icons {
+      render-profile-icon(item, size: size, fill: color)
+      h(icon-gap)
+    }
+    text(size: size, fill: color, weight: weight)[#label]
+  }
+
+  if has-url(item) {
+    let linked = if underline-links {
+      underline(offset: 1.5pt, extent: 0.5pt, body)
+    } else {
+      body
+    }
+    link(item.url.href)[#linked]
+  } else {
+    body
   }
 }
 
