@@ -22,6 +22,16 @@ and this project adheres to
 
 ### Security
 
+## [0.41.0] - 2026-07-23
+
+### Added
+
+- **schema**: add cover letter section type to resume schema (#423) (fda6a9b)
+
+### Fixed
+
+- **web**: handle cover letter sections after schema merge (#555) (0deee84)
+
 ## [0.40.2] - 2026-07-23
 
 ### Fixed
@@ -529,7 +539,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.40.2...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.41.0...HEAD
+[0.41.0]: https://github.com/lgtm-hq/Rustume/compare/v0.40.2...v0.41.0
 [0.40.2]: https://github.com/lgtm-hq/Rustume/compare/v0.40.1...v0.40.2
 [0.40.1]: https://github.com/lgtm-hq/Rustume/compare/v0.40.0...v0.40.1
 [0.40.0]: https://github.com/lgtm-hq/Rustume/compare/v0.39.0...v0.40.0
