@@ -21,7 +21,8 @@ name: Build - Docker Image & Registry
 #   v*.*.* tag -> ghcr.io/lgtm-hq/rustume:<semver>, :latest, :sha-<commit>
 # Staging should track :main (or digest-pin sha-<commit> from the same build).
 # Production should track release semver tags (prefer digest-pinned sha-<commit>).
-# See docs/operations/rustume-cloud-deploy.md.
+# This repo's responsibility ends at the GHCR publish; hosted deploys run from
+# the private rustume-ops repo (deploy runbook lives there).
 
 "on":
   push:
@@ -35,8 +36,8 @@ permissions:
   contents: read
 
 # Cancel superseded PR validate runs; never cancel main/tag/release publishes
-# (a cancelled publish would leave GHCR tags, signatures, and the Railway
-# deploy chain in a partial state).
+# (a cancelled publish would leave GHCR tags and signatures in a partial
+# state, and downstream rustume-ops deploys pull these tags).
 concurrency:
   group: docker-${{ github.ref }}
   cancel-in-progress: >-
@@ -64,7 +65,7 @@ jobs:
           allowed-endpoints: >
             github.com:443
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false

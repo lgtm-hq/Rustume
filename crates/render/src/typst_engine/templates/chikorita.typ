@@ -9,6 +9,7 @@
   let primary-color = rgb(data.metadata.theme.at("primary", default: "#16a34a"))
   let text-color = rgb(data.metadata.theme.at("text", default: "#166534"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
+  let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
   let muted-color = rgb("#6b7280")
 
@@ -38,7 +39,12 @@
   }
 
   let rating-dots(level) = {
-    rating-indicators(level, 6pt, 6pt, primary-color, border-color, 50%, 3pt)
+    let level = clamp-level(level)
+    if level-display == "template-default" {
+      rating-indicators(level, 6pt, 6pt, primary-color, border-color, 50%, 3pt)
+    } else {
+      render-level(level, level-display, primary-color, border-color, spacing: 3pt)
+    }
   }
 
   let render-experience(item) = {
@@ -105,7 +111,10 @@
     }
 
     let level = clamp-level(item.level)
-    if level > 0 {
+    if level-display == "template-default" and level > 0 {
+      v(2pt)
+      rating-dots(level)
+    } else if should-render-level(level, level-display) {
       v(2pt)
       rating-dots(level)
     }
@@ -129,7 +138,10 @@
     }
 
     let level = clamp-level(item.level)
-    if level > 0 {
+    if level-display == "template-default" and level > 0 {
+      v(2pt)
+      rating-dots(level)
+    } else if should-render-level(level, level-display) {
       v(2pt)
       rating-dots(level)
     }
@@ -434,7 +446,7 @@
   render-resume(data, (
     layout: "two-column",
     renderers: renderers,
-    columns: (2fr, 1fr),
+    columns: sidebar-ratio-columns(data, (2fr, 1fr), sidebar-side: "right"),
     column-gutter: 20pt,
     left-column: 0,
     left-fallback: default-main-sections + ("custom",),

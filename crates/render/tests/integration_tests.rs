@@ -7,7 +7,8 @@ use rstest::rstest;
 use rustume_parser::{JsonResumeParser, Parser, ReactiveResumeV3Parser};
 use rustume_render::{get_page_size, get_template_theme, Renderer, TypstRenderer, TEMPLATES};
 use rustume_schema::{
-    Basics, CustomItem, Education, Experience, PageFormat, ResumeData, Section, Skill,
+    Basics, CustomItem, Education, Experience, LevelDisplay, PageFormat, Picture, PictureEffects,
+    ResumeData, Section, Skill,
 };
 use std::collections::HashMap;
 use std::fs;
@@ -475,6 +476,126 @@ fn test_render_template_with_content(#[case] template_name: &str) {
 }
 
 #[rstest]
+#[case("azurill")]
+#[case("pikachu")]
+#[case("chikorita")]
+#[case("ditto")]
+#[case("gengar")]
+#[case("glalie")]
+fn test_sidebar_templates_render_with_and_without_sidebar_ratio(#[case] template_name: &str) {
+    let renderer = TypstRenderer::new();
+
+    for sidebar_ratio in [None, Some(0.1), Some(0.25), Some(0.5)] {
+        let mut resume = sample_resume();
+        resume.metadata.template = template_name.to_string();
+        resume.metadata.page.sidebar_ratio = sidebar_ratio;
+
+        let result = renderer.render_pdf(&resume);
+        assert!(
+            result.is_ok(),
+            "PDF rendering failed for template '{template_name}' with sidebar ratio {sidebar_ratio:?}: {:?}",
+            result.err()
+        );
+        assert!(result.unwrap().starts_with(b"%PDF-"));
+    }
+}
+
+/// The ratio must actually change the layout (not merely render), and raw
+/// out-of-range values must hit the render-time clamp — the export path
+/// renders stored JSON without schema validation.
+#[rstest]
+#[case("azurill")]
+#[case("pikachu")]
+fn test_sidebar_ratio_changes_layout_and_clamps(#[case] template_name: &str) {
+    let renderer = TypstRenderer::new();
+    let render = |ratio: Option<f32>| {
+        let mut resume = sample_resume();
+        resume.metadata.template = template_name.to_string();
+        resume.metadata.page.sidebar_ratio = ratio;
+        renderer.render_pdf(&resume).unwrap()
+    };
+
+    // These comparisons require byte-deterministic output. Fail loudly if
+    // that ever changes so the assertions get reworked instead of silently
+    // stopping to enforce anything.
+    let narrow = render(Some(0.1));
+    assert_eq!(
+        render(Some(0.1)),
+        narrow,
+        "PDF output is no longer byte-deterministic; rework this test's \
+         comparisons (e.g. compare rendered PNG pixels or generated Typst \
+         source) instead of skipping"
+    );
+
+    let wide = render(Some(0.5));
+    assert_ne!(
+        narrow, wide,
+        "sidebar ratio has no effect on layout for '{template_name}'"
+    );
+
+    // Values outside [0.1, 0.5] clamp to the nearest bound.
+    assert_eq!(
+        render(Some(-1.0)),
+        narrow,
+        "ratio below range should clamp to 0.1 for '{template_name}'"
+    );
+    assert_eq!(
+        render(Some(0.75)),
+        wide,
+        "ratio above range should clamp to 0.5 for '{template_name}'"
+    );
+}
+
+#[rstest]
+fn test_render_template_with_level_display_override(
+    // rhyhorn covers the grid-cell rendering path, azurill the guarded
+    // per-item rendering path shared by the other templates.
+    #[values("rhyhorn", "azurill")] template_name: &str,
+    #[values(
+        LevelDisplay::Hidden,
+        LevelDisplay::Circle,
+        LevelDisplay::Square,
+        LevelDisplay::ProgressBar,
+        LevelDisplay::Text
+    )]
+    level_display: LevelDisplay,
+) {
+    let renderer = TypstRenderer::new();
+    let mut resume = sample_resume();
+    resume.metadata.template = template_name.to_string();
+    resume.metadata.level_display = level_display;
+
+    let result = renderer.render_pdf(&resume);
+    assert!(
+        result.is_ok(),
+        "PDF rendering failed for template '{template_name}' with level display \
+         '{level_display:?}': {:?}",
+        result.err()
+    );
+    assert!(result.unwrap().starts_with(b"%PDF-"));
+}
+
+/// Every template must compile with a non-default level display so a Typst
+/// syntax error in any template's override branch is caught.
+#[test]
+fn test_render_all_templates_with_circle_level_display() {
+    let renderer = TypstRenderer::new();
+    for template_name in TEMPLATES {
+        let mut resume = sample_resume();
+        resume.metadata.template = (*template_name).to_string();
+        resume.metadata.level_display = LevelDisplay::Circle;
+
+        let result = renderer.render_pdf(&resume);
+        assert!(
+            result.is_ok(),
+            "PDF rendering failed for template '{template_name}' with circle level display: {:?}",
+            result.err()
+        );
+        assert!(result.unwrap().starts_with(b"%PDF-"));
+    }
+}
+
+#[rstest]
 #[case("rhyhorn")]
 #[case("azurill")]
 #[case("pikachu")]
@@ -592,6 +713,35 @@ fn test_templates_render_multi_page_content(#[case] template_name: &str) {
         total_pages > 1,
         "Expected '{template_name}' to render more than one page"
     );
+}
+
+/// Compile-only smoke test for the shared `render-picture` helper: a resume
+/// with rotation, shadow, and border effects set must still render to a PDF.
+#[test]
+fn test_render_picture_effects_smoke() {
+    // Minimal 1x1 transparent PNG as a data URL.
+    let png_data_url = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+    let renderer = TypstRenderer::new();
+    let mut resume = sample_resume();
+    resume.metadata.template = "bronzor".to_string();
+    resume.basics.picture = Picture::new(png_data_url);
+    resume.basics.picture.effects = PictureEffects {
+        border: true,
+        rotation: 15.0,
+        border_color: "#0891b2".to_string(),
+        border_width: 3,
+        shadow_size: 8,
+        ..Default::default()
+    };
+
+    let result = renderer.render_pdf(&resume);
+    assert!(
+        result.is_ok(),
+        "PDF rendering failed with picture effects: {:?}",
+        result.err()
+    );
+    assert!(result.unwrap().starts_with(b"%PDF-"));
 }
 
 #[test]

@@ -6,6 +6,82 @@
   "url" in item and item.url != none and item.url.href != ""
 }
 
+/// Resolve a hex color, falling back when the input is empty.
+/// Typst's rgb() string form requires a leading #, so prepend one
+/// for legacy stored values that lack it.
+#let resolve-color(value, fallback) = {
+  if value == "" or value == none {
+    fallback
+  } else if value.starts-with("#") {
+    rgb(value)
+  } else {
+    rgb("#" + value)
+  }
+}
+
+/// Check whether basics includes a visible profile picture URL.
+#let has-visible-picture(basics) = {
+  if not ("picture" in basics) or basics.picture == none {
+    return false
+  }
+
+  let picture = basics.picture
+  let effects = picture.at("effects", default: (:))
+
+  "url" in picture and picture.url != "" and not effects.at("hidden", default: false)
+}
+
+/// Render a profile picture with shared schema-driven effects.
+#let render-picture(basics, primary-color, default-size: 64pt) = {
+  if not has-visible-picture(basics) {
+    return
+  }
+
+  let picture = basics.picture
+  let effects = picture.at("effects", default: (:))
+  let picture-size = picture.at("size", default: int(default-size / 1pt)) * 1pt
+  let border-radius = calc.min(picture.at("borderRadius", default: 0) * 1pt, picture-size / 2)
+  let border-width = effects.at("borderWidth", default: 2) * 1pt
+  let border-color = resolve-color(effects.at("borderColor", default: ""), primary-color)
+  let shadow-size = effects.at("shadowSize", default: 0) * 1pt
+  let shadow-color = resolve-color(effects.at("shadowColor", default: "#00000040"), rgb("#00000040"))
+  let rotation = effects.at("rotation", default: 0) * 1deg
+  let stroke = if effects.at("border", default: false) and border-width > 0pt {
+    border-width + border-color
+  } else {
+    none
+  }
+  let photo = box(
+    width: picture-size,
+    height: picture-size,
+    radius: border-radius,
+    clip: true,
+    stroke: stroke,
+    image(picture.url, width: picture-size, height: picture-size, fit: "cover")
+  )
+
+  let shadow-offset = shadow-size / 2
+  let content = if shadow-size > 0pt {
+    // The outer box is exactly the picture's size so the photo stays the
+    // layout anchor (e.g. inside align(center)). The shadow is place()d
+    // with a diagonal offset and overflows the box (place does not clip),
+    // appearing below-right of the photo.
+    box(width: picture-size, height: picture-size)[
+      #place(
+        top + left,
+        dx: shadow-offset,
+        dy: shadow-offset,
+        box(width: picture-size, height: picture-size, radius: border-radius, fill: shadow-color)
+      )
+      #place(top + left, photo)
+    ]
+  } else {
+    photo
+  }
+
+  rotate(rotation, reflow: true, content)
+}
+
 /// Format a degree line from studyType and area.
 #let format-degree(studyType, area) = {
   if studyType != "" and area != "" {
@@ -35,6 +111,60 @@
     if i > 0 { h(spacing) }
     let color = if i < level { filled-color } else { empty-color }
     box(width: width, height: height, fill: color, radius: radius)
+  }
+}
+
+/// Whether an overridden level display should render an indicator for `level`.
+/// False for the template's native rendering ("template-default"), for
+/// "hidden", and for a "text" display with no level set (level 0).
+#let should-render-level(level, level-display) = {
+  (
+    level-display != "template-default"
+      and level-display != "hidden"
+      and not (level-display == "text" and level == 0)
+  )
+}
+
+/// Render a skill/language level in the configured global display style.
+#let render-level(
+  level,
+  display,
+  filled-color,
+  empty-color,
+  width: 6pt,
+  height: 6pt,
+  spacing: 2pt,
+  track-width: 48pt,
+  track-height: 4pt,
+  text-size: 8pt,
+) = {
+  let level = clamp-level(level)
+
+  if display == "hidden" {
+    return
+  } else if display == "circle" {
+    rating-indicators(level, width, height, filled-color, empty-color, 50%, spacing)
+  } else if display == "square" {
+    rating-indicators(level, width, height, filled-color, empty-color, 0pt, spacing)
+  } else if display == "progress-bar" {
+    box(
+      width: track-width,
+      height: track-height,
+      fill: empty-color,
+      radius: track-height / 2,
+      place(top + left, box(
+        width: track-width * level / 5,
+        height: track-height,
+        fill: filled-color,
+        radius: track-height / 2,
+      )),
+    )
+  } else if display == "text" {
+    let labels = ("", "Novice", "Beginner", "Intermediate", "Advanced", "Expert")
+    let label = labels.at(level)
+    if label != "" {
+      text(size: text-size, fill: filled-color)[#label]
+    }
   }
 }
 
@@ -80,6 +210,64 @@
   if basics.phone != "" { items = items + (basics.phone,) }
   if basics.location != "" { items = items + (basics.location,) }
   items
+}
+
+/// Optional sidebar width ratio from metadata.page.sidebarRatio.
+#let sidebar-ratio(data) = {
+  data.metadata.page.at("sidebarRatio", default: none)
+}
+
+/// Paper width in points for supported page formats.
+#let paper-width(data) = {
+  let format = data.metadata.page.at("format", default: "a4")
+  if format == "letter" or format == "us-letter" {
+    612pt
+  } else {
+    595.28pt
+  }
+}
+
+/// Content width after subtracting resume page margins.
+/// Note: fixed-width sidebar templates set the real page margin to 0/48pt, so
+/// subtracting 2x the metadata margin here is an approximation. The web UI's
+/// default-ratio math (ThemeEditor.tsx) mirrors the same approximation, so the
+/// two stay self-consistent — do not "fix" the math on one side only.
+#let content-width(data) = {
+  paper-width(data) - (2 * data.metadata.page.at("margin", default: 18) * 1pt)
+}
+
+/// Clamp a sidebar ratio to the supported [0.1, 0.5] range.
+/// The export path renders stored JSON without schema validation, so
+/// out-of-range stored values must be clamped here as defense-in-depth.
+#let clamp-sidebar-ratio(ratio) = {
+  calc.max(0.1, calc.min(0.5, ratio))
+}
+
+/// Resolve a fixed sidebar width from sidebarRatio, preserving native defaults.
+#let sidebar-width-from-ratio(data, default) = {
+  let ratio = sidebar-ratio(data)
+  if ratio == none {
+    default
+  } else {
+    clamp-sidebar-ratio(ratio) * content-width(data)
+  }
+}
+
+/// Resolve proportional two-column widths, preserving native defaults.
+#let sidebar-ratio-columns(data, default, sidebar-side: "left") = {
+  let ratio = sidebar-ratio(data)
+  if ratio == none {
+    return default
+  }
+  let ratio = clamp-sidebar-ratio(ratio)
+
+  let sidebar-width = ratio * 100fr
+  let main-width = (1 - ratio) * 100fr
+  if sidebar-side == "right" {
+    (main-width, sidebar-width)
+  } else {
+    (sidebar-width, main-width)
+  }
 }
 
 /// Fixed-width sidebar plus flowing main content.

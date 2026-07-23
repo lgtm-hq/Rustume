@@ -36,7 +36,7 @@ function createMockStorage(): Storage {
 const mockStorage = createMockStorage();
 
 // Stash original so we can restore after all tests.
-const _origLocalStorage = globalThis.localStorage;
+const origLocalStorage = globalThis.localStorage;
 
 // Install mock before any module-level code in the SUT runs.
 Object.defineProperty(globalThis, "localStorage", {
@@ -47,7 +47,7 @@ Object.defineProperty(globalThis, "localStorage", {
 
 afterAll(() => {
   Object.defineProperty(globalThis, "localStorage", {
-    value: _origLocalStorage,
+    value: origLocalStorage,
     writable: true,
     configurable: true,
   });

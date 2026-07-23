@@ -24,6 +24,11 @@ export function createSampleResume(): ResumeData {
           hidden: true,
           border: false,
           grayscale: false,
+          rotation: 0,
+          borderColor: "",
+          borderWidth: 2,
+          shadowColor: "#00000040",
+          shadowSize: 0,
         },
       },
     },
@@ -36,6 +41,19 @@ export function createSampleResume(): ResumeData {
         visible: true,
         content:
           "Passionate software engineer with 8+ years of experience building scalable web applications. Expert in React, TypeScript, and cloud architecture. Led teams of 5-10 engineers and delivered products serving millions of users.",
+      },
+      coverLetter: {
+        id: "coverLetter",
+        name: "Cover Letter",
+        visible: false,
+        recipient: {
+          name: "",
+          title: "",
+          company: "",
+          address: "",
+          email: "",
+        },
+        content: "",
       },
       experience: {
         id: "experience",
@@ -238,6 +256,7 @@ export function createSampleResume(): ResumeData {
         underlineLinks: false,
       },
       notes: "",
+      levelDisplay: "template-default",
     },
   };
 }
@@ -265,6 +284,11 @@ export function createDefaultResume(): ResumeData {
           hidden: true,
           border: false,
           grayscale: false,
+          rotation: 0,
+          borderColor: "",
+          borderWidth: 2,
+          shadowColor: "#00000040",
+          shadowSize: 0,
         },
       },
     },
@@ -277,6 +301,19 @@ export function createDefaultResume(): ResumeData {
         visible: true,
         content:
           "Experienced software engineer with a passion for building great products. Strong background in full-stack development, cloud architecture, and team leadership.",
+      },
+      coverLetter: {
+        id: "coverLetter",
+        name: "Cover Letter",
+        visible: false,
+        recipient: {
+          name: "",
+          title: "",
+          company: "",
+          address: "",
+          email: "",
+        },
+        content: "",
       },
       experience: {
         id: "experience",
@@ -479,6 +516,7 @@ export function createDefaultResume(): ResumeData {
         underlineLinks: false,
       },
       notes: "",
+      levelDisplay: "template-default",
     },
   };
 }

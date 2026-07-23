@@ -34,8 +34,10 @@ is_listed() {
 @test "resolve_docker_relevance: every top-level path is categorized" {
 	local skip_roots=(docs)
 	local skip_files=(
+		AGENTS.md
 		CHANGELOG.md
 		CONTRIBUTING.md
+		LICENSING.md
 		README.md
 		SECURITY.md
 	)
@@ -45,7 +47,6 @@ is_listed() {
 		bindings
 		crates
 		docker
-		infra
 		scripts
 		tests
 		Cargo.lock

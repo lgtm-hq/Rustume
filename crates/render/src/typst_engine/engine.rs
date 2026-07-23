@@ -22,6 +22,36 @@ pub const TEMPLATES: &[&str] = &[
     "onyx",      // Single-column linear, red accent (#dc2626)
 ];
 
+/// Generated Typst source plus an optional decoded picture asset
+/// (virtual path, bytes) to expose to the Typst world.
+type PreparedSource = (String, Option<(String, Vec<u8>)>);
+
+/// Decode a `data:image/<subtype>;base64,` picture URL into bytes and rewrite
+/// the picture URL to a virtual asset path so Typst's `image()` can load it.
+/// Leaves the resume untouched when the URL is not a supported data URL.
+fn extract_picture_asset(resume: &mut ResumeData) -> Option<(String, Vec<u8>)> {
+    use base64::Engine as _;
+
+    let rest = resume.basics.picture.url.strip_prefix("data:image/")?;
+    let (subtype, encoded) = rest.split_once(";base64,")?;
+    let ext = match subtype {
+        "jpeg" => "jpg",
+        "png" => "png",
+        "webp" => "webp",
+        "gif" => "gif",
+        _ => return None,
+    };
+    let data = base64::engine::general_purpose::STANDARD
+        .decode(encoded)
+        .ok()?;
+
+    // Absolute virtual path so it resolves from the project root regardless of
+    // which template file calls `image()`.
+    let path = format!("/assets/picture.{ext}");
+    resume.basics.picture.url = path.clone();
+    Some((path, data))
+}
+
 /// Convert an HTML string to Typst markup via sanitize → convert.
 fn convert_field(html: &str) -> String {
     if html.is_empty() {
@@ -125,6 +155,12 @@ impl TypstRenderer {
     /// Generate the Typst source code for a resume.
     #[instrument(skip(self, resume), fields(template = %resume.metadata.template))]
     pub fn generate_source(&self, resume: &ResumeData) -> Result<String, RenderError> {
+        Ok(self.prepare_source(resume)?.0)
+    }
+
+    /// Generate the Typst source plus any binary picture asset extracted from
+    /// an inline data URL (the only URL form the web app produces on upload).
+    fn prepare_source(&self, resume: &ResumeData) -> Result<PreparedSource, RenderError> {
         debug!("Generating Typst source");
 
         // Validate metadata bounds before embedding in Typst source
@@ -156,7 +192,10 @@ impl TypstRenderer {
         };
 
         // Preprocess HTML fields → Typst markup before serialization
-        let resume = preprocess_rich_text(resume);
+        let mut resume = preprocess_rich_text(resume);
+
+        // Rewrite a data-URL picture to a virtual asset path served by the world.
+        let picture_asset = extract_picture_asset(&mut resume);
 
         // Serialize resume data to JSON for Typst
         let resume_json = serde_json::to_string(&resume)
@@ -208,7 +247,7 @@ impl TypstRenderer {
             resume_json = escaped_json,
         );
 
-        Ok(source)
+        Ok((source, picture_asset))
     }
 
     /// Compile the Typst source to a document.
@@ -217,8 +256,11 @@ impl TypstRenderer {
         use typst::{World, WorldExt};
 
         debug!("Starting Typst compilation");
-        let source = self.generate_source(resume)?;
-        let world = RustumeWorld::new(source)?;
+        let (source, picture_asset) = self.prepare_source(resume)?;
+        let mut world = RustumeWorld::new(source)?;
+        if let Some((path, data)) = picture_asset {
+            world.add_binary_file(&path, data)?;
+        }
 
         debug!("Compiling Typst document");
         let result = typst::compile::<typst_layout::PagedDocument>(&world);

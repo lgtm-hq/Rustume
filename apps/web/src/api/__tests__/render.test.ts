@@ -43,7 +43,16 @@ const mockResume: ResumeData = {
       size: 64,
       aspectRatio: 1,
       borderRadius: 0,
-      effects: { hidden: true, border: false, grayscale: false },
+      effects: {
+        hidden: true,
+        border: false,
+        grayscale: false,
+        rotation: 0,
+        borderColor: "",
+        borderWidth: 2,
+        shadowColor: "#00000040",
+        shadowSize: 0,
+      },
     },
   },
   sections: {
@@ -171,6 +180,7 @@ const mockResume: ResumeData = {
       underlineLinks: false,
     },
     notes: "",
+    levelDisplay: "template-default",
   },
 };
 

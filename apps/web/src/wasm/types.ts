@@ -21,6 +21,11 @@ export interface Picture {
     hidden: boolean;
     border: boolean;
     grayscale: boolean;
+    rotation: number;
+    borderColor: string;
+    borderWidth: number;
+    shadowColor: string;
+    shadowSize: number;
   };
 }
 
@@ -41,6 +46,22 @@ export interface SummarySection {
   columns: number;
   separateLinks: boolean;
   visible: boolean;
+  content: string;
+}
+
+export interface CoverLetterRecipient {
+  name: string;
+  title: string;
+  company: string;
+  address: string;
+  email: string;
+}
+
+export interface CoverLetterSection {
+  id: string;
+  name: string;
+  visible: boolean;
+  recipient: CoverLetterRecipient;
   content: string;
 }
 
@@ -184,6 +205,7 @@ export interface CustomItem {
 
 export interface Sections {
   summary: SummarySection;
+  coverLetter: CoverLetterSection;
   experience: Section<Experience>;
   education: Section<Education>;
   skills: Section<Skill>;
@@ -207,6 +229,7 @@ export interface CustomCss {
 export interface PageConfig {
   margin: number;
   format: "a4" | "letter";
+  sidebarRatio?: number;
   breakLine: boolean;
   pageNumbers: boolean;
 }
@@ -241,6 +264,14 @@ export interface Typography {
   underlineLinks: boolean;
 }
 
+export type LevelDisplay =
+  | "template-default"
+  | "hidden"
+  | "circle"
+  | "square"
+  | "progress-bar"
+  | "text";
+
 export interface Metadata {
   template: string;
   layout: string[][][];
@@ -249,6 +280,8 @@ export interface Metadata {
   theme: Theme;
   typography: Typography;
   notes: string;
+  /** Optional: resumes stored before this field existed lack it. */
+  levelDisplay?: LevelDisplay;
 }
 
 export interface ResumeData {
@@ -283,6 +316,11 @@ export function createEmptyPicture(): Picture {
       hidden: true,
       border: false,
       grayscale: false,
+      rotation: 0,
+      borderColor: "",
+      borderWidth: 2,
+      shadowColor: "#00000040",
+      shadowSize: 0,
     },
   };
 }
