@@ -12,6 +12,7 @@
   let primary-color = rgb(data.metadata.theme.at("primary", default: "#14b8a6"))
   let text-color = rgb(data.metadata.theme.at("text", default: "#0f172a"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
+  let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
   let muted-color = rgb("#64748b")
   let sidebar-bg = primary-color.lighten(90%)
@@ -35,7 +36,12 @@
   }
 
   let skill-dots(level) = {
-    rating-indicators(level, 6pt, 6pt, primary-color, primary-color.lighten(70%), 50%, 2pt)
+    let level = clamp-level(level)
+    if level-display == "template-default" {
+      rating-indicators(level, 6pt, 6pt, primary-color, primary-color.lighten(70%), 50%, 2pt)
+    } else {
+      render-level(level, level-display, primary-color, primary-color.lighten(70%))
+    }
   }
 
   let render-experience(item) = {
@@ -106,7 +112,10 @@
     }
 
     let level = clamp-level(item.level)
-    if level > 0 {
+    if level-display == "template-default" and level > 0 {
+      v(2pt)
+      skill-dots(level)
+    } else if should-render-level(level, level-display) {
       v(2pt)
       skill-dots(level)
     }
@@ -130,7 +139,10 @@
     }
 
     let level = clamp-level(item.level)
-    if level > 0 {
+    if level-display == "template-default" and level > 0 {
+      v(2pt)
+      skill-dots(level)
+    } else if should-render-level(level, level-display) {
       v(2pt)
       skill-dots(level)
     }
@@ -413,7 +425,8 @@
   render-resume(data, (
     layout: "sidebar-left",
     renderers: renderers,
-    sidebar-width: 170pt,
+    // Default width must match FIXED_SIDEBAR_WIDTH_PT in apps/web/src/components/templates/ThemeEditor.tsx.
+    sidebar-width: sidebar-width-from-ratio(data, 170pt),
     sidebar-bg: sidebar-bg,
     sidebar-inset: (x: 16pt, y: 24pt),
     main-inset: (x: 24pt, y: 24pt),

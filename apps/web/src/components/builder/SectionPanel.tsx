@@ -48,6 +48,7 @@ export function SectionPanel() {
       class={`absolute bottom-0 right-0 top-12 z-10 transition-[width] duration-200 ease-out ${
         ui.sectionPanelOpen ? "w-[336px]" : "w-28"
       }`}
+      data-print-hide
       onMouseEnter={() => setSectionPanelOpen(true)}
       onMouseLeave={() => setSectionPanelOpen(false)}
       onFocusIn={() => setSectionPanelOpen(true)}

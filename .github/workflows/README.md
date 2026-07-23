@@ -25,21 +25,15 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
   `reusable-publish-quality-summary`
 - **site-quality.yml** — Docs site build, link check, Astro check, Vitest + pytest via
   `reusable-site-quality`
-- **test-railway-shell.yml** — BATS tests for `scripts/ci/railway/` via
-  `reusable-test-shell`
 
 ## Deploy
 
 - **deploy-pages.yml** — Docs site + bundled coverage reports via
   `reusable-deploy-site-with-reports` (triggered after **Coverage Reports** or
   **Quality - Documentation Site** on `main`, or `workflow_dispatch`)
-- **deploy-railway-cloud.yml** — Deploy - Rustume Cloud (Railway). Deploys to Railway
-  after successful Docker publish on `main`. Uses GraphQL API to update image source and
-  trigger deploy. Polls for success. Creates GitHub Deployment entry. Requires
-  `RAILWAY_API_TOKEN` (or `RAILWAY_TOKEN`).
 - **docker-build-publish.yml** — Multi-arch GHCR publish via `reusable-docker`
-  (Rustume Cloud production: `ghcr.io/lgtm-hq/rustume:main` — see
-  `docs/operations/rustume-cloud-deploy.md`)
+  (`ghcr.io/lgtm-hq/rustume:main`; hosted deploys run from the private
+  rustume-ops repo — this repo ends at the GHCR publish)
 
 ## Release
 
@@ -111,6 +105,6 @@ in-progress runs on `main`.
 ## Local scripts
 
 Repo-local scripts under `scripts/ci/` remain for site build/test, release binary
-packaging, Railway deploy automation tests, and GHCR tagged prune. Quality,
+packaging, and GHCR tagged prune. Quality,
 security audit, release automation, and vulnerability suppression paths are
 handled by lgtm-ci reusables.

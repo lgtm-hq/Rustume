@@ -9,6 +9,7 @@
   let primary-color = rgb(data.metadata.theme.at("primary", default: "#9f1239"))
   let text-color = rgb(data.metadata.theme.at("text", default: "#1f2937"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
+  let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
   let muted-color = text-color.lighten(40%)
 
@@ -32,7 +33,12 @@
   }
 
   let rating-dots(level) = {
-    rating-indicators(level, 6pt, 6pt, primary-color, bg-color.darken(10%), 50%, 2pt)
+    let level = clamp-level(level)
+    if level-display == "template-default" {
+      rating-indicators(level, 6pt, 6pt, primary-color, bg-color.darken(10%), 50%, 2pt)
+    } else {
+      render-level(level, level-display, primary-color, bg-color.darken(10%))
+    }
   }
 
   let render-experience(item) = {
@@ -458,6 +464,8 @@
   render-resume(data, (
     layout: "two-column",
     renderers: renderers,
+    // Intentionally not wired to sidebar-ratio-columns: leafish is excluded from
+    // the adjustable sidebar-ratio template list in issue #84.
     columns: (1fr, 1fr),
     column-gutter: 20pt,
     left-column: 0,

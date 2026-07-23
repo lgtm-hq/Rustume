@@ -8,12 +8,13 @@ use axum::{
 use tracing::error;
 use uuid::Uuid;
 
-use crate::audit::{record_event, AuditEvent};
+use crate::audit::{record_event, record_event_required, AuditEvent};
 use crate::db::{
     capture_resume_snapshot, get_resume_snapshot, list_resume_snapshots, restore_resume_snapshot,
     CreateResumeRequest, ImportFailure, ImportResumeItem, ImportResumesRequest,
     ImportResumesResponse, PaginatedResumeSummaries, RestoreResumeRequest, ResumeListQuery,
-    ResumeRow, ResumeSnapshot, ResumeSummary, ResumeVersionSummary, UpdateResumeRequest,
+    ResumeRow, ResumeSnapshot, ResumeSummary, ResumeVersionSummary, SharingResponse,
+    UpdateResumeRequest, UpdateSharingRequest,
 };
 use crate::error::ApiError;
 use crate::middleware::auth::AuthUser;
@@ -270,6 +271,68 @@ pub async fn restore_resume_version(
     access.ensure_write()?;
     let row = restore_resume_snapshot(&cloud.db, user.id, id, version, body.version).await?;
     Ok(Json(row))
+}
+
+/// Update public sharing settings for a resume owned by the authenticated user.
+#[utoipa::path(
+    put,
+    path = "/api/resumes/{id}/sharing",
+    tag = "Resumes",
+    params(("id" = String, Path, description = "Resume ID")),
+    request_body = UpdateSharingRequest,
+    responses(
+        (status = 200, description = "Sharing settings updated", body = SharingResponse),
+        (status = 401, description = "Not authenticated", body = ApiError),
+        (status = 404, description = "Resume not found", body = ApiError),
+    ),
+    security(("cookieAuth" = []))
+)]
+pub async fn update_sharing(
+    AuthUser(user): AuthUser,
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+    headers: HeaderMap,
+    Json(body): Json<UpdateSharingRequest>,
+) -> Result<Json<SharingResponse>, ApiError> {
+    let cloud = state.cloud()?;
+    let access = subscription::load_access(&cloud.db, user.id).await?;
+    access.ensure_write()?;
+
+    let new_slug = if body.is_public {
+        Some(generate_public_slug())
+    } else {
+        None
+    };
+    let mut tx = cloud.db.begin().await.map_err(internal_db_error)?;
+
+    let sharing =
+        apply_sharing_update(&mut tx, user.id, id, body.is_public, new_slug.as_deref()).await?;
+
+    let event_type = if body.is_public {
+        "resume.publish"
+    } else {
+        "resume.unpublish"
+    };
+    record_event_required(
+        &mut *tx,
+        AuditEvent {
+            event_type,
+            actor_user_id: Some(user.id),
+            resource_type: Some("resume"),
+            resource_id: Some(id),
+            metadata: serde_json::json!({
+                "is_public": sharing.is_public,
+                "public_slug": sharing.public_slug,
+            }),
+            ip_address: trusted_client_ip(&headers, net::trusted_proxy_enabled()).as_deref(),
+        },
+    )
+    .await
+    .map_err(internal_db_error)?;
+
+    tx.commit().await.map_err(internal_db_error)?;
+
+    Ok(Json(sharing))
 }
 
 /// Delete a resume owned by the authenticated user.
@@ -581,6 +644,71 @@ async fn map_update_miss(
         )),
         _ => Err(ApiError::not_found("Resume not found")),
     }
+}
+
+#[derive(Debug, sqlx::FromRow)]
+struct SharingRow {
+    is_public: bool,
+    public_slug: Option<String>,
+}
+
+fn generate_public_slug() -> String {
+    cuid2::create_id()
+}
+
+fn is_slug_unique_violation(err: &sqlx::Error) -> bool {
+    matches!(
+        err,
+        sqlx::Error::Database(db_err) if db_err.code().as_deref() == Some("23505")
+    )
+}
+
+async fn apply_sharing_update(
+    db: &mut sqlx::PgConnection,
+    user_id: Uuid,
+    resume_id: Uuid,
+    is_public: bool,
+    new_slug: Option<&str>,
+) -> Result<SharingResponse, ApiError> {
+    let mut slug = new_slug.map(str::to_string);
+
+    for attempt in 0..2 {
+        let row = sqlx::query_as::<_, SharingRow>(
+            r#"
+            UPDATE resumes
+            SET is_public = $3,
+                public_slug = CASE
+                    WHEN $3 = true AND public_slug IS NULL THEN $4
+                    ELSE public_slug
+                END,
+                updated_at = now()
+            WHERE id = $1 AND user_id = $2
+            RETURNING is_public, public_slug
+            "#,
+        )
+        .bind(resume_id)
+        .bind(user_id)
+        .bind(is_public)
+        .bind(slug.as_deref())
+        .fetch_optional(&mut *db)
+        .await;
+
+        match row {
+            Ok(Some(row)) => {
+                return Ok(SharingResponse {
+                    is_public: row.is_public,
+                    public_slug: row.public_slug,
+                });
+            }
+            Ok(None) => return Err(ApiError::not_found("Resume not found")),
+            Err(err) if is_slug_unique_violation(&err) && attempt == 0 && is_public => {
+                slug = Some(generate_public_slug());
+            }
+            Err(err) => return Err(map_resume_db_error(err)),
+        }
+    }
+
+    Err(ApiError::internal("failed to assign public slug"))
 }
 
 async fn fetch_owned_resume(
@@ -1143,5 +1271,27 @@ mod tests {
         cleanup_user(&pool, user.id).await;
 
         assert_eq!(snapshot_count, 0);
+    }
+
+    #[test]
+    fn public_slug_is_url_safe_nonempty_and_distinct() {
+        let slug_a = generate_public_slug();
+        let slug_b = generate_public_slug();
+
+        assert!(!slug_a.is_empty());
+        assert!(!slug_b.is_empty());
+        assert_ne!(slug_a, slug_b);
+        assert!(
+            slug_a
+                .chars()
+                .all(|ch| ch.is_ascii_alphanumeric() || ch == '_'),
+            "slug should be URL-safe: {slug_a}"
+        );
+        assert!(
+            slug_b
+                .chars()
+                .all(|ch| ch.is_ascii_alphanumeric() || ch == '_'),
+            "slug should be URL-safe: {slug_b}"
+        );
     }
 }

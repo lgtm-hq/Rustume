@@ -9,7 +9,8 @@ use crate::db::{
     DeleteAccountResponse, ImportFailure, ImportResumeItem, ImportResumesRequest,
     ImportResumesResponse, PaginatedResumeSummaries, RestoreResumeRequest, ResumeBulkExport,
     ResumeExportItem, ResumeListQuery, ResumeRow, ResumeSnapshot, ResumeSummary,
-    ResumeVersionSummary, SubscriptionInfo, UpdateResumeRequest,
+    ResumeVersionSummary, SharingResponse, SubscriptionInfo, UpdateResumeRequest,
+    UpdateSharingRequest,
 };
 use crate::dto::{
     ParseFormat, ParseRequest, RenderPdfRequest, RenderPreviewRequest, TemplateInfo, ThemeInfo,
@@ -59,6 +60,7 @@ impl Modify for CookieAuthAddon {
         crate::routes::resumes::list_resume_versions,
         crate::routes::resumes::get_resume_version,
         crate::routes::resumes::restore_resume_version,
+        crate::routes::resumes::update_sharing,
         crate::routes::resumes::delete_resume,
         crate::routes::resumes::import_resumes,
         crate::routes::export::export_resumes_json,
@@ -89,6 +91,8 @@ impl Modify for CookieAuthAddon {
             CreateResumeRequest,
             UpdateResumeRequest,
             RestoreResumeRequest,
+            UpdateSharingRequest,
+            SharingResponse,
             ImportResumesRequest,
             ImportResumesResponse,
             ImportFailure,

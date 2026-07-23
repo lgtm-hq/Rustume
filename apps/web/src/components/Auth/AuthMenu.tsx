@@ -3,6 +3,7 @@ import { useNavigate } from "@solidjs/router";
 import { createSignal, Show } from "solid-js";
 import { authStore } from "../../stores/auth";
 import { Button, Spinner } from "../ui";
+import { PolicyConsent } from "./PolicyConsent";
 
 export function AuthMenu() {
   const navigate = useNavigate();
@@ -26,15 +27,18 @@ export function AuthMenu() {
           when={state.user}
           fallback={
             <Show when={showSignedOutSignIn()}>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleSignIn}
-                loading={signingIn()}
-                title="Sign in to sync resumes across devices with Rustume Cloud"
-              >
-                Sign in to sync
-              </Button>
+              <div class="flex flex-col items-end gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleSignIn}
+                  loading={signingIn()}
+                  title="Sign in to sync resumes across devices with Rustume Cloud"
+                >
+                  Sign in to sync
+                </Button>
+                <PolicyConsent />
+              </div>
             </Show>
           }
         >

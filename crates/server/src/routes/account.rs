@@ -127,7 +127,7 @@ pub async fn delete_account(
         message: "Account and all data permanently deleted.".to_string(),
     };
     let mut response = (StatusCode::OK, Json(payload)).into_response();
-    append_set_cookie(&mut response, clear)?;
+    append_set_cookie(&mut response, &clear)?;
     Ok(response)
 }
 
@@ -135,14 +135,14 @@ fn is_valid_delete_confirmation(confirmation: &str) -> bool {
     confirmation == DELETE_CONFIRMATION
 }
 
-fn internal_db_error(err: sqlx::Error) -> ApiError {
+fn internal_db_error(err: impl std::fmt::Display) -> ApiError {
     error!("database error: {err}");
     ApiError::internal("internal server error")
 }
 
 fn append_set_cookie(
     response: &mut Response,
-    cookie: axum_extra::extract::cookie::Cookie<'static>,
+    cookie: &axum_extra::extract::cookie::Cookie<'static>,
 ) -> Result<(), ApiError> {
     let header_value = cookie
         .to_string()

@@ -34,6 +34,7 @@ pub enum RateLimitGroup {
     Preview,
     Pdf,
     Auth,
+    AccountDelete,
     Health,
     Metrics,
     Billable,
@@ -48,6 +49,7 @@ pub struct RateLimitState {
     preview: KeyedRateLimiter,
     pdf: KeyedRateLimiter,
     auth: KeyedRateLimiter,
+    account_delete: KeyedRateLimiter,
     health: KeyedRateLimiter,
     metrics: KeyedRateLimiter,
     billable: KeyedRateLimiter,
@@ -64,6 +66,7 @@ impl RateLimitState {
             preview: RateLimiter::dashmap(config.preview_quota()),
             pdf: RateLimiter::dashmap(config.pdf_quota()),
             auth: RateLimiter::dashmap(config.auth_quota()),
+            account_delete: RateLimiter::dashmap(config.account_delete_quota()),
             health: RateLimiter::dashmap(config.health_quota()),
             metrics: RateLimiter::dashmap(config.metrics_quota()),
             billable: RateLimiter::dashmap(config.billable_quota()),
@@ -78,6 +81,7 @@ impl RateLimitState {
             RateLimitGroup::Preview => &self.preview,
             RateLimitGroup::Pdf => &self.pdf,
             RateLimitGroup::Auth => &self.auth,
+            RateLimitGroup::AccountDelete => &self.account_delete,
             RateLimitGroup::Health => &self.health,
             RateLimitGroup::Metrics => &self.metrics,
             RateLimitGroup::Billable => &self.billable,
@@ -107,6 +111,8 @@ impl RateLimitState {
         self.pdf.shrink_to_fit();
         self.auth.retain_recent();
         self.auth.shrink_to_fit();
+        self.account_delete.retain_recent();
+        self.account_delete.shrink_to_fit();
         self.health.retain_recent();
         self.health.shrink_to_fit();
         self.metrics.retain_recent();
@@ -126,6 +132,7 @@ impl RateLimitState {
             + self.preview.len()
             + self.pdf.len()
             + self.auth.len()
+            + self.account_delete.len()
             + self.health.len()
             + self.metrics.len()
             + self.billable.len()
@@ -313,6 +320,7 @@ async fn enforce_rate_limit(
             enforce_ip_rate_limit(rate_limits, group, &headers, remote_addr, request, next).await
         }
         RateLimitGroup::Auth
+        | RateLimitGroup::AccountDelete
         | RateLimitGroup::ResumeCrud
         | RateLimitGroup::Import
         | RateLimitGroup::Preview
@@ -350,6 +358,7 @@ rate_limit_middleware!(rate_limit_import, RateLimitGroup::Import);
 rate_limit_middleware!(rate_limit_preview, RateLimitGroup::Preview);
 rate_limit_middleware!(rate_limit_pdf, RateLimitGroup::Pdf);
 rate_limit_middleware!(rate_limit_auth, RateLimitGroup::Auth);
+rate_limit_middleware!(rate_limit_account_delete, RateLimitGroup::AccountDelete);
 rate_limit_middleware!(rate_limit_health, RateLimitGroup::Health);
 rate_limit_middleware!(rate_limit_metrics, RateLimitGroup::Metrics);
 rate_limit_middleware!(rate_limit_unauthenticated, RateLimitGroup::Unauthenticated);
@@ -378,6 +387,7 @@ mod tests {
             metrics_per_min: limit,
             unauthenticated_per_min: limit,
             auth_per_min: limit,
+            account_delete_per_min: limit,
             resume_crud_per_min: limit,
             import_per_min: limit,
             preview_per_min: limit,
@@ -395,6 +405,7 @@ mod tests {
             preview: RateLimiter::dashmap(quota),
             pdf: RateLimiter::dashmap(quota),
             auth: RateLimiter::dashmap(quota),
+            account_delete: RateLimiter::dashmap(quota),
             health: RateLimiter::dashmap(quota),
             metrics: RateLimiter::dashmap(quota),
             billable: RateLimiter::dashmap(quota),
