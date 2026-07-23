@@ -47,13 +47,38 @@ pub fn validate_hex_color(color: &str) -> Result<(), ValidationError> {
         return Ok(());
     }
 
-    // Only strip a single leading # (reject ##RRGGBB)
-    let color = color.strip_prefix('#').unwrap_or(color);
+    // Require the leading # (Typst's rgb() string form needs it); reject ##RRGGBB.
+    let Some(color) = color.strip_prefix('#') else {
+        let mut error = ValidationError::new("invalid_hex_color");
+        error.message = Some("Must be a valid hex color (#RRGGBB)".into());
+        return Err(error);
+    };
     if color.len() == 6 && color.chars().all(|c| c.is_ascii_hexdigit()) {
         Ok(())
     } else {
         let mut error = ValidationError::new("invalid_hex_color");
         error.message = Some("Must be a valid hex color (#RRGGBB)".into());
+        Err(error)
+    }
+}
+
+/// Validate that a hex color is valid (#RRGGBB or #RRGGBBAA format).
+pub fn validate_hex_color_with_optional_alpha(color: &str) -> Result<(), ValidationError> {
+    if color.is_empty() {
+        return Ok(());
+    }
+
+    // Require the leading # (Typst's rgb() string form needs it); reject ##RRGGBB.
+    let Some(color) = color.strip_prefix('#') else {
+        let mut error = ValidationError::new("invalid_hex_color");
+        error.message = Some("Must be a valid hex color (#RRGGBB or #RRGGBBAA)".into());
+        return Err(error);
+    };
+    if (color.len() == 6 || color.len() == 8) && color.chars().all(|c| c.is_ascii_hexdigit()) {
+        Ok(())
+    } else {
+        let mut error = ValidationError::new("invalid_hex_color");
+        error.message = Some("Must be a valid hex color (#RRGGBB or #RRGGBBAA)".into());
         Err(error)
     }
 }
@@ -102,12 +127,25 @@ mod tests {
         assert!(validate_hex_color("#ffffff").is_ok());
         assert!(validate_hex_color("#000000").is_ok());
         assert!(validate_hex_color("#dc2626").is_ok());
-        assert!(validate_hex_color("AABBCC").is_ok()); // Without #
 
         // Invalid colors
+        assert!(validate_hex_color("AABBCC").is_err()); // Missing #
         assert!(validate_hex_color("#fff").is_err()); // Too short
         assert!(validate_hex_color("#gggggg").is_err()); // Invalid chars
         assert!(validate_hex_color("red").is_err()); // Named color
         assert!(validate_hex_color("##ffffff").is_err()); // Double hash
+    }
+
+    #[test]
+    fn test_validate_hex_color_with_optional_alpha() {
+        assert!(validate_hex_color_with_optional_alpha("").is_ok());
+        assert!(validate_hex_color_with_optional_alpha("#ffffff").is_ok());
+        assert!(validate_hex_color_with_optional_alpha("#00000040").is_ok());
+
+        assert!(validate_hex_color_with_optional_alpha("00000040").is_err()); // Missing #
+        assert!(validate_hex_color_with_optional_alpha("#fff").is_err());
+        assert!(validate_hex_color_with_optional_alpha("#0000004000").is_err());
+        assert!(validate_hex_color_with_optional_alpha("#000000gg").is_err());
+        assert!(validate_hex_color_with_optional_alpha("##00000040").is_err());
     }
 }

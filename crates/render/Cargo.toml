@@ -1,3 +1,6 @@
+[lints]
+workspace = true
+
 [package]
 name = "rustume-render"
 version.workspace = true
@@ -15,12 +18,16 @@ serde_json.workspace = true
 
 # Typst ecosystem
 typst.workspace = true
+typst-layout.workspace = true
 typst-pdf.workspace = true
 typst-render.workspace = true
 typst-assets.workspace = true
 
 # Date/time for Typst World
 chrono.workspace = true
+
+# Decode data-URL profile pictures into Typst binary assets
+base64 = "0.22"
 
 # Embedded template directory
 include_dir.workspace = true

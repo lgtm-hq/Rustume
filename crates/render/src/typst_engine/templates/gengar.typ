@@ -10,6 +10,7 @@
   let primary-color = rgb(data.metadata.theme.at("primary", default: "#67b8c8"))
   let text-color = rgb(data.metadata.theme.at("text", default: "#1f2937"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
+  let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
   let muted-color = rgb("#6b7280")
 
@@ -46,7 +47,12 @@
   }
 
   let rating-boxes(level) = {
-    rating-indicators(level, 8pt, 8pt, primary-color, bg-color.darken(10%), 1pt, 2pt)
+    let level = clamp-level(level)
+    if level-display == "template-default" {
+      rating-indicators(level, 8pt, 8pt, primary-color, bg-color.darken(10%), 1pt, 2pt)
+    } else {
+      render-level(level, level-display, primary-color, bg-color.darken(10%), width: 8pt, height: 8pt)
+    }
   }
 
   let render-experience(item) = {
@@ -433,7 +439,8 @@
     render-resume(data, (
       layout: "sidebar-left",
       renderers: renderers,
-      sidebar-width: 170pt,
+      // Default width must match FIXED_SIDEBAR_WIDTH_PT in apps/web/src/components/templates/ThemeEditor.tsx.
+      sidebar-width: sidebar-width-from-ratio(data, 170pt),
       sidebar-bg: sidebar-bg,
       body-bg: bg-color,
       sidebar-inset: (x: 16pt, y: 28pt),

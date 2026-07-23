@@ -1,6 +1,22 @@
-import { createMemo, createSignal, lazy, onMount, Show, Suspense } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  lazy,
+  on,
+  onMount,
+  Show,
+  Suspense,
+} from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
-import { Button, toast, ShortcutsModal, Spinner } from "../components/ui";
+import {
+  Button,
+  toast,
+  ShortcutsModal,
+  Spinner,
+  CommandPalette,
+  type CommandAction,
+} from "../components/ui";
 import { useHotkeys, type Shortcut } from "../hooks/useHotkeys";
 import { useNavigationGuard } from "../hooks/useNavigationGuard";
 import { SplitPane } from "../components/layout/SplitPane";
@@ -24,8 +40,11 @@ import {
   CustomSectionsIndex,
 } from "../components/builder";
 import { resumeStore, isNotFoundError } from "../stores/resume";
+import { downloadResumeJson } from "../components/export/exportJson";
 import { uiStore } from "../stores/ui";
+import { generateId } from "../wasm/types";
 import { isWasmReady } from "../wasm";
+import { CustomCssInjector } from "../components/templates/CustomCssInjector";
 
 const Preview = lazy(() =>
   import("../components/preview").then((module) => ({ default: module.Preview })),
@@ -234,6 +253,13 @@ export default function Editor() {
 
   const shortcuts: Shortcut[] = [
     {
+      key: "k",
+      mod: true,
+      handler: () => openModal("commandPalette"),
+      label: "Command palette",
+      category: "General",
+    },
+    {
       key: "s",
       mod: true,
       handler: () => {
@@ -246,8 +272,8 @@ export default function Editor() {
     {
       key: "p",
       mod: true,
-      handler: () => openModal("export"),
-      label: "Export PDF",
+      handler: () => window.print(),
+      label: "Print",
       category: "General",
     },
     {
@@ -290,6 +316,81 @@ export default function Editor() {
 
   useHotkeys(shortcuts);
   useNavigationGuard(() => store.isDirty);
+
+  const commandActions = createMemo<CommandAction[]>(() => {
+    const sectionActions: CommandAction[] = sidebarItems().flatMap((item) => {
+      const actions: CommandAction[] = [
+        {
+          id: `section:${item.id}`,
+          label: `Go to ${item.label}`,
+          group: "Sections",
+          keywords: item.label,
+          handler: () => setActiveTab(item.id as EditorTab),
+        },
+      ];
+
+      for (const child of item.children ?? []) {
+        actions.push({
+          id: `section:${child.id}`,
+          label: `Go to ${child.label}`,
+          group: "Sections",
+          keywords: child.label,
+          handler: () => setActiveTab(child.id as EditorTab),
+        });
+      }
+
+      return actions;
+    });
+
+    return [
+      {
+        id: "template",
+        label: "Switch Template",
+        group: "Actions",
+        handler: () => openModal("template"),
+      },
+      {
+        id: "theme",
+        label: "Change Theme",
+        group: "Actions",
+        handler: () => setActiveTab("theme"),
+      },
+      {
+        id: "export-pdf",
+        label: "Export PDF",
+        group: "Actions",
+        handler: () => openModal("export"),
+      },
+      {
+        id: "export-json",
+        label: "Export JSON",
+        group: "Actions",
+        handler: () => {
+          if (!store.resume) return;
+          try {
+            downloadResumeJson(store.resume);
+            toast.success("JSON exported successfully");
+          } catch (error) {
+            console.error("Export error:", error);
+            toast.error(error instanceof Error ? error.message : "Failed to export JSON");
+          }
+        },
+      },
+      {
+        id: "create-resume",
+        label: "Create Resume",
+        group: "Actions",
+        handler: () => navigate(`/edit/${generateId()}`),
+      },
+      {
+        id: "toggle-sidebar",
+        label: "Toggle Sidebar",
+        group: "Actions",
+        handler: () => uiStore.toggleSidebar(),
+      },
+      ...sectionActions,
+    ];
+  });
 
   async function attemptLoad() {
     if (!params.id) {
@@ -335,6 +436,22 @@ export default function Editor() {
   }
 
   onMount(attemptLoad);
+
+  // The router reuses this component on /edit/:id param changes (no remount),
+  // so reload when the id changes. Flush any pending autosave of the previous
+  // resume first so its in-flight edits are not lost when the store is replaced.
+  createEffect(
+    on(
+      () => params.id,
+      () => {
+        void (async () => {
+          if (store.isDirty) await resumeStore.forceSave();
+          await attemptLoad();
+        })();
+      },
+      { defer: true },
+    ),
+  );
 
   const renderTabContent = () => {
     switch (activeTab()) {
@@ -401,8 +518,12 @@ export default function Editor() {
 
   return (
     <div class="h-[calc(100vh-3.5rem)] flex flex-col">
+      <CustomCssInjector />
       {/* Toolbar */}
-      <div class="h-12 border-b border-border bg-paper flex items-center justify-between px-4">
+      <div
+        class="h-12 border-b border-border bg-paper flex items-center justify-between px-4"
+        data-print-hide
+      >
         <div class="flex items-center gap-2">
           {/* Panel Toggle */}
           <div class="flex items-center bg-surface rounded-lg p-0.5">
@@ -556,7 +677,7 @@ export default function Editor() {
             showRight={ui.panel !== "editor"}
             defaultRatio={0.45}
             left={
-              <div class="h-full flex">
+              <div class="h-full flex" data-print-hide>
                 {/* Sidebar Navigation */}
                 <Sidebar
                   items={sidebarItems()}
@@ -597,6 +718,7 @@ export default function Editor() {
         </Suspense>
       </Show>
       <ShortcutsModal shortcuts={shortcuts} />
+      <CommandPalette actions={commandActions()} />
     </div>
   );
 }

@@ -9,6 +9,7 @@
   let primary-color = rgb(data.metadata.theme.at("primary", default: "#0891b2"))
   let text-color = rgb(data.metadata.theme.at("text", default: "#1f2937"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
+  let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
   let muted-color = rgb("#6b7280")
 
@@ -107,9 +108,12 @@
     }
 
     let level = clamp-level(item.level)
-    if level > 0 {
+    if level-display == "template-default" and level > 0 {
       v(2pt)
       rating-indicators(level, 6pt, 6pt, primary-color, bg-color.darken(10%), 50%, 2pt)
+    } else if should-render-level(level, level-display) {
+      v(2pt)
+      render-level(level, level-display, primary-color, bg-color.darken(10%))
     }
 
     if has-keywords(item) {
@@ -130,9 +134,12 @@
     }
 
     let level = clamp-level(item.level)
-    if level > 0 {
+    if level-display == "template-default" and level > 0 {
       v(2pt)
       rating-indicators(level, 6pt, 6pt, primary-color, bg-color.darken(10%), 50%, 2pt)
+    } else if should-render-level(level, level-display) {
+      v(2pt)
+      render-level(level, level-display, primary-color, bg-color.darken(10%))
     }
 
     v(6pt)
@@ -431,7 +438,8 @@
     render-resume(data, (
       layout: "full-header-sidebar",
       renderers: renderers,
-      sidebar-width: 160pt,
+      // Default width must match FIXED_SIDEBAR_WIDTH_PT in apps/web/src/components/templates/ThemeEditor.tsx.
+      sidebar-width: sidebar-width-from-ratio(data, 160pt),
       sidebar-bg: sidebar-bg,
       body-bg: bg-color,
       sidebar-inset: (x: 14pt, y: 12pt),

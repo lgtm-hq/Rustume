@@ -24,6 +24,11 @@ export function createSampleResume(): ResumeData {
           hidden: true,
           border: false,
           grayscale: false,
+          rotation: 0,
+          borderColor: "",
+          borderWidth: 2,
+          shadowColor: "#00000040",
+          shadowSize: 0,
         },
       },
     },
@@ -251,6 +256,7 @@ export function createSampleResume(): ResumeData {
         underlineLinks: false,
       },
       notes: "",
+      levelDisplay: "template-default",
     },
   };
 }
@@ -278,6 +284,11 @@ export function createDefaultResume(): ResumeData {
           hidden: true,
           border: false,
           grayscale: false,
+          rotation: 0,
+          borderColor: "",
+          borderWidth: 2,
+          shadowColor: "#00000040",
+          shadowSize: 0,
         },
       },
     },
@@ -505,6 +516,7 @@ export function createDefaultResume(): ResumeData {
         underlineLinks: false,
       },
       notes: "",
+      levelDisplay: "template-default",
     },
   };
 }
