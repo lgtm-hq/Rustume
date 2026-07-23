@@ -14,7 +14,10 @@ export const AppShell: ParentComponent = (props) => {
   return (
     <div class="min-h-screen bg-paper flex flex-col">
       {/* Top Bar */}
-      <header class="h-14 border-b border-border bg-paper/80 backdrop-blur-sm sticky top-0 z-30">
+      <header
+        class="h-14 border-b border-border bg-paper/80 backdrop-blur-sm sticky top-0 z-30"
+        data-print-hide
+      >
         <div class="h-full px-4 flex items-center justify-between">
           {/* Logo */}
           <A href="/" class="flex items-center gap-2 group">
@@ -54,6 +57,22 @@ export const AppShell: ParentComponent = (props) => {
 
       {/* Main Content */}
       <main class="flex-1">{props.children}</main>
+
+      {/* Footer */}
+      <footer
+        class="border-t border-border px-4 py-4 text-center text-xs text-stone"
+        data-print-hide
+      >
+        <A href="/terms" class="hover:text-ink underline">
+          Terms of Service
+        </A>
+        <span class="mx-2" aria-hidden="true">
+          ·
+        </span>
+        <A href="/privacy" class="hover:text-ink underline">
+          Privacy Policy
+        </A>
+      </footer>
     </div>
   );
 };

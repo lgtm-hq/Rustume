@@ -165,6 +165,14 @@ async function addSnapshotRecord(record: SnapshotRecord): Promise<boolean> {
   });
 }
 
+async function deleteSnapshotRecord(key: string): Promise<void> {
+  await withDatabase(async (db) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    tx.objectStore(STORE_NAME).delete(key);
+    await transactionDone(tx);
+  });
+}
+
 async function saveSnapshotRecord(resumeId: string, clone: ResumeData): Promise<void> {
   if (!(await isResumePersisted(resumeId))) {
     return;
@@ -177,13 +185,18 @@ async function saveSnapshotRecord(resumeId: string, clone: ResumeData): Promise<
 
   let timestamp = latest ? Math.max(Date.now(), latest.timestamp + 1) : Date.now();
   for (let attempt = 0; attempt < MAX_SNAPSHOT_KEY_RETRIES; attempt += 1) {
+    const key = snapshotKey(resumeId, timestamp);
     const inserted = await addSnapshotRecord({
-      key: snapshotKey(resumeId, timestamp),
+      key,
       resumeId,
       timestamp,
       data: clone,
     });
     if (inserted) {
+      if (!(await isResumePersisted(resumeId))) {
+        await deleteSnapshotRecord(key);
+        return;
+      }
       await pruneSnapshots(resumeId);
       return;
     }

@@ -10,6 +10,7 @@
   let primary-color = rgb(data.metadata.theme.at("primary", default: "#0891b2"))
   let text-color = rgb(data.metadata.theme.at("text", default: "#1f2937"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
+  let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
   let muted-color = rgb("#6b7280")
 
@@ -35,8 +36,14 @@
   }
 
   let skill-bar(level) = {
-    h(4pt)
-    rating-indicators(level, 8pt, 8pt, primary-color, bg-color.darken(10%), 2pt, 2pt)
+    let level = clamp-level(level)
+    if level-display == "template-default" {
+      h(4pt)
+      rating-indicators(level, 8pt, 8pt, primary-color, bg-color.darken(10%), 2pt, 2pt)
+    } else if should-render-level(level, level-display) {
+      h(4pt)
+      render-level(level, level-display, primary-color, bg-color.darken(10%), width: 8pt, height: 8pt)
+    }
   }
 
   let render-experience(item) = {
@@ -353,15 +360,8 @@
   // Header - centered with picture area
   align(center)[
     // Picture area
-    #if "picture" in data.basics and data.basics.picture != none and "url" in data.basics.picture and data.basics.picture.url != "" {
-      box(
-        width: 64pt,
-        height: 64pt,
-        radius: 50%,
-        clip: true,
-        stroke: 1.5pt + primary-color,
-        image(data.basics.picture.url, width: 64pt, height: 64pt, fit: "cover")
-      )
+    #if has-visible-picture(data.basics) {
+      render-picture(data.basics, primary-color)
       v(8pt)
     }
 

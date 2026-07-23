@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+---
+# Ops-boundary content guard: flags real-looking production topology in the
+# public repo (see LICENSING.md). Credential detection stays with gitleaks;
+# these rules target concrete infrastructure endpoints, not secrets.
+#
+# Patterns deliberately require concrete values (real subdomains, account ids)
+# so that documentation mentioning vendors generically — or using
+# placeholders like ${R2_ACCOUNT_ID} or *.up.railway.app — does not match.
+rules:
+  - id: ops-boundary-neon-endpoint
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      Concrete Neon database endpoint or DSN detected. Production database
+      topology belongs in the private rustume-ops repo (LICENSING.md).
+    pattern-either:
+      - pattern-regex: 'postgres(ql)?://[^\s"''`]*\.neon\.tech'
+      - pattern-regex: '\bep-[a-z0-9-]+\.[a-z0-9-]+\.aws\.neon\.tech\b'
+    paths:
+      exclude:
+        # Historical release notes; content predates the boundary policy.
+        - CHANGELOG.md
+        # Guard's own tests exercise the patterns with fixture strings.
+        - tests/bats/unit/boundary/
+  - id: ops-boundary-railway-hostname
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      Concrete Railway service hostname detected. Production service wiring
+      belongs in the private rustume-ops repo (LICENSING.md).
+    pattern-either:
+      - pattern-regex: '\b[a-z0-9-]+\.up\.railway\.app\b'
+      - pattern-regex: '\b[a-z0-9-]+\.railway\.internal\b'
+    paths:
+      exclude:
+        # Historical release notes; content predates the boundary policy.
+        - CHANGELOG.md
+        # Guard's own tests exercise the patterns with fixture strings.
+        - tests/bats/unit/boundary/
+  - id: ops-boundary-r2-endpoint
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      Concrete Cloudflare R2 account endpoint detected. Storage topology
+      belongs in the private rustume-ops repo (LICENSING.md).
+    pattern-regex: '\b[a-f0-9]{30,}\.r2\.cloudflarestorage\.com\b'
+    paths:
+      exclude:
+        # Historical release notes; content predates the boundary policy.
+        - CHANGELOG.md
+        # Guard's own tests exercise the patterns with fixture strings.
+        - tests/bats/unit/boundary/

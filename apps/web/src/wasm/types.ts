@@ -21,6 +21,11 @@ export interface Picture {
     hidden: boolean;
     border: boolean;
     grayscale: boolean;
+    rotation: number;
+    borderColor: string;
+    borderWidth: number;
+    shadowColor: string;
+    shadowSize: number;
   };
 }
 
@@ -207,6 +212,7 @@ export interface CustomCss {
 export interface PageConfig {
   margin: number;
   format: "a4" | "letter";
+  sidebarRatio?: number;
   breakLine: boolean;
   pageNumbers: boolean;
 }
@@ -241,6 +247,14 @@ export interface Typography {
   underlineLinks: boolean;
 }
 
+export type LevelDisplay =
+  | "template-default"
+  | "hidden"
+  | "circle"
+  | "square"
+  | "progress-bar"
+  | "text";
+
 export interface Metadata {
   template: string;
   layout: string[][][];
@@ -249,6 +263,8 @@ export interface Metadata {
   theme: Theme;
   typography: Typography;
   notes: string;
+  /** Optional: resumes stored before this field existed lack it. */
+  levelDisplay?: LevelDisplay;
 }
 
 export interface ResumeData {
@@ -283,6 +299,11 @@ export function createEmptyPicture(): Picture {
       hidden: true,
       border: false,
       grayscale: false,
+      rotation: 0,
+      borderColor: "",
+      borderWidth: 2,
+      shadowColor: "#00000040",
+      shadowSize: 0,
     },
   };
 }
