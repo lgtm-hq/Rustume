@@ -50,6 +50,11 @@ const SummaryEditor = lazy(() =>
     default: module.SummaryEditor,
   })),
 );
+const CoverLetterEditor = lazy(() =>
+  import("../components/builder/CoverLetterEditor").then((module) => ({
+    default: module.CoverLetterEditor,
+  })),
+);
 const NotesEditor = lazy(() =>
   import("../components/builder/NotesEditor").then((module) => ({
     default: module.NotesEditor,
@@ -88,6 +93,7 @@ function TabFallback() {
 type EditorTab =
   | "basics"
   | "summary"
+  | "coverLetter"
   | "layout"
   | "experience"
   | "education"
@@ -118,6 +124,11 @@ const TABS: SidebarItem[] = [
     id: "summary",
     label: "Summary",
     icon: "M4 6h16M4 12h16M4 18h7",
+  },
+  {
+    id: "coverLetter",
+    label: "Cover Letter",
+    icon: "M4 4h16v16H4V4zm4 4h8M8 12h8M8 16h5",
   },
   {
     id: "layout",
@@ -204,6 +215,7 @@ const TABS: SidebarItem[] = [
 const CONTENT_TAB_IDS = new Set([
   "basics",
   "summary",
+  "coverLetter",
   "experience",
   "education",
   "skills",
@@ -531,6 +543,11 @@ export default function Editor() {
                   <SummaryEditor />
                 </Suspense>
               </Match>
+              <Match when={activeTab() === "coverLetter"}>
+                <Suspense fallback={<TabFallback />}>
+                  <CoverLetterEditor />
+                </Suspense>
+              </Match>
               <Match when={activeTab() === "layout"}>
                 <Suspense fallback={<TabFallback />}>
                   <LayoutEditor />
@@ -643,7 +660,13 @@ export default function Editor() {
             aria-label="Undo"
             title="Undo"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -660,7 +683,13 @@ export default function Editor() {
             aria-label="Redo"
             title="Redo"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"

@@ -4,6 +4,7 @@ import { uiStore } from "../../stores/ui";
 import { resumeStore } from "../../stores/resume";
 import { downloadPdf } from "../../api/render";
 import { resumeToJson, isWasmReady } from "../../wasm";
+import { type PdfExportScope, pdfExportFileName, resumeForPdfExport } from "./coverLetterExport";
 
 export function ExportModal() {
   const { store: ui, closeModal } = uiStore;
@@ -11,21 +12,10 @@ export function ExportModal() {
 
   const [isExporting, setIsExporting] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
+  const [pdfScope, setPdfScope] = createSignal<PdfExportScope>("resume");
 
   const isOpen = () => ui.modal === "export";
-
-  const getFileName = () => {
-    const name = store.resume?.basics.name || "resume";
-    // Remove characters that are problematic in filenames
-    return (
-      name
-        .toLowerCase()
-        .replace(/[<>:"/\\|?*]/g, "")
-        .replace(/\s+/g, "-")
-        .replace(/-+/g, "-")
-        .replace(/^-|-$/g, "") || "resume"
-    );
-  };
+  const hasCoverLetter = () => store.resume?.sections.coverLetter.visible === true;
 
   const handleExportPdf = async () => {
     if (!store.resume) return;
@@ -34,8 +24,12 @@ export function ExportModal() {
     setError(null);
 
     try {
-      await downloadPdf(store.resume, `${getFileName()}.pdf`);
-      toast.success("PDF exported successfully");
+      const scope = hasCoverLetter() ? pdfScope() : "resume";
+      const payload = resumeForPdfExport(store.resume, scope);
+      await downloadPdf(payload, `${pdfExportFileName(store.resume, scope)}.pdf`);
+      toast.success(
+        scope === "coverLetter" ? "Cover letter PDF exported" : "PDF exported successfully",
+      );
       closeModal();
     } catch (e) {
       console.error("Export error:", e);
@@ -63,7 +57,7 @@ export function ExportModal() {
 
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${getFileName()}.json`;
+      a.download = `${pdfExportFileName(store.resume, "resume")}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -86,6 +80,40 @@ export function ExportModal() {
       description="Download your resume in various formats"
     >
       <div class="space-y-4">
+        <Show when={hasCoverLetter()}>
+          <fieldset class="space-y-2">
+            <legend class="font-mono text-xs uppercase tracking-wider text-stone">
+              PDF contents
+            </legend>
+            <label class="flex items-start gap-3 p-3 border border-border rounded-xl cursor-pointer hover:border-accent/60 transition-colors has-[:checked]:border-accent has-[:checked]:bg-accent/5">
+              <input
+                type="radio"
+                name="pdf-scope"
+                class="mt-1 accent-[var(--color-accent)]"
+                checked={pdfScope() === "resume"}
+                onChange={() => setPdfScope("resume")}
+              />
+              <span>
+                <span class="block font-display font-semibold text-ink">Resume + cover letter</span>
+                <span class="block text-sm text-stone">Combined PDF using your current layout</span>
+              </span>
+            </label>
+            <label class="flex items-start gap-3 p-3 border border-border rounded-xl cursor-pointer hover:border-accent/60 transition-colors has-[:checked]:border-accent has-[:checked]:bg-accent/5">
+              <input
+                type="radio"
+                name="pdf-scope"
+                class="mt-1 accent-[var(--color-accent)]"
+                checked={pdfScope() === "coverLetter"}
+                onChange={() => setPdfScope("coverLetter")}
+              />
+              <span>
+                <span class="block font-display font-semibold text-ink">Cover letter only</span>
+                <span class="block text-sm text-stone">Standalone cover letter PDF</span>
+              </span>
+            </label>
+          </fieldset>
+        </Show>
+
         {/* Export Options */}
         <div class="space-y-3">
           {/* PDF */}

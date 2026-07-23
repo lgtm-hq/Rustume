@@ -29,11 +29,11 @@ export const SplitPane: ParentComponent<SplitPaneProps> = (props) => {
     e.preventDefault();
     setIsDragging(true);
 
-    const handleMouseMove = (e: MouseEvent) => {
+    const handleMouseMove = (moveEvent: MouseEvent) => {
       if (!containerRef) return;
 
       const rect = containerRef.getBoundingClientRect();
-      const x = e.clientX - rect.left;
+      const x = moveEvent.clientX - rect.left;
       let newRatio = x / rect.width;
 
       // Enforce minimum widths

@@ -174,6 +174,53 @@ describe("useResumeStore", () => {
     });
   });
 
+  it("updateCoverLetter updates cover letter content", () => {
+    createRoot((dispose) => {
+      const { store, createNewResume, updateCoverLetter } = useResumeStore();
+      createNewResume("test-id-cover-letter-content");
+
+      updateCoverLetter("<p>Dear Hiring Manager,</p>");
+      expect(store.resume!.sections.coverLetter.content).toBe("<p>Dear Hiring Manager,</p>");
+      dispose();
+    });
+  });
+
+  it("updateCoverLetterRecipient updates recipient fields", () => {
+    createRoot((dispose) => {
+      const { store, createNewResume, updateCoverLetterRecipient } = useResumeStore();
+      createNewResume("test-id-cover-letter-recipient");
+
+      updateCoverLetterRecipient("name", "Jane Smith");
+      updateCoverLetterRecipient("title", "Hiring Manager");
+      updateCoverLetterRecipient("company", "Acme Corp");
+      updateCoverLetterRecipient("address", "123 Main St");
+      updateCoverLetterRecipient("email", "jane@acme.com");
+
+      expect(store.resume!.sections.coverLetter.recipient).toEqual({
+        name: "Jane Smith",
+        title: "Hiring Manager",
+        company: "Acme Corp",
+        address: "123 Main St",
+        email: "jane@acme.com",
+      });
+      dispose();
+    });
+  });
+
+  it("toggleSectionVisibility toggles coverLetter visibility", () => {
+    createRoot((dispose) => {
+      const { store, createNewResume, toggleSectionVisibility } = useResumeStore();
+      createNewResume("test-id-cover-letter-visible");
+
+      expect(store.resume!.sections.coverLetter.visible).toBe(false);
+      toggleSectionVisibility("coverLetter");
+      expect(store.resume!.sections.coverLetter.visible).toBe(true);
+      toggleSectionVisibility("coverLetter");
+      expect(store.resume!.sections.coverLetter.visible).toBe(false);
+      dispose();
+    });
+  });
+
   it("toggleSectionVisibility toggles a section's visible flag", () => {
     createRoot((dispose) => {
       const { store, createNewResume, toggleSectionVisibility } = useResumeStore();

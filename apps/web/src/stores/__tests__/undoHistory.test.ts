@@ -37,6 +37,13 @@ function resumeNamed(name: string): ResumeData {
     },
     sections: {
       summary: { id: "summary", name: "Summary", columns: 1, visible: true, separateLinks: true, content: "" },
+      coverLetter: {
+        id: "coverLetter",
+        name: "Cover Letter",
+        visible: false,
+        recipient: { name: "", title: "", company: "", address: "", email: "" },
+        content: "",
+      },
       experience: { id: "experience", name: "Experience", columns: 1, visible: true, separateLinks: true, items: [] },
       education: { id: "education", name: "Education", columns: 1, visible: true, separateLinks: true, items: [] },
       skills: { id: "skills", name: "Skills", columns: 1, visible: true, separateLinks: true, items: [] },

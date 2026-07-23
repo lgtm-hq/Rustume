@@ -9,6 +9,7 @@ import type {
   Picture,
   Section,
   CustomItem,
+  CoverLetterRecipient,
 } from "../wasm/types";
 import {
   createEmptyResume,
@@ -503,6 +504,35 @@ export function useResumeStore() {
         produce((s) => {
           if (s.resume) {
             s.resume.sections.summary.content = content;
+          }
+        }),
+      );
+      markDirty();
+    },
+
+    // Cover letter content
+    updateCoverLetter(content: string) {
+      setStore(
+        produce((s) => {
+          if (s.resume) {
+            ensureCoverLetterSection(s.resume);
+            s.resume.sections.coverLetter.content = content;
+          }
+        }),
+      );
+      markDirty();
+    },
+
+    // Cover letter recipient fields
+    updateCoverLetterRecipient<K extends keyof CoverLetterRecipient>(
+      field: K,
+      value: CoverLetterRecipient[K],
+    ) {
+      setStore(
+        produce((s) => {
+          if (s.resume) {
+            ensureCoverLetterSection(s.resume);
+            s.resume.sections.coverLetter.recipient[field] = value;
           }
         }),
       );
