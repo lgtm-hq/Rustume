@@ -22,6 +22,12 @@ and this project adheres to
 
 ### Security
 
+## [0.40.2] - 2026-07-23
+
+### Fixed
+
+- **deps**: update dependency @lgtm-hq/turbo-themes to 0.36.1 (minor) (#541) (c54de51)
+
 ## [0.40.1] - 2026-07-22
 
 ### Changed
@@ -523,7 +529,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.40.1...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.40.2...HEAD
+[0.40.2]: https://github.com/lgtm-hq/Rustume/compare/v0.40.1...v0.40.2
 [0.40.1]: https://github.com/lgtm-hq/Rustume/compare/v0.40.0...v0.40.1
 [0.40.0]: https://github.com/lgtm-hq/Rustume/compare/v0.39.0...v0.40.0
 [0.39.0]: https://github.com/lgtm-hq/Rustume/compare/v0.38.0...v0.39.0
