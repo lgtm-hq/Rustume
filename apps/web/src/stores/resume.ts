@@ -81,7 +81,10 @@ export function isNotFoundError(error: unknown): boolean {
   return false;
 }
 
-export const FIXED_LAYOUT_SECTION_KEYS: (keyof Omit<Sections, "summary" | "custom">)[] = [
+export const FIXED_LAYOUT_SECTION_KEYS: (keyof Omit<
+  Sections,
+  "summary" | "custom" | "coverLetter"
+>)[] = [
   "experience",
   "education",
   "skills",
@@ -95,7 +98,11 @@ export const FIXED_LAYOUT_SECTION_KEYS: (keyof Omit<Sections, "summary" | "custo
   "volunteer",
   "references",
 ];
-const FIXED_LAYOUT_SECTION_KEY_SET = new Set<string>(["summary", ...FIXED_LAYOUT_SECTION_KEYS]);
+const FIXED_LAYOUT_SECTION_KEY_SET = new Set<string>([
+  "summary",
+  "coverLetter",
+  ...FIXED_LAYOUT_SECTION_KEYS,
+]);
 
 function uniqueLayoutIds(ids: string[]): string[] {
   const seen = new Set<string>();
@@ -182,6 +189,24 @@ export function isResumeEmpty(resume: ResumeData): boolean {
   return true;
 }
 
+function ensureCoverLetterSection(resume: ResumeData): void {
+  if (!resume.sections.coverLetter) {
+    resume.sections.coverLetter = {
+      id: "coverLetter",
+      name: "Cover Letter",
+      visible: false,
+      recipient: {
+        name: "",
+        title: "",
+        company: "",
+        address: "",
+        email: "",
+      },
+      content: "",
+    };
+  }
+}
+
 function normalizeResumeForStore(resume: ResumeData): ResumeData {
   if (!resume.basics.picture) {
     resume.basics.picture = createEmptyPicture();
@@ -211,11 +236,18 @@ function normalizeResumeForStore(resume: ResumeData): ResumeData {
   if (!Array.isArray(resume.metadata.layout)) {
     resume.metadata.layout = [];
   }
+  ensureCoverLetterSection(resume);
 
   const customIds = Object.keys(resume.sections.custom);
   if (resume.metadata.layout.length === 0) {
-    if (customIds.length === 0) return resume;
-    resume.metadata.layout = [[["summary", ...FIXED_LAYOUT_SECTION_KEYS, ...customIds]]];
+    const shouldSeedEmptyLayout =
+      customIds.length > 0 ||
+      (resume.sections.coverLetter != null && resume.sections.coverLetter.visible);
+    if (!shouldSeedEmptyLayout) return resume;
+    ensureCoverLetterSection(resume);
+    resume.metadata.layout = [
+      [["summary", "coverLetter", ...FIXED_LAYOUT_SECTION_KEYS, ...customIds]],
+    ];
     return resume;
   }
 
@@ -301,8 +333,8 @@ async function getResume(id: string): Promise<ResumeData> {
   return getFromLocalStorage(id);
 }
 
-export type SectionKey = keyof Omit<Sections, "summary" | "custom">;
-export type LayoutSectionKey = SectionKey | "summary" | "custom";
+export type SectionKey = keyof Omit<Sections, "summary" | "coverLetter" | "custom">;
+export type LayoutSectionKey = SectionKey | "summary" | "coverLetter" | "custom";
 export type CustomSectionKey = `custom:${string}`;
 
 function createCustomSection(name: string): Section<CustomItem> {
@@ -442,6 +474,8 @@ export function useResumeStore() {
           if (s.resume) {
             if (sectionKey === "summary") {
               s.resume.sections.summary.visible = !s.resume.sections.summary.visible;
+            } else if (sectionKey === "coverLetter") {
+              s.resume.sections.coverLetter.visible = !s.resume.sections.coverLetter.visible;
             } else if (sectionKey === "custom") {
               const sections = Object.values(s.resume.sections.custom);
               const nextVisible = !sections.some((section) => section.visible);
@@ -521,7 +555,10 @@ export function useResumeStore() {
 
           s.resume.sections.custom[section.id] = section;
           if (s.resume.metadata.layout.length === 0) {
-            s.resume.metadata.layout = [[["summary", ...FIXED_LAYOUT_SECTION_KEYS, section.id]]];
+            ensureCoverLetterSection(s.resume);
+            s.resume.metadata.layout = [
+              [["summary", "coverLetter", ...FIXED_LAYOUT_SECTION_KEYS, section.id]],
+            ];
             return;
           }
 
