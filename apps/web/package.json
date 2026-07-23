@@ -51,6 +51,6 @@
   "overrides": {
     "@rollup/plugin-terser": "^1.0.0",
     "@babel/plugin-transform-modules-systemjs": "^8.0.0",
-    "fast-uri": "^4.0.0"
+    "fast-uri": "^4.1.1"
   }
 }
