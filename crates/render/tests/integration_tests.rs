@@ -741,6 +741,36 @@ fn test_cover_letter_placed_in_layout_column_renders_once(#[case] template_name:
     );
 }
 
+#[rstest]
+#[case("rhyhorn")]
+#[case("azurill")]
+#[case("pikachu")]
+#[case("nosepass")]
+#[case("bronzor")]
+#[case("chikorita")]
+#[case("ditto")]
+#[case("gengar")]
+#[case("glalie")]
+#[case("kakuna")]
+#[case("leafish")]
+#[case("onyx")]
+fn test_cover_letter_only_layout_renders_single_page(#[case] template_name: &str) {
+    let renderer = TypstRenderer::new();
+    let mut resume = sample_resume();
+    resume.metadata.template = template_name.to_string();
+    fill_cover_letter(&mut resume, true);
+    resume.metadata.layout = vec![vec![vec!["coverLetter".to_string()]]];
+
+    let (_, pages) = renderer.render_preview(&resume, 0).unwrap_or_else(|e| {
+        panic!("Cover-letter-only preview failed for '{template_name}': {e:?}")
+    });
+
+    assert_eq!(
+        pages, 1,
+        "Cover-letter-only layout must not render a trailing resume page in '{template_name}'"
+    );
+}
+
 #[test]
 fn test_cover_letter_source_contains_converted_markup() {
     let renderer = TypstRenderer::new();

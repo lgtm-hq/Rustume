@@ -405,37 +405,39 @@
   // Cover letter — dedicated page before the resume content
   render-cover-letter-page(data, section-heading, muted: muted-color)
 
-  // Header - full width teal background bar
-  box(
-    width: 100%,
-    fill: primary-color,
-    inset: (x: 24pt, y: 18pt),
-    [
-      #text(size: 22pt, weight: "bold", fill: white)[#data.basics.name]
+  if has-resume-body(data) {
+    // Header - full width teal background bar
+    box(
+      width: 100%,
+      fill: primary-color,
+      inset: (x: 24pt, y: 18pt),
+      [
+        #text(size: 22pt, weight: "bold", fill: white)[#data.basics.name]
 
-      #if data.basics.headline != "" {
-        v(4pt)
-        text(size: 11pt, fill: primary-color.lighten(80%))[#data.basics.headline]
-      }
+        #if data.basics.headline != "" {
+          v(4pt)
+          text(size: 11pt, fill: primary-color.lighten(80%))[#data.basics.headline]
+        }
 
-      #v(8pt)
+        #v(8pt)
 
-      #let contact-items = build-contact-items(data.basics)
-      #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#text(fill: white)[#data.basics.url.href]],) }
+        #let contact-items = build-contact-items(data.basics)
+        #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#text(fill: white)[#data.basics.url.href]],) }
 
-      #text(size: 8pt, fill: primary-color.lighten(85%))[#contact-items.join("  |  ")]
-    ]
-  )
+        #text(size: 8pt, fill: primary-color.lighten(85%))[#contact-items.join("  |  ")]
+      ]
+    )
 
-  render-resume(data, (
-    layout: "full-header-sidebar",
-    renderers: renderers,
-    sidebar-width: 160pt,
-    sidebar-bg: sidebar-bg,
-    body-bg: bg-color,
-    sidebar-inset: (x: 14pt, y: 12pt),
-    main-inset: (x: 20pt, y: 12pt),
-    sidebar-heading: sidebar-heading,
-    main-heading: section-heading,
-  ))
+    render-resume(data, (
+      layout: "full-header-sidebar",
+      renderers: renderers,
+      sidebar-width: 160pt,
+      sidebar-bg: sidebar-bg,
+      body-bg: bg-color,
+      sidebar-inset: (x: 14pt, y: 12pt),
+      main-inset: (x: 20pt, y: 12pt),
+      sidebar-heading: sidebar-heading,
+      main-heading: section-heading,
+    ))
+  }
 }

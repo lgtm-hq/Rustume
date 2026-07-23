@@ -412,41 +412,43 @@
   // Cover letter — dedicated page before the resume content
   render-cover-letter-page(data, main-section-heading, muted: muted-color)
 
-  // ── Header - centered, above columns ──
-  align(center)[
-    #text(size: 26pt, weight: "bold", fill: text-color, tracking: 0.03em)[#data.basics.name]
+  if has-resume-body(data) {
+    // ── Header - centered, above columns ──
+    align(center)[
+      #text(size: 26pt, weight: "bold", fill: text-color, tracking: 0.03em)[#data.basics.name]
 
-    #if data.basics.headline != "" {
-      v(4pt)
-      text(size: 11pt, fill: primary-color)[#data.basics.headline]
-    }
+      #if data.basics.headline != "" {
+        v(4pt)
+        text(size: 11pt, fill: primary-color)[#data.basics.headline]
+      }
 
-    #v(8pt)
+      #v(8pt)
 
-    // Contact info as horizontal list
-    #let contact-items = ()
-    #if data.basics.email != "" { contact-items = contact-items + (link("mailto:" + data.basics.email)[#data.basics.email],) }
-    #if data.basics.phone != "" { contact-items = contact-items + (data.basics.phone,) }
-    #if data.basics.location != "" { contact-items = contact-items + (data.basics.location,) }
-    #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#data.basics.url.href],) }
+      // Contact info as horizontal list
+      #let contact-items = ()
+      #if data.basics.email != "" { contact-items = contact-items + (link("mailto:" + data.basics.email)[#data.basics.email],) }
+      #if data.basics.phone != "" { contact-items = contact-items + (data.basics.phone,) }
+      #if data.basics.location != "" { contact-items = contact-items + (data.basics.location,) }
+      #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#data.basics.url.href],) }
 
-    #text(size: 9pt, fill: muted-color)[#contact-items.join("  ·  ")]
-  ]
+      #text(size: 9pt, fill: muted-color)[#contact-items.join("  ·  ")]
+    ]
 
-  v(16pt)
-  line(length: 100%, stroke: 1pt + primary-color)
-  v(12pt)
+    v(16pt)
+    line(length: 100%, stroke: 1pt + primary-color)
+    v(12pt)
 
-  render-resume(data, (
-    layout: "two-column",
-    renderers: renderers,
-    columns: (1fr, 2fr),
-    column-gutter: 20pt,
-    left-column: 0,
-    left-fallback: default-sidebar-sections,
-    left-heading: sidebar-section-heading,
-    right-column: 1,
-    right-fallback: default-main-sections + ("custom",),
-    right-heading: main-section-heading,
-  ))
+    render-resume(data, (
+      layout: "two-column",
+      renderers: renderers,
+      columns: (1fr, 2fr),
+      column-gutter: 20pt,
+      left-column: 0,
+      left-fallback: default-sidebar-sections,
+      left-heading: sidebar-section-heading,
+      right-column: 1,
+      right-fallback: default-main-sections + ("custom",),
+      right-heading: main-section-heading,
+    ))
+  }
 }

@@ -214,6 +214,17 @@
   keys.len() == 0 or "coverLetter" in keys
 }
 
+/// Whether the layout contains any resume section besides the dedicated cover
+/// letter page. An empty layout falls back to the default resume sections.
+#let has-resume-body(data) = {
+  let keys = layout-section-keys(data)
+  if keys.len() == 0 { return true }
+  for key in keys {
+    if key != "coverLetter" { return true }
+  }
+  false
+}
+
 /// Render the cover letter recipient block (name, title, company, address,
 /// email), top-left, skipping empty fields.
 #let render-cover-letter-recipient(recipient, size: 10pt, muted: none) = {
@@ -252,7 +263,9 @@
 #let render-cover-letter-page(data, heading, size: 10pt, muted: none) = {
   if not has-cover-letter(data) { return }
   render-cover-letter(data, heading, size: size, muted: muted)
-  pagebreak()
+  if has-resume-body(data) {
+    pagebreak()
+  }
 }
 
 /// Render a text-only section without splitting it from its heading.

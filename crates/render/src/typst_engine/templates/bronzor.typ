@@ -353,48 +353,50 @@
   // Cover letter — dedicated page before the resume content
   render-cover-letter-page(data, section-heading, muted: muted-color)
 
-  // Header - centered with picture area
-  align(center)[
-    // Picture area
-    #if "picture" in data.basics and data.basics.picture != none and "url" in data.basics.picture and data.basics.picture.url != "" {
-      box(
-        width: 64pt,
-        height: 64pt,
-        radius: 50%,
-        clip: true,
-        stroke: 1.5pt + primary-color,
-        image(data.basics.picture.url, width: 64pt, height: 64pt, fit: "cover")
-      )
-      v(8pt)
-    }
+  if has-resume-body(data) {
+    // Header - centered with picture area
+    align(center)[
+      // Picture area
+      #if "picture" in data.basics and data.basics.picture != none and "url" in data.basics.picture and data.basics.picture.url != "" {
+        box(
+          width: 64pt,
+          height: 64pt,
+          radius: 50%,
+          clip: true,
+          stroke: 1.5pt + primary-color,
+          image(data.basics.picture.url, width: 64pt, height: 64pt, fit: "cover")
+        )
+        v(8pt)
+      }
 
-    // Name
-    #text(size: 24pt, weight: "bold", fill: text-color)[#data.basics.name]
+      // Name
+      #text(size: 24pt, weight: "bold", fill: text-color)[#data.basics.name]
 
-    // Headline
-    #if data.basics.headline != "" {
-      v(4pt)
-      text(size: 12pt, fill: muted-color)[#data.basics.headline]
-    }
+      // Headline
+      #if data.basics.headline != "" {
+        v(4pt)
+        text(size: 12pt, fill: muted-color)[#data.basics.headline]
+      }
 
-    #v(8pt)
+      #v(8pt)
 
-    // Contact items - wrapped horizontally
-    #let contact-items = build-contact-items(data.basics)
-    #if has-url(data.basics) {
-      contact-items = contact-items + (link(data.basics.url.href)[#text(fill: primary-color)[#data.basics.url.href]],)
-    }
+      // Contact items - wrapped horizontally
+      #let contact-items = build-contact-items(data.basics)
+      #if has-url(data.basics) {
+        contact-items = contact-items + (link(data.basics.url.href)[#text(fill: primary-color)[#data.basics.url.href]],)
+      }
 
-    #text(size: 9pt)[#contact-items.join([#h(10pt)#text(fill: muted-color)[|]#h(10pt)])]
-  ]
+      #text(size: 9pt)[#contact-items.join([#h(10pt)#text(fill: muted-color)[|]#h(10pt)])]
+    ]
 
-  v(8pt)
-  line(length: 100%, stroke: 0.5pt + primary-color)
-  v(8pt)
+    v(8pt)
+    line(length: 100%, stroke: 0.5pt + primary-color)
+    v(8pt)
 
-  render-resume(data, (
-    layout: "single",
-    renderers: renderers,
-    heading: section-heading,
-  ))
+    render-resume(data, (
+      layout: "single",
+      renderers: renderers,
+      heading: section-heading,
+    ))
+  }
 }

@@ -394,52 +394,54 @@
   // Cover letter — dedicated page before the resume content
   render-cover-letter-page(data, main-section-heading, muted: muted-color)
 
-  let sidebar-wrapper(body) = {
-    set text(fill: sidebar-text)
-    body
+  if has-resume-body(data) {
+    let sidebar-wrapper(body) = {
+      set text(fill: sidebar-text)
+      body
+    }
+
+    let sidebar-before = () => [
+      // Header: Name, headline, contact info
+      #text(size: 18pt, weight: "bold", fill: sidebar-text)[#data.basics.name]
+
+      #if data.basics.headline != "" {
+        v(6pt)
+        text(size: 9pt, fill: muted-color)[#data.basics.headline]
+      }
+
+      #v(12pt)
+
+      // Contact info
+      #if data.basics.email != "" {
+        text(size: 8pt, fill: sidebar-text)[#data.basics.email]
+        v(4pt)
+      }
+      #if data.basics.phone != "" {
+        text(size: 8pt, fill: sidebar-text)[#data.basics.phone]
+        v(4pt)
+      }
+      #if data.basics.location != "" {
+        text(size: 8pt, fill: sidebar-text)[#data.basics.location]
+        v(4pt)
+      }
+      #if has-url(data.basics) {
+        link(data.basics.url.href)[#text(size: 8pt, fill: primary-color)[#data.basics.url.href]]
+        v(4pt)
+      }
+    ]
+
+    render-resume(data, (
+      layout: "sidebar-left",
+      renderers: renderers,
+      sidebar-width: 170pt,
+      sidebar-bg: sidebar-bg,
+      body-bg: bg-color,
+      sidebar-inset: (x: 16pt, y: 28pt),
+      main-inset: (x: 24pt, y: 28pt),
+      sidebar-heading: sidebar-section-heading,
+      main-heading: main-section-heading,
+      sidebar-before: sidebar-before,
+      sidebar-wrapper: sidebar-wrapper,
+    ))
   }
-
-  let sidebar-before = () => [
-    // Header: Name, headline, contact info
-    #text(size: 18pt, weight: "bold", fill: sidebar-text)[#data.basics.name]
-
-    #if data.basics.headline != "" {
-      v(6pt)
-      text(size: 9pt, fill: muted-color)[#data.basics.headline]
-    }
-
-    #v(12pt)
-
-    // Contact info
-    #if data.basics.email != "" {
-      text(size: 8pt, fill: sidebar-text)[#data.basics.email]
-      v(4pt)
-    }
-    #if data.basics.phone != "" {
-      text(size: 8pt, fill: sidebar-text)[#data.basics.phone]
-      v(4pt)
-    }
-    #if data.basics.location != "" {
-      text(size: 8pt, fill: sidebar-text)[#data.basics.location]
-      v(4pt)
-    }
-    #if has-url(data.basics) {
-      link(data.basics.url.href)[#text(size: 8pt, fill: primary-color)[#data.basics.url.href]]
-      v(4pt)
-    }
-  ]
-
-  render-resume(data, (
-    layout: "sidebar-left",
-    renderers: renderers,
-    sidebar-width: 170pt,
-    sidebar-bg: sidebar-bg,
-    body-bg: bg-color,
-    sidebar-inset: (x: 16pt, y: 28pt),
-    main-inset: (x: 24pt, y: 28pt),
-    sidebar-heading: sidebar-section-heading,
-    main-heading: main-section-heading,
-    sidebar-before: sidebar-before,
-    sidebar-wrapper: sidebar-wrapper,
-  ))
 }

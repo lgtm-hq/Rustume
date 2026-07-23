@@ -402,49 +402,51 @@
   // Cover letter — dedicated page before the resume content
   render-cover-letter-page(data, main-section, muted: muted-color)
 
-  // Header - above columns, left-aligned
-  text(size: 26pt, weight: "bold", fill: text-color)[#data.basics.name]
+  if has-resume-body(data) {
+    // Header - above columns, left-aligned
+    text(size: 26pt, weight: "bold", fill: text-color)[#data.basics.name]
 
-  if data.basics.headline != "" {
-    v(4pt)
-    text(size: 12pt, fill: primary-color)[#data.basics.headline]
+    if data.basics.headline != "" {
+      v(4pt)
+      text(size: 12pt, fill: primary-color)[#data.basics.headline]
+    }
+
+    v(10pt)
+
+    // Contact info
+    let contact-items = build-contact-items(data.basics)
+    if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#data.basics.url.href],) }
+
+    if contact-items.len() > 0 {
+      text(size: 9pt, fill: muted-color)[#contact-items.join("  |  ")]
+    }
+
+    v(16pt)
+    line(length: 100%, stroke: 1pt + border-color)
+    v(12pt)
+
+    let right-wrapper(body) = {
+      box(
+        fill: light-bg,
+        radius: 6pt,
+        inset: 12pt,
+        width: 100%,
+        body,
+      )
+    }
+
+    render-resume(data, (
+      layout: "two-column",
+      renderers: renderers,
+      columns: (2fr, 1fr),
+      column-gutter: 20pt,
+      left-column: 0,
+      left-fallback: default-main-sections + ("custom",),
+      left-heading: main-section,
+      right-column: 1,
+      right-fallback: default-sidebar-sections,
+      right-heading: sidebar-section,
+      right-wrapper: right-wrapper,
+    ))
   }
-
-  v(10pt)
-
-  // Contact info
-  let contact-items = build-contact-items(data.basics)
-  if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#data.basics.url.href],) }
-
-  if contact-items.len() > 0 {
-    text(size: 9pt, fill: muted-color)[#contact-items.join("  |  ")]
-  }
-
-  v(16pt)
-  line(length: 100%, stroke: 1pt + border-color)
-  v(12pt)
-
-  let right-wrapper(body) = {
-    box(
-      fill: light-bg,
-      radius: 6pt,
-      inset: 12pt,
-      width: 100%,
-      body,
-    )
-  }
-
-  render-resume(data, (
-    layout: "two-column",
-    renderers: renderers,
-    columns: (2fr, 1fr),
-    column-gutter: 20pt,
-    left-column: 0,
-    left-fallback: default-main-sections + ("custom",),
-    left-heading: main-section,
-    right-column: 1,
-    right-fallback: default-sidebar-sections,
-    right-heading: sidebar-section,
-    right-wrapper: right-wrapper,
-  ))
 }
