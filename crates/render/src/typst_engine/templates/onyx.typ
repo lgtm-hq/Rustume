@@ -9,6 +9,7 @@
   let primary-color = rgb(data.metadata.theme.at("primary", default: "#dc2626"))
   let text-color = rgb(data.metadata.theme.at("text", default: "#111827"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
+  let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
   let muted-color = rgb("#6b7280")
 
@@ -37,7 +38,12 @@
   }
 
   let rating-squares(level) = {
-    rating-indicators(level, 8pt, 8pt, primary-color, bg-color.darken(10%), 0pt, 2pt)
+    let level = clamp-level(level)
+    if level-display == "template-default" {
+      rating-indicators(level, 8pt, 8pt, primary-color, bg-color.darken(10%), 0pt, 2pt)
+    } else {
+      render-level(level, level-display, primary-color, bg-color.darken(10%), width: 8pt, height: 8pt)
+    }
   }
 
   let render-experience(item) = {
@@ -380,36 +386,41 @@
     justify: false,
   )
 
-  // Header - horizontal flex: name/headline left, contact info stacked right
-  grid(
-    columns: (1fr, auto),
-    column-gutter: 16pt,
-    [
-      #text(size: 26pt, weight: "bold", fill: text-color)[#data.basics.name]
+  // Cover letter — dedicated page before the resume content
+  render-cover-letter-page(data, section-heading, muted: muted-color)
 
-      #if data.basics.headline != "" {
-        v(4pt)
-        text(size: 12pt, fill: primary-color)[#data.basics.headline]
-      }
-    ],
-    align(right)[
-      #let contact-items = build-contact-items(data.basics)
-      #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#text(fill: primary-color)[#data.basics.url.href]],) }
+  if has-resume-body(data) {
+    // Header - horizontal flex: name/headline left, contact info stacked right
+    grid(
+      columns: (1fr, auto),
+      column-gutter: 16pt,
+      [
+        #text(size: 26pt, weight: "bold", fill: text-color)[#data.basics.name]
 
-      #for item in contact-items {
-        text(size: 9pt, fill: muted-color)[#item]
-        v(2pt)
-      }
-    ]
-  )
+        #if data.basics.headline != "" {
+          v(4pt)
+          text(size: 12pt, fill: primary-color)[#data.basics.headline]
+        }
+      ],
+      align(right)[
+        #let contact-items = build-contact-items(data.basics)
+        #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#text(fill: primary-color)[#data.basics.url.href]],) }
 
-  v(8pt)
-  line(length: 100%, stroke: 1.5pt + primary-color)
-  v(8pt)
+        #for item in contact-items {
+          text(size: 9pt, fill: muted-color)[#item]
+          v(2pt)
+        }
+      ]
+    )
 
-  render-resume(data, (
-    layout: "single",
-    renderers: renderers,
-    heading: section-heading,
-  ))
+    v(8pt)
+    line(length: 100%, stroke: 1.5pt + primary-color)
+    v(8pt)
+
+    render-resume(data, (
+      layout: "single",
+      renderers: renderers,
+      heading: section-heading,
+    ))
+  }
 }

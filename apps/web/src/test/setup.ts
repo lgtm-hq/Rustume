@@ -33,6 +33,39 @@ Object.defineProperty(globalThis, "localStorage", {
   configurable: true,
 });
 
+Object.defineProperty(globalThis, "scrollTo", {
+  value: () => undefined,
+  writable: true,
+  configurable: true,
+});
+
+if (!globalThis.ResizeObserver) {
+  class ResizeObserverMock implements ResizeObserver {
+    constructor(callback: ResizeObserverCallback) {
+      void callback;
+    }
+
+    observe(target: Element, options?: ResizeObserverOptions) {
+      void target;
+      void options;
+    }
+
+    unobserve(target: Element) {
+      void target;
+    }
+
+    disconnect() {
+      return undefined;
+    }
+  }
+
+  Object.defineProperty(globalThis, "ResizeObserver", {
+    value: ResizeObserverMock,
+    writable: true,
+    configurable: true,
+  });
+}
+
 // Mock crypto.randomUUID for deterministic IDs in tests
 if (!globalThis.crypto) {
   Object.defineProperty(globalThis, "crypto", {

@@ -1,7 +1,7 @@
-import type { SectionKey } from "../../stores/resume";
+import type { LayoutSectionKey } from "../../stores/resume";
 
 export interface SectionInfo {
-  key: SectionKey | "summary" | "coverLetter" | "custom";
+  key: LayoutSectionKey;
   name: string;
   icon: string;
 }

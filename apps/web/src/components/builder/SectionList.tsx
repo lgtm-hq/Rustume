@@ -2,6 +2,8 @@ import { For, Show } from "solid-js";
 import { isHtmlEmpty, resumeStore, type LayoutSectionKey } from "../../stores/resume";
 import { SECTIONS } from "./constants";
 
+const hasText = (value: unknown): boolean => typeof value === "string" && value.trim() !== "";
+
 export function SectionList() {
   const { store, toggleSectionVisibility, addCustomSection } = resumeStore;
 
@@ -15,7 +17,12 @@ export function SectionList() {
     if (!store.resume) return 0;
     if (key === "summary") return store.resume.sections.summary.content ? 1 : 0;
     if (key === "coverLetter") {
-      return isHtmlEmpty(store.resume.sections.coverLetter.content) ? 0 : 1;
+      const coverLetter = store.resume.sections.coverLetter;
+      const recipient = coverLetter.recipient;
+      const recipientValues =
+        recipient && typeof recipient === "object" ? Object.values(recipient) : [];
+      const hasRecipient = recipientValues.some(hasText);
+      return !isHtmlEmpty(coverLetter.content) || hasRecipient ? 1 : 0;
     }
     if (key === "custom") {
       return Object.values(store.resume.sections.custom).reduce(

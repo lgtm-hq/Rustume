@@ -7,7 +7,8 @@ use rstest::rstest;
 use rustume_parser::{JsonResumeParser, Parser, ReactiveResumeV3Parser};
 use rustume_render::{get_page_size, get_template_theme, Renderer, TypstRenderer, TEMPLATES};
 use rustume_schema::{
-    Basics, CustomItem, Education, Experience, PageFormat, ResumeData, Section, Skill,
+    Basics, CustomItem, Education, Experience, LevelDisplay, PageFormat, Picture, PictureEffects,
+    ResumeData, Section, Skill,
 };
 use std::collections::HashMap;
 use std::fs;
@@ -475,6 +476,126 @@ fn test_render_template_with_content(#[case] template_name: &str) {
 }
 
 #[rstest]
+#[case("azurill")]
+#[case("pikachu")]
+#[case("chikorita")]
+#[case("ditto")]
+#[case("gengar")]
+#[case("glalie")]
+fn test_sidebar_templates_render_with_and_without_sidebar_ratio(#[case] template_name: &str) {
+    let renderer = TypstRenderer::new();
+
+    for sidebar_ratio in [None, Some(0.1), Some(0.25), Some(0.5)] {
+        let mut resume = sample_resume();
+        resume.metadata.template = template_name.to_string();
+        resume.metadata.page.sidebar_ratio = sidebar_ratio;
+
+        let result = renderer.render_pdf(&resume);
+        assert!(
+            result.is_ok(),
+            "PDF rendering failed for template '{template_name}' with sidebar ratio {sidebar_ratio:?}: {:?}",
+            result.err()
+        );
+        assert!(result.unwrap().starts_with(b"%PDF-"));
+    }
+}
+
+/// The ratio must actually change the layout (not merely render), and raw
+/// out-of-range values must hit the render-time clamp — the export path
+/// renders stored JSON without schema validation.
+#[rstest]
+#[case("azurill")]
+#[case("pikachu")]
+fn test_sidebar_ratio_changes_layout_and_clamps(#[case] template_name: &str) {
+    let renderer = TypstRenderer::new();
+    let render = |ratio: Option<f32>| {
+        let mut resume = sample_resume();
+        resume.metadata.template = template_name.to_string();
+        resume.metadata.page.sidebar_ratio = ratio;
+        renderer.render_pdf(&resume).unwrap()
+    };
+
+    // These comparisons require byte-deterministic output. Fail loudly if
+    // that ever changes so the assertions get reworked instead of silently
+    // stopping to enforce anything.
+    let narrow = render(Some(0.1));
+    assert_eq!(
+        render(Some(0.1)),
+        narrow,
+        "PDF output is no longer byte-deterministic; rework this test's \
+         comparisons (e.g. compare rendered PNG pixels or generated Typst \
+         source) instead of skipping"
+    );
+
+    let wide = render(Some(0.5));
+    assert_ne!(
+        narrow, wide,
+        "sidebar ratio has no effect on layout for '{template_name}'"
+    );
+
+    // Values outside [0.1, 0.5] clamp to the nearest bound.
+    assert_eq!(
+        render(Some(-1.0)),
+        narrow,
+        "ratio below range should clamp to 0.1 for '{template_name}'"
+    );
+    assert_eq!(
+        render(Some(0.75)),
+        wide,
+        "ratio above range should clamp to 0.5 for '{template_name}'"
+    );
+}
+
+#[rstest]
+fn test_render_template_with_level_display_override(
+    // rhyhorn covers the grid-cell rendering path, azurill the guarded
+    // per-item rendering path shared by the other templates.
+    #[values("rhyhorn", "azurill")] template_name: &str,
+    #[values(
+        LevelDisplay::Hidden,
+        LevelDisplay::Circle,
+        LevelDisplay::Square,
+        LevelDisplay::ProgressBar,
+        LevelDisplay::Text
+    )]
+    level_display: LevelDisplay,
+) {
+    let renderer = TypstRenderer::new();
+    let mut resume = sample_resume();
+    resume.metadata.template = template_name.to_string();
+    resume.metadata.level_display = level_display;
+
+    let result = renderer.render_pdf(&resume);
+    assert!(
+        result.is_ok(),
+        "PDF rendering failed for template '{template_name}' with level display \
+         '{level_display:?}': {:?}",
+        result.err()
+    );
+    assert!(result.unwrap().starts_with(b"%PDF-"));
+}
+
+/// Every template must compile with a non-default level display so a Typst
+/// syntax error in any template's override branch is caught.
+#[test]
+fn test_render_all_templates_with_circle_level_display() {
+    let renderer = TypstRenderer::new();
+    for template_name in TEMPLATES {
+        let mut resume = sample_resume();
+        resume.metadata.template = (*template_name).to_string();
+        resume.metadata.level_display = LevelDisplay::Circle;
+
+        let result = renderer.render_pdf(&resume);
+        assert!(
+            result.is_ok(),
+            "PDF rendering failed for template '{template_name}' with circle level display: {:?}",
+            result.err()
+        );
+        assert!(result.unwrap().starts_with(b"%PDF-"));
+    }
+}
+
+#[rstest]
 #[case("rhyhorn")]
 #[case("azurill")]
 #[case("pikachu")]
@@ -592,6 +713,270 @@ fn test_templates_render_multi_page_content(#[case] template_name: &str) {
         total_pages > 1,
         "Expected '{template_name}' to render more than one page"
     );
+}
+
+/// Populate the sample resume's cover letter with recipient and body content.
+fn fill_cover_letter(resume: &mut ResumeData, visible: bool) {
+    resume.sections.cover_letter.visible = visible;
+    resume.sections.cover_letter.recipient.name = "Jane Smith".to_string();
+    resume.sections.cover_letter.recipient.title = "Hiring Manager".to_string();
+    resume.sections.cover_letter.recipient.company = "Acme Corp".to_string();
+    resume.sections.cover_letter.recipient.address = "123 Main St, San Francisco, CA".to_string();
+    resume.sections.cover_letter.recipient.email = "jane@acme.com".to_string();
+    resume.sections.cover_letter.content =
+        "<p>Dear Jane,</p><p>I am <strong>excited</strong> to apply for the Senior Software \
+         Engineer role at Acme Corp. My experience building scalable systems aligns closely \
+         with your team's mission.</p><p>Sincerely,<br>John Doe</p>"
+            .to_string();
+}
+
+#[rstest]
+#[case("rhyhorn")]
+#[case("azurill")]
+#[case("pikachu")]
+#[case("nosepass")]
+#[case("bronzor")]
+#[case("chikorita")]
+#[case("ditto")]
+#[case("gengar")]
+#[case("glalie")]
+#[case("kakuna")]
+#[case("leafish")]
+#[case("onyx")]
+fn test_templates_render_cover_letter_as_dedicated_page(#[case] template_name: &str) {
+    let renderer = TypstRenderer::new();
+
+    // Baseline: cover letter data present but not visible.
+    let mut without = sample_resume();
+    without.metadata.template = template_name.to_string();
+    fill_cover_letter(&mut without, false);
+    let (base_page_0, base_pages) = renderer
+        .render_preview(&without, 0)
+        .unwrap_or_else(|e| panic!("Baseline preview failed for '{template_name}': {e:?}"));
+
+    // With a visible cover letter, exactly one extra page renders in front.
+    let mut with = sample_resume();
+    with.metadata.template = template_name.to_string();
+    fill_cover_letter(&mut with, true);
+    let (with_page_0, pages) = renderer
+        .render_preview(&with, 0)
+        .unwrap_or_else(|e| panic!("Cover letter preview failed for '{template_name}': {e:?}"));
+
+    assert_eq!(
+        pages,
+        base_pages + 1,
+        "Expected '{template_name}' to render the cover letter as exactly one dedicated \
+         extra page (baseline {base_pages} pages, got {pages})"
+    );
+
+    // Ordering: the cover letter is prepended, so page 1 of the cover letter
+    // render must match page 0 of the baseline resume pixel-for-pixel, and
+    // page 0 must differ from the baseline first page.
+    let (with_page_1, _) = renderer
+        .render_preview(&with, 1)
+        .unwrap_or_else(|e| panic!("Second-page preview failed for '{template_name}': {e:?}"));
+    assert_ne!(
+        with_page_0, base_page_0,
+        "Expected the first page of '{template_name}' to be the cover letter, \
+         not the resume"
+    );
+    assert_eq!(
+        with_page_1, base_page_0,
+        "Expected the resume to start on page 2 in '{template_name}' when the \
+         cover letter is visible"
+    );
+}
+
+#[rstest]
+#[case("rhyhorn")]
+#[case("azurill")]
+fn test_cover_letter_not_placed_in_layout_is_skipped(#[case] template_name: &str) {
+    let renderer = TypstRenderer::new();
+
+    // Visible cover letter, but an explicit layout that omits "coverLetter".
+    let mut resume = sample_resume();
+    resume.metadata.template = template_name.to_string();
+    fill_cover_letter(&mut resume, true);
+    resume.metadata.layout = vec![vec![
+        vec!["summary".to_string(), "experience".to_string()],
+        vec!["education".to_string(), "skills".to_string()],
+    ]];
+    let (_, pages) = renderer
+        .render_preview(&resume, 0)
+        .unwrap_or_else(|e| panic!("Preview failed for '{template_name}': {e:?}"));
+
+    // Same layout without any cover letter data.
+    let mut baseline = sample_resume();
+    baseline.metadata.template = template_name.to_string();
+    baseline.metadata.layout = vec![vec![
+        vec!["summary".to_string(), "experience".to_string()],
+        vec!["education".to_string(), "skills".to_string()],
+    ]];
+    let (_, base_pages) = renderer
+        .render_preview(&baseline, 0)
+        .unwrap_or_else(|e| panic!("Baseline preview failed for '{template_name}': {e:?}"));
+
+    assert_eq!(
+        pages, base_pages,
+        "Cover letter absent from layout must not add pages in '{template_name}'"
+    );
+}
+
+#[rstest]
+#[case("rhyhorn")]
+#[case("azurill")]
+fn test_cover_letter_on_later_layout_page_is_skipped(#[case] template_name: &str) {
+    let renderer = TypstRenderer::new();
+
+    // The renderer consumes page 0 only; later layout pages must not affect
+    // cover-letter or pagebreak decisions.
+    let mut resume = sample_resume();
+    resume.metadata.template = template_name.to_string();
+    fill_cover_letter(&mut resume, true);
+    resume.metadata.layout = vec![
+        vec![
+            vec!["summary".to_string(), "experience".to_string()],
+            vec!["education".to_string(), "skills".to_string()],
+        ],
+        vec![vec!["coverLetter".to_string()]],
+    ];
+    let (_, pages) = renderer
+        .render_preview(&resume, 0)
+        .unwrap_or_else(|e| panic!("Preview failed for '{template_name}': {e:?}"));
+
+    let mut baseline = sample_resume();
+    baseline.metadata.template = template_name.to_string();
+    baseline.metadata.layout = vec![vec![
+        vec!["summary".to_string(), "experience".to_string()],
+        vec!["education".to_string(), "skills".to_string()],
+    ]];
+    let (_, base_pages) = renderer
+        .render_preview(&baseline, 0)
+        .unwrap_or_else(|e| panic!("Baseline preview failed for '{template_name}': {e:?}"));
+
+    assert_eq!(
+        pages, base_pages,
+        "Cover letter on a later layout page must not add pages in '{template_name}'"
+    );
+}
+
+#[rstest]
+#[case("rhyhorn")]
+#[case("azurill")]
+fn test_cover_letter_placed_in_layout_column_renders_once(#[case] template_name: &str) {
+    let renderer = TypstRenderer::new();
+
+    // "coverLetter" placed among other sections in a layout column: it must
+    // render as a dedicated page (hoisted before the resume body), not inline.
+    let mut resume = sample_resume();
+    resume.metadata.template = template_name.to_string();
+    fill_cover_letter(&mut resume, true);
+    resume.metadata.layout = vec![vec![
+        vec![
+            "summary".to_string(),
+            "coverLetter".to_string(),
+            "experience".to_string(),
+        ],
+        vec!["education".to_string(), "skills".to_string()],
+    ]];
+    let (_, pages) = renderer
+        .render_preview(&resume, 0)
+        .unwrap_or_else(|e| panic!("Preview failed for '{template_name}': {e:?}"));
+
+    let mut baseline = sample_resume();
+    baseline.metadata.template = template_name.to_string();
+    baseline.metadata.layout = vec![vec![
+        vec!["summary".to_string(), "experience".to_string()],
+        vec!["education".to_string(), "skills".to_string()],
+    ]];
+    let (_, base_pages) = renderer
+        .render_preview(&baseline, 0)
+        .unwrap_or_else(|e| panic!("Baseline preview failed for '{template_name}': {e:?}"));
+
+    assert_eq!(
+        pages,
+        base_pages + 1,
+        "Cover letter placed in a layout column must add exactly one page in '{template_name}'"
+    );
+}
+
+#[rstest]
+#[case("rhyhorn")]
+#[case("azurill")]
+#[case("pikachu")]
+#[case("nosepass")]
+#[case("bronzor")]
+#[case("chikorita")]
+#[case("ditto")]
+#[case("gengar")]
+#[case("glalie")]
+#[case("kakuna")]
+#[case("leafish")]
+#[case("onyx")]
+fn test_cover_letter_only_layout_renders_single_page(#[case] template_name: &str) {
+    let renderer = TypstRenderer::new();
+    let mut resume = sample_resume();
+    resume.metadata.template = template_name.to_string();
+    fill_cover_letter(&mut resume, true);
+    resume.metadata.layout = vec![vec![vec!["coverLetter".to_string()]]];
+
+    let (_, pages) = renderer.render_preview(&resume, 0).unwrap_or_else(|e| {
+        panic!("Cover-letter-only preview failed for '{template_name}': {e:?}")
+    });
+
+    assert_eq!(
+        pages, 1,
+        "Cover-letter-only layout must not render a trailing resume page in '{template_name}'"
+    );
+}
+
+#[test]
+fn test_cover_letter_source_contains_converted_markup() {
+    let renderer = TypstRenderer::new();
+    let mut resume = sample_resume();
+    fill_cover_letter(&mut resume, true);
+
+    let source = renderer
+        .generate_source(&resume)
+        .expect("source generation should succeed");
+
+    assert!(
+        !source.contains("<strong>"),
+        "Cover letter HTML must be converted to Typst markup before embedding"
+    );
+    assert!(
+        source.contains("excited"),
+        "Cover letter body text must be preserved through conversion"
+    );
+}
+
+/// Compile-only smoke test for the shared `render-picture` helper: a resume
+/// with rotation, shadow, and border effects set must still render to a PDF.
+#[test]
+fn test_render_picture_effects_smoke() {
+    // Minimal 1x1 transparent PNG as a data URL.
+    let png_data_url = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+    let renderer = TypstRenderer::new();
+    let mut resume = sample_resume();
+    resume.metadata.template = "bronzor".to_string();
+    resume.basics.picture = Picture::new(png_data_url);
+    resume.basics.picture.effects = PictureEffects {
+        border: true,
+        rotation: 15.0,
+        border_color: "#0891b2".to_string(),
+        border_width: 3,
+        shadow_size: 8,
+        ..Default::default()
+    };
+
+    let result = renderer.render_pdf(&resume);
+    assert!(
+        result.is_ok(),
+        "PDF rendering failed with picture effects: {:?}",
+        result.err()
+    );
+    assert!(result.unwrap().starts_with(b"%PDF-"));
 }
 
 #[test]

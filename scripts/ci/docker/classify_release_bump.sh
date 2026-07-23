@@ -5,8 +5,7 @@
 # BASE_SHA (or HEAD_SHA's first parent when BASE_SHA is unset/empty) and
 # writes `bump-only=<true|false>` to GITHUB_OUTPUT.
 #
-# Used by docker-build-publish.yml (push: BASE_SHA=github.event.before) and
-# deploy-railway-cloud.yml (workflow_run: parent of head_sha).
+# Used by docker-build-publish.yml (push: BASE_SHA=github.event.before).
 
 set -euo pipefail
 

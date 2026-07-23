@@ -10,6 +10,7 @@
   let primary-color = rgb(data.metadata.theme.at("primary", default: "#67b8c8"))
   let text-color = rgb(data.metadata.theme.at("text", default: "#1f2937"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
+  let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
   let muted-color = rgb("#6b7280")
 
@@ -46,7 +47,12 @@
   }
 
   let rating-boxes(level) = {
-    rating-indicators(level, 8pt, 8pt, primary-color, bg-color.darken(10%), 1pt, 2pt)
+    let level = clamp-level(level)
+    if level-display == "template-default" {
+      rating-indicators(level, 8pt, 8pt, primary-color, bg-color.darken(10%), 1pt, 2pt)
+    } else {
+      render-level(level, level-display, primary-color, bg-color.darken(10%), width: 8pt, height: 8pt)
+    }
   }
 
   let render-experience(item) = {
@@ -391,52 +397,58 @@
     justify: false,
   )
 
-  let sidebar-wrapper(body) = {
-    set text(fill: sidebar-text)
-    body
+  // Cover letter — dedicated page before the resume content
+  render-cover-letter-page(data, main-section-heading, muted: muted-color, inset: (x: 24pt, y: 28pt))
+
+  if has-resume-body(data) {
+    let sidebar-wrapper(body) = {
+      set text(fill: sidebar-text)
+      body
+    }
+
+    let sidebar-before = () => [
+      // Header: Name, headline, contact info
+      #text(size: 18pt, weight: "bold", fill: sidebar-text)[#data.basics.name]
+
+      #if data.basics.headline != "" {
+        v(6pt)
+        text(size: 9pt, fill: muted-color)[#data.basics.headline]
+      }
+
+      #v(12pt)
+
+      // Contact info
+      #if data.basics.email != "" {
+        text(size: 8pt, fill: sidebar-text)[#data.basics.email]
+        v(4pt)
+      }
+      #if data.basics.phone != "" {
+        text(size: 8pt, fill: sidebar-text)[#data.basics.phone]
+        v(4pt)
+      }
+      #if data.basics.location != "" {
+        text(size: 8pt, fill: sidebar-text)[#data.basics.location]
+        v(4pt)
+      }
+      #if has-url(data.basics) {
+        link(data.basics.url.href)[#text(size: 8pt, fill: primary-color)[#data.basics.url.href]]
+        v(4pt)
+      }
+    ]
+
+    render-resume(data, (
+      layout: "sidebar-left",
+      renderers: renderers,
+      // Default width must match FIXED_SIDEBAR_WIDTH_PT in apps/web/src/components/templates/ThemeEditor.tsx.
+      sidebar-width: sidebar-width-from-ratio(data, 170pt),
+      sidebar-bg: sidebar-bg,
+      body-bg: bg-color,
+      sidebar-inset: (x: 16pt, y: 28pt),
+      main-inset: (x: 24pt, y: 28pt),
+      sidebar-heading: sidebar-section-heading,
+      main-heading: main-section-heading,
+      sidebar-before: sidebar-before,
+      sidebar-wrapper: sidebar-wrapper,
+    ))
   }
-
-  let sidebar-before = () => [
-    // Header: Name, headline, contact info
-    #text(size: 18pt, weight: "bold", fill: sidebar-text)[#data.basics.name]
-
-    #if data.basics.headline != "" {
-      v(6pt)
-      text(size: 9pt, fill: muted-color)[#data.basics.headline]
-    }
-
-    #v(12pt)
-
-    // Contact info
-    #if data.basics.email != "" {
-      text(size: 8pt, fill: sidebar-text)[#data.basics.email]
-      v(4pt)
-    }
-    #if data.basics.phone != "" {
-      text(size: 8pt, fill: sidebar-text)[#data.basics.phone]
-      v(4pt)
-    }
-    #if data.basics.location != "" {
-      text(size: 8pt, fill: sidebar-text)[#data.basics.location]
-      v(4pt)
-    }
-    #if has-url(data.basics) {
-      link(data.basics.url.href)[#text(size: 8pt, fill: primary-color)[#data.basics.url.href]]
-      v(4pt)
-    }
-  ]
-
-  render-resume(data, (
-    layout: "sidebar-left",
-    renderers: renderers,
-    sidebar-width: 170pt,
-    sidebar-bg: sidebar-bg,
-    body-bg: bg-color,
-    sidebar-inset: (x: 16pt, y: 28pt),
-    main-inset: (x: 24pt, y: 28pt),
-    sidebar-heading: sidebar-section-heading,
-    main-heading: main-section-heading,
-    sidebar-before: sidebar-before,
-    sidebar-wrapper: sidebar-wrapper,
-  ))
 }

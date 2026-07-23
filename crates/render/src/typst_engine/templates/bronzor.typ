@@ -10,6 +10,7 @@
   let primary-color = rgb(data.metadata.theme.at("primary", default: "#0891b2"))
   let text-color = rgb(data.metadata.theme.at("text", default: "#1f2937"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
+  let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
   let muted-color = rgb("#6b7280")
 
@@ -35,8 +36,14 @@
   }
 
   let skill-bar(level) = {
-    h(4pt)
-    rating-indicators(level, 8pt, 8pt, primary-color, bg-color.darken(10%), 2pt, 2pt)
+    let level = clamp-level(level)
+    if level-display == "template-default" {
+      h(4pt)
+      rating-indicators(level, 8pt, 8pt, primary-color, bg-color.darken(10%), 2pt, 2pt)
+    } else if should-render-level(level, level-display) {
+      h(4pt)
+      render-level(level, level-display, primary-color, bg-color.darken(10%), width: 8pt, height: 8pt)
+    }
   }
 
   let render-experience(item) = {
@@ -350,48 +357,46 @@
     justify: true,
   )
 
-  // Header - centered with picture area
-  align(center)[
-    // Picture area
-    #if "picture" in data.basics and data.basics.picture != none and "url" in data.basics.picture and data.basics.picture.url != "" {
-      box(
-        width: 64pt,
-        height: 64pt,
-        radius: 50%,
-        clip: true,
-        stroke: 1.5pt + primary-color,
-        image(data.basics.picture.url, width: 64pt, height: 64pt, fit: "cover")
-      )
-      v(8pt)
-    }
+  // Cover letter — dedicated page before the resume content
+  render-cover-letter-page(data, section-heading, muted: muted-color)
 
-    // Name
-    #text(size: 24pt, weight: "bold", fill: text-color)[#data.basics.name]
+  if has-resume-body(data) {
+    // Header - centered with picture area
+    align(center)[
+      // Picture area
+      #if has-visible-picture(data.basics) {
+        render-picture(data.basics, primary-color)
+        v(8pt)
+      }
 
-    // Headline
-    #if data.basics.headline != "" {
-      v(4pt)
-      text(size: 12pt, fill: muted-color)[#data.basics.headline]
-    }
+      // Name
+      #text(size: 24pt, weight: "bold", fill: text-color)[#data.basics.name]
 
-    #v(8pt)
+      // Headline
+      #if data.basics.headline != "" {
+        v(4pt)
+        text(size: 12pt, fill: muted-color)[#data.basics.headline]
+      }
 
-    // Contact items - wrapped horizontally
-    #let contact-items = build-contact-items(data.basics)
-    #if has-url(data.basics) {
-      contact-items = contact-items + (link(data.basics.url.href)[#text(fill: primary-color)[#data.basics.url.href]],)
-    }
+      #v(8pt)
 
-    #text(size: 9pt)[#contact-items.join([#h(10pt)#text(fill: muted-color)[|]#h(10pt)])]
-  ]
+      // Contact items - wrapped horizontally
+      #let contact-items = build-contact-items(data.basics)
+      #if has-url(data.basics) {
+        contact-items = contact-items + (link(data.basics.url.href)[#text(fill: primary-color)[#data.basics.url.href]],)
+      }
 
-  v(8pt)
-  line(length: 100%, stroke: 0.5pt + primary-color)
-  v(8pt)
+      #text(size: 9pt)[#contact-items.join([#h(10pt)#text(fill: muted-color)[|]#h(10pt)])]
+    ]
 
-  render-resume(data, (
-    layout: "single",
-    renderers: renderers,
-    heading: section-heading,
-  ))
+    v(8pt)
+    line(length: 100%, stroke: 0.5pt + primary-color)
+    v(8pt)
+
+    render-resume(data, (
+      layout: "single",
+      renderers: renderers,
+      heading: section-heading,
+    ))
+  }
 }

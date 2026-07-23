@@ -1,11 +1,37 @@
 import { Show, For, createSignal } from "solid-js";
 import { resumeStore } from "../../stores/resume";
 import { getThemePresets } from "../../stores/themePresets";
-import type { ThemePresetInfo } from "../../wasm/types";
+import type { Metadata, PageConfig, ThemePresetInfo } from "../../wasm/types";
+
+// Must match the templates wired to sidebar-ratio helpers in
+// crates/render/src/typst_engine/templates/<template>.typ.
+const SIDEBAR_TEMPLATES = new Set(["azurill", "pikachu", "chikorita", "ditto", "gengar", "glalie"]);
+const SIDEBAR_TEMPLATE_RATIO_DEFAULT = 1 / 3;
+// Must match the sidebar-width defaults in
+// crates/render/src/typst_engine/templates/<template>.typ.
+const FIXED_SIDEBAR_WIDTH_PT: Record<string, number> = {
+  pikachu: 180,
+  ditto: 160,
+  gengar: 170,
+  glalie: 170,
+};
+const PAPER_WIDTH_PT: Record<PageConfig["format"], number> = {
+  a4: 595.28,
+  letter: 612,
+};
+
+const LEVEL_DISPLAY_OPTIONS: { value: Metadata["levelDisplay"]; label: string }[] = [
+  { value: "template-default", label: "Template default" },
+  { value: "hidden", label: "Hidden" },
+  { value: "circle", label: "Circles" },
+  { value: "square", label: "Squares" },
+  { value: "progress-bar", label: "Progress bar" },
+  { value: "text", label: "Text label" },
+];
 
 export function ThemeEditor() {
-  const { store, updateTheme } = resumeStore;
-  const [activeTab, setActiveTab] = createSignal<"presets" | "custom">("presets");
+  const { store, updateTheme, updateMetadata } = resumeStore;
+  const [activeTab, setActiveTab] = createSignal<"presets" | "custom" | "css">("presets");
 
   // Theme presets are embedded client-side -- no network dependency.
   const presets = getThemePresets();
@@ -23,6 +49,7 @@ export function ThemeEditor() {
   };
 
   const currentPresetId = () => store.resume?.metadata.theme.preset;
+  const isSidebarTemplate = (template: string) => SIDEBAR_TEMPLATES.has(template);
 
   return (
     <div class="space-y-4">
@@ -60,7 +87,15 @@ export function ThemeEditor() {
             activeTab() === "custom" ? "bg-white text-ink shadow-sm" : "text-stone hover:text-ink"
           }`}
         >
-          Custom
+          Custom Colors
+        </button>
+        <button
+          onClick={() => setActiveTab("css")}
+          class={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            activeTab() === "css" ? "bg-white text-ink shadow-sm" : "text-stone hover:text-ink"
+          }`}
+        >
+          CSS
         </button>
       </div>
 
@@ -108,7 +143,7 @@ export function ThemeEditor() {
               </div>
             </Show>
 
-            {/* Custom Tab */}
+            {/* Custom Colors Tab */}
             <Show when={activeTab() === "custom"}>
               {/* Color Inputs */}
               <div class="grid grid-cols-3 gap-4">
@@ -129,6 +164,46 @@ export function ThemeEditor() {
                 />
               </div>
             </Show>
+
+            {/* Custom CSS Tab */}
+            <Show when={activeTab() === "css"}>
+              <CustomCssTab
+                css={resume().metadata.css ?? { value: "", visible: false }}
+                onChange={(css) => updateMetadata("css", css)}
+              />
+            </Show>
+
+            <Show when={isSidebarTemplate(resume().metadata.template)}>
+              <SidebarRatioControl
+                template={resume().metadata.template}
+                page={resume().metadata.page}
+                onChange={(sidebarRatio) =>
+                  updateMetadata("page", { ...resume().metadata.page, sidebarRatio })
+                }
+              />
+            </Show>
+
+            <div class="space-y-2">
+              <label
+                for="proficiency-display"
+                class="font-mono text-xs uppercase tracking-wider text-stone block"
+              >
+                Proficiency display
+              </label>
+              <select
+                id="proficiency-display"
+                value={resume().metadata.levelDisplay ?? "template-default"}
+                onChange={(e) =>
+                  updateMetadata("levelDisplay", e.currentTarget.value as Metadata["levelDisplay"])
+                }
+                class="w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg
+                  focus:outline-none focus:border-accent"
+              >
+                <For each={LEVEL_DISPLAY_OPTIONS}>
+                  {(option) => <option value={option.value}>{option.label}</option>}
+                </For>
+              </select>
+            </div>
 
             {/* Preview */}
             <div class="p-4 rounded-lg border border-border">
@@ -159,6 +234,145 @@ export function ThemeEditor() {
           </div>
         )}
       </Show>
+    </div>
+  );
+}
+
+interface SidebarRatioControlProps {
+  template: string;
+  page: PageConfig;
+  onChange: (sidebarRatio: number | undefined) => void;
+}
+
+function defaultSidebarRatio(template: string, page: PageConfig): number {
+  const fixedWidth = FIXED_SIDEBAR_WIDTH_PT[template];
+  if (fixedWidth === undefined) return SIDEBAR_TEMPLATE_RATIO_DEFAULT;
+
+  const paperWidth = PAPER_WIDTH_PT[page.format] ?? PAPER_WIDTH_PT.a4;
+  const contentWidth = paperWidth - 2 * page.margin;
+  if (contentWidth <= 0) return SIDEBAR_TEMPLATE_RATIO_DEFAULT;
+
+  return Math.min(0.5, Math.max(0.1, fixedWidth / contentWidth));
+}
+
+function formatRatio(value: number): string {
+  return `${Math.round(value * 100)}%`;
+}
+
+function SidebarRatioControl(props: SidebarRatioControlProps) {
+  // Older server payloads serialized the unset ratio as an explicit null;
+  // normalize so null and undefined both mean "template default".
+  const ratioOverride = () => props.page.sidebarRatio ?? undefined;
+  const currentRatio = () => ratioOverride() ?? defaultSidebarRatio(props.template, props.page);
+  const labelValue = () => {
+    const override = ratioOverride();
+    return override === undefined ? "Template default" : formatRatio(override);
+  };
+
+  return (
+    <div class="space-y-3 pt-4 border-t border-border">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h3 class="font-mono text-xs uppercase tracking-wider text-stone">Sidebar Width</h3>
+          <p class="text-xs text-stone mt-1">Adjust the sidebar column for this template.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => props.onChange(undefined)}
+          class="text-xs font-medium text-accent hover:text-accent/80"
+        >
+          Reset to template default
+        </button>
+      </div>
+
+      <div class="space-y-1.5">
+        <label
+          for="sidebar-ratio-input"
+          class="font-mono text-xs uppercase tracking-wider text-stone flex justify-between"
+        >
+          <span>Width</span>
+          <span class="font-body normal-case tracking-normal">{labelValue()}</span>
+        </label>
+        <input
+          id="sidebar-ratio-input"
+          type="range"
+          min="0.10"
+          max="0.50"
+          step="0.01"
+          value={currentRatio()}
+          onInput={(e) => props.onChange(parseFloat(e.currentTarget.value))}
+          class="w-full accent-[var(--turbo-brand-primary)]"
+          aria-label="Sidebar width"
+          aria-valuetext={formatRatio(currentRatio())}
+        />
+      </div>
+    </div>
+  );
+}
+
+interface CustomCssTabProps {
+  css: { value: string; visible: boolean };
+  onChange: (css: { value: string; visible: boolean }) => void;
+}
+
+function CustomCssTab(props: CustomCssTabProps) {
+  const toggleVisible = () => {
+    props.onChange({ ...props.css, visible: !props.css.visible });
+  };
+
+  const handleInput = (value: string) => {
+    props.onChange({ ...props.css, value });
+  };
+
+  return (
+    <div class="space-y-4">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <p class="text-sm font-medium text-ink">Enable custom CSS</p>
+          <p class="text-xs text-stone">Inject styles into HTML and print views</p>
+        </div>
+        <button
+          type="button"
+          aria-pressed={props.css.visible}
+          aria-label="Enable custom CSS"
+          onClick={toggleVisible}
+          class={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${
+            props.css.visible ? "bg-accent" : "bg-border"
+          }`}
+        >
+          <span
+            class={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-paper shadow-sm transition-transform ${
+              props.css.visible ? "translate-x-4" : "translate-x-0"
+            }`}
+          />
+        </button>
+      </div>
+
+      <div class="space-y-2">
+        <label
+          for="custom-css-input"
+          class="font-mono text-xs uppercase tracking-wider text-stone block"
+        >
+          Custom CSS
+        </label>
+        <textarea
+          id="custom-css-input"
+          value={props.css.value}
+          onInput={(e) => handleInput(e.currentTarget.value)}
+          rows={10}
+          spellcheck={false}
+          class="w-full px-3 py-2 text-xs font-mono bg-surface border border-border rounded-lg
+            focus:outline-none focus:border-accent resize-y min-h-[160px]"
+          placeholder={`.resume-title {\n  letter-spacing: 0.05em;\n}`}
+        />
+      </div>
+
+      <p class="text-xs text-stone leading-relaxed">
+        Custom CSS applies to HTML and print surfaces in the editor (for example browser print via
+        Cmd/Ctrl+P). Selectors are scoped to the resume content area and cannot affect the app UI.
+        The live preview image and PDF export use Typst templates and theme controls instead —
+        custom CSS does not affect PDF export.
+      </p>
     </div>
   );
 }

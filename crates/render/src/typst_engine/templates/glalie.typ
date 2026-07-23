@@ -12,6 +12,7 @@
   let primary-color = rgb(data.metadata.theme.at("primary", default: "#14b8a6"))
   let text-color = rgb(data.metadata.theme.at("text", default: "#0f172a"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
+  let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
   let muted-color = rgb("#64748b")
   let sidebar-bg = primary-color.lighten(90%)
@@ -35,7 +36,12 @@
   }
 
   let skill-dots(level) = {
-    rating-indicators(level, 6pt, 6pt, primary-color, primary-color.lighten(70%), 50%, 2pt)
+    let level = clamp-level(level)
+    if level-display == "template-default" {
+      rating-indicators(level, 6pt, 6pt, primary-color, primary-color.lighten(70%), 50%, 2pt)
+    } else {
+      render-level(level, level-display, primary-color, primary-color.lighten(70%))
+    }
   }
 
   let render-experience(item) = {
@@ -106,7 +112,10 @@
     }
 
     let level = clamp-level(item.level)
-    if level > 0 {
+    if level-display == "template-default" and level > 0 {
+      v(2pt)
+      skill-dots(level)
+    } else if should-render-level(level, level-display) {
       v(2pt)
       skill-dots(level)
     }
@@ -130,7 +139,10 @@
     }
 
     let level = clamp-level(item.level)
-    if level > 0 {
+    if level-display == "template-default" and level > 0 {
+      v(2pt)
+      skill-dots(level)
+    } else if should-render-level(level, level-display) {
       v(2pt)
       skill-dots(level)
     }
@@ -380,45 +392,51 @@
     justify: true,
   )
 
-  let sidebar-before = () => [
-    // Header: Name, headline, contact info
-    #text(size: 18pt, weight: "bold", fill: text-color)[#data.basics.name]
+  // Cover letter — dedicated page before the resume content
+  render-cover-letter-page(data, section-heading, muted: muted-color, inset: (x: 24pt, y: 24pt))
 
-    #if data.basics.headline != "" {
-      v(6pt)
-      text(size: 9pt, style: "italic", fill: muted-color)[#data.basics.headline]
-    }
+  if has-resume-body(data) {
+    let sidebar-before = () => [
+      // Header: Name, headline, contact info
+      #text(size: 18pt, weight: "bold", fill: text-color)[#data.basics.name]
 
-    #v(12pt)
+      #if data.basics.headline != "" {
+        v(6pt)
+        text(size: 9pt, style: "italic", fill: muted-color)[#data.basics.headline]
+      }
 
-    // Contact info stacked vertically
-    #if data.basics.email != "" {
-      text(size: 8pt, fill: text-color)[#data.basics.email]
-      v(3pt)
-    }
-    #if data.basics.phone != "" {
-      text(size: 8pt, fill: text-color)[#data.basics.phone]
-      v(3pt)
-    }
-    #if data.basics.location != "" {
-      text(size: 8pt, fill: text-color)[#data.basics.location]
-      v(3pt)
-    }
-    #if has-url(data.basics) {
-      link(data.basics.url.href)[#text(size: 8pt, fill: primary-color)[#data.basics.url.href]]
-      v(3pt)
-    }
-  ]
+      #v(12pt)
 
-  render-resume(data, (
-    layout: "sidebar-left",
-    renderers: renderers,
-    sidebar-width: 170pt,
-    sidebar-bg: sidebar-bg,
-    sidebar-inset: (x: 16pt, y: 24pt),
-    main-inset: (x: 24pt, y: 24pt),
-    sidebar-heading: sidebar-heading,
-    main-heading: section-heading,
-    sidebar-before: sidebar-before,
-  ))
+      // Contact info stacked vertically
+      #if data.basics.email != "" {
+        text(size: 8pt, fill: text-color)[#data.basics.email]
+        v(3pt)
+      }
+      #if data.basics.phone != "" {
+        text(size: 8pt, fill: text-color)[#data.basics.phone]
+        v(3pt)
+      }
+      #if data.basics.location != "" {
+        text(size: 8pt, fill: text-color)[#data.basics.location]
+        v(3pt)
+      }
+      #if has-url(data.basics) {
+        link(data.basics.url.href)[#text(size: 8pt, fill: primary-color)[#data.basics.url.href]]
+        v(3pt)
+      }
+    ]
+
+    render-resume(data, (
+      layout: "sidebar-left",
+      renderers: renderers,
+      // Default width must match FIXED_SIDEBAR_WIDTH_PT in apps/web/src/components/templates/ThemeEditor.tsx.
+      sidebar-width: sidebar-width-from-ratio(data, 170pt),
+      sidebar-bg: sidebar-bg,
+      sidebar-inset: (x: 16pt, y: 24pt),
+      main-inset: (x: 24pt, y: 24pt),
+      sidebar-heading: sidebar-heading,
+      main-heading: section-heading,
+      sidebar-before: sidebar-before,
+    ))
+  }
 }

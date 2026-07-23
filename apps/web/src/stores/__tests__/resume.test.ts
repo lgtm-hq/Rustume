@@ -321,12 +321,8 @@ describe("useResumeStore", () => {
         visible: true,
         items: [],
       };
-      imported.metadata.layout = [
-        [
-          /* empty first page */
-        ],
-        [["experience"]],
-      ];
+      // Exercise normalization when the first page has no columns.
+      imported.metadata.layout = [[], [["experience"]]];
 
       importResume(imported);
 
@@ -342,12 +338,8 @@ describe("useResumeStore", () => {
     createRoot((dispose) => {
       const { store, importResume } = useResumeStore();
       const imported = createDefaultResume();
-      imported.metadata.layout = [
-        [
-          /* empty first page */
-        ],
-        [["coverLetter", "experience"]],
-      ];
+      // Exercise normalization when the first page has no columns.
+      imported.metadata.layout = [[], [["coverLetter", "experience"]]];
 
       importResume(imported);
 

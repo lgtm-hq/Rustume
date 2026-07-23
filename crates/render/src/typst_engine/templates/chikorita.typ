@@ -9,6 +9,7 @@
   let primary-color = rgb(data.metadata.theme.at("primary", default: "#16a34a"))
   let text-color = rgb(data.metadata.theme.at("text", default: "#166534"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
+  let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
   let muted-color = rgb("#6b7280")
 
@@ -38,7 +39,12 @@
   }
 
   let rating-dots(level) = {
-    rating-indicators(level, 6pt, 6pt, primary-color, border-color, 50%, 3pt)
+    let level = clamp-level(level)
+    if level-display == "template-default" {
+      rating-indicators(level, 6pt, 6pt, primary-color, border-color, 50%, 3pt)
+    } else {
+      render-level(level, level-display, primary-color, border-color, spacing: 3pt)
+    }
   }
 
   let render-experience(item) = {
@@ -105,7 +111,10 @@
     }
 
     let level = clamp-level(item.level)
-    if level > 0 {
+    if level-display == "template-default" and level > 0 {
+      v(2pt)
+      rating-dots(level)
+    } else if should-render-level(level, level-display) {
       v(2pt)
       rating-dots(level)
     }
@@ -129,7 +138,10 @@
     }
 
     let level = clamp-level(item.level)
-    if level > 0 {
+    if level-display == "template-default" and level > 0 {
+      v(2pt)
+      rating-dots(level)
+    } else if should-render-level(level, level-display) {
       v(2pt)
       rating-dots(level)
     }
@@ -399,49 +411,54 @@
     justify: false,
   )
 
-  // Header - above columns, left-aligned
-  text(size: 26pt, weight: "bold", fill: text-color)[#data.basics.name]
+  // Cover letter — dedicated page before the resume content
+  render-cover-letter-page(data, main-section, muted: muted-color)
 
-  if data.basics.headline != "" {
-    v(4pt)
-    text(size: 12pt, fill: primary-color)[#data.basics.headline]
+  if has-resume-body(data) {
+    // Header - above columns, left-aligned
+    text(size: 26pt, weight: "bold", fill: text-color)[#data.basics.name]
+
+    if data.basics.headline != "" {
+      v(4pt)
+      text(size: 12pt, fill: primary-color)[#data.basics.headline]
+    }
+
+    v(10pt)
+
+    // Contact info
+    let contact-items = build-contact-items(data.basics)
+    if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#data.basics.url.href],) }
+
+    if contact-items.len() > 0 {
+      text(size: 9pt, fill: muted-color)[#contact-items.join("  |  ")]
+    }
+
+    v(16pt)
+    line(length: 100%, stroke: 1pt + border-color)
+    v(12pt)
+
+    let right-wrapper(body) = {
+      box(
+        fill: light-bg,
+        radius: 6pt,
+        inset: 12pt,
+        width: 100%,
+        body,
+      )
+    }
+
+    render-resume(data, (
+      layout: "two-column",
+      renderers: renderers,
+      columns: sidebar-ratio-columns(data, (2fr, 1fr), sidebar-side: "right"),
+      column-gutter: 20pt,
+      left-column: 0,
+      left-fallback: default-main-sections + ("custom",),
+      left-heading: main-section,
+      right-column: 1,
+      right-fallback: default-sidebar-sections,
+      right-heading: sidebar-section,
+      right-wrapper: right-wrapper,
+    ))
   }
-
-  v(10pt)
-
-  // Contact info
-  let contact-items = build-contact-items(data.basics)
-  if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#data.basics.url.href],) }
-
-  if contact-items.len() > 0 {
-    text(size: 9pt, fill: muted-color)[#contact-items.join("  |  ")]
-  }
-
-  v(16pt)
-  line(length: 100%, stroke: 1pt + border-color)
-  v(12pt)
-
-  let right-wrapper(body) = {
-    box(
-      fill: light-bg,
-      radius: 6pt,
-      inset: 12pt,
-      width: 100%,
-      body,
-    )
-  }
-
-  render-resume(data, (
-    layout: "two-column",
-    renderers: renderers,
-    columns: (2fr, 1fr),
-    column-gutter: 20pt,
-    left-column: 0,
-    left-fallback: default-main-sections + ("custom",),
-    left-heading: main-section,
-    right-column: 1,
-    right-fallback: default-sidebar-sections,
-    right-heading: sidebar-section,
-    right-wrapper: right-wrapper,
-  ))
 }

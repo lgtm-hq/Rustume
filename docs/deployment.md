@@ -97,9 +97,9 @@ tag and receives the tag name as `version` (for example `v0.15.0`).
 ## Rustume Cloud (operated hosting)
 
 Operated Rustume Cloud deploys the same GHCR images CI builds for releases — Railway pulls
-the image instead of compiling from GitHub source. Staging tracks `:main` (or a pinned
-`:sha-<commit>`); production tracks release semver tags or a digest pin. Full runbook:
-[docs/operations/rustume-cloud-deploy.md](operations/rustume-cloud-deploy.md).
+the image instead of compiling from GitHub source. This repo's responsibility ends at the
+GHCR publish; deploy automation, backups, and runbooks live in the private `rustume-ops`
+repo (see `LICENSING.md` for the boundary policy).
 
 ## Environment Variables
 

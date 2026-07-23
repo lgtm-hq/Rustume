@@ -30,13 +30,24 @@ export interface ResumeListItem {
   id: string;
   name: string;
   updatedAt: Date;
+  /** basics.name from the stored resume, when known (for search). */
+  basicsName?: string;
+  /** basics.headline from the stored resume, when known (for search). */
+  headline?: string;
 }
 
 /** Serialized form stored in localStorage under the `_meta` key. */
 export interface ResumeMetaEntry {
   title: string;
   updatedAt: string; // ISO-8601
+  /** basics.name snapshot for search; absent on pre-existing entries. */
+  basicsName?: string;
+  /** basics.headline snapshot for search; absent on pre-existing entries. */
+  headline?: string;
 }
+
+/** Searchable fields snapshotted from resume data into metadata. */
+export type ResumeSearchMeta = Pick<ResumeMetaEntry, "basicsName" | "headline">;
 
 // LocalStorage fallback
 const STORAGE_KEY_PREFIX = "rustume:";
@@ -52,6 +63,8 @@ function isValidMetaEntry(v: unknown): v is ResumeMetaEntry {
   const obj = v as Record<string, unknown>;
   if (typeof obj.title !== "string") return false;
   if (typeof obj.updatedAt !== "string") return false;
+  if (obj.basicsName !== undefined && typeof obj.basicsName !== "string") return false;
+  if (obj.headline !== undefined && typeof obj.headline !== "string") return false;
   return !Number.isNaN(Date.parse(obj.updatedAt));
 }
 
@@ -87,12 +100,24 @@ function setMetaMap(map: Record<string, ResumeMetaEntry>): void {
   }
 }
 
-/** Upsert metadata for a single resume. */
-export function setResumeMeta(id: string, title: string, updatedAt?: Date): void {
+/**
+ * Upsert metadata for a single resume.
+ * Search fields (basicsName/headline) are merged: when `search` is omitted,
+ * any previously stored values are preserved.
+ */
+export function setResumeMeta(
+  id: string,
+  title: string,
+  updatedAt?: Date,
+  search?: ResumeSearchMeta,
+): void {
   const map = getMetaMap();
+  const existing = map[id];
   map[id] = {
     title,
     updatedAt: (updatedAt ?? new Date()).toISOString(),
+    basicsName: search ? search.basicsName : existing?.basicsName,
+    headline: search ? search.headline : existing?.headline,
   };
   setMetaMap(map);
 }
@@ -119,6 +144,16 @@ export function deriveTitleFromResume(data: ResumeData): string {
   return "Untitled Resume";
 }
 
+/** Extract searchable basics fields from resume data (trimmed, empty → undefined). */
+export function deriveSearchMetaFromResume(data: ResumeData): ResumeSearchMeta {
+  const basicsName = data.basics?.name?.trim();
+  const headline = data.basics?.headline?.trim();
+  return {
+    basicsName: basicsName || undefined,
+    headline: headline || undefined,
+  };
+}
+
 function resolveResumeTitle(id: string, data: ResumeData): string {
   const existing = getResumeMeta(id);
   const existingTitle = existing?.title?.trim();
@@ -126,11 +161,18 @@ function resolveResumeTitle(id: string, data: ResumeData): string {
   return deriveTitleFromResume(data);
 }
 
-function maybeUpdateResumeMeta(id: string, title: string): void {
+function maybeUpdateResumeMeta(id: string, title: string, data?: ResumeData): void {
   const existing = getResumeMeta(id);
-  if (existing?.title === title) return;
+  const search = data ? deriveSearchMetaFromResume(data) : undefined;
+  if (
+    existing?.title === title &&
+    (search === undefined ||
+      (existing?.basicsName === search.basicsName && existing?.headline === search.headline))
+  ) {
+    return;
+  }
   try {
-    setResumeMeta(id, title);
+    setResumeMeta(id, title, undefined, search);
   } catch (e) {
     console.error("Failed to update resume metadata:", e);
     toast.warning("Resume saved but metadata could not be updated — storage may be full");
@@ -186,7 +228,7 @@ function saveLocalResume(id: string, data: ResumeData): boolean {
     toast.error("Local storage is full — could not save resume");
     return false;
   }
-  let ids: string[] = [];
+  let ids: string[];
   try {
     const parsed: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY_PREFIX + "_ids") || "[]");
     ids = Array.isArray(parsed) ? (parsed as string[]) : [];
@@ -209,7 +251,7 @@ function saveLocalResume(id: string, data: ResumeData): boolean {
   const existing = getResumeMeta(id);
   const title = existing?.title ?? deriveTitleFromResume(data);
   try {
-    setResumeMeta(id, title);
+    setResumeMeta(id, title, undefined, deriveSearchMetaFromResume(data));
   } catch (e) {
     console.error("Failed to update resume metadata:", e);
     toast.warning("Resume saved but metadata could not be updated — storage may be full");
@@ -274,12 +316,12 @@ async function saveResume(id: string, data: ResumeData): Promise<void> {
       }
       throw error;
     }
-    maybeUpdateResumeMeta(id, title);
+    maybeUpdateResumeMeta(id, title, data);
     return;
   }
   if (isWasmReady()) {
     await saveToWasmStorage(id, data);
-    maybeUpdateResumeMeta(id, resolveResumeTitle(id, data));
+    maybeUpdateResumeMeta(id, resolveResumeTitle(id, data), data);
     return;
   }
   if (!saveLocalResume(id, data)) {
@@ -295,10 +337,15 @@ async function fetchResumeList(): Promise<ResumeListItem[]> {
   try {
     if (isCloudAuthenticated()) {
       const rows = await listCloudResumeSummaries();
+      // Cloud summaries only carry the title; enrich search fields from the
+      // locally cached metadata when available.
+      const cachedMeta = getMetaMap();
       return rows.map((row) => ({
         id: row.id,
         name: row.title,
         updatedAt: new Date(row.updated_at),
+        basicsName: cachedMeta[row.id]?.basicsName,
+        headline: cachedMeta[row.id]?.headline,
       }));
     }
 
@@ -319,16 +366,18 @@ async function fetchResumeList(): Promise<ResumeListItem[]> {
         const id = needsMigration[i];
         const result = migrationResults[i];
         let title = "Untitled Resume";
+        let search: ResumeSearchMeta = {};
         if (result.status === "fulfilled") {
           title = deriveTitleFromResume(result.value.data);
+          search = deriveSearchMetaFromResume(result.value.data);
           // Persist the derived metadata so future loads are instant
           try {
-            setResumeMeta(id, title);
+            setResumeMeta(id, title, undefined, search);
           } catch (metaErr) {
             console.error("Failed to persist metadata for resume:", id, metaErr);
           }
         }
-        migratedMap.set(id, { id, name: title, updatedAt: new Date() });
+        migratedMap.set(id, { id, name: title, updatedAt: new Date(), ...search });
       }
     }
 
@@ -341,6 +390,8 @@ async function fetchResumeList(): Promise<ResumeListItem[]> {
         id,
         name: meta.title,
         updatedAt: new Date(meta.updatedAt),
+        basicsName: meta.basicsName,
+        headline: meta.headline,
       };
     });
   } catch (e) {
@@ -413,7 +464,7 @@ export function useResumeList() {
           await duplicateCloudResume(id, newId, structuredClone(original), copyTitle);
           saveCompleted = true;
           try {
-            setResumeMeta(newId, copyTitle);
+            setResumeMeta(newId, copyTitle, undefined, deriveSearchMetaFromResume(original));
           } catch (e) {
             console.error("Failed to cache resume metadata locally:", e);
             toast.warning(
@@ -424,7 +475,7 @@ export function useResumeList() {
           return newId;
         }
 
-        setResumeMeta(newId, copyTitle);
+        setResumeMeta(newId, copyTitle, undefined, deriveSearchMetaFromResume(original));
 
         await saveResume(newId, structuredClone(original));
         saveCompleted = true;

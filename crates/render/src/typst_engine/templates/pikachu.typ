@@ -9,6 +9,7 @@
   let primary-color = rgb(data.metadata.theme.at("primary", default: "#ca8a04"))
   let text-color = rgb(data.metadata.theme.at("text", default: "#1c1917"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
+  let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
   let muted-color = rgb("#78716c")
 
@@ -36,7 +37,12 @@
   }
 
   let skill-dots(level) = {
-    rating-indicators(level, 6pt, 6pt, primary-color, sidebar-bg.darken(15%), 50%, 3pt)
+    let level = clamp-level(level)
+    if level-display == "template-default" {
+      rating-indicators(level, 6pt, 6pt, primary-color, sidebar-bg.darken(15%), 50%, 3pt)
+    } else {
+      render-level(level, level-display, primary-color, sidebar-bg.darken(15%), spacing: 3pt)
+    }
   }
 
   let render-experience(item) = {
@@ -304,79 +310,85 @@
     justify: false,
   )
 
-  let sidebar-wrapper(body) = {
-    set text(fill: sidebar-text-color)
-    body
-  }
+  // Cover letter — dedicated page before the resume content
+  render-cover-letter-page(data, main-section, muted: muted-color, inset: (x: 24pt, y: 32pt))
 
-  let sidebar-before = () => [
-    // Profile photo placeholder (initials)
-    #align(center)[
-      #box(
-        width: 80pt,
-        height: 80pt,
-        fill: primary-color,
-        radius: 50%,
-        [
-          #align(center + horizon)[
-            #text(size: 28pt, weight: "bold", fill: white)[
-              #let parts = data.basics.name.split(" ").filter(w => w.len() > 0)
-              #let initials = if parts.len() > 0 { parts.map(w => w.at(0, default: "")).join("") } else { "" }
-              #initials
+  if has-resume-body(data) {
+    let sidebar-wrapper(body) = {
+      set text(fill: sidebar-text-color)
+      body
+    }
+
+    let sidebar-before = () => [
+      // Profile photo placeholder (initials)
+      #align(center)[
+        #box(
+          width: 80pt,
+          height: 80pt,
+          fill: primary-color,
+          radius: 50%,
+          [
+            #align(center + horizon)[
+              #text(size: 28pt, weight: "bold", fill: white)[
+                #let parts = data.basics.name.split(" ").filter(w => w.len() > 0)
+                #let initials = if parts.len() > 0 { parts.map(w => w.at(0, default: "")).join("") } else { "" }
+                #initials
+              ]
             ]
           ]
-        ]
-      )
+        )
+      ]
+
+      #v(16pt)
+
+      // Contact
+      #sidebar-section("Contact")
+
+      #if data.basics.email != "" {
+        text(size: 9pt)[✉ #data.basics.email]
+        v(4pt)
+      }
+
+      #if data.basics.phone != "" {
+        text(size: 9pt)[☎ #data.basics.phone]
+        v(4pt)
+      }
+
+      #if data.basics.location != "" {
+        text(size: 9pt)[📍 #data.basics.location]
+        v(4pt)
+      }
+
+      #if has-url(data.basics) {
+        text(size: 9pt)[🔗 #link(data.basics.url.href)[Website]]
+        v(4pt)
+      }
     ]
 
-    #v(16pt)
+    let main-before = () => [
+      // Name and headline
+      #text(size: 26pt, weight: "bold")[#data.basics.name]
 
-    // Contact
-    #sidebar-section("Contact")
+      #if data.basics.headline != "" {
+        v(4pt)
+        text(size: 12pt, fill: primary-color)[#data.basics.headline]
+      }
+    ]
 
-    #if data.basics.email != "" {
-      text(size: 9pt)[✉ #data.basics.email]
-      v(4pt)
-    }
-
-    #if data.basics.phone != "" {
-      text(size: 9pt)[☎ #data.basics.phone]
-      v(4pt)
-    }
-
-    #if data.basics.location != "" {
-      text(size: 9pt)[📍 #data.basics.location]
-      v(4pt)
-    }
-
-    #if has-url(data.basics) {
-      text(size: 9pt)[🔗 #link(data.basics.url.href)[Website]]
-      v(4pt)
-    }
-  ]
-
-  let main-before = () => [
-    // Name and headline
-    #text(size: 26pt, weight: "bold")[#data.basics.name]
-
-    #if data.basics.headline != "" {
-      v(4pt)
-      text(size: 12pt, fill: primary-color)[#data.basics.headline]
-    }
-  ]
-
-  render-resume(data, (
-    layout: "sidebar-left",
-    renderers: renderers,
-    sidebar-width: 180pt,
-    sidebar-bg: sidebar-bg,
-    body-bg: bg-color,
-    sidebar-inset: (x: 16pt, y: 32pt),
-    main-inset: (x: 24pt, y: 32pt),
-    sidebar-heading: sidebar-section,
-    main-heading: main-section,
-    sidebar-before: sidebar-before,
-    main-before: main-before,
-    sidebar-wrapper: sidebar-wrapper,
-  ))
+    render-resume(data, (
+      layout: "sidebar-left",
+      renderers: renderers,
+      // Default width must match FIXED_SIDEBAR_WIDTH_PT in apps/web/src/components/templates/ThemeEditor.tsx.
+      sidebar-width: sidebar-width-from-ratio(data, 180pt),
+      sidebar-bg: sidebar-bg,
+      body-bg: bg-color,
+      sidebar-inset: (x: 16pt, y: 32pt),
+      main-inset: (x: 24pt, y: 32pt),
+      sidebar-heading: sidebar-section,
+      main-heading: main-section,
+      sidebar-before: sidebar-before,
+      main-before: main-before,
+      sidebar-wrapper: sidebar-wrapper,
+    ))
+  }
 }

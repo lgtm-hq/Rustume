@@ -9,14 +9,15 @@ set -euo pipefail
 
 : "${GITHUB_WORKSPACE:?GITHUB_WORKSPACE is required}"
 : "${POSTGRES_USER:=postgres}"
-: "${POSTGRES_PASSWORD:=postgres}"
 : "${POSTGRES_DB:=rustume_test}"
 : "${POSTGRES_PORT:=5432}"
 : "${POSTGRES_IMAGE:=postgres:16}"
 : "${POSTGRES_CONTAINER_NAME:=rustume-ci-postgres}"
 : "${POSTGRES_READY_TIMEOUT_SECONDS:=60}"
 
-TEST_DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:${POSTGRES_PORT}/${POSTGRES_DB}"
+# Local CI-only trust auth — no password credential embedded in this script.
+# The dockerized Postgres instance does not use TLS, so keep SQLx from probing SSL.
+TEST_DATABASE_URL="postgres://${POSTGRES_USER}@localhost:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable"
 
 wait_for_postgres() {
 	local attempt=0
@@ -44,7 +45,7 @@ start_postgres() {
 	docker run -d \
 		--name "$POSTGRES_CONTAINER_NAME" \
 		-e "POSTGRES_USER=${POSTGRES_USER}" \
-		-e "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" \
+		-e "POSTGRES_HOST_AUTH_METHOD=trust" \
 		-e "POSTGRES_DB=${POSTGRES_DB}" \
 		-p "${POSTGRES_PORT}:5432" \
 		"$POSTGRES_IMAGE" >/dev/null

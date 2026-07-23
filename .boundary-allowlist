@@ -1,0 +1,8 @@
+# Ops-boundary path guard allowlist (scripts/ci/boundary/check_paths.sh).
+#
+# One repo-relative path per line. Every entry MUST carry a trailing
+# "# justification" comment explaining why the exception is deliberate.
+# Example:
+#   docs/examples/sample.tfvars  # illustrative self-host example, no real topology
+#
+# No exceptions are currently needed.
