@@ -469,40 +469,67 @@ async fn import_single_resume(
 ) -> Result<ResumeRow, ApiError> {
     let title = item.title.unwrap_or_else(|| "Untitled".to_string());
     let resume_id = item.id.unwrap_or_else(Uuid::new_v4);
+    let data = item.data;
+    let mut tx = db.begin().await.map_err(internal_db_error)?;
 
-    sqlx::query_as::<_, ResumeRow>(
+    let inserted = sqlx::query_as::<_, ResumeRow>(
         r#"
         INSERT INTO resumes (id, user_id, title, data)
         VALUES ($1, $2, $3, $4)
-        ON CONFLICT (id) DO UPDATE SET
-            title = EXCLUDED.title,
-            data = EXCLUDED.data,
-            updated_at = now()
-        WHERE resumes.user_id = EXCLUDED.user_id
+        ON CONFLICT (id) DO NOTHING
         RETURNING id, user_id, title, data, is_public, public_slug, password_hash, version, created_at, updated_at
         "#,
     )
     .bind(resume_id)
     .bind(user_id)
-    .bind(title)
-    .bind(item.data)
-    .fetch_one(db)
+    .bind(&title)
+    .bind(&data)
+    .fetch_optional(&mut *tx)
     .await
-    .map_err(|err| map_import_db_error(err, resume_id))
+    .map_err(map_resume_db_error)?;
+
+    if let Some(row) = inserted {
+        tx.commit().await.map_err(internal_db_error)?;
+        return Ok(row);
+    }
+
+    let updated = sqlx::query_as::<_, ResumeRow>(
+        r#"
+        UPDATE resumes
+        SET title = $1,
+            data = $2,
+            version = version + 1,
+            updated_at = now()
+        WHERE id = $3 AND user_id = $4
+        RETURNING id, user_id, title, data, is_public, public_slug, password_hash, version, created_at, updated_at
+        "#,
+    )
+    .bind(&title)
+    .bind(&data)
+    .bind(resume_id)
+    .bind(user_id)
+    .fetch_optional(&mut *tx)
+    .await
+    .map_err(map_resume_db_error)?;
+
+    match updated {
+        Some(row) => {
+            capture_resume_snapshot(&mut tx, resume_id, row.version, &row.data).await?;
+            tx.commit().await.map_err(internal_db_error)?;
+            Ok(row)
+        }
+        None => {
+            tx.rollback().await.ok();
+            Err(ApiError::conflict(format!(
+                "Resume ID {resume_id} already exists for another user"
+            )))
+        }
+    }
 }
 
 fn internal_db_error(err: impl std::fmt::Display + Send + Sync + 'static) -> ApiError {
     error!("database error: {err}");
     ApiError::internal("internal server error")
-}
-
-fn map_import_db_error(err: sqlx::Error, resume_id: Uuid) -> ApiError {
-    if matches!(err, sqlx::Error::RowNotFound) {
-        return ApiError::conflict(format!(
-            "Resume ID {resume_id} already exists for another user"
-        ));
-    }
-    map_resume_db_error(err)
 }
 
 fn map_resume_db_error(err: sqlx::Error) -> ApiError {
@@ -1121,6 +1148,72 @@ mod tests {
             restore_result,
             Err(err) if matches!(err.kind, ApiErrorKind::Conflict)
                 && err.current_version == Some(updated.version + 1)
+        ));
+    }
+
+    #[tokio::test]
+    async fn import_existing_resume_rejects_stale_restore_version() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+        let pool = connect_test_pool(&database_url).await;
+        let user = seed_user(&pool).await;
+        let resume = seed_resume(&pool, user.id, sample_data("current")).await;
+        let state = test_app_state(pool.clone());
+
+        let historical = update_resume(
+            AuthUser(user.clone()),
+            State(state.clone()),
+            Path(resume.id),
+            Json(UpdateResumeRequest {
+                title: None,
+                data: Some(sample_data("historical")),
+                version: Some(resume.version),
+            }),
+        )
+        .await
+        .expect("seed historical snapshot")
+        .0;
+
+        let imported = import_single_resume(
+            &pool,
+            user.id,
+            ImportResumeItem {
+                id: Some(resume.id),
+                title: Some("Imported".to_string()),
+                data: sample_data("imported"),
+            },
+        )
+        .await
+        .expect("import over existing resume");
+
+        let restore_result = restore_resume_version(
+            AuthUser(user.clone()),
+            State(state),
+            Path((resume.id, historical.version)),
+            Json(RestoreResumeRequest {
+                version: historical.version,
+            }),
+        )
+        .await;
+
+        let imported_snapshot_count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM resume_snapshots WHERE resume_id = $1 AND version = $2",
+        )
+        .bind(resume.id)
+        .bind(imported.version)
+        .fetch_one(&pool)
+        .await
+        .expect("count imported snapshot");
+
+        cleanup_user(&pool, user.id).await;
+
+        assert_eq!(imported.version, historical.version + 1);
+        assert_eq!(imported_snapshot_count, 1);
+        assert!(matches!(
+            restore_result,
+            Err(err) if matches!(err.kind, ApiErrorKind::Conflict)
+                && err.current_version == Some(imported.version)
         ));
     }
 
