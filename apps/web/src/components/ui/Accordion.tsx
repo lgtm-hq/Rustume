@@ -53,6 +53,7 @@ export const Accordion: ParentComponent<AccordionProps> = (props) => {
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
+                  aria-hidden="true"
                 >
                   <path
                     stroke-linecap="round"

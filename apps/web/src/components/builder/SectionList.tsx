@@ -47,7 +47,13 @@ export function SectionList() {
       {/* Header */}
       <div class="flex items-center gap-3 pb-4 border-b border-border">
         <div class="w-10 h-10 bg-accent/10 rounded-lg flex items-center justify-center">
-          <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            class="w-5 h-5 text-accent"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -99,6 +105,7 @@ export function SectionList() {
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
+                  aria-hidden="true"
                 >
                   <path
                     stroke-linecap="round"
@@ -118,6 +125,7 @@ export function SectionList() {
               <div
                 role="switch"
                 aria-checked={isVisible(section.key)}
+                aria-label={`Show ${section.name} section`}
                 tabIndex={0}
                 class={`w-8 h-5 rounded-full transition-colors relative cursor-pointer ${
                   isVisible(section.key) ? "bg-accent" : "bg-border"
