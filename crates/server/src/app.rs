@@ -21,7 +21,7 @@ use crate::middleware::auth::require_auth_when_enabled;
 use crate::middleware::rate_limit::{
     rate_limit_account_delete, rate_limit_auth, rate_limit_billable, rate_limit_health,
     rate_limit_import, rate_limit_metrics, rate_limit_pdf, rate_limit_preview,
-    rate_limit_resume_crud,
+    rate_limit_resume_crud, rate_limit_unauthenticated,
 };
 use crate::middleware::security::security_headers;
 use crate::middleware::subscription::require_subscription_render;
@@ -30,7 +30,8 @@ use crate::openapi::ApiDoc;
 use crate::routes::{
     callback, create_resume, delete_account, delete_resume, export_resumes_json,
     export_resumes_pdf, get_resume, health, import_resumes, list_resumes, list_templates, login,
-    logout, me, metrics, parse, render_pdf, render_preview, security_txt, spa_fallback, static_dir,
+    logout, me, metrics, parse, public_resume_data, public_resume_page, public_resume_preview,
+    render_pdf, render_preview, robots_txt, security_txt, spa_fallback, static_dir,
     template_thumbnail, update_resume, update_sharing, validate,
 };
 use crate::state::AppState;
@@ -124,6 +125,7 @@ pub fn create_router_with_state(state: AppState) -> Router {
     let mut router = Router::new()
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .route("/.well-known/security.txt", get(security_txt))
+        .route("/robots.txt", get(robots_txt))
         .merge(health_routes)
         .merge(metrics_routes)
         .merge(billable_core)
@@ -205,8 +207,19 @@ pub fn create_router_with_state(state: AppState) -> Router {
             ));
         if cloud_rate_limits {
             export_pdf_routes = export_pdf_routes.route_layer(middleware::from_fn_with_state(
-                state_for_layers,
+                state_for_layers.clone(),
                 rate_limit_pdf,
+            ));
+        }
+
+        let mut public_routes = Router::new()
+            .route("/r/{slug}/preview.png", get(public_resume_preview))
+            .route("/r/{slug}/data", get(public_resume_data))
+            .route("/r/{slug}", get(public_resume_page));
+        if cloud_rate_limits {
+            public_routes = public_routes.route_layer(middleware::from_fn_with_state(
+                state_for_layers,
+                rate_limit_unauthenticated,
             ));
         }
 
@@ -216,7 +229,8 @@ pub fn create_router_with_state(state: AppState) -> Router {
             .merge(import_routes)
             .merge(export_json_routes)
             .merge(export_pdf_routes)
-            .merge(account_routes);
+            .merge(account_routes)
+            .merge(public_routes);
     }
 
     let router = router
