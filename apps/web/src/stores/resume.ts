@@ -25,7 +25,16 @@ import {
   saveCloudResume,
   showResumeVersionConflictToast,
 } from "./cloudStorage";
+import { setUndoRecorder, recordUndo } from "./editorUndo";
 import { saveSnapshot } from "./versionHistory";
+import {
+  clearUndoHistory,
+  noteResumeChanged,
+  pushUndoSnapshot,
+  redoResume,
+  syncUndoAnchor,
+  undoResume,
+} from "./undoHistory";
 
 /** Thrown when the requested resume does not exist in storage. */
 export class ResumeNotFoundError extends Error {
@@ -423,9 +432,25 @@ function scheduleSave() {
 
 // Mark as dirty and schedule save
 function markDirty() {
+  noteResumeChanged(store.resume);
   setStore("isDirty", true);
   scheduleSave();
 }
+
+function applyHistoryResume(data: ResumeData): void {
+  const clone = normalizeResumeForStore(JSON.parse(JSON.stringify(data)) as ResumeData);
+  batch(() => {
+    setStore("resume", clone);
+    setStore("isDirty", true);
+    setStore("error", null);
+  });
+  scheduleSave();
+}
+
+// Wire version-history revert into the in-session undo stack.
+setUndoRecorder((previous) => {
+  pushUndoSnapshot(previous);
+});
 
 // Public API
 export function useResumeStore() {
@@ -441,6 +466,7 @@ export function useResumeStore() {
           setStore("isDirty", false);
           setStore("error", null);
         });
+        clearUndoHistory(resume);
       } catch (e) {
         setStore("error", e instanceof Error ? e.message : "Failed to load");
         throw e; // Re-throw so caller can handle (e.g., create new resume)
@@ -455,6 +481,7 @@ export function useResumeStore() {
         setStore("isDirty", true);
         setStore("error", null);
       });
+      clearUndoHistory(resume);
       scheduleSave();
     },
 
@@ -707,18 +734,7 @@ export function useResumeStore() {
       markDirty();
     },
 
-    // Import resume data
-    createFromImport(id: string, data: ResumeData) {
-      const clone = normalizeResumeForStore(JSON.parse(JSON.stringify(data)) as ResumeData);
-      batch(() => {
-        setStore("resume", clone);
-        setStore("id", id);
-        setStore("isDirty", true);
-        setStore("error", null);
-      });
-      scheduleSave();
-    }
-
+    // Import resume data into the currently open resume id.
     importResume(data: ResumeData) {
       // Deep clone so Solid store owns a plain tree (imported objects may be frozen / aliased).
       const clone = normalizeResumeForStore(JSON.parse(JSON.stringify(data)) as ResumeData);
@@ -728,6 +744,45 @@ export function useResumeStore() {
         setStore("error", null);
       });
       scheduleSave();
+    },
+
+    /** Import as a brand-new resume (e.g. from the Home screen) and persist under `id`. */
+    createFromImport(id: string, data: ResumeData) {
+      const clone = normalizeResumeForStore(JSON.parse(JSON.stringify(data)) as ResumeData);
+      batch(() => {
+        setStore("resume", clone);
+        setStore("id", id);
+        setStore("isDirty", true);
+        setStore("error", null);
+      });
+      scheduleSave();
+    },
+
+    /** Replace the current resume with a historical snapshot (local mode revert). */
+    revertToSnapshot(data: ResumeData) {
+      recordUndo(store.resume);
+      const clone = normalizeResumeForStore(JSON.parse(JSON.stringify(data)) as ResumeData);
+      batch(() => {
+        setStore("resume", clone);
+        setStore("isDirty", true);
+        setStore("error", null);
+      });
+      syncUndoAnchor(clone);
+      scheduleSave();
+    },
+
+    undo() {
+      const previous = undoResume(store.resume);
+      if (!previous) return false;
+      applyHistoryResume(previous);
+      return true;
+    },
+
+    redo() {
+      const next = redoResume(store.resume);
+      if (!next) return false;
+      applyHistoryResume(next);
+      return true;
     },
 
     // Force save

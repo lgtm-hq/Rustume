@@ -15,6 +15,7 @@ vi.mock("../../wasm", () => ({
   saveResume: vi.fn().mockResolvedValue(undefined),
   getResume: vi.fn(),
   isWasmReady: () => false,
+  ensureWasmReady: async () => false,
 }));
 
 /**
@@ -264,6 +265,20 @@ describe("useResumeStore", () => {
 
       importResume(imported);
       expect(store.resume!.basics.name).toBe("Imported Person");
+      expect(store.isDirty).toBe(true);
+      dispose();
+    });
+  });
+
+  it("createFromImport assigns a new id and marks dirty", () => {
+    createRoot((dispose) => {
+      const { store, createFromImport } = useResumeStore();
+      const imported = createDefaultResume();
+      imported.basics.name = "From Home Import";
+
+      createFromImport("imported-home-id", imported);
+      expect(store.id).toBe("imported-home-id");
+      expect(store.resume!.basics.name).toBe("From Home Import");
       expect(store.isDirty).toBe(true);
       dispose();
     });
