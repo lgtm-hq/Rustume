@@ -1,13 +1,18 @@
-import type { SectionKey } from "../../stores/resume";
+import type { LayoutSectionKey } from "../../stores/resume";
 
 export interface SectionInfo {
-  key: SectionKey | "summary" | "custom";
+  key: LayoutSectionKey;
   name: string;
   icon: string;
 }
 
 export const SECTIONS: SectionInfo[] = [
   { key: "summary", name: "Summary", icon: "M4 6h16M4 12h16M4 18h7" },
+  {
+    key: "coverLetter",
+    name: "Cover Letter",
+    icon: "M4 4h16v16H4V4zm4 4h8M8 12h8M8 16h5",
+  },
   {
     key: "experience",
     name: "Experience",

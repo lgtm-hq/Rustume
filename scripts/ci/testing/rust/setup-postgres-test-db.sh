@@ -16,7 +16,8 @@ set -euo pipefail
 : "${POSTGRES_READY_TIMEOUT_SECONDS:=60}"
 
 # Local CI-only trust auth — no password credential embedded in this script.
-TEST_DATABASE_URL="postgres://${POSTGRES_USER}@localhost:${POSTGRES_PORT}/${POSTGRES_DB}"
+# The dockerized Postgres instance does not use TLS, so keep SQLx from probing SSL.
+TEST_DATABASE_URL="postgres://${POSTGRES_USER}@localhost:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable"
 
 wait_for_postgres() {
 	local attempt=0
