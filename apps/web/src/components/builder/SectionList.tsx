@@ -14,6 +14,13 @@ export function SectionList() {
   const getItemCount = (key: LayoutSectionKey): number => {
     if (!store.resume) return 0;
     if (key === "summary") return store.resume.sections.summary.content ? 1 : 0;
+    if (key === "coverLetter") {
+      const coverLetter = store.resume.sections.coverLetter;
+      const hasRecipient = Object.values(coverLetter.recipient).some(
+        (value) => value.trim() !== "",
+      );
+      return coverLetter.content.trim() !== "" || hasRecipient ? 1 : 0;
+    }
     if (key === "custom") {
       return Object.values(store.resume.sections.custom).reduce(
         (total, section) => total + section.items.length,

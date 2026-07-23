@@ -321,12 +321,7 @@ describe("useResumeStore", () => {
         visible: true,
         items: [],
       };
-      imported.metadata.layout = [
-        [
-          /* empty first page */
-        ],
-        [["experience"]],
-      ];
+      imported.metadata.layout = [[/* empty first page */], [["experience"]]];
 
       importResume(imported);
 
@@ -342,12 +337,7 @@ describe("useResumeStore", () => {
     createRoot((dispose) => {
       const { store, importResume } = useResumeStore();
       const imported = createDefaultResume();
-      imported.metadata.layout = [
-        [
-          /* empty first page */
-        ],
-        [["coverLetter", "experience"]],
-      ];
+      imported.metadata.layout = [[/* empty first page */], [["coverLetter", "experience"]]];
 
       importResume(imported);
 

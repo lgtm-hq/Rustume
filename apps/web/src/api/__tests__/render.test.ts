@@ -64,6 +64,19 @@ const mockResume: ResumeData = {
       visible: false,
       content: "",
     },
+    coverLetter: {
+      id: "coverLetter",
+      name: "Cover Letter",
+      visible: false,
+      recipient: {
+        name: "",
+        title: "",
+        company: "",
+        address: "",
+        email: "",
+      },
+      content: "",
+    },
     experience: {
       id: "experience",
       name: "Experience",
