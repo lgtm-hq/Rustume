@@ -136,6 +136,50 @@ describe("versionHistory store", () => {
     }
   });
 
+  it("keeps allocating after more than five cross-tab key collisions", async () => {
+    const now = Date.now();
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(now);
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, 1);
+        request.onupgradeneeded = () => {
+          const store = request.result.createObjectStore("snapshots", { keyPath: "key" });
+          store.createIndex("resumeId", "resumeId", { unique: false });
+        };
+        request.onsuccess = () => {
+          const db = request.result;
+          const tx = db.transaction("snapshots", "readwrite");
+          const store = tx.objectStore("snapshots");
+          for (let offset = 0; offset < 8; offset += 1) {
+            store.put({
+              key: `resume-1_v${now + offset}`,
+              resumeId: "resume-ghost",
+              timestamp: now + offset,
+              data: createResume(`Other tab ${offset}`),
+            });
+          }
+          tx.oncomplete = () => {
+            db.close();
+            resolve();
+          };
+          tx.onerror = () => reject(tx.error ?? new Error("seed failed"));
+        };
+        request.onerror = () => reject(request.error ?? new Error("open failed"));
+      });
+
+      await saveSnapshot("resume-1", createResume("This tab"));
+
+      const snapshots = await listSnapshots("resume-1");
+      expect(snapshots).toHaveLength(1);
+      expect(snapshots[0].timestamp).toBe(now + 8);
+      const saved = await getSnapshot(snapshots[0].key);
+      expect(saved?.basics.name).toBe("This tab");
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
   it("keeps the per-resume lock chain usable after a failed operation", async () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const openSpy = vi.spyOn(indexedDB, "open").mockImplementationOnce(() => {
