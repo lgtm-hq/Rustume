@@ -20,12 +20,12 @@ export const AppShell: ParentComponent = (props) => {
 
       {/* Top Bar */}
       <header
-        class="h-14 border-b border-border bg-paper/80 backdrop-blur-sm sticky top-0 z-30"
+        class="border-b border-border bg-paper/80 backdrop-blur-sm sticky top-0 z-30"
         data-print-hide
       >
-        <div class="h-full px-4 flex items-center justify-between">
+        <div class="h-14 px-4 flex items-center justify-between gap-3">
           {/* Logo */}
-          <nav aria-label="Primary">
+          <nav aria-label="Primary" class="flex-shrink-0">
             <A href="/" class="flex items-center gap-2 group">
               <div
                 class="w-8 h-8 bg-ink rounded flex items-center justify-center"
@@ -42,8 +42,8 @@ export const AppShell: ParentComponent = (props) => {
             </A>
           </nav>
 
-          {/* Status Indicators */}
-          <div class="flex items-center gap-4">
+          {/* Status Indicators — keep compact so AuthMenu / theme stay usable on narrow screens */}
+          <div class="flex items-center gap-3 sm:gap-4 flex-shrink-0">
             <AuthMenu />
 
             {/* Editor Theme Selector */}
@@ -68,25 +68,33 @@ export const AppShell: ParentComponent = (props) => {
       <SignInDialog />
 
       {/* Main Content */}
-      <main id="main-content" class="flex-1" tabindex={-1}>
+      <main
+        id="main-content"
+        class="flex-1"
+        classList={{ "min-h-0 overflow-hidden": isEditor() }}
+        tabindex={-1}
+      >
         {props.children}
       </main>
 
-      {/* Footer */}
-      <footer
-        class="border-t border-border px-4 py-4 text-center text-xs text-stone"
-        data-print-hide
-      >
-        <A href="/terms" class="hover:text-ink underline">
-          Terms of Service
-        </A>
-        <span class="mx-2" aria-hidden="true">
-          ·
-        </span>
-        <A href="/privacy" class="hover:text-ink underline">
-          Privacy Policy
-        </A>
-      </footer>
+      {/* Footer — hidden on editor to avoid document scroll jumps when
+          section controls take focus inside the fixed-height workspace. */}
+      <Show when={!isEditor()}>
+        <footer
+          class="border-t border-border px-4 py-4 text-center text-xs text-stone"
+          data-print-hide
+        >
+          <A href="/terms" class="hover:text-ink underline">
+            Terms of Service
+          </A>
+          <span class="mx-2" aria-hidden="true">
+            ·
+          </span>
+          <A href="/privacy" class="hover:text-ink underline">
+            Privacy Policy
+          </A>
+        </footer>
+      </Show>
     </div>
   );
 };

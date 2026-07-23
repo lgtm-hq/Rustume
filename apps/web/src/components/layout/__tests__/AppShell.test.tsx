@@ -46,6 +46,35 @@ vi.mock("@solidjs/router", async (importOriginal) => {
   };
 });
 
+describe("AppShell header", () => {
+  function renderShell() {
+    return render(() => (
+      <Router>
+        <Route
+          path="*"
+          component={() => (
+            <AppShell>
+              <div>Page content</div>
+            </AppShell>
+          )}
+        />
+      </Router>
+    ));
+  }
+
+  it("does not show a local-mode notice banner (Sign in to sync covers that)", () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.requireAuth = false;
+    mockAuthState.user = null;
+
+    renderShell();
+
+    expect(screen.queryByTestId("home-cloud-local-banner")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Working locally/i)).not.toBeInTheDocument();
+  });
+});
+
 describe("AppShell accessibility", () => {
   it("includes a skip link targeting the main landmark", () => {
     render(() => (

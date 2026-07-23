@@ -1,4 +1,4 @@
-import { createMemo, createSignal, lazy, onMount, Show, Suspense } from "solid-js";
+import { createMemo, createSignal, lazy, Match, onMount, Show, Switch, Suspense } from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
 import {
   Button,
@@ -235,10 +235,21 @@ function sidebarGroupOrder(item: SidebarItem): number {
   return SIDEBAR_GROUP_ORDER.get(item.group ?? "") ?? Number.MAX_SAFE_INTEGER;
 }
 
+function EditorPreviewPane() {
+  return (
+    <div class="h-full relative" data-testid="editor-preview-pane">
+      <Suspense fallback={<TabFallback />}>
+        <Preview />
+      </Suspense>
+      <SectionPanel />
+    </div>
+  );
+}
+
 export default function Editor() {
   const params = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { store, loadResume, createNewResume, undo, redo, updateMetadata } = resumeStore;
+  const { store, loadResume, createNewResume, undo, redo } = resumeStore;
   const { store: ui, openModal, closeModal, setPanel } = uiStore;
   const undoState = () => undoHistoryStore.state;
 
@@ -483,73 +494,112 @@ export default function Editor() {
 
   onMount(attemptLoad);
 
-  const renderTabContent = () => {
-    switch (activeTab()) {
-      case "basics":
-        return <BasicsForm />;
-      case "summary":
-        return (
-          <Suspense fallback={<TabFallback />}>
-            <SummaryEditor />
-          </Suspense>
-        );
-      case "layout":
-        return (
-          <Suspense fallback={<TabFallback />}>
-            <LayoutEditor />
-          </Suspense>
-        );
-      case "experience":
-        return <ExperienceEditor />;
-      case "education":
-        return <EducationEditor />;
-      case "skills":
-        return <SkillsEditor />;
-      case "projects":
-        return <ProjectsEditor />;
-      case "profiles":
-        return <ProfilesEditor />;
-      case "awards":
-        return <AwardsEditor />;
-      case "certifications":
-        return <CertificationsEditor />;
-      case "publications":
-        return <PublicationsEditor />;
-      case "languages":
-        return <LanguagesEditor />;
-      case "interests":
-        return <InterestsEditor />;
-      case "volunteer":
-        return <VolunteerEditor />;
-      case "references":
-        return <ReferencesEditor />;
-      case "custom":
-        return (
-          <CustomSectionsIndex
-            onSelectSection={(sectionId) => setActiveTab(`custom:${sectionId}`)}
+  // Closure components so SplitPane slots mount once; tab signal reads stay inside.
+  const EditorLeftPane = () => {
+    const { updateMetadata } = resumeStore;
+    return (
+      <div class="h-full flex flex-col" data-testid="editor-left-pane">
+        <Show when={store.resume?.metadata?.locked}>
+          <div
+            class="flex items-center justify-between gap-3 border-b border-border bg-surface/80 px-4 py-2"
+            data-testid="resume-locked-banner"
+          >
+            <p class="text-sm text-stone">This resume is locked. Unlock to make changes.</p>
+            <Button size="sm" variant="secondary" onClick={() => updateMetadata("locked", false)}>
+              Unlock
+            </Button>
+          </div>
+        </Show>
+        <div
+          class="h-full flex flex-1 min-h-0"
+          classList={{
+            "pointer-events-none opacity-60": Boolean(store.resume?.metadata?.locked),
+          }}
+        >
+          <Sidebar
+            items={sidebarItems()}
+            activeId={activeTab()}
+            onSelect={(id) => setActiveTab(id as EditorTab)}
           />
-        );
-      case "notes":
-        return (
-          <Suspense fallback={<TabFallback />}>
-            <NotesEditor />
-          </Suspense>
-        );
-      case "theme":
-        return (
-          <Suspense fallback={<TabFallback />}>
-            <ThemeEditor />
-          </Suspense>
-        );
-      default:
-        if (activeTab().startsWith("custom:")) {
-          const sectionId = activeTab().slice("custom:".length);
-          return (
-            <CustomSectionEditor sectionId={sectionId} onDeleted={() => setActiveTab("custom")} />
-          );
-        }
-        return null;
-    }
+          <div class="flex-1 overflow-auto p-6">
+            <Switch fallback={null}>
+              <Match when={activeTab() === "basics"}>
+                <BasicsForm />
+              </Match>
+              <Match when={activeTab() === "summary"}>
+                <Suspense fallback={<TabFallback />}>
+                  <SummaryEditor />
+                </Suspense>
+              </Match>
+              <Match when={activeTab() === "layout"}>
+                <Suspense fallback={<TabFallback />}>
+                  <LayoutEditor />
+                </Suspense>
+              </Match>
+              <Match when={activeTab() === "experience"}>
+                <ExperienceEditor />
+              </Match>
+              <Match when={activeTab() === "education"}>
+                <EducationEditor />
+              </Match>
+              <Match when={activeTab() === "skills"}>
+                <SkillsEditor />
+              </Match>
+              <Match when={activeTab() === "projects"}>
+                <ProjectsEditor />
+              </Match>
+              <Match when={activeTab() === "profiles"}>
+                <ProfilesEditor />
+              </Match>
+              <Match when={activeTab() === "awards"}>
+                <AwardsEditor />
+              </Match>
+              <Match when={activeTab() === "certifications"}>
+                <CertificationsEditor />
+              </Match>
+              <Match when={activeTab() === "publications"}>
+                <PublicationsEditor />
+              </Match>
+              <Match when={activeTab() === "languages"}>
+                <LanguagesEditor />
+              </Match>
+              <Match when={activeTab() === "interests"}>
+                <InterestsEditor />
+              </Match>
+              <Match when={activeTab() === "volunteer"}>
+                <VolunteerEditor />
+              </Match>
+              <Match when={activeTab() === "references"}>
+                <ReferencesEditor />
+              </Match>
+              <Match when={activeTab() === "custom"}>
+                <CustomSectionsIndex
+                  onSelectSection={(sectionId) => setActiveTab(`custom:${sectionId}`)}
+                />
+              </Match>
+              <Match when={activeTab() === "notes"}>
+                <Suspense fallback={<TabFallback />}>
+                  <NotesEditor />
+                </Suspense>
+              </Match>
+              <Match when={activeTab() === "theme"}>
+                <Suspense fallback={<TabFallback />}>
+                  <ThemeEditor />
+                </Suspense>
+              </Match>
+              <Match when={activeTab().startsWith("custom:") ? activeTab() : false}>
+                {(tab) => (
+                  <CustomSectionEditor
+                    sectionId={tab().slice("custom:".length)}
+                    onDeleted={() => setActiveTab("custom")}
+                  />
+                )}
+              </Match>
+            </Switch>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -691,7 +741,7 @@ export default function Editor() {
       {/* Main Content */}
       <div class="flex-1 overflow-hidden">
         <Show
-          when={!isLoading() && !loadError() && store.resume}
+          when={!isLoading() && !loadError() && store.resume != null}
           fallback={
             <div class="h-full flex items-center justify-center">
               <Show
@@ -756,51 +806,8 @@ export default function Editor() {
             showLeft={ui.panel !== "preview"}
             showRight={ui.panel !== "editor"}
             defaultRatio={0.45}
-            left={
-              <div class="h-full flex flex-col">
-                <Show when={store.resume?.metadata?.locked}>
-                  <div
-                    class="flex items-center justify-between gap-3 border-b border-border bg-surface/80 px-4 py-2"
-                    data-testid="resume-locked-banner"
-                  >
-                    <p class="text-sm text-stone">
-                      This resume is locked. Unlock to make changes.
-                    </p>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => updateMetadata("locked", false)}
-                    >
-                      Unlock
-                    </Button>
-                  </div>
-                </Show>
-                <div
-                  class="h-full flex flex-1 min-h-0"
-                  classList={{
-                    "pointer-events-none opacity-60": Boolean(store.resume?.metadata?.locked),
-                  }}
-                >
-                  {/* Sidebar Navigation */}
-                  <Sidebar
-                    items={sidebarItems()}
-                    activeId={activeTab()}
-                    onSelect={(id) => setActiveTab(id as EditorTab)}
-                  />
-
-                  {/* Tab Content */}
-                  <div class="flex-1 overflow-auto p-6">{renderTabContent()}</div>
-                </div>
-              </div>
-            }
-            right={
-              <div class="h-full relative">
-                <Suspense fallback={<TabFallback />}>
-                  <Preview />
-                </Suspense>
-                <SectionPanel />
-              </div>
-            }
+            left={<EditorLeftPane />}
+            right={<EditorPreviewPane />}
           />
         </Show>
       </div>

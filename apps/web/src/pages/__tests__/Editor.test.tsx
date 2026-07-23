@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
-import { render, screen, waitFor } from "@solidjs/testing-library";
+import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { Route, MemoryRouter, createMemoryHistory } from "@solidjs/router";
 import { axeConfig } from "../../test/a11y";
 import Editor from "../Editor";
@@ -43,7 +43,7 @@ vi.mock("../../wasm", async (importOriginal) => {
     ...actual,
     getResume: vi.fn().mockRejectedValue(new ResumeNotFoundErrorMock(RESUME_ID)),
     isWasmReady: () => false,
-  ensureWasmReady: async () => false,
+    ensureWasmReady: async () => false,
     saveResume: vi.fn().mockResolvedValue(undefined),
   };
 });
@@ -51,6 +51,10 @@ vi.mock("../../wasm", async (importOriginal) => {
 vi.mock("../../api/render", () => ({
   renderPreview: vi.fn().mockResolvedValue(new Blob()),
   downloadPdf: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("../../components/preview", () => ({
+  Preview: () => <div data-testid="preview-stub">Preview</div>,
 }));
 
 vi.mock("../../components/ui", async (importOriginal) => {
@@ -100,5 +104,35 @@ describe("Editor accessibility", () => {
     );
 
     expect(await axe(container, axeConfig)).toHaveNoViolations();
+  }, 15000);
+});
+
+describe("Editor section navigation", () => {
+  beforeEach(() => {
+    navigateMock.mockClear();
+  });
+
+  it("switches sections without remounting the preview shell", async () => {
+    renderEditor();
+
+    await waitFor(
+      () => {
+        expect(screen.getByText("Full Name")).toBeInTheDocument();
+      },
+      { timeout: 10000 },
+    );
+
+    const previewBefore = screen.getByTestId("editor-preview-pane");
+    const leftBefore = screen.getByTestId("editor-left-pane");
+
+    fireEvent.click(screen.getByRole("button", { name: "Experience" }));
+
+    await waitFor(() => {
+      expect(screen.queryByText("Full Name")).not.toBeInTheDocument();
+      expect(screen.getByText("Tech Company")).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId("editor-preview-pane")).toBe(previewBefore);
+    expect(screen.getByTestId("editor-left-pane")).toBe(leftBefore);
   }, 15000);
 });

@@ -192,11 +192,26 @@ function maybeUpdateResumeMeta(id: string, title: string, data?: ResumeData): vo
   }
 }
 
+/** Optional payload for in-place home-list updates before a background refetch. */
+export interface ResumesChangedDetail {
+  id: string;
+  name?: string;
+  locked?: boolean;
+  tags?: string[];
+}
+
 /** Update list metadata after a resume save (shared by editor + persistence paths). */
 export function notifyResumeSaved(id: string, data: ResumeData): void {
-  maybeUpdateResumeMeta(id, resolveResumeTitle(id, data), data);
+  const title = resolveResumeTitle(id, data);
+  maybeUpdateResumeMeta(id, title, data);
   if (typeof window !== "undefined") {
-    window.dispatchEvent(new CustomEvent("rustume:resumes-changed"));
+    const detail: ResumesChangedDetail = {
+      id,
+      name: title,
+      locked: Boolean(data.metadata?.locked),
+      tags: Array.isArray(data.metadata?.tags) ? data.metadata.tags : [],
+    };
+    window.dispatchEvent(new CustomEvent("rustume:resumes-changed", { detail }));
   }
 }
 
@@ -447,7 +462,24 @@ async function fetchResumeList(): Promise<ResumeListItem[]> {
 // ---------------------------------------------------------------------------
 
 export function useResumeList() {
-  const [resumes, { refetch }] = createResource(fetchResumeList);
+  const [resumes, { refetch, mutate }] = createResource(fetchResumeList);
+
+  const applyChangedDetail = (detail: ResumesChangedDetail | undefined) => {
+    if (!detail?.id) return;
+    mutate((current) => {
+      if (!current) return current;
+      return current.map((item) => {
+        if (item.id !== detail.id) return item;
+        return {
+          ...item,
+          ...(detail.name !== undefined ? { name: detail.name } : {}),
+          ...(detail.locked !== undefined ? { locked: detail.locked } : {}),
+          ...(detail.tags !== undefined ? { tags: detail.tags } : {}),
+          updatedAt: new Date(),
+        };
+      });
+    });
+  };
 
   createEffect(
     on(
@@ -463,20 +495,28 @@ export function useResumeList() {
   );
 
   onMount(() => {
-    const refresh = () => {
+    const onResumesChanged = (event: Event) => {
+      // Patch visible rows immediately so tag/lock edits don't blank the list
+      // while createResource briefly reports loading during refetch.
+      applyChangedDetail((event as CustomEvent<ResumesChangedDetail>).detail);
       void refetch();
     };
-    window.addEventListener("rustume:resumes-changed", refresh);
-    window.addEventListener("rustume:wasm-ready", refresh);
+    const onWasmReady = () => {
+      void refetch();
+    };
+    window.addEventListener("rustume:resumes-changed", onResumesChanged);
+    window.addEventListener("rustume:wasm-ready", onWasmReady);
     onCleanup(() => {
-      window.removeEventListener("rustume:resumes-changed", refresh);
-      window.removeEventListener("rustume:wasm-ready", refresh);
+      window.removeEventListener("rustume:resumes-changed", onResumesChanged);
+      window.removeEventListener("rustume:wasm-ready", onWasmReady);
     });
   });
 
   return {
     resumes,
-    loading: () => resumes.loading,
+    // Only treat the first empty load as "loading". Background refetches keep
+    // previous rows visible (avoids full-list spinner flash on tag/lock edits).
+    loading: () => resumes() === undefined && resumes.loading,
     error: () => resumes.error,
 
     async refresh() {

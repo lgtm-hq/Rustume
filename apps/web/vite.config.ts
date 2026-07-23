@@ -87,13 +87,16 @@ export default defineConfig({
     }),
   ],
   server: {
+    // Bind IPv4 explicitly — default can be ::1-only on macOS, which breaks
+    // 127.0.0.1 clients and proxying to an IPv4-only API on :3000.
+    host: "127.0.0.1",
     proxy: {
       "/api": {
-        target: "http://localhost:3000",
+        target: "http://127.0.0.1:3000",
         changeOrigin: true,
       },
       "/auth": {
-        target: "http://localhost:3000",
+        target: "http://127.0.0.1:3000",
         changeOrigin: true,
       },
     },

@@ -1,4 +1,5 @@
 import { onCleanup, onMount, createSignal, Show, type ParentComponent } from "solid-js";
+import { useLocation } from "@solidjs/router";
 import { AppErrorBoundary } from "./components/errors/AppErrorBoundary";
 import { AppShell } from "./components/layout/AppShell";
 import { CloudImportPrompt } from "./components/Auth/CloudImportPrompt";
@@ -11,7 +12,12 @@ import { initWasm } from "./wasm";
 
 const WASM_NOTICE_KEY = "wasmNoticeDismissed";
 
+function isDesignLabPath(pathname: string): boolean {
+  return pathname === "/design-lab" || pathname.startsWith("/design-lab/");
+}
+
 const App: ParentComponent = (props) => {
+  const location = useLocation();
   const [wasmError, setWasmError] = createSignal<string | null>(null);
   const [showWasmNotice, setShowWasmNotice] = createSignal(
     localStorage.getItem(WASM_NOTICE_KEY) !== "true",
@@ -21,6 +27,8 @@ const App: ParentComponent = (props) => {
     setShowWasmNotice(false);
     localStorage.setItem(WASM_NOTICE_KEY, "true");
   };
+
+  const inDesignLab = () => isDesignLabPath(location.pathname);
 
   onMount(async () => {
     try {
@@ -52,8 +60,8 @@ const App: ParentComponent = (props) => {
 
   return (
     <AppErrorBoundary>
-      <div class={wasmError() && showWasmNotice() ? "pt-16" : ""}>
-        <Show when={wasmError() && showWasmNotice()}>
+      <div class={wasmError() && showWasmNotice() && !inDesignLab() ? "pt-16" : ""}>
+        <Show when={wasmError() && showWasmNotice() && !inDesignLab()}>
           <div class="fixed top-0 left-0 right-0 z-50 border-b border-amber-300 bg-amber-100 px-4 py-3 text-sm text-amber-950 shadow-soft">
             <div class="mx-auto flex max-w-6xl items-center justify-between gap-4">
               <p>
@@ -67,11 +75,17 @@ const App: ParentComponent = (props) => {
             </div>
           </div>
         </Show>
-        <RequireAuthGuard>
-          <SubscriptionBanner />
-          <AppShell>{props.children}</AppShell>
-        </RequireAuthGuard>
-        <CloudImportPrompt />
+        <Show when={inDesignLab()} fallback={
+          <RequireAuthGuard>
+            <SubscriptionBanner />
+            <AppShell>{props.children}</AppShell>
+          </RequireAuthGuard>
+        }>
+          {props.children}
+        </Show>
+        <Show when={!inDesignLab()}>
+          <CloudImportPrompt />
+        </Show>
         <ToastRegion />
       </div>
     </AppErrorBoundary>

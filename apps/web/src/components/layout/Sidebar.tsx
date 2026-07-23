@@ -21,7 +21,9 @@ export function Sidebar(props: SidebarProps) {
   const [isKeyboardFocused, setIsKeyboardFocused] = createSignal(false);
   const [isExpanded, setIsExpanded] = createSignal(false);
 
-  // Expand when pinned, hovered, or focused by keyboard navigation.
+  // Expand when pinned, hovered, or focused via keyboard (not mouse click).
+  // Mouse focus used to expand the rail and remount all nav buttons through the
+  // collapsed/expanded Show branch — that layout jump felt like a page refresh.
   createEffect(() => {
     setIsExpanded(isPinned() || isHovered() || isKeyboardFocused());
   });
@@ -73,7 +75,12 @@ export function Sidebar(props: SidebarProps) {
       style={{ width: isExpanded() ? "180px" : "56px" }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      onFocusIn={() => setIsKeyboardFocused(true)}
+      onFocusIn={(event) => {
+        const target = event.target;
+        if (target instanceof HTMLElement && target.matches(":focus-visible")) {
+          setIsKeyboardFocused(true);
+        }
+      }}
       onFocusOut={handleFocusOut}
     >
       {/* Pin Button */}

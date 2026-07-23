@@ -71,6 +71,8 @@ import {
   getResumeMeta,
   setResumeMeta,
   deriveSearchMetaFromResume,
+  patchResumeListMeta,
+  notifyResumeSaved,
 } from "../persistence";
 import { ResumeNotFoundError, ResumeCorruptedError } from "../resume";
 
@@ -616,6 +618,87 @@ describe("persistence store - metadata in list operations", () => {
         // Whitespace-padded string should be trimmed
         await store.renameResume("trim-id", "  Trimmed  ");
         expect(getResumeMeta("trim-id")!.title).toBe("Trimmed");
+      } finally {
+        dispose();
+      }
+    });
+  });
+});
+
+describe("persistence store - list refresh UX", () => {
+  beforeEach(() => {
+    mockStorage.clear();
+  });
+
+  it("keeps loading false during background refetch when data already exists", async () => {
+    const resume = createDefaultResume();
+    resume.basics.name = "Listed";
+    mockStorage.setItem(STORAGE_KEY_PREFIX + "_ids", JSON.stringify(["listed-id"]));
+    mockStorage.setItem(STORAGE_KEY_PREFIX + "listed-id", JSON.stringify(resume));
+    setResumeMeta("listed-id", "Listed");
+
+    await createRoot(async (dispose) => {
+      try {
+        const store = useResumeList();
+        await store.refresh();
+
+        expect(store.resumes()?.length).toBe(1);
+        expect(store.loading()).toBe(false);
+
+        const refreshPromise = store.refresh();
+        // Even while refetch is in flight, do not report initial-load loading.
+        expect(store.loading()).toBe(false);
+        expect(store.resumes()?.length).toBe(1);
+        await refreshPromise;
+        expect(store.loading()).toBe(false);
+      } finally {
+        dispose();
+      }
+    });
+  });
+
+  it("applies tag patches to the list immediately via resumes-changed detail", async () => {
+    const resume = createDefaultResume();
+    resume.basics.name = "Tagged";
+    resume.metadata.tags = ["old"];
+    mockStorage.setItem(STORAGE_KEY_PREFIX + "_ids", JSON.stringify(["tag-id"]));
+    mockStorage.setItem(STORAGE_KEY_PREFIX + "tag-id", JSON.stringify(resume));
+    setResumeMeta("tag-id", "Tagged", undefined, undefined, { tags: ["old"] });
+
+    await createRoot(async (dispose) => {
+      try {
+        const store = useResumeList();
+        await store.refresh();
+        expect(store.resumes()?.[0]?.tags).toEqual(["old"]);
+
+        await patchResumeListMeta("tag-id", { tags: ["old", "new"] });
+
+        expect(store.resumes()?.[0]?.tags).toEqual(["old", "new"]);
+        expect(store.loading()).toBe(false);
+      } finally {
+        dispose();
+      }
+    });
+  });
+
+  it("notifyResumeSaved dispatches detail used for optimistic list updates", async () => {
+    const resume = createDefaultResume();
+    resume.basics.name = "Notify";
+    resume.metadata.locked = true;
+    resume.metadata.tags = ["a"];
+    mockStorage.setItem(STORAGE_KEY_PREFIX + "_ids", JSON.stringify(["notify-id"]));
+    mockStorage.setItem(STORAGE_KEY_PREFIX + "notify-id", JSON.stringify(resume));
+    setResumeMeta("notify-id", "Notify");
+
+    await createRoot(async (dispose) => {
+      try {
+        const store = useResumeList();
+        await store.refresh();
+
+        notifyResumeSaved("notify-id", resume);
+
+        expect(store.resumes()?.[0]?.locked).toBe(true);
+        expect(store.resumes()?.[0]?.tags).toEqual(["a"]);
       } finally {
         dispose();
       }
