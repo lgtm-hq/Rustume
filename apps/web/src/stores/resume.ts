@@ -15,7 +15,7 @@ import {
   createEmptyPicture,
   saveResume as saveToWasmStorage,
   getResume as getFromWasmStorage,
-  isWasmReady,
+  ensureWasmReady,
 } from "../wasm";
 import {
   isCloudAuthenticated,
@@ -317,8 +317,10 @@ async function saveResume(id: string, data: ResumeData): Promise<void> {
     await saveCloudResume(id, data);
     return;
   }
-  if (isWasmReady()) {
-    return saveToWasmStorage(id, data);
+  // Wait for WASM so we don't write to localStorage while IndexedDB is the real store.
+  if (await ensureWasmReady()) {
+    await saveToWasmStorage(id, data);
+    return;
   }
   saveToLocalStorage(id, data);
 }
@@ -327,7 +329,7 @@ async function getResume(id: string): Promise<ResumeData> {
   if (isCloudAuthenticated()) {
     return loadCloudResume(id);
   }
-  if (isWasmReady()) {
+  if (await ensureWasmReady()) {
     return getFromWasmStorage(id);
   }
   return getFromLocalStorage(id);
@@ -378,7 +380,16 @@ async function persistResume() {
   setStore("error", null);
 
   try {
-    await saveResume(store.id, store.resume);
+    const id = store.id;
+    const resume = store.resume;
+    await saveResume(id, resume);
+    // Keep home-list metadata/timestamps in sync (dynamic import avoids a cycle).
+    try {
+      const { notifyResumeSaved } = await import("./persistence");
+      notifyResumeSaved(id, resume);
+    } catch (metaErr) {
+      console.error("Failed to update resume list metadata:", metaErr);
+    }
     batch(() => {
       setStore("isDirty", false);
       setStore("lastSaved", new Date());
@@ -693,6 +704,17 @@ export function useResumeStore() {
     },
 
     // Import resume data
+    createFromImport(id: string, data: ResumeData) {
+      const clone = normalizeResumeForStore(JSON.parse(JSON.stringify(data)) as ResumeData);
+      batch(() => {
+        setStore("resume", clone);
+        setStore("id", id);
+        setStore("isDirty", true);
+        setStore("error", null);
+      });
+      scheduleSave();
+    }
+
     importResume(data: ResumeData) {
       // Deep clone so Solid store owns a plain tree (imported objects may be frozen / aliased).
       const clone = normalizeResumeForStore(JSON.parse(JSON.stringify(data)) as ResumeData);
