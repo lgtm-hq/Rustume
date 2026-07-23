@@ -360,45 +360,50 @@
     justify: true,
   )
 
-  // Header with blue accent bar
-  box(
-    width: 100%,
-    stroke: (bottom: 3pt + primary-color),
-    inset: (bottom: 12pt),
-    [
-      #text(size: 28pt, weight: "bold", fill: primary-color)[#data.basics.name]
+  // Cover letter — dedicated page before the resume content
+  render-cover-letter-page(data, section-heading, muted: muted-color)
 
-      #if data.basics.headline != "" {
-        v(4pt)
-        text(size: 12pt, fill: muted-color)[#data.basics.headline]
-      }
+  if has-resume-body(data) {
+    // Header with blue accent bar
+    box(
+      width: 100%,
+      stroke: (bottom: 3pt + primary-color),
+      inset: (bottom: 12pt),
+      [
+        #text(size: 28pt, weight: "bold", fill: primary-color)[#data.basics.name]
 
-      #v(10pt)
+        #if data.basics.headline != "" {
+          v(4pt)
+          text(size: 12pt, fill: muted-color)[#data.basics.headline]
+        }
 
-      // Contact information in a row
-      #let contact-parts = ()
-      #if data.basics.email != "" {
-        contact-parts.push([✉ #link("mailto:" + data.basics.email)[#data.basics.email]])
-      }
-      #if data.basics.phone != "" {
-        contact-parts.push([☎ #data.basics.phone])
-      }
-      #if data.basics.location != "" {
-        contact-parts.push([📍 #data.basics.location])
-      }
-      #if has-url(data.basics) {
-        contact-parts.push([🔗 #link(data.basics.url.href)[Portfolio]])
-      }
+        #v(10pt)
 
-      #text(size: 9pt)[#contact-parts.join("    ")]
-    ]
-  )
+        // Contact information in a row
+        #let contact-parts = ()
+        #if data.basics.email != "" {
+          contact-parts.push([✉ #link("mailto:" + data.basics.email)[#data.basics.email]])
+        }
+        #if data.basics.phone != "" {
+          contact-parts.push([☎ #data.basics.phone])
+        }
+        #if data.basics.location != "" {
+          contact-parts.push([📍 #data.basics.location])
+        }
+        #if has-url(data.basics) {
+          contact-parts.push([🔗 #link(data.basics.url.href)[Portfolio]])
+        }
 
-  v(8pt)
+        #text(size: 9pt)[#contact-parts.join("    ")]
+      ]
+    )
 
-  render-resume(data, (
-    layout: "single",
-    renderers: renderers,
-    heading: section-heading,
-  ))
+    v(8pt)
+
+    render-resume(data, (
+      layout: "single",
+      renderers: renderers,
+      heading: section-heading,
+    ))
+  }
 }

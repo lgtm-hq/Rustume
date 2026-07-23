@@ -68,6 +68,9 @@ fn preprocess_rich_text(resume: &ResumeData) -> ResumeData {
     // Summary section content
     r.sections.summary.content = convert_field(&r.sections.summary.content);
 
+    // Cover letter body
+    r.sections.cover_letter.content = convert_field(&r.sections.cover_letter.content);
+
     // Experience: summary
     for item in &mut r.sections.experience.items {
         item.summary = convert_field(&item.summary);
@@ -545,6 +548,31 @@ mod tests {
                 .contains("emph"),
             "Expected Typst emph markup, got: {}",
             processed.sections.experience.items[0].summary
+        );
+    }
+
+    #[test]
+    fn test_preprocess_rich_text_converts_cover_letter() {
+        let mut resume = ResumeData::default();
+        resume.sections.cover_letter.content =
+            "<p>Dear <strong>Jane</strong>, I am <em>excited</em> to apply.</p>".to_string();
+
+        let processed = preprocess_rich_text(&resume);
+
+        assert!(
+            processed.sections.cover_letter.content.contains("bold"),
+            "Expected Typst bold markup, got: {}",
+            processed.sections.cover_letter.content
+        );
+        assert!(
+            processed.sections.cover_letter.content.contains("emph"),
+            "Expected Typst emph markup, got: {}",
+            processed.sections.cover_letter.content
+        );
+        assert!(
+            !processed.sections.cover_letter.content.contains("<p>"),
+            "Expected raw HTML to be converted, got: {}",
+            processed.sections.cover_letter.content
         );
     }
 

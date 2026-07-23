@@ -357,41 +357,46 @@
     justify: true,
   )
 
-  // Header - centered with picture area
-  align(center)[
-    // Picture area
-    #if has-visible-picture(data.basics) {
-      render-picture(data.basics, primary-color)
-      v(8pt)
-    }
+  // Cover letter — dedicated page before the resume content
+  render-cover-letter-page(data, section-heading, muted: muted-color)
 
-    // Name
-    #text(size: 24pt, weight: "bold", fill: text-color)[#data.basics.name]
+  if has-resume-body(data) {
+    // Header - centered with picture area
+    align(center)[
+      // Picture area
+      #if has-visible-picture(data.basics) {
+        render-picture(data.basics, primary-color)
+        v(8pt)
+      }
 
-    // Headline
-    #if data.basics.headline != "" {
-      v(4pt)
-      text(size: 12pt, fill: muted-color)[#data.basics.headline]
-    }
+      // Name
+      #text(size: 24pt, weight: "bold", fill: text-color)[#data.basics.name]
 
-    #v(8pt)
+      // Headline
+      #if data.basics.headline != "" {
+        v(4pt)
+        text(size: 12pt, fill: muted-color)[#data.basics.headline]
+      }
 
-    // Contact items - wrapped horizontally
-    #let contact-items = build-contact-items(data.basics)
-    #if has-url(data.basics) {
-      contact-items = contact-items + (link(data.basics.url.href)[#text(fill: primary-color)[#data.basics.url.href]],)
-    }
+      #v(8pt)
 
-    #text(size: 9pt)[#contact-items.join([#h(10pt)#text(fill: muted-color)[|]#h(10pt)])]
-  ]
+      // Contact items - wrapped horizontally
+      #let contact-items = build-contact-items(data.basics)
+      #if has-url(data.basics) {
+        contact-items = contact-items + (link(data.basics.url.href)[#text(fill: primary-color)[#data.basics.url.href]],)
+      }
 
-  v(8pt)
-  line(length: 100%, stroke: 0.5pt + primary-color)
-  v(8pt)
+      #text(size: 9pt)[#contact-items.join([#h(10pt)#text(fill: muted-color)[|]#h(10pt)])]
+    ]
 
-  render-resume(data, (
-    layout: "single",
-    renderers: renderers,
-    heading: section-heading,
-  ))
+    v(8pt)
+    line(length: 100%, stroke: 0.5pt + primary-color)
+    v(8pt)
+
+    render-resume(data, (
+      layout: "single",
+      renderers: renderers,
+      heading: section-heading,
+    ))
+  }
 }

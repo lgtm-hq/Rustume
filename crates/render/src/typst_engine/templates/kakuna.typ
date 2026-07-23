@@ -381,36 +381,41 @@
     justify: false,
   )
 
-  // Centered header in bordered box
-  align(center)[
-    #box(
-      width: 100%,
-      stroke: 1pt + border-color,
-      radius: 4pt,
-      inset: (x: 24pt, y: 20pt),
-      [
-        #text(size: 24pt, weight: "light", fill: text-color, tracking: 0.03em)[#data.basics.name]
+  // Cover letter — dedicated page before the resume content
+  render-cover-letter-page(data, section-heading, muted: muted-color)
 
-        #if data.basics.headline != "" {
-          v(6pt)
-          text(size: 11pt, fill: primary-color)[#data.basics.headline]
-        }
+  if has-resume-body(data) {
+    // Centered header in bordered box
+    align(center)[
+      #box(
+        width: 100%,
+        stroke: 1pt + border-color,
+        radius: 4pt,
+        inset: (x: 24pt, y: 20pt),
+        [
+          #text(size: 24pt, weight: "light", fill: text-color, tracking: 0.03em)[#data.basics.name]
 
-        #v(10pt)
+          #if data.basics.headline != "" {
+            v(6pt)
+            text(size: 11pt, fill: primary-color)[#data.basics.headline]
+          }
 
-        #let contact-items = build-contact-items(data.basics)
-        #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#data.basics.url.href],) }
+          #v(10pt)
 
-        #text(size: 9pt, fill: muted-color)[#contact-items.join("  ·  ")]
-      ]
-    )
-  ]
+          #let contact-items = build-contact-items(data.basics)
+          #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#data.basics.url.href],) }
 
-  v(8pt)
+          #text(size: 9pt, fill: muted-color)[#contact-items.join("  ·  ")]
+        ]
+      )
+    ]
 
-  render-resume(data, (
-    layout: "single",
-    renderers: renderers,
-    heading: section-heading,
-  ))
+    v(8pt)
+
+    render-resume(data, (
+      layout: "single",
+      renderers: renderers,
+      heading: section-heading,
+    ))
+  }
 }

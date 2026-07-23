@@ -420,59 +420,64 @@
     justify: false,
   )
 
-  // === HEADER: Two-tier design ===
+  // Cover letter — dedicated page before the resume content
+  render-cover-letter-page(data, section-heading, muted: muted-color)
 
-  // Tier 1: Name area with light rose background
-  box(
-    width: 100%,
-    fill: header-bg,
-    radius: (top: 6pt),
-    inset: (x: 20pt, y: 14pt),
-    grid(
-      columns: (1fr, auto),
-      column-gutter: 16pt,
-      [
-        #text(size: 24pt, weight: "bold", fill: primary-color)[#data.basics.name]
-        #if data.basics.headline != "" {
-          v(4pt)
-          text(size: 11pt, fill: header-text-color)[#data.basics.headline]
-        }
-      ],
-      align(right + horizon)[
-        #if has-url(data.basics) {
-          link(data.basics.url.href)[#text(size: 9pt, fill: primary-color)[#data.basics.url.href]]
-        }
-      ]
+  if has-resume-body(data) {
+    // === HEADER: Two-tier design ===
+
+    // Tier 1: Name area with light rose background
+    box(
+      width: 100%,
+      fill: header-bg,
+      radius: (top: 6pt),
+      inset: (x: 20pt, y: 14pt),
+      grid(
+        columns: (1fr, auto),
+        column-gutter: 16pt,
+        [
+          #text(size: 24pt, weight: "bold", fill: primary-color)[#data.basics.name]
+          #if data.basics.headline != "" {
+            v(4pt)
+            text(size: 11pt, fill: header-text-color)[#data.basics.headline]
+          }
+        ],
+        align(right + horizon)[
+          #if has-url(data.basics) {
+            link(data.basics.url.href)[#text(size: 9pt, fill: primary-color)[#data.basics.url.href]]
+          }
+        ]
+      )
     )
-  )
 
-  // Tier 2: Darker contact bar
-  box(
-    width: 100%,
-    fill: contact-bar-bg,
-    radius: (bottom: 6pt),
-    inset: (x: 20pt, y: 8pt),
-    {
-      let contact-items = build-contact-items(data.basics)
+    // Tier 2: Darker contact bar
+    box(
+      width: 100%,
+      fill: contact-bar-bg,
+      radius: (bottom: 6pt),
+      inset: (x: 20pt, y: 8pt),
+      {
+        let contact-items = build-contact-items(data.basics)
 
-      text(size: 9pt, fill: white)[#contact-items.join([#h(8pt)#text(fill: separator-color)[|]#h(8pt)])]
-    }
-  )
+        text(size: 9pt, fill: white)[#contact-items.join([#h(8pt)#text(fill: separator-color)[|]#h(8pt)])]
+      }
+    )
 
-  v(12pt)
+    v(12pt)
 
-  render-resume(data, (
-    layout: "two-column",
-    renderers: renderers,
-    // Intentionally not wired to sidebar-ratio-columns: leafish is excluded from
-    // the adjustable sidebar-ratio template list in issue #84.
-    columns: (1fr, 1fr),
-    column-gutter: 20pt,
-    left-column: 0,
-    left-fallback: default-main-sections,
-    left-heading: section-heading,
-    right-column: 1,
-    right-fallback: default-sidebar-sections + ("custom",),
-    right-heading: section-heading,
-  ))
+    render-resume(data, (
+      layout: "two-column",
+      renderers: renderers,
+      // Intentionally not wired to sidebar-ratio-columns: leafish is excluded from
+      // the adjustable sidebar-ratio template list in issue #84.
+      columns: (1fr, 1fr),
+      column-gutter: 20pt,
+      left-column: 0,
+      left-fallback: default-main-sections,
+      left-heading: section-heading,
+      right-column: 1,
+      right-fallback: default-sidebar-sections + ("custom",),
+      right-heading: section-heading,
+    ))
+  }
 }

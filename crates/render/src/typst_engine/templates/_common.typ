@@ -380,6 +380,90 @@
   }
 }
 
+/// Return all rendered page-0 layout keys (empty when no layout).
+#let layout-section-keys(data) = {
+  let keys = ()
+  if data.metadata.layout.len() == 0 {
+    return keys
+  }
+
+  for column in data.metadata.layout.at(0) {
+    keys = keys + column
+  }
+  keys
+}
+
+/// Whether the cover letter should render as a dedicated page.
+/// Requires the section to exist, be visible, and be placed in the layout
+/// (an empty layout counts as placed, mirroring the default section order).
+#let has-cover-letter(data) = {
+  if not ("coverLetter" in data.sections) { return false }
+  let section = data.sections.coverLetter
+  if not section.at("visible", default: false) { return false }
+  let keys = layout-section-keys(data)
+  data.metadata.layout.len() == 0 or "coverLetter" in keys
+}
+
+/// Whether the layout contains any resume section besides the dedicated cover
+/// letter page. An empty layout falls back to the default resume sections.
+#let has-resume-body(data) = {
+  let keys = layout-section-keys(data)
+  if data.metadata.layout.len() == 0 or keys.len() == 0 { return true }
+  for key in keys {
+    if key != "coverLetter" { return true }
+  }
+  false
+}
+
+/// Render the cover letter recipient block (name, title, company, address,
+/// email), top-left, skipping empty fields.
+#let render-cover-letter-recipient(recipient, size: 10pt, muted: none) = {
+  let lines = ()
+  let name = recipient.at("name", default: "")
+  let title = recipient.at("title", default: "")
+  let company = recipient.at("company", default: "")
+  let address = recipient.at("address", default: "")
+  let email = recipient.at("email", default: "")
+  if name != "" { lines = lines + (text(weight: "bold")[#name],) }
+  if title != "" { lines = lines + ([#title],) }
+  if company != "" { lines = lines + ([#company],) }
+  if address != "" { lines = lines + ([#address],) }
+  if email != "" { lines = lines + (link("mailto:" + email)[#email],) }
+
+  if lines.len() > 0 {
+    set text(size: size)
+    set text(fill: muted) if muted != none
+    stack(dir: ttb, spacing: 4pt, ..lines)
+    v(12pt)
+  }
+}
+
+/// Render the cover letter (heading, recipient block, rich-text body) using
+/// the template's heading style. Content arrives pre-converted to Typst
+/// markup by the engine's rich-text preprocessing.
+#let render-cover-letter(data, heading, size: 10pt, muted: none) = {
+  let section = data.sections.at("coverLetter", default: (:))
+  heading(section.at("name", default: "Cover Letter"))
+  render-cover-letter-recipient(section.at("recipient", default: (:)), size: size, muted: muted)
+  render-rich-text(section.at("content", default: ""), size: size)
+}
+
+/// Render the cover letter as a dedicated page before the resume content.
+/// No-op unless the section is visible and placed in the layout.
+#let render-cover-letter-page(data, heading, size: 10pt, muted: none, inset: none) = {
+  if not has-cover-letter(data) { return }
+  if inset == none {
+    render-cover-letter(data, heading, size: size, muted: muted)
+  } else {
+    pad(x: inset.x, y: inset.y)[
+      #render-cover-letter(data, heading, size: size, muted: muted)
+    ]
+  }
+  if has-resume-body(data) {
+    pagebreak()
+  }
+}
+
 /// Render a text-only section without splitting it from its heading.
 #let render-rich-text-section(section, heading, size: 10pt, fill: none, style: none) = {
   if section.visible {
@@ -453,6 +537,10 @@
     render-item-section(data.sections.projects, heading, renderers.projects)
   } else if key == "references" {
     render-item-section(data.sections.references, heading, renderers.references)
+  } else if key == "coverLetter" {
+    // Rendered as a dedicated page via render-cover-letter-page before the
+    // resume body (pagebreaks are not allowed inside layout containers), so
+    // the layout slot is intentionally skipped here.
   } else if key == "custom" and "custom" in data.sections {
     // Layout slot "custom" = render every custom section (order follows JSON object order).
     for (_, section) in data.sections.custom {
