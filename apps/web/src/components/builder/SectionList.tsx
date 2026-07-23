@@ -2,6 +2,8 @@ import { For, Show } from "solid-js";
 import { resumeStore, type LayoutSectionKey } from "../../stores/resume";
 import { SECTIONS } from "./constants";
 
+const hasText = (value: unknown): boolean => typeof value === "string" && value.trim() !== "";
+
 export function SectionList() {
   const { store, toggleSectionVisibility, addCustomSection } = resumeStore;
 
@@ -16,10 +18,11 @@ export function SectionList() {
     if (key === "summary") return store.resume.sections.summary.content ? 1 : 0;
     if (key === "coverLetter") {
       const coverLetter = store.resume.sections.coverLetter;
-      const hasRecipient = Object.values(coverLetter.recipient).some(
-        (value) => value.trim() !== "",
-      );
-      return coverLetter.content.trim() !== "" || hasRecipient ? 1 : 0;
+      const recipient = coverLetter.recipient;
+      const recipientValues =
+        recipient && typeof recipient === "object" ? Object.values(recipient) : [];
+      const hasRecipient = recipientValues.some(hasText);
+      return hasText(coverLetter.content) || hasRecipient ? 1 : 0;
     }
     if (key === "custom") {
       return Object.values(store.resume.sections.custom).reduce(
