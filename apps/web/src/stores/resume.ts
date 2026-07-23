@@ -25,6 +25,7 @@ import {
   saveCloudResume,
   showResumeVersionConflictToast,
 } from "./cloudStorage";
+import { saveSnapshot } from "./versionHistory";
 
 /** Thrown when the requested resume does not exist in storage. */
 export class ResumeNotFoundError extends Error {
@@ -383,6 +384,9 @@ async function persistResume() {
     const id = store.id;
     const resume = store.resume;
     await saveResume(id, resume);
+    if (!isCloudAuthenticated()) {
+      void saveSnapshot(id, resume);
+    }
     // Keep home-list metadata/timestamps in sync (dynamic import avoids a cycle).
     try {
       const { notifyResumeSaved } = await import("./persistence");
