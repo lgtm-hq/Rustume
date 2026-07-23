@@ -1,4 +1,4 @@
-import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, onMount, Show, type JSX } from "solid-js";
 import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -308,7 +308,7 @@ interface ToolbarButtonProps {
   onClick: () => void;
   disabled?: boolean;
   title: string;
-  children: any;
+  children: JSX.Element;
 }
 
 function ToolbarButton(props: ToolbarButtonProps) {

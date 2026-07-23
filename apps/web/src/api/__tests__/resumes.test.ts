@@ -1,4 +1,4 @@
-import { ApiError } from "../client";
+import { ApiError, ApiValidationError } from "../client";
 import type { CloudResumeRow, ImportResumeItem } from "../resumes";
 import {
   createCloudResume,
@@ -219,6 +219,12 @@ describe("resume API helpers", () => {
     );
   });
 
+  it("getCloudResume rejects malformed API responses", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(jsonFetch({ id: "abc", title: "Broken" }));
+
+    await expect(getCloudResume("abc")).rejects.toThrow(ApiValidationError);
+  });
+
   it("deleteCloudResume calls DELETE /api/resumes/:id", async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -238,7 +244,8 @@ describe("resume API helpers", () => {
 
   it("createCloudResume posts JSON body", async () => {
     const body = { title: "Mine", data: testResume("A") };
-    const mockFetch = vi.fn().mockResolvedValue(jsonFetch({ id: "1", title: "Mine" }));
+    const row = mockRow({ id: "1", title: "Mine" });
+    const mockFetch = vi.fn().mockResolvedValue(jsonFetch(row));
     globalThis.fetch = mockFetch;
 
     await createCloudResume(body);
@@ -253,7 +260,7 @@ describe("resume API helpers", () => {
   });
 
   it("updateCloudResume puts to the resume id path", async () => {
-    const mockFetch = vi.fn().mockResolvedValue(jsonFetch({ id: "abc" }));
+    const mockFetch = vi.fn().mockResolvedValue(jsonFetch(mockRow({ id: "abc" })));
     globalThis.fetch = mockFetch;
 
     await updateCloudResume("abc", { data: createDefaultResume() });
@@ -314,9 +321,8 @@ describe("resume API helpers", () => {
 
   it("importResumes posts the import payload", async () => {
     const payload: ImportResumeItem[] = [{ title: "One", data: createDefaultResume() }];
-    const mockFetch = vi
-      .fn()
-      .mockResolvedValue(jsonFetch({ imported: [{ id: "1", title: "One" }], failed: [] }));
+    const imported = mockRow({ id: "1", title: "One" });
+    const mockFetch = vi.fn().mockResolvedValue(jsonFetch({ imported: [imported], failed: [] }));
     globalThis.fetch = mockFetch;
 
     const result = await importResumes(payload);

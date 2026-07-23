@@ -7,6 +7,7 @@ export type ModalType =
   | "settings"
   | "shortcuts"
   | "versionHistory"
+  | "commandPalette"
   | null;
 
 export type Panel = "editor" | "preview" | "both";

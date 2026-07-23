@@ -47,7 +47,7 @@ function cloudEntry(summary: ResumeVersionSummary): VersionListEntry {
 
 export function VersionHistory() {
   const { store: ui, closeModal } = uiStore;
-  const { store, revertToSnapshot, loadResume } = resumeStore;
+  const { store, revertToSnapshot, loadResume, undoLastChange } = resumeStore;
 
   const [entries, setEntries] = createSignal<VersionListEntry[]>([]);
   const [selectedKey, setSelectedKey] = createSignal<string | null>(null);
@@ -201,7 +201,14 @@ export function VersionHistory() {
       } else {
         revertToSnapshot(snapshot);
       }
-      toast.success("Reverted to selected version");
+      toast.success("Reverted to selected version", undefined, {
+        label: "Undo",
+        onClick: () => {
+          if (!undoLastChange()) {
+            toast.info("Nothing to undo");
+          }
+        },
+      });
       closeModal();
     } catch (error) {
       console.error("Failed to revert resume version:", error);

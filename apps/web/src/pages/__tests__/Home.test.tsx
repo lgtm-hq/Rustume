@@ -1,8 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { axe } from "vitest-axe";
-import { render, screen } from "@solidjs/testing-library";
+import { fireEvent, render, screen } from "@solidjs/testing-library";
 import { axeConfig } from "../../test/a11y";
 import { Route, Router } from "@solidjs/router";
+import type { ResumeListItem } from "../../stores/persistence";
 import Home from "../Home";
 
 const { mockAuthState, signInMock } = vi.hoisted(() => ({
@@ -15,6 +16,24 @@ const { mockAuthState, signInMock } = vi.hoisted(() => ({
   signInMock: vi.fn(),
 }));
 
+const mockResumes = vi.hoisted(() => {
+  const resumes: ResumeListItem[] = [
+    { id: "1", name: "Software Engineer", updatedAt: new Date("2025-01-01") },
+    { id: "2", name: "Product Manager", updatedAt: new Date("2025-02-01") },
+    { id: "3", name: "Jane Doe — Designer", updatedAt: new Date("2025-03-01") },
+  ];
+  return resumes;
+});
+
+const resumeListMock = vi.hoisted(() => ({
+  resumes: () => mockResumes,
+  loading: () => false,
+  deleteResume: vi.fn(),
+  duplicateResume: vi.fn(),
+  renameResume: vi.fn(),
+  refresh: vi.fn(),
+}));
+
 vi.mock("../../stores/auth", () => ({
   authStore: {
     get state() {
@@ -25,14 +44,7 @@ vi.mock("../../stores/auth", () => ({
 }));
 
 vi.mock("../../stores/persistence", () => ({
-  useResumeList: () => ({
-    resumes: () => [],
-    loading: () => false,
-    deleteResume: vi.fn(),
-    duplicateResume: vi.fn(),
-    renameResume: vi.fn(),
-    refresh: vi.fn(),
-  }),
+  useResumeList: () => resumeListMock,
 }));
 
 vi.mock("../../wasm/types", () => ({
@@ -46,6 +58,56 @@ function renderHome() {
     </Router>
   ));
 }
+
+describe("Home resume search", () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = false;
+    mockAuthState.requireAuth = false;
+    mockAuthState.user = null;
+  });
+
+  it("shows a labeled search input when resumes exist", () => {
+    renderHome();
+
+    expect(screen.getByTestId("resume-search-input")).toBeInTheDocument();
+    expect(screen.getByLabelText("Search resumes")).toBeInTheDocument();
+  });
+
+  it("filters resumes as the user types", () => {
+    renderHome();
+
+    fireEvent.input(screen.getByTestId("resume-search-input"), {
+      target: { value: "product" },
+    });
+
+    expect(screen.getByRole("heading", { name: /Product Manager/i })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /Software Engineer/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /Jane Doe/i })).not.toBeInTheDocument();
+  });
+
+  it("shows an empty state when no resumes match", () => {
+    renderHome();
+
+    fireEvent.input(screen.getByTestId("resume-search-input"), {
+      target: { value: "zzzznotfound" },
+    });
+
+    expect(screen.getByTestId("resume-search-empty")).toBeInTheDocument();
+    expect(screen.getByText(/No matching resumes/i)).toBeInTheDocument();
+  });
+
+  it("persists the search query in sessionStorage", () => {
+    renderHome();
+
+    fireEvent.input(screen.getByTestId("resume-search-input"), {
+      target: { value: "jane" },
+    });
+
+    expect(sessionStorage.getItem("rustume:home-resume-search")).toBe("jane");
+  });
+});
 
 describe("Home cloud sign-in CTA", () => {
   it("shows the cloud banner when cloud is enabled and the user is signed out", () => {

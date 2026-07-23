@@ -152,7 +152,11 @@ describe("VersionHistory", () => {
       expect(confirmMock).toHaveBeenCalled();
       expect(resumeStore.store.resume?.basics.name).toBe("Restored Name");
       expect(resumeStore.store.isDirty).toBe(true);
-      expect(toastSuccessMock).toHaveBeenCalledWith("Reverted to selected version");
+      expect(toastSuccessMock).toHaveBeenCalledWith(
+        "Reverted to selected version",
+        undefined,
+        expect.objectContaining({ label: "Undo", onClick: expect.any(Function) }),
+      );
     });
   });
 
@@ -219,7 +223,11 @@ describe("VersionHistory", () => {
     await waitFor(() => {
       expect(restoreResumeVersionMock).toHaveBeenCalledWith("resume-history-test", 3, 4);
       expect(loadResumeSpy).toHaveBeenCalledWith("resume-history-test");
-      expect(toastSuccessMock).toHaveBeenCalledWith("Reverted to selected version");
+      expect(toastSuccessMock).toHaveBeenCalledWith(
+        "Reverted to selected version",
+        undefined,
+        expect.objectContaining({ label: "Undo", onClick: expect.any(Function) }),
+      );
       expect(recordUndoMock).toHaveBeenCalled();
     });
 

@@ -1,18 +1,5 @@
-import { ApiError } from "./client";
-
-async function throwApiError(response: Response): Promise<never> {
-  const text = await response.text();
-  let message = text;
-  try {
-    const json = JSON.parse(text) as { error?: string };
-    if (typeof json.error === "string") {
-      message = json.error;
-    }
-  } catch {
-    // Keep raw text when the body is not JSON.
-  }
-  throw new ApiError(response.status, message || response.statusText);
-}
+import { ApiError, extractApiErrorMessage, get } from "./client";
+import { resumeBulkExportSchema } from "./schemas";
 
 export interface ResumeExportItem {
   id: string;
@@ -27,18 +14,15 @@ export interface ResumeBulkExport {
 
 /** Download all cloud resumes as a JSON bundle. */
 export async function exportResumesJson(): Promise<ResumeBulkExport> {
-  const response = await fetch("/api/resumes/export", { credentials: "include" });
-  if (!response.ok) {
-    throw await throwApiError(response);
-  }
-  return response.json() as Promise<ResumeBulkExport>;
+  return get("/resumes/export", resumeBulkExportSchema);
 }
 
 /** Download all cloud resumes as a ZIP of PDF files. */
 export async function exportResumesPdf(): Promise<Blob> {
   const response = await fetch("/api/resumes/export/pdf", { credentials: "include" });
   if (!response.ok) {
-    throw await throwApiError(response);
+    const text = await response.text();
+    throw new ApiError(response.status, extractApiErrorMessage(text, response.statusText), text);
   }
   return response.blob();
 }

@@ -1,7 +1,15 @@
 import { createStore, produce } from "solid-js/store";
 import { batch } from "solid-js";
 import { toast } from "../components/ui";
-import type { ResumeData, Basics, Sections, Metadata, Section, CustomItem } from "../wasm/types";
+import type {
+  ResumeData,
+  Basics,
+  Sections,
+  Metadata,
+  Picture,
+  Section,
+  CustomItem,
+} from "../wasm/types";
 import {
   createEmptyResume,
   createEmptyPicture,
@@ -17,7 +25,7 @@ import {
   saveCloudResume,
   showResumeVersionConflictToast,
 } from "./cloudStorage";
-import { recordUndo } from "./editorUndo";
+import { recordUndo, setUndoRecorder } from "./editorUndo";
 import { saveSnapshot } from "./versionHistory";
 
 /** Thrown when the requested resume does not exist in storage. */
@@ -181,6 +189,20 @@ function normalizeResumeForStore(resume: ResumeData): ResumeData {
     resume.basics.picture = createEmptyPicture();
   }
 
+  // Backfill effect fields missing from resumes persisted before rotation/border/shadow
+  // effects existed. Defaults must match the Rust serde defaults in crates/schema/src/basics.rs.
+  const effects: Partial<Picture["effects"]> = resume.basics.picture.effects ?? {};
+  resume.basics.picture.effects = {
+    hidden: effects.hidden ?? false,
+    border: effects.border ?? false,
+    grayscale: effects.grayscale ?? false,
+    rotation: effects.rotation ?? 0,
+    borderColor: effects.borderColor ?? "",
+    borderWidth: effects.borderWidth ?? 2,
+    shadowColor: effects.shadowColor ?? "#00000040",
+    shadowSize: effects.shadowSize ?? 0,
+  };
+
   if (
     typeof resume.sections.custom !== "object" ||
     resume.sections.custom === null ||
@@ -233,7 +255,7 @@ const STORAGE_KEY_PREFIX = "rustume:";
 function saveToLocalStorage(id: string, data: ResumeData): void {
   localStorage.setItem(STORAGE_KEY_PREFIX + id, JSON.stringify(data));
   // Also update the list of resume IDs
-  let ids: string[] = [];
+  let ids: string[];
   try {
     ids = JSON.parse(localStorage.getItem(STORAGE_KEY_PREFIX + "_ids") || "[]") as string[];
   } catch {
@@ -315,9 +337,16 @@ const [store, setStore] = createStore<ResumeStore>({
   error: null,
 });
 
+const MAX_UNDO_SNAPSHOTS = 10;
+const undoStack: ResumeData[] = [];
+
 // Auto-save debounce timer
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 const SAVE_DELAY = 1000;
+
+function cloneResumeForStore(data: ResumeData): ResumeData {
+  return normalizeResumeForStore(JSON.parse(JSON.stringify(data)) as ResumeData);
+}
 
 async function persistResume() {
   if (!store.resume || !store.id) return;
@@ -363,14 +392,42 @@ function markDirty() {
   scheduleSave();
 }
 
+function pushUndoSnapshot(previous: ResumeData): void {
+  undoStack.push(cloneResumeForStore(previous));
+  if (undoStack.length > MAX_UNDO_SNAPSHOTS) {
+    undoStack.shift();
+  }
+}
+
+function clearUndoSnapshots(): void {
+  undoStack.length = 0;
+}
+
+function undoLastChange(): boolean {
+  const previous = undoStack.pop();
+  if (!previous) return false;
+
+  batch(() => {
+    setStore("resume", cloneResumeForStore(previous));
+    setStore("isDirty", true);
+    setStore("error", null);
+  });
+  scheduleSave();
+  return true;
+}
+
+setUndoRecorder(pushUndoSnapshot);
+
 // Public API
 export function useResumeStore() {
   return {
     store,
+    undoLastChange,
 
     async loadResume(id: string) {
       try {
         const resume = normalizeResumeForStore(await getResume(id));
+        clearUndoSnapshots();
         batch(() => {
           setStore("resume", resume);
           setStore("id", id);
@@ -385,6 +442,7 @@ export function useResumeStore() {
 
     createNewResume(id: string) {
       const resume = createEmptyResume();
+      clearUndoSnapshots();
       batch(() => {
         setStore("resume", resume);
         setStore("id", id);

@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
+import { ApiValidationError } from "../client";
 import { deleteAccount } from "../account";
 
 describe("deleteAccount", () => {
   it("sends DELETE with confirmation body", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
+      headers: new Headers({ "content-type": "application/json" }),
       json: async () => ({
         deleted: true,
         message: "Account and all data permanently deleted.",
@@ -36,5 +38,18 @@ describe("deleteAccount", () => {
     await expect(deleteAccount("delete")).rejects.toThrow(
       "Type DELETE to confirm account deletion",
     );
+  });
+
+  it("rejects malformed delete responses", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        headers: new Headers({ "content-type": "application/json" }),
+        json: async () => ({ deleted: "yes" }),
+      }),
+    );
+
+    await expect(deleteAccount("DELETE")).rejects.toThrow(ApiValidationError);
   });
 });

@@ -1,4 +1,5 @@
 import { onCleanup, onMount, createSignal, Show, type ParentComponent } from "solid-js";
+import { AppErrorBoundary } from "./components/errors/AppErrorBoundary";
 import { AppShell } from "./components/layout/AppShell";
 import { CloudImportPrompt } from "./components/Auth/CloudImportPrompt";
 import { RequireAuthGuard } from "./components/Auth/RequireAuthGuard";
@@ -47,28 +48,30 @@ const App: ParentComponent = (props) => {
   });
 
   return (
-    <div class={wasmError() && showWasmNotice() ? "pt-16" : ""}>
-      <Show when={wasmError() && showWasmNotice()}>
-        <div class="fixed top-0 left-0 right-0 z-50 border-b border-amber-300 bg-amber-100 px-4 py-3 text-sm text-amber-950 shadow-soft">
-          <div class="mx-auto flex max-w-6xl items-center justify-between gap-4">
-            <p>
-              Browser import features are using the server fallback because the WASM module did not
-              load. Run <code class="font-mono">make setup</code> in development, or continue if you
-              are using the hosted app.
-            </p>
-            <Button variant="ghost" size="sm" onClick={dismissNotice}>
-              Dismiss
-            </Button>
+    <AppErrorBoundary>
+      <div class={wasmError() && showWasmNotice() ? "pt-16" : ""}>
+        <Show when={wasmError() && showWasmNotice()}>
+          <div class="fixed top-0 left-0 right-0 z-50 border-b border-amber-300 bg-amber-100 px-4 py-3 text-sm text-amber-950 shadow-soft">
+            <div class="mx-auto flex max-w-6xl items-center justify-between gap-4">
+              <p>
+                Browser import features are using the server fallback because the WASM module did
+                not load. Run <code class="font-mono">make setup</code> in development, or continue
+                if you are using the hosted app.
+              </p>
+              <Button variant="ghost" size="sm" onClick={dismissNotice}>
+                Dismiss
+              </Button>
+            </div>
           </div>
-        </div>
-      </Show>
-      <RequireAuthGuard>
-        <SubscriptionBanner />
-        <AppShell>{props.children}</AppShell>
-      </RequireAuthGuard>
-      <CloudImportPrompt />
-      <ToastRegion />
-    </div>
+        </Show>
+        <RequireAuthGuard>
+          <SubscriptionBanner />
+          <AppShell>{props.children}</AppShell>
+        </RequireAuthGuard>
+        <CloudImportPrompt />
+        <ToastRegion />
+      </div>
+    </AppErrorBoundary>
   );
 };
 

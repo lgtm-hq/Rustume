@@ -9,6 +9,7 @@ import {
   ResumeCorruptedError,
   isNotFoundError,
 } from "../resume";
+import { recordUndo } from "../editorUndo";
 
 vi.mock("../../wasm", () => ({
   createEmptyResume: () => createDefaultResume(),
@@ -144,6 +145,23 @@ describe("useResumeStore", () => {
       expect(store.resume).not.toBeNull();
       expect(store.id).toBe("test-id-1");
       expect(store.isDirty).toBe(true);
+      dispose();
+    });
+  });
+
+  it("undoLastChange restores the state captured by the undo recorder", () => {
+    createRoot((dispose) => {
+      const { store, createNewResume, updateBasics, undoLastChange } = useResumeStore();
+      createNewResume("undo-test");
+      updateBasics("name", "Before revert");
+      recordUndo(store.resume);
+
+      updateBasics("name", "After revert");
+      expect(undoLastChange()).toBe(true);
+
+      expect(store.resume!.basics.name).toBe("Before revert");
+      expect(store.isDirty).toBe(true);
+      expect(undoLastChange()).toBe(false);
       dispose();
     });
   });
@@ -321,12 +339,7 @@ describe("useResumeStore", () => {
         visible: true,
         items: [],
       };
-      imported.metadata.layout = [
-        [
-          /* empty first page */
-        ],
-        [["experience"]],
-      ];
+      imported.metadata.layout = [[/* empty first page */], [["experience"]]];
 
       importResume(imported);
 
