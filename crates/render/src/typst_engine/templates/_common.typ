@@ -380,13 +380,15 @@
   }
 }
 
-/// Return all layout keys across every page and column (empty when no layout).
+/// Return all rendered page-0 layout keys (empty when no layout).
 #let layout-section-keys(data) = {
   let keys = ()
-  for page in data.metadata.layout {
-    for column in page {
-      keys = keys + column
-    }
+  if data.metadata.layout.len() == 0 {
+    return keys
+  }
+
+  for column in data.metadata.layout.at(0) {
+    keys = keys + column
   }
   keys
 }
@@ -399,14 +401,14 @@
   let section = data.sections.coverLetter
   if not section.at("visible", default: false) { return false }
   let keys = layout-section-keys(data)
-  keys.len() == 0 or "coverLetter" in keys
+  data.metadata.layout.len() == 0 or "coverLetter" in keys
 }
 
 /// Whether the layout contains any resume section besides the dedicated cover
 /// letter page. An empty layout falls back to the default resume sections.
 #let has-resume-body(data) = {
   let keys = layout-section-keys(data)
-  if keys.len() == 0 { return true }
+  if data.metadata.layout.len() == 0 or keys.len() == 0 { return true }
   for key in keys {
     if key != "coverLetter" { return true }
   }
@@ -448,9 +450,15 @@
 
 /// Render the cover letter as a dedicated page before the resume content.
 /// No-op unless the section is visible and placed in the layout.
-#let render-cover-letter-page(data, heading, size: 10pt, muted: none) = {
+#let render-cover-letter-page(data, heading, size: 10pt, muted: none, inset: none) = {
   if not has-cover-letter(data) { return }
-  render-cover-letter(data, heading, size: size, muted: muted)
+  if inset == none {
+    render-cover-letter(data, heading, size: size, muted: muted)
+  } else {
+    pad(x: inset.x, y: inset.y)[
+      #render-cover-letter(data, heading, size: size, muted: muted)
+    ]
+  }
   if has-resume-body(data) {
     pagebreak()
   }

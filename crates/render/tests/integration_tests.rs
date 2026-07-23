@@ -825,6 +825,44 @@ fn test_cover_letter_not_placed_in_layout_is_skipped(#[case] template_name: &str
 #[rstest]
 #[case("rhyhorn")]
 #[case("azurill")]
+fn test_cover_letter_on_later_layout_page_is_skipped(#[case] template_name: &str) {
+    let renderer = TypstRenderer::new();
+
+    // The renderer consumes page 0 only; later layout pages must not affect
+    // cover-letter or pagebreak decisions.
+    let mut resume = sample_resume();
+    resume.metadata.template = template_name.to_string();
+    fill_cover_letter(&mut resume, true);
+    resume.metadata.layout = vec![
+        vec![
+            vec!["summary".to_string(), "experience".to_string()],
+            vec!["education".to_string(), "skills".to_string()],
+        ],
+        vec![vec!["coverLetter".to_string()]],
+    ];
+    let (_, pages) = renderer
+        .render_preview(&resume, 0)
+        .unwrap_or_else(|e| panic!("Preview failed for '{template_name}': {e:?}"));
+
+    let mut baseline = sample_resume();
+    baseline.metadata.template = template_name.to_string();
+    baseline.metadata.layout = vec![vec![
+        vec!["summary".to_string(), "experience".to_string()],
+        vec!["education".to_string(), "skills".to_string()],
+    ]];
+    let (_, base_pages) = renderer
+        .render_preview(&baseline, 0)
+        .unwrap_or_else(|e| panic!("Baseline preview failed for '{template_name}': {e:?}"));
+
+    assert_eq!(
+        pages, base_pages,
+        "Cover letter on a later layout page must not add pages in '{template_name}'"
+    );
+}
+
+#[rstest]
+#[case("rhyhorn")]
+#[case("azurill")]
 fn test_cover_letter_placed_in_layout_column_renders_once(#[case] template_name: &str) {
     let renderer = TypstRenderer::new();
 

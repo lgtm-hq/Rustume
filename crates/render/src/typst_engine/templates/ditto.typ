@@ -410,7 +410,7 @@
   )
 
   // Cover letter — dedicated page before the resume content
-  render-cover-letter-page(data, section-heading, muted: muted-color)
+  render-cover-letter-page(data, section-heading, muted: muted-color, inset: (x: 20pt, y: 12pt))
 
   if has-resume-body(data) {
     // Header - full width teal background bar
