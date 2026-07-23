@@ -41,9 +41,12 @@ const App: ParentComponent = (props) => {
 
     try {
       await initWasm();
+      window.dispatchEvent(new CustomEvent("rustume:wasm-ready"));
     } catch (e) {
       console.error("Failed to initialize WASM:", e);
       setWasmError(e instanceof Error ? e.message : "Failed to load");
+      // Still notify listeners so the resume list can fall back to localStorage.
+      window.dispatchEvent(new CustomEvent("rustume:wasm-ready"));
     }
   });
 
