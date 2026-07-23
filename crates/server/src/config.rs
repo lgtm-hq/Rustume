@@ -199,6 +199,19 @@ fn trusted_proxy_from_env() -> bool {
     matches!(std::env::var("TRUSTED_PROXY").as_deref(), Ok("true" | "1"))
 }
 
+/// Whether cloud-mode rate limit middleware should be installed for a raw env value.
+pub fn rate_limits_enabled(disabled_flag: Option<&str>) -> bool {
+    !matches!(disabled_flag, Some("true" | "1"))
+}
+
+/// Whether cloud-mode rate limit middleware should be installed.
+///
+/// Set `RATE_LIMIT_DISABLED=true` for local cloud development so preview/PDF
+/// editing is not capped by production quotas.
+pub fn rate_limits_enabled_from_env() -> bool {
+    rate_limits_enabled(std::env::var("RATE_LIMIT_DISABLED").ok().as_deref())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -225,5 +238,13 @@ mod tests {
         assert_eq!(config.unauthenticated_per_min, 30);
         assert_eq!(config.billable_per_min, 30);
         assert!(!config.trusted_proxy);
+    }
+
+    #[test]
+    fn rate_limits_enabled_respects_disable_flag() {
+        assert!(rate_limits_enabled(None));
+        assert!(rate_limits_enabled(Some("false")));
+        assert!(!rate_limits_enabled(Some("true")));
+        assert!(!rate_limits_enabled(Some("1")));
     }
 }
