@@ -339,7 +339,7 @@ describe("useResumeStore", () => {
         visible: true,
         items: [],
       };
-      imported.metadata.layout = [[/* empty first page */], [["experience"]]];
+      imported.metadata.layout = [[], [["experience"]]];
 
       importResume(imported);
 
