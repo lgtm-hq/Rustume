@@ -1128,16 +1128,21 @@ describe("cover letter store actions", () => {
     vi.useRealTimers();
   });
 
-  it("updateCoverLetterContent sets the letter body", () => {
-    createRoot((dispose) => {
-      const { store, createNewResume, updateCoverLetterContent } = useResumeStore();
-      createNewResume("cover-letter-content-test");
+  it("updateCoverLetterContent sets the letter body and marks the resume dirty", async () => {
+    await createRoot(async (dispose) => {
+      try {
+        const { store, createNewResume, updateCoverLetterContent } = useResumeStore();
+        createNewResume("cover-letter-content-test");
+        await vi.runAllTimersAsync();
+        expect(store.isDirty).toBe(false);
 
-      updateCoverLetterContent("<p>Dear Hiring Manager,</p>");
+        updateCoverLetterContent("<p>Dear Hiring Manager,</p>");
 
-      expect(store.resume!.sections.coverLetter.content).toBe("<p>Dear Hiring Manager,</p>");
-      expect(store.isDirty).toBe(true);
-      dispose();
+        expect(store.resume!.sections.coverLetter.content).toBe("<p>Dear Hiring Manager,</p>");
+        expect(store.isDirty).toBe(true);
+      } finally {
+        dispose();
+      }
     });
   });
 
@@ -1163,16 +1168,25 @@ describe("cover letter store actions", () => {
     });
   });
 
-  it("cover letter actions backfill the section for legacy resumes", () => {
+  it("updateCoverLetterContent backfills the section for legacy resumes", () => {
     createRoot((dispose) => {
-      const { store, importResume, updateCoverLetterContent, updateCoverLetterRecipient } =
-        useResumeStore();
+      const { store, importResume, updateCoverLetterContent } = useResumeStore();
       const imported = createDefaultResume();
       delete (imported.sections as { coverLetter?: unknown }).coverLetter;
       importResume(imported);
 
       updateCoverLetterContent("<p>Hello</p>");
       expect(store.resume!.sections.coverLetter.content).toBe("<p>Hello</p>");
+      dispose();
+    });
+  });
+
+  it("updateCoverLetterRecipient backfills the section for legacy resumes", () => {
+    createRoot((dispose) => {
+      const { store, importResume, updateCoverLetterRecipient } = useResumeStore();
+      const imported = createDefaultResume();
+      delete (imported.sections as { coverLetter?: unknown }).coverLetter;
+      importResume(imported);
 
       updateCoverLetterRecipient("company", "Acme Corp");
       expect(store.resume!.sections.coverLetter.recipient.company).toBe("Acme Corp");

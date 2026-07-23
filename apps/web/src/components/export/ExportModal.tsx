@@ -46,6 +46,7 @@ export function ExportModal() {
       await downloadPdf(
         buildCoverLetterOnlyResume(store.resume),
         `${resumeFileName(store.resume)}-cover-letter.pdf`,
+        "onyx",
       );
       toast.success("Cover letter exported successfully");
       closeModal();
