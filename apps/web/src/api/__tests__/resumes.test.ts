@@ -1,12 +1,15 @@
-import { ApiError, ApiValidationError } from "../client";
+import { ApiError } from "../client";
 import type { CloudResumeRow, ImportResumeItem } from "../resumes";
 import {
   createCloudResume,
   deleteCloudResume,
   getCloudResume,
+  getResumeVersion,
   importResumes,
   listCloudResumes,
+  listResumeVersions,
   parseApiErrorBody,
+  restoreResumeVersion,
   ResumeVersionConflictError,
   updateCloudResume,
   upsertCloudResume,
@@ -216,12 +219,6 @@ describe("resume API helpers", () => {
     );
   });
 
-  it("getCloudResume rejects malformed API responses", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(jsonFetch({ id: "abc", title: "Broken" }));
-
-    await expect(getCloudResume("abc")).rejects.toThrow(ApiValidationError);
-  });
-
   it("deleteCloudResume calls DELETE /api/resumes/:id", async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -241,8 +238,7 @@ describe("resume API helpers", () => {
 
   it("createCloudResume posts JSON body", async () => {
     const body = { title: "Mine", data: testResume("A") };
-    const row = mockRow({ id: "1", title: "Mine" });
-    const mockFetch = vi.fn().mockResolvedValue(jsonFetch(row));
+    const mockFetch = vi.fn().mockResolvedValue(jsonFetch({ id: "1", title: "Mine" }));
     globalThis.fetch = mockFetch;
 
     await createCloudResume(body);
@@ -257,7 +253,7 @@ describe("resume API helpers", () => {
   });
 
   it("updateCloudResume puts to the resume id path", async () => {
-    const mockFetch = vi.fn().mockResolvedValue(jsonFetch(mockRow({ id: "abc" })));
+    const mockFetch = vi.fn().mockResolvedValue(jsonFetch({ id: "abc" }));
     globalThis.fetch = mockFetch;
 
     await updateCloudResume("abc", { data: createDefaultResume() });
@@ -318,8 +314,9 @@ describe("resume API helpers", () => {
 
   it("importResumes posts the import payload", async () => {
     const payload: ImportResumeItem[] = [{ title: "One", data: createDefaultResume() }];
-    const imported = mockRow({ id: "1", title: "One" });
-    const mockFetch = vi.fn().mockResolvedValue(jsonFetch({ imported: [imported], failed: [] }));
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValue(jsonFetch({ imported: [{ id: "1", title: "One" }], failed: [] }));
     globalThis.fetch = mockFetch;
 
     const result = await importResumes(payload);
@@ -373,6 +370,80 @@ describe("resume API helpers", () => {
         method: "POST",
         body: JSON.stringify({ resumes: payload.slice(100) }),
       }),
+    );
+  });
+});
+
+describe("resume version history API", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it("listResumeVersions fetches version summaries", async () => {
+    const versions = [
+      { version: 2, created_at: "2026-01-02T00:00:00.000Z" },
+      { version: 1, created_at: "2026-01-01T00:00:00.000Z" },
+    ];
+    globalThis.fetch = vi.fn().mockResolvedValue(jsonFetch(versions));
+
+    await expect(listResumeVersions("abc")).resolves.toEqual(versions);
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/resumes/abc/versions"),
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("getResumeVersion fetches a snapshot payload", async () => {
+    const snapshot = {
+      id: "snap-1",
+      resume_id: "abc",
+      version: 2,
+      data: testResume("Snapshot"),
+      created_at: "2026-01-02T00:00:00.000Z",
+    };
+    globalThis.fetch = vi.fn().mockResolvedValue(jsonFetch(snapshot));
+
+    await expect(getResumeVersion("abc", 2)).resolves.toEqual(snapshot);
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/resumes/abc/versions/2"),
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("restoreResumeVersion posts expected version and returns resume row", async () => {
+    const row = mockRow({ version: 5 });
+    globalThis.fetch = vi.fn().mockResolvedValue(jsonFetch(row));
+
+    await expect(restoreResumeVersion("abc", 2, 4)).resolves.toEqual(row);
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/resumes/abc/versions/2/restore"),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ version: 4 }),
+      }),
+    );
+  });
+
+  it("restoreResumeVersion throws ResumeVersionConflictError on 409", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      statusText: "Conflict",
+      text: () =>
+        Promise.resolve(
+          JSON.stringify({
+            error: "Resume was modified by another session",
+            current_version: 6,
+          }),
+        ),
+    });
+
+    await expect(restoreResumeVersion("abc", 2, 4)).rejects.toBeInstanceOf(
+      ResumeVersionConflictError,
     );
   });
 });

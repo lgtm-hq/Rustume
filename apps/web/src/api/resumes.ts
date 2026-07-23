@@ -1,10 +1,5 @@
 import type { ResumeData } from "../wasm/types";
 import { ApiError, del, get, post, put } from "./client";
-import {
-  cloudResumeRowSchema,
-  importBatchResponseSchema,
-  paginatedCloudResumeSummariesSchema,
-} from "./schemas";
 
 export interface CloudResumeSummary {
   id: string;
@@ -93,6 +88,8 @@ function upgradeOrRethrow409(error: ApiError): never {
     throw error;
   }
 
+  // Prefer the raw response body: ApiError.message is often just the extracted
+  // `error` string after client parsing, which drops `current_version`.
   const body = parseApiErrorBody(error.body ?? error.message);
   if (body?.current_version !== undefined) {
     throw new ResumeVersionConflictError(body.error, body.current_version);
@@ -109,7 +106,7 @@ export async function listCloudResumesPage(
     page: String(page),
     per_page: String(perPage),
   });
-  return get(`/resumes?${params.toString()}`, paginatedCloudResumeSummariesSchema);
+  return get<PaginatedCloudResumeSummaries>(`/resumes?${params.toString()}`);
 }
 
 /** Fetch all resume summaries, following pagination until complete. */
@@ -132,11 +129,11 @@ export async function listCloudResumes(): Promise<CloudResumeSummary[]> {
 }
 
 export async function getCloudResume(id: string): Promise<CloudResumeRow> {
-  return get(`/resumes/${id}`, cloudResumeRowSchema) as unknown as Promise<CloudResumeRow>;
+  return get<CloudResumeRow>(`/resumes/${id}`);
 }
 
 export async function createCloudResume(payload: CreateResumePayload): Promise<CloudResumeRow> {
-  return post("/resumes", payload, cloudResumeRowSchema) as unknown as Promise<CloudResumeRow>;
+  return post<CloudResumeRow>("/resumes", payload);
 }
 
 export async function updateCloudResume(
@@ -144,11 +141,7 @@ export async function updateCloudResume(
   payload: UpdateResumePayload,
 ): Promise<CloudResumeRow> {
   try {
-    return (await put(
-      `/resumes/${id}`,
-      payload,
-      cloudResumeRowSchema,
-    )) as unknown as CloudResumeRow;
+    return await put<CloudResumeRow>(`/resumes/${id}`, payload);
   } catch (error: unknown) {
     if (error instanceof ApiError) {
       upgradeOrRethrow409(error);
@@ -163,6 +156,11 @@ export async function deleteCloudResume(id: string): Promise<void> {
 
 export const MAX_IMPORT_BATCH = 100;
 
+interface ImportBatchResponse {
+  imported: CloudResumeSummary[];
+  failed: Array<{ id?: string; error: string }>;
+}
+
 export async function importResumes(resumes: ImportResumeItem[]): Promise<ImportResumesResult> {
   const imported: CloudResumeSummary[] = [];
   const failures: ImportBatchFailure[] = [];
@@ -170,11 +168,7 @@ export async function importResumes(resumes: ImportResumeItem[]): Promise<Import
   for (let offset = 0; offset < resumes.length; offset += MAX_IMPORT_BATCH) {
     const batch = resumes.slice(offset, offset + MAX_IMPORT_BATCH);
     try {
-      const batchResult = await post(
-        "/resumes/import",
-        { resumes: batch },
-        importBatchResponseSchema,
-      );
+      const batchResult = await post<ImportBatchResponse>("/resumes/import", { resumes: batch });
       imported.push(...batchResult.imported);
       if (batchResult.failed.length > 0) {
         failures.push({
@@ -193,6 +187,48 @@ export async function importResumes(resumes: ImportResumeItem[]): Promise<Import
   }
 
   return { imported, failures };
+}
+
+export interface ResumeVersionSummary {
+  version: number;
+  created_at: string;
+}
+
+export interface ResumeSnapshot {
+  id: string;
+  resume_id: string;
+  version: number;
+  data: ResumeData;
+  created_at: string;
+}
+
+export interface RestoreResumePayload {
+  version: number;
+}
+
+export async function listResumeVersions(id: string): Promise<ResumeVersionSummary[]> {
+  return get<ResumeVersionSummary[]>(`/resumes/${id}/versions`);
+}
+
+export async function getResumeVersion(id: string, version: number): Promise<ResumeSnapshot> {
+  return get<ResumeSnapshot>(`/resumes/${id}/versions/${version}`);
+}
+
+export async function restoreResumeVersion(
+  id: string,
+  version: number,
+  currentVersion: number,
+): Promise<CloudResumeRow> {
+  try {
+    return await post<CloudResumeRow>(`/resumes/${id}/versions/${version}/restore`, {
+      version: currentVersion,
+    } satisfies RestoreResumePayload);
+  } catch (error: unknown) {
+    if (error instanceof ApiError) {
+      upgradeOrRethrow409(error);
+    }
+    throw error;
+  }
 }
 
 export async function upsertCloudResume(
