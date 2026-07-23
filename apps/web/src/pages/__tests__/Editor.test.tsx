@@ -43,6 +43,7 @@ vi.mock("../../wasm", async (importOriginal) => {
     ...actual,
     getResume: vi.fn().mockRejectedValue(new ResumeNotFoundErrorMock(RESUME_ID)),
     isWasmReady: () => false,
+  ensureWasmReady: async () => false,
     saveResume: vi.fn().mockResolvedValue(undefined),
   };
 });

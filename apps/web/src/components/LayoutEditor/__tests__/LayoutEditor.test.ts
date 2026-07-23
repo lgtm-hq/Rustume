@@ -8,6 +8,7 @@ vi.mock("../../../wasm", () => ({
   saveResume: vi.fn().mockResolvedValue(undefined),
   getResume: vi.fn(),
   isWasmReady: () => false,
+  ensureWasmReady: async () => false,
 }));
 
 // ---------------------------------------------------------------------------

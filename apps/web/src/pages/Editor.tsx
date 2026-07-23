@@ -1,13 +1,4 @@
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  lazy,
-  on,
-  onMount,
-  Show,
-  Suspense,
-} from "solid-js";
+import { createMemo, createSignal, lazy, onMount, Show, Suspense } from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
 import {
   Button,
@@ -18,6 +9,7 @@ import {
   type CommandAction,
 } from "../components/ui";
 import { useHotkeys, type Shortcut } from "../hooks/useHotkeys";
+import { usePageTitle } from "../hooks/usePageTitle";
 import { useNavigationGuard } from "../hooks/useNavigationGuard";
 import { SplitPane } from "../components/layout/SplitPane";
 import { Sidebar, type SidebarItem } from "../components/layout/Sidebar";
@@ -42,6 +34,7 @@ import {
 import { resumeStore, isNotFoundError } from "../stores/resume";
 import { downloadResumeJson } from "../components/export/exportJson";
 import { uiStore } from "../stores/ui";
+import { undoHistoryStore } from "../stores/undoHistory";
 import { generateId } from "../wasm/types";
 import { isWasmReady } from "../wasm";
 import { CustomCssInjector } from "../components/templates/CustomCssInjector";
@@ -55,6 +48,11 @@ const LayoutEditor = lazy(() =>
 const SummaryEditor = lazy(() =>
   import("../components/builder/SummaryEditor").then((module) => ({
     default: module.SummaryEditor,
+  })),
+);
+const NotesEditor = lazy(() =>
+  import("../components/builder/NotesEditor").then((module) => ({
+    default: module.NotesEditor,
   })),
 );
 const ThemeEditor = lazy(() =>
@@ -72,6 +70,11 @@ const ImportModal = lazy(() =>
 );
 const ExportModal = lazy(() =>
   import("../components/export/ExportModal").then((module) => ({ default: module.ExportModal })),
+);
+const VersionHistory = lazy(() =>
+  import("../components/builder/VersionHistory").then((module) => ({
+    default: module.VersionHistory,
+  })),
 );
 
 function TabFallback() {
@@ -100,6 +103,7 @@ type EditorTab =
   | "references"
   | "custom"
   | `custom:${string}`
+  | "notes"
   | "theme";
 
 const CUSTOM_ICON = "M12 4v16m8-8H4";
@@ -186,6 +190,11 @@ const TABS: SidebarItem[] = [
     icon: CUSTOM_ICON,
   },
   {
+    id: "notes",
+    label: "Notes",
+    icon: "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z",
+  },
+  {
     id: "theme",
     label: "Theme",
     icon: "M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01",
@@ -208,7 +217,7 @@ const CONTENT_TAB_IDS = new Set([
   "volunteer",
   "references",
 ]);
-const SETTINGS_TAB_IDS = new Set(["layout", "theme"]);
+const SETTINGS_TAB_IDS = new Set(["layout", "theme", "notes"]);
 const SIDEBAR_GROUP_ORDER = new Map([
   ["Content", 0],
   ["Custom", 1],
@@ -229,8 +238,14 @@ function sidebarGroupOrder(item: SidebarItem): number {
 export default function Editor() {
   const params = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { store, loadResume, createNewResume } = resumeStore;
+  const { store, loadResume, createNewResume, undo, redo, updateMetadata } = resumeStore;
   const { store: ui, openModal, closeModal, setPanel } = uiStore;
+  const undoState = () => undoHistoryStore.state;
+
+  usePageTitle(() => {
+    const name = store.resume?.basics.name.trim();
+    return name ? `${name} · Editor` : "Editor";
+  });
 
   const [activeTab, setActiveTab] = createSignal<EditorTab>("basics");
   const [isLoading, setIsLoading] = createSignal(true);
@@ -268,6 +283,37 @@ export default function Editor() {
       },
       label: "Save",
       category: "General",
+    },
+    {
+      key: "z",
+      mod: true,
+      skipWhenEditable: true,
+      handler: () => {
+        if (undo()) toast.success("Undone");
+      },
+      label: "Undo",
+      category: "Editing",
+    },
+    {
+      key: "z",
+      mod: true,
+      shift: true,
+      skipWhenEditable: true,
+      handler: () => {
+        if (redo()) toast.success("Redone");
+      },
+      label: "Redo",
+      category: "Editing",
+    },
+    {
+      key: "y",
+      mod: true,
+      skipWhenEditable: true,
+      handler: () => {
+        if (redo()) toast.success("Redone");
+      },
+      label: "Redo",
+      category: "Editing",
     },
     {
       key: "p",
@@ -437,22 +483,6 @@ export default function Editor() {
 
   onMount(attemptLoad);
 
-  // The router reuses this component on /edit/:id param changes (no remount),
-  // so reload when the id changes. Flush any pending autosave of the previous
-  // resume first so its in-flight edits are not lost when the store is replaced.
-  createEffect(
-    on(
-      () => params.id,
-      () => {
-        void (async () => {
-          if (store.isDirty) await resumeStore.forceSave();
-          await attemptLoad();
-        })();
-      },
-      { defer: true },
-    ),
-  );
-
   const renderTabContent = () => {
     switch (activeTab()) {
       case "basics":
@@ -499,6 +529,12 @@ export default function Editor() {
             onSelectSection={(sectionId) => setActiveTab(`custom:${sectionId}`)}
           />
         );
+      case "notes":
+        return (
+          <Suspense fallback={<TabFallback />}>
+            <NotesEditor />
+          </Suspense>
+        );
       case "theme":
         return (
           <Suspense fallback={<TabFallback />}>
@@ -520,10 +556,7 @@ export default function Editor() {
     <div class="h-[calc(100vh-3.5rem)] flex flex-col">
       <CustomCssInjector />
       {/* Toolbar */}
-      <div
-        class="h-12 border-b border-border bg-paper flex items-center justify-between px-4"
-        data-print-hide
-      >
+      <div class="h-12 border-b border-border bg-paper flex items-center justify-between px-4">
         <div class="flex items-center gap-2">
           {/* Panel Toggle */}
           <div class="flex items-center bg-surface rounded-lg p-0.5">
@@ -552,6 +585,41 @@ export default function Editor() {
         </div>
 
         <div class="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => undo()}
+            disabled={!undoState().canUndo}
+            aria-label="Undo"
+            title="Undo"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M3 10h10a5 5 0 015 5v2M3 10l4-4M3 10l4 4"
+              />
+            </svg>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => redo()}
+            disabled={!undoState().canRedo}
+            aria-label="Redo"
+            title="Redo"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M21 10H11a5 5 0 00-5 5v2M21 10l-4-4M21 10l-4 4"
+              />
+            </svg>
+          </Button>
+
           <Button variant="ghost" size="sm" onClick={() => openModal("import")}>
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -562,6 +630,18 @@ export default function Editor() {
               />
             </svg>
             Import
+          </Button>
+
+          <Button variant="ghost" size="sm" onClick={() => openModal("versionHistory")}>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            History
           </Button>
 
           {/* Template Button with Current Selection Indicator */}
@@ -677,16 +757,40 @@ export default function Editor() {
             showRight={ui.panel !== "editor"}
             defaultRatio={0.45}
             left={
-              <div class="h-full flex" data-print-hide>
-                {/* Sidebar Navigation */}
-                <Sidebar
-                  items={sidebarItems()}
-                  activeId={activeTab()}
-                  onSelect={(id) => setActiveTab(id as EditorTab)}
-                />
+              <div class="h-full flex flex-col">
+                <Show when={store.resume?.metadata?.locked}>
+                  <div
+                    class="flex items-center justify-between gap-3 border-b border-border bg-surface/80 px-4 py-2"
+                    data-testid="resume-locked-banner"
+                  >
+                    <p class="text-sm text-stone">
+                      This resume is locked. Unlock to make changes.
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => updateMetadata("locked", false)}
+                    >
+                      Unlock
+                    </Button>
+                  </div>
+                </Show>
+                <div
+                  class="h-full flex flex-1 min-h-0"
+                  classList={{
+                    "pointer-events-none opacity-60": Boolean(store.resume?.metadata?.locked),
+                  }}
+                >
+                  {/* Sidebar Navigation */}
+                  <Sidebar
+                    items={sidebarItems()}
+                    activeId={activeTab()}
+                    onSelect={(id) => setActiveTab(id as EditorTab)}
+                  />
 
-                {/* Tab Content */}
-                <div class="flex-1 overflow-auto p-6">{renderTabContent()}</div>
+                  {/* Tab Content */}
+                  <div class="flex-1 overflow-auto p-6">{renderTabContent()}</div>
+                </div>
               </div>
             }
             right={
@@ -715,6 +819,11 @@ export default function Editor() {
       <Show when={ui.modal === "export"}>
         <Suspense fallback={null}>
           <ExportModal />
+        </Suspense>
+      </Show>
+      <Show when={ui.modal === "versionHistory"}>
+        <Suspense fallback={null}>
+          <VersionHistory />
         </Suspense>
       </Show>
       <ShortcutsModal shortcuts={shortcuts} />

@@ -1,6 +1,8 @@
 import { For, Show, createSignal } from "solid-js";
 import { Button, Input } from "../ui";
 import { LazyRichTextEditor as RichTextEditor } from "../ui/LazyRichTextEditor";
+import { LiveRegion, announceLive } from "../ui/LiveRegion";
+import { reorderAnnouncement } from "../../lib/reorderAnnounce";
 import { resumeStore } from "../../stores/resume";
 import { createEmptyUrl, generateId, type CustomItem } from "../../wasm/types";
 
@@ -39,6 +41,7 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
   } = resumeStore;
   const [expandedIndex, setExpandedIndex] = createSignal<number | null>(null);
   const [revision, setRevision] = createSignal(0);
+  const [announcement, setAnnouncement] = createSignal("");
 
   const touch = () => setRevision((value) => value + 1);
   const section = () => {
@@ -69,19 +72,39 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
     props.onDeleted?.();
   };
 
+  const focusReorderControl = (itemIndex: number, direction: "up" | "down") => {
+    queueMicrotask(() => {
+      document
+        .querySelector<HTMLButtonElement>(
+          `[data-reorder="${props.sectionId}-${itemIndex}-${direction}"]`,
+        )
+        ?.focus();
+    });
+  };
+
   const handleMoveUp = (index: number) => {
     if (index > 0) {
-      reorderCustomSectionItem(props.sectionId, index, index - 1);
+      const item = items()[index];
+      const title = item.name || "Untitled";
+      const nextIndex = index - 1;
+      reorderCustomSectionItem(props.sectionId, index, nextIndex);
       touch();
-      setExpandedIndex(index - 1);
+      setExpandedIndex(nextIndex);
+      announceLive(setAnnouncement, reorderAnnouncement(title, nextIndex, items().length));
+      focusReorderControl(nextIndex, nextIndex === 0 ? "down" : "up");
     }
   };
 
   const handleMoveDown = (index: number) => {
     if (index < items().length - 1) {
-      reorderCustomSectionItem(props.sectionId, index, index + 1);
+      const item = items()[index];
+      const title = item.name || "Untitled";
+      const nextIndex = index + 1;
+      reorderCustomSectionItem(props.sectionId, index, nextIndex);
       touch();
-      setExpandedIndex(index + 1);
+      setExpandedIndex(nextIndex);
+      announceLive(setAnnouncement, reorderAnnouncement(title, nextIndex, items().length));
+      focusReorderControl(nextIndex, nextIndex === items().length - 1 ? "up" : "down");
     }
   };
 
@@ -135,7 +158,7 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
           <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
             <button
               type="button"
-              class={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
+              class={`focus-ring relative h-5 w-9 shrink-0 rounded-full transition-colors ${
                 currentSection().visible ? "bg-accent" : "bg-border"
               }`}
               aria-label={currentSection().visible ? "Hide section" : "Show section"}
@@ -162,7 +185,7 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
             </Button>
             <button
               type="button"
-              class="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              class="focus-ring p-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
               title="Delete custom section"
               aria-label="Delete custom section"
               onClick={handleRemoveSection}
@@ -185,7 +208,7 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
               <div class="border border-border rounded-lg overflow-hidden">
                 <button
                   type="button"
-                  class="w-full px-4 py-3 flex items-center justify-between
+                  class="focus-ring w-full px-4 py-3 flex items-center justify-between
                       bg-surface hover:bg-border/30 transition-colors text-left"
                   onClick={() => setExpandedIndex(expandedIndex() === index() ? null : index())}
                 >
@@ -228,10 +251,13 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
                     <div class="flex items-center justify-between pb-3 border-b border-border">
                       <div class="flex items-center gap-2">
                         <button
-                          class="p-1.5 text-stone hover:text-ink hover:bg-surface rounded
+                          type="button"
+                          class="focus-ring p-1.5 text-stone hover:text-ink hover:bg-surface rounded
                               disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                          data-reorder={`${props.sectionId}-${index()}-up`}
                           onClick={() => handleMoveUp(index())}
                           disabled={index() === 0}
+                          aria-label="Move up"
                           title="Move up"
                         >
                           <svg
@@ -249,10 +275,13 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
                           </svg>
                         </button>
                         <button
-                          class="p-1.5 text-stone hover:text-ink hover:bg-surface rounded
+                          type="button"
+                          class="focus-ring p-1.5 text-stone hover:text-ink hover:bg-surface rounded
                               disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                          data-reorder={`${props.sectionId}-${index()}-down`}
                           onClick={() => handleMoveDown(index())}
                           disabled={index() === items().length - 1}
+                          aria-label="Move down"
                           title="Move down"
                         >
                           <svg
@@ -298,12 +327,14 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
                         </div>
 
                         <button
-                          class="p-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                          type="button"
+                          class="focus-ring p-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                           onClick={() => {
                             removeCustomSectionItem(props.sectionId, index());
                             touch();
                             setExpandedIndex(null);
                           }}
+                          aria-label="Remove"
                           title="Remove"
                         >
                           <svg
@@ -402,6 +433,8 @@ export function CustomSectionEditor(props: CustomSectionEditorProps) {
             </div>
           </Show>
         </div>
+
+        <LiveRegion message={announcement()} />
       </div>
     </Show>
   );

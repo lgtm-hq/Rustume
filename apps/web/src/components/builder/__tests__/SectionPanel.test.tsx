@@ -12,6 +12,7 @@ vi.mock("../../../wasm", async (importOriginal) => {
     ...actual,
     saveResume: vi.fn().mockResolvedValue(undefined),
     isWasmReady: () => false,
+  ensureWasmReady: async () => false,
   };
 });
 
