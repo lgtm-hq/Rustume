@@ -8,11 +8,19 @@ import { useOnline } from "../../hooks/useOnline";
 import { clearPrintPageFormat, setPrintPageFormat } from "../../lib/printFormat";
 import {
   KEYBOARD_PAN_STEP,
+  PREVIEW_PAGE_HEIGHT,
+  PREVIEW_PAGE_WIDTH,
   clampPan,
+  createPageSwipeState,
+  feedPageSwipe,
   isWheelZoomGesture,
+  pageDeltaFromBlockedPan,
+  resolveWheelInteraction,
+  settleZoom,
   shouldResetPan,
   wheelZoomDelta,
 } from "./previewPan";
+import { prefetchPrintStackPages } from "./printStack";
 
 export function Preview() {
   const { store } = resumeStore;
@@ -34,6 +42,8 @@ export function Preview() {
   const [panX, setPanX] = createSignal(0);
   const [panY, setPanY] = createSignal(0);
   const [isDragging, setIsDragging] = createSignal(false);
+  // GPU-friendly visual zoom, eased toward ui.previewZoom each animation frame.
+  const [visualZoom, setVisualZoom] = createSignal(ui.previewZoom);
 
   let viewportRef: HTMLDivElement | undefined;
   let dragStartX = 0;
@@ -41,8 +51,9 @@ export function Preview() {
   let panStartX = 0;
   let panStartY = 0;
   let activePointerId: number | null = null;
+  let zoomRafId = 0;
 
-  const applyPanClamp = (x: number, y: number, zoom = ui.previewZoom) => {
+  const applyPanClamp = (x: number, y: number, zoom = visualZoom()) => {
     const viewport = viewportRef;
     if (!viewport) return { x: 0, y: 0 };
     return clampPan(x, y, zoom, viewport.clientWidth, viewport.clientHeight);
@@ -53,7 +64,7 @@ export function Preview() {
     setPanY(0);
   };
 
-  const reclampPan = (zoom = ui.previewZoom) => {
+  const reclampPan = (zoom = visualZoom()) => {
     if (shouldResetPan(zoom)) {
       resetPan();
       return;
@@ -65,8 +76,39 @@ export function Preview() {
     }
   };
 
-  // Re-clamp only when zoom changes; pan updates are already clamped at write.
-  createEffect(() => reclampPan(ui.previewZoom));
+  const runZoomSmoothing = () => {
+    if (zoomRafId !== 0) return;
+
+    const tick = () => {
+      const target = ui.previewZoom;
+      const current = untrack(visualZoom);
+      const next = settleZoom(current, target);
+      if (next !== current) {
+        setVisualZoom(next);
+      }
+      reclampPan(next);
+
+      if (next !== target) {
+        zoomRafId = requestAnimationFrame(tick);
+      } else {
+        zoomRafId = 0;
+      }
+    };
+
+    zoomRafId = requestAnimationFrame(tick);
+  };
+
+  // Ease visual zoom toward the store target whenever it changes.
+  createEffect(() => {
+    void ui.previewZoom;
+    runZoomSmoothing();
+  });
+  onCleanup(() => {
+    if (zoomRafId !== 0) {
+      cancelAnimationFrame(zoomRafId);
+      zoomRafId = 0;
+    }
+  });
 
   // Viewport resizes can leave a previously valid pan out of bounds.
   const resizeObserver = new ResizeObserver(() => reclampPan());
@@ -82,6 +124,7 @@ export function Preview() {
   // Dedup guard to prevent toast spam on repeated preview errors
   let lastToastedError = "";
   let lastWheelNavigation = 0;
+  let pageSwipe = createPageSwipeState();
 
   const resolvePage = (page: number) => Math.min(Math.max(page, 0), totalPages() - 1);
 
@@ -108,7 +151,7 @@ export function Preview() {
 
   const handleWheel = (event: WheelEvent) => {
     if (isWheelZoomGesture(event)) {
-      const nextZoom = wheelZoomDelta(event.deltaY, ui.previewZoom);
+      const nextZoom = wheelZoomDelta(event.deltaY, ui.previewZoom, event.deltaMode);
       if (nextZoom !== ui.previewZoom) {
         setPreviewZoom(nextZoom);
       }
@@ -116,9 +159,48 @@ export function Preview() {
       return;
     }
 
-    if (Math.abs(event.deltaY) < 30) return;
-    if (!goToPageWithCooldown(ui.previewPage + (event.deltaY > 0 ? 1 : -1))) return;
-    event.preventDefault();
+    // Block browser back/forward history swipes over the preview. CSS
+    // overscroll-behavior-x helps too; preventDefault covers wheel-driven cases.
+    if (event.deltaX !== 0) {
+      event.preventDefault();
+    }
+
+    const viewport = viewportRef;
+    const result = resolveWheelInteraction({
+      panX: panX(),
+      panY: panY(),
+      deltaX: event.deltaX,
+      deltaY: event.deltaY,
+      deltaMode: event.deltaMode,
+      zoom: visualZoom(),
+      viewportWidth: viewport?.clientWidth ?? 0,
+      viewportHeight: viewport?.clientHeight ?? 0,
+    });
+
+    if (result.panX !== panX() || result.panY !== panY()) {
+      setPanX(result.panX);
+      setPanY(result.panY);
+    }
+
+    const swipe = feedPageSwipe(
+      pageSwipe,
+      result.pageIntentDx,
+      result.pageIntentDy,
+      Date.now(),
+    );
+    pageSwipe = swipe.state;
+
+    if (swipe.pageDelta !== 0) {
+      if (goToPageWithCooldown(ui.previewPage + swipe.pageDelta)) {
+        resetPan();
+        pageSwipe = createPageSwipeState();
+      }
+      return;
+    }
+
+    if (result.consumeEvent) {
+      event.preventDefault();
+    }
   };
 
   const handlePointerDown = (event: PointerEvent) => {
@@ -161,8 +243,8 @@ export function Preview() {
   };
 
   const handleKeyDown = (event: KeyboardEvent) => {
-    // When zoomed in, arrow keys pan (keyboard equivalent of drag);
-    // at fit zoom, up/down keep navigating pages.
+    // Zoomed: arrows pan; Left/Right at a horizontal edge flip pages.
+    // Fit zoom: Left/Right flip pages; Up/Down use native overflow scroll.
     if (ui.previewZoom > 1) {
       const pan: Record<string, [number, number]> = {
         ArrowUp: [0, KEYBOARD_PAN_STEP],
@@ -172,14 +254,20 @@ export function Preview() {
       };
       const delta = pan[event.key];
       if (!delta) return;
-      const clamped = applyPanClamp(panX() + delta[0], panY() + delta[1]);
-      setPanX(clamped.x);
-      setPanY(clamped.y);
+      const previousX = panX();
+      const clamped = applyPanClamp(previousX + delta[0], panY() + delta[1]);
+      const pageDelta = pageDeltaFromBlockedPan(previousX, clamped.x, delta[0]);
+      if (pageDelta !== 0 && goToPageWithCooldown(ui.previewPage + pageDelta)) {
+        resetPan();
+      } else {
+        setPanX(clamped.x);
+        setPanY(clamped.y);
+      }
       event.preventDefault();
       return;
     }
-    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
-    if (!goToPageWithCooldown(ui.previewPage + (event.key === "ArrowDown" ? 1 : -1))) return;
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    if (!goToPageWithCooldown(ui.previewPage + (event.key === "ArrowRight" ? 1 : -1))) return;
     event.preventDefault();
   };
 
@@ -339,7 +427,16 @@ export function Preview() {
     });
   });
 
-  // Prefetch the remaining pages for the print stack on a longer idle delay so
+  // Invalidate in-flight print prefetch when the template changes so a stale
+  // high totalPages from the previous layout cannot request missing pages.
+  createEffect(() => {
+    void store.resume?.metadata.template;
+    printPagesRequestId += 1;
+    printStackErrorToasted = false;
+    setPrintPageUrls([]);
+  });
+
+  // Prefetch remaining pages for the print stack on a longer idle delay so
   // rapid edits and page navigation don't multiply server render load.
   const debouncedPrintStackUrl = useDebounce(previewUrl, 2500);
 
@@ -357,22 +454,28 @@ export function Preview() {
     const requestId = ++printPagesRequestId;
 
     void (async () => {
-      const results = await Promise.allSettled(
-        Array.from({ length: count }, async (_, page) => {
-          if (page === currentPage) return currentUrl;
-          const result = await renderPreview(resume, page);
-          return result.url;
-        }),
-      );
+      const result = await prefetchPrintStackPages({
+        pageCount: count,
+        currentPage,
+        currentUrl,
+        renderPage: (page) => renderPreview(resume, page),
+        shouldCancel: () => requestId !== printPagesRequestId,
+      });
       if (requestId !== printPagesRequestId) return;
 
-      const urls = results
-        .filter((result): result is PromiseFulfilledResult<string> => result.status === "fulfilled")
-        .map((result) => result.value);
-      const failures = results.filter((result) => result.status === "rejected");
+      if (
+        result.reconciledPageCount !== undefined &&
+        result.reconciledPageCount > 0 &&
+        result.reconciledPageCount < count
+      ) {
+        setTotalPages(result.reconciledPageCount);
+        if (ui.previewPage >= result.reconciledPageCount) {
+          setPreviewPage(Math.max(0, result.reconciledPageCount - 1));
+        }
+      }
 
-      if (failures.length > 0) {
-        console.error("Failed to load print pages:", failures[0].reason);
+      if (result.hasHardFailure) {
+        console.error("Failed to load some print pages");
         if (!printStackErrorToasted) {
           printStackErrorToasted = true;
           toast.error("Some pages may be missing from print output");
@@ -381,8 +484,7 @@ export function Preview() {
         printStackErrorToasted = false;
       }
 
-      // Keep the successfully fetched pages rather than collapsing the stack
-      setPrintPageUrls(urls.length > 0 ? urls : [currentUrl]);
+      setPrintPageUrls(result.urls.length > 0 ? result.urls : [currentUrl]);
     })();
   });
 
@@ -467,23 +569,39 @@ export function Preview() {
             </span>
           </Show>
           <button
+            type="button"
             class="p-1.5 text-stone hover:text-ink hover:bg-surface rounded transition-colors"
             onClick={zoomOut}
+            aria-label="Zoom out"
             title="Zoom out"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
             </svg>
           </button>
           <span class="text-xs font-mono text-stone min-w-[40px] text-center">
-            {Math.round(ui.previewZoom * 100)}%
+            {Math.round(visualZoom() * 100)}%
           </span>
           <button
+            type="button"
             class="p-1.5 text-stone hover:text-ink hover:bg-surface rounded transition-colors"
             onClick={zoomIn}
+            aria-label="Zoom in"
             title="Zoom in"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -505,18 +623,22 @@ export function Preview() {
           focus-visible:ring-offset-2 focus-visible:ring-offset-paper"
         data-print-screen
         classList={{
-          "overflow-auto": ui.previewZoom <= 1,
-          "overflow-hidden": ui.previewZoom > 1,
-          "cursor-grab": ui.previewZoom > 1 && !isDragging(),
+          "overflow-auto": visualZoom() <= 1,
+          "overflow-hidden": visualZoom() > 1,
+          "cursor-grab": visualZoom() > 1 && !isDragging(),
           "cursor-grabbing": isDragging(),
-          "select-none": ui.previewZoom > 1,
+          "select-none": visualZoom() > 1,
         }}
-        style={{ "touch-action": ui.previewZoom > 1 ? "none" : "auto" }}
+        style={{
+          "touch-action": visualZoom() > 1 ? "none" : "pan-y",
+          // Prevent macOS/Chrome "swipe to go back/forward" over the CV.
+          "overscroll-behavior-x": "none",
+        }}
         tabIndex={0}
         title={
-          ui.previewZoom > 1
-            ? "Drag or arrow keys to pan · Ctrl/Cmd+scroll to zoom · Double-click to reset"
-            : undefined
+          visualZoom() > 1
+            ? "Scroll to pan · Swipe horizontally past the edge to change page · Drag or arrows to pan · Ctrl/Cmd+scroll to zoom · Double-click to reset"
+            : "Scroll to move the page · Swipe horizontally to change page · Ctrl/Cmd+scroll to zoom"
         }
         onWheel={handleWheel}
         onKeyDown={handleKeyDown}
@@ -526,27 +648,29 @@ export function Preview() {
         onPointerCancel={endDrag}
         onDblClick={handleDoubleClick}
       >
+        {/* Spacer tracks zoomed layout size; paper scales on the compositor. */}
         <div
-          class="relative transition-[width,height] duration-200 origin-top"
+          class="relative"
           style={{
-            width: `${595 * ui.previewZoom}px`,
-            height: `${842 * ui.previewZoom}px`,
-            transform: `translate(${panX()}px, ${panY()}px)`,
+            width: `${PREVIEW_PAGE_WIDTH * visualZoom()}px`,
+            height: `${PREVIEW_PAGE_HEIGHT * visualZoom()}px`,
           }}
         >
+          <div
+            class="absolute top-0 left-0 will-change-transform"
+            style={{
+              width: `${PREVIEW_PAGE_WIDTH}px`,
+              height: `${PREVIEW_PAGE_HEIGHT}px`,
+              transform: `translate(${panX()}px, ${panY()}px) scale(${visualZoom()})`,
+              "transform-origin": "top left",
+            }}
+          >
           {/* Paper Effect — marked as the custom CSS root so user CSS
               (scoped via @scope in lib/customCss.ts) can style the resume
               paper surface but never the surrounding app UI. */}
           <div
             data-custom-css-root
-            class="bg-white rounded-sm shadow-paper paper-texture
-              transition-all duration-300 hover:shadow-elevated
-              hover:rotate-[0.3deg]"
-            style={{
-              // A4 aspect ratio at reasonable size
-              width: "100%",
-              height: "100%",
-            }}
+            class="bg-white rounded-sm shadow-paper paper-texture h-full w-full"
           >
             <Show
               when={previewUrl() && !error()}
@@ -583,8 +707,12 @@ export function Preview() {
                       </div>
                     }
                   >
-                    <div class="flex flex-col items-center gap-3">
-                      <svg class="w-8 h-8 animate-spin text-accent" viewBox="0 0 24 24">
+                    <div role="status" aria-live="polite" class="flex flex-col items-center gap-3">
+                      <svg
+                        class="w-8 h-8 animate-spin text-accent"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
                         <circle
                           class="opacity-25"
                           cx="12"
@@ -617,8 +745,12 @@ export function Preview() {
 
           {/* Loading overlay */}
           <Show when={isLoading() && previewUrl()}>
-            <div class="absolute inset-0 flex items-center justify-center bg-white/50">
-              <svg class="w-6 h-6 animate-spin text-accent" viewBox="0 0 24 24">
+            <div
+              role="status"
+              class="absolute inset-0 flex items-center justify-center bg-white/50"
+            >
+              <span class="sr-only">Updating preview</span>
+              <svg class="w-6 h-6 animate-spin text-accent" viewBox="0 0 24 24" aria-hidden="true">
                 <circle
                   class="opacity-25"
                   cx="12"
@@ -636,6 +768,7 @@ export function Preview() {
               </svg>
             </div>
           </Show>
+          </div>
         </div>
       </div>
     </div>
