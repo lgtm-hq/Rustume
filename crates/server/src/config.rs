@@ -35,7 +35,8 @@ pub const DEFAULT_STATIC_DIR: &str = "/app/web";
 
 /// Base URL for public resume pages (e.g. `https://rustume.com`).
 ///
-/// When unset, OG meta tags use relative URLs for `og:image` and `og:url`.
+/// When unset, public Open Graph metadata uses relative URLs rather than
+/// trusting request-controlled host headers.
 pub fn public_base_url() -> Option<String> {
     match std::env::var("PUBLIC_BASE_URL") {
         Ok(value) => {

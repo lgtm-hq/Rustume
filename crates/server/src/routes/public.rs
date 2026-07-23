@@ -11,6 +11,7 @@ use rustume_render::Renderer;
 use rustume_schema::ResumeData;
 use serde::Serialize;
 use sqlx::FromRow;
+use tracing::error;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -111,22 +112,6 @@ fn absolute_url(base: Option<&str>, path: &str) -> String {
     }
 }
 
-/// Derive an absolute origin from proxy-aware request headers.
-fn request_base_url(headers: &HeaderMap) -> Option<String> {
-    let host = headers.get(header::HOST)?.to_str().ok()?;
-    let scheme = headers
-        .get("x-forwarded-proto")
-        .and_then(|value| value.to_str().ok())
-        .filter(|value| *value == "http" || *value == "https")
-        .unwrap_or("https");
-    Some(format!("{scheme}://{host}"))
-}
-
-/// Resolve the public page origin from config or incoming request headers.
-fn resolve_base_url(headers: &HeaderMap) -> Option<String> {
-    public_base_url().or_else(|| request_base_url(headers))
-}
-
 fn build_og_meta_tags(
     row: &PublicResumeRow,
     resume: &ResumeData,
@@ -174,8 +159,13 @@ async fn fetch_public_resume(state: &AppState, slug: &str) -> Result<PublicResum
     .bind(slug)
     .fetch_optional(&cloud.db)
     .await
-    .map_err(|err| ApiError::internal(format!("Database error: {err}")))?
+    .map_err(internal_db_error)?
     .ok_or_else(|| ApiError::not_found("Resume not found"))
+}
+
+fn internal_db_error(err: impl std::fmt::Display + Send + Sync + 'static) -> ApiError {
+    error!("public resume database error: {err}");
+    ApiError::internal("internal server error")
 }
 
 fn parse_resume_data(data: &serde_json::Value) -> Result<ResumeData, ApiError> {
@@ -226,11 +216,10 @@ pub async fn robots_txt() -> Response {
 pub async fn public_resume_page(
     State(state): State<AppState>,
     Path(slug): Path<String>,
-    headers: HeaderMap,
 ) -> Result<Response, ApiError> {
     let row = fetch_public_resume(&state, &slug).await?;
     let resume = parse_resume_data(&row.data)?;
-    let base_url = resolve_base_url(&headers);
+    let base_url = public_base_url();
     let meta_tags = build_og_meta_tags(&row, &resume, &slug, base_url.as_deref());
 
     let index_path = state.static_dir.join("index.html");
@@ -427,25 +416,34 @@ mod tests {
     }
 
     #[test]
-    fn request_base_url_uses_host_and_forwarded_proto() {
-        let mut headers = HeaderMap::new();
-        headers.insert(header::HOST, HeaderValue::from_static("rustume.com"));
-        headers.insert("x-forwarded-proto", HeaderValue::from_static("https"));
-        assert_eq!(
-            request_base_url(&headers).as_deref(),
-            Some("https://rustume.com")
-        );
+    fn build_og_meta_tags_uses_relative_urls_without_public_base_url() {
+        let row = PublicResumeRow {
+            id: uuid!("550e8400-e29b-41d4-a716-446655440000"),
+            title: "Resume".into(),
+            data: serde_json::Value::Null,
+            version: 1,
+            updated_at: Utc::now(),
+        };
+        let resume = ResumeData::default();
+        let meta = build_og_meta_tags(&row, &resume, "foo", None);
+
+        assert!(meta.contains(r#"content="/r/foo""#));
+        assert!(meta.contains(r#"content="/r/foo/preview.png""#));
     }
 
     #[test]
-    fn resolve_base_url_prefers_config_over_request_headers() {
-        std::env::set_var("PUBLIC_BASE_URL", "https://cdn.rustume.com/");
-        let mut headers = HeaderMap::new();
-        headers.insert(header::HOST, HeaderValue::from_static("rustume.com"));
-        assert_eq!(
-            resolve_base_url(&headers).as_deref(),
-            Some("https://cdn.rustume.com")
-        );
-        std::env::remove_var("PUBLIC_BASE_URL");
+    fn build_og_meta_tags_uses_configured_public_base_url() {
+        let row = PublicResumeRow {
+            id: uuid!("550e8400-e29b-41d4-a716-446655440000"),
+            title: "Resume".into(),
+            data: serde_json::Value::Null,
+            version: 1,
+            updated_at: Utc::now(),
+        };
+        let resume = ResumeData::default();
+        let meta = build_og_meta_tags(&row, &resume, "foo", Some("https://rustume.com"));
+
+        assert!(meta.contains(r#"content="https://rustume.com/r/foo""#));
+        assert!(meta.contains(r#"content="https://rustume.com/r/foo/preview.png""#));
     }
 }
