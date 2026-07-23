@@ -27,7 +27,7 @@ typst-assets.workspace = true
 chrono.workspace = true
 
 # Decode data-URL profile pictures into Typst binary assets
-base64 = "0.22"
+base64 = "0.23"
 
 # Embedded template directory
 include_dir.workspace = true
