@@ -333,6 +333,74 @@ describe("useResumeStore", () => {
     });
   });
 
+  it("importResume preserves coverLetter when normalizing an empty first layout page", () => {
+    createRoot((dispose) => {
+      const { store, importResume } = useResumeStore();
+      const imported = createDefaultResume();
+      imported.metadata.layout = [[/* empty first page */], [["coverLetter", "experience"]]];
+
+      importResume(imported);
+
+      expect(store.resume!.metadata.layout[0]).toEqual([["coverLetter", "experience"]]);
+      expect(
+        store.resume!.metadata.layout.flat(2).filter((id) => id === "coverLetter"),
+      ).toHaveLength(1);
+      dispose();
+    });
+  });
+
+  it("importResume seeds layout when coverLetter is visible and layout is empty", () => {
+    createRoot((dispose) => {
+      const { store, importResume } = useResumeStore();
+      const imported = createDefaultResume();
+      imported.metadata.layout = [];
+      imported.sections.coverLetter.visible = true;
+
+      importResume(imported);
+
+      expect(store.resume!.metadata.layout).toEqual([
+        [["summary", "coverLetter", ...FIXED_LAYOUT_SECTION_KEYS]],
+      ]);
+      dispose();
+    });
+  });
+
+  it("importResume backfills missing coverLetter for legacy resumes with layout", () => {
+    createRoot((dispose) => {
+      const { store, importResume } = useResumeStore();
+      const imported = createDefaultResume();
+      delete (imported.sections as { coverLetter?: unknown }).coverLetter;
+      imported.metadata.layout = [[["summary", "experience"]]];
+
+      importResume(imported);
+
+      expect(store.resume!.sections.coverLetter).toMatchObject({
+        id: "coverLetter",
+        name: "Cover Letter",
+      });
+      dispose();
+    });
+  });
+
+  it("addCustomSection backfills coverLetter section before seeding empty layout", () => {
+    createRoot((dispose) => {
+      const { store, importResume, addCustomSection } = useResumeStore();
+      const imported = createDefaultResume();
+      imported.metadata.layout = [];
+      delete (imported.sections as { coverLetter?: unknown }).coverLetter;
+
+      importResume(imported);
+      addCustomSection("Writing");
+
+      expect(store.resume!.sections.coverLetter).toMatchObject({
+        id: "coverLetter",
+        name: "Cover Letter",
+      });
+      expect(store.resume!.metadata.layout[0]?.[0]).toContain("coverLetter");
+      dispose();
+    });
+  });
+
   it("importResume materializes custom layout sentinel into concrete custom ids", () => {
     createRoot((dispose) => {
       const { store, importResume } = useResumeStore();
@@ -451,7 +519,7 @@ describe("useResumeStore", () => {
       const sectionId = addCustomSection("Writing");
 
       expect(store.resume!.metadata.layout).toEqual([
-        [["summary", ...FIXED_LAYOUT_SECTION_KEYS, sectionId]],
+        [["summary", "coverLetter", ...FIXED_LAYOUT_SECTION_KEYS, sectionId]],
       ]);
       dispose();
     });
