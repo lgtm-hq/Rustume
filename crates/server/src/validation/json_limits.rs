@@ -56,6 +56,12 @@ fn validate_json_depth(value: &Value, max_depth: usize, current: usize) -> Resul
 fn validate_string_lengths(value: &Value) -> Result<(), ApiError> {
     match value {
         Value::String(text) => {
+            // Profile photos are stored as `data:image/...;base64,...` and routinely
+            // exceed the text-field cap. Overall resume size is still bounded by
+            // MAX_RESUME_JSON_BYTES.
+            if text.starts_with("data:image/") {
+                return Ok(());
+            }
             if text.chars().count() > MAX_STRING_FIELD_LEN {
                 return Err(ApiError::new(format!(
                     "String field exceeds maximum length of {MAX_STRING_FIELD_LEN} characters"
@@ -114,5 +120,29 @@ mod tests {
         }
 
         validate_resume_json(&value).expect("depth at MAX_JSON_DEPTH should pass");
+    }
+
+    #[test]
+    fn accepts_oversized_data_image_url() {
+        let value = json!({
+            "basics": {
+                "name": "Ada",
+                "picture": {
+                    "url": format!("data:image/jpeg;base64,{}", "A".repeat(MAX_STRING_FIELD_LEN + 100))
+                }
+            }
+        });
+        validate_resume_json(&value).expect("profile photo data URLs should bypass string-field cap");
+    }
+
+    #[test]
+    fn still_rejects_oversized_non_image_strings() {
+        let value = json!({
+            "basics": {
+                "summary": "x".repeat(MAX_STRING_FIELD_LEN + 1)
+            }
+        });
+        let err = validate_resume_json(&value).expect_err("expected string length error");
+        assert!(err.error.contains("String field"));
     }
 }
