@@ -49,6 +49,14 @@ pub struct Metadata {
 
     #[serde(default)]
     pub level_display: LevelDisplay,
+
+    /// When true, the resume is read-only until unlocked.
+    #[serde(default)]
+    pub locked: bool,
+
+    /// User-defined organization labels (never rendered on the PDF).
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
 impl Default for Metadata {
@@ -62,6 +70,8 @@ impl Default for Metadata {
             typography: Typography::default(),
             notes: String::new(),
             level_display: LevelDisplay::TemplateDefault,
+            locked: false,
+            tags: Vec::new(),
         }
     }
 }

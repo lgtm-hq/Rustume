@@ -61,10 +61,17 @@ vi.mock("../../wasm", () => ({
   saveResume: vi.fn().mockRejectedValue(new Error("WASM not ready")),
   resumeExists: vi.fn().mockResolvedValue(false),
   isWasmReady: () => false,
+  ensureWasmReady: async () => false,
 }));
 
 // Re-import after mock is in place.
-import { useResumeList, getMetaMap, getResumeMeta, setResumeMeta } from "../persistence";
+import {
+  useResumeList,
+  getMetaMap,
+  getResumeMeta,
+  setResumeMeta,
+  deriveSearchMetaFromResume,
+} from "../persistence";
 import { ResumeNotFoundError, ResumeCorruptedError } from "../resume";
 
 const STORAGE_KEY_PREFIX = "rustume:";
@@ -110,8 +117,6 @@ describe("persistence store - localStorage fallback path", () => {
         const { resumes, refresh } = useResumeList();
 
         await refresh();
-        // Allow Solid's reactivity to settle after async resource update
-        await new Promise((r) => setTimeout(r, 0));
 
         const list = resumes();
         expect(list).toBeDefined();
@@ -424,14 +429,39 @@ describe("persistence store - metadata in list operations", () => {
     mockStorage.clear();
   });
 
+  it("deriveSearchMetaFromResume extracts trimmed basics name and headline", () => {
+    const resume = createDefaultResume();
+    resume.basics.name = "  Jane Doe  ";
+    resume.basics.headline = "  Staff Engineer  ";
+
+    expect(deriveSearchMetaFromResume(resume)).toEqual({
+      basicsName: "Jane Doe",
+      headline: "Staff Engineer",
+    });
+  });
+
+  it("deriveSearchMetaFromResume omits empty name and headline", () => {
+    const resume = createDefaultResume();
+    resume.basics.name = "   ";
+    resume.basics.headline = "";
+
+    expect(deriveSearchMetaFromResume(resume)).toEqual({
+      basicsName: undefined,
+      headline: undefined,
+    });
+  });
+
   it("fetchResumeList uses persisted metadata titles", async () => {
     const resume = createDefaultResume();
     resume.basics.name = "Jane Doe";
     mockStorage.setItem(STORAGE_KEY_PREFIX + "_ids", JSON.stringify(["r1"]));
     mockStorage.setItem(STORAGE_KEY_PREFIX + "r1", JSON.stringify(resume));
 
-    // Pre-set metadata
-    setResumeMeta("r1", "My Custom Title", new Date("2025-01-01T00:00:00Z"));
+    // Pre-set metadata (title stays independent of headline)
+    setResumeMeta("r1", "My Custom Title", new Date("2025-01-01T00:00:00Z"), {
+      basicsName: "Jane Doe",
+      headline: "Staff Engineer",
+    });
 
     await createRoot(async (dispose) => {
       try {
@@ -442,6 +472,8 @@ describe("persistence store - metadata in list operations", () => {
         expect(list).toBeDefined();
         expect(list).toHaveLength(1);
         expect(list![0].name).toBe("My Custom Title");
+        expect(list![0].headline).toBe("Staff Engineer");
+        expect(list![0].basicsName).toBe("Jane Doe");
         expect(list![0].updatedAt.toISOString()).toBe("2025-01-01T00:00:00.000Z");
       } finally {
         dispose();
@@ -452,6 +484,7 @@ describe("persistence store - metadata in list operations", () => {
   it("fetchResumeList migrates legacy entries by deriving title from basics.name", async () => {
     const resume = createDefaultResume();
     resume.basics.name = "Legacy User";
+    resume.basics.headline = "Backend Developer";
     mockStorage.setItem(STORAGE_KEY_PREFIX + "_ids", JSON.stringify(["legacy-id"]));
     mockStorage.setItem(STORAGE_KEY_PREFIX + "legacy-id", JSON.stringify(resume));
     // No metadata entry exists
@@ -460,17 +493,18 @@ describe("persistence store - metadata in list operations", () => {
       try {
         const store = useResumeList();
         await store.refresh();
-        await new Promise((r) => setTimeout(r, 0));
 
         const list = store.resumes();
         expect(list).toBeDefined();
         expect(list).toHaveLength(1);
         expect(list![0].name).toBe("Legacy User");
+        expect(list![0].headline).toBe("Backend Developer");
 
         // After migration, metadata should be persisted
         const meta = getResumeMeta("legacy-id");
         expect(meta).not.toBeNull();
         expect(meta!.title).toBe("Legacy User");
+        expect(meta!.headline).toBe("Backend Developer");
       } finally {
         dispose();
       }
@@ -487,7 +521,6 @@ describe("persistence store - metadata in list operations", () => {
       try {
         const store = useResumeList();
         await store.refresh();
-        await new Promise((r) => setTimeout(r, 0));
 
         const list = store.resumes();
         expect(list![0].name).toBe("Untitled Resume");

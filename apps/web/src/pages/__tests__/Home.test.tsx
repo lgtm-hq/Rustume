@@ -18,9 +18,19 @@ const { mockAuthState, signInMock } = vi.hoisted(() => ({
 
 const mockResumes = vi.hoisted(() => {
   const resumes: ResumeListItem[] = [
-    { id: "1", name: "Software Engineer", updatedAt: new Date("2025-01-01") },
+    {
+      id: "1",
+      name: "Software Engineer",
+      updatedAt: new Date("2025-01-01"),
+      headline: "Staff Platform Engineer",
+    },
     { id: "2", name: "Product Manager", updatedAt: new Date("2025-02-01") },
-    { id: "3", name: "Jane Doe — Designer", updatedAt: new Date("2025-03-01") },
+    {
+      id: "3",
+      name: "Jane Doe — Designer",
+      updatedAt: new Date("2025-03-01"),
+      headline: "   ",
+    },
   ];
   return resumes;
 });
@@ -59,13 +69,38 @@ function renderHome() {
   ));
 }
 
+const openModalMock = vi.hoisted(() => vi.fn());
+
+vi.mock("../../stores/ui", () => ({
+  uiStore: {
+    store: { modal: null },
+    openModal: openModalMock,
+    closeModal: vi.fn(),
+  },
+}));
+
 describe("Home resume search", () => {
   beforeEach(() => {
     sessionStorage.clear();
+    openModalMock.mockClear();
     mockAuthState.loading = false;
     mockAuthState.cloudEnabled = false;
     mockAuthState.requireAuth = false;
     mockAuthState.user = null;
+  });
+
+  it("offers create and import actions on the hero", () => {
+    renderHome();
+
+    expect(screen.getByTestId("home-create-resume")).toBeInTheDocument();
+    expect(screen.getByTestId("home-import-resume")).toBeInTheDocument();
+  });
+
+  it("opens the import modal from the hero import button", () => {
+    renderHome();
+
+    fireEvent.click(screen.getByTestId("home-import-resume"));
+    expect(openModalMock).toHaveBeenCalledWith("import");
   });
 
   it("shows a labeled search input when resumes exist", () => {
@@ -73,6 +108,21 @@ describe("Home resume search", () => {
 
     expect(screen.getByTestId("resume-search-input")).toBeInTheDocument();
     expect(screen.getByLabelText("Search resumes")).toBeInTheDocument();
+  });
+
+  it("shows headline as secondary text under the resume title", () => {
+    renderHome();
+
+    expect(screen.getByTestId("resume-list-headline")).toHaveTextContent(
+      "Staff Platform Engineer",
+    );
+  });
+
+  it("omits headline when it is missing or whitespace-only", () => {
+    renderHome();
+
+    // Only the first resume has a non-empty headline.
+    expect(screen.getAllByTestId("resume-list-headline")).toHaveLength(1);
   });
 
   it("filters resumes as the user types", () => {
@@ -109,8 +159,8 @@ describe("Home resume search", () => {
   });
 });
 
-describe("Home cloud sign-in CTA", () => {
-  it("shows the cloud banner when cloud is enabled and the user is signed out", () => {
+describe("Home cloud local banner", () => {
+  it("shows the local-mode banner when cloud is enabled and the user is signed out", () => {
     mockAuthState.loading = false;
     mockAuthState.cloudEnabled = true;
     mockAuthState.requireAuth = false;
@@ -118,8 +168,10 @@ describe("Home cloud sign-in CTA", () => {
 
     renderHome();
 
-    expect(screen.getByTestId("home-cloud-sign-in")).toBeInTheDocument();
+    expect(screen.getByTestId("home-cloud-local-banner")).toBeInTheDocument();
     expect(screen.getByText(/Working locally on this device/i)).toBeInTheDocument();
+    // Primary CTA lives in the header (AuthMenu), not a second banner button.
+    expect(screen.queryByTestId("home-cloud-sign-in")).not.toBeInTheDocument();
   });
 
   it("hides the cloud banner when hosted require-auth mode is active", () => {
@@ -130,7 +182,7 @@ describe("Home cloud sign-in CTA", () => {
 
     renderHome();
 
-    expect(screen.queryByTestId("home-cloud-sign-in")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("home-cloud-local-banner")).not.toBeInTheDocument();
   });
 
   it("hides the cloud banner when the user is signed in", () => {
@@ -140,7 +192,7 @@ describe("Home cloud sign-in CTA", () => {
 
     renderHome();
 
-    expect(screen.queryByTestId("home-cloud-sign-in")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("home-cloud-local-banner")).not.toBeInTheDocument();
   });
 
   it("hides the cloud banner in self-hosted mode", () => {
@@ -150,7 +202,7 @@ describe("Home cloud sign-in CTA", () => {
 
     renderHome();
 
-    expect(screen.queryByTestId("home-cloud-sign-in")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("home-cloud-local-banner")).not.toBeInTheDocument();
   });
 });
 

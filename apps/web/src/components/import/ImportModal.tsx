@@ -1,4 +1,5 @@
 import { createSignal, Show } from "solid-js";
+import { useNavigate } from "@solidjs/router";
 import { Button, Modal, toast } from "../ui";
 import { uiStore } from "../../stores/ui";
 import { resumeStore } from "../../stores/resume";
@@ -9,7 +10,16 @@ import {
   isWasmReady,
 } from "../../wasm";
 import type { ResumeData } from "../../wasm/types";
+import { generateId } from "../../wasm/types";
 import { parseResume } from "../../api/render";
+
+export interface ImportModalProps {
+  /**
+   * When true (Home), import creates a new resume id, saves, then opens the editor.
+   * When false/omitted (Editor), import replaces the currently open resume.
+   */
+  createAndOpen?: boolean;
+}
 
 type ImportFormat = "json-resume" | "rrv3" | "linkedin" | "rustume";
 
@@ -71,9 +81,10 @@ function uint8ArrayToBase64(data: Uint8Array): string {
   return btoa(chunks.join(""));
 }
 
-export function ImportModal() {
+export function ImportModal(props: ImportModalProps = {}) {
+  const navigate = useNavigate();
   const { store: ui, closeModal } = uiStore;
-  const { importResume } = resumeStore;
+  const { importResume, createFromImport, forceSave } = resumeStore;
 
   const [isDragging, setIsDragging] = createSignal(false);
   const [isLoading, setIsLoading] = createSignal(false);
@@ -84,6 +95,22 @@ export function ImportModal() {
   const detectFormat = (filename: string): ImportFormat => {
     if (filename.endsWith(".zip")) return "linkedin";
     return "json-resume"; // Default, will try to detect from content
+  };
+
+  const applyImported = async (resume: ResumeData) => {
+    const normalized = normalizeImportedResume(resume);
+    if (props.createAndOpen) {
+      const id = generateId();
+      createFromImport(id, normalized);
+      await forceSave();
+      toast.success("Resume imported successfully");
+      closeModal();
+      navigate(`/edit/${id}`);
+      return;
+    }
+    importResume(normalized);
+    toast.success("Resume imported successfully");
+    closeModal();
   };
 
   const handleFile = async (file: File) => {
@@ -99,8 +126,7 @@ export function ImportModal() {
         const data = new Uint8Array(buffer);
 
         if (isWasmReady()) {
-          const resume = parseLinkedInExport(data);
-          importResume(normalizeImportedResume(resume));
+          await applyImported(parseLinkedInExport(data));
         } else {
           // Use server API with safe chunked base64 encoding
           const base64 = uint8ArrayToBase64(data);
@@ -109,7 +135,7 @@ export function ImportModal() {
             data: base64,
             base64: true,
           });
-          importResume(normalizeImportedResume(resume));
+          await applyImported(resume);
         }
       } else {
         // JSON formats
@@ -147,11 +173,8 @@ export function ImportModal() {
           });
         }
 
-        importResume(normalizeImportedResume(parsed));
+        await applyImported(parsed);
       }
-
-      toast.success("Resume imported successfully");
-      closeModal();
     } catch (e) {
       console.error("Import error:", e);
       toast.error(e instanceof Error ? e.message : "Failed to import file");
@@ -210,6 +233,7 @@ export function ImportModal() {
             type="file"
             accept=".json,.zip"
             onChange={handleFileInput}
+            aria-label="Choose a resume file to import"
             class="absolute inset-0 opacity-0 cursor-pointer"
           />
 
@@ -238,8 +262,12 @@ export function ImportModal() {
 
         {/* Loading */}
         <Show when={isLoading()}>
-          <div class="flex items-center justify-center gap-2 py-2 text-stone">
-            <svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24">
+          <div
+            role="status"
+            aria-live="polite"
+            class="flex items-center justify-center gap-2 py-2 text-stone"
+          >
+            <svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" aria-hidden="true">
               <circle
                 class="opacity-25"
                 cx="12"
@@ -261,7 +289,10 @@ export function ImportModal() {
 
         {/* Error */}
         <Show when={error()}>
-          <div class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          <div
+            role="alert"
+            class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700"
+          >
             {error()}
           </div>
         </Show>

@@ -1,6 +1,7 @@
-import { For, Show, createEffect, createMemo, createSignal } from "solid-js";
+import { For, Show, createEffect, createMemo, createSignal, lazy, Suspense } from "solid-js";
 import { A, useNavigate } from "@solidjs/router";
 import { Button, Input, Spinner, toast } from "../components/ui";
+import { usePageTitle } from "../hooks/usePageTitle";
 import {
   createResumeSearchIndex,
   filterResumes,
@@ -8,9 +9,21 @@ import {
   setStoredSearchQuery,
   type TextSegment,
 } from "../lib/resumeSearch";
-import { useResumeList } from "../stores/persistence";
+import {
+  getResumeSortLabels,
+  getStoredResumeSort,
+  setStoredResumeSort,
+  sortResumes,
+  type ResumeSortMode,
+} from "../lib/resumeSort";
+import { patchResumeListMeta, useResumeList } from "../stores/persistence";
 import { authStore } from "../stores/auth";
+import { uiStore } from "../stores/ui";
 import { generateId } from "../wasm/types";
+
+const ImportModal = lazy(() =>
+  import("../components/import/ImportModal").then((module) => ({ default: module.ImportModal })),
+);
 
 function HighlightedText(props: { segments: TextSegment[] }) {
   return (
@@ -54,37 +67,95 @@ function formatUpdatedAt(date: Date): string {
 }
 
 export default function Home() {
+  usePageTitle("Your resumes");
   const navigate = useNavigate();
-  const { state: authState, signIn } = authStore;
+  const { state: authState } = authStore;
+  const { openModal } = uiStore;
   const { resumes, loading, deleteResume, duplicateResume, renameResume, refresh } =
     useResumeList();
   const [deletingId, setDeletingId] = createSignal<string | null>(null);
   const [duplicatingId, setDuplicatingId] = createSignal<string | null>(null);
   const [renamingId, setRenamingId] = createSignal<string | null>(null);
   const [renameValue, setRenameValue] = createSignal("");
-  const [signingIn, setSigningIn] = createSignal(false);
   const [searchQuery, setSearchQuery] = createSignal(getStoredSearchQuery());
+  const [sortMode, setSortMode] = createSignal<ResumeSortMode>(getStoredResumeSort());
+  const [tagFilter, setTagFilter] = createSignal<string | null>(null);
+  const [tagDrafts, setTagDrafts] = createSignal<Record<string, string>>({});
 
   createEffect(() => {
     setStoredSearchQuery(searchQuery());
   });
 
+  createEffect(() => {
+    setStoredResumeSort(sortMode());
+  });
+
   // Build the Fuse index only when the resume list changes; re-run the search
   // separately as the query changes.
   const searchIndex = createMemo(() => createResumeSearchIndex(resumes() ?? []));
-  const filteredResumes = createMemo(() => filterResumes(searchIndex(), searchQuery()));
+  const filteredResumes = createMemo(() => {
+    const searched = filterResumes(searchIndex(), searchQuery());
+    const tag = tagFilter();
+    const tagged = tag
+      ? searched.filter(({ resume }) => (resume.tags ?? []).includes(tag))
+      : searched;
+    const sortedItems = sortResumes(
+      tagged.map((row) => row.resume),
+      sortMode(),
+    );
+    const byId = new Map(tagged.map((row) => [row.resume.id, row]));
+    return sortedItems
+      .map((resume) => byId.get(resume.id))
+      .filter((row): row is NonNullable<typeof row> => Boolean(row));
+  });
 
-  const showCloudSignInCta = () =>
+  const allTags = createMemo(() => {
+    const tags = new Set<string>();
+    for (const resume of resumes() ?? []) {
+      for (const tag of resume.tags ?? []) tags.add(tag);
+    }
+    return [...tags].sort((a, b) => a.localeCompare(b));
+  });
+
+  const showCloudLocalBanner = () =>
     authState.cloudEnabled && !authState.requireAuth && !authState.loading && !authState.user;
-
-  const handleCloudSignIn = () => {
-    setSigningIn(true);
-    signIn();
-  };
 
   const handleNew = () => {
     const id = generateId();
     navigate(`/edit/${id}`);
+  };
+
+  const handleImport = () => {
+    openModal("import");
+  };
+
+  const handleToggleLock = async (id: string, currentlyLocked: boolean, event: Event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    try {
+      await patchResumeListMeta(id, { locked: !currentlyLocked });
+      await refresh();
+      toast.success(currentlyLocked ? "Resume unlocked" : "Resume locked");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to update lock");
+    }
+  };
+
+  const handleAddTag = async (id: string, existing: string[] | undefined, event: Event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const draft = (tagDrafts()[id] ?? "").trim();
+    if (!draft) return;
+    const tags = [...new Set([...(existing ?? []), draft])];
+    try {
+      await patchResumeListMeta(id, { tags });
+      setTagDrafts((prev) => ({ ...prev, [id]: "" }));
+      await refresh();
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to add tag");
+    }
   };
 
   const handleDelete = async (id: string, event: Event) => {
@@ -151,26 +222,14 @@ export default function Home() {
 
   return (
     <div class="min-h-[calc(100vh-3.5rem)] bg-paper">
-      <Show when={showCloudSignInCta()}>
-        <div class="border-b border-border bg-surface/60">
-          <div class="max-w-4xl mx-auto px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <p class="text-sm font-medium text-ink">Working locally on this device</p>
-              <p class="text-sm text-stone mt-1">
-                Sign in to Rustume Cloud to sync resumes across devices. Local copies stay here
-                until you import them.
-              </p>
-            </div>
-            <Button
-              variant="secondary"
-              size="sm"
-              class="flex-shrink-0"
-              onClick={handleCloudSignIn}
-              loading={signingIn()}
-              data-testid="home-cloud-sign-in"
-            >
-              Sign in to sync
-            </Button>
+      <Show when={showCloudLocalBanner()}>
+        <div class="border-b border-border bg-surface/60" data-testid="home-cloud-local-banner">
+          <div class="max-w-4xl mx-auto px-4 py-4">
+            <p class="text-sm font-medium text-ink">Working locally on this device</p>
+            <p class="text-sm text-stone mt-1">
+              Use <span class="text-ink">Sign in to sync</span> in the header to sync resumes across
+              devices with Rustume Cloud. Local copies stay here until you import them.
+            </p>
           </div>
         </div>
       </Show>
@@ -193,7 +252,7 @@ export default function Home() {
             class="flex items-center justify-center gap-4 animate-slide-up"
             style={{ "animation-delay": "100ms" }}
           >
-            <Button size="lg" onClick={handleNew}>
+            <Button size="lg" onClick={handleNew} data-testid="home-create-resume">
               <svg
                 class="w-5 h-5"
                 fill="none"
@@ -210,42 +269,79 @@ export default function Home() {
               </svg>
               Create New Resume
             </Button>
+            <Button
+              size="lg"
+              variant="secondary"
+              onClick={handleImport}
+              data-testid="home-import-resume"
+            >
+              <svg
+                class="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                />
+              </svg>
+              Import Resume
+            </Button>
           </div>
         </div>
       </div>
 
       {/* Resume List */}
       <div class="max-w-4xl mx-auto px-4 pb-16">
-        <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
           <h2 class="font-display text-xl font-semibold text-ink">Your Resumes</h2>
-          <button
-            type="button"
-            class="p-2 text-stone hover:text-ink hover:bg-surface rounded-lg transition-colors"
-            onClick={refresh}
-            title="Refresh"
-            aria-label="Refresh resume list"
-          >
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
+          <div class="flex items-center gap-2">
+            <label class="flex items-center gap-2 text-sm text-stone">
+              <span class="sr-only">Sort resumes</span>
+              <select
+                class="rounded-lg border border-border bg-paper px-2 py-1.5 text-sm text-ink"
+                value={sortMode()}
+                onChange={(e) => setSortMode(e.currentTarget.value as ResumeSortMode)}
+                data-testid="resume-sort-select"
+              >
+                <For each={getResumeSortLabels()}>
+                  {(opt) => <option value={opt.value}>{opt.label}</option>}
+                </For>
+              </select>
+            </label>
+            <button
+              type="button"
+              class="p-2 text-stone hover:text-ink hover:bg-surface rounded-lg transition-colors"
+              onClick={refresh}
+              title="Refresh"
+              aria-label="Refresh resume list"
             >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              />
-            </svg>
-          </button>
+              <svg
+                class="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Keep the input mounted during background refreshes so it doesn't
             flicker away and lose focus while a populated list reloads. */}
         <Show when={(resumes()?.length ?? 0) > 0}>
-          <div class="mb-6" classList={{ "opacity-60 pointer-events-none": loading() }}>
+          <div class="mb-6 space-y-3" classList={{ "opacity-60 pointer-events-none": loading() }}>
             <Input
               label="Search resumes"
               type="text"
@@ -255,6 +351,37 @@ export default function Home() {
               class="max-w-md"
               data-testid="resume-search-input"
             />
+            <Show when={allTags().length > 0}>
+              <div class="flex flex-wrap items-center gap-2" data-testid="resume-tag-filters">
+                <span class="text-xs font-mono uppercase tracking-wider text-stone">Tags</span>
+                <button
+                  type="button"
+                  class={`rounded-full px-2.5 py-1 text-xs border transition-colors ${
+                    tagFilter() === null
+                      ? "border-accent bg-accent/10 text-ink"
+                      : "border-border text-stone hover:text-ink"
+                  }`}
+                  onClick={() => setTagFilter(null)}
+                >
+                  All
+                </button>
+                <For each={allTags()}>
+                  {(tag) => (
+                    <button
+                      type="button"
+                      class={`rounded-full px-2.5 py-1 text-xs border transition-colors ${
+                        tagFilter() === tag
+                          ? "border-accent bg-accent/10 text-ink"
+                          : "border-border text-stone hover:text-ink"
+                      }`}
+                      onClick={() => setTagFilter(tagFilter() === tag ? null : tag)}
+                    >
+                      {tag}
+                    </button>
+                  )}
+                </For>
+              </div>
+            </Show>
           </div>
         </Show>
 
@@ -287,10 +414,15 @@ export default function Home() {
                   </svg>
                 </div>
                 <h3 class="font-display text-lg font-semibold text-ink mb-2">No resumes yet</h3>
-                <p class="text-stone text-sm mb-6">Create your first resume to get started</p>
-                <Button variant="secondary" onClick={handleNew}>
-                  Create Resume
-                </Button>
+                <p class="text-stone text-sm mb-6">Create or import your first resume to get started</p>
+                <div class="flex flex-wrap items-center justify-center gap-3">
+                  <Button variant="secondary" onClick={handleNew}>
+                    Create Resume
+                  </Button>
+                  <Button variant="ghost" onClick={handleImport}>
+                    Import Resume
+                  </Button>
+                </div>
               </div>
             }
           >
@@ -421,23 +553,107 @@ export default function Home() {
                             </svg>
                           </div>
                           <div class="min-w-0">
-                            <h3 class="font-body font-medium text-ink group-hover:text-accent transition-colors truncate">
+                            <h3 class="font-body font-medium text-ink group-hover:text-accent transition-colors truncate flex items-center gap-2">
                               <HighlightedText segments={nameSegments} />
+                              <Show when={resume.locked}>
+                                <span
+                                  class="inline-flex items-center rounded-full bg-surface px-1.5 py-0.5 text-[10px] font-mono uppercase text-stone border border-border"
+                                  title="Locked"
+                                >
+                                  Locked
+                                </span>
+                              </Show>
                             </h3>
-                            <p class="text-sm text-stone">
+                            <Show when={resume.headline?.trim()}>
+                              {(headline) => (
+                                <p
+                                  class="text-sm text-accent/65 truncate"
+                                  data-testid="resume-list-headline"
+                                >
+                                  {headline()}
+                                </p>
+                              )}
+                            </Show>
+                            <p class="text-xs text-stone">
                               Updated {formatUpdatedAt(resume.updatedAt)}
                             </p>
+                            <Show when={(resume.tags ?? []).length > 0}>
+                              <div class="mt-1 flex flex-wrap gap-1">
+                                <For each={resume.tags ?? []}>
+                                  {(tag) => (
+                                    <span class="rounded-full border border-border px-2 py-0.5 text-[10px] text-stone">
+                                      {tag}
+                                    </span>
+                                  )}
+                                </For>
+                              </div>
+                            </Show>
                           </div>
                         </A>
                       </Show>
 
                       <div class="flex items-center gap-2 flex-shrink-0">
+                        <form
+                          class="hidden sm:flex items-center gap-1"
+                          onSubmit={(e) => handleAddTag(resume.id, resume.tags, e)}
+                        >
+                          <input
+                            type="text"
+                            class="w-24 rounded border border-border bg-paper px-1.5 py-1 text-xs text-ink"
+                            placeholder="Add tag"
+                            aria-label={`Add tag to ${resume.name}`}
+                            value={tagDrafts()[resume.id] ?? ""}
+                            onInput={(e) =>
+                              setTagDrafts((prev) => ({
+                                ...prev,
+                                [resume.id]: e.currentTarget.value,
+                              }))
+                            }
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </form>
+                        <button
+                          type="button"
+                          class="p-2 text-stone hover:text-accent hover:bg-accent/10 rounded-lg transition-colors
+                          disabled:opacity-50 disabled:cursor-not-allowed"
+                          onClick={(e) => handleToggleLock(resume.id, Boolean(resume.locked), e)}
+                          title={resume.locked ? "Unlock" : "Lock"}
+                          aria-label={resume.locked ? "Unlock resume" : "Lock resume"}
+                        >
+                          <svg
+                            class="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                          >
+                            <Show
+                              when={resume.locked}
+                              fallback={
+                                <path
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                  stroke-width="2"
+                                  d="M8 11V7a4 4 0 118 0v4m-9 0h10v8H7v-8z"
+                                />
+                              }
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M12 15v2m-6-6V9a6 6 0 1112 0v2M6 11h12v8H6v-8z"
+                              />
+                            </Show>
+                          </svg>
+                        </button>
                         <button
                           type="button"
                           class="p-2 text-stone hover:text-accent hover:bg-accent/10 rounded-lg transition-colors
                           disabled:opacity-50 disabled:cursor-not-allowed"
                           onClick={(e) => startRename(resume.id, resume.name, e)}
                           disabled={
+                            Boolean(resume.locked) ||
                             deletingId() !== null ||
                             duplicatingId() !== null ||
                             renamingId() !== null
@@ -467,11 +683,12 @@ export default function Home() {
                           disabled:opacity-50 disabled:cursor-not-allowed"
                           onClick={(e) => handleDelete(resume.id, e)}
                           disabled={
+                            Boolean(resume.locked) ||
                             deletingId() !== null ||
                             duplicatingId() !== null ||
                             renamingId() !== null
                           }
-                          title="Delete"
+                          title={resume.locked ? "Unlock to delete" : "Delete"}
                           aria-label="Delete resume"
                         >
                           <Show
@@ -638,6 +855,10 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      <Suspense fallback={null}>
+        <ImportModal createAndOpen />
+      </Suspense>
     </div>
   );
 }
