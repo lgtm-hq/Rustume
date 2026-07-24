@@ -488,6 +488,11 @@ export default function Editor() {
     if (previousId && previousId !== id) {
       await forceSave();
       if (seq !== loadSeq) return;
+      // persistResume swallows errors — if still dirty, abort so we don't drop edits.
+      if (store.isDirty) {
+        toast.error(store.error ?? "Failed to save current resume before switching");
+        return;
+      }
     }
 
     setIsLoading(true);
