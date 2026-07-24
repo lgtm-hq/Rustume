@@ -291,10 +291,11 @@
   let box-size = size + 2pt
   let icon-size = size * 0.72
   let content = if asset != none {
-    // SVGs use currentColor; inherit fill from surrounding text.
-    text(fill: fill)[
-      #image("/assets/icons/" + asset + ".svg", width: icon-size, height: icon-size)
-    ]
+    // Typst does not resolve SVG `currentColor` from surrounding text; rewrite
+    // the fill into the SVG bytes before rendering.
+    let svg = read("/assets/icons/" + asset + ".svg")
+    let colored = svg.replace("currentColor", fill.to-hex())
+    image(bytes(colored), width: icon-size, height: icon-size)
   } else {
     text(size: size * 0.55, fill: fill, weight: "bold")[#profile-icon-mark(key)]
   }
