@@ -22,8 +22,7 @@ pub use parse::parse;
 pub use render::{render_pdf, render_preview};
 pub use resumes::{
     create_resume, delete_resume, get_resume, get_resume_version, import_resumes,
-    list_resume_versions, list_resumes, restore_resume_version, update_resume,
-    update_sharing,
+    list_resume_versions, list_resumes, restore_resume_version, update_resume, update_sharing,
 };
 pub use security_txt::security_txt;
 pub use static_files::{sanitize_static_path, spa_fallback, static_dir};

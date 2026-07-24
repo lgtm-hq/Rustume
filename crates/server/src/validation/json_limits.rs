@@ -132,7 +132,8 @@ mod tests {
                 }
             }
         });
-        validate_resume_json(&value).expect("profile photo data URLs should bypass string-field cap");
+        validate_resume_json(&value)
+            .expect("profile photo data URLs should bypass string-field cap");
     }
 
     #[test]
