@@ -109,11 +109,16 @@ describe("coverLetterExport", () => {
     globalThis.URL.revokeObjectURL = mockRevokeObjectURL;
 
     const appendSpy = vi.spyOn(document.body, "appendChild").mockImplementation((node) => node);
-    const removeSpy = vi.spyOn(document.body, "removeChild").mockImplementation((node) => node);
     const clickSpy = vi.fn();
+    const removeSpy = vi.fn();
     vi.spyOn(document, "createElement").mockImplementation(((tag: string) => {
       if (tag === "a") {
-        return { click: clickSpy, href: "", download: "" } as unknown as HTMLAnchorElement;
+        return {
+          click: clickSpy,
+          href: "",
+          download: "",
+          remove: removeSpy,
+        } as unknown as HTMLAnchorElement;
       }
       return document.createElementNS("http://www.w3.org/1999/xhtml", tag);
     }) as typeof document.createElement);
@@ -135,11 +140,11 @@ describe("coverLetterExport", () => {
         }),
       );
       expect(clickSpy).toHaveBeenCalled();
+      expect(removeSpy).toHaveBeenCalled();
     } finally {
       globalThis.URL.createObjectURL = originalCreate;
       globalThis.URL.revokeObjectURL = originalRevoke;
       appendSpy.mockRestore();
-      removeSpy.mockRestore();
       vi.restoreAllMocks();
     }
   });
