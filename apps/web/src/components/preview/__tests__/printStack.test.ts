@@ -70,6 +70,26 @@ describe("prefetchPrintStackPages", () => {
     expect(result.hasHardFailure).toBe(false);
   });
 
+  it("continues filling through a reduced totalPages bound", async () => {
+    const calls: number[] = [];
+    const renderPage: RenderPreviewPage = async (page) => {
+      calls.push(page);
+      return { url: `blob:page-${page}`, totalPages: page === 1 ? 3 : 4 };
+    };
+
+    const result = await prefetchPrintStackPages({
+      pageCount: 4,
+      currentPage: 0,
+      currentUrl: "blob:current",
+      renderPage,
+    });
+
+    expect(calls).toEqual([1, 2]);
+    expect(result.urls).toEqual(["blob:current", "blob:page-1", "blob:page-2"]);
+    expect(result.reconciledPageCount).toBe(3);
+    expect(result.hasHardFailure).toBe(false);
+  });
+
   it("records hard failures but keeps successful prefix", async () => {
     const renderPage: RenderPreviewPage = async (page) => {
       if (page === 1) {

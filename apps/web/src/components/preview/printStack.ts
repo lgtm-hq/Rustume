@@ -36,8 +36,9 @@ export async function prefetchPrintStackPages(
   const urls: Array<string | undefined> = Array.from({ length: pageCount });
   let hasHardFailure = false;
   let reconciledPageCount: number | undefined;
+  let bound = pageCount;
 
-  for (let page = 0; page < pageCount; page++) {
+  for (let page = 0; page < bound; page++) {
     if (shouldCancel?.()) {
       break;
     }
@@ -55,9 +56,9 @@ export async function prefetchPrintStackPages(
         break;
       }
 
-      if (result.totalPages < pageCount) {
+      if (result.totalPages < bound) {
         reconciledPageCount = result.totalPages;
-        break;
+        bound = result.totalPages;
       }
     } catch (err: unknown) {
       if (isMissingPageError(err)) {
