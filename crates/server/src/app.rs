@@ -29,8 +29,9 @@ use crate::observability::apply_sentry_layers;
 use crate::openapi::ApiDoc;
 use crate::routes::{
     callback, create_resume, delete_account, delete_resume, export_resumes_json,
-    export_resumes_pdf, get_resume, health, import_resumes, list_resumes, list_templates, login,
-    logout, me, metrics, parse, render_pdf, render_preview, security_txt, spa_fallback, static_dir,
+    export_resumes_pdf, get_resume, get_resume_version, health, import_resumes,
+    list_resume_versions, list_resumes, list_templates, login, logout, me, metrics, parse,
+    render_pdf, render_preview, restore_resume_version, security_txt, spa_fallback, static_dir,
     template_thumbnail, update_resume, update_sharing, validate,
 };
 use crate::state::AppState;
@@ -148,6 +149,15 @@ pub fn create_router_with_state(state: AppState) -> Router {
                 get(get_resume).put(update_resume).delete(delete_resume),
             )
             .route("/api/resumes/{id}/sharing", put(update_sharing))
+            .route("/api/resumes/{id}/versions", get(list_resume_versions))
+            .route(
+                "/api/resumes/{id}/versions/{version}",
+                get(get_resume_version),
+            )
+            .route(
+                "/api/resumes/{id}/versions/{version}/restore",
+                post(restore_resume_version),
+            )
             .route_layer(middleware::from_fn_with_state(
                 state.clone(),
                 require_auth_when_enabled,

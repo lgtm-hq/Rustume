@@ -28,6 +28,10 @@ use typst::{Library, LibraryExt};
 /// Embedded template directory (all `.typ` files under `templates/`).
 static TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/src/typst_engine/templates");
 
+/// Bundled monochrome profile network icons (`*.svg`).
+static PROFILE_ICON_DIR: Dir<'_> =
+    include_dir!("$CARGO_MANIFEST_DIR/src/typst_engine/assets/icons");
+
 /// Cached embedded template contents keyed by file stem (without `.typ`).
 static EMBEDDED_TEMPLATES: OnceLock<HashMap<String, String>> = OnceLock::new();
 
@@ -181,6 +185,21 @@ impl RustumeWorld {
     pub fn add_binary_file(&mut self, path: &str, data: Vec<u8>) -> Result<(), RenderError> {
         let id = project_file_id(path)?;
         self.binary_files.insert(id, Bytes::new(data));
+        Ok(())
+    }
+
+    /// Register bundled profile network SVGs at `/assets/icons/<name>.svg`.
+    pub fn register_profile_icons(&mut self) -> Result<(), RenderError> {
+        for file in PROFILE_ICON_DIR.files() {
+            let Some(name) = file.path().file_name().and_then(|n| n.to_str()) else {
+                continue;
+            };
+            if !name.ends_with(".svg") {
+                continue;
+            }
+            let path = format!("/assets/icons/{name}");
+            self.add_binary_file(&path, file.contents().to_vec())?;
+        }
         Ok(())
     }
 

@@ -135,12 +135,14 @@
   let render-profile(item) = {
     if item.visible == false { return }
 
-    if has-url(item) {
-      let label = if item.username != "" { item.username } else { item.url.href }
-      link(item.url.href)[#label]
-    } else {
-      [#item.network: #item.username]
-    }
+    render-profile-entry(
+      data,
+      item,
+      size: 10pt,
+      fill: text-color,
+      link-fill: primary-color,
+      label-mode: if has-url(item) { "username" } else { "network-username" },
+    )
     v(4pt)
   }
 
@@ -352,20 +354,37 @@
     justify: true,
   )
 
-  // Cover letter — dedicated page before the resume content
   render-cover-letter-page(data, section-heading, muted: muted-color)
 
   if has-resume-body(data) {
-    // Header - horizontal layout
+    // Header - horizontal layout with picture area
     grid(
       columns: (1fr, auto),
       column-gutter: 16pt,
       [
-        #text(size: 24pt, weight: "bold")[#data.basics.name]
+        #if has-visible-picture(data.basics) {
+          grid(
+            columns: (auto, 1fr),
+            column-gutter: 12pt,
+            align(horizon)[
+              #render-picture(data.basics, primary-color)
+            ],
+            [
+              #text(size: 24pt, weight: "bold")[#data.basics.name]
 
-        #if data.basics.headline != "" {
-          v(4pt)
-          text(size: 12pt)[#data.basics.headline]
+              #if data.basics.headline != "" {
+                v(4pt)
+                text(size: 12pt)[#data.basics.headline]
+              }
+            ]
+          )
+        } else {
+          text(size: 24pt, weight: "bold")[#data.basics.name]
+
+          if data.basics.headline != "" {
+            v(4pt)
+            text(size: 12pt)[#data.basics.headline]
+          }
         }
       ],
       align(right)[
@@ -373,7 +392,7 @@
         #if data.basics.location != "" { contact-items = contact-items + (data.basics.location,) }
         #if data.basics.phone != "" { contact-items = contact-items + (data.basics.phone,) }
         #if data.basics.email != "" { contact-items = contact-items + (data.basics.email,) }
-        #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#data.basics.url.href],) }
+        #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#url-display-label(data.basics.url)],) }
 
         #for item in contact-items {
           text(size: 9pt)[#item]

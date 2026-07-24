@@ -148,17 +148,14 @@
   let render-profile(item) = {
     if item.visible == false { return }
 
-    let network = if "network" in item and item.network != none { item.network } else { "" }
-    let username = if "username" in item and item.username != none { item.username } else { "" }
-
-    let display = if network != "" and username != "" { [#network: #username] } else if network != "" { network } else { username }
-
-    if has-url(item) {
-      let label = if network != "" or username != "" { display } else { item.url.href }
-      link(item.url.href)[#text(fill: primary-color)[#label]]
-    } else if network != "" or username != "" {
-      text(size: 10pt)[#display]
-    }
+    render-profile-entry(
+      data,
+      item,
+      size: 10pt,
+      fill: text-color,
+      link-fill: primary-color,
+      label-mode: "network-username",
+    )
     h(14pt)
   }
 
@@ -381,7 +378,6 @@
     justify: false,
   )
 
-  // Cover letter — dedicated page before the resume content
   render-cover-letter-page(data, section-heading, muted: muted-color)
 
   if has-resume-body(data) {
@@ -393,6 +389,11 @@
         radius: 4pt,
         inset: (x: 24pt, y: 20pt),
         [
+          #if has-visible-picture(data.basics) {
+            render-picture(data.basics, primary-color)
+            v(8pt)
+          }
+
           #text(size: 24pt, weight: "light", fill: text-color, tracking: 0.03em)[#data.basics.name]
 
           #if data.basics.headline != "" {
@@ -403,7 +404,7 @@
           #v(10pt)
 
           #let contact-items = build-contact-items(data.basics)
-          #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#data.basics.url.href],) }
+          #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#url-display-label(data.basics.url)],) }
 
           #text(size: 9pt, fill: muted-color)[#contact-items.join("  ·  ")]
         ]

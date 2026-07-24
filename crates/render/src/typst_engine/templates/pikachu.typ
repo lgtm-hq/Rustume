@@ -119,13 +119,14 @@
   let render-profile(item) = {
     if item.visible == false { return }
 
-    if has-url(item) {
-      link(item.url.href)[
-        #text(size: 9pt, fill: sidebar-text-color)[#item.network]
-      ]
-    } else {
-      text(size: 9pt)[#item.network]
-    }
+    render-profile-entry(
+      data,
+      item,
+      size: 9pt,
+      fill: sidebar-text-color,
+      link-fill: sidebar-text-color,
+      label-mode: "network",
+    )
     v(4pt)
   }
 
@@ -310,7 +311,6 @@
     justify: false,
   )
 
-  // Cover letter — dedicated page before the resume content
   render-cover-letter-page(data, main-section, muted: muted-color, inset: (x: 24pt, y: 32pt))
 
   if has-resume-body(data) {
@@ -320,23 +320,27 @@
     }
 
     let sidebar-before = () => [
-      // Profile photo placeholder (initials)
+      // Photo when set; otherwise initials avatar.
       #align(center)[
-        #box(
-          width: 80pt,
-          height: 80pt,
-          fill: primary-color,
-          radius: 50%,
-          [
-            #align(center + horizon)[
-              #text(size: 28pt, weight: "bold", fill: white)[
-                #let parts = data.basics.name.split(" ").filter(w => w.len() > 0)
-                #let initials = if parts.len() > 0 { parts.map(w => w.at(0, default: "")).join("") } else { "" }
-                #initials
+        #if has-visible-picture(data.basics) {
+          render-picture(data.basics, primary-color, default-size: 80pt)
+        } else {
+          box(
+            width: 80pt,
+            height: 80pt,
+            fill: primary-color,
+            radius: 50%,
+            [
+              #align(center + horizon)[
+                #text(size: 28pt, weight: "bold", fill: white)[
+                  #let parts = data.basics.name.split(" ").filter(w => w.len() > 0)
+                  #let initials = if parts.len() > 0 { parts.map(w => w.at(0, default: "")).join("") } else { "" }
+                  #initials
+                ]
               ]
             ]
-          ]
-        )
+          )
+        }
       ]
 
       #v(16pt)
@@ -360,7 +364,7 @@
       }
 
       #if has-url(data.basics) {
-        text(size: 9pt)[🔗 #link(data.basics.url.href)[Website]]
+        text(size: 9pt)[🔗 #link(data.basics.url.href)[#url-display-label(data.basics.url)]]
         v(4pt)
       }
     ]

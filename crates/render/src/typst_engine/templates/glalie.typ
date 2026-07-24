@@ -153,16 +153,15 @@
   let render-profile(item) = {
     if item.visible == false { return }
 
-    text(size: 9pt, weight: "bold")[#item.network]
-
-    if has-url(item) {
-      v(1pt)
-      link(item.url.href)[#text(size: 8pt, fill: primary-color)[#item.username]]
-    } else {
-      v(1pt)
-      text(size: 8pt)[#item.username]
-    }
-
+    render-profile-entry(
+      data,
+      item,
+      size: 9pt,
+      fill: text-color,
+      link-fill: primary-color,
+      label-mode: "network-username",
+      weight: "bold",
+    )
     v(6pt)
   }
 
@@ -392,11 +391,17 @@
     justify: true,
   )
 
-  // Cover letter — dedicated page before the resume content
   render-cover-letter-page(data, section-heading, muted: muted-color, inset: (x: 24pt, y: 24pt))
 
   if has-resume-body(data) {
     let sidebar-before = () => [
+      #if has-visible-picture(data.basics) {
+        align(center)[
+          #render-picture(data.basics, primary-color, default-size: 80pt)
+        ]
+        v(12pt)
+      }
+
       // Header: Name, headline, contact info
       #text(size: 18pt, weight: "bold", fill: text-color)[#data.basics.name]
 
@@ -421,7 +426,7 @@
         v(3pt)
       }
       #if has-url(data.basics) {
-        link(data.basics.url.href)[#text(size: 8pt, fill: primary-color)[#data.basics.url.href]]
+        link(data.basics.url.href)[#text(size: 8pt, fill: primary-color)[#url-display-label(data.basics.url)]]
         v(3pt)
       }
     ]

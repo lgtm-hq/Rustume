@@ -4,7 +4,7 @@ use std::sync::Arc;
 use rustume_render::TypstRenderer;
 
 use crate::cloud::CloudState;
-use crate::config::RateLimitConfig;
+use crate::config::{rate_limits_enabled_from_env, RateLimitConfig};
 use crate::middleware::rate_limit::RateLimitState;
 
 /// Shared router state for all handlers.
@@ -24,6 +24,7 @@ impl AppState {
     pub fn new(static_dir: Arc<PathBuf>, cloud: Option<Arc<CloudState>>) -> Self {
         let rate_limits = cloud
             .as_ref()
+            .filter(|_| rate_limits_enabled_from_env())
             .map(|_| Arc::new(RateLimitState::new(RateLimitConfig::from_env())));
         Self {
             static_dir,

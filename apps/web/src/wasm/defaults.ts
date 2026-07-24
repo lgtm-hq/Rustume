@@ -257,6 +257,8 @@ export function createSampleResume(): ResumeData {
       },
       notes: "",
       levelDisplay: "template-default",
+      locked: false,
+      tags: [],
     },
   };
 }
@@ -517,6 +519,8 @@ export function createDefaultResume(): ResumeData {
       },
       notes: "",
       levelDisplay: "template-default",
+      locked: false,
+      tags: [],
     },
   };
 }

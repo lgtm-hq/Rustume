@@ -261,6 +261,7 @@ impl TypstRenderer {
         debug!("Starting Typst compilation");
         let (source, picture_asset) = self.prepare_source(resume)?;
         let mut world = RustumeWorld::new(source)?;
+        world.register_profile_icons()?;
         if let Some((path, data)) = picture_asset {
             world.add_binary_file(&path, data)?;
         }

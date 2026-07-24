@@ -35,7 +35,8 @@ const formattedDescription = sanitizeDocDescription(formatDocDescription(descrip
   <div class="docs-standalone">
     {showSectionNav && category && <DocsSectionNav category={category} currentSlug={slug} />}
     <div class="docs-standalone-body">
-      <main class="docs-standalone-main">
+      {/* BaseLayout already renders the page's <main> landmark */}
+      <div class="docs-standalone-main">
         <article class="docs-content" data-pagefind-body>
           <header class="docs-header">
             <h1 class="docs-title">{title}</h1>
@@ -46,7 +47,7 @@ const formattedDescription = sanitizeDocDescription(formatDocDescription(descrip
           </div>
           <DocsResources resources={resources ?? []} />
         </article>
-      </main>
+      </div>
       <DocsOnThisPage enabled={toc} />
     </div>
   </div>

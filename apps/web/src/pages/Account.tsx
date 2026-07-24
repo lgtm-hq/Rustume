@@ -5,6 +5,7 @@ import { downloadResumesJson, downloadResumesPdf } from "../api/export";
 import { listCloudResumesPage } from "../api/resumes";
 import { authStore } from "../stores/auth";
 import { Button, Input, Modal, Spinner, toast } from "../components/ui";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 function ProfileAvatar(props: { label: string }) {
   return (
@@ -36,10 +37,10 @@ function ComingSoonRow(props: { title: string; description: string }) {
 }
 
 export default function Account() {
+  usePageTitle("Account");
   const { state, signIn, signOut, clearUser, displayName } = authStore;
   const navigate = useNavigate();
   const [signingOut, setSigningOut] = createSignal(false);
-  const [signingIn, setSigningIn] = createSignal(false);
   const [deleteModalOpen, setDeleteModalOpen] = createSignal(false);
   const [deleteConfirmation, setDeleteConfirmation] = createSignal("");
   const [resumeCount, setResumeCount] = createSignal<number | null>(null);
@@ -80,7 +81,6 @@ export default function Account() {
   };
 
   const handleSignIn = () => {
-    setSigningIn(true);
     signIn();
   };
 
@@ -164,9 +164,7 @@ export default function Account() {
                       ? "Sign in is required to use Rustume Cloud on this deployment."
                       : "Sync resumes across devices with your Rustume Cloud account. Your local copies stay on this device until you choose to import them."}
                   </p>
-                  <Button onClick={handleSignIn} loading={signingIn()}>
-                    Sign in to sync
-                  </Button>
+                  <Button onClick={handleSignIn}>Sign in to sync</Button>
                   <Show when={!state.requireAuth}>
                     <p class="mt-4 text-xs text-stone">
                       Prefer local-only?{" "}

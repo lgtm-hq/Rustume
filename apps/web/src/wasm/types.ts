@@ -282,6 +282,10 @@ export interface Metadata {
   notes: string;
   /** Optional: resumes stored before this field existed lack it. */
   levelDisplay?: LevelDisplay;
+  /** When true, the resume is read-only until unlocked. */
+  locked?: boolean;
+  /** User-defined organization labels (never rendered on the PDF). */
+  tags?: string[];
 }
 
 export interface ResumeData {

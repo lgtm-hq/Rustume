@@ -1,4 +1,5 @@
 import { fetchBlob, fetchBlobWithHeaders, get, post } from "./client";
+import { downloadBlob } from "./export";
 import { resumeDataSchema, templateListSchema, validationResultSchema } from "./schemas";
 import type { ResumeData, TemplateInfo, ValidationResult } from "../wasm/types";
 
@@ -100,16 +101,7 @@ export async function downloadPdf(
   template?: string,
 ): Promise<void> {
   const blob = await renderPdf(resume, template);
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, filename);
 }
 
 export async function fetchTemplates(): Promise<TemplateInfo[]> {

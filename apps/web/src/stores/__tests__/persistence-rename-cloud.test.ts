@@ -81,6 +81,7 @@ vi.mock("../../wasm", () => ({
   saveResume: vi.fn().mockRejectedValue(new Error("WASM not ready")),
   resumeExists: vi.fn().mockResolvedValue(false),
   isWasmReady: () => false,
+  ensureWasmReady: async () => false,
 }));
 
 vi.mock("../../components/ui", () => ({

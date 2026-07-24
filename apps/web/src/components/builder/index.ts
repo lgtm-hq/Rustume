@@ -1,5 +1,6 @@
 export { BasicsForm } from "./BasicsForm";
 export { ImageUpload, type ImageUploadProps } from "./ImageUpload";
+export { NotesEditor } from "./NotesEditor";
 export { SectionList } from "./SectionList";
 export { SectionPanel } from "./SectionPanel";
 export { CustomSectionEditor, CustomSectionsIndex } from "./CustomSectionEditor";

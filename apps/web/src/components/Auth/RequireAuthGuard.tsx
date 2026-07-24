@@ -16,6 +16,10 @@ function isProtectedPath(pathname: string): boolean {
     return false;
   }
 
+  if (pathname === "/design-lab" || pathname.startsWith("/design-lab/")) {
+    return false;
+  }
+
   const normalizedPathname = pathname.replace(/\/$/, "") || "/";
   if (PUBLIC_POLICY_PATHS.has(normalizedPathname)) {
     return false;

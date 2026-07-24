@@ -7,9 +7,12 @@ export interface ImageUploadProps {
   onPictureChange: (picture: Picture) => void;
 }
 
-const MAX_SIZE_PX = 800;
+/** Resume photos display at ≤200px; keep the encoded asset compact. */
+const MAX_SIZE_PX = 512;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+/** Soft cap for the data URL stored in resume JSON (~300 KB payload). */
+const MAX_DATA_URL_CHARS = 400_000;
 
 const HEX_COLOR_REGEX = /^#(?:[0-9A-Fa-f]{3,4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/;
 const BARE_HEX_REGEX = /^(?:[0-9A-Fa-f]{3,4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/;
@@ -35,6 +38,26 @@ function expandShortHex(color: string): string {
 interface ProcessedImage {
   dataUrl: string;
   aspectRatio: number;
+}
+
+/**
+ * Encode canvas to a data URL, preferring WebP and stepping quality down until
+ * the result fits under {@link MAX_DATA_URL_CHARS}.
+ */
+function encodeCanvasDataUrl(canvas: HTMLCanvasElement): string {
+  const qualities = [0.82, 0.7, 0.58, 0.45];
+  let best = "";
+  for (const quality of qualities) {
+    let dataUrl = canvas.toDataURL("image/webp", quality);
+    if (!dataUrl.startsWith("data:image/webp")) {
+      dataUrl = canvas.toDataURL("image/jpeg", quality);
+    }
+    best = dataUrl;
+    if (dataUrl.length <= MAX_DATA_URL_CHARS) {
+      return dataUrl;
+    }
+  }
+  return best;
 }
 
 /**
@@ -69,10 +92,10 @@ async function processImage(file: File): Promise<ProcessedImage> {
       }
       ctx.drawImage(img, 0, 0, width, height);
 
-      // Try WebP first, fall back to JPEG
-      let dataUrl = canvas.toDataURL("image/webp", 0.85);
-      if (!dataUrl.startsWith("data:image/webp")) {
-        dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+      const dataUrl = encodeCanvasDataUrl(canvas);
+      if (dataUrl.length > MAX_DATA_URL_CHARS) {
+        reject(new Error("Image is still too large after compression. Try a smaller photo."));
+        return;
       }
       resolve({ dataUrl, aspectRatio: width / height });
     };
@@ -271,8 +294,13 @@ export function ImageUpload(props: ImageUploadProps) {
               <Show
                 when={!isProcessing()}
                 fallback={
-                  <div class="flex flex-col items-center gap-2">
-                    <svg class="w-8 h-8 text-accent animate-spin" fill="none" viewBox="0 0 24 24">
+                  <div role="status" aria-live="polite" class="flex flex-col items-center gap-2">
+                    <svg
+                      class="w-8 h-8 text-accent animate-spin"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
                       <circle
                         class="opacity-25"
                         cx="12"
