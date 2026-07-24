@@ -785,6 +785,7 @@ export function useResumeStore() {
         setStore("isDirty", true);
         setStore("error", null);
       });
+      clearUndoHistory(clone);
       scheduleSave();
     },
 
