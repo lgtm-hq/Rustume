@@ -1,4 +1,14 @@
-import { createMemo, createSignal, lazy, Match, onMount, Show, Switch, Suspense } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  lazy,
+  Match,
+  on,
+  Show,
+  Switch,
+  Suspense,
+} from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
 import {
   Button,
@@ -461,8 +471,13 @@ export default function Editor() {
     ];
   });
 
-  async function attemptLoad() {
-    if (!params.id) {
+  /** Monotonic token so overlapping loads cannot clobber a newer route's state. */
+  let loadSeq = 0;
+
+  async function attemptLoad(id: string | undefined) {
+    const seq = ++loadSeq;
+
+    if (!id) {
       navigate("/");
       return;
     }
@@ -476,15 +491,18 @@ export default function Editor() {
       await new Promise((r) => setTimeout(r, 100));
       attempts++;
     }
+    if (seq !== loadSeq) return;
 
     try {
       // Try to load existing resume
-      await loadResume(params.id);
+      await loadResume(id);
+      if (seq !== loadSeq) return;
     } catch (error) {
+      if (seq !== loadSeq) return;
       if (isNotFoundError(error)) {
         // Resume genuinely does not exist -- safe to create a new one
         try {
-          createNewResume(params.id);
+          createNewResume(id);
           toast.info("New resume created");
         } catch (createError) {
           console.error("Failed to create new resume:", createError);
@@ -500,11 +518,21 @@ export default function Editor() {
         toast.error("Failed to load resume — your data has not been modified");
       }
     } finally {
-      setIsLoading(false);
+      if (seq === loadSeq) {
+        setIsLoading(false);
+      }
     }
   }
 
-  onMount(attemptLoad);
+  // Reload whenever the route id changes (Create Resume navigates /edit/:id → /edit/:id).
+  createEffect(
+    on(
+      () => params.id,
+      (id) => {
+        void attemptLoad(id);
+      },
+    ),
+  );
 
   // Closure components so SplitPane slots mount once; tab signal reads stay inside.
   const EditorLeftPane = () => {
@@ -818,7 +846,7 @@ export default function Editor() {
                     </h2>
                     <p class="text-stone text-sm mb-6">{errorMsg()}</p>
                     <div class="flex items-center justify-center gap-3">
-                      <Button variant="secondary" onClick={() => attemptLoad()}>
+                      <Button variant="secondary" onClick={() => void attemptLoad(params.id)}>
                         Retry
                       </Button>
                       <Button variant="ghost" onClick={() => navigate("/", { replace: true })}>

@@ -231,6 +231,10 @@ describe("VersionHistory", () => {
         expect.objectContaining({ label: "Undo" }),
       );
       expect(recordUndoMock).toHaveBeenCalled();
+      // loadResume clears undo history — Undo must be re-recorded after the reload.
+      expect(recordUndoMock.mock.invocationCallOrder[0]).toBeGreaterThan(
+        loadResumeSpy.mock.invocationCallOrder[0],
+      );
     });
 
     loadResumeSpy.mockRestore();

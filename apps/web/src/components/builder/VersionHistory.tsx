@@ -195,9 +195,11 @@ export function VersionHistory() {
         if (currentVersion === undefined) {
           throw new Error("Current resume version is unknown — reload and try again.");
         }
-        recordUndo(store.resume);
+        // Capture pre-revert state; loadResume clears undo history, so re-record after reload.
+        const previous = store.resume;
         await restoreResumeVersion(id, Number(entryKey), currentVersion);
         await loadResume(id);
+        recordUndo(previous);
       } else {
         revertToSnapshot(snapshot);
       }
