@@ -20,7 +20,7 @@ import {
 } from "../components/ui";
 import { useHotkeys, type Shortcut } from "../hooks/useHotkeys";
 import { usePageTitle } from "../hooks/usePageTitle";
-import { useNavigationGuard } from "../hooks/useNavigationGuard";
+import { bypassNextNavigationGuard, useNavigationGuard } from "../hooks/useNavigationGuard";
 import { SplitPane } from "../components/layout/SplitPane";
 import { Sidebar, type SidebarItem } from "../components/layout/Sidebar";
 import {
@@ -492,6 +492,8 @@ export default function Editor() {
       // so the URL stays aligned with the shared store instead of showing A at /edit/B.
       if (store.isDirty) {
         toast.error(store.error ?? "Failed to save current resume before switching");
+        // Bypass the dirty-leave confirm so recovery can realign the URL with the store.
+        bypassNextNavigationGuard();
         navigate(`/edit/${previousId}`, { replace: true });
         return;
       }
