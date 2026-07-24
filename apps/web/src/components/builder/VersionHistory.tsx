@@ -12,6 +12,7 @@ import {
   getCloudResumeVersion,
   isCloudAuthenticated,
   isResumeVersionConflictError,
+  setCloudResumeVersion,
   showResumeVersionConflictToast,
 } from "../../stores/cloudStorage";
 import { recordUndo } from "../../stores/editorUndo";
@@ -47,7 +48,7 @@ function cloudEntry(summary: ResumeVersionSummary): VersionListEntry {
 
 export function VersionHistory() {
   const { store: ui, closeModal } = uiStore;
-  const { store, revertToSnapshot, loadResume, undo } = resumeStore;
+  const { store, revertToSnapshot, applyRestoredResume, undo } = resumeStore;
 
   const [entries, setEntries] = createSignal<VersionListEntry[]>([]);
   const [selectedKey, setSelectedKey] = createSignal<string | null>(null);
@@ -195,11 +196,13 @@ export function VersionHistory() {
         if (currentVersion === undefined) {
           throw new Error("Current resume version is unknown — reload and try again.");
         }
-        // Capture pre-revert state; loadResume clears undo history, so re-record after reload.
+        // Apply the restore response directly so a follow-up GET failure cannot
+        // leave the server reverted without client undo/UI sync.
         const previous = store.resume;
-        await restoreResumeVersion(id, Number(entryKey), currentVersion);
-        await loadResume(id);
+        const restored = await restoreResumeVersion(id, Number(entryKey), currentVersion);
+        setCloudResumeVersion(id, restored.version);
         recordUndo(previous);
+        applyRestoredResume(restored.data);
       } else {
         revertToSnapshot(snapshot);
       }

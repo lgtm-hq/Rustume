@@ -15,6 +15,7 @@ const getResumeVersionMock = vi.fn();
 const restoreResumeVersionMock = vi.fn();
 const isCloudAuthenticatedMock = vi.fn();
 const getCloudResumeVersionMock = vi.fn();
+const setCloudResumeVersionMock = vi.fn();
 const showResumeVersionConflictToastMock = vi.fn();
 const recordUndoMock = vi.fn();
 const confirmMock = vi.fn();
@@ -52,6 +53,7 @@ vi.mock("../../../stores/cloudStorage", async (importOriginal) => {
     ...actual,
     isCloudAuthenticated: () => isCloudAuthenticatedMock(),
     getCloudResumeVersion: (...args: unknown[]) => getCloudResumeVersionMock(...args),
+    setCloudResumeVersion: (...args: unknown[]) => setCloudResumeVersionMock(...args),
     showResumeVersionConflictToast: (...args: unknown[]) =>
       showResumeVersionConflictToastMock(...args),
   };
@@ -196,19 +198,20 @@ describe("VersionHistory", () => {
       data: resumeWithName("Cloud Snapshot"),
       created_at: "2026-01-02T00:00:00.000Z",
     });
+    const restored = resumeWithName("Reloaded Cloud");
     restoreResumeVersionMock.mockResolvedValue({
       id: "resume-history-test",
       title: "Test",
       updated_at: "2026-01-03T00:00:00.000Z",
       user_id: "user-1",
-      data: resumeWithName("Reloaded Cloud"),
+      data: restored,
       is_public: false,
       public_slug: null,
       version: 5,
       created_at: "2026-01-01T00:00:00.000Z",
     });
 
-    const loadResumeSpy = vi.spyOn(resumeStore, "loadResume").mockResolvedValue(undefined);
+    const applyRestoredSpy = vi.spyOn(resumeStore, "applyRestoredResume");
 
     render(() => <VersionHistory />);
 
@@ -224,20 +227,20 @@ describe("VersionHistory", () => {
 
     await waitFor(() => {
       expect(restoreResumeVersionMock).toHaveBeenCalledWith("resume-history-test", 3, 4);
-      expect(loadResumeSpy).toHaveBeenCalledWith("resume-history-test");
+      expect(setCloudResumeVersionMock).toHaveBeenCalledWith("resume-history-test", 5);
+      expect(applyRestoredSpy).toHaveBeenCalledWith(restored);
       expect(toastSuccessMock).toHaveBeenCalledWith(
         "Reverted to selected version",
         undefined,
         expect.objectContaining({ label: "Undo" }),
       );
       expect(recordUndoMock).toHaveBeenCalled();
-      // loadResume clears undo history — Undo must be re-recorded after the reload.
-      expect(recordUndoMock.mock.invocationCallOrder[0]).toBeGreaterThan(
-        loadResumeSpy.mock.invocationCallOrder[0],
+      expect(recordUndoMock.mock.invocationCallOrder[0]).toBeLessThan(
+        applyRestoredSpy.mock.invocationCallOrder[0],
       );
     });
 
-    loadResumeSpy.mockRestore();
+    applyRestoredSpy.mockRestore();
   });
 
   it("routes cloud restore conflicts through the shared conflict toast", async () => {

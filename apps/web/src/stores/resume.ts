@@ -801,6 +801,20 @@ export function useResumeStore() {
       scheduleSave();
     },
 
+    /**
+     * Apply a resume already restored on the server (cloud version restore).
+     * Does not clear undo history or schedule another save.
+     */
+    applyRestoredResume(data: ResumeData) {
+      const clone = normalizeResumeForStore(JSON.parse(JSON.stringify(data)) as ResumeData);
+      batch(() => {
+        setStore("resume", clone);
+        setStore("isDirty", false);
+        setStore("error", null);
+      });
+      syncUndoAnchor(clone);
+    },
+
     undo() {
       const previous = undoResume(store.resume);
       if (!previous) return false;
