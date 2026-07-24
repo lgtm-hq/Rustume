@@ -1,10 +1,21 @@
 import type { ResumeData } from "../../wasm/types";
+import { isHtmlEmpty } from "../../stores/resume";
 
 export type PdfExportScope = "resume" | "coverLetter";
+
+/** True when the resume has non-empty cover letter body content. */
+export function hasCoverLetterContent(resume: ResumeData): boolean {
+  const coverLetter = resume.sections.coverLetter;
+  if (!coverLetter) return false;
+  return !isHtmlEmpty(coverLetter.content);
+}
 
 /** Deep-copy a resume and restrict layout to cover letter only for standalone PDF export. */
 export function buildCoverLetterOnlyResume(resume: ResumeData): ResumeData {
   const copy = JSON.parse(JSON.stringify(resume)) as ResumeData;
+  if (!copy.sections.coverLetter) {
+    throw new Error("Resume has no cover letter section");
+  }
   copy.sections.coverLetter.visible = true;
   copy.metadata.layout = [[["coverLetter"]]];
   return copy;

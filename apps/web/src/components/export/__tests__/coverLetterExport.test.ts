@@ -4,6 +4,7 @@ import { downloadPdf, renderPdf } from "../../../api/render";
 import { fetchBlob } from "../../../api/client";
 import {
   buildCoverLetterOnlyResume,
+  hasCoverLetterContent,
   pdfExportFileName,
   resumeForPdfExport,
 } from "../coverLetterExport";
@@ -14,6 +15,28 @@ vi.mock("../../../api/client", () => ({
   get: vi.fn(),
   post: vi.fn(),
 }));
+
+describe("hasCoverLetterContent", () => {
+  it("returns true when the cover letter has body content", () => {
+    const resume = createDefaultResume();
+    resume.sections.coverLetter.content = "<p>Dear Jane,</p>";
+    expect(hasCoverLetterContent(resume)).toBe(true);
+  });
+
+  it("returns false for an empty body", () => {
+    const resume = createDefaultResume();
+    resume.sections.coverLetter.content = "";
+    expect(hasCoverLetterContent(resume)).toBe(false);
+  });
+
+  it("returns false for a TipTap-empty body", () => {
+    const resume = createDefaultResume();
+    resume.sections.coverLetter.content = "<p></p>";
+    expect(hasCoverLetterContent(resume)).toBe(false);
+    resume.sections.coverLetter.content = "<p>&nbsp;</p>";
+    expect(hasCoverLetterContent(resume)).toBe(false);
+  });
+});
 
 describe("coverLetterExport", () => {
   beforeEach(() => {

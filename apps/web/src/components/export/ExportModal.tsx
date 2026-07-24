@@ -4,7 +4,12 @@ import { uiStore } from "../../stores/ui";
 import { resumeStore } from "../../stores/resume";
 import { downloadPdf } from "../../api/render";
 import { resumeToJson, isWasmReady } from "../../wasm";
-import { type PdfExportScope, pdfExportFileName, resumeForPdfExport } from "./coverLetterExport";
+import {
+  type PdfExportScope,
+  hasCoverLetterContent,
+  pdfExportFileName,
+  resumeForPdfExport,
+} from "./coverLetterExport";
 
 export function ExportModal() {
   const { store: ui, closeModal } = uiStore;
@@ -15,7 +20,11 @@ export function ExportModal() {
   const [pdfScope, setPdfScope] = createSignal<PdfExportScope>("resume");
 
   const isOpen = () => ui.modal === "export";
-  const hasCoverLetter = () => store.resume?.sections.coverLetter.visible === true;
+  /** Show cover-letter PDF scopes only when the section is visible and has body content. */
+  const canExportCoverLetter = () =>
+    store.resume != null &&
+    store.resume.sections.coverLetter.visible === true &&
+    hasCoverLetterContent(store.resume);
 
   const handleExportPdf = async () => {
     if (!store.resume) return;
@@ -24,7 +33,12 @@ export function ExportModal() {
     setError(null);
 
     try {
-      const scope = hasCoverLetter() ? pdfScope() : "resume";
+      const scope = canExportCoverLetter() ? pdfScope() : "resume";
+      if (scope === "coverLetter" && !hasCoverLetterContent(store.resume)) {
+        toast.error("Add cover letter content before exporting");
+        setError("Cover letter is empty");
+        return;
+      }
       const payload = resumeForPdfExport(store.resume, scope);
       await downloadPdf(payload, `${pdfExportFileName(store.resume, scope)}.pdf`);
       toast.success(
@@ -80,7 +94,7 @@ export function ExportModal() {
       description="Download your resume in various formats"
     >
       <div class="space-y-4">
-        <Show when={hasCoverLetter()}>
+        <Show when={canExportCoverLetter()}>
           <fieldset class="space-y-2">
             <legend class="font-mono text-xs uppercase tracking-wider text-stone">
               PDF contents

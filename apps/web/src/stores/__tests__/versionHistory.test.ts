@@ -220,6 +220,28 @@ describe("versionHistory store", () => {
     expect(await listSnapshots("resume-1")).toHaveLength(0);
   });
 
+  it("rolls back an inserted snapshot when the resume is deleted during save", async () => {
+    const originalGetItem = localStorage.getItem.bind(localStorage);
+    let resumeChecks = 0;
+    const getItemSpy = vi.spyOn(localStorage, "getItem").mockImplementation((key: string) => {
+      if (key === "rustume:resume-1") {
+        resumeChecks += 1;
+        // First check (pre-insert) succeeds; subsequent check (post-insert) fails.
+        return resumeChecks === 1 ? "{}" : null;
+      }
+      return originalGetItem(key);
+    });
+
+    try {
+      await saveSnapshot("resume-1", createResume("Deleted during save"));
+
+      expect(resumeChecks).toBeGreaterThanOrEqual(2);
+      expect(await listSnapshots("resume-1")).toHaveLength(0);
+    } finally {
+      getItemSpy.mockRestore();
+    }
+  });
+
   it("deleteSnapshotsForResume removes only that resume's snapshots", async () => {
     await saveSnapshot("resume-a", createResume("A"));
     await saveSnapshot("resume-b", createResume("B1"));

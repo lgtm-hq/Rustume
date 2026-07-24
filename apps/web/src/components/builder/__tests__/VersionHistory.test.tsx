@@ -21,6 +21,7 @@ const confirmMock = vi.fn();
 const toastSuccessMock = vi.fn();
 const toastErrorMock = vi.fn();
 const toastWarningMock = vi.fn();
+const toastInfoMock = vi.fn();
 
 vi.mock("../../../api/render", () => ({
   renderPreview: (...args: unknown[]) => renderPreviewMock(...args),
@@ -70,6 +71,7 @@ vi.mock("../../../components/ui", async (importOriginal) => {
       success: (...args: unknown[]) => toastSuccessMock(...args),
       error: (...args: unknown[]) => toastErrorMock(...args),
       warning: (...args: unknown[]) => toastWarningMock(...args),
+      info: (...args: unknown[]) => toastInfoMock(...args),
     },
   };
 });
@@ -152,7 +154,11 @@ describe("VersionHistory", () => {
       expect(confirmMock).toHaveBeenCalled();
       expect(resumeStore.store.resume?.basics.name).toBe("Restored Name");
       expect(resumeStore.store.isDirty).toBe(true);
-      expect(toastSuccessMock).toHaveBeenCalledWith("Reverted to selected version");
+      expect(toastSuccessMock).toHaveBeenCalledWith(
+        "Reverted to selected version",
+        undefined,
+        expect.objectContaining({ label: "Undo" }),
+      );
     });
   });
 
@@ -219,7 +225,11 @@ describe("VersionHistory", () => {
     await waitFor(() => {
       expect(restoreResumeVersionMock).toHaveBeenCalledWith("resume-history-test", 3, 4);
       expect(loadResumeSpy).toHaveBeenCalledWith("resume-history-test");
-      expect(toastSuccessMock).toHaveBeenCalledWith("Reverted to selected version");
+      expect(toastSuccessMock).toHaveBeenCalledWith(
+        "Reverted to selected version",
+        undefined,
+        expect.objectContaining({ label: "Undo" }),
+      );
       expect(recordUndoMock).toHaveBeenCalled();
     });
 
