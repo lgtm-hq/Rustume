@@ -238,7 +238,9 @@ describe("resume API helpers", () => {
 
   it("createCloudResume posts JSON body", async () => {
     const body = { title: "Mine", data: testResume("A") };
-    const mockFetch = vi.fn().mockResolvedValue(jsonFetch({ id: "1", title: "Mine" }));
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValue(jsonFetch(mockRow({ id: "1", title: "Mine", data: body.data })));
     globalThis.fetch = mockFetch;
 
     await createCloudResume(body);
@@ -253,7 +255,7 @@ describe("resume API helpers", () => {
   });
 
   it("updateCloudResume puts to the resume id path", async () => {
-    const mockFetch = vi.fn().mockResolvedValue(jsonFetch({ id: "abc" }));
+    const mockFetch = vi.fn().mockResolvedValue(jsonFetch(mockRow({ id: "abc" })));
     globalThis.fetch = mockFetch;
 
     await updateCloudResume("abc", { data: createDefaultResume() });
@@ -314,9 +316,12 @@ describe("resume API helpers", () => {
 
   it("importResumes posts the import payload", async () => {
     const payload: ImportResumeItem[] = [{ title: "One", data: createDefaultResume() }];
-    const mockFetch = vi
-      .fn()
-      .mockResolvedValue(jsonFetch({ imported: [{ id: "1", title: "One" }], failed: [] }));
+    const mockFetch = vi.fn().mockResolvedValue(
+      jsonFetch({
+        imported: [{ id: "1", title: "One", updated_at: "2026-01-01T00:00:00Z" }],
+        failed: [],
+      }),
+    );
     globalThis.fetch = mockFetch;
 
     const result = await importResumes(payload);

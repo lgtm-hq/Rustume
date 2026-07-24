@@ -129,8 +129,10 @@ export function undoResume(current: ResumeData | null): ResumeData | null {
 }
 
 export function redoResume(current: ResumeData | null): ResumeData | null {
-  if (!current || history.future.length === 0) return null;
+  if (!current) return null;
+  // Flush first — pending edits clear `future`, matching undoResume's guard order.
   flushPending();
+  if (history.future.length === 0) return null;
 
   applyingHistory = true;
   try {

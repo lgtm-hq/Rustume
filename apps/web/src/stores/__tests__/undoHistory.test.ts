@@ -204,4 +204,19 @@ describe("undoHistory", () => {
     expect(undoHistoryStore.state.canUndo).toBe(false);
     expect(undoHistoryStore.state.canRedo).toBe(false);
   });
+
+  it("does not throw when redo is requested during a pending edit burst", () => {
+    noteResumeChanged(resumeNamed("edit"));
+    vi.advanceTimersByTime(500);
+    const undone = undoResume(resumeNamed("edit"));
+    expect(undone?.basics.name).toBe("start");
+    expect(undoHistoryStore.state.canRedo).toBe(true);
+
+    // Start a new edit burst (pending anchor) without committing the debounce.
+    noteResumeChanged(resumeNamed("during-debounce"));
+    expect(undoHistoryStore.state.canRedo).toBe(true);
+
+    expect(() => redoResume(resumeNamed("during-debounce"))).not.toThrow();
+    expect(undoHistoryStore.state.canRedo).toBe(false);
+  });
 });

@@ -28,7 +28,12 @@ export function getStoredResumeSort(): ResumeSortMode {
 }
 
 export function setStoredResumeSort(mode: ResumeSortMode): void {
-  localStorage.setItem(SORT_STORAGE_KEY, mode);
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.setItem(SORT_STORAGE_KEY, mode);
+  } catch {
+    // localStorage may be unavailable in private browsing or tests
+  }
 }
 
 export function sortResumes<T extends ResumeListItem>(items: T[], mode: ResumeSortMode): T[] {

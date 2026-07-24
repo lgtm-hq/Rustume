@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { sortResumes, type ResumeSortMode } from "../resumeSort";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { setStoredResumeSort, sortResumes, type ResumeSortMode } from "../resumeSort";
 import type { ResumeListItem } from "../../stores/persistence";
 
 function item(id: string, name: string, updatedAt: string, createdAt?: string): ResumeListItem {
@@ -25,5 +25,21 @@ describe("sortResumes", () => {
     ["name-desc", ["1", "3", "2"]],
   ])("sorts by %s", (mode, expectedIds) => {
     expect(sortResumes(items, mode).map((r) => r.id)).toEqual(expectedIds);
+  });
+});
+
+describe("setStoredResumeSort", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("swallows localStorage write failures", () => {
+    vi.stubGlobal("localStorage", {
+      setItem: () => {
+        throw new Error("quota exceeded");
+      },
+      getItem: () => null,
+    });
+    expect(() => setStoredResumeSort("name-asc")).not.toThrow();
   });
 });
