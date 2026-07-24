@@ -493,8 +493,9 @@ export default function Editor() {
       if (store.isDirty) {
         toast.error(store.error ?? "Failed to save current resume before switching");
         // Bypass the dirty-leave confirm so recovery can realign the URL with the store.
-        bypassNextNavigationGuard();
-        navigate(`/edit/${previousId}`, { replace: true });
+        const recoveryPath = `/edit/${previousId}`;
+        bypassNextNavigationGuard(recoveryPath);
+        navigate(recoveryPath, { replace: true });
         return;
       }
     } else if (store.id === id && store.resume) {

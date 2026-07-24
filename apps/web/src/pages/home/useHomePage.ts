@@ -30,12 +30,37 @@ export function useHomePage() {
   const [duplicatingId, setDuplicatingId] = createSignal<string | null>(null);
   const [renamingId, setRenamingId] = createSignal<string | null>(null);
   const [lockingId, setLockingId] = createSignal<string | null>(null);
+  const [metaBusyId, setMetaBusyId] = createSignal<string | null>(null);
   const [renameValue, setRenameValue] = createSignal("");
   const [searchQuery, setSearchQuery] = createSignal(getStoredSearchQuery());
   const [sortMode, setSortMode] = createSignal<ResumeSortMode>(getStoredResumeSort());
   const [tagFilter, setTagFilter] = createSignal<string | null>(null);
   const [tagDrafts, setTagDrafts] = createSignal<Record<string, string>>({});
   const [tagEditorId, setTagEditorId] = createSignal<string | null>(null);
+  /** Serialize lock/tag writes per resume to avoid last-write-wins races. */
+  const metaChains = new Map<string, Promise<void>>();
+
+  const enqueueResumeMeta = (id: string, task: () => Promise<void>): Promise<void> => {
+    const prev = metaChains.get(id) ?? Promise.resolve();
+    const next = prev
+      .catch(() => undefined)
+      .then(async () => {
+        setMetaBusyId(id);
+        try {
+          await task();
+        } finally {
+          setMetaBusyId((current) => (current === id ? null : current));
+        }
+      });
+    metaChains.set(
+      id,
+      next.then(
+        () => undefined,
+        () => undefined,
+      ),
+    );
+    return next;
+  };
 
   createEffect(() => {
     setStoredSearchQuery(searchQuery());
@@ -88,8 +113,10 @@ export function useHomePage() {
     event.stopPropagation();
     setLockingId(id);
     try {
-      await patchResumeListMeta(id, { locked: !currentlyLocked });
-      toast.success(currentlyLocked ? "Resume unlocked" : "Resume locked");
+      await enqueueResumeMeta(id, async () => {
+        await patchResumeListMeta(id, { locked: !currentlyLocked });
+        toast.success(currentlyLocked ? "Resume unlocked" : "Resume locked");
+      });
     } catch (e) {
       console.error(e);
       toast.error("Failed to update lock");
@@ -118,9 +145,11 @@ export function useHomePage() {
     const tags = [...new Set([...(existing ?? []), draft])];
     try {
       // List updates via rustume:resumes-changed (optimistic mutate + refetch).
-      await patchResumeListMeta(id, { tags });
-      setTagDrafts((prev) => ({ ...prev, [id]: "" }));
-      closeTagEditor(id);
+      await enqueueResumeMeta(id, async () => {
+        await patchResumeListMeta(id, { tags });
+        setTagDrafts((prev) => ({ ...prev, [id]: "" }));
+        closeTagEditor(id);
+      });
     } catch (e) {
       console.error(e);
       toast.error("Failed to add tag");
@@ -137,13 +166,15 @@ export function useHomePage() {
     event.stopPropagation();
     const tags = (existing ?? []).filter((t) => t !== tag);
     try {
-      await patchResumeListMeta(id, { tags });
-      if (tagFilter() === tag) {
-        const stillUsed = (resumes() ?? []).some(
-          (resume) => resume.id !== id && (resume.tags ?? []).includes(tag),
-        );
-        if (!stillUsed) setTagFilter(null);
-      }
+      await enqueueResumeMeta(id, async () => {
+        await patchResumeListMeta(id, { tags });
+        if (tagFilter() === tag) {
+          const stillUsed = (resumes() ?? []).some(
+            (resume) => resume.id !== id && (resume.tags ?? []).includes(tag),
+          );
+          if (!stillUsed) setTagFilter(null);
+        }
+      });
     } catch (e) {
       console.error(e);
       toast.error("Failed to remove tag");
@@ -216,7 +247,8 @@ export function useHomePage() {
     deletingId() !== null ||
     duplicatingId() !== null ||
     renamingId() !== null ||
-    lockingId() !== null;
+    lockingId() !== null ||
+    metaBusyId() !== null;
 
   return {
     layout,
@@ -228,6 +260,7 @@ export function useHomePage() {
     duplicatingId,
     renamingId,
     lockingId,
+    metaBusyId,
     renameValue,
     setRenameValue,
     searchQuery,

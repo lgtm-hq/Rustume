@@ -366,9 +366,7 @@ async function saveResume(id: string, data: ResumeData): Promise<void> {
   if (!saveLocalResume(id, data)) {
     throw new Error("Failed to save resume to local storage");
   }
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(new CustomEvent("rustume:resumes-changed"));
-  }
+  notifyResumeSaved(id, data);
 }
 
 // ---------------------------------------------------------------------------
@@ -654,5 +652,4 @@ export async function patchResumeListMeta(
     data.metadata.tags = patch.tags;
   }
   await saveResume(id, data);
-  notifyResumeSaved(id, data);
 }

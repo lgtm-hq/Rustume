@@ -1,12 +1,26 @@
 import { type Accessor, createEffect, onCleanup } from "solid-js";
 import { useBeforeLeave } from "@solidjs/router";
 
-/** One-shot bypass for intentional recovery navigations (e.g. restore dirty route). */
-let bypassNavigationGuardOnce = false;
+/**
+ * One-shot bypass for intentional recovery navigations (e.g. restore dirty route).
+ * When `targetPath` is set, only that destination consumes the bypass; otherwise
+ * the next leave clears it. An unused bypass is cleared on the next microtask so
+ * a no-op navigate cannot leave the guard armed.
+ */
+let bypassTargetPath: string | null = null;
 
-/** Allow the next in-app navigation to proceed even when the store is dirty. */
-export function bypassNextNavigationGuard(): void {
-  bypassNavigationGuardOnce = true;
+function clearBypass(): void {
+  bypassTargetPath = null;
+}
+
+/** Allow the next matching in-app navigation to proceed even when the store is dirty. */
+export function bypassNextNavigationGuard(targetPath?: string): void {
+  bypassTargetPath = targetPath ?? "*";
+  // Sync navigate() runs useBeforeLeave before this microtask; no-op navigations
+  // never fire it, so disarm here to avoid skipping a later dirty leave confirm.
+  queueMicrotask(() => {
+    clearBypass();
+  });
 }
 
 /**
@@ -17,9 +31,13 @@ export function bypassNextNavigationGuard(): void {
 export function useNavigationGuard(isDirty: Accessor<boolean>) {
   // Guard in-app route changes
   useBeforeLeave((e) => {
-    if (bypassNavigationGuardOnce) {
-      bypassNavigationGuardOnce = false;
-      return;
+    if (bypassTargetPath != null) {
+      const target = bypassTargetPath;
+      clearBypass();
+      if (target === "*" || e.to === target) {
+        return;
+      }
+      // Bypass was armed for a different destination — fall through to dirty check.
     }
     if (isDirty() && !e.defaultPrevented) {
       e.preventDefault();

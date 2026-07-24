@@ -19,10 +19,14 @@ export function getResumeSortLabels(): { value: ResumeSortMode; label: string }[
 }
 
 export function getStoredResumeSort(): ResumeSortMode {
-  if (typeof localStorage === "undefined") return "updated";
-  const raw = localStorage.getItem(SORT_STORAGE_KEY);
-  if (raw != null && Object.hasOwn(SORT_LABELS, raw)) {
-    return raw as ResumeSortMode;
+  try {
+    if (typeof localStorage === "undefined") return "updated";
+    const raw = localStorage.getItem(SORT_STORAGE_KEY);
+    if (raw != null && Object.hasOwn(SORT_LABELS, raw)) {
+      return raw as ResumeSortMode;
+    }
+  } catch {
+    // Privacy modes / opaque origins can throw on localStorage access.
   }
   return "updated";
 }

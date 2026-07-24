@@ -171,9 +171,12 @@ export function HomeResumeCard(props: {
             <span class="max-w-[8rem] truncate">{tag}</span>
             <button
               type="button"
-              class="ml-0.5 rounded-full p-0.5 text-stone/70 hover:bg-accent/10 hover:text-ink transition-colors"
+              class="ml-0.5 rounded-full p-0.5 text-stone/70 hover:bg-accent/10 hover:text-ink transition-colors disabled:opacity-50 disabled:pointer-events-none"
               onClick={(e) => home.handleRemoveTag(resume().id, tag, resume().tags, e)}
-              title={`Remove tag ${tag}`}
+              disabled={
+                Boolean(resume().locked) || home.metaBusyId() === resume().id || home.actionsBusy()
+              }
+              title={resume().locked ? "Unlock to edit tags" : `Remove tag ${tag}`}
               aria-label={`Remove tag ${tag} from ${resume().name}`}
               data-testid="resume-tag-remove"
             >
@@ -200,10 +203,14 @@ export function HomeResumeCard(props: {
         fallback={
           <button
             type="button"
-            class={`inline-flex items-center border border-dashed border-border px-2 py-0.5 text-[10px] text-stone hover:border-accent hover:text-ink hover:bg-accent/10 transition-colors ${
+            class={`inline-flex items-center border border-dashed border-border px-2 py-0.5 text-[10px] text-stone hover:border-accent hover:text-ink hover:bg-accent/10 transition-colors disabled:opacity-50 disabled:pointer-events-none ${
               isGrid() ? "rounded-sm" : "rounded-full"
             }`}
             onClick={(e) => home.openTagEditor(resume().id, e)}
+            disabled={
+              Boolean(resume().locked) || home.metaBusyId() === resume().id || home.actionsBusy()
+            }
+            title={resume().locked ? "Unlock to edit tags" : undefined}
             aria-label={`Add tag to ${resume().name}`}
             data-testid="resume-tag-add"
           >
@@ -217,13 +224,16 @@ export function HomeResumeCard(props: {
         >
           <input
             type="text"
-            class={`w-28 max-w-full border border-accent/40 bg-surface px-2.5 py-0.5 text-[10px] text-ink placeholder:text-stone/70 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 ${
+            class={`w-28 max-w-full border border-accent/40 bg-surface px-2.5 py-0.5 text-[10px] text-ink placeholder:text-stone/70 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 disabled:opacity-50 ${
               isGrid() ? "rounded-sm" : "rounded-full"
             }`}
             placeholder="Tag name"
             aria-label={`Add tag to ${resume().name}`}
             value={home.tagDrafts()[resume().id] ?? ""}
             data-testid="resume-tag-input"
+            disabled={
+              Boolean(resume().locked) || home.metaBusyId() === resume().id || home.actionsBusy()
+            }
             onInput={(e) =>
               home.setTagDrafts((prev) => ({
                 ...prev,
