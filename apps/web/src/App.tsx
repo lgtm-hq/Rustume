@@ -75,12 +75,15 @@ const App: ParentComponent = (props) => {
             </div>
           </div>
         </Show>
-        <Show when={inDesignLab()} fallback={
-          <RequireAuthGuard>
-            <SubscriptionBanner />
-            <AppShell>{props.children}</AppShell>
-          </RequireAuthGuard>
-        }>
+        <Show
+          when={inDesignLab()}
+          fallback={
+            <RequireAuthGuard>
+              <SubscriptionBanner />
+              <AppShell>{props.children}</AppShell>
+            </RequireAuthGuard>
+          }
+        >
           {props.children}
         </Show>
         <Show when={!inDesignLab()}>

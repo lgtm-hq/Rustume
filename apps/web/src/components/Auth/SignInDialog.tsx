@@ -27,11 +27,7 @@ export function SignInDialog() {
         <div class="space-y-4" data-testid="sign-in-dialog">
           <PolicyConsent />
           <div class="flex justify-end gap-3">
-            <Button
-              variant="ghost"
-              onClick={() => closeSignInDialog()}
-              disabled={confirming()}
-            >
+            <Button variant="ghost" onClick={() => closeSignInDialog()} disabled={confirming()}>
               Cancel
             </Button>
             <Button onClick={handleConfirm} loading={confirming()} data-testid="sign-in-confirm">

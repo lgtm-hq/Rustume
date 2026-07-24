@@ -157,11 +157,7 @@ export function feedPageSwipe(
  * notches still move a noticeable but capped amount. Precision is 0.001 so
  * small pinch events are not rounded away.
  */
-export function wheelZoomDelta(
-  deltaY: number,
-  currentZoom: number,
-  deltaMode: number = 0,
-): number {
+export function wheelZoomDelta(deltaY: number, currentZoom: number, deltaMode: number = 0): number {
   const normalized = normalizeWheelDelta(deltaY, deltaMode);
   let delta = -normalized * WHEEL_ZOOM_SENSITIVITY;
   delta = Math.max(-WHEEL_ZOOM_MAX_STEP, Math.min(WHEEL_ZOOM_MAX_STEP, delta));

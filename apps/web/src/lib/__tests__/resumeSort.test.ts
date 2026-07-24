@@ -2,12 +2,7 @@ import { describe, expect, it } from "vitest";
 import { sortResumes, type ResumeSortMode } from "../resumeSort";
 import type { ResumeListItem } from "../../stores/persistence";
 
-function item(
-  id: string,
-  name: string,
-  updatedAt: string,
-  createdAt?: string,
-): ResumeListItem {
+function item(id: string, name: string, updatedAt: string, createdAt?: string): ResumeListItem {
   return {
     id,
     name,

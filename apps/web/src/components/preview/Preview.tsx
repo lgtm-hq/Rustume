@@ -182,12 +182,7 @@ export function Preview() {
       setPanY(result.panY);
     }
 
-    const swipe = feedPageSwipe(
-      pageSwipe,
-      result.pageIntentDx,
-      result.pageIntentDy,
-      Date.now(),
-    );
+    const swipe = feedPageSwipe(pageSwipe, result.pageIntentDx, result.pageIntentDy, Date.now());
     pageSwipe = swipe.state;
 
     if (swipe.pageDelta !== 0) {
@@ -665,109 +660,117 @@ export function Preview() {
               "transform-origin": "top left",
             }}
           >
-          {/* Paper Effect — marked as the custom CSS root so user CSS
+            {/* Paper Effect — marked as the custom CSS root so user CSS
               (scoped via @scope in lib/customCss.ts) can style the resume
               paper surface but never the surrounding app UI. */}
-          <div
-            data-custom-css-root
-            class="bg-white rounded-sm shadow-paper paper-texture h-full w-full"
-          >
-            <Show
-              when={previewUrl() && !error()}
-              fallback={
-                <div class="w-full h-full flex items-center justify-center">
-                  <Show
-                    when={isLoading()}
-                    fallback={
-                      <div class="text-center text-stone">
-                        <Show when={error()}>
-                          <p class="text-sm mb-2">{error()}</p>
-                        </Show>
-                        <Show when={!isOnline()}>
-                          <div class="flex items-center justify-center gap-2 text-offline">
-                            <svg
-                              class="w-5 h-5"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3"
-                              />
-                            </svg>
-                            <span>Offline</span>
-                          </div>
-                        </Show>
-                        <Show when={!error() && isOnline()}>
-                          <p class="text-sm">Start editing to see preview</p>
-                        </Show>
-                      </div>
-                    }
-                  >
-                    <div role="status" aria-live="polite" class="flex flex-col items-center gap-3">
-                      <svg
-                        class="w-8 h-8 animate-spin text-accent"
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
-                      >
-                        <circle
-                          class="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          stroke-width="4"
-                          fill="none"
-                        />
-                        <path
-                          class="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                        />
-                      </svg>
-                      <span class="text-sm text-stone">Rendering...</span>
-                    </div>
-                  </Show>
-                </div>
-              }
-            >
-              <img
-                src={previewUrl()!}
-                alt="Resume preview"
-                class="w-full h-full object-fill"
-                classList={{ "opacity-50": isLoading() }}
-              />
-            </Show>
-          </div>
-
-          {/* Loading overlay */}
-          <Show when={isLoading() && previewUrl()}>
             <div
-              role="status"
-              class="absolute inset-0 flex items-center justify-center bg-white/50"
+              data-custom-css-root
+              class="bg-white rounded-sm shadow-paper paper-texture h-full w-full"
             >
-              <span class="sr-only">Updating preview</span>
-              <svg class="w-6 h-6 animate-spin text-accent" viewBox="0 0 24 24" aria-hidden="true">
-                <circle
-                  class="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  stroke-width="4"
-                  fill="none"
+              <Show
+                when={previewUrl() && !error()}
+                fallback={
+                  <div class="w-full h-full flex items-center justify-center">
+                    <Show
+                      when={isLoading()}
+                      fallback={
+                        <div class="text-center text-stone">
+                          <Show when={error()}>
+                            <p class="text-sm mb-2">{error()}</p>
+                          </Show>
+                          <Show when={!isOnline()}>
+                            <div class="flex items-center justify-center gap-2 text-offline">
+                              <svg
+                                class="w-5 h-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                  stroke-width="2"
+                                  d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3"
+                                />
+                              </svg>
+                              <span>Offline</span>
+                            </div>
+                          </Show>
+                          <Show when={!error() && isOnline()}>
+                            <p class="text-sm">Start editing to see preview</p>
+                          </Show>
+                        </div>
+                      }
+                    >
+                      <div
+                        role="status"
+                        aria-live="polite"
+                        class="flex flex-col items-center gap-3"
+                      >
+                        <svg
+                          class="w-8 h-8 animate-spin text-accent"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
+                          <circle
+                            class="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            stroke-width="4"
+                            fill="none"
+                          />
+                          <path
+                            class="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                          />
+                        </svg>
+                        <span class="text-sm text-stone">Rendering...</span>
+                      </div>
+                    </Show>
+                  </div>
+                }
+              >
+                <img
+                  src={previewUrl()!}
+                  alt="Resume preview"
+                  class="w-full h-full object-fill"
+                  classList={{ "opacity-50": isLoading() }}
                 />
-                <path
-                  class="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                />
-              </svg>
+              </Show>
             </div>
-          </Show>
+
+            {/* Loading overlay */}
+            <Show when={isLoading() && previewUrl()}>
+              <div
+                role="status"
+                class="absolute inset-0 flex items-center justify-center bg-white/50"
+              >
+                <span class="sr-only">Updating preview</span>
+                <svg
+                  class="w-6 h-6 animate-spin text-accent"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                    fill="none"
+                  />
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+              </div>
+            </Show>
           </div>
         </div>
       </div>

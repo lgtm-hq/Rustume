@@ -1,15 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  isMissingPageError,
-  prefetchPrintStackPages,
-  type RenderPreviewPage,
-} from "../printStack";
+import { isMissingPageError, prefetchPrintStackPages, type RenderPreviewPage } from "../printStack";
 
 describe("isMissingPageError", () => {
   it("detects Typst missing-page errors", () => {
-    expect(isMissingPageError(new Error("Failed to render preview: Page 3 not found"))).toBe(
-      true,
-    );
+    expect(isMissingPageError(new Error("Failed to render preview: Page 3 not found"))).toBe(true);
   });
 
   it("ignores unrelated errors", () => {

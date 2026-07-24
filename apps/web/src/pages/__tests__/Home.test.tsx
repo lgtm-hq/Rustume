@@ -122,9 +122,7 @@ describe("Home resume search", () => {
   it("shows headline as secondary text under the resume title", () => {
     renderHome();
 
-    expect(screen.getByTestId("resume-list-headline")).toHaveTextContent(
-      "Staff Platform Engineer",
-    );
+    expect(screen.getByTestId("resume-list-headline")).toHaveTextContent("Staff Platform Engineer");
   });
 
   it("omits headline when it is missing or whitespace-only", () => {

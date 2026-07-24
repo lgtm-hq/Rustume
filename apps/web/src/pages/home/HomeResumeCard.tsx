@@ -21,7 +21,13 @@ function ResumeActions(props: { home: HomePageModel; resume: ResumeListItem }) {
         title={resume().locked ? "Unlock" : "Lock"}
         aria-label={resume().locked ? "Unlock resume" : "Lock resume"}
       >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <svg
+          class="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
           <Show
             when={resume().locked}
             fallback={
@@ -51,7 +57,13 @@ function ResumeActions(props: { home: HomePageModel; resume: ResumeListItem }) {
         title="Rename"
         aria-label="Rename resume"
       >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <svg
+          class="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
           <path
             stroke-linecap="round"
             stroke-linejoin="round"
@@ -70,7 +82,13 @@ function ResumeActions(props: { home: HomePageModel; resume: ResumeListItem }) {
         aria-label="Delete resume"
       >
         <Show when={home.deletingId() !== resume().id} fallback={<Spinner class="w-5 h-5" />}>
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <svg
+            class="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -90,7 +108,13 @@ function ResumeActions(props: { home: HomePageModel; resume: ResumeListItem }) {
         aria-label="Duplicate resume"
       >
         <Show when={home.duplicatingId() !== resume().id} fallback={<Spinner class="w-5 h-5" />}>
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <svg
+            class="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -247,8 +271,19 @@ export function HomeResumeCard(props: {
         title="Confirm rename"
         aria-label="Confirm rename"
       >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        <svg
+          class="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M5 13l4 4L19 7"
+          />
         </svg>
       </button>
       <button
@@ -258,7 +293,13 @@ export function HomeResumeCard(props: {
         title="Cancel rename"
         aria-label="Cancel rename"
       >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <svg
+          class="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
           <path
             stroke-linecap="round"
             stroke-linejoin="round"
@@ -397,12 +438,17 @@ export function HomeResumeCard(props: {
               </h3>
               <Show when={resume().headline?.trim()}>
                 {(headline) => (
-                  <p class="text-sm text-accent/65 truncate leading-snug" data-testid="resume-list-headline">
+                  <p
+                    class="text-sm text-accent/65 truncate leading-snug"
+                    data-testid="resume-list-headline"
+                  >
                     {headline()}
                   </p>
                 )}
               </Show>
-              <p class="text-xs text-stone leading-snug">Updated {formatUpdatedAt(resume().updatedAt)}</p>
+              <p class="text-xs text-stone leading-snug">
+                Updated {formatUpdatedAt(resume().updatedAt)}
+              </p>
             </div>
           </A>
         </Show>

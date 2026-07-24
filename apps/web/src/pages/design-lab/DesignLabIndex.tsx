@@ -7,31 +7,36 @@ const DESIGNS = [
     slug: "workspace",
     num: "01",
     name: "Workspace",
-    thesis: "Document-first dock — resumes own the first viewport; brand collapses to a slim toolbar.",
+    thesis:
+      "Document-first dock — resumes own the first viewport; brand collapses to a slim toolbar.",
   },
   {
     slug: "plate",
     num: "02",
     name: "Plate",
-    thesis: "Metal-type stamp: condensed brand pressed into cool steel grain; verdigris ink, press proofs below.",
+    thesis:
+      "Metal-type stamp: condensed brand pressed into cool steel grain; verdigris ink, press proofs below.",
   },
   {
     slug: "aether",
     num: "03",
     name: "Aether",
-    thesis: "Light air — brand as oversized weather in soft sky mist; CTAs grounded, resumes below the fold.",
+    thesis:
+      "Light air — brand as oversized weather in soft sky mist; CTAs grounded, resumes below the fold.",
   },
   {
     slug: "proof",
     num: "04",
     name: "Proof",
-    thesis: "Typst PDF as atmosphere — oversized galley bleeds past the viewport; sample CV typesets on load.",
+    thesis:
+      "Typst PDF as atmosphere — oversized galley bleeds past the viewport; sample CV typesets on load.",
   },
   {
     slug: "nest",
     num: "05",
     name: "Nest",
-    thesis: "Local-device intimacy — cool desk, soft lamp, app bezel; brand as nameplate on your machine.",
+    thesis:
+      "Local-device intimacy — cool desk, soft lamp, app bezel; brand as nameplate on your machine.",
   },
 ] as const;
 

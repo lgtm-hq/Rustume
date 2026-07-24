@@ -361,11 +361,7 @@ export default function HomeWorkspace() {
                     <h3 class="ws-name">{r.name}</h3>
                     <p class="ws-headline">{r.headline}</p>
                     <div class="ws-meta">
-                      <For each={r.tags}>
-                        {(t) => (
-                          <span class="ws-tag">{t}</span>
-                        )}
-                      </For>
+                      <For each={r.tags}>{(t) => <span class="ws-tag">{t}</span>}</For>
                       <span class="ws-updated">{r.updated}</span>
                     </div>
                   </div>
