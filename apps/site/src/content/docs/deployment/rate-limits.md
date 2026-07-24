@@ -9,8 +9,9 @@ Rustume applies **in-memory, per-key rate limits** when connected mode is enable
 with a configured database). Limits protect service capacity and control the cost of CPU-heavy
 operations (preview and PDF rendering) without blocking normal editing workflows.
 
-Self-hosted operators can tune or effectively disable limits by raising environment values. Browser-local
-deployments without connected mode do not install these middleware layers.
+Self-hosted operators can tune limits via environment values, or set `RATE_LIMIT_DISABLED=true` to
+skip the middleware entirely (recommended for local cloud development). Browser-local deployments
+without connected mode do not install these middleware layers.
 
 ## Scope
 

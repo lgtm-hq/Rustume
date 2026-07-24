@@ -151,11 +151,14 @@
   let render-profile(item) = {
     if item.visible == false { return }
 
-    if has-url(item) {
-      link(item.url.href)[#text(fill: primary-color)[#item.network]]
-    } else {
-      text(size: 10pt, fill: text-color)[#item.network: #item.username]
-    }
+    render-profile-entry(
+      data,
+      item,
+      size: 10pt,
+      fill: text-color,
+      link-fill: primary-color,
+      label-mode: if has-url(item) { "network" } else { "network-username" },
+    )
     h(14pt)
   }
 
@@ -386,7 +389,6 @@
     justify: false,
   )
 
-  // Cover letter — dedicated page before the resume content
   render-cover-letter-page(data, section-heading, muted: muted-color)
 
   if has-resume-body(data) {
@@ -395,16 +397,34 @@
       columns: (1fr, auto),
       column-gutter: 16pt,
       [
-        #text(size: 26pt, weight: "bold", fill: text-color)[#data.basics.name]
+        #if has-visible-picture(data.basics) {
+          grid(
+            columns: (auto, 1fr),
+            column-gutter: 12pt,
+            align(horizon)[
+              #render-picture(data.basics, primary-color)
+            ],
+            [
+              #text(size: 26pt, weight: "bold", fill: text-color)[#data.basics.name]
 
-        #if data.basics.headline != "" {
-          v(4pt)
-          text(size: 12pt, fill: primary-color)[#data.basics.headline]
+              #if data.basics.headline != "" {
+                v(4pt)
+                text(size: 12pt, fill: primary-color)[#data.basics.headline]
+              }
+            ]
+          )
+        } else {
+          text(size: 26pt, weight: "bold", fill: text-color)[#data.basics.name]
+
+          if data.basics.headline != "" {
+            v(4pt)
+            text(size: 12pt, fill: primary-color)[#data.basics.headline]
+          }
         }
       ],
       align(right)[
         #let contact-items = build-contact-items(data.basics)
-        #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#text(fill: primary-color)[#data.basics.url.href]],) }
+        #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#text(fill: primary-color)[#url-display-label(data.basics.url)]],) }
 
         #for item in contact-items {
           text(size: 9pt, fill: muted-color)[#item]

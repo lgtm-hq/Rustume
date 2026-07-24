@@ -8,7 +8,7 @@ use rustume_parser::{JsonResumeParser, Parser, ReactiveResumeV3Parser};
 use rustume_render::{get_page_size, get_template_theme, Renderer, TypstRenderer, TEMPLATES};
 use rustume_schema::{
     Basics, CustomItem, Education, Experience, LevelDisplay, PageFormat, Picture, PictureEffects,
-    ResumeData, Section, Skill,
+    Profile, ResumeData, Section, Skill,
 };
 use std::collections::HashMap;
 use std::fs;
@@ -1023,5 +1023,77 @@ fn test_templates_use_shared_render_contract() {
             "{} must not resolve layout sections directly",
             path.display()
         );
+        assert!(
+            contents.contains("render-profile-entry("),
+            "{} must render profiles through _common.typ::render-profile-entry",
+            path.display()
+        );
     }
+}
+
+#[test]
+fn test_common_defines_profile_icon_helpers() {
+    let common = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("typst_engine")
+        .join("templates")
+        .join("_common.typ");
+    let contents = fs::read_to_string(&common)
+        .unwrap_or_else(|e| panic!("Failed to read {}: {e}", common.display()));
+
+    for needle in [
+        "profile-icon-key",
+        "profile-icon-asset",
+        "profile-icon-mark",
+        "render-profile-icon",
+        "render-profile-entry",
+        "typography-hide-icons",
+        "typography-underline-links",
+        "/assets/icons/",
+    ] {
+        assert!(
+            contents.contains(needle),
+            "_common.typ must define {needle}"
+        );
+    }
+}
+
+#[rstest]
+#[case("pikachu")]
+#[case("onyx")]
+#[case("gengar")]
+#[case("azurill")]
+fn test_templates_render_profiles_with_links(#[case] template_name: &str) {
+    let renderer = TypstRenderer::new();
+    let mut resume = sample_resume();
+    resume.metadata.template = template_name.to_string();
+    resume.metadata.typography.hide_icons = false;
+    resume.metadata.typography.underline_links = true;
+    resume.sections.profiles = Section::new("profiles", "Profiles");
+    resume.sections.profiles.visible = true;
+    resume.sections.profiles.add_item(
+        Profile::new("GitHub", "johndoe")
+            .with_url("https://github.com/johndoe")
+            .with_icon("github"),
+    );
+    resume.sections.profiles.add_item(
+        Profile::new("LinkedIn", "john-doe")
+            .with_url("https://linkedin.com/in/john-doe")
+            .with_icon("linkedin"),
+    );
+
+    let pdf = renderer
+        .render_pdf(&resume)
+        .unwrap_or_else(|err| panic!("PDF render failed for '{template_name}': {err:?}"));
+
+    assert!(pdf.starts_with(b"%PDF-"));
+    let pdf_str = String::from_utf8_lossy(&pdf);
+    assert!(
+        pdf_str.contains("https://github.com/johndoe"),
+        "PDF for '{template_name}' should embed the GitHub profile URL"
+    );
+    assert!(
+        pdf_str.contains("https://linkedin.com/in/john-doe"),
+        "PDF for '{template_name}' should embed the LinkedIn profile URL"
+    );
 }

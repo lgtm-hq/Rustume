@@ -140,12 +140,14 @@
   let render-profile(item) = {
     if item.visible == false { return }
 
-    if has-url(item) {
-      let label = if item.username != "" { item.username } else { item.url.href }
-      link(item.url.href)[#text(fill: primary-color)[#label]]
-    } else {
-      [#item.network: #item.username]
-    }
+    render-profile-entry(
+      data,
+      item,
+      size: 10pt,
+      fill: text-color,
+      link-fill: primary-color,
+      label-mode: if has-url(item) { "username" } else { "network-username" },
+    )
     v(4pt)
   }
 
@@ -357,7 +359,6 @@
     justify: true,
   )
 
-  // Cover letter — dedicated page before the resume content
   render-cover-letter-page(data, section-heading, muted: muted-color)
 
   if has-resume-body(data) {
@@ -383,7 +384,7 @@
       // Contact items - wrapped horizontally
       #let contact-items = build-contact-items(data.basics)
       #if has-url(data.basics) {
-        contact-items = contact-items + (link(data.basics.url.href)[#text(fill: primary-color)[#data.basics.url.href]],)
+        contact-items = contact-items + (link(data.basics.url.href)[#text(fill: primary-color)[#url-display-label(data.basics.url)]],)
       }
 
       #text(size: 9pt)[#contact-items.join([#h(10pt)#text(fill: muted-color)[|]#h(10pt)])]

@@ -175,6 +175,35 @@ pub struct UpdateResumeRequest {
     pub version: Option<i32>,
 }
 
+/// Request body for `POST /api/resumes/{id}/versions/{version}/restore`.
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct RestoreResumeRequest {
+    /// Expected current resume version for optimistic concurrency control.
+    pub version: i32,
+}
+
+/// Version summary returned by `GET /api/resumes/{id}/versions`.
+#[derive(Debug, Clone, FromRow, Serialize, ToSchema)]
+pub struct ResumeVersionSummary {
+    pub version: i32,
+    #[schema(value_type = String, format = "date-time")]
+    pub created_at: DateTime<Utc>,
+}
+
+/// Full snapshot returned by `GET /api/resumes/{id}/versions/{version}`.
+#[derive(Debug, Clone, FromRow, Serialize, ToSchema)]
+pub struct ResumeSnapshot {
+    #[schema(value_type = String, format = "uuid")]
+    pub id: Uuid,
+    #[schema(value_type = String, format = "uuid")]
+    pub resume_id: Uuid,
+    pub version: i32,
+    #[schema(value_type = Object)]
+    pub data: serde_json::Value,
+    #[schema(value_type = String, format = "date-time")]
+    pub created_at: DateTime<Utc>,
+}
+
 /// Single resume payload within an import batch.
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct ImportResumeItem {
@@ -292,53 +321,6 @@ mod tests {
     use chrono::Utc;
 
     #[test]
-    fn auth_user_response_includes_profile_fields() {
-        let user = User {
-            id: Uuid::nil(),
-            workos_id: "user_01".to_string(),
-            plan: "free".to_string(),
-            paddle_customer_id: None,
-            email: Some("dev@example.com".to_string()),
-            first_name: Some("Ada".to_string()),
-            last_name: Some("Lovelace".to_string()),
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        };
-
-        let response = AuthUserResponse::from_user(user, true, None);
-        let json = serde_json::to_value(&response).unwrap();
-
-        assert_eq!(json["id"], Uuid::nil().to_string());
-        assert_eq!(json["plan"], "free");
-        assert_eq!(json["email"], "dev@example.com");
-        assert_eq!(json["first_name"], "Ada");
-        assert_eq!(json["last_name"], "Lovelace");
-        assert_eq!(json["require_auth"], true);
-        assert!(json.get("subscription").is_none());
-    }
-
-    #[test]
-    fn auth_user_response_omits_empty_profile_fields() {
-        let user = User {
-            id: Uuid::nil(),
-            workos_id: "user_01".to_string(),
-            plan: "free".to_string(),
-            paddle_customer_id: None,
-            email: None,
-            first_name: None,
-            last_name: None,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        };
-
-        let json = serde_json::to_value(AuthUserResponse::from_user(user, false, None)).unwrap();
-
-        assert!(json.get("email").is_none());
-        assert!(json.get("first_name").is_none());
-        assert!(json.get("last_name").is_none());
-    }
-
-    #[test]
     fn resume_row_never_exposes_password_hash() {
         let row = ResumeRow {
             id: Uuid::nil(),
@@ -392,6 +374,53 @@ mod tests {
 
         assert_eq!(json["is_public"], false);
         assert_eq!(json["public_slug"], "clxyz123");
+    }
+
+    #[test]
+    fn auth_user_response_includes_profile_fields() {
+        let user = User {
+            id: Uuid::nil(),
+            workos_id: "user_01".to_string(),
+            plan: "free".to_string(),
+            paddle_customer_id: None,
+            email: Some("dev@example.com".to_string()),
+            first_name: Some("Ada".to_string()),
+            last_name: Some("Lovelace".to_string()),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+
+        let response = AuthUserResponse::from_user(user, true, None);
+        let json = serde_json::to_value(&response).unwrap();
+
+        assert_eq!(json["id"], Uuid::nil().to_string());
+        assert_eq!(json["plan"], "free");
+        assert_eq!(json["email"], "dev@example.com");
+        assert_eq!(json["first_name"], "Ada");
+        assert_eq!(json["last_name"], "Lovelace");
+        assert_eq!(json["require_auth"], true);
+        assert!(json.get("subscription").is_none());
+    }
+
+    #[test]
+    fn auth_user_response_omits_empty_profile_fields() {
+        let user = User {
+            id: Uuid::nil(),
+            workos_id: "user_01".to_string(),
+            plan: "free".to_string(),
+            paddle_customer_id: None,
+            email: None,
+            first_name: None,
+            last_name: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+
+        let json = serde_json::to_value(AuthUserResponse::from_user(user, false, None)).unwrap();
+
+        assert!(json.get("email").is_none());
+        assert!(json.get("first_name").is_none());
+        assert!(json.get("last_name").is_none());
     }
 
     #[test]

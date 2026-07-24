@@ -3,7 +3,13 @@ import { Button, Modal, toast } from "../ui";
 import { uiStore } from "../../stores/ui";
 import { resumeStore } from "../../stores/resume";
 import { downloadPdf } from "../../api/render";
-import { downloadResumeJson, resumeFileName } from "./exportJson";
+import { resumeToJson, isWasmReady } from "../../wasm";
+import {
+  type PdfExportScope,
+  hasCoverLetterContent,
+  pdfExportFileName,
+  resumeForPdfExport,
+} from "./coverLetterExport";
 
 export function ExportModal() {
   const { store: ui, closeModal } = uiStore;
@@ -11,8 +17,14 @@ export function ExportModal() {
 
   const [isExporting, setIsExporting] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
+  const [pdfScope, setPdfScope] = createSignal<PdfExportScope>("resume");
 
   const isOpen = () => ui.modal === "export";
+  /** Show cover-letter PDF scopes only when the section is visible and has body content. */
+  const canExportCoverLetter = () =>
+    store.resume != null &&
+    store.resume.sections.coverLetter.visible === true &&
+    hasCoverLetterContent(store.resume);
 
   const handleExportPdf = async () => {
     if (!store.resume) return;
@@ -21,8 +33,17 @@ export function ExportModal() {
     setError(null);
 
     try {
-      await downloadPdf(store.resume, `${resumeFileName(store.resume)}.pdf`);
-      toast.success("PDF exported successfully");
+      const scope = canExportCoverLetter() ? pdfScope() : "resume";
+      if (scope === "coverLetter" && !hasCoverLetterContent(store.resume)) {
+        toast.error("Add cover letter content before exporting");
+        setError("Cover letter is empty");
+        return;
+      }
+      const payload = resumeForPdfExport(store.resume, scope);
+      await downloadPdf(payload, `${pdfExportFileName(store.resume, scope)}.pdf`);
+      toast.success(
+        scope === "coverLetter" ? "Cover letter PDF exported" : "PDF exported successfully",
+      );
       closeModal();
     } catch (e) {
       console.error("Export error:", e);
@@ -37,7 +58,25 @@ export function ExportModal() {
     if (!store.resume) return;
 
     try {
-      downloadResumeJson(store.resume);
+      let json: string;
+
+      if (isWasmReady()) {
+        json = resumeToJson(store.resume);
+      } else {
+        json = JSON.stringify(store.resume, null, 2);
+      }
+
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${pdfExportFileName(store.resume, "resume")}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      URL.revokeObjectURL(url);
       toast.success("JSON exported successfully");
       closeModal();
     } catch (e) {
@@ -55,17 +94,58 @@ export function ExportModal() {
       description="Download your resume in various formats"
     >
       <div class="space-y-4">
+        <Show when={canExportCoverLetter()}>
+          <fieldset class="space-y-2">
+            <legend class="font-mono text-xs uppercase tracking-wider text-stone">
+              PDF contents
+            </legend>
+            <label class="flex items-start gap-3 p-3 border border-border rounded-xl cursor-pointer hover:border-accent/60 transition-colors has-[:checked]:border-accent has-[:checked]:bg-accent/5">
+              <input
+                type="radio"
+                name="pdf-scope"
+                class="mt-1 accent-[var(--color-accent)]"
+                checked={pdfScope() === "resume"}
+                onChange={() => setPdfScope("resume")}
+              />
+              <span>
+                <span class="block font-display font-semibold text-ink">Resume + cover letter</span>
+                <span class="block text-sm text-stone">Combined PDF using your current layout</span>
+              </span>
+            </label>
+            <label class="flex items-start gap-3 p-3 border border-border rounded-xl cursor-pointer hover:border-accent/60 transition-colors has-[:checked]:border-accent has-[:checked]:bg-accent/5">
+              <input
+                type="radio"
+                name="pdf-scope"
+                class="mt-1 accent-[var(--color-accent)]"
+                checked={pdfScope() === "coverLetter"}
+                onChange={() => setPdfScope("coverLetter")}
+              />
+              <span>
+                <span class="block font-display font-semibold text-ink">Cover letter only</span>
+                <span class="block text-sm text-stone">Standalone cover letter PDF</span>
+              </span>
+            </label>
+          </fieldset>
+        </Show>
+
         {/* Export Options */}
         <div class="space-y-3">
           {/* PDF */}
           <button
+            type="button"
             class="w-full p-4 flex items-center gap-4 border border-border rounded-xl
               hover:border-accent hover:bg-accent/5 transition-colors text-left group"
             onClick={handleExportPdf}
             disabled={isExporting()}
+            aria-busy={isExporting()}
           >
             <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
-              <svg class="w-6 h-6 text-red-600" viewBox="0 0 24 24" fill="currentColor">
+              <svg
+                class="w-6 h-6 text-red-600"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden="true"
+              >
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zM8.5 13.5a1 1 0 1 1 0 2h-1a.5.5 0 0 0-.5.5v1.5h-.5a.5.5 0 0 1 0-1H7v-1a1.5 1.5 0 0 1 1.5-1.5zm6.5 0a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-1.5a.5.5 0 0 1-.5-.5v-3a.5.5 0 0 1 .5-.5H15zm-2.5 0a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-1 0v-1h-.5a.5.5 0 0 1 0-1h.5v-1a.5.5 0 0 1 .5-.5z" />
               </svg>
             </div>
@@ -78,7 +158,11 @@ export function ExportModal() {
             <Show
               when={!isExporting()}
               fallback={
-                <svg class="w-5 h-5 animate-spin text-accent" viewBox="0 0 24 24">
+                <svg
+                  class="w-5 h-5 animate-spin text-accent"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
                   <circle
                     class="opacity-25"
                     cx="12"
@@ -101,6 +185,7 @@ export function ExportModal() {
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                aria-hidden="true"
               >
                 <path
                   stroke-linecap="round"
@@ -114,12 +199,18 @@ export function ExportModal() {
 
           {/* JSON */}
           <button
+            type="button"
             class="w-full p-4 flex items-center gap-4 border border-border rounded-xl
               hover:border-accent hover:bg-accent/5 transition-colors text-left group"
             onClick={handleExportJson}
           >
             <div class="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
-              <svg class="w-6 h-6 text-amber-600" viewBox="0 0 24 24" fill="currentColor">
+              <svg
+                class="w-6 h-6 text-amber-600"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden="true"
+              >
                 <path d="M5 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H5zm4.5 5a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 1 .5-.5zm5 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 .5.5h.5a.5.5 0 0 1 0 1H15a1.5 1.5 0 0 1-1.5-1.5v-2a.5.5 0 0 1 .5-.5zM8 14a.5.5 0 0 1 .5.5v1a.5.5 0 0 0 .5.5h.5a.5.5 0 0 1 0 1H9a1.5 1.5 0 0 1-1.5-1.5v-1A.5.5 0 0 1 8 14z" />
               </svg>
             </div>
@@ -134,6 +225,7 @@ export function ExportModal() {
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
+              aria-hidden="true"
             >
               <path
                 stroke-linecap="round"
@@ -147,7 +239,10 @@ export function ExportModal() {
 
         {/* Error */}
         <Show when={error()}>
-          <div class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          <div
+            role="alert"
+            class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700"
+          >
             {error()}
           </div>
         </Show>

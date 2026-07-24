@@ -93,6 +93,8 @@ function upgradeOrRethrow409(error: ApiError): never {
     throw error;
   }
 
+  // Prefer the raw response body: ApiError.message is often just the extracted
+  // `error` string after client parsing, which drops `current_version`.
   const body = parseApiErrorBody(error.body ?? error.message);
   if (body?.current_version !== undefined) {
     throw new ResumeVersionConflictError(body.error, body.current_version);
@@ -193,6 +195,50 @@ export async function importResumes(resumes: ImportResumeItem[]): Promise<Import
   }
 
   return { imported, failures };
+}
+
+export interface ResumeVersionSummary {
+  version: number;
+  created_at: string;
+}
+
+export interface ResumeSnapshot {
+  id: string;
+  resume_id: string;
+  version: number;
+  data: ResumeData;
+  created_at: string;
+}
+
+export interface RestoreResumePayload {
+  version: number;
+}
+
+export async function listResumeVersions(id: string): Promise<ResumeVersionSummary[]> {
+  return get<ResumeVersionSummary[]>(`/resumes/${id}/versions`);
+}
+
+export async function getResumeVersion(id: string, version: number): Promise<ResumeSnapshot> {
+  return get<ResumeSnapshot>(`/resumes/${id}/versions/${version}`);
+}
+
+export async function restoreResumeVersion(
+  id: string,
+  version: number,
+  currentVersion: number,
+): Promise<CloudResumeRow> {
+  try {
+    return (await post(
+      `/resumes/${id}/versions/${version}/restore`,
+      { version: currentVersion } satisfies RestoreResumePayload,
+      cloudResumeRowSchema,
+    )) as unknown as CloudResumeRow;
+  } catch (error: unknown) {
+    if (error instanceof ApiError) {
+      upgradeOrRethrow409(error);
+    }
+    throw error;
+  }
 }
 
 export async function upsertCloudResume(

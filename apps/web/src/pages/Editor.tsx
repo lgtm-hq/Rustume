@@ -3,9 +3,10 @@ import {
   createMemo,
   createSignal,
   lazy,
+  Match,
   on,
-  onMount,
   Show,
+  Switch,
   Suspense,
 } from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
@@ -18,6 +19,7 @@ import {
   type CommandAction,
 } from "../components/ui";
 import { useHotkeys, type Shortcut } from "../hooks/useHotkeys";
+import { usePageTitle } from "../hooks/usePageTitle";
 import { useNavigationGuard } from "../hooks/useNavigationGuard";
 import { SplitPane } from "../components/layout/SplitPane";
 import { Sidebar, type SidebarItem } from "../components/layout/Sidebar";
@@ -42,6 +44,7 @@ import {
 import { resumeStore, isNotFoundError } from "../stores/resume";
 import { downloadResumeJson } from "../components/export/exportJson";
 import { uiStore } from "../stores/ui";
+import { undoHistoryStore } from "../stores/undoHistory";
 import { generateId } from "../wasm/types";
 import { isWasmReady } from "../wasm";
 import { CustomCssInjector } from "../components/templates/CustomCssInjector";
@@ -55,6 +58,16 @@ const LayoutEditor = lazy(() =>
 const SummaryEditor = lazy(() =>
   import("../components/builder/SummaryEditor").then((module) => ({
     default: module.SummaryEditor,
+  })),
+);
+const CoverLetterEditor = lazy(() =>
+  import("../components/builder/CoverLetterEditor").then((module) => ({
+    default: module.CoverLetterEditor,
+  })),
+);
+const NotesEditor = lazy(() =>
+  import("../components/builder/NotesEditor").then((module) => ({
+    default: module.NotesEditor,
   })),
 );
 const ThemeEditor = lazy(() =>
@@ -73,6 +86,11 @@ const ImportModal = lazy(() =>
 const ExportModal = lazy(() =>
   import("../components/export/ExportModal").then((module) => ({ default: module.ExportModal })),
 );
+const VersionHistory = lazy(() =>
+  import("../components/builder/VersionHistory").then((module) => ({
+    default: module.VersionHistory,
+  })),
+);
 
 function TabFallback() {
   return (
@@ -85,6 +103,7 @@ function TabFallback() {
 type EditorTab =
   | "basics"
   | "summary"
+  | "coverLetter"
   | "layout"
   | "experience"
   | "education"
@@ -100,6 +119,7 @@ type EditorTab =
   | "references"
   | "custom"
   | `custom:${string}`
+  | "notes"
   | "theme";
 
 const CUSTOM_ICON = "M12 4v16m8-8H4";
@@ -114,6 +134,11 @@ const TABS: SidebarItem[] = [
     id: "summary",
     label: "Summary",
     icon: "M4 6h16M4 12h16M4 18h7",
+  },
+  {
+    id: "coverLetter",
+    label: "Cover Letter",
+    icon: "M4 4h16v16H4V4zm4 4h8M8 12h8M8 16h5",
   },
   {
     id: "layout",
@@ -186,6 +211,11 @@ const TABS: SidebarItem[] = [
     icon: CUSTOM_ICON,
   },
   {
+    id: "notes",
+    label: "Notes",
+    icon: "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z",
+  },
+  {
     id: "theme",
     label: "Theme",
     icon: "M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01",
@@ -195,6 +225,7 @@ const TABS: SidebarItem[] = [
 const CONTENT_TAB_IDS = new Set([
   "basics",
   "summary",
+  "coverLetter",
   "experience",
   "education",
   "skills",
@@ -208,7 +239,7 @@ const CONTENT_TAB_IDS = new Set([
   "volunteer",
   "references",
 ]);
-const SETTINGS_TAB_IDS = new Set(["layout", "theme"]);
+const SETTINGS_TAB_IDS = new Set(["layout", "theme", "notes"]);
 const SIDEBAR_GROUP_ORDER = new Map([
   ["Content", 0],
   ["Custom", 1],
@@ -226,11 +257,28 @@ function sidebarGroupOrder(item: SidebarItem): number {
   return SIDEBAR_GROUP_ORDER.get(item.group ?? "") ?? Number.MAX_SAFE_INTEGER;
 }
 
+function EditorPreviewPane() {
+  return (
+    <div class="h-full relative" data-testid="editor-preview-pane">
+      <Suspense fallback={<TabFallback />}>
+        <Preview />
+      </Suspense>
+      <SectionPanel />
+    </div>
+  );
+}
+
 export default function Editor() {
   const params = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { store, loadResume, createNewResume } = resumeStore;
+  const { store, loadResume, createNewResume, undo, redo, forceSave } = resumeStore;
   const { store: ui, openModal, closeModal, setPanel } = uiStore;
+  const undoState = () => undoHistoryStore.state;
+
+  usePageTitle(() => {
+    const name = store.resume?.basics.name.trim();
+    return name ? `${name} · Editor` : "Editor";
+  });
 
   const [activeTab, setActiveTab] = createSignal<EditorTab>("basics");
   const [isLoading, setIsLoading] = createSignal(true);
@@ -268,6 +316,37 @@ export default function Editor() {
       },
       label: "Save",
       category: "General",
+    },
+    {
+      key: "z",
+      mod: true,
+      skipWhenEditable: true,
+      handler: () => {
+        if (undo()) toast.success("Undone");
+      },
+      label: "Undo",
+      category: "Editing",
+    },
+    {
+      key: "z",
+      mod: true,
+      shift: true,
+      skipWhenEditable: true,
+      handler: () => {
+        if (redo()) toast.success("Redone");
+      },
+      label: "Redo",
+      category: "Editing",
+    },
+    {
+      key: "y",
+      mod: true,
+      skipWhenEditable: true,
+      handler: () => {
+        if (redo()) toast.success("Redone");
+      },
+      label: "Redo",
+      category: "Editing",
     },
     {
       key: "p",
@@ -392,9 +471,34 @@ export default function Editor() {
     ];
   });
 
-  async function attemptLoad() {
-    if (!params.id) {
+  /** Monotonic token so overlapping loads cannot clobber a newer route's state. */
+  let loadSeq = 0;
+
+  async function attemptLoad(id: string | undefined) {
+    const seq = ++loadSeq;
+
+    if (!id) {
       navigate("/");
+      return;
+    }
+
+    // Flush pending autosave before switching resumes so dirty edits aren't lost
+    // or persisted under the destination id after the shared store is replaced.
+    const previousId = store.id;
+    if (previousId && previousId !== id) {
+      await forceSave();
+      if (seq !== loadSeq) return;
+      // persistResume swallows errors — if still dirty, restore the previous route
+      // so the URL stays aligned with the shared store instead of showing A at /edit/B.
+      if (store.isDirty) {
+        toast.error(store.error ?? "Failed to save current resume before switching");
+        navigate(`/edit/${previousId}`, { replace: true });
+        return;
+      }
+    } else if (store.id === id && store.resume) {
+      // Already editing this resume (e.g. restored route after a failed flush).
+      setIsLoading(false);
+      setLoadError(null);
       return;
     }
 
@@ -407,15 +511,18 @@ export default function Editor() {
       await new Promise((r) => setTimeout(r, 100));
       attempts++;
     }
+    if (seq !== loadSeq) return;
 
     try {
       // Try to load existing resume
-      await loadResume(params.id);
+      await loadResume(id);
+      if (seq !== loadSeq) return;
     } catch (error) {
+      if (seq !== loadSeq) return;
       if (isNotFoundError(error)) {
         // Resume genuinely does not exist -- safe to create a new one
         try {
-          createNewResume(params.id);
+          createNewResume(id);
           toast.info("New resume created");
         } catch (createError) {
           console.error("Failed to create new resume:", createError);
@@ -431,99 +538,140 @@ export default function Editor() {
         toast.error("Failed to load resume — your data has not been modified");
       }
     } finally {
-      setIsLoading(false);
+      if (seq === loadSeq) {
+        setIsLoading(false);
+      }
     }
   }
 
-  onMount(attemptLoad);
-
-  // The router reuses this component on /edit/:id param changes (no remount),
-  // so reload when the id changes. Flush any pending autosave of the previous
-  // resume first so its in-flight edits are not lost when the store is replaced.
+  // Reload whenever the route id changes (Create Resume navigates /edit/:id → /edit/:id).
   createEffect(
     on(
       () => params.id,
-      () => {
-        void (async () => {
-          if (store.isDirty) await resumeStore.forceSave();
-          await attemptLoad();
-        })();
+      (id) => {
+        void attemptLoad(id);
       },
-      { defer: true },
     ),
   );
 
-  const renderTabContent = () => {
-    switch (activeTab()) {
-      case "basics":
-        return <BasicsForm />;
-      case "summary":
-        return (
-          <Suspense fallback={<TabFallback />}>
-            <SummaryEditor />
-          </Suspense>
-        );
-      case "layout":
-        return (
-          <Suspense fallback={<TabFallback />}>
-            <LayoutEditor />
-          </Suspense>
-        );
-      case "experience":
-        return <ExperienceEditor />;
-      case "education":
-        return <EducationEditor />;
-      case "skills":
-        return <SkillsEditor />;
-      case "projects":
-        return <ProjectsEditor />;
-      case "profiles":
-        return <ProfilesEditor />;
-      case "awards":
-        return <AwardsEditor />;
-      case "certifications":
-        return <CertificationsEditor />;
-      case "publications":
-        return <PublicationsEditor />;
-      case "languages":
-        return <LanguagesEditor />;
-      case "interests":
-        return <InterestsEditor />;
-      case "volunteer":
-        return <VolunteerEditor />;
-      case "references":
-        return <ReferencesEditor />;
-      case "custom":
-        return (
-          <CustomSectionsIndex
-            onSelectSection={(sectionId) => setActiveTab(`custom:${sectionId}`)}
+  // Closure components so SplitPane slots mount once; tab signal reads stay inside.
+  const EditorLeftPane = () => {
+    const { updateMetadata } = resumeStore;
+    return (
+      <div class="h-full flex flex-col" data-testid="editor-left-pane">
+        <Show when={store.resume?.metadata?.locked}>
+          <div
+            class="flex items-center justify-between gap-3 border-b border-border bg-surface/80 px-4 py-2"
+            data-testid="resume-locked-banner"
+          >
+            <p class="text-sm text-stone">This resume is locked. Unlock to make changes.</p>
+            <Button size="sm" variant="secondary" onClick={() => updateMetadata("locked", false)}>
+              Unlock
+            </Button>
+          </div>
+        </Show>
+        <div
+          class="h-full flex flex-1 min-h-0"
+          classList={{
+            "pointer-events-none opacity-60": Boolean(store.resume?.metadata?.locked),
+          }}
+        >
+          <Sidebar
+            items={sidebarItems()}
+            activeId={activeTab()}
+            onSelect={(id) => setActiveTab(id as EditorTab)}
           />
-        );
-      case "theme":
-        return (
-          <Suspense fallback={<TabFallback />}>
-            <ThemeEditor />
-          </Suspense>
-        );
-      default:
-        if (activeTab().startsWith("custom:")) {
-          const sectionId = activeTab().slice("custom:".length);
-          return (
-            <CustomSectionEditor sectionId={sectionId} onDeleted={() => setActiveTab("custom")} />
-          );
-        }
-        return null;
-    }
+          <div class="flex-1 overflow-auto p-6">
+            <Switch fallback={null}>
+              <Match when={activeTab() === "basics"}>
+                <BasicsForm />
+              </Match>
+              <Match when={activeTab() === "summary"}>
+                <Suspense fallback={<TabFallback />}>
+                  <SummaryEditor />
+                </Suspense>
+              </Match>
+              <Match when={activeTab() === "coverLetter"}>
+                <Suspense fallback={<TabFallback />}>
+                  <CoverLetterEditor />
+                </Suspense>
+              </Match>
+              <Match when={activeTab() === "layout"}>
+                <Suspense fallback={<TabFallback />}>
+                  <LayoutEditor />
+                </Suspense>
+              </Match>
+              <Match when={activeTab() === "experience"}>
+                <ExperienceEditor />
+              </Match>
+              <Match when={activeTab() === "education"}>
+                <EducationEditor />
+              </Match>
+              <Match when={activeTab() === "skills"}>
+                <SkillsEditor />
+              </Match>
+              <Match when={activeTab() === "projects"}>
+                <ProjectsEditor />
+              </Match>
+              <Match when={activeTab() === "profiles"}>
+                <ProfilesEditor />
+              </Match>
+              <Match when={activeTab() === "awards"}>
+                <AwardsEditor />
+              </Match>
+              <Match when={activeTab() === "certifications"}>
+                <CertificationsEditor />
+              </Match>
+              <Match when={activeTab() === "publications"}>
+                <PublicationsEditor />
+              </Match>
+              <Match when={activeTab() === "languages"}>
+                <LanguagesEditor />
+              </Match>
+              <Match when={activeTab() === "interests"}>
+                <InterestsEditor />
+              </Match>
+              <Match when={activeTab() === "volunteer"}>
+                <VolunteerEditor />
+              </Match>
+              <Match when={activeTab() === "references"}>
+                <ReferencesEditor />
+              </Match>
+              <Match when={activeTab() === "custom"}>
+                <CustomSectionsIndex
+                  onSelectSection={(sectionId) => setActiveTab(`custom:${sectionId}`)}
+                />
+              </Match>
+              <Match when={activeTab() === "notes"}>
+                <Suspense fallback={<TabFallback />}>
+                  <NotesEditor />
+                </Suspense>
+              </Match>
+              <Match when={activeTab() === "theme"}>
+                <Suspense fallback={<TabFallback />}>
+                  <ThemeEditor />
+                </Suspense>
+              </Match>
+              <Match when={activeTab().startsWith("custom:") ? activeTab() : false}>
+                {(tab) => (
+                  <CustomSectionEditor
+                    sectionId={tab().slice("custom:".length)}
+                    onDeleted={() => setActiveTab("custom")}
+                  />
+                )}
+              </Match>
+            </Switch>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
     <div class="h-[calc(100vh-3.5rem)] flex flex-col">
       <CustomCssInjector />
       {/* Toolbar */}
-      <div
-        class="h-12 border-b border-border bg-paper flex items-center justify-between px-4"
-        data-print-hide
-      >
+      <div class="h-12 border-b border-border bg-paper flex items-center justify-between px-4">
         <div class="flex items-center gap-2">
           {/* Panel Toggle */}
           <div class="flex items-center bg-surface rounded-lg p-0.5">
@@ -552,6 +700,53 @@ export default function Editor() {
         </div>
 
         <div class="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => undo()}
+            disabled={!undoState().canUndo}
+            aria-label="Undo"
+            title="Undo"
+          >
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M3 10h10a5 5 0 015 5v2M3 10l4-4M3 10l4 4"
+              />
+            </svg>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => redo()}
+            disabled={!undoState().canRedo}
+            aria-label="Redo"
+            title="Redo"
+          >
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M21 10H11a5 5 0 00-5 5v2M21 10l-4-4M21 10l-4 4"
+              />
+            </svg>
+          </Button>
+
           <Button variant="ghost" size="sm" onClick={() => openModal("import")}>
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -562,6 +757,18 @@ export default function Editor() {
               />
             </svg>
             Import
+          </Button>
+
+          <Button variant="ghost" size="sm" onClick={() => openModal("versionHistory")}>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            History
           </Button>
 
           {/* Template Button with Current Selection Indicator */}
@@ -611,7 +818,7 @@ export default function Editor() {
       {/* Main Content */}
       <div class="flex-1 overflow-hidden">
         <Show
-          when={!isLoading() && !loadError() && store.resume}
+          when={!isLoading() && !loadError() && store.resume != null}
           fallback={
             <div class="h-full flex items-center justify-center">
               <Show
@@ -659,7 +866,7 @@ export default function Editor() {
                     </h2>
                     <p class="text-stone text-sm mb-6">{errorMsg()}</p>
                     <div class="flex items-center justify-center gap-3">
-                      <Button variant="secondary" onClick={() => attemptLoad()}>
+                      <Button variant="secondary" onClick={() => void attemptLoad(params.id)}>
                         Retry
                       </Button>
                       <Button variant="ghost" onClick={() => navigate("/", { replace: true })}>
@@ -676,27 +883,8 @@ export default function Editor() {
             showLeft={ui.panel !== "preview"}
             showRight={ui.panel !== "editor"}
             defaultRatio={0.45}
-            left={
-              <div class="h-full flex" data-print-hide>
-                {/* Sidebar Navigation */}
-                <Sidebar
-                  items={sidebarItems()}
-                  activeId={activeTab()}
-                  onSelect={(id) => setActiveTab(id as EditorTab)}
-                />
-
-                {/* Tab Content */}
-                <div class="flex-1 overflow-auto p-6">{renderTabContent()}</div>
-              </div>
-            }
-            right={
-              <div class="h-full relative">
-                <Suspense fallback={<TabFallback />}>
-                  <Preview />
-                </Suspense>
-                <SectionPanel />
-              </div>
-            }
+            left={<EditorLeftPane />}
+            right={<EditorPreviewPane />}
           />
         </Show>
       </div>
@@ -715,6 +903,11 @@ export default function Editor() {
       <Show when={ui.modal === "export"}>
         <Suspense fallback={null}>
           <ExportModal />
+        </Suspense>
+      </Show>
+      <Show when={ui.modal === "versionHistory"}>
+        <Suspense fallback={null}>
+          <VersionHistory />
         </Suspense>
       </Show>
       <ShortcutsModal shortcuts={shortcuts} />

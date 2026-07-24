@@ -1,5 +1,5 @@
-import { createSignal } from "solid-js";
 import { StatusPage } from "../components/errors/StatusPage";
+import { usePageTitle } from "../hooks/usePageTitle";
 import { authStore } from "../stores/auth";
 
 function LockIcon() {
@@ -23,17 +23,8 @@ function LockIcon() {
 
 /** Shown when hosted Rustume Cloud requires sign-in before using the app. */
 export default function Unauthorized() {
+  usePageTitle("Sign in required");
   const { signIn } = authStore;
-  const [signingIn, setSigningIn] = createSignal(false);
-
-  const handleSignIn = () => {
-    setSigningIn(true);
-    try {
-      signIn();
-    } catch {
-      setSigningIn(false);
-    }
-  };
 
   return (
     <StatusPage
@@ -45,8 +36,7 @@ export default function Unauthorized() {
       icon={<LockIcon />}
       primaryAction={{
         label: "Sign in to sync across devices",
-        onClick: handleSignIn,
-        loading: signingIn(),
+        onClick: () => signIn(),
       }}
       secondaryAction={{
         label: "Learn about cloud accounts",

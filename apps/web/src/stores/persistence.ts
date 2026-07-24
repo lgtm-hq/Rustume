@@ -6,7 +6,7 @@ import {
   getResume as getFromWasmStorage,
   saveResume as saveToWasmStorage,
   resumeExists as wasmResumeExists,
-  isWasmReady,
+  ensureWasmReady,
 } from "../wasm";
 import { generateId } from "../wasm/types";
 import type { ResumeData } from "../wasm/types";
@@ -25,25 +25,34 @@ import {
   saveCloudResume,
   showResumeVersionConflictToast,
 } from "./cloudStorage";
+import { deleteSnapshotsForResume } from "./versionHistory";
 
 export interface ResumeListItem {
   id: string;
   name: string;
   updatedAt: Date;
+  /** First-seen timestamp for sorting; falls back to updatedAt when unknown. */
+  createdAt?: Date;
   /** basics.name from the stored resume, when known (for search). */
   basicsName?: string;
   /** basics.headline from the stored resume, when known (for search). */
   headline?: string;
+  locked?: boolean;
+  tags?: string[];
 }
 
 /** Serialized form stored in localStorage under the `_meta` key. */
 export interface ResumeMetaEntry {
   title: string;
   updatedAt: string; // ISO-8601
+  /** First-seen timestamp; preserved across saves. */
+  createdAt?: string;
   /** basics.name snapshot for search; absent on pre-existing entries. */
   basicsName?: string;
   /** basics.headline snapshot for search; absent on pre-existing entries. */
   headline?: string;
+  locked?: boolean;
+  tags?: string[];
 }
 
 /** Searchable fields snapshotted from resume data into metadata. */
@@ -110,14 +119,19 @@ export function setResumeMeta(
   title: string,
   updatedAt?: Date,
   search?: ResumeSearchMeta,
+  extras?: Pick<ResumeMetaEntry, "locked" | "tags">,
 ): void {
   const map = getMetaMap();
   const existing = map[id];
+  const now = (updatedAt ?? new Date()).toISOString();
   map[id] = {
     title,
-    updatedAt: (updatedAt ?? new Date()).toISOString(),
+    updatedAt: now,
+    createdAt: existing?.createdAt ?? now,
     basicsName: search ? search.basicsName : existing?.basicsName,
     headline: search ? search.headline : existing?.headline,
+    locked: extras?.locked ?? existing?.locked,
+    tags: extras?.tags ?? existing?.tags,
   };
   setMetaMap(map);
 }
@@ -162,20 +176,42 @@ function resolveResumeTitle(id: string, data: ResumeData): string {
 }
 
 function maybeUpdateResumeMeta(id: string, title: string, data?: ResumeData): void {
-  const existing = getResumeMeta(id);
   const search = data ? deriveSearchMetaFromResume(data) : undefined;
-  if (
-    existing?.title === title &&
-    (search === undefined ||
-      (existing?.basicsName === search.basicsName && existing?.headline === search.headline))
-  ) {
-    return;
-  }
+  const extras = data
+    ? {
+        locked: Boolean(data.metadata?.locked),
+        tags: Array.isArray(data.metadata?.tags) ? data.metadata.tags : [],
+      }
+    : undefined;
+  // Always touch updatedAt on save so the home list reflects recent edits.
   try {
-    setResumeMeta(id, title, undefined, search);
+    setResumeMeta(id, title, new Date(), search, extras);
   } catch (e) {
     console.error("Failed to update resume metadata:", e);
     toast.warning("Resume saved but metadata could not be updated — storage may be full");
+  }
+}
+
+/** Optional payload for in-place home-list updates before a background refetch. */
+export interface ResumesChangedDetail {
+  id: string;
+  name?: string;
+  locked?: boolean;
+  tags?: string[];
+}
+
+/** Update list metadata after a resume save (shared by editor + persistence paths). */
+export function notifyResumeSaved(id: string, data: ResumeData): void {
+  const title = resolveResumeTitle(id, data);
+  maybeUpdateResumeMeta(id, title, data);
+  if (typeof window !== "undefined") {
+    const detail: ResumesChangedDetail = {
+      id,
+      name: title,
+      locked: Boolean(data.metadata?.locked),
+      tags: Array.isArray(data.metadata?.tags) ? data.metadata.tags : [],
+    };
+    window.dispatchEvent(new CustomEvent("rustume:resumes-changed", { detail }));
   }
 }
 
@@ -268,7 +304,9 @@ async function listResumes(): Promise<string[]> {
     const rows = await listCloudResumeSummaries();
     return rows.map((row) => row.id);
   }
-  if (isWasmReady()) {
+  // Wait for WASM — listing localStorage before init looks "empty" even when
+  // resumes already exist in IndexedDB.
+  if (await ensureWasmReady()) {
     return listWasmResumes();
   }
   return listLocalResumes();
@@ -277,19 +315,20 @@ async function listResumes(): Promise<string[]> {
 async function deleteResume(id: string): Promise<void> {
   if (isCloudAuthenticated()) {
     await removeCloudResume(id);
-  } else if (isWasmReady()) {
+  } else if (await ensureWasmReady()) {
     await deleteFromWasmStorage(id);
   } else {
     deleteLocalResume(id);
   }
   deleteResumeMeta(id);
+  await deleteSnapshotsForResume(id);
 }
 
 async function resumeExists(id: string): Promise<boolean> {
   if (isCloudAuthenticated()) {
     return cloudResumeExists(id);
   }
-  if (isWasmReady()) {
+  if (await ensureWasmReady()) {
     return wasmResumeExists(id);
   }
   return localResumeExists(id);
@@ -299,7 +338,7 @@ async function getResume(id: string): Promise<ResumeData> {
   if (isCloudAuthenticated()) {
     return loadCloudResume(id);
   }
-  if (isWasmReady()) {
+  if (await ensureWasmReady()) {
     return getFromWasmStorage(id);
   }
   return getLocalResume(id);
@@ -316,16 +355,19 @@ async function saveResume(id: string, data: ResumeData): Promise<void> {
       }
       throw error;
     }
-    maybeUpdateResumeMeta(id, title, data);
+    notifyResumeSaved(id, data);
     return;
   }
-  if (isWasmReady()) {
+  if (await ensureWasmReady()) {
     await saveToWasmStorage(id, data);
-    maybeUpdateResumeMeta(id, resolveResumeTitle(id, data), data);
+    notifyResumeSaved(id, data);
     return;
   }
   if (!saveLocalResume(id, data)) {
     throw new Error("Failed to save resume to local storage");
+  }
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("rustume:resumes-changed"));
   }
 }
 
@@ -344,8 +386,13 @@ async function fetchResumeList(): Promise<ResumeListItem[]> {
         id: row.id,
         name: row.title,
         updatedAt: new Date(row.updated_at),
+        createdAt: cachedMeta[row.id]?.createdAt
+          ? new Date(cachedMeta[row.id]!.createdAt!)
+          : new Date(row.updated_at),
         basicsName: cachedMeta[row.id]?.basicsName,
         headline: cachedMeta[row.id]?.headline,
+        locked: cachedMeta[row.id]?.locked,
+        tags: cachedMeta[row.id]?.tags,
       }));
     }
 
@@ -377,7 +424,13 @@ async function fetchResumeList(): Promise<ResumeListItem[]> {
             console.error("Failed to persist metadata for resume:", id, metaErr);
           }
         }
-        migratedMap.set(id, { id, name: title, updatedAt: new Date(), ...search });
+        migratedMap.set(id, {
+          id,
+          name: title,
+          updatedAt: new Date(),
+          createdAt: new Date(),
+          ...search,
+        });
       }
     }
 
@@ -390,8 +443,11 @@ async function fetchResumeList(): Promise<ResumeListItem[]> {
         id,
         name: meta.title,
         updatedAt: new Date(meta.updatedAt),
+        createdAt: new Date(meta.createdAt ?? meta.updatedAt),
         basicsName: meta.basicsName,
         headline: meta.headline,
+        locked: meta.locked,
+        tags: meta.tags,
       };
     });
   } catch (e) {
@@ -406,7 +462,24 @@ async function fetchResumeList(): Promise<ResumeListItem[]> {
 // ---------------------------------------------------------------------------
 
 export function useResumeList() {
-  const [resumes, { refetch }] = createResource(fetchResumeList);
+  const [resumes, { refetch, mutate }] = createResource(fetchResumeList);
+
+  const applyChangedDetail = (detail: ResumesChangedDetail | undefined) => {
+    if (!detail?.id) return;
+    mutate((current) => {
+      if (!current) return current;
+      return current.map((item) => {
+        if (item.id !== detail.id) return item;
+        return {
+          ...item,
+          ...(detail.name !== undefined ? { name: detail.name } : {}),
+          ...(detail.locked !== undefined ? { locked: detail.locked } : {}),
+          ...(detail.tags !== undefined ? { tags: detail.tags } : {}),
+          updatedAt: new Date(),
+        };
+      });
+    });
+  };
 
   createEffect(
     on(
@@ -422,19 +495,35 @@ export function useResumeList() {
   );
 
   onMount(() => {
-    const refresh = () => {
+    const onResumesChanged = (event: Event) => {
+      // Patch visible rows immediately so tag/lock edits don't blank the list
+      // while createResource briefly reports loading during refetch.
+      applyChangedDetail((event as CustomEvent<ResumesChangedDetail>).detail);
       void refetch();
     };
-    window.addEventListener("rustume:resumes-changed", refresh);
-    onCleanup(() => window.removeEventListener("rustume:resumes-changed", refresh));
+    const onWasmReady = () => {
+      void refetch();
+    };
+    window.addEventListener("rustume:resumes-changed", onResumesChanged);
+    window.addEventListener("rustume:wasm-ready", onWasmReady);
+    onCleanup(() => {
+      window.removeEventListener("rustume:resumes-changed", onResumesChanged);
+      window.removeEventListener("rustume:wasm-ready", onWasmReady);
+    });
   });
 
   return {
     resumes,
-    loading: () => resumes.loading,
+    // Only treat the first empty load as "loading". Background refetches keep
+    // previous rows visible (avoids full-list spinner flash on tag/lock edits).
+    loading: () => resumes() === undefined && resumes.loading,
     error: () => resumes.error,
 
     async refresh() {
+      // Solid's createResource ignores refetch() while a load was just scheduled
+      // (same-microtask debounce via `scheduled`). Yield so await refresh()
+      // always waits for a real load instead of resolving with an empty list.
+      await Promise.resolve();
       await refetch();
     },
 
@@ -535,7 +624,7 @@ export function useResumeList() {
 
 /** List resume IDs from local storage (WASM or localStorage fallback). */
 export async function listStoredResumeIds(): Promise<string[]> {
-  if (isWasmReady()) {
+  if (await ensureWasmReady()) {
     return listWasmResumes();
   }
   return listLocalResumes();
@@ -543,8 +632,27 @@ export async function listStoredResumeIds(): Promise<string[]> {
 
 /** Load a resume from local storage (WASM or localStorage fallback). */
 export async function getStoredResume(id: string): Promise<ResumeData> {
-  if (isWasmReady()) {
+  if (await ensureWasmReady()) {
     return getFromWasmStorage(id);
   }
   return getLocalResume(id);
+}
+
+/**
+ * Patch lock/tags on a stored resume and refresh list metadata.
+ * Works in local and cloud modes via the shared save path.
+ */
+export async function patchResumeListMeta(
+  id: string,
+  patch: { locked?: boolean; tags?: string[] },
+): Promise<void> {
+  const data = await getResume(id);
+  if (patch.locked !== undefined) {
+    data.metadata.locked = patch.locked;
+  }
+  if (patch.tags !== undefined) {
+    data.metadata.tags = patch.tags;
+  }
+  await saveResume(id, data);
+  notifyResumeSaved(id, data);
 }

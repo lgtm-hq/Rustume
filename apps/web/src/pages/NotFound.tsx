@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from "@solidjs/router";
 import { StatusPage } from "../components/errors/StatusPage";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 function MissingPageIcon() {
   return (
@@ -22,6 +23,7 @@ function MissingPageIcon() {
 }
 
 export default function NotFound() {
+  usePageTitle("Page not found");
   const navigate = useNavigate();
   const location = useLocation();
 

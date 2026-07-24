@@ -1,4 +1,4 @@
-import { type ParentComponent, type JSX, createSignal, Show } from "solid-js";
+import { type ParentComponent, type JSX, children, createSignal, Show } from "solid-js";
 
 export interface SplitPaneProps {
   left: JSX.Element;
@@ -14,6 +14,11 @@ export const SplitPane: ParentComponent<SplitPaneProps> = (props) => {
   const [ratio, setRatio] = createSignal(props.defaultRatio ?? 0.5);
   const [isDragging, setIsDragging] = createSignal(false);
   let containerRef: HTMLDivElement | undefined;
+
+  // Memoize slot content so reactive prop getters aren't re-invoked on every
+  // layout read (which would remount pane trees passed as JSX props).
+  const leftContent = children(() => props.left);
+  const rightContent = children(() => props.right);
 
   const showLeft = () => props.showLeft ?? true;
   const showRight = () => props.showRight ?? true;
@@ -64,7 +69,7 @@ export const SplitPane: ParentComponent<SplitPaneProps> = (props) => {
             width: showRight() ? `${ratio() * 100}%` : "100%",
           }}
         >
-          {props.left}
+          {leftContent()}
         </div>
       </Show>
 
@@ -73,6 +78,10 @@ export const SplitPane: ParentComponent<SplitPaneProps> = (props) => {
         <div
           role="separator"
           aria-orientation="vertical"
+          aria-label="Resize editor and preview panels"
+          aria-valuenow={Math.round(ratio() * 100)}
+          aria-valuemin={0}
+          aria-valuemax={100}
           class="w-1 bg-border hover:bg-accent cursor-col-resize
             transition-colors duration-150 flex-shrink-0 relative group"
           classList={{ "bg-accent": isDragging() }}
@@ -100,7 +109,7 @@ export const SplitPane: ParentComponent<SplitPaneProps> = (props) => {
             width: showLeft() ? `${(1 - ratio()) * 100}%` : "100%",
           }}
         >
-          {props.right}
+          {rightContent()}
         </div>
       </Show>
     </div>

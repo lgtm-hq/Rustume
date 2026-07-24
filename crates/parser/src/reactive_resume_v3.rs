@@ -1113,6 +1113,8 @@ fn convert_metadata(v3: &V3Metadata) -> Metadata {
         },
         notes: String::new(),
         level_display: LevelDisplay::TemplateDefault,
+        locked: false,
+        tags: Vec::new(),
     }
 }
 
