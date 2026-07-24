@@ -84,7 +84,7 @@ function uint8ArrayToBase64(data: Uint8Array): string {
 export function ImportModal(props: ImportModalProps = {}) {
   const navigate = useNavigate();
   const { store: ui, closeModal } = uiStore;
-  const { importResume, createFromImport, forceSave } = resumeStore;
+  const { store, importResume, createFromImport, forceSave, restoreSession } = resumeStore;
 
   const [isDragging, setIsDragging] = createSignal(false);
   const [isLoading, setIsLoading] = createSignal(false);
@@ -100,9 +100,21 @@ export function ImportModal(props: ImportModalProps = {}) {
   const applyImported = async (resume: ResumeData) => {
     const normalized = normalizeImportedResume(resume);
     if (props.createAndOpen) {
+      const previous = {
+        id: store.id,
+        resume: store.resume,
+        isDirty: store.isDirty,
+      };
       const id = generateId();
       createFromImport(id, normalized);
-      await forceSave();
+      const saved = await forceSave();
+      if (!saved) {
+        const message = store.error ?? "Failed to save imported resume";
+        restoreSession(previous);
+        setError(message);
+        toast.error(message);
+        return;
+      }
       toast.success("Resume imported successfully");
       closeModal();
       navigate(`/edit/${id}`);

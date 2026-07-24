@@ -18,8 +18,10 @@ function ResumeActions(props: { home: HomePageModel; resume: ResumeListItem }) {
         class="p-2 text-stone hover:text-accent hover:bg-accent/10 rounded-lg transition-colors
           disabled:opacity-50 disabled:cursor-not-allowed"
         onClick={(e) => home.handleToggleLock(resume().id, Boolean(resume().locked), e)}
+        disabled={home.lockingId() === resume().id || home.actionsBusy()}
         title={resume().locked ? "Unlock" : "Lock"}
         aria-label={resume().locked ? "Unlock resume" : "Lock resume"}
+        aria-busy={home.lockingId() === resume().id}
       >
         <svg
           class="w-5 h-5"

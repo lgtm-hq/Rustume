@@ -21,8 +21,8 @@ export function getResumeSortLabels(): { value: ResumeSortMode; label: string }[
 export function getStoredResumeSort(): ResumeSortMode {
   if (typeof localStorage === "undefined") return "updated";
   const raw = localStorage.getItem(SORT_STORAGE_KEY);
-  if (raw === "updated" || raw === "created" || raw === "name-asc" || raw === "name-desc") {
-    return raw;
+  if (raw != null && Object.hasOwn(SORT_LABELS, raw)) {
+    return raw as ResumeSortMode;
   }
   return "updated";
 }

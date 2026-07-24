@@ -788,6 +788,20 @@ export function useResumeStore() {
       scheduleSave();
     },
 
+    /**
+     * Restore a prior editor session after a failed createFromImport + forceSave.
+     * Cancels any pending autosave so the rolled-back state is not overwritten.
+     */
+    restoreSession(snapshot: { id: string | null; resume: ResumeData | null; isDirty: boolean }) {
+      if (saveTimer) clearTimeout(saveTimer);
+      batch(() => {
+        setStore("id", snapshot.id);
+        setStore("resume", snapshot.resume);
+        setStore("isDirty", snapshot.isDirty);
+        setStore("error", null);
+      });
+    },
+
     /** Replace the current resume with a historical snapshot (local mode revert). */
     revertToSnapshot(data: ResumeData) {
       recordUndo(store.resume);
@@ -829,10 +843,11 @@ export function useResumeStore() {
       return true;
     },
 
-    // Force save
-    async forceSave() {
+    // Force save. Returns true when the in-memory resume is no longer dirty.
+    async forceSave(): Promise<boolean> {
       if (saveTimer) clearTimeout(saveTimer);
       await persistResume();
+      return !store.isDirty;
     },
   };
 }

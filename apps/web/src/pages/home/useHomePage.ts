@@ -29,6 +29,7 @@ export function useHomePage() {
   const [deletingId, setDeletingId] = createSignal<string | null>(null);
   const [duplicatingId, setDuplicatingId] = createSignal<string | null>(null);
   const [renamingId, setRenamingId] = createSignal<string | null>(null);
+  const [lockingId, setLockingId] = createSignal<string | null>(null);
   const [renameValue, setRenameValue] = createSignal("");
   const [searchQuery, setSearchQuery] = createSignal(getStoredSearchQuery());
   const [sortMode, setSortMode] = createSignal<ResumeSortMode>(getStoredResumeSort());
@@ -85,12 +86,15 @@ export function useHomePage() {
   const handleToggleLock = async (id: string, currentlyLocked: boolean, event: Event) => {
     event.preventDefault();
     event.stopPropagation();
+    setLockingId(id);
     try {
       await patchResumeListMeta(id, { locked: !currentlyLocked });
       toast.success(currentlyLocked ? "Resume unlocked" : "Resume locked");
     } catch (e) {
       console.error(e);
       toast.error("Failed to update lock");
+    } finally {
+      setLockingId(null);
     }
   };
 
@@ -209,7 +213,10 @@ export function useHomePage() {
   };
 
   const actionsBusy = () =>
-    deletingId() !== null || duplicatingId() !== null || renamingId() !== null;
+    deletingId() !== null ||
+    duplicatingId() !== null ||
+    renamingId() !== null ||
+    lockingId() !== null;
 
   return {
     layout,
@@ -220,6 +227,7 @@ export function useHomePage() {
     deletingId,
     duplicatingId,
     renamingId,
+    lockingId,
     renameValue,
     setRenameValue,
     searchQuery,

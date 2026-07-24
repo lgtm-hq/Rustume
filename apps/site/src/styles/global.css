@@ -34,11 +34,12 @@
   --shadow-glow-sm: 0 0 0 3px color-mix(in srgb, var(--rust-forge) 30%, transparent);
 
   /*
-   * WCAG AA derived token: some turbo theme palettes ship a secondary text
-   * color below the 4.5:1 AA contrast ratio on base/surface backgrounds
-   * (e.g. solarized-light #657b83 on #eee8d5 is 3.64:1). Mixing it toward
-   * the theme's primary text color keeps the hue while guaranteeing more
-   * contrast in every theme; craft (default) already passes and only gains.
+   * Contrast-improved secondary text: some turbo theme palettes ship a
+   * secondary color below the 4.5:1 AA contrast ratio on base/surface
+   * backgrounds (e.g. solarized-light #657b83 on #eee8d5 is 3.64:1). Mixing
+   * toward the theme's primary text keeps the hue while improving contrast;
+   * craft (default) already passes and only gains. This does not guarantee
+   * WCAG AA on every theme/background combination.
    */
   --a11y-text-secondary: color-mix(
     in srgb,

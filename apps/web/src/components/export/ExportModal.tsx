@@ -2,6 +2,7 @@ import { createSignal, Show } from "solid-js";
 import { Button, Modal, toast } from "../ui";
 import { uiStore } from "../../stores/ui";
 import { resumeStore } from "../../stores/resume";
+import { downloadBlob } from "../../api/export";
 import { downloadPdf } from "../../api/render";
 import { resumeToJson, isWasmReady } from "../../wasm";
 import {
@@ -23,7 +24,7 @@ export function ExportModal() {
   /** Show cover-letter PDF scopes only when the section is visible and has body content. */
   const canExportCoverLetter = () =>
     store.resume != null &&
-    store.resume.sections.coverLetter.visible === true &&
+    store.resume.sections.coverLetter?.visible === true &&
     hasCoverLetterContent(store.resume);
 
   const handleExportPdf = async () => {
@@ -58,25 +59,11 @@ export function ExportModal() {
     if (!store.resume) return;
 
     try {
-      let json: string;
-
-      if (isWasmReady()) {
-        json = resumeToJson(store.resume);
-      } else {
-        json = JSON.stringify(store.resume, null, 2);
-      }
-
+      const json = isWasmReady()
+        ? resumeToJson(store.resume)
+        : JSON.stringify(store.resume, null, 2);
       const blob = new Blob([json], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${pdfExportFileName(store.resume, "resume")}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-
-      URL.revokeObjectURL(url);
+      downloadBlob(blob, `${pdfExportFileName(store.resume, "resume")}.json`);
       toast.success("JSON exported successfully");
       closeModal();
     } catch (e) {

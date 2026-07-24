@@ -130,6 +130,7 @@ pub async fn create_resume(
     validate_resume_json(&body.data)?;
     let resume_id = body.id.unwrap_or_else(Uuid::new_v4);
 
+    let mut tx = cloud.db.begin().await.map_err(internal_db_error)?;
     let row = sqlx::query_as::<_, ResumeRow>(
         r#"
         INSERT INTO resumes (id, user_id, title, data)
@@ -141,9 +142,12 @@ pub async fn create_resume(
     .bind(user.id)
     .bind(title)
     .bind(body.data)
-    .fetch_one(&cloud.db)
+    .fetch_one(&mut *tx)
     .await
     .map_err(map_resume_db_error)?;
+
+    capture_resume_snapshot(&mut tx, resume_id, row.version, &row.data).await?;
+    tx.commit().await.map_err(internal_db_error)?;
 
     Ok((StatusCode::CREATED, Json(row)))
 }

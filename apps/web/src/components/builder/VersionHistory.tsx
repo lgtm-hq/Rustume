@@ -105,7 +105,10 @@ export function VersionHistory() {
 
       setSelectedSnapshot(data);
       const result = await renderPreview(data, 0);
-      if (seq !== loadSeq) return;
+      if (seq !== loadSeq) {
+        URL.revokeObjectURL(result.url);
+        return;
+      }
       setPreviewUrl(result.url);
       setPreviewPages(result.totalPages);
     } catch (error) {

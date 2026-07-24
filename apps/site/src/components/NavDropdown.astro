@@ -200,6 +200,17 @@ const menuId = `nav-menu-${label.toLowerCase().replace(/\s+/g, "-")}`;
     pointer-events: none;
   }
 
+  .nav-dropdown.is-escaped .nav-dropdown-trigger,
+  .nav-dropdown.is-escaped:focus-within .nav-dropdown-trigger {
+    color: inherit;
+    background: transparent;
+  }
+
+  .nav-dropdown.is-escaped .nav-dropdown-chevron,
+  .nav-dropdown.is-escaped:focus-within .nav-dropdown-chevron {
+    transform: none;
+  }
+
   .nav-dropdown-panel-inner {
     max-height: min(70vh, 28rem);
     overflow-y: auto;

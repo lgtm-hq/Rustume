@@ -14,6 +14,7 @@ import {
   createPageSwipeState,
   feedPageSwipe,
   isWheelZoomGesture,
+  normalizeWheelDelta,
   pageDeltaFromBlockedPan,
   resolveWheelInteraction,
   settleZoom,
@@ -159,10 +160,15 @@ export function Preview() {
       return;
     }
 
-    // Block browser back/forward history swipes over the preview. CSS
-    // overscroll-behavior-x helps too; preventDefault covers wheel-driven cases.
-    if (event.deltaX !== 0) {
-      event.preventDefault();
+    // Block browser back/forward history swipes over the preview only when
+    // horizontal movement clearly dominates (avoid blocking vertical scroll).
+    // CSS overscroll-behavior-x helps too; preventDefault covers wheel-driven cases.
+    {
+      const dx = Math.abs(normalizeWheelDelta(event.deltaX, event.deltaMode));
+      const dy = Math.abs(normalizeWheelDelta(event.deltaY, event.deltaMode));
+      if (dx > 0 && dx > dy) {
+        event.preventDefault();
+      }
     }
 
     const viewport = viewportRef;

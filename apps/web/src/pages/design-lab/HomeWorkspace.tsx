@@ -94,6 +94,13 @@ export default function HomeWorkspace() {
           outline: none;
           color: var(--ink);
         }
+        .ws-search:focus-within {
+          border-color: var(--teal);
+          box-shadow: 0 0 0 2px var(--teal-soft);
+        }
+        .ws-search input:focus-visible {
+          outline: none;
+        }
         .ws-search input::placeholder { color: var(--mute); }
         .ws-dock button {
           font-family: inherit;

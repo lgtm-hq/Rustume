@@ -35,7 +35,7 @@ export function downloadBlob(blob: Blob, filename: string): void {
   anchor.download = filename;
   document.body.appendChild(anchor);
   anchor.click();
-  anchor.remove();
+  document.body.removeChild(anchor);
   window.setTimeout(() => URL.revokeObjectURL(url), 100);
 }
 

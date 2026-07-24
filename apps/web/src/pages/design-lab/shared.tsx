@@ -85,10 +85,13 @@ export const DESIGN_LAB_BASE_CSS = `
     opacity: 0.75;
     transition: opacity 160ms ease;
   }
-  .dl-back:hover,
+  .dl-back:hover {
+    opacity: 1;
+  }
   .dl-back:focus-visible {
     opacity: 1;
-    outline: none;
+    outline: 2px solid currentColor;
+    outline-offset: 3px;
   }
   .dl-back--dark { color: inherit; }
   .dl-back--light { color: #f5f5f5; }

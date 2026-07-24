@@ -23,6 +23,7 @@ function TagFilters(props: { home: HomePageModel }) {
         <button
           type="button"
           class={tagChipClass(home.tagFilter() === null)}
+          aria-pressed={home.tagFilter() === null}
           onClick={() => home.setTagFilter(null)}
         >
           All
@@ -32,6 +33,7 @@ function TagFilters(props: { home: HomePageModel }) {
             <button
               type="button"
               class={tagChipClass(home.tagFilter() === tag)}
+              aria-pressed={home.tagFilter() === tag}
               onClick={() => home.setTagFilter(home.tagFilter() === tag ? null : tag)}
             >
               {tag}
