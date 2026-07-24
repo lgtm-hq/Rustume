@@ -271,7 +271,7 @@ function EditorPreviewPane() {
 export default function Editor() {
   const params = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { store, loadResume, createNewResume, undo, redo } = resumeStore;
+  const { store, loadResume, createNewResume, undo, redo, forceSave } = resumeStore;
   const { store: ui, openModal, closeModal, setPanel } = uiStore;
   const undoState = () => undoHistoryStore.state;
 
@@ -480,6 +480,14 @@ export default function Editor() {
     if (!id) {
       navigate("/");
       return;
+    }
+
+    // Flush pending autosave before switching resumes so dirty edits aren't lost
+    // or persisted under the destination id after the shared store is replaced.
+    const previousId = store.id;
+    if (previousId && previousId !== id) {
+      await forceSave();
+      if (seq !== loadSeq) return;
     }
 
     setIsLoading(true);
