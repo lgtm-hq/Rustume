@@ -50,7 +50,7 @@
     "typescript": "7.0.2",
     "vitest": "4.1.10",
     "vitest-axe": "0.1.0",
-    "fake-indexeddb": "^6.2.5"
+    "fake-indexeddb": "6.2.5"
   },
   "peerDependencies": {
     "typescript": "^7.0.0"
