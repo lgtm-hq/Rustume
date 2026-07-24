@@ -488,11 +488,18 @@ export default function Editor() {
     if (previousId && previousId !== id) {
       await forceSave();
       if (seq !== loadSeq) return;
-      // persistResume swallows errors — if still dirty, abort so we don't drop edits.
+      // persistResume swallows errors — if still dirty, restore the previous route
+      // so the URL stays aligned with the shared store instead of showing A at /edit/B.
       if (store.isDirty) {
         toast.error(store.error ?? "Failed to save current resume before switching");
+        navigate(`/edit/${previousId}`, { replace: true });
         return;
       }
+    } else if (store.id === id && store.resume) {
+      // Already editing this resume (e.g. restored route after a failed flush).
+      setIsLoading(false);
+      setLoadError(null);
+      return;
     }
 
     setIsLoading(true);
