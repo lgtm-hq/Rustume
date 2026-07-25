@@ -460,9 +460,11 @@ export function HomeResumeCard(props: {
           <DocumentPreview resume={resume()} size="page" />
         </A>
         <div
-          class="absolute inset-x-0 bottom-0 z-10 flex justify-center bg-gradient-to-t
+          class="absolute inset-x-0 bottom-0 z-10 flex justify-center bg-linear-to-t
             from-paper via-paper/85 to-transparent px-3 pb-3 pt-8 opacity-0
             transition-opacity duration-150 motion-reduce:transition-none
+            pointer-events-none group-hover:pointer-events-auto
+            group-focus-within:pointer-events-auto
             group-hover:opacity-100 group-focus-within:opacity-100"
         >
           <div class="rounded-lg border border-border bg-surface/95 px-1 py-0.5 shadow-soft">

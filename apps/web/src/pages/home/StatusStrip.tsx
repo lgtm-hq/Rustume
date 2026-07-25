@@ -18,8 +18,6 @@ export function StatusStrip(props: { home: HomePageModel }) {
       class="flex flex-wrap items-center gap-x-3.5 gap-y-1.5 border-y border-border py-2
         font-mono text-[10px] uppercase tracking-[0.09em] text-stone"
       data-testid="home-status-strip"
-      role="status"
-      aria-live="polite"
     >
       <span>
         <strong class="font-semibold text-ink">{count()}</strong>{" "}
@@ -30,12 +28,16 @@ export function StatusStrip(props: { home: HomePageModel }) {
         last edit <strong class="font-semibold text-ink">{home.lastEditLabel()}</strong>
       </span>
       <Separator />
-      <span class="inline-flex items-center gap-1.5">
+      {/* Storage location must track where resumes actually live: a signed-in
+          cloud session persists to Rustume Cloud, not to this device. */}
+      <span class="inline-flex items-center gap-1.5" data-testid="home-status-storage">
         <span
           class="h-1.5 w-1.5 rounded-full bg-accent animate-pulse-subtle motion-reduce:animate-none"
           aria-hidden="true"
         />
-        on-device
+        <Show when={home.syncEnabled()} fallback="on-device storage">
+          cloud storage
+        </Show>
       </span>
       <Separator />
       <span>
@@ -44,7 +46,9 @@ export function StatusStrip(props: { home: HomePageModel }) {
           on
         </Show>
       </span>
-      <span class="ml-auto" data-testid="home-status-view">
+      {/* Only the volatile view/scope pair is a live region — announcing the whole
+          strip would re-read the static labels on every list or layout change. */}
+      <span class="ml-auto" data-testid="home-status-view" role="status" aria-live="polite">
         view: <b class="font-semibold text-accent">{home.layout()}</b> · scope:{" "}
         <b class="font-semibold text-accent">{home.scope()}</b>
       </span>

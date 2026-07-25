@@ -28,59 +28,63 @@ export const AppShell: ParentComponent = (props) => {
         data-print-hide
       >
         <div class="h-14 px-4 flex items-center justify-between gap-3">
-          {/* Sidebar mount point — wired with the Phase 3 scope rail */}
-          <Show when={isHome()}>
-            <button
-              type="button"
-              class="hidden sm:inline-flex h-8 w-8 items-center justify-center rounded-md
+          {/* Equal-basis outer columns keep the command trigger geometrically
+              centred regardless of logo / auth-control widths. */}
+          <div class="flex flex-1 min-w-0 items-center gap-3">
+            {/* Sidebar mount point — wired with the Phase 3 scope rail */}
+            <Show when={isHome()}>
+              <button
+                type="button"
+                class="hidden sm:inline-flex h-8 w-8 items-center justify-center rounded-md
                 text-stone transition-colors motion-reduce:transition-none hover:bg-surface
                 hover:text-ink disabled:opacity-50 disabled:cursor-not-allowed
                 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-              disabled
-              aria-label="Toggle sidebar"
-              title="Scope sidebar — coming soon"
-              data-testid="utility-sidebar-toggle"
-            >
-              <svg
-                class="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
+                disabled
+                aria-label="Toggle sidebar"
+                title="Scope sidebar — coming soon"
+                data-testid="utility-sidebar-toggle"
               >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="1.8"
-                  d="M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm5.5-2v16"
-                />
-              </svg>
-            </button>
-          </Show>
+                <svg
+                  class="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="1.8"
+                    d="M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm5.5-2v16"
+                  />
+                </svg>
+              </button>
+            </Show>
 
-          {/* Logo */}
-          <nav aria-label="Primary" class="flex-shrink-0">
-            <A href="/" class="flex items-center gap-2 group">
-              <div
-                class="w-8 h-8 bg-ink rounded flex items-center justify-center"
-                aria-hidden="true"
-              >
-                <span class="text-paper font-display font-bold text-lg">R</span>
-              </div>
-              <span
-                class="font-display text-xl font-semibold text-ink
+            {/* Logo */}
+            <nav aria-label="Primary" class="flex-shrink-0">
+              <A href="/" class="flex items-center gap-2 group">
+                <div
+                  class="w-8 h-8 bg-ink rounded flex items-center justify-center"
+                  aria-hidden="true"
+                >
+                  <span class="text-paper font-display font-bold text-lg">R</span>
+                </div>
+                <span
+                  class="font-display text-xl font-semibold text-ink
                 group-hover:text-accent transition-colors"
-              >
-                Rustume
-              </span>
-            </A>
-          </nav>
+                >
+                  Rustume
+                </span>
+              </A>
+            </nav>
+          </div>
 
           {/* Command palette trigger — keyboard twin of the library toolbar */}
           <Show when={isHome()}>
             <button
               type="button"
-              class="mx-auto hidden md:flex min-w-0 max-w-sm flex-1 items-center gap-2
+              class="hidden md:flex w-full max-w-sm flex-shrink items-center gap-2
                 rounded-lg border border-accent/35 bg-surface px-3 py-1.5 text-left text-sm
                 text-stone transition-colors motion-reduce:transition-none hover:border-accent/60
                 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
@@ -109,7 +113,7 @@ export const AppShell: ParentComponent = (props) => {
           </Show>
 
           {/* Status Indicators — keep compact so AuthMenu / theme stay usable on narrow screens */}
-          <div class="flex items-center gap-3 sm:gap-4 flex-shrink-0">
+          <div class="flex flex-1 min-w-0 items-center justify-end gap-3 sm:gap-4">
             <AuthMenu />
 
             {/* Editor Theme Selector */}

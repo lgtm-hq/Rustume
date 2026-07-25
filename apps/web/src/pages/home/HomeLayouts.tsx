@@ -86,6 +86,7 @@ function LibraryToolbar(props: { home: HomePageModel }) {
         role="toolbar"
         aria-label="Resume library tools"
         data-testid="resume-library-toolbar"
+        aria-busy={home.loading() && hasResumes()}
         classList={{ "opacity-60 pointer-events-none": home.loading() && hasResumes() }}
       >
         <div class="flex items-center gap-2">
@@ -220,8 +221,12 @@ function EmptyLibrary(props: { home: HomePageModel }) {
         </svg>
       </div>
       <h3 class="font-display text-2xl font-semibold text-ink mb-2">Your library is empty</h3>
+      {/* Mirror the status strip: promise on-device only when that is actually true. */}
       <p class="mx-auto mb-6 max-w-sm text-sm text-stone">
-        Start a resume from scratch or import an existing one — everything stays on this device.
+        Start a resume from scratch or import an existing one —{" "}
+        <Show when={home.syncEnabled()} fallback="everything stays on this device.">
+          everything syncs to your Rustume Cloud account.
+        </Show>
       </p>
       <div class="flex flex-wrap items-center justify-center gap-3">
         <Button onClick={home.handleNew}>Create Resume</Button>

@@ -130,17 +130,33 @@ describe("Home command shell", () => {
     const strip = screen.getByTestId("home-status-strip");
     expect(strip).toHaveTextContent("3 resumes");
     expect(strip).toHaveTextContent("last edit");
-    expect(strip).toHaveTextContent("on-device");
+    expect(strip).toHaveTextContent("on-device storage");
     expect(strip).toHaveTextContent("sync off");
   });
 
-  it("reports sync on for a signed-in cloud user", () => {
+  it("reports cloud storage and sync on for a signed-in cloud user", () => {
     mockAuthState.cloudEnabled = true;
     mockAuthState.user = { id: "u1", plan: "free" };
 
     renderHome();
 
-    expect(screen.getByTestId("home-status-strip")).toHaveTextContent("sync on");
+    const strip = screen.getByTestId("home-status-strip");
+    expect(strip).toHaveTextContent("sync on");
+    // Storage must not claim on-device while resumes persist to the cloud.
+    expect(screen.getByTestId("home-status-storage")).toHaveTextContent("cloud storage");
+    expect(strip).not.toHaveTextContent("on-device");
+  });
+
+  it("does not promise on-device storage in the empty state for cloud users", () => {
+    listState.items = [];
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.user = { id: "u1", plan: "free" };
+
+    renderHome();
+
+    const empty = screen.getByTestId("home-empty-state");
+    expect(empty).toHaveTextContent(/syncs to your Rustume Cloud account/);
+    expect(empty).not.toHaveTextContent(/stays on this device/);
   });
 
   it("tracks the active view and scope in the status strip", () => {
