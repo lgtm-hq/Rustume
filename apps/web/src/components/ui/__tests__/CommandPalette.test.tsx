@@ -115,6 +115,78 @@ describe("CommandPalette", () => {
     expect(options[1]).toHaveAttribute("aria-selected", "true");
   });
 
+  it("groups home actions and renders their shortcut hints", () => {
+    uiStore.openModal("commandPalette");
+    render(() => (
+      <CommandPalette
+        actions={[
+          {
+            id: "home:new",
+            label: "New resume",
+            group: "Actions",
+            shortcut: "N",
+            handler: vi.fn(),
+          },
+          {
+            id: "home:import",
+            label: "Import resume",
+            group: "Actions",
+            shortcut: "I",
+            handler: vi.fn(),
+          },
+          { id: "home:sync", label: "Sync now", group: "Actions", shortcut: "S", handler: vi.fn() },
+          {
+            id: "home:view-gallery",
+            label: "Switch to Gallery view",
+            group: "View",
+            shortcut: "3",
+            handler: vi.fn(),
+          },
+        ]}
+      />
+    ));
+
+    expect(screen.getByText("Actions")).toBeInTheDocument();
+    expect(screen.getByText("View")).toBeInTheDocument();
+    for (const key of ["N", "I", "S", "3"]) {
+      expect(screen.getByText(key)).toBeInTheDocument();
+    }
+  });
+
+  it("shows a footer hint bar", () => {
+    uiStore.openModal("commandPalette");
+    render(() => (
+      <CommandPalette actions={[{ id: "home:new", label: "New resume", handler: vi.fn() }]} />
+    ));
+
+    expect(screen.getByText(/navigate/)).toBeInTheDocument();
+    expect(screen.getByText(/run/)).toBeInTheDocument();
+    expect(screen.getByText(/close/)).toBeInTheDocument();
+  });
+
+  it("runs a view command from the palette", () => {
+    const handler = vi.fn();
+    uiStore.openModal("commandPalette");
+    render(() => (
+      <CommandPalette
+        actions={[
+          {
+            id: "home:view-gallery",
+            label: "Switch to Gallery view",
+            group: "View",
+            shortcut: "3",
+            handler,
+          },
+        ]}
+      />
+    ));
+
+    fireEvent.click(screen.getByText("Switch to Gallery view"));
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(uiStore.store.modal).toBe(null);
+  });
+
   it("executes highlighted action on Enter", () => {
     const handler = vi.fn();
     uiStore.openModal("commandPalette");
