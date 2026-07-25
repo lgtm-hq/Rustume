@@ -46,6 +46,11 @@
   --color-border: var(--a11y-border);
   --color-shadow: rgba(0, 0, 0, 0.15);
   --color-offline: var(--turbo-state-warning);
+  /* Locked badges and lock affordances — gold in the Rosé Pine family. */
+  --color-gold: var(--turbo-state-warning);
+  /* Library document previews render as printed paper in every theme. */
+  --color-sheet: #f0e8dc;
+  --color-sheet-ink: #45405c;
 
   /* Typography */
   --font-display: "Fraunces", Georgia, serif;
