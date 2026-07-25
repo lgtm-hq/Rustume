@@ -22,6 +22,18 @@ and this project adheres to
 
 ### Security
 
+## [0.43.1] - 2026-07-25
+
+### Changed
+
+- **deps**: pin dependency fake-indexeddb to 6.2.5 (#564) (669afb0)
+
+### Fixed
+
+- **deps**: clear brace-expansion advisories and re-verify OSV suppressions (#573)
+  (85f1754)
+- **deps**: update rust crate base64 to 0.23.0 (minor) (#556) (9c36cd8)
+
 ## [0.43.0] - 2026-07-24
 
 ### Added
@@ -552,7 +564,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.43.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.43.1...HEAD
+[0.43.1]: https://github.com/lgtm-hq/Rustume/compare/v0.43.0...v0.43.1
 [0.43.0]: https://github.com/lgtm-hq/Rustume/compare/v0.42.0...v0.43.0
 [0.42.0]: https://github.com/lgtm-hq/Rustume/compare/v0.41.0...v0.42.0
 [0.41.0]: https://github.com/lgtm-hq/Rustume/compare/v0.40.2...v0.41.0

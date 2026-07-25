@@ -1,25 +1,35 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 ---
-name: Quality - Ops Boundary Guard
+name: Quality - Pin Sync Guard
+# Fails when a workflow's `tooling-ref:` input drifts from the lgtm-ci `uses:`
+# pin it mirrors, or when the workflows disagree on the lgtm-ci release.
 
 "on":
   pull_request:
     branches: [main]
+    paths:
+      - '.github/workflows/**'
+      - 'scripts/ci/maintenance/check-tooling-ref-sync.sh'
   push:
     branches: [main]
+    paths:
+      - '.github/workflows/**'
+      - 'scripts/ci/maintenance/check-tooling-ref-sync.sh'
+  merge_group:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: boundary-guard-${{ github.ref }}
+  group: pin-sync-guard-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  boundary:
-    name: Ops boundary guard
+  pin-sync:
+    name: lgtm-ci pin sync
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
@@ -31,8 +41,6 @@ jobs:
             codeload.github.com:443
             objects.githubusercontent.com:443
             release-assets.githubusercontent.com:443
-            pypi.org:443
-            files.pythonhosted.org:443
 
       - name: Checkout
         # yamllint disable-line rule:line-length
@@ -40,13 +48,5 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Path guard
-        run: bash scripts/ci/boundary/check_paths.sh
-
-      - name: Install uv
-        # Pinned pip install instead of setup-uv: the action's version fetch
-        # is blocked by the harden-runner egress policy; PyPI already is not.
-        run: python3 -m pip install --quiet uv==0.11.29
-
-      - name: Content guard (semgrep)
-        run: bash scripts/ci/boundary/check_content.sh
+      - name: Pin sync guard
+        run: bash scripts/ci/maintenance/check-tooling-ref-sync.sh
