@@ -15,6 +15,8 @@ import {
   type ResumeSortMode,
 } from "../../lib/resumeSort";
 import { getStoredHomeLayout, setStoredHomeLayout, type HomeLayout } from "../../lib/homeLayout";
+import { formatRelativeTime } from "../../lib/formatRelativeTime";
+import { authStore } from "../../stores/auth";
 import { patchResumeListMeta, useResumeList, type ResumeListItem } from "../../stores/persistence";
 import { uiStore } from "../../stores/ui";
 import { generateId } from "../../wasm/types";
@@ -98,6 +100,28 @@ export function useHomePage() {
     }
     return [...tags].sort((a, b) => a.localeCompare(b));
   });
+
+  /** Live status-strip state — the trust signals the old marketing footer used to assert. */
+  const resumeCount = () => resumes()?.length ?? 0;
+
+  const lastEditedAt = createMemo<Date | null>(() => {
+    let latest: Date | null = null;
+    for (const resume of resumes() ?? []) {
+      if (!latest || resume.updatedAt.getTime() > latest.getTime()) latest = resume.updatedAt;
+    }
+    return latest;
+  });
+
+  const lastEditLabel = createMemo(() => {
+    const latest = lastEditedAt();
+    return latest ? formatRelativeTime(latest.getTime()) : "never";
+  });
+
+  /** Cloud sync is only live once a signed-in user exists on a cloud-enabled build. */
+  const syncEnabled = () => Boolean(authStore.state.cloudEnabled && authStore.state.user);
+
+  /** Placeholder until the Phase 3 scope sidebar can narrow the library. */
+  const scope = () => "all";
 
   const handleNew = () => {
     const id = generateId();
@@ -274,6 +298,11 @@ export function useHomePage() {
     tagEditorId,
     filteredResumes,
     allTags,
+    resumeCount,
+    lastEditedAt,
+    lastEditLabel,
+    syncEnabled,
+    scope,
     handleNew,
     handleImport,
     handleToggleLock,
