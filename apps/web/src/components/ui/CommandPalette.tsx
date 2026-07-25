@@ -10,6 +10,8 @@ export interface CommandAction {
   label: string;
   keywords?: string;
   group?: string;
+  /** Display-only hint, e.g. "N" or "⌘B" — rendered as a kbd on the row. */
+  shortcut?: string;
   handler: () => void;
 }
 
@@ -97,6 +99,19 @@ export function CommandPalette(props: CommandPaletteProps) {
     const matchIds = new Set(filteredActions().map((action) => action.id));
     return recentIds().filter((id) => matchIds.has(id)).length;
   });
+
+  /** Section heading for a row, or null when the row continues the current section. */
+  const headingFor = (index: number): string | null => {
+    const items = filteredActions();
+    const recents = recentCount();
+    if (recents > 0) {
+      if (index === 0) return "Recent";
+      if (index < recents) return null;
+    }
+    const current = items[index]?.group ?? "Commands";
+    if (index === recents) return current;
+    return items[index - 1]?.group !== items[index]?.group ? current : null;
+  };
 
   createEffect(() => {
     filteredActions();
@@ -213,17 +228,12 @@ export function CommandPalette(props: CommandPaletteProps) {
                 <For each={filteredActions()}>
                   {(action, index) => (
                     <>
-                      <Show when={!query().trim() && index() === 0 && recentCount() > 0}>
-                        <div class="px-3 pb-1 pt-2 text-[10px] font-mono uppercase tracking-wider text-stone/70">
-                          Recent
-                        </div>
-                      </Show>
-                      <Show
-                        when={!query().trim() && recentCount() > 0 && index() === recentCount()}
-                      >
-                        <div class="px-3 pb-1 pt-3 text-[10px] font-mono uppercase tracking-wider text-stone/70">
-                          All commands
-                        </div>
+                      <Show when={headingFor(index())}>
+                        {(heading) => (
+                          <div class="px-3 pb-1 pt-3 text-[10px] font-mono uppercase tracking-[0.2em] text-stone/70 first:pt-1">
+                            {heading()}
+                          </div>
+                        )}
                       </Show>
                       <button
                         type="button"
@@ -241,14 +251,37 @@ export function CommandPalette(props: CommandPaletteProps) {
                         onClick={() => executeAction(action)}
                       >
                         <span>{action.label}</span>
-                        <Show when={action.group}>
-                          <span class="text-xs text-stone">{action.group}</span>
+                        <Show
+                          when={action.shortcut}
+                          fallback={
+                            <Show when={action.group}>
+                              <span class="text-xs text-stone">{action.group}</span>
+                            </Show>
+                          }
+                        >
+                          {(shortcut) => (
+                            <kbd class="font-mono text-[10px] bg-surface border border-border rounded px-1.5 py-0.5 text-stone">
+                              {shortcut()}
+                            </kbd>
+                          )}
                         </Show>
                       </button>
                     </>
                   )}
                 </For>
               </Show>
+            </div>
+
+            <div class="flex items-center gap-4 border-t border-border px-4 py-2 font-mono text-[10px] tracking-wider text-stone">
+              <span>
+                <kbd class="text-ink">↑↓</kbd> navigate
+              </span>
+              <span>
+                <kbd class="text-ink">↵</kbd> run
+              </span>
+              <span>
+                <kbd class="text-ink">esc</kbd> close
+              </span>
             </div>
           </Dialog.Content>
         </div>

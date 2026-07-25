@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
-import { render, screen } from "@solidjs/testing-library";
+import { fireEvent, render, screen } from "@solidjs/testing-library";
 import { Route, Router } from "@solidjs/router";
 import { axeConfig } from "../../../test/a11y";
+import { uiStore } from "../../../stores/ui";
 import { AppShell } from "../AppShell";
 
 const { mockAuthState } = vi.hoisted(() => ({
@@ -61,6 +62,28 @@ describe("AppShell header", () => {
       </Router>
     ));
   }
+
+  it("hosts the home utility bar: sidebar mount point and command trigger", () => {
+    renderShell();
+
+    const toggle = screen.getByTestId("utility-sidebar-toggle");
+    const trigger = screen.getByTestId("command-palette-trigger");
+    expect(toggle).toBeDisabled();
+    expect(trigger).toHaveTextContent(/Search resumes or run a command/);
+    // Sidebar toggle sits left of the logo.
+    expect(toggle.compareDocumentPosition(screen.getByLabelText("Primary"))).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  });
+
+  it("opens the command palette from the utility bar trigger", () => {
+    renderShell();
+
+    fireEvent.click(screen.getByTestId("command-palette-trigger"));
+
+    expect(uiStore.store.modal).toBe("commandPalette");
+    uiStore.closeModal();
+  });
 
   it("does not show a local-mode notice banner (Sign in to sync covers that)", () => {
     mockAuthState.loading = false;

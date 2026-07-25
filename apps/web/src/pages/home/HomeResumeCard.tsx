@@ -4,8 +4,40 @@ import { Spinner } from "../../components/ui";
 import type { TextSegment } from "../../lib/resumeSearch";
 import { HomeLayout } from "../../lib/homeLayout";
 import type { ResumeListItem } from "../../stores/persistence";
+import { DocumentPreview, resumeSlug } from "./DocumentPreview";
 import { formatUpdatedAt, HighlightedText } from "./shared";
 import type { HomePageModel } from "./useHomePage";
+
+function LockIcon(props: { locked: boolean; class?: string }) {
+  return (
+    <svg
+      class={props.class ?? "w-5 h-5"}
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <Show
+        when={props.locked}
+        fallback={
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M8 11V7a4 4 0 118 0v4m-9 0h10v8H7v-8z"
+          />
+        }
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M12 15v2m-6-6V9a6 6 0 1112 0v2M6 11h12v8H6v-8z"
+        />
+      </Show>
+    </svg>
+  );
+}
 
 function ResumeActions(props: { home: HomePageModel; resume: ResumeListItem }) {
   const { home } = props;
@@ -15,45 +47,23 @@ function ResumeActions(props: { home: HomePageModel; resume: ResumeListItem }) {
     <div class="flex items-center gap-1 flex-shrink-0">
       <button
         type="button"
-        class="p-2 text-stone hover:text-accent hover:bg-accent/10 rounded-lg transition-colors
-          disabled:opacity-50 disabled:cursor-not-allowed"
+        class={`p-2 rounded-lg transition-colors motion-reduce:transition-none
+          hover:bg-accent/10 disabled:opacity-50 disabled:cursor-not-allowed
+          focus:outline-none focus-visible:ring-2 focus-visible:ring-accent
+          ${resume().locked ? "text-gold hover:text-gold" : "text-stone hover:text-accent"}`}
         onClick={(e) => home.handleToggleLock(resume().id, Boolean(resume().locked), e)}
         disabled={home.lockingId() === resume().id || home.actionsBusy()}
         title={resume().locked ? "Unlock" : "Lock"}
         aria-label={resume().locked ? "Unlock resume" : "Lock resume"}
         aria-busy={home.lockingId() === resume().id}
       >
-        <svg
-          class="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <Show
-            when={resume().locked}
-            fallback={
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M8 11V7a4 4 0 118 0v4m-9 0h10v8H7v-8z"
-              />
-            }
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 15v2m-6-6V9a6 6 0 1112 0v2M6 11h12v8H6v-8z"
-            />
-          </Show>
-        </svg>
+        <LockIcon locked={Boolean(resume().locked)} />
       </button>
       <button
         type="button"
         class="p-2 text-stone hover:text-accent hover:bg-accent/10 rounded-lg transition-colors
-          disabled:opacity-50 disabled:cursor-not-allowed"
+          motion-reduce:transition-none disabled:opacity-50 disabled:cursor-not-allowed
+          focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         onClick={(e) => home.startRename(resume().id, resume().name, e)}
         disabled={Boolean(resume().locked) || home.actionsBusy()}
         title="Rename"
@@ -77,7 +87,8 @@ function ResumeActions(props: { home: HomePageModel; resume: ResumeListItem }) {
       <button
         type="button"
         class="p-2 text-stone hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors
-          disabled:opacity-50 disabled:cursor-not-allowed"
+          motion-reduce:transition-none disabled:opacity-50 disabled:cursor-not-allowed
+          focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         onClick={(e) => home.handleDelete(resume().id, e)}
         disabled={Boolean(resume().locked) || home.actionsBusy()}
         title={resume().locked ? "Unlock to delete" : "Delete"}
@@ -103,7 +114,8 @@ function ResumeActions(props: { home: HomePageModel; resume: ResumeListItem }) {
       <button
         type="button"
         class="p-2 text-stone hover:text-accent hover:bg-accent/10 rounded-lg transition-colors
-          disabled:opacity-50 disabled:cursor-not-allowed"
+          motion-reduce:transition-none disabled:opacity-50 disabled:cursor-not-allowed
+          focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         onClick={(e) => home.handleDuplicate(resume().id, e)}
         disabled={home.actionsBusy()}
         title="Duplicate"
@@ -128,7 +140,7 @@ function ResumeActions(props: { home: HomePageModel; resume: ResumeListItem }) {
       </button>
       <A href={`/edit/${resume().id}`} class="p-1" aria-label={`Edit ${resume().name}`}>
         <svg
-          class="w-5 h-5 text-stone group-hover:text-accent transition-colors"
+          class="w-5 h-5 text-stone group-hover:text-accent transition-colors motion-reduce:transition-none"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -137,6 +149,18 @@ function ResumeActions(props: { home: HomePageModel; resume: ResumeListItem }) {
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
         </svg>
       </A>
+    </div>
+  );
+}
+
+/** Mono title bar shared by grid cards and gallery tiles. */
+function WindowBar(props: { resume: ResumeListItem }) {
+  return (
+    <div class="flex items-center gap-1.5 px-3 py-2 font-mono text-[10px] text-stone">
+      <span class="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
+      <span class="h-1.5 w-1.5 rounded-full bg-border" aria-hidden="true" />
+      <span class="truncate">{resumeSlug(props.resume.name)}</span>
+      <span class="ml-auto flex-shrink-0 opacity-70">a4</span>
     </div>
   );
 }
@@ -150,13 +174,15 @@ export function HomeResumeCard(props: {
   const { home } = props;
   const resume = () => props.resume;
   const isGrid = () => props.variant === HomeLayout.Grid;
+  const isGallery = () => props.variant === HomeLayout.Gallery;
+  const isList = () => props.variant === HomeLayout.List;
 
   const tagRow = (opts?: { trailing?: "updated" }) => (
     <div
       class={
-        isGrid()
-          ? "mt-auto flex flex-wrap items-center gap-1.5 pt-2.5"
-          : "mt-1.5 ml-14 flex flex-wrap items-center gap-1.5"
+        isList()
+          ? "mt-1.5 ml-14 flex flex-wrap items-center gap-1.5"
+          : "flex flex-wrap items-center gap-1.5"
       }
       data-testid="resume-card-tags"
       onClick={(e) => e.stopPropagation()}
@@ -164,14 +190,16 @@ export function HomeResumeCard(props: {
       <For each={resume().tags ?? []}>
         {(tag) => (
           <span
-            class={`inline-flex items-center gap-0.5 rounded-sm px-1.5 py-0.5 text-[10px] font-semibold text-stone ${
-              isGrid() ? "bg-paper" : "rounded-full border border-border bg-surface/80"
+            class={`inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold text-stone ${
+              isList()
+                ? "rounded-full border border-border bg-surface/80"
+                : "rounded-sm bg-paper border border-border"
             }`}
           >
             <span class="max-w-[8rem] truncate">{tag}</span>
             <button
               type="button"
-              class="ml-0.5 rounded-full p-0.5 text-stone/70 hover:bg-accent/10 hover:text-ink transition-colors disabled:opacity-50 disabled:pointer-events-none"
+              class="ml-0.5 rounded-full p-0.5 text-stone/70 hover:bg-accent/10 hover:text-ink transition-colors motion-reduce:transition-none disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               onClick={(e) => home.handleRemoveTag(resume().id, tag, resume().tags, e)}
               disabled={
                 Boolean(resume().locked) || home.metaBusyId() === resume().id || home.actionsBusy()
@@ -203,8 +231,8 @@ export function HomeResumeCard(props: {
         fallback={
           <button
             type="button"
-            class={`inline-flex items-center border border-dashed border-border px-2 py-0.5 text-[10px] text-stone hover:border-accent hover:text-ink hover:bg-accent/10 transition-colors disabled:opacity-50 disabled:pointer-events-none ${
-              isGrid() ? "rounded-sm" : "rounded-full"
+            class={`inline-flex items-center border border-dashed border-border px-2 py-0.5 font-mono text-[10px] text-stone hover:border-accent hover:text-ink hover:bg-accent/10 transition-colors motion-reduce:transition-none disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+              isList() ? "rounded-full" : "rounded-sm"
             }`}
             onClick={(e) => home.openTagEditor(resume().id, e)}
             disabled={
@@ -225,7 +253,7 @@ export function HomeResumeCard(props: {
           <input
             type="text"
             class={`w-28 max-w-full border border-accent/40 bg-surface px-2.5 py-0.5 text-[10px] text-ink placeholder:text-stone/70 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 disabled:opacity-50 ${
-              isGrid() ? "rounded-sm" : "rounded-full"
+              isList() ? "rounded-full" : "rounded-sm"
             }`}
             placeholder="Tag name"
             aria-label={`Add tag to ${resume().name}`}
@@ -254,7 +282,7 @@ export function HomeResumeCard(props: {
         </form>
       </Show>
       <Show when={opts?.trailing === "updated"}>
-        <span class="ml-auto text-[10px] text-stone whitespace-nowrap">
+        <span class="ml-auto font-mono text-[10px] text-stone whitespace-nowrap">
           {formatUpdatedAt(resume().updatedAt)}
         </span>
       </Show>
@@ -278,7 +306,7 @@ export function HomeResumeCard(props: {
       />
       <button
         type="button"
-        class="p-1 text-accent hover:text-accent/80 transition-colors"
+        class="p-1 text-accent hover:text-accent/80 transition-colors motion-reduce:transition-none"
         onClick={() => home.confirmRename(resume().id)}
         title="Confirm rename"
         aria-label="Confirm rename"
@@ -300,7 +328,7 @@ export function HomeResumeCard(props: {
       </button>
       <button
         type="button"
-        class="p-1 text-stone hover:text-ink transition-colors"
+        class="p-1 text-stone hover:text-ink transition-colors motion-reduce:transition-none"
         onClick={() => home.cancelRename()}
         title="Cancel rename"
         aria-label="Cancel rename"
@@ -326,7 +354,7 @@ export function HomeResumeCard(props: {
   const docIcon = (hoverAccent = false) => (
     <div class="w-10 h-10 bg-surface rounded-lg flex items-center justify-center flex-shrink-0">
       <svg
-        class={`w-5 h-5 text-stone ${hoverAccent ? "group-hover:text-accent transition-colors" : ""}`}
+        class={`w-5 h-5 text-stone ${hoverAccent ? "group-hover:text-accent transition-colors motion-reduce:transition-none" : ""}`}
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -342,76 +370,137 @@ export function HomeResumeCard(props: {
     </div>
   );
 
-  const previewPane = () => (
-    <div
-      class="relative h-[7.5rem] border-b border-border px-4 pt-3.5
-        bg-gradient-to-b from-paper to-surface"
-      data-testid="resume-card-preview"
+  const lockedChip = () => (
+    <span
+      class="inline-flex flex-shrink-0 items-center gap-1 rounded-full border border-gold/40
+        bg-surface/90 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-gold"
+      title="Locked"
     >
-      <span class="mb-2.5 block h-1.5 w-[42%] rounded-sm bg-ink/85" aria-hidden="true" />
-      <span
-        class="block h-[0.28rem] w-[78%] rounded-sm bg-stone/35
-          shadow-[0_0.55rem_0_color-mix(in_srgb,var(--color-stone)_28%,transparent),0_1.1rem_0_color-mix(in_srgb,var(--color-stone)_22%,transparent),0_1.65rem_0_color-mix(in_srgb,var(--color-stone)_18%,transparent)]"
-        aria-hidden="true"
-      />
-      <Show when={resume().locked}>
-        <span
-          class="absolute top-2 right-2 rounded-sm bg-ink px-1.5 py-0.5 text-[10px]
-            font-bold uppercase tracking-wider text-paper"
-          title="Locked"
-        >
-          Locked
-        </span>
-      </Show>
-    </div>
+      <LockIcon locked class="w-2.5 h-2.5" />
+      Locked
+    </span>
   );
 
   const gridCard = () => (
     <article
-      class="group flex flex-col min-h-[14rem] overflow-hidden border border-border rounded-lg
-        bg-surface shadow-[0_1px_0_color-mix(in_srgb,var(--color-ink)_4%,transparent)]
-        transition-[box-shadow,transform,border-color] duration-150
-        hover:-translate-y-0.5 hover:border-stone hover:shadow-card
-        focus-within:-translate-y-0.5 focus-within:border-stone focus-within:shadow-card
-        motion-reduce:transform-none motion-reduce:transition-none"
+      class="group flex flex-col overflow-hidden rounded-xl border border-border bg-surface
+        transition-[box-shadow,transform,border-color] duration-150 motion-reduce:transition-none
+        hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-card
+        focus-within:-translate-y-0.5 focus-within:border-accent/40 focus-within:shadow-card
+        motion-reduce:transform-none motion-reduce:hover:translate-y-0"
       data-testid="resume-card"
     >
-      <Show
-        when={home.renamingId() !== resume().id}
-        fallback={
-          <>
-            {previewPane()}
-            <div class="px-4 pt-3.5 min-w-0">{renameForm()}</div>
-          </>
-        }
-      >
-        <A href={`/edit/${resume().id}`} class="block min-w-0">
-          {previewPane()}
-          <div class="px-4 pt-3.5 min-w-0">
-            <h3
+      <div class="border-b border-border bg-paper pb-3">
+        <WindowBar resume={resume()} />
+        <A
+          href={`/edit/${resume().id}`}
+          class="block px-3"
+          aria-label={`Open ${resume().name}`}
+          tabindex={-1}
+        >
+          <DocumentPreview resume={resume()} size="card" />
+        </A>
+      </div>
+
+      <div class="px-3.5 pt-3 min-w-0">
+        <Show when={home.renamingId() !== resume().id} fallback={renameForm()}>
+          <h3 class="flex items-center gap-1.5 min-w-0">
+            <Show when={resume().locked}>
+              <LockIcon locked class="w-3 h-3 flex-shrink-0 text-gold" />
+              <span class="sr-only">Locked</span>
+            </Show>
+            <A
+              href={`/edit/${resume().id}`}
               class="font-display text-[0.95rem] font-semibold tracking-tight text-ink
-                group-hover:text-accent transition-colors truncate"
+                group-hover:text-accent transition-colors motion-reduce:transition-none truncate"
             >
               <HighlightedText segments={props.nameSegments} />
-            </h3>
-            <Show when={resume().headline?.trim()}>
-              {(headline) => (
-                <p
-                  class="mt-1 text-xs leading-snug text-stone line-clamp-2"
-                  data-testid="resume-list-headline"
-                >
-                  {headline()}
-                </p>
-              )}
-            </Show>
-          </div>
-        </A>
-      </Show>
+            </A>
+          </h3>
+        </Show>
+        <Show when={resume().headline?.trim()}>
+          {(headline) => (
+            <p
+              class="mt-1 text-xs leading-snug text-stone line-clamp-2"
+              data-testid="resume-list-headline"
+            >
+              {headline()}
+            </p>
+          )}
+        </Show>
+      </div>
 
-      <div class="flex flex-1 flex-col px-4 pb-4 min-w-0">{tagRow({ trailing: "updated" })}</div>
+      <div class="px-3.5 pt-2.5 pb-3 min-w-0">{tagRow({ trailing: "updated" })}</div>
 
-      <div class="flex justify-end gap-0.5 px-2.5 pb-2.5">
+      <div class="mt-auto flex items-center border-t border-border px-2 py-1">
         <ResumeActions home={home} resume={resume()} />
+      </div>
+    </article>
+  );
+
+  const galleryCard = () => (
+    <article class="group flex flex-col" data-testid="resume-card">
+      <div
+        class="relative overflow-hidden rounded-xl border border-border bg-paper
+          transition-[transform,border-color] duration-200 motion-reduce:transition-none
+          group-hover:-translate-y-0.5 group-hover:border-accent/40
+          group-focus-within:border-accent/40 motion-reduce:transform-none
+          motion-reduce:group-hover:translate-y-0"
+      >
+        <WindowBar resume={resume()} />
+        <Show when={resume().locked}>
+          <span class="absolute right-2.5 top-9 z-10">{lockedChip()}</span>
+        </Show>
+        <A
+          href={`/edit/${resume().id}`}
+          class="block px-3.5 pb-3.5"
+          aria-label={`Open ${resume().name}`}
+          tabindex={-1}
+        >
+          <DocumentPreview resume={resume()} size="page" />
+        </A>
+        <div
+          class="absolute inset-x-0 bottom-0 z-10 flex justify-center bg-linear-to-t
+            from-paper via-paper/85 to-transparent px-3 pb-3 pt-8 opacity-0
+            transition-opacity duration-150 motion-reduce:transition-none
+            pointer-events-none group-hover:pointer-events-auto
+            group-focus-within:pointer-events-auto
+            group-hover:opacity-100 group-focus-within:opacity-100"
+        >
+          <div class="rounded-lg border border-border bg-surface/95 px-1 py-0.5 shadow-soft">
+            <ResumeActions home={home} resume={resume()} />
+          </div>
+        </div>
+      </div>
+
+      <div class="px-1 pt-2.5 min-w-0">
+        <Show
+          when={home.renamingId() !== resume().id}
+          fallback={<div class="pb-1">{renameForm()}</div>}
+        >
+          <div class="flex items-baseline gap-2 min-w-0">
+            <h3 class="min-w-0 truncate">
+              <A
+                href={`/edit/${resume().id}`}
+                class="font-display text-[0.95rem] font-semibold tracking-tight text-ink
+                  group-hover:text-accent transition-colors motion-reduce:transition-none"
+              >
+                <HighlightedText segments={props.nameSegments} />
+              </A>
+            </h3>
+            <span class="ml-auto flex-shrink-0 font-mono text-[10px] uppercase tracking-wider text-stone">
+              {formatUpdatedAt(resume().updatedAt)}
+            </span>
+          </div>
+        </Show>
+        <Show when={resume().headline?.trim()}>
+          {(headline) => (
+            <p class="mt-0.5 truncate text-xs text-stone" data-testid="resume-list-headline">
+              {headline()}
+            </p>
+          )}
+        </Show>
+        <div class="mt-2">{tagRow()}</div>
       </div>
     </article>
   );
@@ -419,7 +508,8 @@ export function HomeResumeCard(props: {
   const listCard = () => (
     <div
       class="group flex items-start justify-between gap-3 px-3.5 py-2.5 border border-border
-      rounded-xl hover:border-accent hover:shadow-card transition-all bg-paper"
+      rounded-xl bg-surface hover:border-accent hover:shadow-card transition-all
+      motion-reduce:transition-none"
       data-testid="resume-card"
     >
       <div class="flex-1 min-w-0">
@@ -435,23 +525,16 @@ export function HomeResumeCard(props: {
           <A href={`/edit/${resume().id}`} class="flex items-center gap-3 min-w-0">
             {docIcon(true)}
             <div class="min-w-0 flex-1">
-              <h3 class="font-body font-medium text-ink group-hover:text-accent transition-colors flex items-center gap-2 min-w-0 leading-snug">
+              <h3 class="font-display text-lg font-semibold text-ink group-hover:text-accent transition-colors motion-reduce:transition-none flex items-center gap-2 min-w-0 leading-snug">
                 <span class="truncate min-w-0">
                   <HighlightedText segments={props.nameSegments} />
                 </span>
-                <Show when={resume().locked}>
-                  <span
-                    class="inline-flex flex-shrink-0 items-center rounded-full bg-surface px-1.5 py-0.5 text-[10px] font-mono uppercase text-stone border border-border"
-                    title="Locked"
-                  >
-                    Locked
-                  </span>
-                </Show>
+                <Show when={resume().locked}>{lockedChip()}</Show>
               </h3>
               <Show when={resume().headline?.trim()}>
                 {(headline) => (
                   <p
-                    class="text-sm text-accent/65 truncate leading-snug"
+                    class="text-sm text-stone truncate leading-snug"
                     data-testid="resume-list-headline"
                   >
                     {headline()}
@@ -475,8 +558,15 @@ export function HomeResumeCard(props: {
   );
 
   return (
-    <Show when={isGrid()} fallback={listCard()}>
-      {gridCard()}
+    <Show
+      when={isGallery()}
+      fallback={
+        <Show when={isGrid()} fallback={listCard()}>
+          {gridCard()}
+        </Show>
+      }
+    >
+      {galleryCard()}
     </Show>
   );
 }

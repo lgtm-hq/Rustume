@@ -11,8 +11,8 @@ describe("homeLayout preference", () => {
     localStorage.removeItem(HOME_LAYOUT_STORAGE_KEY);
   });
 
-  it("defaults to list", () => {
-    expect(getStoredHomeLayout()).toBe(HomeLayout.List);
+  it("defaults to grid", () => {
+    expect(getStoredHomeLayout()).toBe(HomeLayout.Grid);
   });
 
   it("round-trips grid", () => {
@@ -33,8 +33,14 @@ describe("homeLayout preference", () => {
     expect(localStorage.getItem(HOME_LAYOUT_STORAGE_KEY)).toBe("grid");
   });
 
-  it("ignores invalid stored values", () => {
+  it("round-trips gallery", () => {
+    setStoredHomeLayout(HomeLayout.Gallery);
+    expect(getStoredHomeLayout()).toBe(HomeLayout.Gallery);
+    expect(localStorage.getItem(HOME_LAYOUT_STORAGE_KEY)).toBe("gallery");
+  });
+
+  it("falls back to grid for invalid stored values", () => {
     localStorage.setItem(HOME_LAYOUT_STORAGE_KEY, "dashboard");
-    expect(getStoredHomeLayout()).toBe(HomeLayout.List);
+    expect(getStoredHomeLayout()).toBe(HomeLayout.Grid);
   });
 });

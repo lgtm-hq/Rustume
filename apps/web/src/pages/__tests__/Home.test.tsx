@@ -26,7 +26,7 @@ const mockResumes = vi.hoisted(() => {
       headline: "Staff Platform Engineer",
       tags: ["backend"],
     },
-    { id: "2", name: "Product Manager", updatedAt: new Date("2025-02-01") },
+    { id: "2", name: "Product Manager", updatedAt: new Date("2025-02-01"), locked: true },
     {
       id: "3",
       name: "Jane Doe — Designer",
@@ -38,10 +38,13 @@ const mockResumes = vi.hoisted(() => {
   return resumes;
 });
 
+/** Mutable list state so tests can exercise the empty-library state. */
+const listState = vi.hoisted(() => ({ items: undefined as ResumeListItem[] | undefined }));
+
 const patchResumeListMetaMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
 const resumeListMock = vi.hoisted(() => ({
-  resumes: () => mockResumes,
+  resumes: () => listState.items,
   loading: () => false,
   deleteResume: vi.fn(),
   duplicateResume: vi.fn(),
@@ -85,32 +88,128 @@ vi.mock("../../stores/ui", () => ({
   },
 }));
 
-describe("Home resume search", () => {
-  beforeEach(() => {
-    sessionStorage.clear();
-    localStorage.removeItem(HOME_LAYOUT_STORAGE_KEY);
-    openModalMock.mockClear();
-    patchResumeListMetaMock.mockClear();
-    resumeListMock.refresh.mockClear();
-    mockAuthState.loading = false;
-    mockAuthState.cloudEnabled = false;
-    mockAuthState.requireAuth = false;
-    mockAuthState.user = null;
-  });
+function resetHomeState() {
+  sessionStorage.clear();
+  localStorage.removeItem(HOME_LAYOUT_STORAGE_KEY);
+  listState.items = mockResumes;
+  openModalMock.mockClear();
+  patchResumeListMetaMock.mockClear();
+  resumeListMock.refresh.mockClear();
+  mockAuthState.loading = false;
+  mockAuthState.cloudEnabled = false;
+  mockAuthState.requireAuth = false;
+  mockAuthState.user = null;
+}
 
-  it("offers create and import actions on the hero", () => {
+describe("Home command shell", () => {
+  beforeEach(resetHomeState);
+
+  it("drops the hero and the marketing footer", () => {
     renderHome();
 
-    expect(screen.getByTestId("home-create-resume")).toBeInTheDocument();
-    expect(screen.getByTestId("home-import-resume")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /Build your resume/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /Why Rustume/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Privacy First/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Lightning Fast/i)).not.toBeInTheDocument();
   });
 
-  it("opens the import modal from the hero import button", () => {
+  it("keeps create and import actions in the library toolbar", () => {
     renderHome();
+
+    const toolbar = screen.getByTestId("resume-library-toolbar");
+    expect(toolbar).toContainElement(screen.getByTestId("home-create-resume"));
+    expect(toolbar).toContainElement(screen.getByTestId("home-import-resume"));
 
     fireEvent.click(screen.getByTestId("home-import-resume"));
     expect(openModalMock).toHaveBeenCalledWith("import");
   });
+
+  it("reports live library status in the status strip", () => {
+    renderHome();
+
+    const strip = screen.getByTestId("home-status-strip");
+    expect(strip).toHaveTextContent("3 resumes");
+    expect(strip).toHaveTextContent("last edit");
+    expect(strip).toHaveTextContent("on-device storage");
+    expect(strip).toHaveTextContent("sync off");
+  });
+
+  it("reports cloud storage and sync on for a signed-in cloud user", () => {
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.user = { id: "u1", plan: "free" };
+
+    renderHome();
+
+    const strip = screen.getByTestId("home-status-strip");
+    expect(strip).toHaveTextContent("sync on");
+    // Storage must not claim on-device while resumes persist to the cloud.
+    expect(screen.getByTestId("home-status-storage")).toHaveTextContent("cloud storage");
+    expect(strip).not.toHaveTextContent("on-device");
+  });
+
+  it("does not promise on-device storage in the empty state for cloud users", () => {
+    listState.items = [];
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.user = { id: "u1", plan: "free" };
+
+    renderHome();
+
+    const empty = screen.getByTestId("home-empty-state");
+    expect(empty).toHaveTextContent(/syncs to your Rustume Cloud account/);
+    expect(empty).not.toHaveTextContent(/stays on this device/);
+  });
+
+  it("tracks the active view and scope in the status strip", () => {
+    renderHome();
+
+    expect(screen.getByTestId("home-status-view")).toHaveTextContent("view: grid · scope: all");
+
+    fireEvent.click(screen.getByTestId("home-layout-gallery"));
+
+    expect(screen.getByTestId("home-status-view")).toHaveTextContent("view: gallery · scope: all");
+  });
+
+  it("reserves a disabled sidebar mount point for the scope rail", () => {
+    renderHome();
+
+    expect(screen.getByTestId("home-sidebar-toggle")).toBeDisabled();
+  });
+});
+
+describe("Home command palette wiring", () => {
+  beforeEach(resetHomeState);
+
+  it("opens the command palette on the global shortcut", () => {
+    renderHome();
+
+    fireEvent.keyDown(document, { key: "k", ctrlKey: true });
+
+    expect(openModalMock).toHaveBeenCalledWith("commandPalette");
+  });
+
+  it("switches views from the number shortcuts", () => {
+    renderHome();
+
+    fireEvent.keyDown(document, { key: "3" });
+    expect(screen.getByTestId("home-resume-gallery")).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "1" });
+    expect(screen.getByTestId("home-resume-list")).toBeInTheDocument();
+  });
+
+  it("creates and imports from the letter shortcuts", () => {
+    renderHome();
+
+    fireEvent.keyDown(document, { key: "i" });
+    expect(openModalMock).toHaveBeenCalledWith("import");
+
+    fireEvent.keyDown(document, { key: "s" });
+    expect(resumeListMock.refresh).toHaveBeenCalled();
+  });
+});
+
+describe("Home resume search", () => {
+  beforeEach(resetHomeState);
 
   it("shows a labeled search input when resumes exist", () => {
     renderHome();
@@ -144,7 +243,7 @@ describe("Home resume search", () => {
     expect(screen.queryByRole("heading", { name: /Jane Doe/i })).not.toBeInTheDocument();
   });
 
-  it("shows an empty state when no resumes match", () => {
+  it("shows a designed empty state when no resumes match", () => {
     renderHome();
 
     fireEvent.input(screen.getByTestId("resume-search-input"), {
@@ -153,6 +252,23 @@ describe("Home resume search", () => {
 
     expect(screen.getByTestId("resume-search-empty")).toBeInTheDocument();
     expect(screen.getByText(/No matching resumes/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+
+    expect(screen.queryByTestId("resume-search-empty")).not.toBeInTheDocument();
+    expect(screen.getAllByTestId("resume-card")).toHaveLength(3);
+  });
+
+  it("prompts to create or import when the library is empty", () => {
+    listState.items = [];
+
+    renderHome();
+
+    expect(screen.getByTestId("home-empty-state")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create Resume" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Import Resume" }));
+    expect(openModalMock).toHaveBeenCalledWith("import");
   });
 
   it("persists the search query in sessionStorage", () => {
@@ -167,16 +283,7 @@ describe("Home resume search", () => {
 });
 
 describe("Home resume tags", () => {
-  beforeEach(() => {
-    sessionStorage.clear();
-    localStorage.removeItem(HOME_LAYOUT_STORAGE_KEY);
-    patchResumeListMetaMock.mockClear();
-    resumeListMock.refresh.mockClear();
-    mockAuthState.loading = false;
-    mockAuthState.cloudEnabled = false;
-    mockAuthState.requireAuth = false;
-    mockAuthState.user = null;
-  });
+  beforeEach(resetHomeState);
 
   it("shows tag filter chips and keeps tags below card meta", () => {
     renderHome();
@@ -243,102 +350,143 @@ describe("Home resume tags", () => {
   });
 });
 
-describe("Home layout toggle", () => {
-  beforeEach(() => {
-    sessionStorage.clear();
-    localStorage.removeItem(HOME_LAYOUT_STORAGE_KEY);
-    openModalMock.mockClear();
-    mockAuthState.loading = false;
-    mockAuthState.cloudEnabled = false;
-    mockAuthState.requireAuth = false;
-    mockAuthState.user = null;
-  });
+describe("Home locked resumes", () => {
+  beforeEach(resetHomeState);
 
-  it("defaults to list layout", () => {
+  it("offers unlock and gates destructive actions while locked", () => {
     renderHome();
 
-    expect(screen.getByTestId("home-view")).toBeInTheDocument();
-    expect(screen.getByTestId("home-resume-list")).toBeInTheDocument();
-    expect(screen.queryByTestId("home-resume-grid")).not.toBeInTheDocument();
-    expect(screen.getByTestId("home-layout-list")).toHaveAttribute("aria-pressed", "true");
+    const unlock = screen.getByLabelText("Unlock resume");
+    expect(unlock).toBeInTheDocument();
+    expect(unlock.className).toMatch(/text-gold/);
+
+    const lockedCard = unlock.closest('[data-testid="resume-card"]')!;
+    expect(lockedCard.querySelector('[aria-label="Delete resume"]')).toBeDisabled();
+    expect(lockedCard.querySelector('[aria-label="Rename resume"]')).toBeDisabled();
+    expect(lockedCard.querySelector('[data-testid="resume-tag-add"]')).toBeDisabled();
   });
 
-  it("switches to grid layout and renders resumes with the same actions", () => {
+  it("badges locked resumes with a gold marker in gallery", () => {
+    localStorage.setItem(HOME_LAYOUT_STORAGE_KEY, HomeLayout.Gallery);
+
     renderHome();
 
-    fireEvent.click(screen.getByTestId("home-layout-grid"));
+    const badges = screen.getAllByTitle("Locked");
+    expect(badges).toHaveLength(1);
+    expect(badges[0].className).toMatch(/text-gold/);
+  });
+});
+
+describe("Home layout switcher", () => {
+  beforeEach(resetHomeState);
+
+  it("defaults to grid layout with designed document previews", () => {
+    renderHome();
 
     expect(screen.getByTestId("home-view")).toBeInTheDocument();
     expect(screen.getByTestId("home-resume-grid")).toBeInTheDocument();
     expect(screen.queryByTestId("home-resume-list")).not.toBeInTheDocument();
     expect(screen.getByTestId("home-layout-grid")).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("heading", { name: /Software Engineer/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Product Manager/i })).toBeInTheDocument();
-    expect(screen.getAllByTestId("resume-card")).toHaveLength(3);
     expect(screen.getAllByTestId("resume-card-preview")).toHaveLength(3);
-    expect(screen.getAllByLabelText("Lock resume").length).toBeGreaterThan(0);
+  });
+
+  it("offers list, grid and gallery in one switcher", () => {
+    renderHome();
+
+    const switcher = screen.getByTestId("home-layout-toggle");
+    expect(switcher).toContainElement(screen.getByTestId("home-layout-list"));
+    expect(switcher).toContainElement(screen.getByTestId("home-layout-grid"));
+    expect(switcher).toContainElement(screen.getByTestId("home-layout-gallery"));
+  });
+
+  it("switches to list layout and keeps the row anatomy without previews", () => {
+    renderHome();
+
+    fireEvent.click(screen.getByTestId("home-layout-list"));
+
+    expect(screen.getByTestId("home-resume-list")).toBeInTheDocument();
+    expect(screen.queryByTestId("home-resume-grid")).not.toBeInTheDocument();
+    expect(screen.getByTestId("home-layout-list")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByTestId("resume-card-preview")).not.toBeInTheDocument();
+    expect(screen.getAllByText(/^Updated /)).toHaveLength(3);
+    expect(screen.getAllByTestId("resume-tag-add").length).toBeGreaterThan(0);
+  });
+
+  it("switches to gallery layout with the same card actions", () => {
+    renderHome();
+
+    fireEvent.click(screen.getByTestId("home-layout-gallery"));
+
+    expect(screen.getByTestId("home-resume-gallery")).toBeInTheDocument();
+    expect(screen.queryByTestId("home-resume-grid")).not.toBeInTheDocument();
+    expect(screen.getByTestId("home-layout-gallery")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getAllByTestId("resume-card-preview")).toHaveLength(3);
     expect(screen.getAllByLabelText("Rename resume").length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText("Delete resume").length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText("Duplicate resume").length).toBeGreaterThan(0);
   });
 
-  it("keeps list rows without document previews", () => {
+  it("renders the same scoped library in all three views", () => {
     renderHome();
 
-    expect(screen.getByTestId("home-resume-list")).toBeInTheDocument();
-    expect(screen.queryByTestId("resume-card-preview")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "backend" }));
+
+    for (const view of ["home-layout-list", "home-layout-grid", "home-layout-gallery"]) {
+      fireEvent.click(screen.getByTestId(view));
+
+      expect(screen.getAllByTestId("resume-card")).toHaveLength(2);
+      expect(screen.getByRole("heading", { name: /Software Engineer/i })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: /Jane Doe/i })).toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: /Product Manager/i })).not.toBeInTheDocument();
+    }
   });
 
   it("persists the layout preference in localStorage", () => {
     renderHome();
 
-    fireEvent.click(screen.getByTestId("home-layout-grid"));
+    fireEvent.click(screen.getByTestId("home-layout-gallery"));
 
-    expect(localStorage.getItem(HOME_LAYOUT_STORAGE_KEY)).toBe(HomeLayout.Grid);
+    expect(localStorage.getItem(HOME_LAYOUT_STORAGE_KEY)).toBe(HomeLayout.Gallery);
   });
 
-  it("restores grid layout from localStorage", () => {
-    localStorage.setItem(HOME_LAYOUT_STORAGE_KEY, HomeLayout.Grid);
+  it("restores the stored layout", () => {
+    localStorage.setItem(HOME_LAYOUT_STORAGE_KEY, HomeLayout.List);
 
     renderHome();
 
-    expect(screen.getByTestId("home-resume-grid")).toBeInTheDocument();
+    expect(screen.getByTestId("home-resume-list")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Software Engineer/i })).toBeInTheDocument();
   });
 
-  it("migrates legacy workspace preference to grid", () => {
-    localStorage.setItem(HOME_LAYOUT_STORAGE_KEY, "workspace");
+  it("migrates legacy layout preferences", () => {
+    localStorage.setItem(HOME_LAYOUT_STORAGE_KEY, "classic");
+
+    renderHome();
+
+    expect(screen.getByTestId("home-resume-list")).toBeInTheDocument();
+    expect(localStorage.getItem(HOME_LAYOUT_STORAGE_KEY)).toBe(HomeLayout.List);
+  });
+
+  it("falls back to grid for unknown stored layouts", () => {
+    localStorage.setItem(HOME_LAYOUT_STORAGE_KEY, "mosaic");
 
     renderHome();
 
     expect(screen.getByTestId("home-resume-grid")).toBeInTheDocument();
-    expect(localStorage.getItem(HOME_LAYOUT_STORAGE_KEY)).toBe(HomeLayout.Grid);
   });
 
-  it("keeps create and import actions in grid", () => {
-    localStorage.setItem(HOME_LAYOUT_STORAGE_KEY, HomeLayout.Grid);
+  it("keeps shared chrome identical across views", () => {
     renderHome();
 
-    expect(screen.getByTestId("home-create-resume")).toBeInTheDocument();
-    expect(screen.getByTestId("home-import-resume")).toBeInTheDocument();
+    for (const view of ["home-layout-list", "home-layout-gallery", "home-layout-grid"]) {
+      fireEvent.click(screen.getByTestId(view));
 
-    fireEvent.click(screen.getByTestId("home-import-resume"));
-    expect(openModalMock).toHaveBeenCalledWith("import");
-  });
-
-  it("keeps shared chrome identical when toggling list and grid", () => {
-    renderHome();
-
-    expect(screen.getByRole("heading", { name: /Build your resume/i })).toBeInTheDocument();
-    expect(screen.getByTestId("resume-search-input")).toBeInTheDocument();
-    expect(screen.getByTestId("resume-sort-select")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByTestId("home-layout-grid"));
-
-    expect(screen.getByRole("heading", { name: /Build your resume/i })).toBeInTheDocument();
-    expect(screen.getByTestId("resume-search-input")).toBeInTheDocument();
-    expect(screen.getByTestId("resume-sort-select")).toBeInTheDocument();
-    expect(screen.getByTestId("home-create-resume")).toBeInTheDocument();
+      expect(screen.getByTestId("home-status-strip")).toBeInTheDocument();
+      expect(screen.getByTestId("resume-search-input")).toBeInTheDocument();
+      expect(screen.getByTestId("resume-sort-select")).toBeInTheDocument();
+      expect(screen.getByTestId("resume-tag-filters")).toBeInTheDocument();
+      expect(screen.getByTestId("home-create-resume")).toBeInTheDocument();
+    }
   });
 
   it("spans library chrome full content width with tools pushed right", () => {
@@ -348,44 +496,46 @@ describe("Home layout toggle", () => {
     const toolbar = screen.getByTestId("resume-library-toolbar");
     const tools = screen.getByTestId("resume-library-tools");
     const tags = screen.getByTestId("resume-tag-filters");
-    const list = screen.getByTestId("home-resume-list");
+    const grid = screen.getByTestId("home-resume-grid");
 
     expect(library).toContainElement(toolbar);
     expect(library).toContainElement(tags);
-    expect(library).toContainElement(list);
+    expect(library).toContainElement(grid);
     expect(toolbar.className).toMatch(/justify-between/);
     expect(toolbar.className).toMatch(/\bw-full\b/);
     expect(tools.className).toMatch(/ml-auto/);
     expect(tags.className).toMatch(/\bw-full\b/);
-    expect(list.className).toMatch(/\bw-full\b/);
-
-    fireEvent.click(screen.getByTestId("home-layout-grid"));
-
-    const grid = screen.getByTestId("home-resume-grid");
-    expect(library).toContainElement(grid);
     expect(grid.className).toMatch(/\bw-full\b/);
+
+    fireEvent.click(screen.getByTestId("home-layout-list"));
+
+    const list = screen.getByTestId("home-resume-list");
+    expect(library).toContainElement(list);
+    expect(list.className).toMatch(/\bw-full\b/);
     expect(screen.getByTestId("resume-library-toolbar")).toBeInTheDocument();
     expect(screen.getByTestId("resume-library-tools")).toBeInTheDocument();
   });
 });
 
 describe("Home accessibility", () => {
-  it("has no axe violations when rendered", async () => {
-    localStorage.removeItem(HOME_LAYOUT_STORAGE_KEY);
-    mockAuthState.loading = false;
-    mockAuthState.cloudEnabled = false;
-    mockAuthState.user = null;
+  beforeEach(resetHomeState);
+
+  it("has no axe violations in grid layout", async () => {
+    const { container } = renderHome();
+
+    expect(await axe(container, axeConfig)).toHaveNoViolations();
+  });
+
+  it("has no axe violations in list layout", async () => {
+    localStorage.setItem(HOME_LAYOUT_STORAGE_KEY, HomeLayout.List);
 
     const { container } = renderHome();
 
     expect(await axe(container, axeConfig)).toHaveNoViolations();
   });
 
-  it("has no axe violations in grid layout", async () => {
-    localStorage.setItem(HOME_LAYOUT_STORAGE_KEY, HomeLayout.Grid);
-    mockAuthState.loading = false;
-    mockAuthState.cloudEnabled = false;
-    mockAuthState.user = null;
+  it("has no axe violations in gallery layout", async () => {
+    localStorage.setItem(HOME_LAYOUT_STORAGE_KEY, HomeLayout.Gallery);
 
     const { container } = renderHome();
 
