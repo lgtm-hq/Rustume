@@ -49,7 +49,7 @@ fi
 # all three: a formatting-only edit must not drop a pin out of the guard's view.
 q="[\"']"
 uses_re="^[[:space:]]*(-[[:space:]]+)?uses:[[:space:]]*${q}?lgtm-hq/lgtm-ci/[^@\"'[:space:]]+@([0-9a-f]{40})${q}?[[:space:]]*#[[:space:]]*(v[0-9]+\.[0-9]+\.[0-9]+)"
-ref_re="^[[:space:]]*tooling-ref:[[:space:]]*(${q}?)([0-9a-f]{40})(${q}?)[[:space:]]*#[[:space:]]*(v[0-9]+\.[0-9]+\.[0-9]+)[[:space:]]*$"
+ref_re="^[[:space:]]*tooling-ref:[[:space:]]*(${q}?)([0-9a-f]{40})(${q}?)[[:space:]]*#[[:space:]]*(v[0-9]+\.[0-9]+\.[0-9]+)"
 # Any tooling-ref line that ref_re cannot parse is reported rather than skipped.
 ref_line_re='^[[:space:]]*tooling-ref:'
 

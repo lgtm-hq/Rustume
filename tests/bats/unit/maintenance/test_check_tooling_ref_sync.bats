@@ -168,6 +168,21 @@ EOF
 	assert_output --partial "unparsable tooling-ref line"
 }
 
+@test "pin sync: trailing prose after the version comment is still parsed" {
+	cat >"${WORKFLOW_DIR}/prose.yml" <<EOF
+jobs:
+  call:
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-thing.yml@${SHA_A} # v0.54.0
+    with:
+      tooling-ref: '${SHA_A}' # v0.54.0 release commit
+EOF
+
+	run_guard
+
+	assert_success
+	assert_output --partial "1 tooling-ref pin(s)"
+}
+
 @test "pin sync: a quoted lgtm-ci uses pin is recognized" {
 	cat >"${WORKFLOW_DIR}/quoted-uses.yml" <<EOF
 jobs:
