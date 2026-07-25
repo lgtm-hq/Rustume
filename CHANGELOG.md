@@ -22,6 +22,19 @@ and this project adheres to
 
 ### Security
 
+## [0.44.0] - 2026-07-25
+
+### Added
+
+- **web**: redesign Home as a command centre shell with list/grid/gallery views (#569)
+  (10acc62)
+
+### Changed
+
+- **deps**: update ghcr.io/lgtm-hq/py-lintro docker tag to 0.91.45 (patch) (#579)
+  (2ec4ad8)
+- **deps**: update dependency oxlint to 1.75.0 (minor) (#565) (ece7979)
+
 ## [0.43.2] - 2026-07-25
 
 ### Changed
@@ -580,7 +593,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.43.2...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.44.0...HEAD
+[0.44.0]: https://github.com/lgtm-hq/Rustume/compare/v0.43.2...v0.44.0
 [0.43.2]: https://github.com/lgtm-hq/Rustume/compare/v0.43.1...v0.43.2
 [0.43.1]: https://github.com/lgtm-hq/Rustume/compare/v0.43.0...v0.43.1
 [0.43.0]: https://github.com/lgtm-hq/Rustume/compare/v0.42.0...v0.43.0
