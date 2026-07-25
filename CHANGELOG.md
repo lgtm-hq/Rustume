@@ -22,6 +22,22 @@ and this project adheres to
 
 ### Security
 
+## [0.43.2] - 2026-07-25
+
+### Changed
+
+- **deps**: update ghcr.io/lgtm-hq/py-lintro docker tag to 0.91.44 (patch) (#577)
+  (80038ba)
+- **deps**: update all major dependencies (major) (#557) (7ca9d15)
+- **deps**: update ghcr.io/lgtm-hq/py-lintro docker tag to 0.91.43 (patch) (#576)
+  (1b255ea)
+- track lintro and lgtm-ci pins in Renovate, inventory version-bearing files, align
+  lintro to 0.91.41 (#572) (fd7bd81)
+
+### Fixed
+
+- **deps**: update dependency @lgtm-hq/turbo-themes to 0.38.7 (minor) (#562) (42b26e3)
+
 ## [0.43.1] - 2026-07-25
 
 ### Changed
@@ -564,7 +580,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.43.1...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.43.2...HEAD
+[0.43.2]: https://github.com/lgtm-hq/Rustume/compare/v0.43.1...v0.43.2
 [0.43.1]: https://github.com/lgtm-hq/Rustume/compare/v0.43.0...v0.43.1
 [0.43.0]: https://github.com/lgtm-hq/Rustume/compare/v0.42.0...v0.43.0
 [0.42.0]: https://github.com/lgtm-hq/Rustume/compare/v0.41.0...v0.42.0
