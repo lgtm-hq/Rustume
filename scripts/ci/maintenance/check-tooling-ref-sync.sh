@@ -15,6 +15,8 @@ set -euo pipefail
 #      an lgtm-ci `uses:` pin in the same file.
 #   2. Repo-wide — every lgtm-ci pin in .github/workflows/*.yml resolves to a
 #      single SHA and a single version comment.
+#   3. Parsability — every `tooling-ref:` line is recognized (quoted or not);
+#      an unparsable one is reported instead of silently skipped.
 #
 # Usage:
 #   scripts/ci/maintenance/check-tooling-ref-sync.sh [workflow-dir]
@@ -24,7 +26,7 @@ workflow_dir=".github/workflows"
 while (($# > 0)); do
 	case "$1" in
 	--help | -h)
-		sed -n '1,22p' "$0"
+		sed -n '1,24p' "$0"
 		exit 0
 		;;
 	-*)
@@ -43,8 +45,13 @@ if [[ -z ${workflow_dir} || ! -d ${workflow_dir} ]]; then
 	exit 2
 fi
 
-uses_re='^[[:space:]]*(-[[:space:]]+)?uses:[[:space:]]*lgtm-hq/lgtm-ci/[^@]+@([0-9a-f]{40})[[:space:]]*#[[:space:]]*(v[0-9]+\.[0-9]+\.[0-9]+)'
-ref_re="^[[:space:]]*tooling-ref:[[:space:]]*'([0-9a-f]{40})'[[:space:]]*#[[:space:]]*(v[0-9]+\.[0-9]+\.[0-9]+)"
+# YAML scalars accept unquoted, single-quoted and double-quoted forms, so match
+# all three: a formatting-only edit must not drop a pin out of the guard's view.
+q="[\"']"
+uses_re="^[[:space:]]*(-[[:space:]]+)?uses:[[:space:]]*${q}?lgtm-hq/lgtm-ci/[^@\"'[:space:]]+@([0-9a-f]{40})${q}?[[:space:]]*#[[:space:]]*(v[0-9]+\.[0-9]+\.[0-9]+)"
+ref_re="^[[:space:]]*tooling-ref:[[:space:]]*(${q}?)([0-9a-f]{40})(${q}?)[[:space:]]*#[[:space:]]*(v[0-9]+\.[0-9]+\.[0-9]+)[[:space:]]*$"
+# Any tooling-ref line that ref_re cannot parse is reported rather than skipped.
+ref_line_re='^[[:space:]]*tooling-ref:'
 
 violations=""
 all_pins=""
@@ -61,8 +68,12 @@ while IFS= read -r file; do
 	while IFS= read -r line; do
 		if [[ ${line} =~ ${uses_re} ]]; then
 			uses_pins="${uses_pins}${BASH_REMATCH[2]} ${BASH_REMATCH[3]}"$'\n'
-		elif [[ ${line} =~ ${ref_re} ]]; then
-			ref_pins="${ref_pins}${BASH_REMATCH[1]} ${BASH_REMATCH[2]}"$'\n'
+		elif [[ ${line} =~ ${ref_line_re} ]]; then
+			if [[ ${line} =~ ${ref_re} && ${BASH_REMATCH[1]} == "${BASH_REMATCH[3]}" ]]; then
+				ref_pins="${ref_pins}${BASH_REMATCH[2]} ${BASH_REMATCH[4]}"$'\n'
+			else
+				add_violation "${file}: unparsable tooling-ref line: ${line#"${line%%[![:space:]]*}"}"
+			fi
 		fi
 	done <"${file}"
 

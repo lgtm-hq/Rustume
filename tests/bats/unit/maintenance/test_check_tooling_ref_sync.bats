@@ -101,6 +101,88 @@ EOF
 	assert_output --partial "no lgtm-ci 'uses:' pin"
 }
 
+@test "pin sync: double-quoted and unquoted tooling-ref scalars are checked" {
+	cat >"${WORKFLOW_DIR}/quoted.yml" <<EOF
+jobs:
+  call:
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-thing.yml@${SHA_A} # v0.54.0
+    with:
+      tooling-ref: "${SHA_A}" # v0.54.0
+EOF
+	cat >"${WORKFLOW_DIR}/bare.yml" <<EOF
+jobs:
+  call:
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-thing.yml@${SHA_A} # v0.54.0
+    with:
+      tooling-ref: ${SHA_A} # v0.54.0
+EOF
+
+	run_guard
+
+	assert_success
+	assert_output --partial "2 tooling-ref pin(s)"
+}
+
+@test "pin sync: drift in a double-quoted tooling-ref is still caught" {
+	cat >"${WORKFLOW_DIR}/quoted.yml" <<EOF
+jobs:
+  call:
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-thing.yml@${SHA_A} # v0.54.0
+    with:
+      tooling-ref: "${SHA_B}" # v0.54.0
+EOF
+
+	run_guard
+
+	assert_failure
+	assert_output --partial "does not match any 'uses:' pin"
+}
+
+@test "pin sync: an unparsable tooling-ref line is reported, not skipped" {
+	cat >"${WORKFLOW_DIR}/odd.yml" <<EOF
+jobs:
+  call:
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-thing.yml@${SHA_A} # v0.54.0
+    with:
+      tooling-ref: '${SHA_A}"
+EOF
+
+	run_guard
+
+	assert_failure
+	assert_output --partial "unparsable tooling-ref line"
+}
+
+@test "pin sync: a tooling-ref without a version comment is reported" {
+	cat >"${WORKFLOW_DIR}/nocomment.yml" <<EOF
+jobs:
+  call:
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-thing.yml@${SHA_A} # v0.54.0
+    with:
+      tooling-ref: '${SHA_A}'
+EOF
+
+	run_guard
+
+	assert_failure
+	assert_output --partial "unparsable tooling-ref line"
+}
+
+@test "pin sync: a quoted lgtm-ci uses pin is recognized" {
+	cat >"${WORKFLOW_DIR}/quoted-uses.yml" <<EOF
+jobs:
+  call:
+    uses: "lgtm-hq/lgtm-ci/.github/workflows/reusable-thing.yml@${SHA_A}" # v0.54.0
+    with:
+      tooling-ref: '${SHA_A}' # v0.54.0
+EOF
+
+	run_guard
+
+	assert_success
+	assert_output --partial "1 tooling-ref pin(s)"
+}
+
 @test "pin sync: workflows without lgtm-ci pins pass" {
 	cat >"${WORKFLOW_DIR}/plain.yml" <<'EOF'
 jobs:

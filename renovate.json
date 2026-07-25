@@ -37,7 +37,7 @@
       "customType": "regex",
       "managerFilePatterns": ["/^\\.github/workflows/.+\\.yml$/"],
       "matchStrings": [
-        "tooling-ref: '(?<currentDigest>[0-9a-f]{40})'\\s+# (?<currentValue>v\\d+\\.\\d+\\.\\d+)"
+        "tooling-ref: [\"']?(?<currentDigest>[0-9a-f]{40})[\"']?\\s+# (?<currentValue>v\\d+\\.\\d+\\.\\d+)"
       ],
       "depNameTemplate": "lgtm-hq/lgtm-ci",
       "datasourceTemplate": "github-tags"

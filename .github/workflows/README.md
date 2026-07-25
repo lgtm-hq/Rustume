@@ -108,7 +108,7 @@ Renovate config lives in `renovate.json`; the shared preset is
 | Path | Field | Pins | Owner |
 | --- | --- | --- | --- |
 | `.github/workflows/*.yml` | `uses: <owner>/<repo>@<sha> # vX.Y.Z` | Actions and lgtm-ci reusables | Renovate `github-actions` |
-| `.github/workflows/*.yml` | `tooling-ref: '<sha>' # vX.Y.Z` (23 occurrences) | lgtm-ci tooling checkout, mirroring the `uses:` pin in the same file | Renovate custom manager (`lgtm-hq/lgtm-ci`, `github-tags`), enforced by `pin-sync-guard.yml` |
+| `.github/workflows/*.yml` | `tooling-ref: '<sha>' # vX.Y.Z` (one per lgtm-ci caller job) | lgtm-ci tooling checkout, mirroring the `uses:` pin in the same file | Renovate custom manager (`lgtm-hq/lgtm-ci`, `github-tags`), enforced by `pin-sync-guard.yml` |
 | `.github/workflows/ci-lintro-analysis.yml`, `.github/workflows/security-dependency-review.yml` | `lintro-image: ghcr.io/lgtm-hq/py-lintro:<version>@sha256:<digest>` | lintro CI image (version and digest together) | Renovate custom manager (`ghcr.io/lgtm-hq/py-lintro`, `docker`) |
 | `.github/workflows/boundary-guard.yml` | `pip install uv==<version>` | uv in the boundary job (`setup-uv` is blocked by the egress policy) | **Manual — no manager** |
 | `.github/workflows/coverage.yml`, `deploy-pages.yml`, `site-quality.yml` | `node-version:`, `python-version:` | CI runtime majors | **Manual — no manager** |
