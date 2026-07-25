@@ -3,7 +3,7 @@
 This repository uses GitHub Actions for quality gates, coverage, release automation,
 and publishing. Most workflows are thin callers to
 [lgtm-ci](https://github.com/lgtm-hq/lgtm-ci) reusable workflows pinned at
-`66cad82ead0e5d119928c895c7d7da9c837989e5` (**v0.52.3** release commit; not the annotated
+`31c25ef2e8992960e218524780e34f44f51271b5` (**v0.54.0** release commit; not the annotated
 tag object SHA). All workflow SHA pins include
 trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enforced by
 [lgtm-ci validate-action-pinning](https://github.com/lgtm-hq/lgtm-ci/pull/221) (via
@@ -65,6 +65,14 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
 - **vuln-suppression-check.yml** — Stale OSV suppression cleanup via
   `reusable-vuln-suppression-check`
 - **validate-action-pinning.yml** — SHA pin policy via `reusable-validate-action-pinning`
+- **pin-sync-guard.yml** — Fails when a workflow's `tooling-ref:` input drifts from the
+  lgtm-ci `uses:` pin it mirrors, or when workflows disagree on the lgtm-ci release
+  (`scripts/ci/maintenance/check-tooling-ref-sync.sh`)
+- **boundary-guard.yml** — Ops boundary path and content guards (inline;
+  `scripts/ci/boundary/`)
+- **test-boundary-shell.yml** / **test-docker-shell.yml** /
+  **test-maintenance-shell.yml** — BATS suites for `scripts/ci/` via
+  `reusable-test-shell`
 - **ghcr-cleanup.yml** — GHCR prune (hybrid: `reusable-ghcr-cleanup` for untagged +
   inline tagged retention)
 - **renovate.yml** — Scheduled Renovate runs (direct `step-security/harden-runner` +
@@ -75,9 +83,9 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
 Use the **release commit SHA**, not the annotated tag object SHA:
 
 ```yaml
-uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@66cad82ead0e5d119928c895c7d7da9c837989e5 # v0.52.3
+uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@31c25ef2e8992960e218524780e34f44f51271b5 # v0.54.0
 with:
-  tooling-ref: '66cad82ead0e5d119928c895c7d7da9c837989e5' # v0.52.3 release commit
+  tooling-ref: '31c25ef2e8992960e218524780e34f44f51271b5' # v0.54.0 release commit
 ```
 
 Sparse `lgtm-hq` tooling checkouts may use `actions/checkout` when `ref:` is quoted and
@@ -87,6 +95,44 @@ Pass `runner-image: ubuntu-24.04` on reusables that expose the input (lgtm-ci #3
 Action-only wrappers (`reusable-codeql`, `reusable-dependency-review`, etc.) and
 multi-arch Docker (`runner-map`) follow the exceptions in
 [lgtm-ci workflow-contract](https://github.com/lgtm-hq/lgtm-ci/blob/main/docs/workflow-contract.md#runner-pinning-exceptions).
+
+## Version pin inventory
+
+Every version-bearing field in the repo, and what keeps it current. "Manual" rows have no
+manager and only move when a human moves them — they are listed so that fact stays visible
+instead of being rediscovered after years of drift (#568).
+
+Renovate config lives in `renovate.json`; the shared preset is
+`local>lgtm-hq/.github:renovate-config`.
+
+| Path | Field | Pins | Owner |
+| --- | --- | --- | --- |
+| `.github/workflows/*.yml` | `uses: <owner>/<repo>@<sha> # vX.Y.Z` | Actions and lgtm-ci reusables | Renovate `github-actions` |
+| `.github/workflows/*.yml` | `tooling-ref: '<sha>' # vX.Y.Z` (23 occurrences) | lgtm-ci tooling checkout, mirroring the `uses:` pin in the same file | Renovate custom manager (`lgtm-hq/lgtm-ci`, `github-tags`), enforced by `pin-sync-guard.yml` |
+| `.github/workflows/ci-lintro-analysis.yml`, `.github/workflows/security-dependency-review.yml` | `lintro-image: ghcr.io/lgtm-hq/py-lintro:<version>@sha256:<digest>` | lintro CI image (version and digest together) | Renovate custom manager (`ghcr.io/lgtm-hq/py-lintro`, `docker`) |
+| `.github/workflows/boundary-guard.yml` | `pip install uv==<version>` | uv in the boundary job (`setup-uv` is blocked by the egress policy) | **Manual — no manager** |
+| `.github/workflows/coverage.yml`, `deploy-pages.yml`, `site-quality.yml` | `node-version:`, `python-version:` | CI runtime majors | **Manual — no manager** |
+| `.github/workflows/README.md` | `## Pin format` example | Illustrative lgtm-ci pin | **Manual — no manager**; `pin-sync-guard.yml` does not read Markdown |
+| `docker/Dockerfile` | `FROM <image>@sha256:<digest>` | `rust`, `gcr.io/distroless/static` | Renovate `dockerfile` (digest updates automerged) |
+| `docker/Dockerfile` | `ARG BUN_VERSION=` | bun release tarball | Renovate custom manager (`oven-sh/bun`, `github-releases`) |
+| `docker/Dockerfile` | `cargo install cargo-chef@<version>` | cargo-chef | Renovate custom manager (`cargo-chef`, `crate`) |
+| `docker/Dockerfile` | `wasm-bindgen-cli@${WASM_BINDGEN_VERSION}` | Derived from `Cargo.lock` at build time | n/a — no literal pin to update |
+| `docker-compose.yml` | `image: postgres:<tag>@sha256:<digest>` | Local dev Postgres | Renovate `docker-compose` |
+| `docker-compose.yml` | `image: ghcr.io/lgtm-hq/rustume:latest` | This repo's own image | n/a — deliberately floating |
+| `Cargo.toml`, `crates/*/Cargo.toml`, `bindings/*/Cargo.toml` | `[dependencies]` requirements | Rust crates | Renovate `cargo` |
+| `Cargo.lock` | Resolved Rust crates | Transitive Rust versions | Renovate `cargo` (updated with the manifest) |
+| `apps/web/package.json`, `apps/site/package.json` | `dependencies`, `devDependencies` | JS/TS deps | Renovate `npm` |
+| `apps/web/package.json`, `apps/site/package.json` | `overrides` | Forced transitive versions (`astro`, `esbuild`, `sharp`, `ws`, `fast-uri`, …) | Renovate `npm` (extracts `overrides`); `apps/site` TypeScript majors are pinned off in `renovate.json` |
+| `apps/web/bun.lock`, `apps/site/bun.lock` | Resolved JS deps | Transitive JS versions | Renovate `npm` (bun lockfile) |
+| `pyproject.toml` | `[dependency-groups] lint`, `test` | lintro, pytest | Renovate `pep621` (PEP 735 dependency groups) |
+| `uv.lock` | Resolved Python deps | lintro and its tool stack | Renovate `pep621` (refreshed with the manifest) |
+| `scripts/ci/site/preview-pages-local.sh` | `CARGO_LLVM_COV_VERSION=` | cargo-llvm-cov | Renovate custom manager (`cargo-llvm-cov`, `crate`) |
+| `scripts/ci/boundary/check_content.sh` | `uvx --from semgrep==<version>` | semgrep for the content guard | **Manual — no manager** |
+| `scripts/ci/testing/rust/run-server-db-migrations.sh` | `SQLX_CLI_VERSION=` | sqlx-cli | **Manual — no manager** |
+
+The lintro version is authoritative in **two** places that must agree: the `lintro-image:`
+pins above (what CI runs) and `pyproject.toml` + `uv.lock` (what `uv run lintro` runs
+locally). Move them in the same commit.
 
 ## Token patterns
 
