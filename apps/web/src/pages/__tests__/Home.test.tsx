@@ -972,6 +972,28 @@ describe("Home folder scopes", () => {
     expect(screen.getByTestId("home-scope-folder-Applications")).toBeInTheDocument();
   });
 
+  it("explains an empty folder instead of blaming a search nobody made", async () => {
+    openRail();
+
+    fireEvent.click(screen.getByTestId("home-scope-folder-new"));
+    const input = screen.getByTestId("home-scope-folder-input");
+    fireEvent.input(input, { target: { value: "Consulting" } });
+    fireEvent.submit(input);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("home-scope-folder-Consulting")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId("home-scope-folder-Consulting"));
+
+    const empty = screen.getByTestId("home-empty-scope");
+    expect(empty).toHaveTextContent("/Consulting");
+    // The search-specific copy would read: Nothing matches "" in /Consulting.
+    expect(screen.queryByTestId("resume-search-empty")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show all resumes" }));
+    expect(screen.getAllByTestId("resume-card")).toHaveLength(3);
+  });
+
   it("has no axe violations with folders in the rail", async () => {
     localStorage.setItem(HOME_SIDEBAR_STORAGE_KEY, HomeSidebarState.Open);
 

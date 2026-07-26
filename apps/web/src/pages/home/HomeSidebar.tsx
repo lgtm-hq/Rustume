@@ -174,7 +174,7 @@ function FolderRow(props: {
       >
         <span class="truncate">/{props.folder}</span>
         <span
-          class="flex-shrink-0 pr-11 font-mono text-[10px] text-stone transition-opacity
+          class="flex-shrink-0 font-mono text-[10px] text-stone transition-opacity
             motion-reduce:transition-none group-hover/folder:opacity-0
             group-focus-within/folder:opacity-0"
           data-testid={`home-scope-folder-count-${props.folder}`}
