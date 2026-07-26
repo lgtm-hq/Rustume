@@ -13,7 +13,11 @@ pub struct AppState {
     pub static_dir: Arc<PathBuf>,
     pub cloud: Option<Arc<CloudState>>,
     pub renderer: Arc<TypstRenderer>,
-    /// When true, billable API routes require a valid session (hosted Rustume Cloud).
+    /// Whether this deployment requires a session, as advertised to clients via
+    /// `/auth/me`. Always mirrors cloud mode in production.
+    ///
+    /// This is a reporting value, not the enforcement switch: the middleware
+    /// gates on cloud presence so no flag can re-open a billable deployment.
     pub require_auth: bool,
     /// In-memory rate limiters (cloud mode only).
     pub rate_limits: Option<Arc<RateLimitState>>,
@@ -35,7 +39,7 @@ impl AppState {
         }
     }
 
-    /// Build application state with an explicit require-auth flag (tests).
+    /// Build application state with an explicit advertised require-auth flag (tests).
     #[cfg(test)]
     pub fn with_require_auth(
         static_dir: Arc<PathBuf>,

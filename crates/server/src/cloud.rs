@@ -171,18 +171,13 @@ pub fn cloud_enabled() -> bool {
             .is_some_and(|url| !url.trim().is_empty())
 }
 
-/// Returns `true` when hosted Rustume Cloud should reject anonymous billable API use.
+/// Returns `true` when the server must reject anonymous billable API use.
 ///
-/// Only meaningful when [`cloud_enabled`] is also true.
+/// Cloud implies auth: every cloud deployment is a billable, account-backed
+/// service, so authentication is mandatory and not configurable. Self-hosted
+/// deployments ([`cloud_enabled`] is false) have no accounts and no gate.
 pub fn require_auth_enabled() -> bool {
-    require_auth_from_env(
-        cloud_enabled(),
-        std::env::var("RUSTUME_REQUIRE_AUTH").ok().as_deref(),
-    )
-}
-
-fn require_auth_from_env(cloud: bool, value: Option<&str>) -> bool {
-    cloud && matches!(value.map(str::trim), Some("true" | "1"))
+    cloud_enabled()
 }
 
 /// Shared cloud services (database, auth providers).
@@ -240,17 +235,39 @@ pub async fn init_cloud(config: CloudConfig) -> anyhow::Result<Arc<CloudState>> 
     }))
 }
 
+/// Build a [`CloudState`] backed by a lazy (never-connected) pool for tests that
+/// only need cloud mode to be *on*, not reachable.
+#[cfg(test)]
+pub(crate) fn test_cloud_state() -> Arc<CloudState> {
+    let pool = PgPoolOptions::new()
+        .connect_lazy("postgres://localhost/rustume_test")
+        .expect("lazy pool");
+    Arc::new(CloudState {
+        db: pool.clone(),
+        workos: WorkOsClient::new("client_test".to_string(), "api_key_test".to_string()),
+        sessions: SessionService::new(
+            pool,
+            "test-session-secret-at-least-32-chars".to_string(),
+            false,
+        ),
+        workos_redirect_uri: "http://localhost/auth/callback".to_string(),
+        email: Some(EmailService::new(
+            "re_test_key".to_string(),
+            "noreply@rustume.com".to_string(),
+        )),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn require_auth_from_env_requires_cloud_and_truthy_flag() {
-        assert!(!require_auth_from_env(false, Some("true")));
-        assert!(!require_auth_from_env(true, None));
-        assert!(!require_auth_from_env(true, Some("false")));
-        assert!(require_auth_from_env(true, Some("true")));
-        assert!(require_auth_from_env(true, Some("1")));
+    fn require_auth_is_exactly_cloud_mode() {
+        // Cloud implies auth; self-hosted never gates. There is no configuration
+        // in between, so the two predicates must stay identical. Enforcement is
+        // covered end to end by the router tests in `lib.rs`.
+        assert_eq!(require_auth_enabled(), cloud_enabled());
     }
 
     #[test]
