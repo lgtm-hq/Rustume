@@ -4,6 +4,7 @@ import { AppErrorBoundary } from "./components/errors/AppErrorBoundary";
 import { AppShell } from "./components/layout/AppShell";
 import { CloudImportPrompt } from "./components/Auth/CloudImportPrompt";
 import { RequireAuthGuard } from "./components/Auth/RequireAuthGuard";
+import { SignInDialog } from "./components/Auth/SignInDialog";
 import { SubscriptionBanner } from "./components/Auth/SubscriptionBanner";
 import { Button, ToastRegion } from "./components/ui";
 import { authStore } from "./stores/auth";
@@ -89,6 +90,10 @@ const App: ParentComponent = (props) => {
         <Show when={!inDesignLab()}>
           <CloudImportPrompt />
         </Show>
+        {/* Mounted above RequireAuthGuard so it survives the guard swapping the
+            app shell out for the Cloud entry page — otherwise the entry page's
+            sign-in button sets dialog state nothing is subscribed to (#589). */}
+        <SignInDialog />
         <ToastRegion />
       </div>
     </AppErrorBoundary>
