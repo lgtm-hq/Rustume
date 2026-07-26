@@ -64,6 +64,9 @@ describe("Cloud entry sign-in (#589)", () => {
   beforeEach(async () => {
     probeAuthMock.mockReset();
     probeAuthMock.mockResolvedValue({ mode: "cloud", requireAuth: true, user: null });
+    // refresh() does not clear dialog state; without this a test failing between
+    // the click and its assertion bleeds an open modal into the next test.
+    authStore.closeSignInDialog();
     await authStore.refresh();
   });
 

@@ -8,7 +8,8 @@ export function AuthMenu() {
   const navigate = useNavigate();
   const { state, signIn, signOut, displayName } = authStore;
 
-  const showSignedOutSignIn = () => state.cloudEnabled && !state.requireAuth && !state.user;
+  // Signed out on cloud always offers sign-in: requireAuth no longer gates access (#589).
+  const showSignedOutSignIn = () => state.cloudEnabled && !state.user;
 
   return (
     <Show

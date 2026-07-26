@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@solidjs/testing-library";
 import { describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import CloudEntry from "../CloudEntry";
+import { axeConfig } from "../../test/a11y";
 
 const { signInMock } = vi.hoisted(() => ({ signInMock: vi.fn() }));
 
@@ -77,7 +78,7 @@ describe("CloudEntry accessibility", () => {
   it("has no axe violations when rendered", async () => {
     const { container } = renderPage();
 
-    expect(await axe(container)).toHaveNoViolations();
+    expect(await axe(container, axeConfig)).toHaveNoViolations();
   });
 
   it("has exactly one level-1 heading", () => {
