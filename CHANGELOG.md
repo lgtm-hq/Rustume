@@ -22,6 +22,20 @@ and this project adheres to
 
 ### Security
 
+## [0.46.0] - 2026-07-26
+
+### Added
+
+- **web**: redesign the signed-out Cloud entry page and fix the dead sign-in button
+  (#592) (838d16b)
+
+### Changed
+
+- **deps**: update ghcr.io/lgtm-hq/py-lintro docker tag to 0.91.51 (patch) (#593)
+  (c81dcd6)
+- **deps**: update ghcr.io/lgtm-hq/py-lintro docker tag to 0.91.48 (patch) (#590)
+  (b0f4147)
+
 ## [0.45.0] - 2026-07-26
 
 ### Added
@@ -606,7 +620,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.45.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.46.0...HEAD
+[0.46.0]: https://github.com/lgtm-hq/Rustume/compare/v0.45.0...v0.46.0
 [0.45.0]: https://github.com/lgtm-hq/Rustume/compare/v0.44.0...v0.45.0
 [0.44.0]: https://github.com/lgtm-hq/Rustume/compare/v0.43.2...v0.44.0
 [0.43.2]: https://github.com/lgtm-hq/Rustume/compare/v0.43.1...v0.43.2
