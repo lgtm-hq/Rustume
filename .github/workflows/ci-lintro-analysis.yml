@@ -42,18 +42,18 @@ jobs:
       github.event_name != 'pull_request' ||
       github.event.pull_request.draft == false
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-quality-lint.yml@31c25ef2e8992960e218524780e34f44f51271b5 # v0.54.0
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-quality-lint.yml@240daf3ed1f7475b3f322502035b15994be210a8 # v0.59.16
     permissions:
       contents: read # checkout repository sources for lintro analysis
       packages: read # pull the pinned lintro image from GHCR
     with:
-      tooling-ref: '31c25ef2e8992960e218524780e34f44f51271b5' # v0.54.0
+      tooling-ref: '240daf3ed1f7475b3f322502035b15994be210a8' # v0.59.16
       job-name: "🛠️ Lintro Code Quality"
       lintro-tool-options: clippy:timeout=300
       timeout-minutes: 30
       runner-image: ubuntu-24.04
       # yamllint disable-line rule:line-length
-      lintro-image: ghcr.io/lgtm-hq/py-lintro:0.61.0@sha256:95b9fd9d62c3ca1227447467767ec915e78a7eef62282dd18c0b1c02ee4d3887
+      lintro-image: ghcr.io/lgtm-hq/py-lintro:0.91.54@sha256:3bbef3058831d4bf94aa8452b0cd3a3ea43aac19b230ffba7fba64325be5a7de
       egress-policy: block
       egress-preset: quality
 
@@ -65,14 +65,14 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.draft == false
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-publish-quality-summary.yml@31c25ef2e8992960e218524780e34f44f51271b5 # v0.54.0
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-publish-quality-summary.yml@240daf3ed1f7475b3f322502035b15994be210a8 # v0.59.16
     permissions:
       contents: read # read quality job outputs and artifacts
       pull-requests: write # post or update the quality summary comment
     with:
       exit-code: >-
         ${{ needs.quality.outputs.exit-code != '' && needs.quality.outputs.exit-code || '1' }}
-      tooling-ref: '31c25ef2e8992960e218524780e34f44f51271b5' # v0.54.0
+      tooling-ref: '240daf3ed1f7475b3f322502035b15994be210a8' # v0.59.16
       job-name: "🛠️ Lintro Code Quality PR Comment"
       runner-image: ubuntu-24.04
       egress-policy: block

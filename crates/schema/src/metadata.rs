@@ -4,6 +4,19 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;
 
+/// Controls how skill and language proficiency levels are rendered.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, ToSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum LevelDisplay {
+    #[default]
+    TemplateDefault,
+    Hidden,
+    Circle,
+    Square,
+    ProgressBar,
+    Text,
+}
+
 /// Resume metadata.
 #[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -33,6 +46,25 @@ pub struct Metadata {
 
     #[serde(default)]
     pub notes: String,
+
+    #[serde(default)]
+    pub level_display: LevelDisplay,
+
+    /// When true, the resume is read-only until unlocked.
+    #[serde(default)]
+    pub locked: bool,
+
+    /// User-defined organization labels (never rendered on the PDF).
+    #[serde(default)]
+    pub tags: Vec<String>,
+
+    /// Single folder this resume is filed under (never rendered on the PDF).
+    ///
+    /// Folders are mutually exclusive, unlike `tags`. Omitted when unset so an
+    /// absent field reads as "unfiled" rather than an explicit null clients
+    /// have to special-case — no migration is needed for existing resumes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub folder: Option<String>,
 }
 
 impl Default for Metadata {
@@ -45,6 +77,10 @@ impl Default for Metadata {
             theme: Theme::default(),
             typography: Typography::default(),
             notes: String::new(),
+            level_display: LevelDisplay::TemplateDefault,
+            locked: false,
+            tags: Vec::new(),
+            folder: None,
         }
     }
 }
@@ -79,6 +115,12 @@ pub struct PageConfig {
     #[serde(default)]
     pub format: PageFormat,
 
+    // Omit when unset so clients see the field absent (template default)
+    // rather than an explicit null they must special-case.
+    #[validate(range(min = 0.1, max = 0.5))]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sidebar_ratio: Option<f32>,
+
     #[validate(nested)]
     #[serde(default)]
     pub options: PageOptions,
@@ -89,6 +131,7 @@ impl Default for PageConfig {
         Self {
             margin: default_margin(),
             format: PageFormat::A4,
+            sidebar_ratio: None,
             options: PageOptions::default(),
         }
     }
@@ -243,6 +286,9 @@ fn default_true() -> bool {
 fn default_layout() -> Vec<Vec<Vec<String>>> {
     vec![vec![
         vec![
+            // Rendered as a dedicated page before the resume body; listed
+            // first because its column position does not affect placement.
+            "coverLetter".to_string(),
             "profiles".to_string(),
             "summary".to_string(),
             "experience".to_string(),
@@ -260,4 +306,102 @@ fn default_layout() -> Vec<Vec<Vec<String>>> {
             "languages".to_string(),
         ],
     ]]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    use validator::Validate;
+
+    #[test]
+    fn page_config_accepts_sidebar_ratio_bounds_and_none() {
+        let none = PageConfig::default();
+        assert!(none.validate().is_ok());
+
+        let valid = PageConfig {
+            sidebar_ratio: Some(0.25),
+            ..Default::default()
+        };
+        assert!(valid.validate().is_ok());
+    }
+
+    #[test]
+    fn page_config_omits_unset_sidebar_ratio_when_serialized() {
+        let json = serde_json::to_value(PageConfig::default()).unwrap();
+        assert!(json.get("sidebarRatio").is_none());
+
+        let set = PageConfig {
+            sidebar_ratio: Some(0.25),
+            ..Default::default()
+        };
+        let json = serde_json::to_value(set).unwrap();
+        assert_eq!(json["sidebarRatio"], 0.25);
+    }
+
+    #[test]
+    fn page_config_rejects_sidebar_ratio_outside_bounds() {
+        let too_small = PageConfig {
+            sidebar_ratio: Some(0.05),
+            ..Default::default()
+        };
+        assert!(too_small.validate().is_err());
+
+        let too_large = PageConfig {
+            sidebar_ratio: Some(0.6),
+            ..Default::default()
+        };
+        assert!(too_large.validate().is_err());
+    }
+
+    #[test]
+    fn level_display_uses_kebab_case_round_trip() {
+        let cases = [
+            (LevelDisplay::TemplateDefault, "template-default"),
+            (LevelDisplay::Hidden, "hidden"),
+            (LevelDisplay::Circle, "circle"),
+            (LevelDisplay::Square, "square"),
+            (LevelDisplay::ProgressBar, "progress-bar"),
+            (LevelDisplay::Text, "text"),
+        ];
+
+        for (value, serialized) in cases {
+            let json = serde_json::to_value(value).unwrap();
+            assert_eq!(json, json!(serialized));
+
+            let parsed: LevelDisplay = serde_json::from_value(json).unwrap();
+            assert_eq!(parsed, value);
+        }
+    }
+
+    #[test]
+    fn metadata_defaults_missing_level_display_to_template_default() {
+        let metadata: Metadata = serde_json::from_value(json!({})).unwrap();
+        assert_eq!(metadata.level_display, LevelDisplay::TemplateDefault);
+    }
+
+    #[test]
+    fn metadata_treats_absent_folder_as_unfiled() {
+        let metadata: Metadata = serde_json::from_value(json!({})).unwrap();
+        assert_eq!(metadata.folder, None);
+    }
+
+    #[test]
+    fn metadata_omits_unset_folder_when_serialized() {
+        let json = serde_json::to_value(Metadata::default()).unwrap();
+        assert!(json.get("folder").is_none());
+    }
+
+    #[test]
+    fn metadata_round_trips_folder_assignment() {
+        // The local WASM storage path deserializes into this struct and
+        // re-serializes it, so a folder that does not survive here is silently
+        // dropped for every offline user.
+        let metadata: Metadata =
+            serde_json::from_value(json!({ "folder": "Applications" })).unwrap();
+        assert_eq!(metadata.folder.as_deref(), Some("Applications"));
+
+        let json = serde_json::to_value(&metadata).unwrap();
+        assert_eq!(json["folder"], json!("Applications"));
+    }
 }

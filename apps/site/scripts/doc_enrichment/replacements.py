@@ -348,13 +348,6 @@ REPLACEMENTS: list[tuple[str, str, str]] = [
         "Pre-built dashboards (provisioned via Terraform):",
         "Pre-built dashboards (provisioned via [Terraform](/docs/operations/terraform/)):",
     ),
-    # terraform
-    (
-        "operations/terraform.md",
-        "Rustume Cloud infrastructure is defined in Terraform under `infra/`.",
-        "Rustume Cloud infrastructure is defined in "
-        "[Terraform](https://www.terraform.io/) under `infra/`.",
-    ),
     # env reference
     (
         "deployment/env-reference.md",

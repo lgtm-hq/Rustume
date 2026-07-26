@@ -9,8 +9,9 @@ Rustume applies **in-memory, per-key rate limits** when connected mode is enable
 with a configured database). Limits protect service capacity and control the cost of CPU-heavy
 operations (preview and PDF rendering) without blocking normal editing workflows.
 
-Self-hosted operators can tune or effectively disable limits by raising environment values. Browser-local
-deployments without connected mode do not install these middleware layers.
+Self-hosted operators can tune limits via environment values, or set `RATE_LIMIT_DISABLED=true` to
+skip the middleware entirely (recommended for local cloud development). Browser-local deployments
+without connected mode do not install these middleware layers.
 
 ## Scope
 
@@ -48,12 +49,13 @@ Resume CRUD allows short bursts (for example rapid autosave) via a separate burs
 
 | Route group | Default | Examples |
 | --- | ---: | --- |
-| Health | 60 | `GET /health` |
+| Health | 60 | `GET /health`, `GET /version` |
 | Metrics | 60 | `GET /metrics` (still requires `METRICS_TOKEN`) |
 | Other unauthenticated | 30 | Any route reached without a session |
 
-When `RUSTUME_REQUIRE_AUTH=true` (hosted Rustume Cloud), unauthenticated clients cannot reach
-render or connected API routes; the unauthenticated bucket mainly covers probes and stray traffic.
+On cloud deployments (`RUSTUME_CLOUD=true`), authentication is mandatory, so unauthenticated
+clients cannot reach render or connected API routes; the unauthenticated bucket mainly covers
+probes and stray traffic.
 
 ## Bulk export cap
 

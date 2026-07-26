@@ -21,7 +21,9 @@ export function Sidebar(props: SidebarProps) {
   const [isKeyboardFocused, setIsKeyboardFocused] = createSignal(false);
   const [isExpanded, setIsExpanded] = createSignal(false);
 
-  // Expand when pinned, hovered, or focused by keyboard navigation.
+  // Expand when pinned, hovered, or focused via keyboard (not mouse click).
+  // Mouse focus used to expand the rail and remount all nav buttons through the
+  // collapsed/expanded Show branch — that layout jump felt like a page refresh.
   createEffect(() => {
     setIsExpanded(isPinned() || isHovered() || isKeyboardFocused());
   });
@@ -62,7 +64,7 @@ export function Sidebar(props: SidebarProps) {
   };
 
   const renderIcon = (icon: string, className = "w-5 h-5") => (
-    <svg class={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg class={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d={icon} />
     </svg>
   );
@@ -73,7 +75,12 @@ export function Sidebar(props: SidebarProps) {
       style={{ width: isExpanded() ? "180px" : "56px" }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      onFocusIn={() => setIsKeyboardFocused(true)}
+      onFocusIn={(event) => {
+        const target = event.target;
+        if (target instanceof HTMLElement && target.matches(":focus-visible")) {
+          setIsKeyboardFocused(true);
+        }
+      }}
       onFocusOut={handleFocusOut}
     >
       {/* Pin Button */}
@@ -92,6 +99,7 @@ export function Sidebar(props: SidebarProps) {
             fill={isPinned() ? "currentColor" : "none"}
             stroke="currentColor"
             viewBox="0 0 24 24"
+            aria-hidden="true"
           >
             <path
               stroke-linecap="round"
@@ -110,7 +118,7 @@ export function Sidebar(props: SidebarProps) {
       <div class="h-px bg-border mx-2 mb-2" />
 
       {/* Navigation Items */}
-      <nav class="flex-1 overflow-auto px-2">
+      <nav aria-label="Resume sections" class="flex-1 overflow-auto px-2">
         <For each={props.items}>
           {(item, index) => (
             <div class={startsGroup(index()) ? "mt-3 first:mt-0" : "mt-1"}>

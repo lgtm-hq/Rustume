@@ -21,7 +21,8 @@ const formattedDescription = sanitizeDocDescription(formatDocDescription(descrip
 <BaseLayout title={title} description={metaDescription}>
   <div class="docs-layout">
     <DocsSidebar currentSlug={slug} />
-    <main class="docs-main">
+    {/* BaseLayout already renders the page's <main> landmark */}
+    <div class="docs-main">
       <article class="docs-content" data-pagefind-body>
         <header class="docs-header">
           <h1 class="docs-title">{title}</h1>
@@ -32,6 +33,6 @@ const formattedDescription = sanitizeDocDescription(formatDocDescription(descrip
         </div>
         <DocsResources resources={resources ?? []} />
       </article>
-    </main>
+    </div>
   </div>
 </BaseLayout>

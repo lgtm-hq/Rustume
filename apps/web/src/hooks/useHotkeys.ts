@@ -6,6 +6,8 @@ export interface Shortcut {
   key: string;
   mod?: boolean;
   shift?: boolean;
+  /** When true, do not fire while focus is in an input/contenteditable (e.g. leave TipTap undo alone). */
+  skipWhenEditable?: boolean;
   handler: (e: KeyboardEvent) => void;
   label: string;
   category: string;
@@ -55,6 +57,7 @@ export function useHotkeys(shortcuts: Shortcut[]) {
 
       // Allow mod combos even in editable elements; suppress plain keys in editable
       if (!wantsMod && isEditable(e.target)) continue;
+      if (s.skipWhenEditable && isEditable(e.target)) continue;
 
       e.preventDefault();
       s.handler(e);

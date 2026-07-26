@@ -1,3 +1,5 @@
+import { authRequireAuthSchema, parseAuthMePayload } from "./schemas";
+
 export interface SubscriptionInfo {
   status: string;
   expires_at?: string;
@@ -17,53 +19,8 @@ export type AuthProbeResult =
   | { mode: "cloud"; user: AuthUser | null; requireAuth: boolean };
 
 function parseRequireAuth(payload: unknown): boolean {
-  if (typeof payload !== "object" || payload === null) {
-    return false;
-  }
-
-  return (payload as { require_auth?: boolean }).require_auth === true;
-}
-
-function parseAuthUserPayload(payload: unknown): { user: AuthUser; requireAuth: boolean } {
-  if (typeof payload !== "object" || payload === null) {
-    throw new Error("Auth probe failed: invalid /auth/me response");
-  }
-
-  const record = payload as Record<string, unknown>;
-  const id = record.id;
-  const plan = record.plan;
-
-  if (typeof id !== "string" || typeof plan !== "string") {
-    throw new Error("Auth probe failed: invalid /auth/me response");
-  }
-
-  const user: AuthUser = { id, plan };
-
-  if (typeof record.email === "string") {
-    user.email = record.email;
-  }
-  if (typeof record.first_name === "string") {
-    user.first_name = record.first_name;
-  }
-  if (typeof record.last_name === "string") {
-    user.last_name = record.last_name;
-  }
-
-  const subscription = record.subscription;
-  // Malformed subscription payloads (missing or non-string status) are treated as
-  // absent so /auth/me parsing stays tolerant of partial API responses.
-  if (typeof subscription === "object" && subscription !== null) {
-    const status = (subscription as { status?: unknown }).status;
-    if (typeof status === "string") {
-      user.subscription = { status };
-      const expiresAt = (subscription as { expires_at?: unknown }).expires_at;
-      if (typeof expiresAt === "string") {
-        user.subscription.expires_at = expiresAt;
-      }
-    }
-  }
-
-  return { user, requireAuth: record.require_auth === true };
+  const result = authRequireAuthSchema.safeParse(payload);
+  return result.success && result.data.require_auth === true;
 }
 
 /** Build a display label from profile fields, falling back to email or a generic label. */
@@ -98,7 +55,7 @@ export async function probeAuth(): Promise<AuthProbeResult> {
   }
 
   const payload = await response.json();
-  const { user, requireAuth } = parseAuthUserPayload(payload);
+  const { user, requireAuth } = parseAuthMePayload(payload);
   return {
     mode: "cloud",
     user,

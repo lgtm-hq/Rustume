@@ -193,7 +193,7 @@ All E2EE resume payloads use a **versioned JSON envelope** stored in `resumes.da
 | --- | --- |
 | **KDF** | Argon2id (RFC 9106). Default params: `m=19456` KiB, `t=2`, `p=1`. Params and salt live in `users.e2ee_config` (account-level), not per-resume. |
 | **Key derivation** | `MK = Argon2id(passphrase, salt, params)` → 32 bytes. Account `DEK` is a random 32-byte value generated at E2EE enable and wrapped by MK (not derived from MK). |
-| **AEAD** | ChaCha20-Poly1305 (RFC 8439). Key = account DEK. Nonce = 12 random bytes per encryption; **must never repeat** for a given DEK. |
+| **AEAD** | ChaCha20-Poly1305 (RFC 8439). Key = account DEK. Nonce = 12 random bytes per encryption; **must never repeat** for a given DEK. This rule covers DEK-keyed resume envelopes and MK-keyed DEK wraps only — RK-keyed recovery backups have a separate nonce-freshness requirement below. |
 | **Plaintext input** | Canonical JSON serialization of `ResumeData` (same as today). |
 | **Detection** | Payload is an E2EE envelope only when the top-level object contains **only** an `e2ee` key (no `basics`, `sections`, or `metadata`). Server rejects mixed plaintext+ciphertext shapes and malformed envelopes (`e2ee.version`, `e2ee.nonce`, `e2ee.ciphertext` required) with 422. Valid envelopes skip resume-schema checks; byte-size limits still apply. |
 
@@ -211,11 +211,28 @@ All E2EE resume payloads use a **versioned JSON envelope** stored in `resumes.da
 On enable, client generates one-time recovery codes. For each code:
 
 1. Derive `RK = HKDF-SHA256(code, info="rustume-recovery-v1")` → 32 bytes.
-2. Encrypt DEK backup: `wrapped_dek_recovery = ChaCha20-Poly1305(RK, nonce, DEK)`.
-3. Upload `wrapped_dek_recovery` to server; server stores `hash(code)` for verification
-   **and** the ciphertext blob (operator cannot decrypt without the code).
-4. On recovery: user submits code → server verifies hash → returns `wrapped_dek_recovery`
-   → client derives RK, unwraps DEK, prompts new passphrase.
+2. Sample a fresh 12-byte nonce (`nonce_recovery`). Encrypt the DEK backup:
+   `wrapped_dek_recovery = ChaCha20-Poly1305(RK, nonce_recovery, DEK)`.
+3. Upload the recovery backup blob to the server. Each recovery code is stored as one
+   row (or JSON object) that **atomically associates**:
+   - `code_hash` = `hash(code)` (lookup / verification key)
+   - `backup` = `{ "nonce": "<base64url>", "ciphertext": "<base64url>" }` (the
+     `nonce_recovery` + ciphertext pair for that same code)
+   The server must never store a ciphertext without its nonce, and must never return a
+   backup blob that is not the one paired with the matched `code_hash` (operator still
+   cannot decrypt without the code).
+4. On recovery: user submits code → server finds the row where `code_hash` matches →
+   returns that row's `backup` blob → client derives RK, unwraps DEK with the stored
+   nonce, prompts new passphrase.
+
+**Nonce freshness (RK-keyed):** each recovery backup is keyed by `RK`, not the account
+DEK. The DEK-envelope nonce rule above does **not** cover these blobs. Reusing
+`nonce_recovery` under the same `RK` (for example when re-encrypting a new DEK for the
+same recovery code during DEK rotation) is catastrophic for Poly1305. Therefore:
+
+- the recovery backup format must persist its nonce alongside the ciphertext; and
+- every rewrite of a recovery backup — including DEK rotation step 4 below — **must**
+  sample a fresh `nonce_recovery`.
 
 ### Where the code lives
 
@@ -321,8 +338,18 @@ Requires explicit user action — not reversible by operator alone.
 1. Generate new DEK.
 2. Re-encrypt every resume envelope with new DEK.
 3. Re-wrap new DEK with current MK, update `e2ee_config`.
-4. Re-encrypt each recovery-code backup so every `wrapped_dek_recovery` unwraps the
-   new DEK, or invalidate and regenerate recovery codes before completing rotation.
+4. Re-encrypt each recovery-code backup with a **fresh** `nonce_recovery` so every
+   stored recovery blob unwraps the new DEK (never reuse a prior recovery nonce under
+   the same `RK`), **or** invalidate and regenerate recovery codes before completing
+   rotation. When keeping the same codes, each `code_hash` row's `backup` **must be
+   replaced atomically** (single-row upsert / delete-then-insert in one transaction) so
+   lookup never observes both an old and a new backup for the same hash. Invalidation
+   **must** delete (or mark unusable and refuse to return) every prior `code_hash` +
+   `backup` row for the account in the same transaction that writes the new recovery
+   set / new DEK wrap — old codes must be unreachable before rotation is considered
+   complete. Leaving old rows active while adding new ones is forbidden: an old or
+   stale backup must not unwrap the previous DEK after resumes have moved to the new
+   DEK.
 5. Increment `e2ee_config.key_generation` counter.
 
 ### Existing plaintext rows

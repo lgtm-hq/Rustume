@@ -6,7 +6,7 @@ export interface ModalProps {
   onOpenChange: (open: boolean) => void;
   title: string;
   description?: string;
-  size?: "sm" | "md" | "lg" | "xl";
+  size?: "sm" | "md" | "lg" | "xl" | "2xl";
 }
 
 const SIZE_CLASSES = {
@@ -14,6 +14,7 @@ const SIZE_CLASSES = {
   md: "max-w-md",
   lg: "max-w-lg",
   xl: "max-w-xl",
+  "2xl": "max-w-4xl",
 } as const;
 
 export const Modal: ParentComponent<ModalProps> = (props) => {
@@ -42,7 +43,8 @@ export const Modal: ParentComponent<ModalProps> = (props) => {
             <div class="px-6 py-5">{props.children}</div>
 
             <Dialog.CloseButton
-              class="absolute top-4 right-4 p-2 text-stone hover:text-ink
+              aria-label="Close"
+              class="focus-ring absolute top-4 right-4 p-2 text-stone hover:text-ink
                 hover:bg-surface rounded-lg transition-colors"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

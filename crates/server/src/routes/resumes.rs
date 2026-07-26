@@ -8,11 +8,13 @@ use axum::{
 use tracing::error;
 use uuid::Uuid;
 
-use crate::audit::{record_event, AuditEvent};
+use crate::audit::{record_event, record_event_required, AuditEvent};
 use crate::db::{
+    capture_resume_snapshot, get_resume_snapshot, list_resume_snapshots, restore_resume_snapshot,
     CreateResumeRequest, ImportFailure, ImportResumeItem, ImportResumesRequest,
-    ImportResumesResponse, PaginatedResumeSummaries, ResumeListQuery, ResumeRow, ResumeSummary,
-    UpdateResumeRequest,
+    ImportResumesResponse, PaginatedResumeSummaries, RestoreResumeRequest, ResumeListQuery,
+    ResumeRow, ResumeSnapshot, ResumeSummary, ResumeVersionSummary, SharingResponse,
+    UpdateResumeRequest, UpdateSharingRequest,
 };
 use crate::error::ApiError;
 use crate::middleware::auth::AuthUser;
@@ -128,6 +130,7 @@ pub async fn create_resume(
     validate_resume_json(&body.data)?;
     let resume_id = body.id.unwrap_or_else(Uuid::new_v4);
 
+    let mut tx = cloud.db.begin().await.map_err(internal_db_error)?;
     let row = sqlx::query_as::<_, ResumeRow>(
         r#"
         INSERT INTO resumes (id, user_id, title, data)
@@ -139,9 +142,12 @@ pub async fn create_resume(
     .bind(user.id)
     .bind(title)
     .bind(body.data)
-    .fetch_one(&cloud.db)
+    .fetch_one(&mut *tx)
     .await
     .map_err(map_resume_db_error)?;
+
+    capture_resume_snapshot(&mut tx, resume_id, row.version, &row.data).await?;
+    tx.commit().await.map_err(internal_db_error)?;
 
     Ok((StatusCode::CREATED, Json(row)))
 }
@@ -183,6 +189,153 @@ pub async fn update_resume(
 
     let row = apply_resume_update(&cloud.db, user.id, id, &title, body.data, body.version).await?;
 
+    Ok(Json(row))
+}
+
+/// Update public sharing settings for a resume owned by the authenticated user.
+#[utoipa::path(
+    put,
+    path = "/api/resumes/{id}/sharing",
+    tag = "Resumes",
+    params(("id" = String, Path, description = "Resume ID")),
+    request_body = UpdateSharingRequest,
+    responses(
+        (status = 200, description = "Sharing settings updated", body = SharingResponse),
+        (status = 401, description = "Not authenticated", body = ApiError),
+        (status = 404, description = "Resume not found", body = ApiError),
+    ),
+    security(("cookieAuth" = []))
+)]
+pub async fn update_sharing(
+    AuthUser(user): AuthUser,
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+    headers: HeaderMap,
+    Json(body): Json<UpdateSharingRequest>,
+) -> Result<Json<SharingResponse>, ApiError> {
+    let cloud = state.cloud()?;
+    let access = subscription::load_access(&cloud.db, user.id).await?;
+    access.ensure_write()?;
+
+    let new_slug = if body.is_public {
+        Some(generate_public_slug())
+    } else {
+        None
+    };
+    let mut tx = cloud.db.begin().await.map_err(internal_db_error)?;
+
+    let sharing =
+        apply_sharing_update(&mut tx, user.id, id, body.is_public, new_slug.as_deref()).await?;
+
+    let event_type = if body.is_public {
+        "resume.publish"
+    } else {
+        "resume.unpublish"
+    };
+    record_event_required(
+        &mut *tx,
+        AuditEvent {
+            event_type,
+            actor_user_id: Some(user.id),
+            resource_type: Some("resume"),
+            resource_id: Some(id),
+            metadata: serde_json::json!({
+                "is_public": sharing.is_public,
+                "public_slug": sharing.public_slug,
+            }),
+            ip_address: trusted_client_ip(&headers, net::trusted_proxy_enabled()).as_deref(),
+        },
+    )
+    .await
+    .map_err(internal_db_error)?;
+
+    tx.commit().await.map_err(internal_db_error)?;
+
+    Ok(Json(sharing))
+}
+
+/// List version history for a resume owned by the authenticated user.
+#[utoipa::path(
+    get,
+    path = "/api/resumes/{id}/versions",
+    tag = "Resumes",
+    params(("id" = String, Path, description = "Resume ID")),
+    responses(
+        (status = 200, description = "Version summaries (newest first)", body = [ResumeVersionSummary]),
+        (status = 401, description = "Not authenticated", body = ApiError),
+        (status = 404, description = "Resume not found", body = ApiError),
+    ),
+    security(("cookieAuth" = []))
+)]
+pub async fn list_resume_versions(
+    AuthUser(user): AuthUser,
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<Vec<ResumeVersionSummary>>, ApiError> {
+    let cloud = state.cloud()?;
+    let access = subscription::load_access(&cloud.db, user.id).await?;
+    access.ensure_read()?;
+    fetch_owned_resume(&state, user.id, id).await?;
+    let versions = list_resume_snapshots(&cloud.db, id).await?;
+    Ok(Json(versions))
+}
+
+/// Fetch a historical resume snapshot owned by the authenticated user.
+#[utoipa::path(
+    get,
+    path = "/api/resumes/{id}/versions/{version}",
+    tag = "Resumes",
+    params(
+        ("id" = String, Path, description = "Resume ID"),
+        ("version" = i32, Path, description = "Snapshot version"),
+    ),
+    responses(
+        (status = 200, description = "Snapshot payload", body = ResumeSnapshot),
+        (status = 401, description = "Not authenticated", body = ApiError),
+        (status = 404, description = "Resume or version not found", body = ApiError),
+    ),
+    security(("cookieAuth" = []))
+)]
+pub async fn get_resume_version(
+    AuthUser(user): AuthUser,
+    State(state): State<AppState>,
+    Path((id, version)): Path<(Uuid, i32)>,
+) -> Result<Json<ResumeSnapshot>, ApiError> {
+    let cloud = state.cloud()?;
+    let access = subscription::load_access(&cloud.db, user.id).await?;
+    access.ensure_read()?;
+    let snapshot = get_resume_snapshot(&cloud.db, user.id, id, version).await?;
+    Ok(Json(snapshot))
+}
+
+/// Restore a historical snapshot as the current resume state.
+#[utoipa::path(
+    post,
+    path = "/api/resumes/{id}/versions/{version}/restore",
+    tag = "Resumes",
+    params(
+        ("id" = String, Path, description = "Resume ID"),
+        ("version" = i32, Path, description = "Snapshot version to restore"),
+    ),
+    request_body = RestoreResumeRequest,
+    responses(
+        (status = 200, description = "Resume restored", body = ResumeRow),
+        (status = 401, description = "Not authenticated", body = ApiError),
+        (status = 404, description = "Resume or version not found", body = ApiError),
+        (status = 409, description = "Resume version conflict", body = ApiError),
+    ),
+    security(("cookieAuth" = []))
+)]
+pub async fn restore_resume_version(
+    AuthUser(user): AuthUser,
+    State(state): State<AppState>,
+    Path((id, version)): Path<(Uuid, i32)>,
+    Json(body): Json<RestoreResumeRequest>,
+) -> Result<Json<ResumeRow>, ApiError> {
+    let cloud = state.cloud()?;
+    let access = subscription::load_access(&cloud.db, user.id).await?;
+    access.ensure_write()?;
+    let row = restore_resume_snapshot(&cloud.db, user.id, id, version, body.version).await?;
     Ok(Json(row))
 }
 
@@ -376,6 +529,8 @@ async fn apply_resume_update(
     data: Option<serde_json::Value>,
     expected_version: Option<i32>,
 ) -> Result<ResumeRow, ApiError> {
+    let mut tx = db.begin().await.map_err(internal_db_error)?;
+
     let row = match (data, expected_version) {
         (Some(data), Some(version)) => {
             sqlx::query_as::<_, ResumeRow>(
@@ -394,7 +549,7 @@ async fn apply_resume_update(
             .bind(resume_id)
             .bind(user_id)
             .bind(version)
-            .fetch_optional(db)
+            .fetch_optional(&mut *tx)
             .await
         }
         (Some(data), None) => {
@@ -413,7 +568,7 @@ async fn apply_resume_update(
             .bind(data)
             .bind(resume_id)
             .bind(user_id)
-            .fetch_optional(db)
+            .fetch_optional(&mut *tx)
             .await
         }
         (None, Some(version)) => {
@@ -431,7 +586,7 @@ async fn apply_resume_update(
             .bind(resume_id)
             .bind(user_id)
             .bind(version)
-            .fetch_optional(db)
+            .fetch_optional(&mut *tx)
             .await
         }
         (None, None) => {
@@ -448,15 +603,22 @@ async fn apply_resume_update(
             .bind(title)
             .bind(resume_id)
             .bind(user_id)
-            .fetch_optional(db)
+            .fetch_optional(&mut *tx)
             .await
         }
     }
     .map_err(map_resume_db_error)?;
 
     match row {
-        Some(row) => Ok(row),
-        None => map_update_miss(db, user_id, resume_id, expected_version).await,
+        Some(row) => {
+            capture_resume_snapshot(&mut tx, resume_id, row.version, &row.data).await?;
+            tx.commit().await.map_err(internal_db_error)?;
+            Ok(row)
+        }
+        None => {
+            tx.rollback().await.ok();
+            map_update_miss(db, user_id, resume_id, expected_version).await
+        }
     }
 }
 
@@ -507,4 +669,633 @@ async fn fetch_owned_resume(
     .await
     .map_err(internal_db_error)?
     .ok_or_else(|| ApiError::not_found("Resume not found"))
+}
+
+#[derive(Debug, sqlx::FromRow)]
+struct SharingRow {
+    is_public: bool,
+    public_slug: Option<String>,
+}
+
+fn generate_public_slug() -> String {
+    cuid2::create_id()
+}
+
+fn is_slug_unique_violation(err: &sqlx::Error) -> bool {
+    matches!(
+        err,
+        sqlx::Error::Database(db_err) if db_err.code().as_deref() == Some("23505")
+    )
+}
+
+async fn apply_sharing_update(
+    db: &mut sqlx::PgConnection,
+    user_id: Uuid,
+    resume_id: Uuid,
+    is_public: bool,
+    new_slug: Option<&str>,
+) -> Result<SharingResponse, ApiError> {
+    let mut slug = new_slug.map(str::to_string);
+
+    for attempt in 0..2 {
+        let row = sqlx::query_as::<_, SharingRow>(
+            r#"
+            UPDATE resumes
+            SET is_public = $3,
+                public_slug = CASE
+                    WHEN $3 = true AND public_slug IS NULL THEN $4
+                    ELSE public_slug
+                END,
+                updated_at = now()
+            WHERE id = $1 AND user_id = $2
+            RETURNING is_public, public_slug
+            "#,
+        )
+        .bind(resume_id)
+        .bind(user_id)
+        .bind(is_public)
+        .bind(slug.as_deref())
+        .fetch_optional(&mut *db)
+        .await;
+
+        match row {
+            Ok(Some(row)) => {
+                return Ok(SharingResponse {
+                    is_public: row.is_public,
+                    public_slug: row.public_slug,
+                });
+            }
+            Ok(None) => return Err(ApiError::not_found("Resume not found")),
+            Err(err) if is_slug_unique_violation(&err) && attempt == 0 && is_public => {
+                slug = Some(generate_public_slug());
+            }
+            Err(err) => return Err(map_resume_db_error(err)),
+        }
+    }
+
+    Err(ApiError::internal("failed to assign public slug"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::auth::{session::SessionService, workos::WorkOsClient};
+    use crate::cloud::CloudState;
+    use crate::db::{User, MAX_SNAPSHOTS_PER_RESUME};
+    use crate::email::EmailService;
+    use crate::error::ApiErrorKind;
+    use crate::middleware::auth::AuthUser;
+    use sqlx::postgres::PgPoolOptions;
+    use std::sync::Arc;
+
+    fn looks_like_test_database_url(url: &str) -> bool {
+        let db_name = url
+            .split(['?', '#'])
+            .next()
+            .unwrap_or(url)
+            .rsplit('/')
+            .next()
+            .unwrap_or("");
+        db_name.contains("_test")
+    }
+
+    fn database_url_for_tests() -> Option<String> {
+        let url = std::env::var("TEST_DATABASE_URL")
+            .ok()
+            .map(|url| url.trim().to_owned())
+            .filter(|url| !url.is_empty())
+            .or_else(|| {
+                std::env::var("DATABASE_URL")
+                    .ok()
+                    .map(|url| url.trim().to_owned())
+                    .filter(|url| !url.is_empty())
+            })?;
+
+        if looks_like_test_database_url(&url) {
+            Some(url)
+        } else {
+            eprintln!(
+                "SKIP resume snapshot integration tests: set TEST_DATABASE_URL (or DATABASE_URL) to a database whose name contains _test"
+            );
+            None
+        }
+    }
+
+    async fn connect_test_pool(database_url: &str) -> sqlx::PgPool {
+        let pool = PgPoolOptions::new()
+            .max_connections(2)
+            .connect(database_url)
+            .await
+            .expect("connect to test database for resume snapshot integration tests");
+        sqlx::migrate!("./src/db/migrations")
+            .run(&pool)
+            .await
+            .expect("run migrations for resume snapshot integration tests");
+        pool
+    }
+
+    async fn seed_user(pool: &sqlx::PgPool) -> User {
+        let user_id = Uuid::new_v4();
+        let workos_id = format!("workos_snapshot_{user_id}");
+
+        sqlx::query("INSERT INTO users (id, workos_id) VALUES ($1, $2)")
+            .bind(user_id)
+            .bind(&workos_id)
+            .execute(pool)
+            .await
+            .expect("insert user");
+
+        sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
+            .bind(user_id)
+            .fetch_one(pool)
+            .await
+            .expect("fetch user")
+    }
+
+    async fn seed_resume(pool: &sqlx::PgPool, user_id: Uuid, data: serde_json::Value) -> ResumeRow {
+        sqlx::query_as::<_, ResumeRow>(
+            r#"
+            INSERT INTO resumes (user_id, title, data)
+            VALUES ($1, $2, $3)
+            RETURNING id, user_id, title, data, is_public, public_slug, password_hash, version, created_at, updated_at
+            "#,
+        )
+        .bind(user_id)
+        .bind("Snapshot Test")
+        .bind(data)
+        .fetch_one(pool)
+        .await
+        .expect("insert resume")
+    }
+
+    async fn cleanup_user(pool: &sqlx::PgPool, user_id: Uuid) {
+        sqlx::query("DELETE FROM users WHERE id = $1")
+            .bind(user_id)
+            .execute(pool)
+            .await
+            .expect("cleanup user");
+    }
+
+    fn test_app_state(pool: sqlx::PgPool) -> AppState {
+        let sessions_pool = pool.clone();
+        AppState::with_require_auth(
+            Arc::new(crate::routes::static_dir()),
+            Some(Arc::new(CloudState {
+                db: pool,
+                workos: WorkOsClient::new("client_test".into(), "api_key_test".into()),
+                sessions: SessionService::new(
+                    sessions_pool,
+                    "test-session-secret-at-least-32-chars".into(),
+                    false,
+                ),
+                workos_redirect_uri: "http://localhost/auth/callback".into(),
+                email: Some(EmailService::new(
+                    "re_test".into(),
+                    "noreply@rustume.com".into(),
+                )),
+            })),
+            false,
+        )
+    }
+
+    fn sample_data(label: &str) -> serde_json::Value {
+        serde_json::json!({
+            "basics": {
+                "name": label
+            }
+        })
+    }
+
+    #[test]
+    fn public_slug_is_url_safe_nonempty_and_distinct() {
+        let slug_a = generate_public_slug();
+        let slug_b = generate_public_slug();
+
+        assert!(!slug_a.is_empty());
+        assert!(!slug_b.is_empty());
+        assert_ne!(slug_a, slug_b);
+        assert!(
+            slug_a
+                .chars()
+                .all(|ch| ch.is_ascii_alphanumeric() || ch == '_'),
+            "slug should be URL-safe: {slug_a}"
+        );
+        assert!(
+            slug_b
+                .chars()
+                .all(|ch| ch.is_ascii_alphanumeric() || ch == '_'),
+            "slug should be URL-safe: {slug_b}"
+        );
+    }
+
+    #[test]
+    fn looks_like_test_database_url_matches_database_name_only() {
+        assert!(looks_like_test_database_url(
+            "postgres://user:pass@localhost:5432/rustume_test"
+        ));
+        assert!(!looks_like_test_database_url(
+            "postgres://user:pass@localhost:5432/rustume"
+        ));
+    }
+
+    #[tokio::test]
+    async fn update_resume_creates_snapshot_with_new_version() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+        let pool = connect_test_pool(&database_url).await;
+        let user = seed_user(&pool).await;
+        let resume = seed_resume(&pool, user.id, sample_data("v1")).await;
+        let state = test_app_state(pool.clone());
+
+        let updated = update_resume(
+            AuthUser(user.clone()),
+            State(state),
+            Path(resume.id),
+            Json(UpdateResumeRequest {
+                title: None,
+                data: Some(sample_data("v2")),
+                version: Some(resume.version),
+            }),
+        )
+        .await
+        .expect("update resume")
+        .0;
+
+        let snapshot_count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM resume_snapshots WHERE resume_id = $1 AND version = $2",
+        )
+        .bind(resume.id)
+        .bind(updated.version)
+        .fetch_one(&pool)
+        .await
+        .expect("count snapshots");
+
+        cleanup_user(&pool, user.id).await;
+
+        assert_eq!(updated.version, resume.version + 1);
+        assert_eq!(snapshot_count, 1);
+    }
+
+    #[tokio::test]
+    async fn list_resume_versions_returns_newest_first_without_payloads() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+        let pool = connect_test_pool(&database_url).await;
+        let user = seed_user(&pool).await;
+        let resume = seed_resume(&pool, user.id, sample_data("v1")).await;
+        let state = test_app_state(pool.clone());
+
+        let first = update_resume(
+            AuthUser(user.clone()),
+            State(state.clone()),
+            Path(resume.id),
+            Json(UpdateResumeRequest {
+                title: None,
+                data: Some(sample_data("v2")),
+                version: Some(resume.version),
+            }),
+        )
+        .await
+        .expect("first update")
+        .0;
+
+        let second = update_resume(
+            AuthUser(user.clone()),
+            State(state.clone()),
+            Path(resume.id),
+            Json(UpdateResumeRequest {
+                title: None,
+                data: Some(sample_data("v3")),
+                version: Some(first.version),
+            }),
+        )
+        .await
+        .expect("second update")
+        .0;
+
+        let versions = list_resume_versions(AuthUser(user.clone()), State(state), Path(resume.id))
+            .await
+            .expect("list versions")
+            .0;
+
+        cleanup_user(&pool, user.id).await;
+
+        assert_eq!(versions.len(), 2);
+        assert_eq!(versions[0].version, second.version);
+        assert_eq!(versions[1].version, first.version);
+        let json = serde_json::to_value(&versions).expect("serialize versions");
+        assert!(json.as_array().unwrap()[0].get("data").is_none());
+    }
+
+    #[tokio::test]
+    async fn get_resume_version_returns_stored_data() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+        let pool = connect_test_pool(&database_url).await;
+        let user = seed_user(&pool).await;
+        let resume = seed_resume(&pool, user.id, sample_data("v1")).await;
+        let state = test_app_state(pool.clone());
+        let expected = sample_data("stored");
+
+        let updated = update_resume(
+            AuthUser(user.clone()),
+            State(state.clone()),
+            Path(resume.id),
+            Json(UpdateResumeRequest {
+                title: None,
+                data: Some(expected.clone()),
+                version: Some(resume.version),
+            }),
+        )
+        .await
+        .expect("update resume")
+        .0;
+
+        let snapshot = get_resume_version(
+            AuthUser(user.clone()),
+            State(state),
+            Path((resume.id, updated.version)),
+        )
+        .await
+        .expect("get version")
+        .0;
+
+        cleanup_user(&pool, user.id).await;
+
+        assert_eq!(snapshot.version, updated.version);
+        assert_eq!(snapshot.data, expected);
+    }
+
+    #[tokio::test]
+    async fn restore_resume_version_bumps_version_and_adds_snapshot() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+        let pool = connect_test_pool(&database_url).await;
+        let user = seed_user(&pool).await;
+        let resume = seed_resume(&pool, user.id, sample_data("current")).await;
+        let state = test_app_state(pool.clone());
+        let historical = sample_data("historical");
+
+        let updated = update_resume(
+            AuthUser(user.clone()),
+            State(state.clone()),
+            Path(resume.id),
+            Json(UpdateResumeRequest {
+                title: None,
+                data: Some(historical.clone()),
+                version: Some(resume.version),
+            }),
+        )
+        .await
+        .expect("seed historical snapshot")
+        .0;
+
+        let advanced = update_resume(
+            AuthUser(user.clone()),
+            State(state.clone()),
+            Path(resume.id),
+            Json(UpdateResumeRequest {
+                title: None,
+                data: Some(sample_data("newer")),
+                version: Some(updated.version),
+            }),
+        )
+        .await
+        .expect("advance current state")
+        .0;
+
+        let restored = restore_resume_version(
+            AuthUser(user.clone()),
+            State(state),
+            Path((resume.id, updated.version)),
+            Json(RestoreResumeRequest {
+                version: advanced.version,
+            }),
+        )
+        .await
+        .expect("restore version")
+        .0;
+
+        let snapshot_count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM resume_snapshots WHERE resume_id = $1")
+                .bind(resume.id)
+                .fetch_one(&pool)
+                .await
+                .expect("count snapshots");
+
+        cleanup_user(&pool, user.id).await;
+
+        assert_eq!(restored.version, advanced.version + 1);
+        assert_eq!(restored.data, historical);
+        assert_eq!(snapshot_count, 3);
+    }
+
+    #[tokio::test]
+    async fn restore_resume_version_rejects_stale_expected_version() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+        let pool = connect_test_pool(&database_url).await;
+        let user = seed_user(&pool).await;
+        let resume = seed_resume(&pool, user.id, sample_data("current")).await;
+        let state = test_app_state(pool.clone());
+
+        let updated = update_resume(
+            AuthUser(user.clone()),
+            State(state.clone()),
+            Path(resume.id),
+            Json(UpdateResumeRequest {
+                title: None,
+                data: Some(sample_data("historical")),
+                version: Some(resume.version),
+            }),
+        )
+        .await
+        .expect("seed historical snapshot")
+        .0;
+
+        let _ = update_resume(
+            AuthUser(user.clone()),
+            State(state.clone()),
+            Path(resume.id),
+            Json(UpdateResumeRequest {
+                title: None,
+                data: Some(sample_data("newer")),
+                version: Some(updated.version),
+            }),
+        )
+        .await
+        .expect("advance current state");
+
+        let restore_result = restore_resume_version(
+            AuthUser(user.clone()),
+            State(state),
+            Path((resume.id, updated.version)),
+            Json(RestoreResumeRequest {
+                version: updated.version,
+            }),
+        )
+        .await;
+
+        cleanup_user(&pool, user.id).await;
+
+        assert!(matches!(
+            restore_result,
+            Err(err) if matches!(err.kind, ApiErrorKind::Conflict)
+                && err.current_version == Some(updated.version + 1)
+        ));
+    }
+
+    #[tokio::test]
+    async fn prune_resume_snapshots_caps_at_fifty() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+        let pool = connect_test_pool(&database_url).await;
+        let user = seed_user(&pool).await;
+        let resume = seed_resume(&pool, user.id, sample_data("start")).await;
+        let state = test_app_state(pool.clone());
+        let mut current_version = resume.version;
+
+        for index in 0..=MAX_SNAPSHOTS_PER_RESUME {
+            let updated = update_resume(
+                AuthUser(user.clone()),
+                State(state.clone()),
+                Path(resume.id),
+                Json(UpdateResumeRequest {
+                    title: None,
+                    data: Some(sample_data(&format!("v{index}"))),
+                    version: Some(current_version),
+                }),
+            )
+            .await
+            .expect("update resume")
+            .0;
+            current_version = updated.version;
+        }
+
+        let snapshot_count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM resume_snapshots WHERE resume_id = $1")
+                .bind(resume.id)
+                .fetch_one(&pool)
+                .await
+                .expect("count snapshots");
+
+        cleanup_user(&pool, user.id).await;
+
+        assert_eq!(snapshot_count, MAX_SNAPSHOTS_PER_RESUME);
+    }
+
+    #[tokio::test]
+    async fn cross_user_resume_version_access_returns_not_found() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+        let pool = connect_test_pool(&database_url).await;
+        let owner = seed_user(&pool).await;
+        let other = seed_user(&pool).await;
+        let resume = seed_resume(&pool, owner.id, sample_data("private")).await;
+        let owner_state = test_app_state(pool.clone());
+        let other_state = test_app_state(pool.clone());
+
+        let updated = update_resume(
+            AuthUser(owner.clone()),
+            State(owner_state.clone()),
+            Path(resume.id),
+            Json(UpdateResumeRequest {
+                title: None,
+                data: Some(sample_data("private-v2")),
+                version: Some(resume.version),
+            }),
+        )
+        .await
+        .expect("owner update")
+        .0;
+
+        let list_result = list_resume_versions(
+            AuthUser(other.clone()),
+            State(other_state.clone()),
+            Path(resume.id),
+        )
+        .await;
+        let get_result = get_resume_version(
+            AuthUser(other.clone()),
+            State(other_state.clone()),
+            Path((resume.id, updated.version)),
+        )
+        .await;
+        let restore_result = restore_resume_version(
+            AuthUser(other.clone()),
+            State(other_state),
+            Path((resume.id, updated.version)),
+            Json(RestoreResumeRequest {
+                version: updated.version,
+            }),
+        )
+        .await;
+
+        cleanup_user(&pool, owner.id).await;
+        cleanup_user(&pool, other.id).await;
+
+        assert!(matches!(
+            list_result,
+            Err(err) if matches!(err.kind, ApiErrorKind::NotFound)
+        ));
+        assert!(matches!(
+            get_result,
+            Err(err) if matches!(err.kind, ApiErrorKind::NotFound)
+        ));
+        assert!(matches!(
+            restore_result,
+            Err(err) if matches!(err.kind, ApiErrorKind::NotFound)
+        ));
+    }
+
+    #[tokio::test]
+    async fn deleting_resume_cascades_snapshots() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+        let pool = connect_test_pool(&database_url).await;
+        let user = seed_user(&pool).await;
+        let resume = seed_resume(&pool, user.id, sample_data("v1")).await;
+        let state = test_app_state(pool.clone());
+
+        let _ = update_resume(
+            AuthUser(user.clone()),
+            State(state.clone()),
+            Path(resume.id),
+            Json(UpdateResumeRequest {
+                title: None,
+                data: Some(sample_data("v2")),
+                version: Some(resume.version),
+            }),
+        )
+        .await
+        .expect("create snapshot");
+
+        delete_resume(
+            AuthUser(user.clone()),
+            State(state),
+            Path(resume.id),
+            axum::http::HeaderMap::new(),
+        )
+        .await
+        .expect("delete resume");
+
+        let snapshot_count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM resume_snapshots WHERE resume_id = $1")
+                .bind(resume.id)
+                .fetch_one(&pool)
+                .await
+                .expect("count snapshots");
+
+        cleanup_user(&pool, user.id).await;
+
+        assert_eq!(snapshot_count, 0);
+    }
 }

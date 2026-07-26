@@ -9,6 +9,7 @@
   let primary-color = rgb(data.metadata.theme.at("primary", default: "#0891b2"))
   let text-color = rgb(data.metadata.theme.at("text", default: "#1f2937"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
+  let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
   let muted-color = rgb("#6b7280")
 
@@ -107,9 +108,12 @@
     }
 
     let level = clamp-level(item.level)
-    if level > 0 {
+    if level-display == "template-default" and level > 0 {
       v(2pt)
       rating-indicators(level, 6pt, 6pt, primary-color, bg-color.darken(10%), 50%, 2pt)
+    } else if should-render-level(level, level-display) {
+      v(2pt)
+      render-level(level, level-display, primary-color, bg-color.darken(10%))
     }
 
     if has-keywords(item) {
@@ -130,9 +134,12 @@
     }
 
     let level = clamp-level(item.level)
-    if level > 0 {
+    if level-display == "template-default" and level > 0 {
       v(2pt)
       rating-indicators(level, 6pt, 6pt, primary-color, bg-color.darken(10%), 50%, 2pt)
+    } else if should-render-level(level, level-display) {
+      v(2pt)
+      render-level(level, level-display, primary-color, bg-color.darken(10%))
     }
 
     v(6pt)
@@ -141,16 +148,15 @@
   let render-profile(item) = {
     if item.visible == false { return }
 
-    text(size: 8pt, weight: "medium")[#item.network]
-
-    if has-url(item) {
-      v(1pt)
-      link(item.url.href)[#text(size: 7pt, fill: primary-color)[#item.username]]
-    } else {
-      v(1pt)
-      text(size: 7pt, fill: muted-color)[#item.username]
-    }
-
+    render-profile-entry(
+      data,
+      item,
+      size: 8pt,
+      fill: text-color,
+      link-fill: primary-color,
+      label-mode: "network-username",
+      weight: "medium",
+    )
     v(6pt)
   }
 
@@ -402,37 +408,47 @@
     justify: false,
   )
 
-  // Header - full width teal background bar
-  box(
-    width: 100%,
-    fill: primary-color,
-    inset: (x: 24pt, y: 18pt),
-    [
-      #text(size: 22pt, weight: "bold", fill: white)[#data.basics.name]
+  render-cover-letter-page(data, section-heading, muted: muted-color, inset: (x: 20pt, y: 12pt))
 
-      #if data.basics.headline != "" {
-        v(4pt)
-        text(size: 11pt, fill: primary-color.lighten(80%))[#data.basics.headline]
-      }
+  if has-resume-body(data) {
+    // Header - full width teal background bar
+    box(
+      width: 100%,
+      fill: primary-color,
+      inset: (x: 24pt, y: 18pt),
+      [
+        #if has-visible-picture(data.basics) {
+          render-picture(data.basics, primary-color)
+          v(8pt)
+        }
 
-      #v(8pt)
+        #text(size: 22pt, weight: "bold", fill: white)[#data.basics.name]
 
-      #let contact-items = build-contact-items(data.basics)
-      #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#text(fill: white)[#data.basics.url.href]],) }
+        #if data.basics.headline != "" {
+          v(4pt)
+          text(size: 11pt, fill: primary-color.lighten(80%))[#data.basics.headline]
+        }
 
-      #text(size: 8pt, fill: primary-color.lighten(85%))[#contact-items.join("  |  ")]
-    ]
-  )
+        #v(8pt)
 
-  render-resume(data, (
-    layout: "full-header-sidebar",
-    renderers: renderers,
-    sidebar-width: 160pt,
-    sidebar-bg: sidebar-bg,
-    body-bg: bg-color,
-    sidebar-inset: (x: 14pt, y: 12pt),
-    main-inset: (x: 20pt, y: 12pt),
-    sidebar-heading: sidebar-heading,
-    main-heading: section-heading,
-  ))
+        #let contact-items = build-contact-items(data.basics)
+        #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#text(fill: white)[#url-display-label(data.basics.url)]],) }
+
+        #text(size: 8pt, fill: primary-color.lighten(85%))[#contact-items.join("  |  ")]
+      ]
+    )
+
+    render-resume(data, (
+      layout: "full-header-sidebar",
+      renderers: renderers,
+      // Default width must match FIXED_SIDEBAR_WIDTH_PT in apps/web/src/components/templates/ThemeEditor.tsx.
+      sidebar-width: sidebar-width-from-ratio(data, 160pt),
+      sidebar-bg: sidebar-bg,
+      body-bg: bg-color,
+      sidebar-inset: (x: 14pt, y: 12pt),
+      main-inset: (x: 20pt, y: 12pt),
+      sidebar-heading: sidebar-heading,
+      main-heading: section-heading,
+    ))
+  }
 }

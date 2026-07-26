@@ -9,6 +9,7 @@
   let primary-color = rgb(data.metadata.theme.at("primary", default: "#3b82f6"))
   let text-color = rgb(data.metadata.theme.at("text", default: "#1f2937"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
+  let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
   let muted-color = text-color.lighten(30%)
 
@@ -95,7 +96,7 @@
       [
         #text(size: 9pt, weight: "medium")[#item.name]
         #let level = clamp-level(item.level)
-        #if level > 0 {
+        #if level-display == "template-default" and level > 0 {
           h(4pt)
           for i in range(level) {
             text(fill: primary-color)[●]
@@ -103,6 +104,9 @@
           for i in range(5 - level) {
             text(fill: border-color)[●]
           }
+        } else if should-render-level(level, level-display) {
+          h(4pt)
+          render-level(level, level-display, primary-color, border-color)
         }
       ]
     )
@@ -125,11 +129,14 @@
   let render-profile(item) = {
     if item.visible == false { return }
 
-    if has-url(item) {
-      link(item.url.href)[#text(fill: primary-color)[#item.network: #item.username]]
-    } else {
-      text(size: 10pt)[#item.network: #item.username]
-    }
+    render-profile-entry(
+      data,
+      item,
+      size: 10pt,
+      fill: text-color,
+      link-fill: primary-color,
+      label-mode: "network-username",
+    )
     v(4pt)
   }
 
@@ -356,45 +363,54 @@
     justify: true,
   )
 
-  // Header with blue accent bar
-  box(
-    width: 100%,
-    stroke: (bottom: 3pt + primary-color),
-    inset: (bottom: 12pt),
-    [
-      #text(size: 28pt, weight: "bold", fill: primary-color)[#data.basics.name]
+  render-cover-letter-page(data, section-heading, muted: muted-color)
 
-      #if data.basics.headline != "" {
-        v(4pt)
-        text(size: 12pt, fill: muted-color)[#data.basics.headline]
-      }
+  if has-resume-body(data) {
+    // Header with blue accent bar
+    box(
+      width: 100%,
+      stroke: (bottom: 3pt + primary-color),
+      inset: (bottom: 12pt),
+      [
+        #if has-visible-picture(data.basics) {
+          render-picture(data.basics, primary-color)
+          v(8pt)
+        }
 
-      #v(10pt)
+        #text(size: 28pt, weight: "bold", fill: primary-color)[#data.basics.name]
 
-      // Contact information in a row
-      #let contact-parts = ()
-      #if data.basics.email != "" {
-        contact-parts.push([✉ #link("mailto:" + data.basics.email)[#data.basics.email]])
-      }
-      #if data.basics.phone != "" {
-        contact-parts.push([☎ #data.basics.phone])
-      }
-      #if data.basics.location != "" {
-        contact-parts.push([📍 #data.basics.location])
-      }
-      #if has-url(data.basics) {
-        contact-parts.push([🔗 #link(data.basics.url.href)[Portfolio]])
-      }
+        #if data.basics.headline != "" {
+          v(4pt)
+          text(size: 12pt, fill: muted-color)[#data.basics.headline]
+        }
 
-      #text(size: 9pt)[#contact-parts.join("    ")]
-    ]
-  )
+        #v(10pt)
 
-  v(8pt)
+        // Contact information in a row
+        #let contact-parts = ()
+        #if data.basics.email != "" {
+          contact-parts.push([✉ #link("mailto:" + data.basics.email)[#data.basics.email]])
+        }
+        #if data.basics.phone != "" {
+          contact-parts.push([☎ #data.basics.phone])
+        }
+        #if data.basics.location != "" {
+          contact-parts.push([📍 #data.basics.location])
+        }
+        #if has-url(data.basics) {
+          contact-parts.push([🔗 #link(data.basics.url.href)[#url-display-label(data.basics.url, fallback: "Portfolio")]])
+        }
 
-  render-resume(data, (
-    layout: "single",
-    renderers: renderers,
-    heading: section-heading,
-  ))
+        #text(size: 9pt)[#contact-parts.join("    ")]
+      ]
+    )
+
+    v(8pt)
+
+    render-resume(data, (
+      layout: "single",
+      renderers: renderers,
+      heading: section-heading,
+    ))
+  }
 }

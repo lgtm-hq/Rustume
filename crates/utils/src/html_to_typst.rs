@@ -29,7 +29,7 @@ pub fn html_to_typst(html: &str) -> String {
     // Even plain text needs escaping because templates eval() the result.
     // Run through clean_output so newline normalization matches the HTML path.
     if !trimmed.contains('<') {
-        return clean_output(escape_typst(trimmed));
+        return clean_output(&escape_typst(trimmed));
     }
 
     let document = Html::parse_fragment(trimmed);
@@ -39,7 +39,7 @@ pub fn html_to_typst(html: &str) -> String {
         process_node(&child, &mut output, false);
     }
 
-    clean_output(output)
+    clean_output(&output)
 }
 
 /// Escape characters that are special in Typst content mode.
@@ -215,7 +215,7 @@ fn process_node(node: &ego_tree::NodeRef<'_, Node>, output: &mut String, in_list
 }
 
 /// Clean up the final output: collapse excessive blank lines and trim.
-fn clean_output(s: String) -> String {
+fn clean_output(s: &str) -> String {
     // Single-pass: collapse runs of 3+ newlines into exactly 2.
     let mut result = String::with_capacity(s.len());
     let mut newline_count: u32 = 0;

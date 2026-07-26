@@ -52,13 +52,18 @@ fn unauthorized(message: &str) -> ApiError {
     ApiError::unauthorized(message)
 }
 
-/// Require a session on billable routes when hosted require-auth mode is enabled.
+/// Require a session on billable routes for every cloud deployment.
+///
+/// Self-hosted deployments have no accounts, so requests pass straight through.
+/// The gate is keyed on cloud presence rather than a configuration flag: on a
+/// billable hosted service, authentication must not be something a missing
+/// environment variable can switch off.
 pub async fn require_auth_when_enabled(
     State(state): State<AppState>,
     request: Request,
     next: Next,
 ) -> Result<Response, ApiError> {
-    if !state.require_auth {
+    if state.cloud.is_none() {
         return Ok(next.run(request).await);
     }
 

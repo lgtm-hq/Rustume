@@ -1,20 +1,15 @@
 import { DropdownMenu } from "@kobalte/core/dropdown-menu";
 import { useNavigate } from "@solidjs/router";
-import { createSignal, Show } from "solid-js";
+import { Show } from "solid-js";
 import { authStore } from "../../stores/auth";
 import { Button, Spinner } from "../ui";
 
 export function AuthMenu() {
   const navigate = useNavigate();
   const { state, signIn, signOut, displayName } = authStore;
-  const [signingIn, setSigningIn] = createSignal(false);
 
-  const handleSignIn = () => {
-    setSigningIn(true);
-    signIn();
-  };
-
-  const showSignedOutSignIn = () => state.cloudEnabled && !state.requireAuth && !state.user;
+  // Signed out on cloud always offers sign-in: requireAuth no longer gates access (#589).
+  const showSignedOutSignIn = () => state.cloudEnabled && !state.user;
 
   return (
     <Show
@@ -29,9 +24,9 @@ export function AuthMenu() {
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={handleSignIn}
-                loading={signingIn()}
+                onClick={() => signIn()}
                 title="Sign in to sync resumes across devices with Rustume Cloud"
+                data-testid="header-sign-in"
               >
                 Sign in to sync
               </Button>

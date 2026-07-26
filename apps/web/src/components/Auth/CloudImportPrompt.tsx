@@ -9,6 +9,7 @@ import {
   listStoredResumeIds,
 } from "../../stores/persistence";
 import { authStore } from "../../stores/auth";
+import { PolicyConsent } from "./PolicyConsent";
 
 const dismissedKey = (userId: string) => `rustume:cloud-import-dismissed:${userId}`;
 
@@ -136,6 +137,7 @@ export function CloudImportPrompt() {
                 </Show>
               </Button>
             </div>
+            <PolicyConsent />
           </div>
         </Modal>
       )}

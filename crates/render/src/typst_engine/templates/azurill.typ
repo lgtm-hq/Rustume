@@ -9,6 +9,7 @@
   let primary-color = rgb(data.metadata.theme.at("primary", default: "#d97706"))
   let text-color = rgb(data.metadata.theme.at("text", default: "#1f2937"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
+  let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
   let muted-color = text-color.lighten(40%)
 
@@ -37,7 +38,14 @@
 
   // Rating bars helper (0-5 scale)
   let rating-bars(level) = {
-    rating-indicators(level, 14pt, 4pt, primary-color, bar-empty, 2pt, 2pt)
+    let level = clamp-level(level)
+    if level-display == "template-default" {
+      rating-indicators(level, 14pt, 4pt, primary-color, bar-empty, 2pt, 2pt)
+    } else if level-display == "progress-bar" {
+      render-level(level, level-display, primary-color, bar-empty, track-width: 70pt)
+    } else {
+      render-level(level, level-display, primary-color, bar-empty)
+    }
   }
 
   let render-experience(item) = {
@@ -111,7 +119,10 @@
     }
 
     let level = clamp-level(item.level)
-    if level > 0 {
+    if level-display == "template-default" and level > 0 {
+      v(2pt)
+      rating-bars(level)
+    } else if should-render-level(level, level-display) {
       v(2pt)
       rating-bars(level)
     }
@@ -135,7 +146,10 @@
     }
 
     let level = clamp-level(item.level)
-    if level > 0 {
+    if level-display == "template-default" and level > 0 {
+      v(2pt)
+      rating-bars(level)
+    } else if should-render-level(level, level-display) {
       v(2pt)
       rating-bars(level)
     }
@@ -146,21 +160,14 @@
   let render-profile(item) = {
     if item.visible == false { return }
 
-    let network = if "network" in item and item.network != none { item.network } else { "" }
-    let username = if "username" in item and item.username != none { item.username } else { "" }
-
-    if network != "" {
-      text(size: 8pt, fill: muted-color)[#network]
-      v(1pt)
-    }
-    let label = if username != "" { username } else if has-url(item) { item.url.href } else { "" }
-    if label != "" {
-      if has-url(item) {
-        link(item.url.href)[#text(size: 9pt, fill: primary-color)[#label]]
-      } else {
-        text(size: 9pt)[#label]
-      }
-    }
+    render-profile-entry(
+      data,
+      item,
+      size: 9pt,
+      fill: text-color,
+      link-fill: primary-color,
+      label-mode: "username",
+    )
     v(6pt)
   }
 
@@ -409,41 +416,52 @@
     justify: false,
   )
 
-  // ── Header - centered, above columns ──
-  align(center)[
-    #text(size: 26pt, weight: "bold", fill: text-color, tracking: 0.03em)[#data.basics.name]
+  render-cover-letter-page(data, main-section-heading, muted: muted-color)
 
-    #if data.basics.headline != "" {
-      v(4pt)
-      text(size: 11pt, fill: primary-color)[#data.basics.headline]
-    }
+  if has-resume-body(data) {
+    // ── Header - centered, above columns ──
+    align(center)[
+      #if has-visible-picture(data.basics) {
+        render-picture(data.basics, primary-color)
+        v(8pt)
+      }
 
-    #v(8pt)
+      #text(size: 26pt, weight: "bold", fill: text-color, tracking: 0.03em)[#data.basics.name]
 
-    // Contact info as horizontal list
-    #let contact-items = ()
-    #if data.basics.email != "" { contact-items = contact-items + (link("mailto:" + data.basics.email)[#data.basics.email],) }
-    #if data.basics.phone != "" { contact-items = contact-items + (data.basics.phone,) }
-    #if data.basics.location != "" { contact-items = contact-items + (data.basics.location,) }
-    #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#data.basics.url.href],) }
+      #if data.basics.headline != "" {
+        v(4pt)
+        text(size: 11pt, fill: primary-color)[#data.basics.headline]
+      }
 
-    #text(size: 9pt, fill: muted-color)[#contact-items.join("  ·  ")]
-  ]
+      #v(8pt)
 
-  v(16pt)
-  line(length: 100%, stroke: 1pt + primary-color)
-  v(12pt)
+      // Contact info as horizontal list
+      #let contact-items = ()
+      #if data.basics.email != "" { contact-items = contact-items + (link("mailto:" + data.basics.email)[#data.basics.email],) }
+      #if data.basics.phone != "" { contact-items = contact-items + (data.basics.phone,) }
+      #if data.basics.location != "" { contact-items = contact-items + (data.basics.location,) }
+      #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#url-display-label(data.basics.url)],) }
 
-  render-resume(data, (
-    layout: "two-column",
-    renderers: renderers,
-    columns: (1fr, 2fr),
-    column-gutter: 20pt,
-    left-column: 0,
-    left-fallback: default-sidebar-sections,
-    left-heading: sidebar-section-heading,
-    right-column: 1,
-    right-fallback: default-main-sections + ("custom",),
-    right-heading: main-section-heading,
-  ))
+      #text(size: 9pt, fill: muted-color)[#contact-items.join("  ·  ")]
+    ]
+
+    v(16pt)
+    line(length: 100%, stroke: 1pt + primary-color)
+    v(12pt)
+
+    // Column indices match the Layout Editor labels: 0 = Main, 1 = Sidebar.
+    // Visual left is the narrow sidebar (col 1); visual right is main (col 0).
+    render-resume(data, (
+      layout: "two-column",
+      renderers: renderers,
+      columns: sidebar-ratio-columns(data, (1fr, 2fr), sidebar-side: "left"),
+      column-gutter: 20pt,
+      left-column: 1,
+      left-fallback: default-sidebar-sections,
+      left-heading: sidebar-section-heading,
+      right-column: 0,
+      right-fallback: default-main-sections + ("custom",),
+      right-heading: main-section-heading,
+    ))
+  }
 }

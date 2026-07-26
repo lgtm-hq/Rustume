@@ -65,6 +65,21 @@ export function getWasmError(): Error | null {
   return wasmLoadError;
 }
 
+/**
+ * Wait for WASM init when it hasn't failed yet.
+ * Returns true when WASM storage should be used, false to use localStorage fallback.
+ */
+export async function ensureWasmReady(): Promise<boolean> {
+  if (wasmModule) return true;
+  if (wasmLoadError) return false;
+  try {
+    await initWasm();
+    return wasmModule !== null;
+  } catch {
+    return false;
+  }
+}
+
 // Storage operations
 export async function getStorage(): Promise<WasmStorage> {
   if (!wasmModule) {

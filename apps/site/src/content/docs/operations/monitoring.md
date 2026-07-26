@@ -15,6 +15,19 @@ Cloud operates its observability stack; self-hosted operators configure their ow
 `GET /health` returns `ok` in normal mode. When connected state is active, it also probes PostgreSQL
 and reports failure if the database cannot be reached.
 
+## Version
+
+`GET /version` reports which build is serving:
+
+```bash
+curl -s http://localhost:3000/version
+{"version":"0.44.0","commit":"c515854","built_at":"2026-07-25T19:38:00Z"}
+```
+
+`commit` matches the short commit in the image's `sha-<commit>` tag, so a deploy can be confirmed
+without reading the OpenAPI document or the JavaScript bundles. Builds without that metadata (for
+example a local `cargo run`) report `null` for `commit` and `built_at`.
+
 ## Metrics
 
 `GET /metrics` requires a configured token and an authorization header:

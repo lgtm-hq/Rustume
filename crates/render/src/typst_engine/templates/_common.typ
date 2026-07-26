@@ -6,6 +6,94 @@
   "url" in item and item.url != none and item.url.href != ""
 }
 
+/// Visible text for a `{ label, href }` URL: prefer label, then href, then fallback.
+#let url-display-label(url, fallback: "Website") = {
+  if url == none {
+    return fallback
+  }
+  let label = if "label" in url and url.label != none { url.label } else { "" }
+  if label != "" { return label }
+  let href = if "href" in url and url.href != none { url.href } else { "" }
+  if href != "" { return href }
+  fallback
+}
+
+/// Resolve a hex color, falling back when the input is empty.
+/// Typst's rgb() string form requires a leading #, so prepend one
+/// for legacy stored values that lack it.
+#let resolve-color(value, fallback) = {
+  if value == "" or value == none {
+    fallback
+  } else if value.starts-with("#") {
+    rgb(value)
+  } else {
+    rgb("#" + value)
+  }
+}
+
+/// Check whether basics includes a visible profile picture URL.
+#let has-visible-picture(basics) = {
+  if not ("picture" in basics) or basics.picture == none {
+    return false
+  }
+
+  let picture = basics.picture
+  let effects = picture.at("effects", default: (:))
+
+  "url" in picture and picture.url != "" and not effects.at("hidden", default: false)
+}
+
+/// Render a profile picture with shared schema-driven effects.
+#let render-picture(basics, primary-color, default-size: 64pt) = {
+  if not has-visible-picture(basics) {
+    return
+  }
+
+  let picture = basics.picture
+  let effects = picture.at("effects", default: (:))
+  let picture-size = picture.at("size", default: int(default-size / 1pt)) * 1pt
+  let border-radius = calc.min(picture.at("borderRadius", default: 0) * 1pt, picture-size / 2)
+  let border-width = effects.at("borderWidth", default: 2) * 1pt
+  let border-color = resolve-color(effects.at("borderColor", default: ""), primary-color)
+  let shadow-size = effects.at("shadowSize", default: 0) * 1pt
+  let shadow-color = resolve-color(effects.at("shadowColor", default: "#00000040"), rgb("#00000040"))
+  let rotation = effects.at("rotation", default: 0) * 1deg
+  let stroke = if effects.at("border", default: false) and border-width > 0pt {
+    border-width + border-color
+  } else {
+    none
+  }
+  let photo = box(
+    width: picture-size,
+    height: picture-size,
+    radius: border-radius,
+    clip: true,
+    stroke: stroke,
+    image(picture.url, width: picture-size, height: picture-size, fit: "cover")
+  )
+
+  let shadow-offset = shadow-size / 2
+  let content = if shadow-size > 0pt {
+    // The outer box is exactly the picture's size so the photo stays the
+    // layout anchor (e.g. inside align(center)). The shadow is place()d
+    // with a diagonal offset and overflows the box (place does not clip),
+    // appearing below-right of the photo.
+    box(width: picture-size, height: picture-size)[
+      #place(
+        top + left,
+        dx: shadow-offset,
+        dy: shadow-offset,
+        box(width: picture-size, height: picture-size, radius: border-radius, fill: shadow-color)
+      )
+      #place(top + left, photo)
+    ]
+  } else {
+    photo
+  }
+
+  rotate(rotation, reflow: true, content)
+}
+
 /// Format a degree line from studyType and area.
 #let format-degree(studyType, area) = {
   if studyType != "" and area != "" {
@@ -38,6 +126,60 @@
   }
 }
 
+/// Whether an overridden level display should render an indicator for `level`.
+/// False for the template's native rendering ("template-default"), for
+/// "hidden", and for a "text" display with no level set (level 0).
+#let should-render-level(level, level-display) = {
+  (
+    level-display != "template-default"
+      and level-display != "hidden"
+      and not (level-display == "text" and level == 0)
+  )
+}
+
+/// Render a skill/language level in the configured global display style.
+#let render-level(
+  level,
+  display,
+  filled-color,
+  empty-color,
+  width: 6pt,
+  height: 6pt,
+  spacing: 2pt,
+  track-width: 48pt,
+  track-height: 4pt,
+  text-size: 8pt,
+) = {
+  let level = clamp-level(level)
+
+  if display == "hidden" {
+    return
+  } else if display == "circle" {
+    rating-indicators(level, width, height, filled-color, empty-color, 50%, spacing)
+  } else if display == "square" {
+    rating-indicators(level, width, height, filled-color, empty-color, 0pt, spacing)
+  } else if display == "progress-bar" {
+    box(
+      width: track-width,
+      height: track-height,
+      fill: empty-color,
+      radius: track-height / 2,
+      place(top + left, box(
+        width: track-width * level / 5,
+        height: track-height,
+        fill: filled-color,
+        radius: track-height / 2,
+      )),
+    )
+  } else if display == "text" {
+    let labels = ("", "Novice", "Beginner", "Intermediate", "Advanced", "Expert")
+    let label = labels.at(level)
+    if label != "" {
+      text(size: text-size, fill: filled-color)[#label]
+    }
+  }
+}
+
 /// Render a pre-processed rich-text string (Typst markup) as content.
 /// Plain text passes through unchanged; Typst markup is evaluated.
 /// Accepts optional text-styling parameters (size, fill, style) to avoid
@@ -56,6 +198,188 @@
   if has-url(item) {
     v(2pt)
     link(item.url.href)[#text(size: 9pt, fill: color)[#item.url.href]]
+  }
+}
+
+/// Normalize a profile network/icon/host string for icon lookup.
+#let normalize-profile-key(value) = {
+  if value == none or value == "" {
+    return ""
+  }
+  lower(value).replace(" ", "").replace("-", "").replace("_", "").replace(".", "")
+}
+
+/// Extract a hostname-ish token from a profile URL for icon fallback.
+#let profile-url-host-key(item) = {
+  if not has-url(item) {
+    return ""
+  }
+  let href = lower(item.url.href)
+  let without-scheme = if href.starts-with("https://") {
+    href.slice(8)
+  } else if href.starts-with("http://") {
+    href.slice(7)
+  } else if href.starts-with("mailto:") {
+    return "email"
+  } else {
+    href
+  }
+  let host = without-scheme.split("/").at(0, default: "")
+  let host = if host.starts-with("www.") { host.slice(4) } else { host }
+  host.split(".").at(0, default: "")
+}
+
+/// Resolve the best icon key for a profile from icon → network → URL host.
+#let profile-icon-key(item) = {
+  let icon = if "icon" in item and item.icon != none { normalize-profile-key(item.icon) } else { "" }
+  if icon != "" { return icon }
+
+  let network = if "network" in item and item.network != none {
+    normalize-profile-key(item.network)
+  } else {
+    ""
+  }
+  if network != "" { return network }
+
+  normalize-profile-key(profile-url-host-key(item))
+}
+
+/// Map a normalized profile key to a bundled SVG stem under `/assets/icons/`.
+/// Returns `none` when no bundled mark exists (text badge fallback).
+#let profile-icon-asset(key) = {
+  if key == "github" or key == "gh" or key == "githuborg" or key == "githuborganization" { "github" }
+  else if key == "gitlab" or key == "gl" { "gitlab" }
+  else if key == "linkedin" or key == "li" { "linkedin" }
+  else if key == "twitter" or key == "x" or key == "xtwitter" { "x" }
+  else if key == "facebook" or key == "fb" { "facebook" }
+  else if key == "instagram" or key == "ig" { "instagram" }
+  else if key == "youtube" or key == "yt" { "youtube" }
+  else if key == "mastodon" { "mastodon" }
+  else if key == "discord" { "discord" }
+  else if key == "stackoverflow" or key == "stack" { "stackoverflow" }
+  else if key == "medium" { "medium" }
+  else if key == "dribbble" { "dribbble" }
+  else if key == "behance" { "behance" }
+  else if key == "telegram" or key == "tg" { "telegram" }
+  else if key == "whatsapp" or key == "wa" { "whatsapp" }
+  else if key == "email" or key == "mail" or key == "envelope" { "email" }
+  else if key == "website" or key == "web" or key == "portfolio" or key == "personal" or key == "homepage" { "website" }
+  else if key == "phone" or key == "tel" or key == "mobile" { "phone" }
+  else { none }
+}
+
+/// Short offline-safe text mark when no bundled SVG exists for the key.
+#let profile-icon-mark(key) = {
+  if key != "" { key.slice(0, calc.min(2, key.len())) }
+  else { "↗" }
+}
+
+/// Whether typography.hideIcons is set.
+#let typography-hide-icons(data) = {
+  data.metadata.typography.at("hideIcons", default: false)
+}
+
+/// Whether typography.underlineLinks is set (defaults to true).
+#let typography-underline-links(data) = {
+  data.metadata.typography.at("underlineLinks", default: true)
+}
+
+/// Compact local icon badge for a profile entry (bundled SVG, text fallback).
+#let render-profile-icon(item, size: 9pt, fill: rgb("#333333")) = {
+  let key = profile-icon-key(item)
+  let asset = profile-icon-asset(key)
+  let box-size = size + 2pt
+  let icon-size = size * 0.72
+  let content = if asset != none {
+    // Typst does not resolve SVG `currentColor` from surrounding text; rewrite
+    // the fill into the SVG bytes before rendering.
+    let svg = read("/assets/icons/" + asset + ".svg")
+    let colored = svg.replace("currentColor", fill.to-hex())
+    image(bytes(colored), width: icon-size, height: icon-size)
+  } else {
+    text(size: size * 0.55, fill: fill, weight: "bold")[#profile-icon-mark(key)]
+  }
+  box(
+    width: box-size,
+    height: box-size,
+    fill: fill.lighten(82%),
+    radius: 2pt,
+    stroke: 0.4pt + fill.lighten(40%),
+    align(center + horizon, content),
+  )
+}
+
+/// Build the visible label for a profile entry.
+///
+/// Modes:
+/// - `"network"` — network name (fallback username / URL)
+/// - `"username"` — username (fallback network / URL)
+/// - `"network-username"` — `Network: username` when both exist
+/// - `"auto"` — network if set, else username, else URL
+#let profile-entry-label(item, mode: "auto") = {
+  let network = if "network" in item and item.network != none { item.network } else { "" }
+  let username = if "username" in item and item.username != none { item.username } else { "" }
+  let href = if has-url(item) { item.url.href } else { "" }
+
+  if mode == "username" {
+    if username != "" { username }
+    else if network != "" { network }
+    else { href }
+  } else if mode == "network-username" {
+    if network != "" and username != "" { network + ": " + username }
+    else if network != "" { network }
+    else if username != "" { username }
+    else { href }
+  } else {
+    // "network" and "auto" share the same preference order.
+    if network != "" { network }
+    else if username != "" { username }
+    else { href }
+  }
+}
+
+/// Render a profile row with an optional local icon and link styling.
+///
+/// Respects `metadata.typography.hideIcons` and `underlineLinks`.
+/// Pass `fill` / `link-fill` so sidebar templates can keep readable contrast.
+#let render-profile-entry(
+  data,
+  item,
+  size: 9pt,
+  fill: rgb("#333333"),
+  link-fill: none,
+  label-mode: "auto",
+  weight: "regular",
+  icon-gap: 4pt,
+) = {
+  let label = profile-entry-label(item, mode: label-mode)
+  if label == "" or label == none { return }
+
+  let hide-icons = typography-hide-icons(data)
+  let underline-links = typography-underline-links(data)
+  let color = if has-url(item) {
+    if link-fill != none { link-fill } else { fill }
+  } else {
+    fill
+  }
+
+  let body = {
+    if not hide-icons {
+      render-profile-icon(item, size: size, fill: color)
+      h(icon-gap)
+    }
+    text(size: size, fill: color, weight: weight)[#label]
+  }
+
+  if has-url(item) {
+    let linked = if underline-links {
+      underline(offset: 1.5pt, extent: 0.5pt, body)
+    } else {
+      body
+    }
+    link(item.url.href)[#linked]
+  } else {
+    body
   }
 }
 
@@ -80,6 +404,64 @@
   if basics.phone != "" { items = items + (basics.phone,) }
   if basics.location != "" { items = items + (basics.location,) }
   items
+}
+
+/// Optional sidebar width ratio from metadata.page.sidebarRatio.
+#let sidebar-ratio(data) = {
+  data.metadata.page.at("sidebarRatio", default: none)
+}
+
+/// Paper width in points for supported page formats.
+#let paper-width(data) = {
+  let format = data.metadata.page.at("format", default: "a4")
+  if format == "letter" or format == "us-letter" {
+    612pt
+  } else {
+    595.28pt
+  }
+}
+
+/// Content width after subtracting resume page margins.
+/// Note: fixed-width sidebar templates set the real page margin to 0/48pt, so
+/// subtracting 2x the metadata margin here is an approximation. The web UI's
+/// default-ratio math (ThemeEditor.tsx) mirrors the same approximation, so the
+/// two stay self-consistent — do not "fix" the math on one side only.
+#let content-width(data) = {
+  paper-width(data) - (2 * data.metadata.page.at("margin", default: 18) * 1pt)
+}
+
+/// Clamp a sidebar ratio to the supported [0.1, 0.5] range.
+/// The export path renders stored JSON without schema validation, so
+/// out-of-range stored values must be clamped here as defense-in-depth.
+#let clamp-sidebar-ratio(ratio) = {
+  calc.max(0.1, calc.min(0.5, ratio))
+}
+
+/// Resolve a fixed sidebar width from sidebarRatio, preserving native defaults.
+#let sidebar-width-from-ratio(data, default) = {
+  let ratio = sidebar-ratio(data)
+  if ratio == none {
+    default
+  } else {
+    clamp-sidebar-ratio(ratio) * content-width(data)
+  }
+}
+
+/// Resolve proportional two-column widths, preserving native defaults.
+#let sidebar-ratio-columns(data, default, sidebar-side: "left") = {
+  let ratio = sidebar-ratio(data)
+  if ratio == none {
+    return default
+  }
+  let ratio = clamp-sidebar-ratio(ratio)
+
+  let sidebar-width = ratio * 100fr
+  let main-width = (1 - ratio) * 100fr
+  if sidebar-side == "right" {
+    (main-width, sidebar-width)
+  } else {
+    (sidebar-width, main-width)
+  }
 }
 
 /// Fixed-width sidebar plus flowing main content.
@@ -192,6 +574,90 @@
   }
 }
 
+/// Return all rendered page-0 layout keys (empty when no layout).
+#let layout-section-keys(data) = {
+  let keys = ()
+  if data.metadata.layout.len() == 0 {
+    return keys
+  }
+
+  for column in data.metadata.layout.at(0) {
+    keys = keys + column
+  }
+  keys
+}
+
+/// Whether the cover letter should render as a dedicated page.
+/// Requires the section to exist, be visible, and be placed in the layout
+/// (an empty layout counts as placed, mirroring the default section order).
+#let has-cover-letter(data) = {
+  if not ("coverLetter" in data.sections) { return false }
+  let section = data.sections.coverLetter
+  if not section.at("visible", default: false) { return false }
+  let keys = layout-section-keys(data)
+  data.metadata.layout.len() == 0 or "coverLetter" in keys
+}
+
+/// Whether the layout contains any resume section besides the dedicated cover
+/// letter page. An empty layout falls back to the default resume sections.
+#let has-resume-body(data) = {
+  let keys = layout-section-keys(data)
+  if data.metadata.layout.len() == 0 or keys.len() == 0 { return true }
+  for key in keys {
+    if key != "coverLetter" { return true }
+  }
+  false
+}
+
+/// Render the cover letter recipient block (name, title, company, address,
+/// email), top-left, skipping empty fields.
+#let render-cover-letter-recipient(recipient, size: 10pt, muted: none) = {
+  let lines = ()
+  let name = recipient.at("name", default: "")
+  let title = recipient.at("title", default: "")
+  let company = recipient.at("company", default: "")
+  let address = recipient.at("address", default: "")
+  let email = recipient.at("email", default: "")
+  if name != "" { lines = lines + (text(weight: "bold")[#name],) }
+  if title != "" { lines = lines + ([#title],) }
+  if company != "" { lines = lines + ([#company],) }
+  if address != "" { lines = lines + ([#address],) }
+  if email != "" { lines = lines + (link("mailto:" + email)[#email],) }
+
+  if lines.len() > 0 {
+    set text(size: size)
+    set text(fill: muted) if muted != none
+    stack(dir: ttb, spacing: 4pt, ..lines)
+    v(12pt)
+  }
+}
+
+/// Render the cover letter (heading, recipient block, rich-text body) using
+/// the template's heading style. Content arrives pre-converted to Typst
+/// markup by the engine's rich-text preprocessing.
+#let render-cover-letter(data, heading, size: 10pt, muted: none) = {
+  let section = data.sections.at("coverLetter", default: (:))
+  heading(section.at("name", default: "Cover Letter"))
+  render-cover-letter-recipient(section.at("recipient", default: (:)), size: size, muted: muted)
+  render-rich-text(section.at("content", default: ""), size: size)
+}
+
+/// Render the cover letter as a dedicated page before the resume content.
+/// No-op unless the section is visible and placed in the layout.
+#let render-cover-letter-page(data, heading, size: 10pt, muted: none, inset: none) = {
+  if not has-cover-letter(data) { return }
+  if inset == none {
+    render-cover-letter(data, heading, size: size, muted: muted)
+  } else {
+    pad(x: inset.x, y: inset.y)[
+      #render-cover-letter(data, heading, size: size, muted: muted)
+    ]
+  }
+  if has-resume-body(data) {
+    pagebreak()
+  }
+}
+
 /// Render a text-only section without splitting it from its heading.
 #let render-rich-text-section(section, heading, size: 10pt, fill: none, style: none) = {
   if section.visible {
@@ -265,6 +731,10 @@
     render-item-section(data.sections.projects, heading, renderers.projects)
   } else if key == "references" {
     render-item-section(data.sections.references, heading, renderers.references)
+  } else if key == "coverLetter" {
+    // Rendered as a dedicated page via render-cover-letter-page before the
+    // resume body (pagebreaks are not allowed inside layout containers), so
+    // the layout slot is intentionally skipped here.
   } else if key == "custom" and "custom" in data.sections {
     // Layout slot "custom" = render every custom section (order follows JSON object order).
     for (_, section) in data.sections.custom {

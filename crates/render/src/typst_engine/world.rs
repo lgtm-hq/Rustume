@@ -28,6 +28,10 @@ use typst::{Library, LibraryExt};
 /// Embedded template directory (all `.typ` files under `templates/`).
 static TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/src/typst_engine/templates");
 
+/// Bundled monochrome profile network icons (`*.svg`).
+static PROFILE_ICON_DIR: Dir<'_> =
+    include_dir!("$CARGO_MANIFEST_DIR/src/typst_engine/assets/icons");
+
 /// Cached embedded template contents keyed by file stem (without `.typ`).
 static EMBEDDED_TEMPLATES: OnceLock<HashMap<String, String>> = OnceLock::new();
 
@@ -148,6 +152,8 @@ pub struct RustumeWorld {
     /// Lazily resolved template sources (override errors only fail when that
     /// template is actually requested by Typst).
     sources: Mutex<HashMap<FileId, Source>>,
+    /// In-memory binary files (e.g. a decoded data-URL profile picture).
+    binary_files: HashMap<FileId, Bytes>,
 }
 
 /// Build a project-root [`FileId`] for a virtual path string.
@@ -171,7 +177,30 @@ impl RustumeWorld {
             library: OnceLock::new(),
             book: OnceLock::new(),
             sources: Mutex::new(HashMap::new()),
+            binary_files: HashMap::new(),
         })
+    }
+
+    /// Register an in-memory binary file at a project-root virtual path.
+    pub fn add_binary_file(&mut self, path: &str, data: Vec<u8>) -> Result<(), RenderError> {
+        let id = project_file_id(path)?;
+        self.binary_files.insert(id, Bytes::new(data));
+        Ok(())
+    }
+
+    /// Register bundled profile network SVGs at `/assets/icons/<name>.svg`.
+    pub fn register_profile_icons(&mut self) -> Result<(), RenderError> {
+        for file in PROFILE_ICON_DIR.files() {
+            let Some(name) = file.path().file_name().and_then(|n| n.to_str()) else {
+                continue;
+            };
+            if !name.ends_with(".svg") {
+                continue;
+            }
+            let path = format!("/assets/icons/{name}");
+            self.add_binary_file(&path, file.contents().to_vec())?;
+        }
+        Ok(())
     }
 
     /// Resolve `templates/<name>.typ` from an override dir or embedded defaults.
@@ -337,10 +366,11 @@ impl typst::World for RustumeWorld {
     }
 
     fn file(&self, id: FileId) -> FileResult<Bytes> {
-        // For now, we only support source files, not binary files
-        Err(FileError::NotFound(PathBuf::from(
-            id.vpath().get_without_slash(),
-        )))
+        // Only registered in-memory binary files are supported.
+        self.binary_files
+            .get(&id)
+            .cloned()
+            .ok_or_else(|| FileError::NotFound(PathBuf::from(id.vpath().get_without_slash())))
     }
 
     fn font(&self, index: usize) -> Option<Font> {
