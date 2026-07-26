@@ -3,11 +3,17 @@
 name: Test - Web E2E
 # Runs the Playwright suites for the web app (apps/web/e2e): smoke, per-flow
 # E2E (CRUD, templates, export, import, offline), visual regression, and
-# accessibility. The run is self-contained: it builds the WASM module, builds
-# the production bundle, and serves it via `vite preview` from the Playwright
-# webServer block. Visual baselines live in apps/web/e2e/__screenshots__ and
-# are generated on this runner (Linux) — on baseline changes, download the
-# playwright-report artifact and commit the updated screenshots.
+# accessibility — all in one lgtm-ci reusable-test-e2e-playwright call.
+#
+# One call, not one per suite: every suite needs the same WASM + bundle build
+# (scripts/ci/testing/web/e2e.sh), and sibling calls are separate jobs that
+# cannot share it, so splitting would rebuild the WASM module per suite for no
+# extra signal. The Playwright config already isolates visual regression in its
+# own project so it can opt out of retries.
+#
+# Visual baselines live in apps/web/e2e/__screenshots__ and are generated on
+# this runner (Linux) — on baseline changes, download the Playwright report
+# artifact and commit the updated screenshots from it.
 
 "on":
   push:
@@ -38,8 +44,7 @@ name: Test - Web E2E
       - '.github/workflows/test-e2e-web.yml'
   workflow_dispatch:
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
   group: test-e2e-web-${{ github.ref }}
@@ -47,97 +52,63 @@ concurrency:
 
 jobs:
   playwright-e2e:
-    name: 🎭 Web E2E
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    if: >-
-      github.event_name != 'pull_request' ||
-      github.event.pull_request.draft == false
-    steps:
-      - name: Harden Runner
-        # Direct step-security invocation with an explicit allowlist: GitHub
-        # + bun/npm (deps), Playwright CDNs + Ubuntu mirrors (chromium
-        # --with-deps), and Rust endpoints (wasm32 target + crates for the
-        # WASM build).
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
-        with:
-          egress-policy: block
-          allowed-endpoints: >
-            github.com:443
-            api.github.com:443
-            codeload.github.com:443
-            objects.githubusercontent.com:443
-            raw.githubusercontent.com:443
-            release-assets.githubusercontent.com:443
-            pipelines.actions.githubusercontent.com:443
-            results-receiver.actions.githubusercontent.com:443
-            *.blob.core.windows.net:443
-            registry.npmjs.org:443
-            nodejs.org:443
-            bun.sh:443
-            cdn.playwright.dev:443
-            playwright.azureedge.net:443
-            playwright-akamai.azureedge.net:443
-            playwright-verizon.azureedge.net:443
-            playwright.download.prss.microsoft.com:443
-            storage.googleapis.com:443
-            archive.ubuntu.com:80
-            security.ubuntu.com:80
-            azure.archive.ubuntu.com:80
-            esm.ubuntu.com:443
-            packages.microsoft.com:443
-            static.rust-lang.org:443
-            crates.io:443
-            index.crates.io:443
-            static.crates.io:443
-
-      - name: Checkout
-        # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@31c25ef2e8992960e218524780e34f44f51271b5 # v0.54.0
-
-      - name: Setup Rust (wasm32 target)
-        # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/setup-rust@31c25ef2e8992960e218524780e34f44f51271b5 # v0.54.0
-        with:
-          targets: wasm32-unknown-unknown
-
-      - name: Setup Node and bun
-        # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/setup-node@31c25ef2e8992960e218524780e34f44f51271b5 # v0.54.0
-        with:
-          node-version: '22'
-          working-directory: apps/web
-          cache-dependency-path: apps/web/bun.lock
-          install-dependencies: 'false'
-
-      - name: Cache Playwright browsers
-        # yamllint disable-line rule:line-length
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-browsers-${{ runner.os }}-${{ hashFiles('apps/web/bun.lock') }}
-          restore-keys: |
-            playwright-browsers-${{ runner.os }}-
-
-      - name: Install wasm-pack
-        run: ./scripts/ci/testing/web/install-wasm-pack.sh
-
-      - name: Run Playwright suites
-        run: ./scripts/ci/testing/web/e2e.sh
-
-      - name: Upload Playwright report
-        if: failure()
-        # yamllint disable-line rule:line-length
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: playwright-report
-          # __screenshots__ is included on purpose: when a visual baseline
-          # is missing, Playwright writes the freshly rendered (Linux)
-          # baseline there and fails the run — committing it from this
-          # artifact is how baselines are (re)generated.
-          path: |
-            apps/web/playwright-report/
-            apps/web/test-results/
-            apps/web/e2e/__screenshots__/
-          retention-days: 7
-          if-no-files-found: ignore
+    # yamllint disable-line rule:line-length
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-e2e-playwright.yml@240daf3ed1f7475b3f322502035b15994be210a8 # v0.59.16
+    permissions:
+      contents: read
+      pull-requests: write # publish-test-summary on PRs
+    with:
+      tooling-ref: '240daf3ed1f7475b3f322502035b15994be210a8' # v0.59.16
+      job-name: "🎭 Web E2E"
+      node-version: "22"
+      working-directory: apps/web
+      package-manager: bun
+      browsers: chromium
+      # The reusable installs deps and browsers; this script adds what it does
+      # not cover (wasm32 target, wasm-pack, WASM + bundle builds) and forwards
+      # the reusable's appended --project/--grep/--reporter arguments.
+      test-command: bash ../../scripts/ci/testing/web/e2e.sh
+      upload-report: true
+      report-artifact-name: playwright-report-web-e2e
+      publish-test-summary: true
+      comment-marker: web-e2e-report
+      draft-pr-skip: true
+      egress-policy: block
+      # Spelled out in full, not `egress-preset: playwright` + append: the
+      # reusable's harden-runner pre-hook runs at job start and enforces
+      # `allowed-endpoints` verbatim (replace semantics), so a non-empty value
+      # here is the whole policy. The first block mirrors lgtm-ci's playwright
+      # preset (scripts/ci/lib/egress/presets.sh) — keep it in sync — and the
+      # rest is what this job needs on top: Playwright CDN fallbacks, the
+      # Azure/ESM Ubuntu mirrors GitHub-hosted runners actually use, the
+      # Actions cache/artifact backends, and the Rust + wasm-pack build.
+      allowed-endpoints: >-
+        github.com:443
+        api.github.com:443
+        codeload.github.com:443
+        objects.githubusercontent.com:443
+        raw.githubusercontent.com:443
+        pipelines.actions.githubusercontent.com:443
+        registry.npmjs.org:443
+        bun.sh:443
+        cdn.playwright.dev:443
+        playwright.azureedge.net:443
+        playwright-akamai.azureedge.net:443
+        archive.ubuntu.com:80
+        security.ubuntu.com:80
+        release-assets.githubusercontent.com:443
+        results-receiver.actions.githubusercontent.com:443
+        *.blob.core.windows.net:443
+        nodejs.org:443
+        playwright-verizon.azureedge.net:443
+        playwright.download.prss.microsoft.com:443
+        storage.googleapis.com:443
+        azure.archive.ubuntu.com:80
+        esm.ubuntu.com:443
+        packages.microsoft.com:443
+        static.rust-lang.org:443
+        crates.io:443
+        index.crates.io:443
+        static.crates.io:443
+      runner-image: ubuntu-24.04
+      timeout-minutes: 30
