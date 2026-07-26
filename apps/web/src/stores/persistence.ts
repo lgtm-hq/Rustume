@@ -432,12 +432,16 @@ async function fetchResumeList(): Promise<ResumeListItem[]> {
         const result = migrationResults[i];
         let title = "Untitled Resume";
         let search: ResumeSearchMeta = {};
+        let folder: string | undefined;
         if (result.status === "fulfilled") {
           title = deriveTitleFromResume(result.value.data);
           search = deriveSearchMetaFromResume(result.value.data);
+          // The resume itself is the source of truth for the folder, so a
+          // cleared metadata cache recovers the filing rather than losing it.
+          folder = readResumeFolder(result.value.data);
           // Persist the derived metadata so future loads are instant
           try {
-            setResumeMeta(id, title, undefined, search);
+            setResumeMeta(id, title, undefined, search, { folder });
           } catch (metaErr) {
             console.error("Failed to persist metadata for resume:", id, metaErr);
           }
@@ -448,6 +452,7 @@ async function fetchResumeList(): Promise<ResumeListItem[]> {
           updatedAt: new Date(),
           createdAt: new Date(),
           ...search,
+          folder,
         });
       }
     }

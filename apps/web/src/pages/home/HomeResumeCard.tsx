@@ -183,29 +183,33 @@ export function HomeResumeCard(props: {
    * otherwise.
    */
   const folderSelect = () => (
-    <select
-      class={`max-w-[9rem] border border-border bg-paper px-1.5 py-0.5 font-mono text-[10px]
+    <Show when={home.allFolders().length > 0}>
+      <select
+        class={`max-w-[9rem] border border-border bg-paper px-1.5 py-0.5 font-mono text-[10px]
         text-stone transition-colors motion-reduce:transition-none hover:border-accent
         hover:text-ink disabled:opacity-50 disabled:pointer-events-none focus:outline-none
         focus-visible:ring-2 focus-visible:ring-accent ${isList() ? "rounded-full" : "rounded-sm"}`}
-      aria-label={`Folder for ${resume().name}`}
-      title={resume().locked ? "Unlock to change folder" : "Folder"}
-      disabled={Boolean(resume().locked) || home.metaBusyId() === resume().id || home.actionsBusy()}
-      data-testid="resume-folder-select"
-      onClick={(e) => e.stopPropagation()}
-      onChange={(e) => void home.handleAssignFolder(resume().id, e.currentTarget.value || null)}
-    >
-      <option value="" selected={!resume().folder}>
-        Unfiled
-      </option>
-      <For each={home.allFolders()}>
-        {(folder) => (
-          <option value={folder} selected={resume().folder === folder}>
-            /{folder}
-          </option>
-        )}
-      </For>
-    </select>
+        aria-label={`Folder for ${resume().name}`}
+        title={resume().locked ? "Unlock to change folder" : "Folder"}
+        disabled={
+          Boolean(resume().locked) || home.metaBusyId() === resume().id || home.actionsBusy()
+        }
+        data-testid="resume-folder-select"
+        onClick={(e) => e.stopPropagation()}
+        onChange={(e) => void home.handleAssignFolder(resume().id, e.currentTarget.value || null)}
+      >
+        <option value="" selected={!resume().folder}>
+          Unfiled
+        </option>
+        <For each={home.allFolders()}>
+          {(folder) => (
+            <option value={folder} selected={resume().folder === folder}>
+              /{folder}
+            </option>
+          )}
+        </For>
+      </select>
+    </Show>
   );
 
   const tagRow = (opts?: { trailing?: "updated" }) => (

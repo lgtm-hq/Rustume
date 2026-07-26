@@ -376,7 +376,7 @@ export function HomeSidebar(props: { home: HomePageModel; isDrawer: () => boolea
               >
                 <FolderRow
                   folder={folder}
-                  count={home.scopeCounts().folders.get(folder) ?? 0}
+                  count={home.folderCount(folder)}
                   active={isSameScope(home.scope(), folderScope(folder))}
                   busy={home.folderBusy()}
                   onSelect={() => select(folderScope(folder))}

@@ -26,6 +26,16 @@ export function normalizeFolderName(raw: string): string {
   return raw.replace(/\s+/g, " ").trim().slice(0, MAX_FOLDER_NAME_LENGTH);
 }
 
+/**
+ * Identity of a folder, independent of how it happens to be capitalised.
+ *
+ * Two spellings that differ only in case are one folder everywhere: in the
+ * rail, in the counts, and in what a folder scope matches.
+ */
+export function folderKey(name: string): string {
+  return normalizeFolderName(name).toLocaleLowerCase();
+}
+
 /** Read the remembered folder names. Unusable storage reads as "none". */
 export function getStoredFolders(): string[] {
   if (typeof localStorage === "undefined") return [];
@@ -63,7 +73,7 @@ export function mergeFolderNames(...sources: readonly (readonly string[])[]): st
     for (const entry of source) {
       const name = normalizeFolderName(entry);
       if (!name) continue;
-      const key = name.toLocaleLowerCase();
+      const key = folderKey(name);
       if (!seen.has(key)) seen.set(key, name);
     }
   }

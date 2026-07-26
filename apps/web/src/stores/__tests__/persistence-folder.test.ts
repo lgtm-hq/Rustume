@@ -88,7 +88,8 @@ vi.mock("../../components/ui", () => ({
   toast: toastMocks,
 }));
 
-import { getResumeMeta, patchResumeListMeta } from "../persistence";
+import { createRoot } from "solid-js";
+import { getResumeMeta, patchResumeListMeta, useResumeList } from "../persistence";
 
 const RESUME_ID = "resume-1";
 
@@ -188,6 +189,32 @@ describe("folder assignment - local storage", () => {
     const stored = readLocalResume();
     expect(stored.metadata.folder).toBe("Applications");
     expect(stored.metadata.tags).toEqual(["backend", "design"]);
+  });
+});
+
+describe("folder recovery from the resume itself", () => {
+  it("rebuilds a lost metadata cache from the folder stored on the resume", async () => {
+    const resume = testResume();
+    resume.metadata.folder = "Applications";
+    seedLocalResume(resume);
+
+    // Simulate a cleared metadata cache with the resume still on disk.
+    localStorage.removeItem("rustume:_meta");
+    expect(getResumeMeta(RESUME_ID)).toBeNull();
+
+    await createRoot(async (dispose) => {
+      try {
+        const store = useResumeList();
+        await store.refresh();
+        const items = store.resumes();
+        expect(items?.[0]?.folder).toBe("Applications");
+      } finally {
+        dispose();
+      }
+    });
+
+    // ...and the recovered folder is written back to the cache.
+    expect(getResumeMeta(RESUME_ID)?.folder).toBe("Applications");
   });
 });
 

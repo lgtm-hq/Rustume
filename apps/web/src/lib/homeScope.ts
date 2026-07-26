@@ -1,3 +1,4 @@
+import { folderKey } from "./homeFolders";
 import type { ResumeListItem } from "../stores/persistence";
 
 /**
@@ -41,7 +42,9 @@ export function isSameScope(a: HomeScope, b: HomeScope): boolean {
     case "tag":
       return a.tag === (b as Extract<HomeScope, { kind: "tag" }>).tag;
     case "folder":
-      return a.folder === (b as Extract<HomeScope, { kind: "folder" }>).folder;
+      return (
+        folderKey(a.folder) === folderKey((b as Extract<HomeScope, { kind: "folder" }>).folder)
+      );
     default:
       return true;
   }
@@ -57,7 +60,10 @@ export function matchesScope(resume: ResumeListItem, scope: HomeScope): boolean 
     case "tag":
       return (resume.tags ?? []).includes(scope.tag);
     case "folder":
-      return resume.folder === scope.folder;
+      // Compared by canonical key: the rail collapses folders that differ only
+      // in case into one row, so matching must collapse them the same way or a
+      // row's count and its contents disagree.
+      return Boolean(resume.folder) && folderKey(resume.folder ?? "") === folderKey(scope.folder);
   }
 }
 

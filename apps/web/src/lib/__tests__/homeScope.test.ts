@@ -47,6 +47,17 @@ describe("homeScope membership", () => {
     expect(matchesScope(resume(), SCOPE_ALL)).toBe(true);
   });
 
+  it("matches a folder however the assignment happens to be capitalised", () => {
+    // The rail collapses these into one row, so matching must collapse too or
+    // the row's count and its contents disagree.
+    expect(matchesScope(resume({ folder: "applications" }), folderScope("Applications"))).toBe(
+      true,
+    );
+    expect(matchesScope(resume({ folder: "  Applications " }), folderScope("Applications"))).toBe(
+      true,
+    );
+  });
+
   it("treats folders as mutually exclusive rather than tag-shaped", () => {
     const filed = resume({ folder: "Applications", tags: ["backend", "design"] });
     // A resume carries many tags but exactly one folder.
@@ -67,6 +78,7 @@ describe("homeScope identity", () => {
     { a: tagScope("backend"), b: SCOPE_ALL, expected: false },
     { a: folderScope("Applications"), b: folderScope("Applications"), expected: true },
     { a: folderScope("Applications"), b: folderScope("Consulting"), expected: false },
+    { a: folderScope("Applications"), b: folderScope("applications"), expected: true },
     { a: folderScope("Applications"), b: SCOPE_ALL, expected: false },
     // A folder and a tag of the same name are different scopes.
     { a: folderScope("backend"), b: tagScope("backend"), expected: false },

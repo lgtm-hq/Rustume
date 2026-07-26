@@ -928,6 +928,7 @@ describe("Home folder scopes", () => {
   it("carries every filed resume across when a folder is renamed", async () => {
     openRail();
 
+    fireEvent.click(screen.getByTestId("home-scope-folder-Applications"));
     fireEvent.click(screen.getByTestId("home-scope-folder-rename-Applications"));
     const input = screen.getByTestId("home-scope-folder-rename-input");
     fireEvent.input(input, { target: { value: "Job Search" } });
@@ -939,6 +940,8 @@ describe("Home folder scopes", () => {
     // Rename preserves assignment: both filed resumes move, the unfiled one does not.
     expect(patchResumeListMetaMock).toHaveBeenCalledWith("2", { folder: "Job Search" });
     expect(patchResumeListMetaMock).not.toHaveBeenCalledWith("3", expect.anything());
+    // The active scope follows the rename rather than dumping the user in All.
+    expect(screen.getByTestId("home-status-view")).toHaveTextContent("scope: /Job Search");
   });
 
   it("unfiles rather than deletes the resumes in a deleted folder", async () => {
@@ -954,9 +957,11 @@ describe("Home folder scopes", () => {
       expect(patchResumeListMetaMock).toHaveBeenCalledWith("1", { folder: null });
     });
     expect(patchResumeListMetaMock).toHaveBeenCalledWith("2", { folder: null });
-    // The whole point: the resumes survive.
+    // The whole point: unfiling is the only write, the resumes are never deleted.
     expect(resumeListMock.deleteResume).not.toHaveBeenCalled();
-    expect(screen.getAllByTestId("resume-card")).toHaveLength(3);
+    for (const [, patch] of patchResumeListMetaMock.mock.calls) {
+      expect(patch).toEqual({ folder: null });
+    }
   });
 
   it("keeps the folder when the delete confirmation is declined", () => {
@@ -992,6 +997,49 @@ describe("Home folder scopes", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Show all resumes" }));
     expect(screen.getAllByTestId("resume-card")).toHaveLength(3);
+  });
+
+  it("refuses a rename onto a folder that already exists", async () => {
+    openRail();
+
+    fireEvent.click(screen.getByTestId("home-scope-folder-new"));
+    const create = screen.getByTestId("home-scope-folder-input");
+    fireEvent.input(create, { target: { value: "Consulting" } });
+    fireEvent.submit(create);
+    await waitFor(() => {
+      expect(screen.getByTestId("home-scope-folder-Consulting")).toBeInTheDocument();
+    });
+
+    // Differs only in case, so it would read as a second identical row.
+    fireEvent.click(screen.getByTestId("home-scope-folder-rename-Applications"));
+    const rename = screen.getByTestId("home-scope-folder-rename-input");
+    fireEvent.input(rename, { target: { value: "consulting" } });
+    fireEvent.submit(rename);
+
+    expect(patchResumeListMetaMock).not.toHaveBeenCalled();
+    // The editor stays open on the rejected name so it can be corrected.
+    expect(screen.getByTestId("home-scope-folder-rename-input")).toBeInTheDocument();
+  });
+
+  it("counts and filters a folder the same way when casing differs", () => {
+    listState.items = [
+      { id: "1", name: "One", updatedAt: new Date("2025-01-01"), folder: "Applications" },
+      { id: "2", name: "Two", updatedAt: new Date("2025-02-01"), folder: "applications" },
+    ];
+    openRail();
+
+    // One row, and its count must match what selecting it actually shows.
+    expect(screen.getByTestId("home-scope-folder-count-Applications")).toHaveTextContent("2");
+    fireEvent.click(screen.getByTestId("home-scope-folder-Applications"));
+    expect(screen.getAllByTestId("resume-card")).toHaveLength(2);
+  });
+
+  it("hides the card folder control until a folder exists to file into", () => {
+    listState.items = [{ id: "1", name: "One", updatedAt: new Date("2025-01-01") }];
+
+    renderHome();
+
+    expect(screen.queryByTestId("resume-folder-select")).not.toBeInTheDocument();
   });
 
   it("has no axe violations with folders in the rail", async () => {
