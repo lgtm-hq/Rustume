@@ -31,12 +31,12 @@ concurrency:
 jobs:
   site-quality:
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-site-quality.yml@31c25ef2e8992960e218524780e34f44f51271b5 # v0.54.0
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-site-quality.yml@240daf3ed1f7475b3f322502035b15994be210a8 # v0.59.16
     permissions:
       contents: read
       pull-requests: write # required: reusable declares this on internal publish job
     with:
-      tooling-ref: '31c25ef2e8992960e218524780e34f44f51271b5' # v0.54.0
+      tooling-ref: '240daf3ed1f7475b3f322502035b15994be210a8' # v0.59.16
       job-name: Build and check documentation site
       test-job-name: Test documentation site
       node-version: '22'
