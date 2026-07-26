@@ -15,8 +15,22 @@ import {
   type ResumeSortMode,
 } from "../../lib/resumeSort";
 import { getStoredHomeLayout, setStoredHomeLayout, type HomeLayout } from "../../lib/homeLayout";
+import {
+  isSameScope,
+  matchesScope,
+  scopeLabel,
+  SCOPE_ALL,
+  tagScope,
+  type HomeScope,
+} from "../../lib/homeScope";
 import { formatRelativeTime } from "../../lib/formatRelativeTime";
 import { authStore } from "../../stores/auth";
+import {
+  homeSidebarOpen,
+  restoreHomeSidebarOpen,
+  setHomeSidebarOpen,
+  toggleHomeSidebar,
+} from "../../stores/homeSidebar";
 import { patchResumeListMeta, useResumeList, type ResumeListItem } from "../../stores/persistence";
 import { uiStore } from "../../stores/ui";
 import { generateId } from "../../wasm/types";
@@ -36,9 +50,20 @@ export function useHomePage() {
   const [renameValue, setRenameValue] = createSignal("");
   const [searchQuery, setSearchQuery] = createSignal(getStoredSearchQuery());
   const [sortMode, setSortMode] = createSignal<ResumeSortMode>(getStoredResumeSort());
-  const [tagFilter, setTagFilter] = createSignal<string | null>(null);
+  // Scope is deliberately session-only: reopening Rustume into a stale tag or
+  // locked scope reads as data loss. Only the rail's open state persists.
+  const [scope, setScopeSignal] = createSignal<HomeScope>(SCOPE_ALL);
   const [tagDrafts, setTagDrafts] = createSignal<Record<string, string>>({});
   const [tagEditorId, setTagEditorId] = createSignal<string | null>(null);
+
+  // The rail's open state outlives this page, so re-read it on every mount.
+  restoreHomeSidebarOpen();
+
+  /** Selecting the active scope again clears back to the whole library. */
+  const setScope = (next: HomeScope) => {
+    setScopeSignal(next.kind !== "all" && isSameScope(scope(), next) ? SCOPE_ALL : next);
+  };
+
   /** Serialize lock/tag writes per resume to avoid last-write-wins races. */
   const metaChains = new Map<string, Promise<void>>();
 
@@ -76,30 +101,41 @@ export function useHomePage() {
     setStoredHomeLayout(layout());
   });
 
-  const searchIndex = createMemo(() => createResumeSearchIndex(resumes() ?? []));
+  /** Scope narrows the library first, so search and sort only ever see one set. */
+  const scopedResumes = createMemo(() => {
+    const active = scope();
+    const all = resumes() ?? [];
+    return active.kind === "all" ? all : all.filter((resume) => matchesScope(resume, active));
+  });
+
+  const searchIndex = createMemo(() => createResumeSearchIndex(scopedResumes()));
   const filteredResumes = createMemo((): FilteredResumeItem[] => {
     const searched = filterResumes(searchIndex(), searchQuery());
-    const tag = tagFilter();
-    const tagged = tag
-      ? searched.filter(({ resume }) => (resume.tags ?? []).includes(tag))
-      : searched;
     const sortedItems = sortResumes(
-      tagged.map((row) => row.resume),
+      searched.map((row) => row.resume),
       sortMode(),
     );
-    const byId = new Map(tagged.map((row) => [row.resume.id, row]));
+    const byId = new Map(searched.map((row) => [row.resume.id, row]));
     return sortedItems
       .map((resume) => byId.get(resume.id))
       .filter((row): row is NonNullable<typeof row> => Boolean(row));
   });
 
-  const allTags = createMemo(() => {
-    const tags = new Set<string>();
-    for (const resume of resumes() ?? []) {
-      for (const tag of resume.tags ?? []) tags.add(tag);
+  /** Counts come from the unfiltered list — scoping them would collapse each row to itself. */
+  const scopeCounts = createMemo(() => {
+    const all = resumes() ?? [];
+    const tags = new Map<string, number>();
+    let locked = 0;
+    for (const resume of all) {
+      if (resume.locked) locked += 1;
+      for (const tag of resume.tags ?? []) tags.set(tag, (tags.get(tag) ?? 0) + 1);
     }
-    return [...tags].sort((a, b) => a.localeCompare(b));
+    return { total: all.length, locked, tags };
   });
+
+  const allTags = createMemo(() =>
+    [...scopeCounts().tags.keys()].sort((a, b) => a.localeCompare(b)),
+  );
 
   /** Live status-strip state — the trust signals the old marketing footer used to assert. */
   const resumeCount = () => resumes()?.length ?? 0;
@@ -120,8 +156,8 @@ export function useHomePage() {
   /** Cloud sync is only live once a signed-in user exists on a cloud-enabled build. */
   const syncEnabled = () => Boolean(authStore.state.cloudEnabled && authStore.state.user);
 
-  /** Placeholder until the Phase 3 scope sidebar can narrow the library. */
-  const scope = () => "all";
+  /** What the status strip's `scope:` slot reports. */
+  const activeScopeLabel = createMemo(() => scopeLabel(scope()));
 
   const handleNew = () => {
     const id = generateId();
@@ -192,11 +228,12 @@ export function useHomePage() {
     try {
       await enqueueResumeMeta(id, async () => {
         await patchResumeListMeta(id, { tags });
-        if (tagFilter() === tag) {
+        // Drop a tag scope that no resume can satisfy any more.
+        if (isSameScope(scope(), tagScope(tag))) {
           const stillUsed = (resumes() ?? []).some(
             (resume) => resume.id !== id && (resume.tags ?? []).includes(tag),
           );
-          if (!stillUsed) setTagFilter(null);
+          if (!stillUsed) setScope(SCOPE_ALL);
         }
       });
     } catch (e) {
@@ -291,18 +328,22 @@ export function useHomePage() {
     setSearchQuery,
     sortMode,
     setSortMode,
-    tagFilter,
-    setTagFilter,
     tagDrafts,
     setTagDrafts,
     tagEditorId,
+    scope,
+    setScope,
+    scopeCounts,
+    activeScopeLabel,
+    sidebarOpen: homeSidebarOpen,
+    setSidebarOpen: setHomeSidebarOpen,
+    toggleSidebar: toggleHomeSidebar,
     filteredResumes,
     allTags,
     resumeCount,
     lastEditedAt,
     lastEditLabel,
     syncEnabled,
-    scope,
     handleNew,
     handleImport,
     handleToggleLock,

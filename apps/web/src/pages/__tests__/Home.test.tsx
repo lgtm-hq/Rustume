@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { axeConfig } from "../../test/a11y";
 import { Route, Router } from "@solidjs/router";
 import { HOME_LAYOUT_STORAGE_KEY, HomeLayout } from "../../lib/homeLayout";
+import { HOME_SIDEBAR_STORAGE_KEY, HomeSidebarState } from "../../lib/homeSidebar";
 import type { ResumeListItem } from "../../stores/persistence";
 import Home from "../Home";
 
@@ -88,9 +89,23 @@ vi.mock("../../stores/ui", () => ({
   },
 }));
 
+/** Pretend the viewport is below the 900px breakpoint, where the rail is a drawer. */
+function stubNarrowViewport() {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: query === "(max-width: 899px)",
+    media: query,
+    onchange: null,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    dispatchEvent: () => false,
+  }));
+}
+
 function resetHomeState() {
+  vi.unstubAllGlobals();
   sessionStorage.clear();
   localStorage.removeItem(HOME_LAYOUT_STORAGE_KEY);
+  localStorage.removeItem(HOME_SIDEBAR_STORAGE_KEY);
   listState.items = mockResumes;
   openModalMock.mockClear();
   patchResumeListMetaMock.mockClear();
@@ -169,10 +184,12 @@ describe("Home command shell", () => {
     expect(screen.getByTestId("home-status-view")).toHaveTextContent("view: gallery · scope: all");
   });
 
-  it("reserves a disabled sidebar mount point for the scope rail", () => {
+  it("offers a live sidebar toggle in the library toolbar", () => {
     renderHome();
 
-    expect(screen.getByTestId("home-sidebar-toggle")).toBeDisabled();
+    const toggle = screen.getByTestId("home-sidebar-toggle");
+    expect(toggle).toBeEnabled();
+    expect(toggle).toHaveAttribute("aria-controls", "home-scope-rail");
   });
 });
 
@@ -517,6 +534,269 @@ describe("Home layout switcher", () => {
   });
 });
 
+describe("Home scope sidebar", () => {
+  beforeEach(resetHomeState);
+
+  function openRail() {
+    fireEvent.click(screen.getByTestId("home-sidebar-toggle"));
+    return screen.getByTestId("home-scope-rail");
+  }
+
+  it("stays collapsed until a toggle asks for it", () => {
+    renderHome();
+
+    expect(screen.queryByTestId("home-scope-rail")).not.toBeInTheDocument();
+    expect(screen.getByTestId("home-sidebar-toggle")).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("opens and closes from the toolbar toggle", () => {
+    renderHome();
+
+    expect(openRail()).toBeInTheDocument();
+    expect(screen.getByTestId("home-sidebar-toggle")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("home-sidebar-toggle")).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.click(screen.getByTestId("home-sidebar-toggle"));
+
+    expect(screen.queryByTestId("home-scope-rail")).not.toBeInTheDocument();
+  });
+
+  it("toggles the rail from the mod+B hotkey", () => {
+    renderHome();
+
+    fireEvent.keyDown(document, { key: "b", ctrlKey: true });
+    expect(screen.getByTestId("home-scope-rail")).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "b", ctrlKey: true });
+    expect(screen.queryByTestId("home-scope-rail")).not.toBeInTheDocument();
+  });
+
+  it("persists the open state across mounts", () => {
+    const { unmount } = renderHome();
+
+    openRail();
+    expect(localStorage.getItem(HOME_SIDEBAR_STORAGE_KEY)).toBe(HomeSidebarState.Open);
+
+    unmount();
+    renderHome();
+
+    expect(screen.getByTestId("home-scope-rail")).toBeInTheDocument();
+  });
+
+  it("resets the scope on remount so a stale filter never greets the user", () => {
+    const { unmount } = renderHome();
+
+    openRail();
+    fireEvent.click(screen.getByTestId("home-scope-locked"));
+    expect(screen.getByTestId("home-status-view")).toHaveTextContent("scope: locked");
+
+    unmount();
+    renderHome();
+
+    expect(screen.getByTestId("home-status-view")).toHaveTextContent("scope: all");
+    expect(screen.getAllByTestId("resume-card")).toHaveLength(3);
+  });
+
+  it("narrows the library to locked resumes and reports it in the status strip", () => {
+    renderHome();
+
+    openRail();
+    fireEvent.click(screen.getByTestId("home-scope-locked"));
+
+    expect(screen.getAllByTestId("resume-card")).toHaveLength(1);
+    expect(screen.getByRole("heading", { name: /Product Manager/i })).toBeInTheDocument();
+    expect(screen.getByTestId("home-status-view")).toHaveTextContent("scope: locked");
+  });
+
+  it("clears back to all resumes when the active scope is selected again", () => {
+    renderHome();
+
+    openRail();
+    fireEvent.click(screen.getByTestId("home-scope-locked"));
+    fireEvent.click(screen.getByTestId("home-scope-locked"));
+
+    expect(screen.getAllByTestId("resume-card")).toHaveLength(3);
+    expect(screen.getByTestId("home-status-view")).toHaveTextContent("scope: all");
+  });
+
+  it("counts each scope from the unfiltered library", () => {
+    renderHome();
+
+    openRail();
+    fireEvent.click(screen.getByTestId("home-scope-tag-design"));
+
+    // One resume matches, but the rail still measures the whole library.
+    expect(screen.getAllByTestId("resume-card")).toHaveLength(1);
+    expect(screen.getByTestId("home-scope-all")).toHaveTextContent("3");
+    expect(screen.getByTestId("home-scope-locked")).toHaveTextContent("1");
+    expect(screen.getByTestId("home-scope-tag-backend")).toHaveTextContent("2");
+    expect(screen.getByTestId("home-scope-tag-design")).toHaveTextContent("1");
+  });
+
+  it("keeps the rail and the chip row on one scope signal", () => {
+    renderHome();
+
+    openRail();
+
+    // Rail selection presses the matching chip.
+    fireEvent.click(screen.getByTestId("home-scope-tag-backend"));
+    expect(screen.getByRole("button", { name: "backend" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("home-scope-tag-backend")).toHaveAttribute("aria-pressed", "true");
+
+    // And the reverse: chip selection marks the matching rail row.
+    fireEvent.click(screen.getByRole("button", { name: "design" }));
+    expect(screen.getByTestId("home-scope-tag-design")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("home-scope-tag-backend")).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "backend" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+
+    // Clearing from the chip row clears the rail too.
+    fireEvent.click(screen.getByRole("button", { name: "All" }));
+    expect(screen.getByTestId("home-scope-all")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("home-scope-tag-design")).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("scopes list, grid and gallery to the same set", () => {
+    renderHome();
+
+    openRail();
+    fireEvent.click(screen.getByTestId("home-scope-tag-backend"));
+
+    for (const view of ["home-layout-list", "home-layout-grid", "home-layout-gallery"]) {
+      fireEvent.click(screen.getByTestId(view));
+
+      expect(screen.getAllByTestId("resume-card")).toHaveLength(2);
+      expect(screen.queryByRole("heading", { name: /Product Manager/i })).not.toBeInTheDocument();
+    }
+  });
+
+  it("pushes the library beside the rail instead of covering it", () => {
+    renderHome();
+
+    const rail = openRail();
+    const library = screen.getByTestId("home-library");
+
+    // Siblings in one row: opening the rail narrows the library column.
+    expect(rail.parentElement).toBe(library.parentElement);
+    expect(rail.className).toMatch(/min-\[900px\]:w-\[228px\]/);
+    expect(library.className).toMatch(/flex-1/);
+  });
+
+  it("reports cloud storage in the rail footer for a signed-in cloud user", () => {
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.user = { id: "u1", plan: "free" };
+
+    renderHome();
+    openRail();
+
+    const storage = screen.getByTestId("home-scope-rail-storage");
+    expect(storage).toHaveTextContent("cloud");
+    expect(storage).not.toHaveTextContent("on-device");
+  });
+
+  it("closes the narrow-viewport drawer on selection", () => {
+    stubNarrowViewport();
+    renderHome();
+
+    openRail();
+    fireEvent.click(screen.getByTestId("home-scope-locked"));
+
+    expect(screen.queryByTestId("home-scope-rail")).not.toBeInTheDocument();
+    expect(screen.getAllByTestId("resume-card")).toHaveLength(1);
+  });
+
+  it("dismisses the narrow-viewport drawer on Escape", () => {
+    stubNarrowViewport();
+    renderHome();
+
+    openRail();
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(screen.queryByTestId("home-scope-rail")).not.toBeInTheDocument();
+  });
+
+  it("keeps Tab inside the drawer instead of the shell behind the scrim", () => {
+    stubNarrowViewport();
+    renderHome();
+
+    const rail = openRail();
+    const focusable = [...rail.querySelectorAll<HTMLElement>("button")];
+    const first = focusable[0]!;
+    const last = focusable[focusable.length - 1]!;
+
+    // Tabbing off the end wraps to the top of the rail rather than escaping it.
+    last.focus();
+    fireEvent.keyDown(document, { key: "Tab" });
+    expect(document.activeElement).toBe(first);
+
+    // And Shift+Tab off the top wraps to the bottom.
+    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(last);
+  });
+
+  it("returns focus to the toggle that opened the drawer", async () => {
+    stubNarrowViewport();
+    renderHome();
+
+    const toggle = screen.getByTestId("home-sidebar-toggle");
+    toggle.focus();
+    openRail();
+    expect(document.activeElement).toBe(screen.getByTestId("home-scope-rail"));
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    // The restore is deferred one microtask past the `inert` teardown.
+    await Promise.resolve();
+
+    expect(screen.queryByTestId("home-scope-rail")).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(toggle);
+  });
+
+  it("leaves the wide-layout preference untouched while it is a drawer", () => {
+    localStorage.setItem(HOME_SIDEBAR_STORAGE_KEY, HomeSidebarState.Open);
+    stubNarrowViewport();
+    renderHome();
+
+    // The drawer is ephemeral, so neither dismissing nor reopening it below the
+    // breakpoint may rewrite the choice the user made on a wider screen.
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(localStorage.getItem(HOME_SIDEBAR_STORAGE_KEY)).toBe(HomeSidebarState.Open);
+
+    fireEvent.click(screen.getByTestId("home-sidebar-toggle"));
+    fireEvent.click(screen.getByTestId("home-scope-rail-close"));
+    expect(localStorage.getItem(HOME_SIDEBAR_STORAGE_KEY)).toBe(HomeSidebarState.Open);
+  });
+
+  it("takes the covered library out of the tab order behind the drawer", () => {
+    stubNarrowViewport();
+    renderHome();
+
+    openRail();
+
+    const library = screen.getByTestId("home-library");
+    expect(library).toHaveAttribute("inert");
+    expect(library).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("leaves the library reachable when the rail is a column", () => {
+    renderHome();
+
+    openRail();
+
+    const library = screen.getByTestId("home-library");
+    expect(library).not.toHaveAttribute("inert");
+    expect(library).not.toHaveAttribute("aria-hidden");
+  });
+
+  it("reports on-device storage in the rail footer without a cloud session", () => {
+    renderHome();
+    openRail();
+
+    expect(screen.getByTestId("home-scope-rail-storage")).toHaveTextContent("on-device");
+  });
+});
+
 describe("Home accessibility", () => {
   beforeEach(resetHomeState);
 
@@ -539,6 +819,15 @@ describe("Home accessibility", () => {
 
     const { container } = renderHome();
 
+    expect(await axe(container, axeConfig)).toHaveNoViolations();
+  });
+
+  it("has no axe violations with the scope rail open", async () => {
+    localStorage.setItem(HOME_SIDEBAR_STORAGE_KEY, HomeSidebarState.Open);
+
+    const { container } = renderHome();
+
+    expect(screen.getByTestId("home-scope-rail")).toBeInTheDocument();
     expect(await axe(container, axeConfig)).toHaveNoViolations();
   });
 });

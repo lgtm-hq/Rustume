@@ -1,6 +1,6 @@
 import { Suspense, createMemo, lazy } from "solid-js";
 import { CommandPalette, type CommandAction } from "../components/ui";
-import { useHotkeys, type Shortcut } from "../hooks/useHotkeys";
+import { formatShortcut, useHotkeys, type Shortcut } from "../hooks/useHotkeys";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { HomeLayout } from "../lib/homeLayout";
 import { uiStore } from "../stores/ui";
@@ -27,6 +27,13 @@ export default function Home() {
     { key: "n", handler: () => home.handleNew(), label: "New resume", category: "Library" },
     { key: "i", handler: () => home.handleImport(), label: "Import resume", category: "Library" },
     { key: "s", handler: () => void home.refresh(), label: "Sync now", category: "Library" },
+    {
+      key: "b",
+      mod: true,
+      handler: () => home.toggleSidebar(),
+      label: "Toggle sidebar",
+      category: "View",
+    },
     {
       key: "1",
       handler: () => home.setLayout(HomeLayout.List),
@@ -73,6 +80,14 @@ export default function Home() {
       shortcut: "S",
       keywords: "refresh reload library",
       handler: () => void home.refresh(),
+    },
+    {
+      id: "home:toggle-sidebar",
+      label: "Toggle sidebar",
+      group: "View",
+      shortcut: formatShortcut({ key: "b", mod: true }),
+      keywords: "scope rail filter tags locked panel",
+      handler: () => home.toggleSidebar(),
     },
     {
       id: "home:view-list",
