@@ -264,9 +264,12 @@ mod tests {
 
     #[test]
     fn require_auth_is_exactly_cloud_mode() {
-        // Cloud implies auth; self-hosted never gates. There is no configuration
-        // in between, so the two predicates must stay identical. Enforcement is
-        // covered end to end by the router tests in `lib.rs`.
+        // A parity guard, not a behavioural test: the assertion holds by
+        // construction today and exists to fail the moment anyone reintroduces
+        // a condition between the two — an env flag, a config field, an opt-out.
+        // Cloud implies auth and self-hosted never gates, with nothing in
+        // between. The behaviour itself is covered end to end by the router
+        // tests in `lib.rs` and `middleware::subscription`.
         assert_eq!(require_auth_enabled(), cloud_enabled());
     }
 

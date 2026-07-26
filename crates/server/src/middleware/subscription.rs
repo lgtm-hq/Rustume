@@ -21,14 +21,13 @@ pub async fn require_subscription_render(
     request: Request,
     next: Next,
 ) -> Result<Response, ApiError> {
-    if state.cloud.is_none() {
+    let Some(cloud) = state.cloud.clone() else {
         return Ok(next.run(request).await);
-    }
+    };
 
     let (mut parts, body) = request.into_parts();
     let AuthUser(user) = AuthUser::from_request_parts(&mut parts, &state).await?;
 
-    let cloud = state.cloud()?;
     let access = subscription::load_access(&cloud.db, user.id).await?;
     access.ensure_render()?;
 
