@@ -22,6 +22,14 @@ and this project adheres to
 
 ### Security
 
+## [0.48.0] - 2026-07-26
+
+### Changed
+
+- **server**: require authentication on all cloud deployments (#601) (ff70afd)
+- **deps**: update lintro to 0.91.53 (patch) (#603) (62f3798)
+- bump lgtm-ci v0.54.0 to v0.59.16 and pin lintro exactly (#598) (28b3d63)
+
 ## [0.47.0] - 2026-07-26
 
 ### Added
@@ -631,7 +639,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.47.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.48.0...HEAD
+[0.48.0]: https://github.com/lgtm-hq/Rustume/compare/v0.47.0...v0.48.0
 [0.47.0]: https://github.com/lgtm-hq/Rustume/compare/v0.46.0...v0.47.0
 [0.46.0]: https://github.com/lgtm-hq/Rustume/compare/v0.45.0...v0.46.0
 [0.45.0]: https://github.com/lgtm-hq/Rustume/compare/v0.44.0...v0.45.0
