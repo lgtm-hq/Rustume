@@ -9,6 +9,13 @@ dist
 # wasm-pack output (bun run build:wasm)
 /wasm/
 
+# playwright (bun run test:e2e) — everything except the committed baselines
+# under e2e/__screenshots__
+playwright-report
+blob-report
+test-results
+playwright-results.json
+
 # code coverage
 coverage
 *.lcov

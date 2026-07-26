@@ -81,6 +81,11 @@ export default class BuilderPage extends BasePage {
     await expect(this.page.getByText(`${count} items`, { exact: true })).toBeVisible();
   }
 
+  /** Remove the first item from the active section via its "Remove" button. */
+  async removeSectionItem(): Promise<void> {
+    await this.page.getByRole("button", { name: "Remove", exact: true }).first().click();
+  }
+
   /** Fill a labelled field inside the expanded section item form. */
   async fillItemField(label: string, value: string): Promise<void> {
     await this.page.getByLabel(label, { exact: true }).fill(value);

@@ -1,4 +1,4 @@
-import { test, expect } from "./support/fixtures";
+import { test } from "./support/fixtures";
 
 const FULL_NAME = "Ada Lovelace";
 
@@ -77,7 +77,7 @@ test.describe("resume CRUD", () => {
     await builderPage.assertSectionItemCount(1);
     await builderPage.assertSaved();
 
-    await page.getByRole("button", { name: "Remove", exact: true }).click();
+    await builderPage.removeSectionItem();
     await builderPage.assertSectionItemCount(0);
     await builderPage.assertSaved();
 
@@ -125,6 +125,6 @@ test.describe("resume CRUD", () => {
 
     // Accepting it deletes the resume and restores the empty state.
     await homePage.deleteResume(listedTitle, true);
-    await expect(homePage.emptyStateHeading).toBeVisible();
+    await homePage.assertEmptyState();
   });
 });
