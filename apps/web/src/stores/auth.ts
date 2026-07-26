@@ -70,7 +70,14 @@ function createAuthStore() {
 
   /** Open the confirm dialog (policy consent) before redirecting to WorkOS. */
   function requestSignIn() {
-    if (!state.cloudEnabled) return;
+    // PROTOTYPE — local dev never sets cloudEnabled, which would make the
+    // prototype's sign-in inert for an unrelated reason. Remove with branch.
+    const prototypeOverride =
+      import.meta.env.DEV &&
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).has("forceUnauthorized");
+
+    if (!state.cloudEnabled && !prototypeOverride) return;
     setState("signInDialogOpen", true);
   }
 

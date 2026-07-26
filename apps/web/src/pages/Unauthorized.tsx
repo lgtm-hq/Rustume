@@ -1,6 +1,10 @@
+import { Show } from "solid-js";
+import { useSearchParams } from "@solidjs/router";
 import { StatusPage } from "../components/errors/StatusPage";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { authStore } from "../stores/auth";
+// PROTOTYPE — remove with the throwaway branch. See Unauthorized.prototype.tsx.
+import { isPrototypeVariant, UnauthorizedPrototype } from "./Unauthorized.prototype";
 
 function LockIcon() {
   return (
@@ -25,23 +29,32 @@ function LockIcon() {
 export default function Unauthorized() {
   usePageTitle("Sign in required");
   const { signIn } = authStore;
+  const [searchParams] = useSearchParams();
+
+  // PROTOTYPE — ?variant=A|B|C swaps in a throwaway entry-page design.
+  const variant = () => (import.meta.env.DEV ? searchParams.variant : undefined);
 
   return (
-    <StatusPage
-      testId="unauthorized-page"
-      titleId="unauthorized-page-title"
-      statusCode="401"
-      title="Sign in required"
-      description="Rustume Cloud on this deployment requires an account. Sign in to open, edit, and sync your resumes across devices."
-      icon={<LockIcon />}
-      primaryAction={{
-        label: "Sign in to sync across devices",
-        onClick: () => signIn(),
-      }}
-      secondaryAction={{
-        label: "Learn about cloud accounts",
-        href: "/account",
-      }}
-    />
+    <Show
+      when={!isPrototypeVariant(variant())}
+      fallback={<UnauthorizedPrototype variant={variant() as "A"} />}
+    >
+      <StatusPage
+        testId="unauthorized-page"
+        titleId="unauthorized-page-title"
+        statusCode="401"
+        title="Sign in required"
+        description="Rustume Cloud on this deployment requires an account. Sign in to open, edit, and sync your resumes across devices."
+        icon={<LockIcon />}
+        primaryAction={{
+          label: "Sign in to sync across devices",
+          onClick: () => signIn(),
+        }}
+        secondaryAction={{
+          label: "Learn about cloud accounts",
+          href: "/account",
+        }}
+      />
+    </Show>
   );
 }

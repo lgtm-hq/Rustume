@@ -33,12 +33,19 @@ export const RequireAuthGuard: ParentComponent = (props) => {
   const location = useLocation();
   const { state } = authStore;
 
+  // PROTOTYPE — dev-only override so the signed-out entry page is reachable
+  // locally (self-hosted dev never sets cloudEnabled/requireAuth).
+  // Remove with the throwaway branch.
+  const forcedByPrototype = () =>
+    import.meta.env.DEV && new URLSearchParams(location.search).has("forceUnauthorized");
+
   const shouldBlock = () =>
-    !state.loading &&
-    state.cloudEnabled &&
-    state.requireAuth &&
-    !state.user &&
-    isProtectedPath(location.pathname);
+    forcedByPrototype() ||
+    (!state.loading &&
+      state.cloudEnabled &&
+      state.requireAuth &&
+      !state.user &&
+      isProtectedPath(location.pathname));
 
   return (
     <Show
