@@ -18,6 +18,31 @@ Returns `200` with body `ok`. Used by Docker healthchecks and load balancers.
 
 ---
 
+## Version
+
+```http
+GET /version
+
+```
+
+Returns the version, commit, and build time of the running build, so a deploy can be verified with a
+single cheap request:
+
+```json
+{
+  "version": "0.44.0",
+  "commit": "c515854",
+  "built_at": "2026-07-25T19:38:00Z"
+}
+
+```
+
+`commit` is the short commit the image was built from — the same seven characters as the
+`sha-<commit>` container tag. `commit` and `built_at` are `null` for builds made without that
+metadata, such as a local `cargo run`.
+
+---
+
 ## Templates
 
 ```http

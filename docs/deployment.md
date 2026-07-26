@@ -25,6 +25,7 @@ docker run -p 3000:3000 ghcr.io/lgtm-hq/rustume:latest
 Open <http://localhost:3000>. The same process also exposes:
 
 - `GET /health` for container health checks
+- `GET /version` for the running build's version, commit, and build time
 - `/swagger-ui/` for API documentation
 - `/api-docs/openapi.json` for the OpenAPI document
 

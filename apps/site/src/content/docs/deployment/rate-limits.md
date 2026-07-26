@@ -49,7 +49,7 @@ Resume CRUD allows short bursts (for example rapid autosave) via a separate burs
 
 | Route group | Default | Examples |
 | --- | ---: | --- |
-| Health | 60 | `GET /health` |
+| Health | 60 | `GET /health`, `GET /version` |
 | Metrics | 60 | `GET /metrics` (still requires `METRICS_TOKEN`) |
 | Other unauthenticated | 30 | Any route reached without a session |
 
