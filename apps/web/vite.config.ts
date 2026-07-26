@@ -43,6 +43,7 @@ export default defineConfig({
           /^\/auth(?:\/|$)/,
           /^\/api(?:\/|$)/,
           /^\/health$/,
+          /^\/version$/,
           /^\/metrics$/,
           /^\/swagger-ui(?:\/|$)/,
           /^\/api-docs(?:\/|$)/,

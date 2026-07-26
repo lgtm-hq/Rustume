@@ -5,6 +5,7 @@
 //! # Endpoints
 //!
 //! - `GET /health` - Health check
+//! - `GET /version` - Running build's version, commit, and build time
 //! - `GET /api/templates` - List available templates
 //! - `POST /api/parse` - Parse resume from various formats
 //! - `POST /api/render/pdf` - Render resume to PDF
@@ -63,6 +64,7 @@ mod tests {
     };
     use error::ApiError;
     use routes::sanitize_static_path;
+    use routes::version::VersionResponse;
     use rustume_schema::ResumeData;
     use tower::ServiceExt;
 
@@ -81,6 +83,132 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_version() {
+        let app = create_router();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/version")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get("content-type").unwrap(),
+            "application/json"
+        );
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let payload: VersionResponse = serde_json::from_slice(&body).unwrap();
+
+        assert_eq!(payload.version, env!("CARGO_PKG_VERSION"));
+    }
+
+    /// A test build carries no Docker build args, so the endpoint must still
+    /// answer — reporting `null` for the metadata it does not have.
+    #[tokio::test]
+    async fn test_version_without_build_metadata_reports_null() {
+        let app = create_router();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/version")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let payload: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        // Both keys are always present; a build without metadata reports null
+        // rather than an empty string, and never panics for lacking it.
+        assert!(payload.get("commit").is_some());
+        assert!(payload.get("built_at").is_some());
+
+        if option_env!("RUSTUME_GIT_COMMIT").is_none() {
+            assert!(payload["commit"].is_null());
+        } else {
+            assert!(payload["commit"]
+                .as_str()
+                .is_some_and(|commit| !commit.is_empty()));
+        }
+
+        if option_env!("RUSTUME_BUILD_TIME").is_none() {
+            assert!(payload["built_at"].is_null());
+        } else {
+            assert!(payload["built_at"]
+                .as_str()
+                .is_some_and(|built_at| !built_at.is_empty()));
+        }
+    }
+
+    /// Guards route precedence: `/version` must be served by the server route,
+    /// not swallowed by the SPA catch-all fallback that serves `index.html`.
+    #[tokio::test]
+    async fn test_version_is_not_served_by_spa_fallback() {
+        let tmp = tempfile::tempdir().unwrap();
+        let spa_marker = "<html><body>rustume-spa-fallback</body></html>";
+        std::fs::write(tmp.path().join("index.html"), spa_marker).unwrap();
+        let app = create_router_with_static_dir(tmp.path().to_path_buf());
+
+        // Sanity-check the fixture: an unknown path *does* get the SPA shell.
+        let fallback = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/some-client-route")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let fallback_body = axum::body::to_bytes(fallback.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        assert_eq!(std::str::from_utf8(&fallback_body).unwrap(), spa_marker);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/version")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get("content-type").unwrap(),
+            "application/json"
+        );
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let text = std::str::from_utf8(&body).unwrap();
+
+        assert!(!text.contains("rustume-spa-fallback"));
+        assert!(!text.contains("<html"));
+
+        let payload: VersionResponse = serde_json::from_str(text).unwrap();
+        assert_eq!(payload.version, env!("CARGO_PKG_VERSION"));
     }
 
     #[tokio::test]
@@ -426,6 +554,7 @@ mod tests {
         assert_eq!(spec["info"]["title"], "Rustume API");
         assert_eq!(spec["info"]["version"], env!("CARGO_PKG_VERSION"));
         assert!(spec["paths"].as_object().unwrap().contains_key("/health"));
+        assert!(spec["paths"].as_object().unwrap().contains_key("/version"));
         assert!(spec["paths"]
             .as_object()
             .unwrap()
@@ -905,6 +1034,28 @@ mod tests {
                 .oneshot(
                     Request::builder()
                         .uri("/health")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::OK);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_self_hosted_version_has_no_rate_limit() {
+        let app = create_router();
+        let default_health_quota = config::RateLimitConfig::default().health_per_min;
+        let request_count = default_health_quota as usize + 1;
+
+        for _ in 0..request_count {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri("/version")
                         .body(Body::empty())
                         .unwrap(),
                 )

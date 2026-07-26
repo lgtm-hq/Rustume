@@ -64,13 +64,27 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,id=rustume-registry-${TA
     cargo chef cook --release --target "${RUST_TARGET}" \
       --recipe-path recipe.json -p rustume-server
 
+# Build metadata surfaced by `GET /version` (crates/server/build.rs).
+# Declared AFTER the cook layer so a new commit never invalidates the cached
+# dependency build. Empty is valid: the endpoint reports null for what it does
+# not know, so local `docker build` needs no build args.
+ARG GIT_COMMIT=""
+
 # Copy workspace source and build (reuses cooked deps via shared target cache mount)
 COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
 COPY bindings ./bindings
+# GIT_COMMIT is truncated to 7 characters to match the `sha-<commit>` image tag
+# that docker/metadata-action publishes (and that rustume-ops pins in
+# deploy/image.txt), so a /version response can be compared to the pin verbatim.
+# BUILD_TIME is stamped here rather than passed in: it is the time this layer
+# actually compiled the binary, which stays truthful on a cache hit.
 RUN --mount=type=cache,target=/usr/local/cargo/registry,id=rustume-registry-${TARGETARCH} \
     --mount=type=cache,target=/app/target,id=rustume-target-${TARGETARCH} \
     RUST_TARGET="$(cat /tmp/rust_target)" && \
+    GIT_COMMIT="$(printf '%.7s' "${GIT_COMMIT}")" && \
+    BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" && \
+    export GIT_COMMIT BUILD_TIME && \
     cargo build --release --target "${RUST_TARGET}" -p rustume-server && \
     cp "target/${RUST_TARGET}/release/rustume-server" /app/rustume-server
 

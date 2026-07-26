@@ -17,6 +17,7 @@ use crate::dto::{
     ValidationResponse,
 };
 use crate::error::ApiError;
+use crate::routes::version::VersionResponse;
 
 struct CookieAuthAddon;
 
@@ -46,6 +47,7 @@ impl Modify for CookieAuthAddon {
     modifiers(&CookieAuthAddon),
     paths(
         crate::routes::health::health,
+        crate::routes::version::version,
         crate::routes::templates::list_templates,
         crate::routes::templates::template_thumbnail,
         crate::routes::parse::parse,
@@ -70,6 +72,7 @@ impl Modify for CookieAuthAddon {
     components(
         schemas(
             ApiError,
+            VersionResponse,
             ParseFormat,
             ParseRequest,
             RenderPdfRequest,
@@ -103,7 +106,7 @@ impl Modify for CookieAuthAddon {
         )
     ),
     tags(
-        (name = "Health", description = "Health check endpoints"),
+        (name = "Health", description = "Health and build-metadata endpoints"),
         (name = "Templates", description = "Template management"),
         (name = "Parse", description = "Resume parsing from various formats"),
         (name = "Render", description = "Resume rendering to PDF/PNG"),

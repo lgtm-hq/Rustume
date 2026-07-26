@@ -18,6 +18,10 @@ set -euo pipefail
 #   PLATFORM  - Optional platform for docker pull/run (e.g. linux/arm64)
 #   PORT      - Host port mapping (default: 3000)
 #   TIMEOUT   - Health wait timeout seconds (default: 30)
+#   REQUIRE_BUILD_METADATA - Require /version to report a commit
+#                            (default: true under GitHub Actions, else false).
+#                            Hand-built images can satisfy it with
+#                            `--build-arg GIT_COMMIT=$(git rev-parse HEAD)`.
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
 	cat <<'EOF'
@@ -32,6 +36,8 @@ Environment:
   PORT      Host port (default: 3000)
   TIMEOUT   Health wait timeout in seconds (default: 30)
   CURL_TIMEOUT  Per-request HTTP timeout in seconds (default: 5)
+  REQUIRE_BUILD_METADATA
+            Fail when /version reports no commit (default: true in CI)
 EOF
 	exit 0
 fi
@@ -41,6 +47,7 @@ PLATFORM="${PLATFORM:-}"
 PORT="${PORT:-3000}"
 TIMEOUT="${TIMEOUT:-30}"
 CURL_TIMEOUT="${CURL_TIMEOUT:-5}"
+REQUIRE_BUILD_METADATA="${REQUIRE_BUILD_METADATA:-${GITHUB_ACTIONS:-false}}"
 CONTAINER_NAME="rustume-smoke-${GITHUB_RUN_ID:-local}-$$"
 
 if [[ -z "$IMAGE" ]]; then
@@ -103,6 +110,27 @@ fi
 echo "Checking Swagger UI"
 if ! curl -sf --max-time "$CURL_TIMEOUT" "http://127.0.0.1:${PORT}/swagger-ui/" | grep -qi "swagger"; then
 	echo "Expected Swagger UI to load" >&2
+	exit 1
+fi
+
+echo "Checking build metadata endpoint"
+version_payload="$(curl -sf --max-time "$CURL_TIMEOUT" "http://127.0.0.1:${PORT}/version" || true)"
+if ! jq -e '.version | type == "string" and length > 0' <<<"$version_payload" >/dev/null 2>&1; then
+	echo "Expected /version to report a version string, got: ${version_payload:-<empty>}" >&2
+	exit 1
+fi
+# The workflow always passes GIT_COMMIT, so in CI a null commit means the
+# build-arg plumbing (workflow -> Dockerfile -> crates/server/build.rs) is
+# broken. A hand-built image may legitimately omit it, so warn there instead.
+if ! jq -e '.commit | type == "string" and length > 0' <<<"$version_payload" >/dev/null 2>&1; then
+	if [[ "$REQUIRE_BUILD_METADATA" == "true" ]]; then
+		echo "Expected /version to report a commit, got: ${version_payload}" >&2
+		exit 1
+	fi
+	echo "Note: /version reports no commit (image built without GIT_COMMIT)"
+fi
+if ! jq -e '.built_at | type == "string" and length > 0' <<<"$version_payload" >/dev/null 2>&1; then
+	echo "Expected /version to report a build time, got: ${version_payload}" >&2
 	exit 1
 fi
 
