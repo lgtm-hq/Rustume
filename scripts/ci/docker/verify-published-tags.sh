@@ -139,14 +139,26 @@ manifest_url() {
 
 # HTTP status of a HEAD against the tag's manifest.
 manifest_status() {
-	local tag="$1" token="$2"
-	curl -sS -o /dev/null -w '%{http_code}' --max-time "$CURL_MAX_TIME" \
-		-I -H "Authorization: Bearer ${token}" -H "Accept: ${MANIFEST_ACCEPT}" \
-		"$(manifest_url "$tag")" 2>/dev/null || printf '000'
+	local tag="$1" token="$2" code=""
+	# curl still emits its -w output on transport errors, so capture first and
+	# only substitute a placeholder when nothing came back — otherwise a
+	# timeout logs the concatenated "000000".
+	code="$(
+		curl -sS -o /dev/null -w '%{http_code}' --max-time "$CURL_MAX_TIME" \
+			-I -H "Authorization: Bearer ${token}" \
+			-H "Accept: ${MANIFEST_ACCEPT}" \
+			"$(manifest_url "$tag")" 2>/dev/null || true
+	)"
+	printf '%s' "${code:-000}"
 }
 
 # os/arch entries in the tag's manifest index. Attestation manifests carry
 # platform "unknown/unknown" and are filtered out.
+#
+# Every tag reusable-docker publishes — including sha-<short> — points at the
+# merged OCI index, not a per-platform digest, so EXPECT_PLATFORMS is valid for
+# the whole tag set (verified against ghcr.io/lgtm-hq/rustume for :latest,
+# :main, :0.46.0 and :sha-89ce2bf).
 manifest_platforms() {
 	local tag="$1" token="$2"
 	curl -fsSL --max-time "$CURL_MAX_TIME" \
