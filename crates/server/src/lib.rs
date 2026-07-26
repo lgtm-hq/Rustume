@@ -58,6 +58,7 @@ mod tests {
         body::Body,
         http::{Request, StatusCode},
     };
+    use cloud::test_cloud_state;
     use dto::{
         ParseFormat, ParseRequest, RenderPdfRequest, RenderPreviewRequest, TemplateInfo,
         ValidationResponse,
@@ -866,30 +867,6 @@ mod tests {
         );
     }
 
-    fn test_cloud_state() -> std::sync::Arc<cloud::CloudState> {
-        use auth::{session::SessionService, workos::WorkOsClient};
-        use email::EmailService;
-        use sqlx::postgres::PgPoolOptions;
-
-        let pool = PgPoolOptions::new()
-            .connect_lazy("postgres://localhost/rustume_test")
-            .expect("lazy pool");
-        std::sync::Arc::new(cloud::CloudState {
-            db: pool.clone(),
-            workos: WorkOsClient::new("client_test".to_string(), "api_key_test".to_string()),
-            sessions: SessionService::new(
-                pool,
-                "test-session-secret-at-least-32-chars".to_string(),
-                false,
-            ),
-            workos_redirect_uri: "http://localhost/auth/callback".to_string(),
-            email: Some(EmailService::new(
-                "re_test_key".to_string(),
-                "noreply@rustume.com".to_string(),
-            )),
-        })
-    }
-
     fn sample_render_pdf_request() -> RenderPdfRequest {
         RenderPdfRequest {
             resume: serde_json::to_value(ResumeData::default()).unwrap(),
@@ -897,8 +874,12 @@ mod tests {
         }
     }
 
+    /// Cloud mode gates billable routes on cloud presence, not on a flag, so a
+    /// state that advertises `require_auth: false` still rejects anonymous
+    /// requests. This pins the removal of `RUSTUME_REQUIRE_AUTH`: no
+    /// configuration can re-open a cloud deployment.
     #[tokio::test]
-    async fn test_render_pdf_anonymous_ok_when_require_auth_disabled() {
+    async fn test_render_pdf_anonymous_401_on_cloud_even_when_flag_is_off() {
         let state = state::AppState::with_require_auth(
             std::sync::Arc::new(routes::static_dir()),
             Some(test_cloud_state()),
@@ -920,11 +901,15 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
 
+    // Self-hosted deployments have no accounts and stay open anonymously:
+    // covered by `test_render_pdf` and `test_templates`, which build a
+    // `create_router()` (cloud-less) app and assert 200.
+
     #[tokio::test]
-    async fn test_render_pdf_anonymous_401_when_require_auth_enabled() {
+    async fn test_render_pdf_anonymous_401_on_cloud() {
         let state = state::AppState::with_require_auth(
             std::sync::Arc::new(routes::static_dir()),
             Some(test_cloud_state()),
@@ -950,7 +935,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_templates_anonymous_401_when_require_auth_enabled() {
+    async fn test_templates_anonymous_401_on_cloud() {
         let state = state::AppState::with_require_auth(
             std::sync::Arc::new(routes::static_dir()),
             Some(test_cloud_state()),
@@ -972,7 +957,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_resumes_anonymous_401_when_require_auth_enabled() {
+    async fn test_resumes_anonymous_401_on_cloud() {
         let state = state::AppState::with_require_auth(
             std::sync::Arc::new(routes::static_dir()),
             Some(test_cloud_state()),

@@ -53,8 +53,9 @@ Resume CRUD allows short bursts (for example rapid autosave) via a separate burs
 | Metrics | 60 | `GET /metrics` (still requires `METRICS_TOKEN`) |
 | Other unauthenticated | 30 | Any route reached without a session |
 
-When `RUSTUME_REQUIRE_AUTH=true` (hosted Rustume Cloud), unauthenticated clients cannot reach
-render or connected API routes; the unauthenticated bucket mainly covers probes and stray traffic.
+On cloud deployments (`RUSTUME_CLOUD=true`), authentication is mandatory, so unauthenticated
+clients cannot reach render or connected API routes; the unauthenticated bucket mainly covers
+probes and stray traffic.
 
 ## Bulk export cap
 
