@@ -1042,6 +1042,25 @@ describe("Home folder scopes", () => {
     expect(screen.queryByTestId("resume-folder-select")).not.toBeInTheDocument();
   });
 
+  it("keeps Tab inside the drawer when the folder field is the last control", () => {
+    // No tags, so nothing focusable follows the folder field in the rail.
+    listState.items = [{ id: "1", name: "One", updatedAt: new Date("2025-01-01") }];
+    stubNarrowViewport();
+    renderHome();
+    fireEvent.click(screen.getByTestId("home-sidebar-toggle"));
+
+    fireEvent.click(screen.getByTestId("home-scope-folder-new"));
+    const input = screen.getByTestId("home-scope-folder-input");
+    input.focus();
+    expect(document.activeElement).toBe(input);
+
+    // Tabbing off the last focusable element wraps to the first one rather
+    // than escaping into the app behind the scrim.
+    fireEvent.keyDown(document, { key: "Tab" });
+
+    expect(document.activeElement).toBe(screen.getByTestId("home-sidebar-new"));
+  });
+
   it("has no axe violations with folders in the rail", async () => {
     localStorage.setItem(HOME_SIDEBAR_STORAGE_KEY, HomeSidebarState.Open);
 

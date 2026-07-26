@@ -22,8 +22,14 @@ function rowClass(active: boolean): string {
     }`;
 }
 
-/** Everything inside the rail a Tab can land on; the rail itself is tabindex -1. */
-const FOCUSABLE_SELECTOR = 'button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
+/**
+ * Everything inside the rail a Tab can land on; the rail itself is tabindex -1.
+ *
+ * Includes inputs: the folder name field can be the last focusable thing in the
+ * rail, and omitting it lets Tab escape the drawer it is meant to trap.
+ */
+const FOCUSABLE_SELECTOR =
+  'button:not([disabled]), a[href], input:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /**
  * Keep Tab inside the open drawer.
