@@ -50,7 +50,7 @@ export function StatusStrip(props: { home: HomePageModel }) {
           strip would re-read the static labels on every list or layout change. */}
       <span class="ml-auto" data-testid="home-status-view" role="status" aria-live="polite">
         view: <b class="font-semibold text-accent">{home.layout()}</b> · scope:{" "}
-        <b class="font-semibold text-accent">{home.scope()}</b>
+        <b class="font-semibold text-accent">{home.activeScopeLabel()}</b>
       </span>
     </div>
   );

@@ -3,6 +3,7 @@ import { A, useLocation } from "@solidjs/router";
 import { useOnline } from "../../hooks/useOnline";
 import { formatShortcut } from "../../hooks/useHotkeys";
 import { resumeStore } from "../../stores/resume";
+import { HOME_SIDEBAR_ID, homeSidebarOpen, toggleHomeSidebar } from "../../stores/homeSidebar";
 import { uiStore } from "../../stores/ui";
 import { EditorThemeSelector } from "../ui/EditorThemeSelector";
 import { AuthMenu } from "../Auth/AuthMenu";
@@ -30,17 +31,19 @@ export const AppShell: ParentComponent = (props) => {
           {/* Equal-basis outer columns keep the command trigger geometrically
               centred regardless of logo / auth-control widths. */}
           <div class="flex flex-1 min-w-0 items-center gap-3">
-            {/* Sidebar mount point — wired with the Phase 3 scope rail */}
+            {/* Utility-bar twin of the library toolbar's toggle — one shared rail */}
             <Show when={isHome()}>
               <button
                 type="button"
                 class="hidden sm:inline-flex h-8 w-8 items-center justify-center rounded-md
                 text-stone transition-colors motion-reduce:transition-none hover:bg-surface
-                hover:text-ink disabled:opacity-50 disabled:cursor-not-allowed
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                disabled
+                hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 aria-label="Toggle sidebar"
-                title="Scope sidebar — coming soon"
+                title="Toggle scope sidebar"
+                aria-pressed={homeSidebarOpen()}
+                aria-expanded={homeSidebarOpen()}
+                aria-controls={HOME_SIDEBAR_ID}
+                onClick={() => toggleHomeSidebar()}
                 data-testid="utility-sidebar-toggle"
               >
                 <svg

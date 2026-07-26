@@ -3,6 +3,7 @@ import { axe } from "vitest-axe";
 import { fireEvent, render, screen } from "@solidjs/testing-library";
 import { Route, Router } from "@solidjs/router";
 import { axeConfig } from "../../../test/a11y";
+import { homeSidebarOpen, setHomeSidebarOpen } from "../../../stores/homeSidebar";
 import { uiStore } from "../../../stores/ui";
 import { AppShell } from "../AppShell";
 
@@ -63,17 +64,34 @@ describe("AppShell header", () => {
     ));
   }
 
-  it("hosts the home utility bar: sidebar mount point and command trigger", () => {
+  it("hosts the home utility bar: sidebar toggle and command trigger", () => {
     renderShell();
 
     const toggle = screen.getByTestId("utility-sidebar-toggle");
     const trigger = screen.getByTestId("command-palette-trigger");
-    expect(toggle).toBeDisabled();
+    expect(toggle).toBeEnabled();
+    expect(toggle).toHaveAttribute("aria-controls", "home-scope-rail");
     expect(trigger).toHaveTextContent(/Search resumes or run a command/);
     // Sidebar toggle sits left of the logo.
     expect(toggle.compareDocumentPosition(screen.getByLabelText("Primary"))).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
+  });
+
+  it("drives the shared scope rail state from the utility bar", () => {
+    setHomeSidebarOpen(false);
+    renderShell();
+
+    const toggle = screen.getByTestId("utility-sidebar-toggle");
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(toggle);
+
+    expect(homeSidebarOpen()).toBe(true);
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+
+    setHomeSidebarOpen(false);
   });
 
   it("opens the command palette from the utility bar trigger", () => {

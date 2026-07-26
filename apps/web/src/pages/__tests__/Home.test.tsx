@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { axeConfig } from "../../test/a11y";
 import { Route, Router } from "@solidjs/router";
 import { HOME_LAYOUT_STORAGE_KEY, HomeLayout } from "../../lib/homeLayout";
+import { HOME_SIDEBAR_STORAGE_KEY } from "../../lib/homeSidebar";
 import type { ResumeListItem } from "../../stores/persistence";
 import Home from "../Home";
 
@@ -91,6 +92,7 @@ vi.mock("../../stores/ui", () => ({
 function resetHomeState() {
   sessionStorage.clear();
   localStorage.removeItem(HOME_LAYOUT_STORAGE_KEY);
+  localStorage.removeItem(HOME_SIDEBAR_STORAGE_KEY);
   listState.items = mockResumes;
   openModalMock.mockClear();
   patchResumeListMetaMock.mockClear();
@@ -169,10 +171,12 @@ describe("Home command shell", () => {
     expect(screen.getByTestId("home-status-view")).toHaveTextContent("view: gallery · scope: all");
   });
 
-  it("reserves a disabled sidebar mount point for the scope rail", () => {
+  it("offers a live sidebar toggle in the library toolbar", () => {
     renderHome();
 
-    expect(screen.getByTestId("home-sidebar-toggle")).toBeDisabled();
+    const toggle = screen.getByTestId("home-sidebar-toggle");
+    expect(toggle).toBeEnabled();
+    expect(toggle).toHaveAttribute("aria-controls", "home-scope-rail");
   });
 });
 
@@ -517,6 +521,176 @@ describe("Home layout switcher", () => {
   });
 });
 
+describe("Home scope sidebar", () => {
+  beforeEach(resetHomeState);
+
+  function openRail() {
+    fireEvent.click(screen.getByTestId("home-sidebar-toggle"));
+    return screen.getByTestId("home-scope-rail");
+  }
+
+  it("stays collapsed until a toggle asks for it", () => {
+    renderHome();
+
+    expect(screen.queryByTestId("home-scope-rail")).not.toBeInTheDocument();
+    expect(screen.getByTestId("home-sidebar-toggle")).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("opens and closes from the toolbar toggle", () => {
+    renderHome();
+
+    expect(openRail()).toBeInTheDocument();
+    expect(screen.getByTestId("home-sidebar-toggle")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("home-sidebar-toggle")).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.click(screen.getByTestId("home-sidebar-toggle"));
+
+    expect(screen.queryByTestId("home-scope-rail")).not.toBeInTheDocument();
+  });
+
+  it("toggles the rail from the mod+B hotkey", () => {
+    renderHome();
+
+    fireEvent.keyDown(document, { key: "b", ctrlKey: true });
+    expect(screen.getByTestId("home-scope-rail")).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "b", ctrlKey: true });
+    expect(screen.queryByTestId("home-scope-rail")).not.toBeInTheDocument();
+  });
+
+  it("persists the open state across mounts", () => {
+    const { unmount } = renderHome();
+
+    openRail();
+    expect(localStorage.getItem(HOME_SIDEBAR_STORAGE_KEY)).toBe("open");
+
+    unmount();
+    renderHome();
+
+    expect(screen.getByTestId("home-scope-rail")).toBeInTheDocument();
+  });
+
+  it("resets the scope on remount so a stale filter never greets the user", () => {
+    const { unmount } = renderHome();
+
+    openRail();
+    fireEvent.click(screen.getByTestId("home-scope-locked"));
+    expect(screen.getByTestId("home-status-view")).toHaveTextContent("scope: locked");
+
+    unmount();
+    renderHome();
+
+    expect(screen.getByTestId("home-status-view")).toHaveTextContent("scope: all");
+    expect(screen.getAllByTestId("resume-card")).toHaveLength(3);
+  });
+
+  it("narrows the library to locked resumes and reports it in the status strip", () => {
+    renderHome();
+
+    openRail();
+    fireEvent.click(screen.getByTestId("home-scope-locked"));
+
+    expect(screen.getAllByTestId("resume-card")).toHaveLength(1);
+    expect(screen.getByRole("heading", { name: /Product Manager/i })).toBeInTheDocument();
+    expect(screen.getByTestId("home-status-view")).toHaveTextContent("scope: locked");
+  });
+
+  it("clears back to all resumes when the active scope is selected again", () => {
+    renderHome();
+
+    openRail();
+    fireEvent.click(screen.getByTestId("home-scope-locked"));
+    fireEvent.click(screen.getByTestId("home-scope-locked"));
+
+    expect(screen.getAllByTestId("resume-card")).toHaveLength(3);
+    expect(screen.getByTestId("home-status-view")).toHaveTextContent("scope: all");
+  });
+
+  it("counts each scope from the unfiltered library", () => {
+    renderHome();
+
+    openRail();
+    fireEvent.click(screen.getByTestId("home-scope-tag-design"));
+
+    // One resume matches, but the rail still measures the whole library.
+    expect(screen.getAllByTestId("resume-card")).toHaveLength(1);
+    expect(screen.getByTestId("home-scope-all")).toHaveTextContent("3");
+    expect(screen.getByTestId("home-scope-locked")).toHaveTextContent("1");
+    expect(screen.getByTestId("home-scope-tag-backend")).toHaveTextContent("2");
+    expect(screen.getByTestId("home-scope-tag-design")).toHaveTextContent("1");
+  });
+
+  it("keeps the rail and the chip row on one scope signal", () => {
+    renderHome();
+
+    openRail();
+
+    // Rail selection presses the matching chip.
+    fireEvent.click(screen.getByTestId("home-scope-tag-backend"));
+    expect(screen.getByRole("button", { name: "backend" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("home-scope-tag-backend")).toHaveAttribute("aria-pressed", "true");
+
+    // And the reverse: chip selection marks the matching rail row.
+    fireEvent.click(screen.getByRole("button", { name: "design" }));
+    expect(screen.getByTestId("home-scope-tag-design")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("home-scope-tag-backend")).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "backend" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+
+    // Clearing from the chip row clears the rail too.
+    fireEvent.click(screen.getByRole("button", { name: "All" }));
+    expect(screen.getByTestId("home-scope-all")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("home-scope-tag-design")).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("scopes list, grid and gallery to the same set", () => {
+    renderHome();
+
+    openRail();
+    fireEvent.click(screen.getByTestId("home-scope-tag-backend"));
+
+    for (const view of ["home-layout-list", "home-layout-grid", "home-layout-gallery"]) {
+      fireEvent.click(screen.getByTestId(view));
+
+      expect(screen.getAllByTestId("resume-card")).toHaveLength(2);
+      expect(screen.queryByRole("heading", { name: /Product Manager/i })).not.toBeInTheDocument();
+    }
+  });
+
+  it("pushes the library beside the rail instead of covering it", () => {
+    renderHome();
+
+    const rail = openRail();
+    const library = screen.getByTestId("home-library");
+
+    // Siblings in one row: opening the rail narrows the library column.
+    expect(rail.parentElement).toBe(library.parentElement);
+    expect(rail.className).toMatch(/min-\[900px\]:w-\[228px\]/);
+    expect(library.className).toMatch(/flex-1/);
+  });
+
+  it("reports cloud storage in the rail footer for a signed-in cloud user", () => {
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.user = { id: "u1", plan: "free" };
+
+    renderHome();
+    openRail();
+
+    const storage = screen.getByTestId("home-scope-rail-storage");
+    expect(storage).toHaveTextContent("cloud");
+    expect(storage).not.toHaveTextContent("on-device");
+  });
+
+  it("reports on-device storage in the rail footer without a cloud session", () => {
+    renderHome();
+    openRail();
+
+    expect(screen.getByTestId("home-scope-rail-storage")).toHaveTextContent("on-device");
+  });
+});
+
 describe("Home accessibility", () => {
   beforeEach(resetHomeState);
 
@@ -539,6 +713,15 @@ describe("Home accessibility", () => {
 
     const { container } = renderHome();
 
+    expect(await axe(container, axeConfig)).toHaveNoViolations();
+  });
+
+  it("has no axe violations with the scope rail open", async () => {
+    localStorage.setItem(HOME_SIDEBAR_STORAGE_KEY, "open");
+
+    const { container } = renderHome();
+
+    expect(screen.getByTestId("home-scope-rail")).toBeInTheDocument();
     expect(await axe(container, axeConfig)).toHaveNoViolations();
   });
 });

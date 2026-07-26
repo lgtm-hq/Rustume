@@ -1,8 +1,11 @@
 import { For, Show } from "solid-js";
 import { Button, Input, Spinner } from "../../components/ui";
 import { HomeLayout } from "../../lib/homeLayout";
+import { isSameScope, SCOPE_ALL, tagScope } from "../../lib/homeScope";
 import { getResumeSortLabels, type ResumeSortMode } from "../../lib/resumeSort";
+import { HOME_SIDEBAR_ID } from "../../stores/homeSidebar";
 import { HomeLayoutToggle } from "./HomeLayoutToggle";
+import { HomeSidebar } from "./HomeSidebar";
 import { HomeResumeCard } from "./HomeResumeCard";
 import { StatusStrip } from "./StatusStrip";
 import type { HomePageModel } from "./useHomePage";
@@ -26,9 +29,9 @@ function TagFilters(props: { home: HomePageModel }) {
         <span class="text-xs text-stone mr-0.5">Tags</span>
         <button
           type="button"
-          class={tagChipClass(home.tagFilter() === null)}
-          aria-pressed={home.tagFilter() === null}
-          onClick={() => home.setTagFilter(null)}
+          class={tagChipClass(home.scope().kind === "all")}
+          aria-pressed={home.scope().kind === "all"}
+          onClick={() => home.setScope(SCOPE_ALL)}
         >
           All
         </button>
@@ -36,9 +39,9 @@ function TagFilters(props: { home: HomePageModel }) {
           {(tag) => (
             <button
               type="button"
-              class={tagChipClass(home.tagFilter() === tag)}
-              aria-pressed={home.tagFilter() === tag}
-              onClick={() => home.setTagFilter(home.tagFilter() === tag ? null : tag)}
+              class={tagChipClass(isSameScope(home.scope(), tagScope(tag)))}
+              aria-pressed={isSameScope(home.scope(), tagScope(tag))}
+              onClick={() => home.setScope(tagScope(tag))}
             >
               {tag}
             </button>
@@ -49,18 +52,19 @@ function TagFilters(props: { home: HomePageModel }) {
   );
 }
 
-/**
- * Sidebar mount point for the Phase 3 scope rail — rendered disabled so the
- * command shell already reserves its place in both toolbar and utility bar.
- */
-function SidebarToggleStub() {
+/** Toolbar twin of the utility-bar toggle — both drive the one rail. */
+function SidebarToggle(props: { home: HomePageModel }) {
+  const { home } = props;
   return (
     <button
       type="button"
       class={iconButtonClass}
-      disabled
       aria-label="Toggle sidebar"
-      title="Scope sidebar — coming soon"
+      title="Toggle scope sidebar"
+      aria-pressed={home.sidebarOpen()}
+      aria-expanded={home.sidebarOpen()}
+      aria-controls={HOME_SIDEBAR_ID}
+      onClick={() => home.toggleSidebar()}
       data-testid="home-sidebar-toggle"
     >
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -149,7 +153,7 @@ function LibraryToolbar(props: { home: HomePageModel }) {
           class="ml-auto flex flex-wrap items-center gap-2 shrink-0"
           data-testid="resume-library-tools"
         >
-          <SidebarToggleStub />
+          <SidebarToggle home={home} />
           <label class="inline-flex">
             <span class="sr-only">Sort resumes</span>
             <select
@@ -252,14 +256,18 @@ function NoSearchMatches(props: { home: HomePageModel }) {
       <p class="mx-auto max-w-sm text-sm text-stone">
         Nothing matches{" "}
         <span class="font-mono text-ink">&ldquo;{home.searchQuery().trim()}&rdquo;</span>
-        <Show when={home.tagFilter()}>{(tag) => <> in #{tag()}</>}</Show>. Try a different search.
+        <Show when={home.scope().kind !== "all"}>
+          {" "}
+          in <span class="font-mono text-ink">{home.activeScopeLabel()}</span>
+        </Show>
+        . Try a different search.
       </p>
       <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
         <Button
           variant="secondary"
           onClick={() => {
             home.setSearchQuery("");
-            home.setTagFilter(null);
+            home.setScope(SCOPE_ALL);
           }}
         >
           Clear filters
@@ -322,15 +330,30 @@ export function HomePageLayout(props: { home: HomePageModel }) {
 
   return (
     <div class="min-h-[calc(100vh-3.5rem)] bg-paper" data-testid="home-view">
-      <div class="max-w-6xl mx-auto w-full px-4 pt-4 pb-16" data-testid="home-library">
-        <StatusStrip home={home} />
+      {/* At >=900px the rail is a column in this row, so opening it narrows the
+          library rather than covering it. Below that it becomes a drawer. */}
+      <div class="mx-auto flex w-full max-w-6xl items-stretch">
+        <Show when={home.sidebarOpen()}>
+          <button
+            type="button"
+            class="fixed inset-0 z-30 bg-ink/50 motion-safe:animate-fade-in min-[900px]:hidden"
+            aria-label="Close scope sidebar"
+            onClick={() => home.setSidebarOpen(false)}
+            data-testid="home-scope-scrim"
+          />
+          <HomeSidebar home={home} />
+        </Show>
 
-        <div class="my-4 w-full">
-          <LibraryToolbar home={home} />
-        </div>
+        <div class="min-w-0 flex-1 px-4 pt-4 pb-16" data-testid="home-library">
+          <StatusStrip home={home} />
 
-        <div class="w-full">
-          <ResumeListBody home={home} />
+          <div class="my-4 w-full">
+            <LibraryToolbar home={home} />
+          </div>
+
+          <div class="w-full">
+            <ResumeListBody home={home} />
+          </div>
         </div>
       </div>
     </div>
