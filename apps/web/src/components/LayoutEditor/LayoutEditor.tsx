@@ -9,6 +9,8 @@ import {
 import type { DragEvent } from "@thisbeyond/solid-dnd";
 import { resumeStore } from "../../stores/resume";
 import { toast } from "../ui";
+import { LiveRegion, announceLive } from "../ui/LiveRegion";
+import { reorderAnnouncement } from "../../lib/reorderAnnounce";
 import { SECTIONS } from "../builder/constants";
 import { DroppableColumn } from "./DroppableColumn";
 import { ColumnControls } from "./ColumnControls";
@@ -164,8 +166,7 @@ export function LayoutEditor() {
 
   /** Announce a message to screen readers via the live region. */
   function announce(message: string) {
-    setAnnouncement("");
-    requestAnimationFrame(() => setAnnouncement(message));
+    announceLive(setAnnouncement, message);
   }
 
   /** Move a section in the given direction during keyboard drag. */
@@ -184,14 +185,14 @@ export function LayoutEditor() {
         newCols[colIdx][sectionIdx - 1],
       ];
       setColumns(newCols);
-      announce(`${sectionLabel(sectionId)} moved up`);
+      announce(reorderAnnouncement(sectionLabel(sectionId), sectionIdx - 1, col.length));
     } else if (key === "ArrowDown" && sectionIdx < col.length - 1) {
       [newCols[colIdx][sectionIdx], newCols[colIdx][sectionIdx + 1]] = [
         newCols[colIdx][sectionIdx + 1],
         newCols[colIdx][sectionIdx],
       ];
       setColumns(newCols);
-      announce(`${sectionLabel(sectionId)} moved down`);
+      announce(reorderAnnouncement(sectionLabel(sectionId), sectionIdx + 1, col.length));
     } else if (key === "ArrowLeft" && colIdx > 0) {
       newCols[colIdx] = newCols[colIdx].filter((id) => id !== sectionId);
       newCols[colIdx - 1].push(sectionId);
@@ -451,9 +452,7 @@ export function LayoutEditor() {
       </p>
 
       {/* Screen reader live region for DnD announcements */}
-      <div aria-live="assertive" aria-atomic="true" class="sr-only">
-        {announcement()}
-      </div>
+      <LiveRegion message={announcement()} politeness="polite" />
     </div>
   );
 }

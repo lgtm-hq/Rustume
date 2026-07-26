@@ -156,12 +156,35 @@ pub enum WorkOsAuthError {
     Api { status: u16, body: String },
 }
 
+/// Result of inserting or updating a user from a WorkOS profile.
+#[derive(Debug)]
+pub struct UpsertUserResult {
+    /// Persisted user row.
+    pub user: User,
+    /// Whether this callback created a new user row.
+    pub is_new: bool,
+}
+
+#[derive(Debug, sqlx::FromRow)]
+struct UpsertedUser {
+    id: uuid::Uuid,
+    workos_id: String,
+    plan: String,
+    paddle_customer_id: Option<String>,
+    email: Option<String>,
+    first_name: Option<String>,
+    last_name: Option<String>,
+    created_at: chrono::DateTime<chrono::Utc>,
+    updated_at: chrono::DateTime<chrono::Utc>,
+    is_new: bool,
+}
+
 /// Insert or update a user row from a WorkOS profile.
 pub async fn upsert_user(
     pool: &sqlx::PgPool,
     workos_user: &WorkOsUser,
-) -> Result<User, sqlx::Error> {
-    sqlx::query_as::<_, User>(
+) -> Result<UpsertUserResult, sqlx::Error> {
+    let upserted = sqlx::query_as::<_, UpsertedUser>(
         r#"
         INSERT INTO users (workos_id, plan, email, first_name, last_name)
         VALUES ($1, 'free', $2, $3, $4)
@@ -180,7 +203,8 @@ pub async fn upsert_user(
             first_name,
             last_name,
             created_at,
-            updated_at
+            updated_at,
+            (xmax = 0) AS is_new
         "#,
     )
     .bind(&workos_user.id)
@@ -188,7 +212,22 @@ pub async fn upsert_user(
     .bind(&workos_user.first_name)
     .bind(&workos_user.last_name)
     .fetch_one(pool)
-    .await
+    .await?;
+
+    Ok(UpsertUserResult {
+        user: User {
+            id: upserted.id,
+            workos_id: upserted.workos_id,
+            plan: upserted.plan,
+            paddle_customer_id: upserted.paddle_customer_id,
+            email: upserted.email,
+            first_name: upserted.first_name,
+            last_name: upserted.last_name,
+            created_at: upserted.created_at,
+            updated_at: upserted.updated_at,
+        },
+        is_new: upserted.is_new,
+    })
 }
 
 #[cfg(test)]

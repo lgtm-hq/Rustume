@@ -42,7 +42,7 @@ jobs:
 
       - name: Checkout
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@31c25ef2e8992960e218524780e34f44f51271b5 # v0.54.0
+        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@240daf3ed1f7475b3f322502035b15994be210a8 # v0.59.16
         with:
           fetch-depth: 0
 
@@ -88,7 +88,7 @@ jobs:
 
       - name: Checkout
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@31c25ef2e8992960e218524780e34f44f51271b5 # v0.54.0
+        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@240daf3ed1f7475b3f322502035b15994be210a8 # v0.59.16
 
       - name: Download all artifacts
         # yamllint disable-line rule:line-length
@@ -108,7 +108,7 @@ jobs:
 
       - name: Create GitHub Release
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/create-github-release@31c25ef2e8992960e218524780e34f44f51271b5 # v0.54.0
+        uses: lgtm-hq/lgtm-ci/.github/actions/create-github-release@240daf3ed1f7475b3f322502035b15994be210a8 # v0.59.16
         with:
           tag: ${{ github.ref_name }}
           generate-notes: "true"

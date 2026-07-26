@@ -23,6 +23,7 @@ fn is_reserved_server_path(path: &str) -> bool {
         || path == "/swagger-ui"
         || path.starts_with("/swagger-ui/")
         || path == "/health"
+        || path == "/version"
         || path == "/metrics"
         || path.starts_with("/auth/")
         || path == "/auth"

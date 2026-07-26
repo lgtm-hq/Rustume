@@ -14,6 +14,8 @@ interface AuthState {
   cloudEnabled: boolean;
   requireAuth: boolean;
   user: AuthUser | null;
+  /** When true, show the pre-WorkOS sign-in confirm dialog (policy consent). */
+  signInDialogOpen: boolean;
 }
 
 function createAuthStore() {
@@ -22,6 +24,7 @@ function createAuthStore() {
     cloudEnabled: false,
     requireAuth: false,
     user: null,
+    signInDialogOpen: false,
   });
 
   function applyProbe(result: AuthProbeResult) {
@@ -65,12 +68,31 @@ function createAuthStore() {
     setState("user", null);
   }
 
+  /** Open the confirm dialog (policy consent) before redirecting to WorkOS. */
+  function requestSignIn() {
+    if (!state.cloudEnabled) return;
+    setState("signInDialogOpen", true);
+  }
+
+  function closeSignInDialog() {
+    setState("signInDialogOpen", false);
+  }
+
+  /** Confirm consent and redirect to `/auth/login`. */
+  function confirmSignIn() {
+    setState("signInDialogOpen", false);
+    login();
+  }
+
   return {
     get state() {
       return state;
     },
     refresh,
-    signIn: login,
+    /** Opens the sign-in confirm dialog; use {@link confirmSignIn} to redirect. */
+    signIn: requestSignIn,
+    closeSignInDialog,
+    confirmSignIn,
     signOut,
     clearUser,
     displayName,

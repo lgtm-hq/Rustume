@@ -67,7 +67,10 @@ function renderAccount() {
 }
 
 describe("Account page", () => {
-  it("shows a sign-in CTA when cloud is enabled and the user is signed out", () => {
+  // Previously asserted a "Continue without signing in" link. That link pointed at
+  // "/", which the auth guard now blocks on any cloud deployment — it was a
+  // dead-end loop back to the entry page (#589).
+  it("shows a sign-in CTA with no anonymous escape when signed out on cloud", () => {
     mockAuthState.loading = false;
     mockAuthState.cloudEnabled = true;
     mockAuthState.requireAuth = false;
@@ -77,10 +80,10 @@ describe("Account page", () => {
 
     expect(screen.getByText("Sign in to Rustume Cloud")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign in to sync" })).toBeInTheDocument();
-    expect(screen.getByText(/Continue without signing in/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Continue without signing in/i)).not.toBeInTheDocument();
   });
 
-  it("shows required-auth copy and hides local-only link when require-auth mode is active", () => {
+  it("shows sign-in-required copy regardless of the require-auth flag", () => {
     mockAuthState.loading = false;
     mockAuthState.cloudEnabled = true;
     mockAuthState.requireAuth = true;

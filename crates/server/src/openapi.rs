@@ -7,14 +7,17 @@ use utoipa::OpenApi;
 use crate::db::{
     AuthMeUnauthorizedResponse, AuthUserResponse, CreateResumeRequest, DeleteAccountRequest,
     DeleteAccountResponse, ImportFailure, ImportResumeItem, ImportResumesRequest,
-    ImportResumesResponse, PaginatedResumeSummaries, ResumeBulkExport, ResumeExportItem,
-    ResumeListQuery, ResumeRow, ResumeSummary, SubscriptionInfo, UpdateResumeRequest,
+    ImportResumesResponse, PaginatedResumeSummaries, RestoreResumeRequest, ResumeBulkExport,
+    ResumeExportItem, ResumeListQuery, ResumeRow, ResumeSnapshot, ResumeSummary,
+    ResumeVersionSummary, SharingResponse, SubscriptionInfo, UpdateResumeRequest,
+    UpdateSharingRequest,
 };
 use crate::dto::{
     ParseFormat, ParseRequest, RenderPdfRequest, RenderPreviewRequest, TemplateInfo, ThemeInfo,
     ValidationResponse,
 };
 use crate::error::ApiError;
+use crate::routes::version::VersionResponse;
 
 struct CookieAuthAddon;
 
@@ -44,6 +47,7 @@ impl Modify for CookieAuthAddon {
     modifiers(&CookieAuthAddon),
     paths(
         crate::routes::health::health,
+        crate::routes::version::version,
         crate::routes::templates::list_templates,
         crate::routes::templates::template_thumbnail,
         crate::routes::parse::parse,
@@ -55,6 +59,10 @@ impl Modify for CookieAuthAddon {
         crate::routes::resumes::get_resume,
         crate::routes::resumes::create_resume,
         crate::routes::resumes::update_resume,
+        crate::routes::resumes::update_sharing,
+        crate::routes::resumes::list_resume_versions,
+        crate::routes::resumes::get_resume_version,
+        crate::routes::resumes::restore_resume_version,
         crate::routes::resumes::delete_resume,
         crate::routes::resumes::import_resumes,
         crate::routes::export::export_resumes_json,
@@ -64,6 +72,7 @@ impl Modify for CookieAuthAddon {
     components(
         schemas(
             ApiError,
+            VersionResponse,
             ParseFormat,
             ParseRequest,
             RenderPdfRequest,
@@ -80,8 +89,13 @@ impl Modify for CookieAuthAddon {
             PaginatedResumeSummaries,
             ResumeListQuery,
             ResumeRow,
+            ResumeSnapshot,
+            ResumeVersionSummary,
             CreateResumeRequest,
             UpdateResumeRequest,
+            UpdateSharingRequest,
+            SharingResponse,
+            RestoreResumeRequest,
             ImportResumesRequest,
             ImportResumesResponse,
             ImportFailure,
@@ -92,7 +106,7 @@ impl Modify for CookieAuthAddon {
         )
     ),
     tags(
-        (name = "Health", description = "Health check endpoints"),
+        (name = "Health", description = "Health and build-metadata endpoints"),
         (name = "Templates", description = "Template management"),
         (name = "Parse", description = "Resume parsing from various formats"),
         (name = "Render", description = "Resume rendering to PDF/PNG"),

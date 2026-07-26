@@ -151,7 +151,8 @@ impl Picture {
 }
 
 /// Picture display effects.
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, Default, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct PictureEffects {
     /// Hide the picture.
     #[serde(default)]
@@ -164,6 +165,46 @@ pub struct PictureEffects {
     /// Apply grayscale filter.
     #[serde(default)]
     pub grayscale: bool,
+
+    /// Rotation in degrees, constrained to 0..=360.
+    #[validate(range(min = 0.0, max = 360.0))]
+    #[serde(default)]
+    pub rotation: f32,
+
+    /// Border color as hex. Empty means templates should use the theme primary color.
+    #[validate(custom(function = "crate::validation::validate_hex_color_with_optional_alpha"))]
+    #[serde(default)]
+    pub border_color: String,
+
+    /// Border width in pixels/points.
+    #[validate(range(min = 0, max = 10))]
+    #[serde(default = "default_picture_border_width")]
+    pub border_width: u32,
+
+    /// Shadow color as hex with optional alpha.
+    #[validate(custom(function = "crate::validation::validate_hex_color_with_optional_alpha"))]
+    #[serde(default = "default_picture_shadow_color")]
+    pub shadow_color: String,
+
+    /// Shadow offset/spread size in pixels/points.
+    #[validate(range(min = 0, max = 20))]
+    #[serde(default)]
+    pub shadow_size: u32,
+}
+
+impl Default for PictureEffects {
+    fn default() -> Self {
+        Self {
+            hidden: false,
+            border: false,
+            grayscale: false,
+            rotation: 0.0,
+            border_color: String::new(),
+            border_width: default_picture_border_width(),
+            shadow_color: default_picture_shadow_color(),
+            shadow_size: 0,
+        }
+    }
 }
 
 fn default_picture_size() -> u32 {
@@ -172,6 +213,14 @@ fn default_picture_size() -> u32 {
 
 fn default_aspect_ratio() -> f32 {
     1.0
+}
+
+fn default_picture_border_width() -> u32 {
+    2
+}
+
+fn default_picture_shadow_color() -> String {
+    "#00000040".to_string()
 }
 
 #[cfg(test)]
@@ -219,6 +268,85 @@ mod tests {
 
         let empty_pic = Picture::default();
         assert!(!empty_pic.is_visible());
+    }
+
+    #[test]
+    fn test_picture_effects_defaults() {
+        let effects = PictureEffects::default();
+
+        assert!(!effects.hidden);
+        assert!(!effects.border);
+        assert!(!effects.grayscale);
+        assert_eq!(effects.rotation, 0.0);
+        assert_eq!(effects.border_color, "");
+        assert_eq!(effects.border_width, 2);
+        assert_eq!(effects.shadow_color, "#00000040");
+        assert_eq!(effects.shadow_size, 0);
+        assert!(effects.validate().is_ok());
+    }
+
+    #[test]
+    fn test_picture_effects_serde_defaults() {
+        let effects: PictureEffects = serde_json::from_str(r#"{"border":true}"#).unwrap();
+
+        assert!(effects.border);
+        assert_eq!(effects.rotation, 0.0);
+        assert_eq!(effects.border_color, "");
+        assert_eq!(effects.border_width, 2);
+        assert_eq!(effects.shadow_color, "#00000040");
+        assert_eq!(effects.shadow_size, 0);
+    }
+
+    #[test]
+    fn test_picture_effects_serde_new_fields() {
+        let json = r##"{
+            "hidden": false,
+            "border": true,
+            "grayscale": true,
+            "rotation": 12.5,
+            "borderColor": "#0891b2",
+            "borderWidth": 4,
+            "shadowColor": "#00000040",
+            "shadowSize": 8
+        }"##;
+
+        let effects: PictureEffects = serde_json::from_str(json).unwrap();
+
+        assert!(effects.border);
+        assert!(effects.grayscale);
+        assert_eq!(effects.rotation, 12.5);
+        assert_eq!(effects.border_color, "#0891b2");
+        assert_eq!(effects.border_width, 4);
+        assert_eq!(effects.shadow_color, "#00000040");
+        assert_eq!(effects.shadow_size, 8);
+        assert!(effects.validate().is_ok());
+
+        let serialized = serde_json::to_value(&effects).unwrap();
+        assert_eq!(serialized["borderColor"], "#0891b2");
+        assert_eq!(serialized["borderWidth"], 4);
+        assert_eq!(serialized["shadowColor"], "#00000040");
+        assert_eq!(serialized["shadowSize"], 8);
+    }
+
+    #[test]
+    fn test_picture_effects_validation() {
+        let mut effects = PictureEffects {
+            rotation: 361.0,
+            ..Default::default()
+        };
+        assert!(effects.validate().is_err());
+
+        effects.rotation = 0.0;
+        effects.border_width = 11;
+        assert!(effects.validate().is_err());
+
+        effects.border_width = 2;
+        effects.shadow_size = 21;
+        assert!(effects.validate().is_err());
+
+        effects.shadow_size = 0;
+        effects.shadow_color = "not-a-color".to_string();
+        assert!(effects.validate().is_err());
     }
 
     #[test]

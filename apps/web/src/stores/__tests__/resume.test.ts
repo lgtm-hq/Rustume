@@ -15,6 +15,7 @@ vi.mock("../../wasm", () => ({
   saveResume: vi.fn().mockResolvedValue(undefined),
   getResume: vi.fn(),
   isWasmReady: () => false,
+  ensureWasmReady: async () => false,
 }));
 
 /**
@@ -173,6 +174,53 @@ describe("useResumeStore", () => {
     });
   });
 
+  it("updateCoverLetter updates cover letter content", () => {
+    createRoot((dispose) => {
+      const { store, createNewResume, updateCoverLetter } = useResumeStore();
+      createNewResume("test-id-cover-letter-content");
+
+      updateCoverLetter("<p>Dear Hiring Manager,</p>");
+      expect(store.resume!.sections.coverLetter.content).toBe("<p>Dear Hiring Manager,</p>");
+      dispose();
+    });
+  });
+
+  it("updateCoverLetterRecipient updates recipient fields", () => {
+    createRoot((dispose) => {
+      const { store, createNewResume, updateCoverLetterRecipient } = useResumeStore();
+      createNewResume("test-id-cover-letter-recipient");
+
+      updateCoverLetterRecipient("name", "Jane Smith");
+      updateCoverLetterRecipient("title", "Hiring Manager");
+      updateCoverLetterRecipient("company", "Acme Corp");
+      updateCoverLetterRecipient("address", "123 Main St");
+      updateCoverLetterRecipient("email", "jane@acme.com");
+
+      expect(store.resume!.sections.coverLetter.recipient).toEqual({
+        name: "Jane Smith",
+        title: "Hiring Manager",
+        company: "Acme Corp",
+        address: "123 Main St",
+        email: "jane@acme.com",
+      });
+      dispose();
+    });
+  });
+
+  it("toggleSectionVisibility toggles coverLetter visibility", () => {
+    createRoot((dispose) => {
+      const { store, createNewResume, toggleSectionVisibility } = useResumeStore();
+      createNewResume("test-id-cover-letter-visible");
+
+      expect(store.resume!.sections.coverLetter.visible).toBe(false);
+      toggleSectionVisibility("coverLetter");
+      expect(store.resume!.sections.coverLetter.visible).toBe(true);
+      toggleSectionVisibility("coverLetter");
+      expect(store.resume!.sections.coverLetter.visible).toBe(false);
+      dispose();
+    });
+  });
+
   it("toggleSectionVisibility toggles a section's visible flag", () => {
     createRoot((dispose) => {
       const { store, createNewResume, toggleSectionVisibility } = useResumeStore();
@@ -269,6 +317,20 @@ describe("useResumeStore", () => {
     });
   });
 
+  it("createFromImport assigns a new id and marks dirty", () => {
+    createRoot((dispose) => {
+      const { store, createFromImport } = useResumeStore();
+      const imported = createDefaultResume();
+      imported.basics.name = "From Home Import";
+
+      createFromImport("imported-home-id", imported);
+      expect(store.id).toBe("imported-home-id");
+      expect(store.resume!.basics.name).toBe("From Home Import");
+      expect(store.isDirty).toBe(true);
+      dispose();
+    });
+  });
+
   it("importResume materializes missing custom and layout from legacy JSON", () => {
     createRoot((dispose) => {
       const { store, importResume } = useResumeStore();
@@ -321,12 +383,8 @@ describe("useResumeStore", () => {
         visible: true,
         items: [],
       };
-      imported.metadata.layout = [
-        [
-          /* empty first page */
-        ],
-        [["experience"]],
-      ];
+      // Exercise normalization when the first page has no columns.
+      imported.metadata.layout = [[], [["experience"]]];
 
       importResume(imported);
 
@@ -334,6 +392,75 @@ describe("useResumeStore", () => {
       expect(
         store.resume!.metadata.layout.flat(2).filter((id) => id === "experience"),
       ).toHaveLength(1);
+      dispose();
+    });
+  });
+
+  it("importResume preserves coverLetter when normalizing an empty first layout page", () => {
+    createRoot((dispose) => {
+      const { store, importResume } = useResumeStore();
+      const imported = createDefaultResume();
+      // Exercise normalization when the first page has no columns.
+      imported.metadata.layout = [[], [["coverLetter", "experience"]]];
+
+      importResume(imported);
+
+      expect(store.resume!.metadata.layout[0]).toEqual([["coverLetter", "experience"]]);
+      expect(
+        store.resume!.metadata.layout.flat(2).filter((id) => id === "coverLetter"),
+      ).toHaveLength(1);
+      dispose();
+    });
+  });
+
+  it("importResume seeds layout when coverLetter is visible and layout is empty", () => {
+    createRoot((dispose) => {
+      const { store, importResume } = useResumeStore();
+      const imported = createDefaultResume();
+      imported.metadata.layout = [];
+      imported.sections.coverLetter.visible = true;
+
+      importResume(imported);
+
+      expect(store.resume!.metadata.layout).toEqual([
+        [["summary", "coverLetter", ...FIXED_LAYOUT_SECTION_KEYS]],
+      ]);
+      dispose();
+    });
+  });
+
+  it("importResume backfills missing coverLetter for legacy resumes with layout", () => {
+    createRoot((dispose) => {
+      const { store, importResume } = useResumeStore();
+      const imported = createDefaultResume();
+      delete (imported.sections as { coverLetter?: unknown }).coverLetter;
+      imported.metadata.layout = [[["summary", "experience"]]];
+
+      importResume(imported);
+
+      expect(store.resume!.sections.coverLetter).toMatchObject({
+        id: "coverLetter",
+        name: "Cover Letter",
+      });
+      dispose();
+    });
+  });
+
+  it("addCustomSection backfills coverLetter section before seeding empty layout", () => {
+    createRoot((dispose) => {
+      const { store, importResume, addCustomSection } = useResumeStore();
+      const imported = createDefaultResume();
+      imported.metadata.layout = [];
+      delete (imported.sections as { coverLetter?: unknown }).coverLetter;
+
+      importResume(imported);
+      addCustomSection("Writing");
+
+      expect(store.resume!.sections.coverLetter).toMatchObject({
+        id: "coverLetter",
+        name: "Cover Letter",
+      });
+      expect(store.resume!.metadata.layout[0]?.[0]).toContain("coverLetter");
       dispose();
     });
   });
@@ -456,7 +583,7 @@ describe("useResumeStore", () => {
       const sectionId = addCustomSection("Writing");
 
       expect(store.resume!.metadata.layout).toEqual([
-        [["summary", ...FIXED_LAYOUT_SECTION_KEYS, sectionId]],
+        [["summary", "coverLetter", ...FIXED_LAYOUT_SECTION_KEYS, sectionId]],
       ]);
       dispose();
     });

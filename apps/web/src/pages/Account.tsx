@@ -1,10 +1,11 @@
 import { Show, createEffect, createSignal } from "solid-js";
-import { A, useNavigate } from "@solidjs/router";
+import { useNavigate } from "@solidjs/router";
 import { deleteAccount } from "../api/account";
 import { downloadResumesJson, downloadResumesPdf } from "../api/export";
 import { listCloudResumesPage } from "../api/resumes";
 import { authStore } from "../stores/auth";
 import { Button, Input, Modal, Spinner, toast } from "../components/ui";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 function ProfileAvatar(props: { label: string }) {
   return (
@@ -36,10 +37,10 @@ function ComingSoonRow(props: { title: string; description: string }) {
 }
 
 export default function Account() {
+  usePageTitle("Account");
   const { state, signIn, signOut, clearUser, displayName } = authStore;
   const navigate = useNavigate();
   const [signingOut, setSigningOut] = createSignal(false);
-  const [signingIn, setSigningIn] = createSignal(false);
   const [deleteModalOpen, setDeleteModalOpen] = createSignal(false);
   const [deleteConfirmation, setDeleteConfirmation] = createSignal("");
   const [resumeCount, setResumeCount] = createSignal<number | null>(null);
@@ -80,7 +81,6 @@ export default function Account() {
   };
 
   const handleSignIn = () => {
-    setSigningIn(true);
     signIn();
   };
 
@@ -159,22 +159,14 @@ export default function Account() {
                   <h1 class="font-display text-2xl font-semibold text-ink mb-3">
                     Sign in to Rustume Cloud
                   </h1>
+                  {/* No anonymous branch: the auth guard blocks every protected
+                      route on a cloud deployment, so "continue without signing
+                      in" would bounce straight back to the entry page (#589). */}
                   <p class="text-stone text-sm max-w-md mx-auto mb-6">
-                    {state.requireAuth
-                      ? "Sign in is required to use Rustume Cloud on this deployment."
-                      : "Sync resumes across devices with your Rustume Cloud account. Your local copies stay on this device until you choose to import them."}
+                    Sign in is required to use Rustume Cloud on this deployment. Prefer to stay
+                    local? The desktop build and self-hosted server need no account at all.
                   </p>
-                  <Button onClick={handleSignIn} loading={signingIn()}>
-                    Sign in to sync
-                  </Button>
-                  <Show when={!state.requireAuth}>
-                    <p class="mt-4 text-xs text-stone">
-                      Prefer local-only?{" "}
-                      <A href="/" class="text-accent hover:underline">
-                        Continue without signing in
-                      </A>
-                    </p>
-                  </Show>
+                  <Button onClick={handleSignIn}>Sign in to sync</Button>
                 </div>
               }
             >

@@ -179,5 +179,12 @@ Rustume is licensed under the [GNU Affero General Public License v3.0
 Prior commits were released under MIT; AGPL applies from the relicense forward.
 See also [NOTICE](NOTICE).
 
+### Repo boundary
+
+The product is open; operating Rustume Cloud is private. Production
+infrastructure, runbooks, and compliance material live in the private
+`rustume-ops` repository — see [LICENSING.md](LICENSING.md) for the full
+boundary policy (including where to file ops-shaped issues).
+
 Rustume follows the same licensing approach as projects like Plausible, Cal.com,
 Signal, and Standard Notes.

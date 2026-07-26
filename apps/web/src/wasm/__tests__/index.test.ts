@@ -28,6 +28,11 @@ describe("WASM wrapper – fallback behaviour (WASM not loaded)", () => {
     expect(isWasmReady()).toBe(false);
   });
 
+  it("ensureWasmReady returns false when WASM cannot load", async () => {
+    const { ensureWasmReady } = await loadModule();
+    await expect(ensureWasmReady()).resolves.toBe(false);
+  });
+
   // -------------------------------------------------------------------
   // listTemplates
   // -------------------------------------------------------------------

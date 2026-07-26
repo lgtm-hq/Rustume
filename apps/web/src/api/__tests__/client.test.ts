@@ -1,4 +1,13 @@
-import { get, post, put, fetchBlob, fetchBlobWithHeaders, ApiError } from "../client";
+import {
+  get,
+  post,
+  put,
+  fetchBlob,
+  fetchBlobWithHeaders,
+  ApiError,
+  ApiValidationError,
+} from "../client";
+import { templateListSchema } from "../schemas";
 
 vi.mock("../../components/ui", () => ({
   toast: {
@@ -17,6 +26,17 @@ describe("ApiError", () => {
     expect(error.name).toBe("ApiError");
     expect(error.status).toBe(404);
     expect(error.message).toBe("Not Found");
+  });
+});
+
+describe("ApiValidationError", () => {
+  it("has endpoint and message properties", () => {
+    const error = new ApiValidationError("/templates", "API response validation failed");
+
+    expect(error).toBeInstanceOf(Error);
+    expect(error.name).toBe("ApiValidationError");
+    expect(error.endpoint).toBe("/templates");
+    expect(error.message).toBe("API response validation failed");
   });
 });
 
@@ -66,6 +86,34 @@ describe("get", () => {
     await expect(get("/templates")).rejects.toMatchObject({
       status: 500,
       message: "Something went wrong",
+    });
+  });
+
+  it("extracts JSON error field from error responses", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      statusText: "Forbidden",
+      text: () => Promise.resolve(JSON.stringify({ error: "Cloud subscription expired" })),
+    });
+
+    await expect(get("/resumes/export")).rejects.toMatchObject({
+      status: 403,
+      message: "Cloud subscription expired",
+      body: JSON.stringify({ error: "Cloud subscription expired" }),
+    });
+  });
+
+  it("throws ApiValidationError when schema validation fails", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers({ "content-type": "application/json" }),
+      json: () => Promise.resolve([{ id: "rhyhorn" }]),
+    });
+
+    await expect(get("/templates", templateListSchema)).rejects.toThrow(ApiValidationError);
+    await expect(get("/templates", templateListSchema)).rejects.toMatchObject({
+      endpoint: "/templates",
     });
   });
 

@@ -2,7 +2,7 @@ use axum::{
     extract::DefaultBodyLimit,
     http::{header, HeaderValue, Method},
     middleware,
-    routing::{delete, get, post},
+    routing::{delete, get, post, put},
     Router,
 };
 use std::path::PathBuf;
@@ -19,8 +19,9 @@ use utoipa_swagger_ui::SwaggerUi;
 use crate::config::MAX_BODY_SIZE;
 use crate::middleware::auth::require_auth_when_enabled;
 use crate::middleware::rate_limit::{
-    rate_limit_auth, rate_limit_billable, rate_limit_health, rate_limit_import, rate_limit_metrics,
-    rate_limit_pdf, rate_limit_preview, rate_limit_resume_crud,
+    rate_limit_account_delete, rate_limit_auth, rate_limit_billable, rate_limit_health,
+    rate_limit_import, rate_limit_metrics, rate_limit_pdf, rate_limit_preview,
+    rate_limit_resume_crud,
 };
 use crate::middleware::security::security_headers;
 use crate::middleware::subscription::require_subscription_render;
@@ -28,9 +29,10 @@ use crate::observability::apply_sentry_layers;
 use crate::openapi::ApiDoc;
 use crate::routes::{
     callback, create_resume, delete_account, delete_resume, export_resumes_json,
-    export_resumes_pdf, get_resume, health, import_resumes, list_resumes, list_templates, login,
-    logout, me, metrics, parse, render_pdf, render_preview, security_txt, spa_fallback, static_dir,
-    template_thumbnail, update_resume, validate,
+    export_resumes_pdf, get_resume, get_resume_version, health, import_resumes,
+    list_resume_versions, list_resumes, list_templates, login, logout, me, metrics, parse,
+    render_pdf, render_preview, restore_resume_version, security_txt, spa_fallback, static_dir,
+    template_thumbnail, update_resume, update_sharing, validate, version,
 };
 use crate::state::AppState;
 
@@ -104,7 +106,12 @@ pub fn create_router_with_state(state: AppState) -> Router {
         ));
     }
 
-    let mut health_routes = Router::new().route("/health", get(health));
+    // `/version` shares `/health`'s unauthenticated, rate-limited treatment so a
+    // deploy pipeline can verify the running build without credentials. Being a
+    // server route, it also takes precedence over the SPA catch-all fallback.
+    let mut health_routes = Router::new()
+        .route("/health", get(health))
+        .route("/version", get(version));
     if cloud_rate_limits {
         health_routes = health_routes.route_layer(middleware::from_fn_with_state(
             state_for_layers.clone(),
@@ -146,6 +153,16 @@ pub fn create_router_with_state(state: AppState) -> Router {
                 "/api/resumes/{id}",
                 get(get_resume).put(update_resume).delete(delete_resume),
             )
+            .route("/api/resumes/{id}/sharing", put(update_sharing))
+            .route("/api/resumes/{id}/versions", get(list_resume_versions))
+            .route(
+                "/api/resumes/{id}/versions/{version}",
+                get(get_resume_version),
+            )
+            .route(
+                "/api/resumes/{id}/versions/{version}/restore",
+                post(restore_resume_version),
+            )
             .route_layer(middleware::from_fn_with_state(
                 state.clone(),
                 require_auth_when_enabled,
@@ -170,12 +187,17 @@ pub fn create_router_with_state(state: AppState) -> Router {
             ));
         }
 
-        let account_routes = Router::new()
-            .route("/api/account", delete(delete_account))
-            .route_layer(middleware::from_fn_with_state(
-                state.clone(),
-                require_auth_when_enabled,
+        let mut account_routes = Router::new().route("/api/account", delete(delete_account));
+        if cloud_rate_limits {
+            account_routes = account_routes.route_layer(middleware::from_fn_with_state(
+                state_for_layers.clone(),
+                rate_limit_account_delete,
             ));
+        }
+        account_routes = account_routes.route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            require_auth_when_enabled,
+        ));
 
         let mut export_json_routes = Router::new()
             .route("/api/resumes/export", get(export_resumes_json))
@@ -198,7 +220,7 @@ pub fn create_router_with_state(state: AppState) -> Router {
             ));
         if cloud_rate_limits {
             export_pdf_routes = export_pdf_routes.route_layer(middleware::from_fn_with_state(
-                state_for_layers.clone(),
+                state_for_layers,
                 rate_limit_pdf,
             ));
         }

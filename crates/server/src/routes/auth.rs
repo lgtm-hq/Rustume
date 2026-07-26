@@ -17,6 +17,7 @@ use crate::auth::workos::upsert_user;
 use crate::db::{AuthMeUnauthorizedResponse, AuthUserResponse};
 use crate::error::ApiError;
 use crate::net::{self, trusted_client_ip};
+use crate::policy::{needs_signup_policy_acceptances, record_signup_policy_acceptances};
 use crate::state::AppState;
 use crate::subscription;
 
@@ -41,7 +42,7 @@ pub async fn login(State(state): State<AppState>) -> Result<Response, ApiError> 
 
     let state_cookie = build_oauth_state_cookie(&oauth_state, &cloud.workos_redirect_uri);
     let mut response = Redirect::temporary(&url).into_response();
-    append_set_cookie(&mut response, state_cookie)?;
+    append_set_cookie(&mut response, &state_cookie)?;
     Ok(response)
 }
 
@@ -141,10 +142,39 @@ async fn callback_inner(
         }
     };
 
-    let user = upsert_user(&cloud.db, &workos_user).await.map_err(|err| {
+    let upsert = upsert_user(&cloud.db, &workos_user).await.map_err(|err| {
         error!("user upsert failed: {err}");
         "server_error"
     })?;
+    let user = upsert.user;
+
+    if needs_signup_policy_acceptances(&cloud.db, user.id)
+        .await
+        .map_err(|err| {
+            error!("policy acceptance lookup failed: {err}");
+            "server_error"
+        })?
+    {
+        record_signup_policy_acceptances(&cloud.db, user.id, ip)
+            .await
+            .map_err(|err| {
+                error!("policy acceptance failed: {err}");
+                "server_error"
+            })?;
+    }
+
+    // Concurrent OAuth callbacks can race on first-time acceptance writes. Refuse
+    // session creation unless both current policy rows are durable right now.
+    if needs_signup_policy_acceptances(&cloud.db, user.id)
+        .await
+        .map_err(|err| {
+            error!("policy acceptance re-check failed: {err}");
+            "server_error"
+        })?
+    {
+        error!("policy acceptances incomplete before session creation");
+        return Err("server_error");
+    }
 
     let (_session, cookie) = cloud.sessions.create(user.id).await.map_err(|err| {
         error!("session creation failed: {err}");
@@ -152,12 +182,9 @@ async fn callback_inner(
     })?;
 
     let mut response = Redirect::to("/?signed_in=1").into_response();
-    append_set_cookie(&mut response, cookie).map_err(|_| "server_error")?;
-    append_set_cookie(
-        &mut response,
-        clear_oauth_state_cookie(&cloud.workos_redirect_uri),
-    )
-    .map_err(|_| "server_error")?;
+    append_set_cookie(&mut response, &cookie).map_err(|_| "server_error")?;
+    let clear_oauth = clear_oauth_state_cookie(&cloud.workos_redirect_uri);
+    append_set_cookie(&mut response, &clear_oauth).map_err(|_| "server_error")?;
 
     record_event(
         &cloud.db,
@@ -212,7 +239,7 @@ pub async fn logout(
 
     let clear = cloud.sessions.clear_cookie();
     let mut response = (StatusCode::NO_CONTENT, ()).into_response();
-    append_set_cookie(&mut response, clear)?;
+    append_set_cookie(&mut response, &clear)?;
     Ok(response)
 }
 
@@ -296,7 +323,7 @@ fn clear_oauth_state_cookie(redirect_uri: &str) -> Cookie<'static> {
         .into()
 }
 
-fn append_set_cookie(response: &mut Response, cookie: Cookie<'static>) -> Result<(), ApiError> {
+fn append_set_cookie(response: &mut Response, cookie: &Cookie<'static>) -> Result<(), ApiError> {
     let header_value = cookie
         .to_string()
         .parse::<header::HeaderValue>()
@@ -325,6 +352,234 @@ async fn record_auth_failure(pool: &sqlx::PgPool, reason: &str, ip_address: Opti
 async fn audit_callback_failure(state: &AppState, reason: &str, ip_address: Option<&str>) {
     if let Ok(cloud) = state.cloud() {
         record_auth_failure(&cloud.db, reason, ip_address).await;
+    }
+}
+
+#[cfg(test)]
+mod policy_acceptance_tests {
+
+    use crate::auth::workos::{upsert_user, WorkOsUser};
+    use crate::config;
+    use crate::policy::{record_policy_acceptance, record_signup_policy_acceptances};
+    use sqlx::postgres::PgPoolOptions;
+    use sqlx::Row;
+    use uuid::Uuid;
+
+    fn looks_like_test_database_url(url: &str) -> bool {
+        let db_name = url
+            .split(['?', '#'])
+            .next()
+            .unwrap_or(url)
+            .rsplit('/')
+            .next()
+            .unwrap_or("");
+        db_name.contains("_test")
+    }
+
+    fn database_url_for_tests() -> Option<String> {
+        let url = std::env::var("TEST_DATABASE_URL")
+            .ok()
+            .map(|url| url.trim().to_owned())
+            .filter(|url| !url.is_empty())
+            .or_else(|| {
+                std::env::var("DATABASE_URL")
+                    .ok()
+                    .map(|url| url.trim().to_owned())
+                    .filter(|url| !url.is_empty())
+            })?;
+
+        if looks_like_test_database_url(&url) {
+            Some(url)
+        } else {
+            eprintln!(
+                "SKIP auth policy acceptance tests: set TEST_DATABASE_URL (or DATABASE_URL) to a database whose name contains _test"
+            );
+            None
+        }
+    }
+
+    async fn connect_test_pool(database_url: &str) -> sqlx::PgPool {
+        let pool = PgPoolOptions::new()
+            .max_connections(2)
+            .connect(database_url)
+            .await
+            .expect("connect to test database for auth policy acceptance tests");
+        sqlx::migrate!("./src/db/migrations")
+            .run(&pool)
+            .await
+            .expect("run migrations for auth policy acceptance tests");
+        pool
+    }
+
+    async fn cleanup_user(pool: &sqlx::PgPool, user_id: Uuid) {
+        sqlx::query("DELETE FROM users WHERE id = $1")
+            .bind(user_id)
+            .execute(pool)
+            .await
+            .expect("cleanup user");
+    }
+
+    async fn count_policy_acceptances(pool: &sqlx::PgPool, user_id: Uuid) -> i64 {
+        sqlx::query_scalar("SELECT COUNT(*)::bigint FROM policy_acceptances WHERE user_id = $1")
+            .bind(user_id)
+            .fetch_one(pool)
+            .await
+            .expect("count policy acceptances")
+    }
+
+    async fn count_policy_accept_audit_events(
+        pool: &sqlx::PgPool,
+        user_id: Uuid,
+        policy: &str,
+    ) -> i64 {
+        sqlx::query_scalar(
+            r#"
+            SELECT COUNT(*)::bigint
+            FROM audit_events
+            WHERE event_type = 'policy.accept'
+              AND actor_user_id = $1
+              AND (metadata->>'policy') = $2
+            "#,
+        )
+        .bind(user_id)
+        .bind(policy)
+        .fetch_one(pool)
+        .await
+        .expect("count policy.accept audit events")
+    }
+
+    fn sample_workos_user(suffix: &str) -> WorkOsUser {
+        WorkOsUser {
+            id: format!("workos_policy_{suffix}"),
+            email: format!("policy-{suffix}@example.com"),
+            first_name: Some("Policy".to_string()),
+            last_name: Some("Tester".to_string()),
+        }
+    }
+
+    #[tokio::test]
+    async fn signup_records_policy_acceptances_for_new_user_only() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+
+        let pool = connect_test_pool(&database_url).await;
+        let suffix = Uuid::new_v4().to_string();
+        let workos_user = sample_workos_user(&suffix);
+
+        let first = upsert_user(&pool, &workos_user)
+            .await
+            .expect("first upsert");
+        assert!(first.is_new);
+
+        record_signup_policy_acceptances(&pool, first.user.id, Some("203.0.113.10"))
+            .await
+            .expect("record signup policy acceptances");
+
+        assert_eq!(count_policy_acceptances(&pool, first.user.id).await, 2);
+
+        let rows = sqlx::query(
+            "SELECT policy, version FROM policy_acceptances WHERE user_id = $1 ORDER BY policy",
+        )
+        .bind(first.user.id)
+        .fetch_all(&pool)
+        .await
+        .expect("fetch policy acceptances");
+
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].get::<String, _>("policy"), "privacy");
+        assert_eq!(rows[0].get::<String, _>("version"), config::PRIVACY_VERSION);
+        assert_eq!(rows[1].get::<String, _>("policy"), "terms");
+        assert_eq!(rows[1].get::<String, _>("version"), config::TERMS_VERSION);
+
+        let second = upsert_user(&pool, &workos_user)
+            .await
+            .expect("second upsert");
+        assert!(!second.is_new);
+        assert_eq!(second.user.id, first.user.id);
+
+        assert_eq!(count_policy_acceptances(&pool, first.user.id).await, 2);
+
+        cleanup_user(&pool, first.user.id).await;
+    }
+
+    #[tokio::test]
+    async fn repeated_policy_acceptance_emits_single_audit_event() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+
+        let pool = connect_test_pool(&database_url).await;
+        let suffix = Uuid::new_v4().to_string();
+        let workos_user = sample_workos_user(&suffix);
+
+        let upserted = upsert_user(&pool, &workos_user).await.expect("upsert");
+        let user_id = upserted.user.id;
+
+        record_policy_acceptance(&pool, user_id, "terms", config::TERMS_VERSION, None)
+            .await
+            .expect("first acceptance");
+        record_policy_acceptance(&pool, user_id, "terms", config::TERMS_VERSION, None)
+            .await
+            .expect("second acceptance");
+
+        assert_eq!(count_policy_acceptances(&pool, user_id).await, 1);
+        assert_eq!(
+            count_policy_accept_audit_events(&pool, user_id, "terms").await,
+            1
+        );
+
+        cleanup_user(&pool, user_id).await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn concurrent_policy_acceptance_emits_single_audit_event() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+
+        let pool = connect_test_pool(&database_url).await;
+        let suffix = Uuid::new_v4().to_string();
+        let workos_user = sample_workos_user(&suffix);
+
+        let upserted = upsert_user(&pool, &workos_user).await.expect("upsert");
+        let user_id = upserted.user.id;
+
+        // Spawn both acceptances on a multi-threaded runtime and gate them on a
+        // shared barrier so the inserts are genuinely in flight at the same
+        // time, not merely interleaved.
+        let barrier = std::sync::Arc::new(tokio::sync::Barrier::new(2));
+        let spawn_acceptance =
+            |pool: sqlx::PgPool, barrier: std::sync::Arc<tokio::sync::Barrier>| {
+                tokio::spawn(async move {
+                    barrier.wait().await;
+                    record_policy_acceptance(
+                        &pool,
+                        user_id,
+                        "privacy",
+                        config::PRIVACY_VERSION,
+                        None,
+                    )
+                    .await
+                })
+            };
+        let first_task = spawn_acceptance(pool.clone(), barrier.clone());
+        let second_task = spawn_acceptance(pool.clone(), barrier.clone());
+        let (first, second) = tokio::join!(first_task, second_task);
+        first
+            .expect("first acceptance task")
+            .expect("first concurrent acceptance");
+        second
+            .expect("second acceptance task")
+            .expect("second concurrent acceptance");
+
+        assert_eq!(count_policy_acceptances(&pool, user_id).await, 1);
+        assert_eq!(
+            count_policy_accept_audit_events(&pool, user_id, "privacy").await,
+            1
+        );
+
+        cleanup_user(&pool, user_id).await;
     }
 }
 

@@ -1,7 +1,7 @@
 //! Append-only audit logging for security-sensitive events.
 
 use serde_json::Value;
-use sqlx::PgPool;
+use sqlx::{Executor, PgPool, Postgres};
 use tracing::error;
 use uuid::Uuid;
 
@@ -24,7 +24,27 @@ pub struct AuditEvent<'a> {
 
 /// Insert an audit event without failing the primary request on persistence errors.
 pub async fn record_event(pool: &PgPool, event: AuditEvent<'_>) {
-    let result = sqlx::query(
+    if let Err(err) = insert_event(pool, event).await {
+        error!("audit log insert failed: {err}");
+    }
+}
+
+/// Insert an audit event and propagate persistence errors to the caller.
+pub async fn record_event_required<'e, E>(
+    executor: E,
+    event: AuditEvent<'_>,
+) -> Result<(), sqlx::Error>
+where
+    E: Executor<'e, Database = Postgres>,
+{
+    insert_event(executor, event).await
+}
+
+async fn insert_event<'e, E>(executor: E, event: AuditEvent<'_>) -> Result<(), sqlx::Error>
+where
+    E: Executor<'e, Database = Postgres>,
+{
+    sqlx::query(
         r#"
         INSERT INTO audit_events (
             event_type,
@@ -43,10 +63,8 @@ pub async fn record_event(pool: &PgPool, event: AuditEvent<'_>) {
     .bind(event.resource_id)
     .bind(event.metadata)
     .bind(event.ip_address)
-    .execute(pool)
-    .await;
+    .execute(executor)
+    .await?;
 
-    if let Err(err) = result {
-        error!("audit log insert failed: {err}");
-    }
+    Ok(())
 }

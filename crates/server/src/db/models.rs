@@ -151,6 +151,20 @@ pub struct CreateResumeRequest {
     pub data: serde_json::Value,
 }
 
+/// Request body for `PUT /api/resumes/{id}/sharing`.
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct UpdateSharingRequest {
+    pub is_public: bool,
+}
+
+/// Response body for `PUT /api/resumes/{id}/sharing`.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct SharingResponse {
+    pub is_public: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub public_slug: Option<String>,
+}
+
 /// Request body for `PUT /api/resumes/{id}`.
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdateResumeRequest {
@@ -159,6 +173,35 @@ pub struct UpdateResumeRequest {
     pub data: Option<serde_json::Value>,
     /// Expected resume version for optimistic concurrency control.
     pub version: Option<i32>,
+}
+
+/// Request body for `POST /api/resumes/{id}/versions/{version}/restore`.
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct RestoreResumeRequest {
+    /// Expected current resume version for optimistic concurrency control.
+    pub version: i32,
+}
+
+/// Version summary returned by `GET /api/resumes/{id}/versions`.
+#[derive(Debug, Clone, FromRow, Serialize, ToSchema)]
+pub struct ResumeVersionSummary {
+    pub version: i32,
+    #[schema(value_type = String, format = "date-time")]
+    pub created_at: DateTime<Utc>,
+}
+
+/// Full snapshot returned by `GET /api/resumes/{id}/versions/{version}`.
+#[derive(Debug, Clone, FromRow, Serialize, ToSchema)]
+pub struct ResumeSnapshot {
+    #[schema(value_type = String, format = "uuid")]
+    pub id: Uuid,
+    #[schema(value_type = String, format = "uuid")]
+    pub resume_id: Uuid,
+    pub version: i32,
+    #[schema(value_type = Object)]
+    pub data: serde_json::Value,
+    #[schema(value_type = String, format = "date-time")]
+    pub created_at: DateTime<Utc>,
 }
 
 /// Single resume payload within an import batch.
@@ -276,6 +319,62 @@ impl AuthUserResponse {
 mod tests {
     use super::*;
     use chrono::Utc;
+
+    #[test]
+    fn resume_row_never_exposes_password_hash() {
+        let row = ResumeRow {
+            id: Uuid::nil(),
+            user_id: Uuid::nil(),
+            title: "Resume".to_string(),
+            data: serde_json::json!({}),
+            is_public: false,
+            public_slug: None,
+            password_hash: Some("$argon2id$v=19$m=65536,t=3,p=4$secret".to_string()),
+            version: 1,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+
+        let json = serde_json::to_value(&row).unwrap();
+
+        assert!(json.get("password_hash").is_none());
+    }
+
+    #[test]
+    fn sharing_response_serializes_public_state() {
+        let response = SharingResponse {
+            is_public: true,
+            public_slug: Some("clxyz123".to_string()),
+        };
+        let json = serde_json::to_value(&response).unwrap();
+
+        assert_eq!(json["is_public"], true);
+        assert_eq!(json["public_slug"], "clxyz123");
+    }
+
+    #[test]
+    fn sharing_response_omits_null_public_slug() {
+        let response = SharingResponse {
+            is_public: false,
+            public_slug: None,
+        };
+        let json = serde_json::to_value(&response).unwrap();
+
+        assert_eq!(json["is_public"], false);
+        assert!(json.get("public_slug").is_none());
+    }
+
+    #[test]
+    fn sharing_response_keeps_slug_when_unpublished() {
+        let response = SharingResponse {
+            is_public: false,
+            public_slug: Some("clxyz123".to_string()),
+        };
+        let json = serde_json::to_value(&response).unwrap();
+
+        assert_eq!(json["is_public"], false);
+        assert_eq!(json["public_slug"], "clxyz123");
+    }
 
     #[test]
     fn auth_user_response_includes_profile_fields() {

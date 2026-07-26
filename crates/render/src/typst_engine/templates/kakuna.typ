@@ -10,6 +10,7 @@
   let primary-color = rgb(data.metadata.theme.at("primary", default: "#78716c"))
   let text-color = rgb(data.metadata.theme.at("text", default: "#422006"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
+  let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
   let muted-color = text-color.lighten(40%)
 
@@ -30,8 +31,14 @@
   }
 
   let skill-bar(level) = {
-    h(4pt)
-    rating-indicators(level, 8pt, 8pt, primary-color, bg-color.darken(10%), 50%, 2pt)
+    let level = clamp-level(level)
+    if level-display == "template-default" {
+      h(4pt)
+      rating-indicators(level, 8pt, 8pt, primary-color, bg-color.darken(10%), 50%, 2pt)
+    } else if should-render-level(level, level-display) {
+      h(4pt)
+      render-level(level, level-display, primary-color, bg-color.darken(10%), width: 8pt, height: 8pt)
+    }
   }
 
   let entry-header(left-content, right-content) = {
@@ -141,17 +148,14 @@
   let render-profile(item) = {
     if item.visible == false { return }
 
-    let network = if "network" in item and item.network != none { item.network } else { "" }
-    let username = if "username" in item and item.username != none { item.username } else { "" }
-
-    let display = if network != "" and username != "" { [#network: #username] } else if network != "" { network } else { username }
-
-    if has-url(item) {
-      let label = if network != "" or username != "" { display } else { item.url.href }
-      link(item.url.href)[#text(fill: primary-color)[#label]]
-    } else if network != "" or username != "" {
-      text(size: 10pt)[#display]
-    }
+    render-profile-entry(
+      data,
+      item,
+      size: 10pt,
+      fill: text-color,
+      link-fill: primary-color,
+      label-mode: "network-username",
+    )
     h(14pt)
   }
 
@@ -374,36 +378,45 @@
     justify: false,
   )
 
-  // Centered header in bordered box
-  align(center)[
-    #box(
-      width: 100%,
-      stroke: 1pt + border-color,
-      radius: 4pt,
-      inset: (x: 24pt, y: 20pt),
-      [
-        #text(size: 24pt, weight: "light", fill: text-color, tracking: 0.03em)[#data.basics.name]
+  render-cover-letter-page(data, section-heading, muted: muted-color)
 
-        #if data.basics.headline != "" {
-          v(6pt)
-          text(size: 11pt, fill: primary-color)[#data.basics.headline]
-        }
+  if has-resume-body(data) {
+    // Centered header in bordered box
+    align(center)[
+      #box(
+        width: 100%,
+        stroke: 1pt + border-color,
+        radius: 4pt,
+        inset: (x: 24pt, y: 20pt),
+        [
+          #if has-visible-picture(data.basics) {
+            render-picture(data.basics, primary-color)
+            v(8pt)
+          }
 
-        #v(10pt)
+          #text(size: 24pt, weight: "light", fill: text-color, tracking: 0.03em)[#data.basics.name]
 
-        #let contact-items = build-contact-items(data.basics)
-        #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#data.basics.url.href],) }
+          #if data.basics.headline != "" {
+            v(6pt)
+            text(size: 11pt, fill: primary-color)[#data.basics.headline]
+          }
 
-        #text(size: 9pt, fill: muted-color)[#contact-items.join("  ·  ")]
-      ]
-    )
-  ]
+          #v(10pt)
 
-  v(8pt)
+          #let contact-items = build-contact-items(data.basics)
+          #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#url-display-label(data.basics.url)],) }
 
-  render-resume(data, (
-    layout: "single",
-    renderers: renderers,
-    heading: section-heading,
-  ))
+          #text(size: 9pt, fill: muted-color)[#contact-items.join("  ·  ")]
+        ]
+      )
+    ]
+
+    v(8pt)
+
+    render-resume(data, (
+      layout: "single",
+      renderers: renderers,
+      heading: section-heading,
+    ))
+  }
 }

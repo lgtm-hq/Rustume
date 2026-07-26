@@ -5,6 +5,7 @@
 //! # Endpoints
 //!
 //! - `GET /health` - Health check
+//! - `GET /version` - Running build's version, commit, and build time
 //! - `GET /api/templates` - List available templates
 //! - `POST /api/parse` - Parse resume from various formats
 //! - `POST /api/render/pdf` - Render resume to PDF
@@ -39,6 +40,7 @@ pub mod middleware;
 pub mod net;
 pub mod observability;
 pub mod openapi;
+pub mod policy;
 pub mod routes;
 pub mod run;
 pub mod shutdown;
@@ -56,12 +58,14 @@ mod tests {
         body::Body,
         http::{Request, StatusCode},
     };
+    use cloud::test_cloud_state;
     use dto::{
         ParseFormat, ParseRequest, RenderPdfRequest, RenderPreviewRequest, TemplateInfo,
         ValidationResponse,
     };
     use error::ApiError;
     use routes::sanitize_static_path;
+    use routes::version::VersionResponse;
     use rustume_schema::ResumeData;
     use tower::ServiceExt;
 
@@ -80,6 +84,132 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_version() {
+        let app = create_router();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/version")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get("content-type").unwrap(),
+            "application/json"
+        );
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let payload: VersionResponse = serde_json::from_slice(&body).unwrap();
+
+        assert_eq!(payload.version, env!("CARGO_PKG_VERSION"));
+    }
+
+    /// A test build carries no Docker build args, so the endpoint must still
+    /// answer — reporting `null` for the metadata it does not have.
+    #[tokio::test]
+    async fn test_version_without_build_metadata_reports_null() {
+        let app = create_router();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/version")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let payload: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        // Both keys are always present; a build without metadata reports null
+        // rather than an empty string, and never panics for lacking it.
+        assert!(payload.get("commit").is_some());
+        assert!(payload.get("built_at").is_some());
+
+        if option_env!("RUSTUME_GIT_COMMIT").is_none() {
+            assert!(payload["commit"].is_null());
+        } else {
+            assert!(payload["commit"]
+                .as_str()
+                .is_some_and(|commit| !commit.is_empty()));
+        }
+
+        if option_env!("RUSTUME_BUILD_TIME").is_none() {
+            assert!(payload["built_at"].is_null());
+        } else {
+            assert!(payload["built_at"]
+                .as_str()
+                .is_some_and(|built_at| !built_at.is_empty()));
+        }
+    }
+
+    /// Guards route precedence: `/version` must be served by the server route,
+    /// not swallowed by the SPA catch-all fallback that serves `index.html`.
+    #[tokio::test]
+    async fn test_version_is_not_served_by_spa_fallback() {
+        let tmp = tempfile::tempdir().unwrap();
+        let spa_marker = "<html><body>rustume-spa-fallback</body></html>";
+        std::fs::write(tmp.path().join("index.html"), spa_marker).unwrap();
+        let app = create_router_with_static_dir(tmp.path().to_path_buf());
+
+        // Sanity-check the fixture: an unknown path *does* get the SPA shell.
+        let fallback = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/some-client-route")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let fallback_body = axum::body::to_bytes(fallback.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        assert_eq!(std::str::from_utf8(&fallback_body).unwrap(), spa_marker);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/version")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get("content-type").unwrap(),
+            "application/json"
+        );
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let text = std::str::from_utf8(&body).unwrap();
+
+        assert!(!text.contains("rustume-spa-fallback"));
+        assert!(!text.contains("<html"));
+
+        let payload: VersionResponse = serde_json::from_str(text).unwrap();
+        assert_eq!(payload.version, env!("CARGO_PKG_VERSION"));
     }
 
     #[tokio::test]
@@ -425,6 +555,7 @@ mod tests {
         assert_eq!(spec["info"]["title"], "Rustume API");
         assert_eq!(spec["info"]["version"], env!("CARGO_PKG_VERSION"));
         assert!(spec["paths"].as_object().unwrap().contains_key("/health"));
+        assert!(spec["paths"].as_object().unwrap().contains_key("/version"));
         assert!(spec["paths"]
             .as_object()
             .unwrap()
@@ -736,30 +867,6 @@ mod tests {
         );
     }
 
-    fn test_cloud_state() -> std::sync::Arc<cloud::CloudState> {
-        use auth::{session::SessionService, workos::WorkOsClient};
-        use email::EmailService;
-        use sqlx::postgres::PgPoolOptions;
-
-        let pool = PgPoolOptions::new()
-            .connect_lazy("postgres://localhost/rustume_test")
-            .expect("lazy pool");
-        std::sync::Arc::new(cloud::CloudState {
-            db: pool.clone(),
-            workos: WorkOsClient::new("client_test".to_string(), "api_key_test".to_string()),
-            sessions: SessionService::new(
-                pool,
-                "test-session-secret-at-least-32-chars".to_string(),
-                false,
-            ),
-            workos_redirect_uri: "http://localhost/auth/callback".to_string(),
-            email: Some(EmailService::new(
-                "re_test_key".to_string(),
-                "noreply@rustume.com".to_string(),
-            )),
-        })
-    }
-
     fn sample_render_pdf_request() -> RenderPdfRequest {
         RenderPdfRequest {
             resume: serde_json::to_value(ResumeData::default()).unwrap(),
@@ -767,8 +874,12 @@ mod tests {
         }
     }
 
+    /// Cloud mode gates billable routes on cloud presence, not on a flag, so a
+    /// state that advertises `require_auth: false` still rejects anonymous
+    /// requests. This pins the removal of `RUSTUME_REQUIRE_AUTH`: no
+    /// configuration can re-open a cloud deployment.
     #[tokio::test]
-    async fn test_render_pdf_anonymous_ok_when_require_auth_disabled() {
+    async fn test_render_pdf_anonymous_401_on_cloud_even_when_flag_is_off() {
         let state = state::AppState::with_require_auth(
             std::sync::Arc::new(routes::static_dir()),
             Some(test_cloud_state()),
@@ -790,11 +901,15 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
 
+    // Self-hosted deployments have no accounts and stay open anonymously:
+    // covered by `test_render_pdf` and `test_templates`, which build a
+    // `create_router()` (cloud-less) app and assert 200.
+
     #[tokio::test]
-    async fn test_render_pdf_anonymous_401_when_require_auth_enabled() {
+    async fn test_render_pdf_anonymous_401_on_cloud() {
         let state = state::AppState::with_require_auth(
             std::sync::Arc::new(routes::static_dir()),
             Some(test_cloud_state()),
@@ -820,7 +935,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_templates_anonymous_401_when_require_auth_enabled() {
+    async fn test_templates_anonymous_401_on_cloud() {
         let state = state::AppState::with_require_auth(
             std::sync::Arc::new(routes::static_dir()),
             Some(test_cloud_state()),
@@ -842,7 +957,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_resumes_anonymous_401_when_require_auth_enabled() {
+    async fn test_resumes_anonymous_401_on_cloud() {
         let state = state::AppState::with_require_auth(
             std::sync::Arc::new(routes::static_dir()),
             Some(test_cloud_state()),
@@ -904,6 +1019,28 @@ mod tests {
                 .oneshot(
                     Request::builder()
                         .uri("/health")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::OK);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_self_hosted_version_has_no_rate_limit() {
+        let app = create_router();
+        let default_health_quota = config::RateLimitConfig::default().health_per_min;
+        let request_count = default_health_quota as usize + 1;
+
+        for _ in 0..request_count {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri("/version")
                         .body(Body::empty())
                         .unwrap(),
                 )
@@ -1006,5 +1143,39 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn test_delete_account_unauthenticated_not_rate_limited() {
+        let config = config::RateLimitConfig {
+            account_delete_per_min: 2,
+            ..Default::default()
+        };
+
+        let state = state::AppState::with_options(
+            std::sync::Arc::new(routes::static_dir()),
+            Some(test_cloud_state()),
+            true,
+            config,
+        );
+        let app = create_router_with_state(state);
+        let body = r#"{"confirmation":"DELETE"}"#;
+
+        for _ in 0..5 {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method("DELETE")
+                        .uri("/api/account")
+                        .header("content-type", "application/json")
+                        .body(Body::from(body))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        }
     }
 }

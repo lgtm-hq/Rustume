@@ -2,6 +2,8 @@ import { For, Show } from "solid-js";
 import { resumeStore, type LayoutSectionKey } from "../../stores/resume";
 import { SECTIONS } from "./constants";
 
+const hasText = (value: unknown): boolean => typeof value === "string" && value.trim() !== "";
+
 export function SectionList() {
   const { store, toggleSectionVisibility, addCustomSection } = resumeStore;
 
@@ -14,6 +16,14 @@ export function SectionList() {
   const getItemCount = (key: LayoutSectionKey): number => {
     if (!store.resume) return 0;
     if (key === "summary") return store.resume.sections.summary.content ? 1 : 0;
+    if (key === "coverLetter") {
+      const coverLetter = store.resume.sections.coverLetter;
+      const recipient = coverLetter.recipient;
+      const recipientValues =
+        recipient && typeof recipient === "object" ? Object.values(recipient) : [];
+      const hasRecipient = recipientValues.some(hasText);
+      return hasText(coverLetter.content) || hasRecipient ? 1 : 0;
+    }
     if (key === "custom") {
       return Object.values(store.resume.sections.custom).reduce(
         (total, section) => total + section.items.length,
@@ -37,7 +47,13 @@ export function SectionList() {
       {/* Header */}
       <div class="flex items-center gap-3 pb-4 border-b border-border">
         <div class="w-10 h-10 bg-accent/10 rounded-lg flex items-center justify-center">
-          <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            class="w-5 h-5 text-accent"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -89,6 +105,7 @@ export function SectionList() {
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
+                  aria-hidden="true"
                 >
                   <path
                     stroke-linecap="round"
@@ -108,6 +125,7 @@ export function SectionList() {
               <div
                 role="switch"
                 aria-checked={isVisible(section.key)}
+                aria-label={`Show ${section.name} section`}
                 tabIndex={0}
                 class={`w-8 h-5 rounded-full transition-colors relative cursor-pointer ${
                   isVisible(section.key) ? "bg-accent" : "bg-border"

@@ -10,6 +10,7 @@
   let primary-color = rgb(data.metadata.theme.at("primary", default: "#65a30d"))
   let text-color = rgb(data.metadata.theme.at("text", default: "#000000"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
+  let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
   let muted-color = rgb("#6b7280")
 
@@ -35,8 +36,14 @@
   }
 
   let skill-bar(level) = {
-    h(4pt)
-    rating-indicators(level, 8pt, 8pt, primary-color, bg-color.darken(10%), 2pt, 2pt)
+    let level = clamp-level(level)
+    if level-display == "template-default" {
+      h(4pt)
+      rating-indicators(level, 8pt, 8pt, primary-color, bg-color.darken(10%), 2pt, 2pt)
+    } else if should-render-level(level, level-display) {
+      h(4pt)
+      render-level(level, level-display, primary-color, bg-color.darken(10%), width: 8pt, height: 8pt)
+    }
   }
 
   let render-experience(item) = {
@@ -128,12 +135,14 @@
   let render-profile(item) = {
     if item.visible == false { return }
 
-    if has-url(item) {
-      let label = if item.username != "" { item.username } else { item.url.href }
-      link(item.url.href)[#label]
-    } else {
-      [#item.network: #item.username]
-    }
+    render-profile-entry(
+      data,
+      item,
+      size: 10pt,
+      fill: text-color,
+      link-fill: primary-color,
+      label-mode: if has-url(item) { "username" } else { "network-username" },
+    )
     v(4pt)
   }
 
@@ -345,39 +354,61 @@
     justify: true,
   )
 
-  // Header - horizontal layout
-  grid(
-    columns: (1fr, auto),
-    column-gutter: 16pt,
-    [
-      #text(size: 24pt, weight: "bold")[#data.basics.name]
+  render-cover-letter-page(data, section-heading, muted: muted-color)
 
-      #if data.basics.headline != "" {
-        v(4pt)
-        text(size: 12pt)[#data.basics.headline]
-      }
-    ],
-    align(right)[
-      #let contact-items = ()
-      #if data.basics.location != "" { contact-items = contact-items + (data.basics.location,) }
-      #if data.basics.phone != "" { contact-items = contact-items + (data.basics.phone,) }
-      #if data.basics.email != "" { contact-items = contact-items + (data.basics.email,) }
-      #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#data.basics.url.href],) }
+  if has-resume-body(data) {
+    // Header - horizontal layout with picture area
+    grid(
+      columns: (1fr, auto),
+      column-gutter: 16pt,
+      [
+        #if has-visible-picture(data.basics) {
+          grid(
+            columns: (auto, 1fr),
+            column-gutter: 12pt,
+            align(horizon)[
+              #render-picture(data.basics, primary-color)
+            ],
+            [
+              #text(size: 24pt, weight: "bold")[#data.basics.name]
 
-      #for item in contact-items {
-        text(size: 9pt)[#item]
-        v(2pt)
-      }
-    ]
-  )
+              #if data.basics.headline != "" {
+                v(4pt)
+                text(size: 12pt)[#data.basics.headline]
+              }
+            ]
+          )
+        } else {
+          text(size: 24pt, weight: "bold")[#data.basics.name]
 
-  v(8pt)
-  line(length: 100%, stroke: 0.5pt + primary-color)
-  v(8pt)
+          if data.basics.headline != "" {
+            v(4pt)
+            text(size: 12pt)[#data.basics.headline]
+          }
+        }
+      ],
+      align(right)[
+        #let contact-items = ()
+        #if data.basics.location != "" { contact-items = contact-items + (data.basics.location,) }
+        #if data.basics.phone != "" { contact-items = contact-items + (data.basics.phone,) }
+        #if data.basics.email != "" { contact-items = contact-items + (data.basics.email,) }
+        #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#url-display-label(data.basics.url)],) }
 
-  render-resume(data, (
-    layout: "single",
-    renderers: renderers,
-    heading: section-heading,
-  ))
+        #for item in contact-items {
+          text(size: 9pt)[#item]
+          v(2pt)
+        }
+      ]
+    )
+
+    v(8pt)
+    line(length: 100%, stroke: 0.5pt + primary-color)
+    v(8pt)
+
+    render-resume(data, (
+      layout: "single",
+      renderers: renderers,
+      heading: section-heading,
+    ))
+  }
 }

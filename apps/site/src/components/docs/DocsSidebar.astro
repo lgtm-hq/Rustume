@@ -20,8 +20,9 @@ const grouped = CORE_DOC_CATEGORIES.map((key) => ({
 ---
 
 <aside class="docs-sidebar" data-pagefind-ignore>
-  {
-    grouped.map(({ label, docs }) => (
+  <nav aria-label="Documentation">
+    {
+      grouped.map(({ label, docs }) => (
       <div class="sidebar-section">
         <div class="sidebar-section-title">{label}</div>
         {
@@ -36,6 +37,7 @@ const grouped = CORE_DOC_CATEGORIES.map((key) => ({
           ))
         }
       </div>
-    ))
-  }
+      ))
+    }
+  </nav>
 </aside>

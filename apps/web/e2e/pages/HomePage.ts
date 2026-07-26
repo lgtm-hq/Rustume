@@ -2,19 +2,21 @@ import { expect, type Locator } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import BasePage from "./BasePage";
 
-/** Landing page: hero, resume list, and empty state. */
+/** Library landing page: status strip, toolbar, resume list, and empty state. */
 export default class HomePage extends BasePage {
-  readonly heroHeading: Locator;
-  readonly createResumeButton: Locator;
-  readonly resumeListHeading: Locator;
+  readonly library: Locator;
+  readonly statusStrip: Locator;
+  readonly libraryToolbar: Locator;
+  readonly newResumeButton: Locator;
   readonly emptyStateHeading: Locator;
 
   constructor(page: Page) {
     super(page);
-    this.heroHeading = page.getByRole("heading", { name: /Build your resume/ });
-    this.createResumeButton = page.getByRole("button", { name: "Create New Resume" });
-    this.resumeListHeading = page.getByRole("heading", { name: "Your Resumes" });
-    this.emptyStateHeading = page.getByRole("heading", { name: "No resumes yet" });
+    this.library = page.getByTestId("home-library");
+    this.statusStrip = page.getByTestId("home-status-strip");
+    this.libraryToolbar = page.getByRole("toolbar", { name: "Resume library tools" });
+    this.newResumeButton = page.getByRole("button", { name: "New resume" });
+    this.emptyStateHeading = page.getByRole("heading", { name: "Your library is empty" });
   }
 
   async open(): Promise<void> {
@@ -22,8 +24,8 @@ export default class HomePage extends BasePage {
   }
 
   async assertLoaded(): Promise<void> {
-    await expect(this.heroHeading).toBeVisible();
-    await expect(this.resumeListHeading).toBeVisible();
+    await expect(this.statusStrip).toBeVisible();
+    await expect(this.libraryToolbar).toBeVisible();
   }
 
   async assertEmptyState(): Promise<void> {
@@ -36,6 +38,6 @@ export default class HomePage extends BasePage {
   }
 
   async createResume(): Promise<void> {
-    await this.createResumeButton.click();
+    await this.newResumeButton.click();
   }
 }

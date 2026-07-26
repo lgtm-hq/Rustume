@@ -1,13 +1,22 @@
 import { createStore, produce } from "solid-js/store";
 import { batch } from "solid-js";
 import { toast } from "../components/ui";
-import type { ResumeData, Basics, Sections, Metadata, Section, CustomItem } from "../wasm/types";
+import type {
+  ResumeData,
+  Basics,
+  Sections,
+  Metadata,
+  Picture,
+  Section,
+  CustomItem,
+  CoverLetterRecipient,
+} from "../wasm/types";
 import {
   createEmptyResume,
   createEmptyPicture,
   saveResume as saveToWasmStorage,
   getResume as getFromWasmStorage,
-  isWasmReady,
+  ensureWasmReady,
 } from "../wasm";
 import {
   isCloudAuthenticated,
@@ -17,6 +26,16 @@ import {
   saveCloudResume,
   showResumeVersionConflictToast,
 } from "./cloudStorage";
+import { setUndoRecorder, recordUndo } from "./editorUndo";
+import { saveSnapshot } from "./versionHistory";
+import {
+  clearUndoHistory,
+  noteResumeChanged,
+  pushUndoSnapshot,
+  redoResume,
+  syncUndoAnchor,
+  undoResume,
+} from "./undoHistory";
 
 /** Thrown when the requested resume does not exist in storage. */
 export class ResumeNotFoundError extends Error {
@@ -73,7 +92,10 @@ export function isNotFoundError(error: unknown): boolean {
   return false;
 }
 
-export const FIXED_LAYOUT_SECTION_KEYS: (keyof Omit<Sections, "summary" | "custom">)[] = [
+export const FIXED_LAYOUT_SECTION_KEYS: (keyof Omit<
+  Sections,
+  "summary" | "custom" | "coverLetter"
+>)[] = [
   "experience",
   "education",
   "skills",
@@ -87,7 +109,11 @@ export const FIXED_LAYOUT_SECTION_KEYS: (keyof Omit<Sections, "summary" | "custo
   "volunteer",
   "references",
 ];
-const FIXED_LAYOUT_SECTION_KEY_SET = new Set<string>(["summary", ...FIXED_LAYOUT_SECTION_KEYS]);
+const FIXED_LAYOUT_SECTION_KEY_SET = new Set<string>([
+  "summary",
+  "coverLetter",
+  ...FIXED_LAYOUT_SECTION_KEYS,
+]);
 
 function uniqueLayoutIds(ids: string[]): string[] {
   const seen = new Set<string>();
@@ -174,10 +200,42 @@ export function isResumeEmpty(resume: ResumeData): boolean {
   return true;
 }
 
+function ensureCoverLetterSection(resume: ResumeData): void {
+  if (!resume.sections.coverLetter) {
+    resume.sections.coverLetter = {
+      id: "coverLetter",
+      name: "Cover Letter",
+      visible: false,
+      recipient: {
+        name: "",
+        title: "",
+        company: "",
+        address: "",
+        email: "",
+      },
+      content: "",
+    };
+  }
+}
+
 function normalizeResumeForStore(resume: ResumeData): ResumeData {
   if (!resume.basics.picture) {
     resume.basics.picture = createEmptyPicture();
   }
+
+  // Backfill effect fields missing from resumes persisted before rotation/border/shadow
+  // effects existed. Defaults must match the Rust serde defaults in crates/schema/src/basics.rs.
+  const effects: Partial<Picture["effects"]> = resume.basics.picture.effects ?? {};
+  resume.basics.picture.effects = {
+    hidden: effects.hidden ?? false,
+    border: effects.border ?? false,
+    grayscale: effects.grayscale ?? false,
+    rotation: effects.rotation ?? 0,
+    borderColor: effects.borderColor ?? "",
+    borderWidth: effects.borderWidth ?? 2,
+    shadowColor: effects.shadowColor ?? "#00000040",
+    shadowSize: effects.shadowSize ?? 0,
+  };
 
   if (
     typeof resume.sections.custom !== "object" ||
@@ -189,11 +247,18 @@ function normalizeResumeForStore(resume: ResumeData): ResumeData {
   if (!Array.isArray(resume.metadata.layout)) {
     resume.metadata.layout = [];
   }
+  ensureCoverLetterSection(resume);
 
   const customIds = Object.keys(resume.sections.custom);
   if (resume.metadata.layout.length === 0) {
-    if (customIds.length === 0) return resume;
-    resume.metadata.layout = [[["summary", ...FIXED_LAYOUT_SECTION_KEYS, ...customIds]]];
+    const shouldSeedEmptyLayout =
+      customIds.length > 0 ||
+      (resume.sections.coverLetter != null && resume.sections.coverLetter.visible);
+    if (!shouldSeedEmptyLayout) return resume;
+    ensureCoverLetterSection(resume);
+    resume.metadata.layout = [
+      [["summary", "coverLetter", ...FIXED_LAYOUT_SECTION_KEYS, ...customIds]],
+    ];
     return resume;
   }
 
@@ -231,7 +296,7 @@ const STORAGE_KEY_PREFIX = "rustume:";
 function saveToLocalStorage(id: string, data: ResumeData): void {
   localStorage.setItem(STORAGE_KEY_PREFIX + id, JSON.stringify(data));
   // Also update the list of resume IDs
-  let ids: string[] = [];
+  let ids: string[];
   try {
     ids = JSON.parse(localStorage.getItem(STORAGE_KEY_PREFIX + "_ids") || "[]") as string[];
   } catch {
@@ -263,8 +328,10 @@ async function saveResume(id: string, data: ResumeData): Promise<void> {
     await saveCloudResume(id, data);
     return;
   }
-  if (isWasmReady()) {
-    return saveToWasmStorage(id, data);
+  // Wait for WASM so we don't write to localStorage while IndexedDB is the real store.
+  if (await ensureWasmReady()) {
+    await saveToWasmStorage(id, data);
+    return;
   }
   saveToLocalStorage(id, data);
 }
@@ -273,14 +340,14 @@ async function getResume(id: string): Promise<ResumeData> {
   if (isCloudAuthenticated()) {
     return loadCloudResume(id);
   }
-  if (isWasmReady()) {
+  if (await ensureWasmReady()) {
     return getFromWasmStorage(id);
   }
   return getFromLocalStorage(id);
 }
 
-export type SectionKey = keyof Omit<Sections, "summary" | "custom">;
-export type LayoutSectionKey = SectionKey | "summary" | "custom";
+export type SectionKey = keyof Omit<Sections, "summary" | "coverLetter" | "custom">;
+export type LayoutSectionKey = SectionKey | "summary" | "coverLetter" | "custom";
 export type CustomSectionKey = `custom:${string}`;
 
 function createCustomSection(name: string): Section<CustomItem> {
@@ -324,7 +391,19 @@ async function persistResume() {
   setStore("error", null);
 
   try {
-    await saveResume(store.id, store.resume);
+    const id = store.id;
+    const resume = store.resume;
+    await saveResume(id, resume);
+    if (!isCloudAuthenticated()) {
+      void saveSnapshot(id, resume);
+    }
+    // Keep home-list metadata/timestamps in sync (dynamic import avoids a cycle).
+    try {
+      const { notifyResumeSaved } = await import("./persistence");
+      notifyResumeSaved(id, resume);
+    } catch (metaErr) {
+      console.error("Failed to update resume list metadata:", metaErr);
+    }
     batch(() => {
       setStore("isDirty", false);
       setStore("lastSaved", new Date());
@@ -354,9 +433,25 @@ function scheduleSave() {
 
 // Mark as dirty and schedule save
 function markDirty() {
+  noteResumeChanged(store.resume);
   setStore("isDirty", true);
   scheduleSave();
 }
+
+function applyHistoryResume(data: ResumeData): void {
+  const clone = normalizeResumeForStore(JSON.parse(JSON.stringify(data)) as ResumeData);
+  batch(() => {
+    setStore("resume", clone);
+    setStore("isDirty", true);
+    setStore("error", null);
+  });
+  scheduleSave();
+}
+
+// Wire version-history revert into the in-session undo stack.
+setUndoRecorder((previous) => {
+  pushUndoSnapshot(previous);
+});
 
 // Public API
 export function useResumeStore() {
@@ -372,6 +467,7 @@ export function useResumeStore() {
           setStore("isDirty", false);
           setStore("error", null);
         });
+        clearUndoHistory(resume);
       } catch (e) {
         setStore("error", e instanceof Error ? e.message : "Failed to load");
         throw e; // Re-throw so caller can handle (e.g., create new resume)
@@ -386,6 +482,7 @@ export function useResumeStore() {
         setStore("isDirty", true);
         setStore("error", null);
       });
+      clearUndoHistory(resume);
       scheduleSave();
     },
 
@@ -413,6 +510,35 @@ export function useResumeStore() {
       markDirty();
     },
 
+    // Cover letter content
+    updateCoverLetter(content: string) {
+      setStore(
+        produce((s) => {
+          if (s.resume) {
+            ensureCoverLetterSection(s.resume);
+            s.resume.sections.coverLetter.content = content;
+          }
+        }),
+      );
+      markDirty();
+    },
+
+    // Cover letter recipient fields
+    updateCoverLetterRecipient<K extends keyof CoverLetterRecipient>(
+      field: K,
+      value: CoverLetterRecipient[K],
+    ) {
+      setStore(
+        produce((s) => {
+          if (s.resume) {
+            ensureCoverLetterSection(s.resume);
+            s.resume.sections.coverLetter.recipient[field] = value;
+          }
+        }),
+      );
+      markDirty();
+    },
+
     // Section visibility
     toggleSectionVisibility(sectionKey: LayoutSectionKey) {
       setStore(
@@ -420,6 +546,8 @@ export function useResumeStore() {
           if (s.resume) {
             if (sectionKey === "summary") {
               s.resume.sections.summary.visible = !s.resume.sections.summary.visible;
+            } else if (sectionKey === "coverLetter") {
+              s.resume.sections.coverLetter.visible = !s.resume.sections.coverLetter.visible;
             } else if (sectionKey === "custom") {
               const sections = Object.values(s.resume.sections.custom);
               const nextVisible = !sections.some((section) => section.visible);
@@ -499,7 +627,10 @@ export function useResumeStore() {
 
           s.resume.sections.custom[section.id] = section;
           if (s.resume.metadata.layout.length === 0) {
-            s.resume.metadata.layout = [[["summary", ...FIXED_LAYOUT_SECTION_KEYS, section.id]]];
+            ensureCoverLetterSection(s.resume);
+            s.resume.metadata.layout = [
+              [["summary", "coverLetter", ...FIXED_LAYOUT_SECTION_KEYS, section.id]],
+            ];
             return;
           }
 
@@ -633,7 +764,7 @@ export function useResumeStore() {
       markDirty();
     },
 
-    // Import resume data
+    // Import resume data into the currently open resume id.
     importResume(data: ResumeData) {
       // Deep clone so Solid store owns a plain tree (imported objects may be frozen / aliased).
       const clone = normalizeResumeForStore(JSON.parse(JSON.stringify(data)) as ResumeData);
@@ -645,10 +776,79 @@ export function useResumeStore() {
       scheduleSave();
     },
 
-    // Force save
-    async forceSave() {
+    /** Import as a brand-new resume (e.g. from the Home screen) and persist under `id`. */
+    createFromImport(id: string, data: ResumeData) {
+      const clone = normalizeResumeForStore(JSON.parse(JSON.stringify(data)) as ResumeData);
+      batch(() => {
+        setStore("resume", clone);
+        setStore("id", id);
+        setStore("isDirty", true);
+        setStore("error", null);
+      });
+      clearUndoHistory(clone);
+      scheduleSave();
+    },
+
+    /**
+     * Restore a prior editor session after a failed createFromImport + forceSave.
+     * Cancels any pending autosave so the rolled-back state is not overwritten.
+     */
+    restoreSession(snapshot: { id: string | null; resume: ResumeData | null; isDirty: boolean }) {
+      if (saveTimer) clearTimeout(saveTimer);
+      batch(() => {
+        setStore("id", snapshot.id);
+        setStore("resume", snapshot.resume);
+        setStore("isDirty", snapshot.isDirty);
+        setStore("error", null);
+      });
+    },
+
+    /** Replace the current resume with a historical snapshot (local mode revert). */
+    revertToSnapshot(data: ResumeData) {
+      recordUndo(store.resume);
+      const clone = normalizeResumeForStore(JSON.parse(JSON.stringify(data)) as ResumeData);
+      batch(() => {
+        setStore("resume", clone);
+        setStore("isDirty", true);
+        setStore("error", null);
+      });
+      syncUndoAnchor(clone);
+      scheduleSave();
+    },
+
+    /**
+     * Apply a resume already restored on the server (cloud version restore).
+     * Does not clear undo history or schedule another save.
+     */
+    applyRestoredResume(data: ResumeData) {
+      const clone = normalizeResumeForStore(JSON.parse(JSON.stringify(data)) as ResumeData);
+      batch(() => {
+        setStore("resume", clone);
+        setStore("isDirty", false);
+        setStore("error", null);
+      });
+      syncUndoAnchor(clone);
+    },
+
+    undo() {
+      const previous = undoResume(store.resume);
+      if (!previous) return false;
+      applyHistoryResume(previous);
+      return true;
+    },
+
+    redo() {
+      const next = redoResume(store.resume);
+      if (!next) return false;
+      applyHistoryResume(next);
+      return true;
+    },
+
+    // Force save. Returns true when the in-memory resume is no longer dirty.
+    async forceSave(): Promise<boolean> {
       if (saveTimer) clearTimeout(saveTimer);
       await persistResume();
+      return !store.isDirty;
     },
   };
 }

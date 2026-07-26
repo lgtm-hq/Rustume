@@ -44,6 +44,13 @@ enabled, these identity and persistence settings are required:
 | `RESEND_API_KEY` | Resend API key; required together with `EMAIL_FROM` to enable transactional email |
 | `EMAIL_FROM` | Sender address for outbound mail (for example `noreply@rustume.com`) |
 
+Connected mode always requires authentication. Render, template, resume, and account
+routes return `401` without a valid session, and there is no setting that re-opens them
+anonymously. Run without `RUSTUME_CLOUD` for an open, self-hosted deployment.
+
+`RUSTUME_REQUIRE_AUTH` was removed and is no longer read. Connected deployments that
+previously left it unset served those routes anonymously and will now return `401`.
+
 Set `TRUSTED_PROXY=true` only when the server is behind a trusted proxy and may rely on
 `X-Forwarded-For` when calling WorkOS. The same flag enables `X-Real-IP` and append-mode
 `X-Forwarded-For` for rate-limit key extraction — see [Rate
