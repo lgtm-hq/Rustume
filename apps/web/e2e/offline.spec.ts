@@ -2,9 +2,9 @@ import { test, expect } from "./support/fixtures";
 
 const FULL_NAME = "Ada Lovelace";
 const OFFLINE_EDIT = "Ada Lovelace, Countess";
-/** The list title derives from the typed name at whichever save resolved it,
- *  or stays at the placeholder when the first save preceded WASM readiness. */
-const TITLE_PATTERN = /^(Ada Lovelace(, Countess)?|Untitled Resume)$/;
+/** The list title is derived once, on the creating save, and is sticky after —
+ *  a resume created empty keeps the placeholder however the basics change. */
+const LISTED_TITLE = "Untitled Resume";
 
 test.describe("offline behavior", () => {
   test("edits made offline are saved locally and survive reconnect + reload", async ({
@@ -29,8 +29,8 @@ test.describe("offline behavior", () => {
     // Client-side navigation still works offline and lists the saved resume.
     await builderPage.goHome();
     await homePage.assertLoaded();
-    await homePage.assertResumeListed(TITLE_PATTERN);
-    await homePage.openResume(TITLE_PATTERN);
+    await homePage.assertResumeListed(LISTED_TITLE);
+    await homePage.openResume(LISTED_TITLE);
     await builderPage.assertEditorOpen();
 
     // Back online: a full reload serves the state persisted while offline.

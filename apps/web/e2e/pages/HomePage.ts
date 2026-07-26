@@ -3,16 +3,17 @@ import type { Page } from "@playwright/test";
 import BasePage from "./BasePage";
 
 /**
- * Home ("library") page: scope rail, library toolbar, and the resume cards.
+ * Library landing page: status strip, scope rail, toolbar, and resume cards.
  *
  * The library renders one of three layouts (list / grid / gallery). A fresh
  * browser context has no stored preference, so these tests always see the
  * Grid default; every locator below is layout-agnostic regardless.
  */
 export default class HomePage extends BasePage {
-  /** Always-present library toolbar — the "library shell rendered" anchor. */
+  readonly library: Locator;
+  readonly statusStrip: Locator;
   readonly libraryToolbar: Locator;
-  readonly createResumeButton: Locator;
+  readonly newResumeButton: Locator;
   readonly importResumeButton: Locator;
   readonly searchInput: Locator;
   readonly emptyStateHeading: Locator;
@@ -23,10 +24,12 @@ export default class HomePage extends BasePage {
 
   constructor(page: Page) {
     super(page);
+    this.library = page.getByTestId("home-library");
+    this.statusStrip = page.getByTestId("home-status-strip");
     this.libraryToolbar = page.getByRole("toolbar", { name: "Resume library tools" });
-    // Exact: the empty state offers a separate "Create Resume" button, and the
-    // command palette lists a "New resume" action.
-    this.createResumeButton = this.libraryToolbar.getByRole("button", {
+    // Scoped and exact: the empty state offers a separate "Create Resume"
+    // button, and the command palette lists a "New resume" action.
+    this.newResumeButton = this.libraryToolbar.getByRole("button", {
       name: "New resume",
       exact: true,
     });
@@ -47,8 +50,9 @@ export default class HomePage extends BasePage {
   }
 
   async assertLoaded(): Promise<void> {
+    await expect(this.statusStrip).toBeVisible();
     await expect(this.libraryToolbar).toBeVisible();
-    await expect(this.createResumeButton).toBeEnabled();
+    await expect(this.newResumeButton).toBeEnabled();
   }
 
   async assertEmptyState(): Promise<void> {
@@ -70,7 +74,7 @@ export default class HomePage extends BasePage {
   }
 
   async createResume(): Promise<void> {
-    await this.createResumeButton.click();
+    await this.newResumeButton.click();
   }
 
   /** Open the scope rail (folders, tags, storage) if it is not already shown. */

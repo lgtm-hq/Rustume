@@ -1,6 +1,12 @@
 import { test } from "./support/fixtures";
 
 const FULL_NAME = "Ada Lovelace";
+/**
+ * The list title is derived once, on the save that created the resume, and is
+ * sticky afterwards so an explicit rename survives later edits — a resume
+ * created empty therefore keeps the placeholder even after basics.name is set.
+ */
+const LISTED_TITLE = "Untitled Resume";
 
 /** Sidebar tab label → section editor title, for every list section type. */
 const SECTIONS = [
@@ -93,13 +99,12 @@ test.describe("resume CRUD", () => {
 
     await builderPage.goHome();
     await homePage.assertLoaded();
-    const listedTitle = new RegExp(`^(${FULL_NAME}|Untitled Resume)$`);
-    await homePage.assertResumeListed(listedTitle);
+    await homePage.assertResumeListed(LISTED_TITLE);
 
-    await homePage.renameResume(listedTitle, "Dream Job 2026");
+    await homePage.renameResume(LISTED_TITLE, "Dream Job 2026");
     await homePage.assertResumeListed("Dream Job 2026");
-    // The old title (whichever variant was shown) is gone from the list.
-    await homePage.assertResumeNotListed(listedTitle);
+    // The placeholder title is gone from the list.
+    await homePage.assertResumeNotListed(LISTED_TITLE);
   });
 
   test("duplicates a resume from the home list", async ({ builderPage, homePage }) => {
@@ -108,23 +113,21 @@ test.describe("resume CRUD", () => {
 
     await builderPage.goHome();
     await homePage.assertLoaded();
-    const listedTitle = new RegExp(`^(${FULL_NAME}|Untitled Resume)$`);
-    await homePage.duplicateResume(listedTitle);
+    await homePage.duplicateResume(LISTED_TITLE);
     await homePage.assertResumeCount(2);
   });
 
   test("delete asks for confirmation and removes the resume", async ({ builderPage, homePage }) => {
     await builderPage.goHome();
     await homePage.assertLoaded();
-    const listedTitle = /Untitled Resume/;
-    await homePage.assertResumeListed(listedTitle);
+    await homePage.assertResumeListed(LISTED_TITLE);
 
     // Dismissing the confirmation keeps the resume.
-    await homePage.deleteResume(listedTitle, false);
-    await homePage.assertResumeListed(listedTitle);
+    await homePage.deleteResume(LISTED_TITLE, false);
+    await homePage.assertResumeListed(LISTED_TITLE);
 
     // Accepting it deletes the resume and restores the empty state.
-    await homePage.deleteResume(listedTitle, true);
+    await homePage.deleteResume(LISTED_TITLE, true);
     await homePage.assertEmptyState();
   });
 });

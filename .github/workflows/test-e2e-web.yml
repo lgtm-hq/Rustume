@@ -1,15 +1,19 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 ---
 name: Test - Web E2E
-# Runs the Playwright suites for the web app (apps/web/e2e): smoke, per-flow
-# E2E (CRUD, templates, export, import, offline), visual regression, and
-# accessibility — all in one lgtm-ci reusable-test-e2e-playwright call.
+# Playwright suites for the web app (apps/web/e2e) — smoke, per-flow E2E
+# (CRUD, templates, export, import, offline), visual regression, and
+# accessibility — via lgtm-ci's reusable-test-e2e-playwright. The reusable owns
+# bun install, the Chromium download/cache, the report artifact, and the PR
+# summary comment; it knows nothing about Rust, so the wasm32 target,
+# wasm-pack, the WASM build, and the production bundle are done by the
+# test-command script below.
 #
-# One call, not one per suite: every suite needs the same WASM + bundle build
-# (scripts/ci/testing/web/e2e.sh), and sibling calls are separate jobs that
-# cannot share it, so splitting would rebuild the WASM module per suite for no
-# extra signal. The Playwright config already isolates visual regression in its
-# own project so it can opt out of retries.
+# One call, not one per suite: every suite needs that same WASM + bundle build,
+# and sibling calls are separate jobs that cannot share it, so splitting would
+# rebuild the WASM module per suite for no extra signal. playwright.config.ts
+# already isolates visual regression in its own project so it can opt out of
+# retries.
 #
 # Visual baselines live in apps/web/e2e/__screenshots__ and are generated on
 # this runner (Linux) — on baseline changes, download the Playwright report
@@ -31,27 +35,18 @@ name: Test - Web E2E
       - '.github/workflows/test-e2e-web.yml'
   pull_request:
     branches: [main]
-    paths:
-      - 'apps/web/**'
-      - 'bindings/wasm/**'
-      - 'crates/schema/**'
-      - 'crates/parser/**'
-      - 'crates/storage/**'
-      - 'crates/utils/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'scripts/ci/testing/web/**'
-      - '.github/workflows/test-e2e-web.yml'
+  merge_group:
   workflow_dispatch:
 
-permissions: {}
+permissions:
+  contents: read
 
 concurrency:
   group: test-e2e-web-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  playwright-e2e:
+  web-e2e:
     # yamllint disable-line rule:line-length
     uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-e2e-playwright.yml@240daf3ed1f7475b3f322502035b15994be210a8 # v0.59.16
     permissions:
@@ -64,45 +59,40 @@ jobs:
       working-directory: apps/web
       package-manager: bun
       browsers: chromium
-      # The reusable installs deps and browsers; this script adds what it does
-      # not cover (wasm32 target, wasm-pack, WASM + bundle builds) and forwards
-      # the reusable's appended --project/--grep/--reporter arguments.
+      # playwright.config.ts already resolves to chromium-only under CI, so no
+      # --project filter is passed.
       test-command: bash ../../scripts/ci/testing/web/e2e.sh
       upload-report: true
-      report-artifact-name: playwright-report-web-e2e
       publish-test-summary: true
       comment-marker: web-e2e-report
       draft-pr-skip: true
       egress-policy: block
-      # Spelled out in full, not `egress-preset: playwright` + append: the
-      # reusable's harden-runner pre-hook runs at job start and enforces
-      # `allowed-endpoints` verbatim (replace semantics), so a non-empty value
-      # here is the whole policy. The first block mirrors lgtm-ci's playwright
-      # preset (scripts/ci/lib/egress/presets.sh) — keep it in sync — and the
-      # rest is what this job needs on top: Playwright CDN fallbacks, the
-      # Azure/ESM Ubuntu mirrors GitHub-hosted runners actually use, the
-      # Actions cache/artifact backends, and the Rust + wasm-pack build.
+      # The reusable's harden-runner step consumes `allowed-endpoints`
+      # verbatim, so `egress-preset: playwright` cannot be extended via
+      # `allowed-endpoints-mode: append` here — the full list is spelled out
+      # instead. It is the lgtm-ci `playwright` preset (cdn.playwright.dev and
+      # friends included) plus what the Rust/WASM build stage needs.
       allowed-endpoints: >-
         github.com:443
         api.github.com:443
         codeload.github.com:443
         objects.githubusercontent.com:443
         raw.githubusercontent.com:443
+        release-assets.githubusercontent.com:443
         pipelines.actions.githubusercontent.com:443
+        results-receiver.actions.githubusercontent.com:443
+        *.blob.core.windows.net:443
         registry.npmjs.org:443
+        nodejs.org:443
         bun.sh:443
         cdn.playwright.dev:443
         playwright.azureedge.net:443
         playwright-akamai.azureedge.net:443
-        archive.ubuntu.com:80
-        security.ubuntu.com:80
-        release-assets.githubusercontent.com:443
-        results-receiver.actions.githubusercontent.com:443
-        *.blob.core.windows.net:443
-        nodejs.org:443
         playwright-verizon.azureedge.net:443
         playwright.download.prss.microsoft.com:443
         storage.googleapis.com:443
+        archive.ubuntu.com:80
+        security.ubuntu.com:80
         azure.archive.ubuntu.com:80
         esm.ubuntu.com:443
         packages.microsoft.com:443

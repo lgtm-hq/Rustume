@@ -31,7 +31,7 @@ export default class BuilderPage extends BasePage {
   }
 
   async assertEditorOpen(): Promise<void> {
-    await this.assertUrl(/\/edit\/[\w-]+/);
+    await this.assertUrl(/\/edit\/[\w-]+$/);
     await expect(this.basicsHeading).toBeVisible();
   }
 

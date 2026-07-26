@@ -66,9 +66,10 @@ test.describe("smoke", () => {
     // client-side so the already-initialized WASM storage serves the list.
     await builderPage.goHome();
     await homePage.assertLoaded();
-    // The display title is the typed name when the first auto-save derived
-    // metadata from it, or the placeholder when the very first save ran
-    // before WASM storage finished initializing.
-    await homePage.assertResumeListed(new RegExp(`^(${FULL_NAME}|Untitled Resume)$`));
+    // The list title is derived once, on the save that created the resume,
+    // and is sticky afterwards so an explicit rename survives later edits —
+    // a resume created empty therefore keeps the placeholder title even
+    // after basics.name is filled in.
+    await homePage.assertResumeListed("Untitled Resume");
   });
 });
