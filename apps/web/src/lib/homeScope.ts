@@ -10,7 +10,8 @@ import type { ResumeListItem } from "../stores/persistence";
 export type HomeScope =
   | { readonly kind: "all" }
   | { readonly kind: "locked" }
-  | { readonly kind: "tag"; readonly tag: string };
+  | { readonly kind: "tag"; readonly tag: string }
+  | { readonly kind: "folder"; readonly folder: string };
 
 /** The whole library — the default, and the state every other scope clears to. */
 export const SCOPE_ALL: HomeScope = { kind: "all" };
@@ -23,12 +24,27 @@ export function tagScope(tag: string): HomeScope {
   return { kind: "tag", tag };
 }
 
+/**
+ * Narrow the library to a single folder.
+ *
+ * Folders are mutually exclusive — a resume is in exactly one or none — which is
+ * what separates them from tags rather than a second flavour of the same thing.
+ */
+export function folderScope(folder: string): HomeScope {
+  return { kind: "folder", folder };
+}
+
 /** Structural equality, so a control can tell whether it is the active scope. */
 export function isSameScope(a: HomeScope, b: HomeScope): boolean {
-  if (a.kind === "tag" || b.kind === "tag") {
-    return a.kind === "tag" && b.kind === "tag" && a.tag === b.tag;
+  if (a.kind !== b.kind) return false;
+  switch (a.kind) {
+    case "tag":
+      return a.tag === (b as Extract<HomeScope, { kind: "tag" }>).tag;
+    case "folder":
+      return a.folder === (b as Extract<HomeScope, { kind: "folder" }>).folder;
+    default:
+      return true;
   }
-  return a.kind === b.kind;
 }
 
 /** Whether a resume belongs to the given scope. */
@@ -40,6 +56,8 @@ export function matchesScope(resume: ResumeListItem, scope: HomeScope): boolean 
       return Boolean(resume.locked);
     case "tag":
       return (resume.tags ?? []).includes(scope.tag);
+    case "folder":
+      return resume.folder === scope.folder;
   }
 }
 
@@ -52,5 +70,7 @@ export function scopeLabel(scope: HomeScope): string {
       return "locked";
     case "tag":
       return `#${scope.tag}`;
+    case "folder":
+      return `/${scope.folder}`;
   }
 }

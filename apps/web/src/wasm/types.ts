@@ -286,6 +286,11 @@ export interface Metadata {
   locked?: boolean;
   /** User-defined organization labels (never rendered on the PDF). */
   tags?: string[];
+  /**
+   * Single folder this resume is filed under (never rendered on the PDF).
+   * Mutually exclusive, unlike `tags`; absent means unfiled.
+   */
+  folder?: string;
 }
 
 export interface ResumeData {

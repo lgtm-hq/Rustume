@@ -16,6 +16,7 @@ import {
 } from "../../lib/resumeSort";
 import { getStoredHomeLayout, setStoredHomeLayout, type HomeLayout } from "../../lib/homeLayout";
 import {
+  folderScope,
   isSameScope,
   matchesScope,
   scopeLabel,
@@ -23,6 +24,12 @@ import {
   tagScope,
   type HomeScope,
 } from "../../lib/homeScope";
+import {
+  getStoredFolders,
+  mergeFolderNames,
+  normalizeFolderName,
+  setStoredFolders,
+} from "../../lib/homeFolders";
 import { formatRelativeTime } from "../../lib/formatRelativeTime";
 import { authStore } from "../../stores/auth";
 import {
@@ -55,6 +62,14 @@ export function useHomePage() {
   const [scope, setScopeSignal] = createSignal<HomeScope>(SCOPE_ALL);
   const [tagDrafts, setTagDrafts] = createSignal<Record<string, string>>({});
   const [tagEditorId, setTagEditorId] = createSignal<string | null>(null);
+  // Folder names the user created. Assignments live on the resumes themselves;
+  // this only additionally remembers folders nothing is filed into yet.
+  const [knownFolders, setKnownFolders] = createSignal<string[]>(getStoredFolders());
+  const [folderDraft, setFolderDraft] = createSignal("");
+  const [folderCreating, setFolderCreating] = createSignal(false);
+  const [renamingFolder, setRenamingFolder] = createSignal<string | null>(null);
+  const [folderRenameValue, setFolderRenameValue] = createSignal("");
+  const [folderBusy, setFolderBusy] = createSignal(false);
 
   // The rail's open state outlives this page, so re-read it on every mount.
   restoreHomeSidebarOpen();
@@ -125,16 +140,30 @@ export function useHomePage() {
   const scopeCounts = createMemo(() => {
     const all = resumes() ?? [];
     const tags = new Map<string, number>();
+    const folders = new Map<string, number>();
     let locked = 0;
+    let unfiled = 0;
     for (const resume of all) {
       if (resume.locked) locked += 1;
       for (const tag of resume.tags ?? []) tags.set(tag, (tags.get(tag) ?? 0) + 1);
+      const folder = resume.folder;
+      if (folder) folders.set(folder, (folders.get(folder) ?? 0) + 1);
+      else unfiled += 1;
     }
-    return { total: all.length, locked, tags };
+    return { total: all.length, locked, tags, folders, unfiled };
   });
 
   const allTags = createMemo(() =>
     [...scopeCounts().tags.keys()].sort((a, b) => a.localeCompare(b)),
+  );
+
+  /**
+   * Folders offered in the rail: the ones created here, unioned with the ones
+   * resumes are actually filed into. The union matters on a second device,
+   * where assignments arrive with the resumes but the name list does not.
+   */
+  const allFolders = createMemo(() =>
+    mergeFolderNames(knownFolders(), [...scopeCounts().folders.keys()]),
   );
 
   /** Live status-strip state — the trust signals the old marketing footer used to assert. */
@@ -242,6 +271,145 @@ export function useHomePage() {
     }
   };
 
+  const persistKnownFolders = (next: string[]) => {
+    setKnownFolders(next);
+    setStoredFolders(next);
+  };
+
+  /** Resumes currently filed under a folder, matched exactly. */
+  const resumesInFolder = (folder: string) =>
+    (resumes() ?? []).filter((resume) => resume.folder === folder);
+
+  const openFolderCreator = () => {
+    setFolderDraft("");
+    setFolderCreating(true);
+  };
+
+  const closeFolderCreator = () => {
+    setFolderCreating(false);
+    setFolderDraft("");
+  };
+
+  /**
+   * Create an empty folder.
+   *
+   * Nothing is written to any resume — a folder only reaches a resume when the
+   * user files one into it.
+   */
+  const handleCreateFolder = (event?: Event) => {
+    event?.preventDefault();
+    const name = normalizeFolderName(folderDraft());
+    if (!name) {
+      closeFolderCreator();
+      return;
+    }
+    const existing = allFolders().find((f) => f.toLocaleLowerCase() === name.toLocaleLowerCase());
+    if (existing) {
+      toast.error(`Folder "${existing}" already exists`);
+      return;
+    }
+    persistKnownFolders(mergeFolderNames(knownFolders(), [name]));
+    closeFolderCreator();
+  };
+
+  /** File a resume into a folder, or unfile it when `folder` is null. */
+  const handleAssignFolder = async (id: string, folder: string | null) => {
+    const next = folder === null ? null : normalizeFolderName(folder) || null;
+    try {
+      await enqueueResumeMeta(id, async () => {
+        await patchResumeListMeta(id, { folder: next });
+        // Filing into a folder the rail has not heard of yet keeps it listed
+        // even if the resume later moves out.
+        if (next) persistKnownFolders(mergeFolderNames(knownFolders(), [next]));
+      });
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to update folder");
+    }
+  };
+
+  const startFolderRename = (folder: string) => {
+    setRenamingFolder(folder);
+    setFolderRenameValue(folder);
+  };
+
+  const cancelFolderRename = () => {
+    setRenamingFolder(null);
+    setFolderRenameValue("");
+  };
+
+  /** Rename a folder, carrying every resume filed under it across. */
+  const confirmFolderRename = async (folder: string) => {
+    const next = normalizeFolderName(folderRenameValue());
+    if (!next || next === folder) {
+      cancelFolderRename();
+      return;
+    }
+    const affected = resumesInFolder(folder);
+    setFolderBusy(true);
+    try {
+      await Promise.all(
+        affected.map((resume) =>
+          enqueueResumeMeta(resume.id, async () => {
+            await patchResumeListMeta(resume.id, { folder: next });
+          }),
+        ),
+      );
+      persistKnownFolders(
+        mergeFolderNames(
+          knownFolders().filter((f) => f !== folder),
+          [next],
+        ),
+      );
+      // Follow the folder rather than dropping the user back to All.
+      if (isSameScope(scope(), folderScope(folder))) setScopeSignal(folderScope(next));
+      cancelFolderRename();
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to rename folder");
+    } finally {
+      setFolderBusy(false);
+    }
+  };
+
+  /**
+   * Delete a folder without deleting anything filed in it.
+   *
+   * Every affected resume is unfiled, so it stays in the library and remains
+   * visible under All. Losing a filing decision is recoverable; losing the
+   * resume is not.
+   */
+  const handleDeleteFolder = async (folder: string) => {
+    const affected = resumesInFolder(folder);
+    const detail = affected.length
+      ? `${affected.length} ${affected.length === 1 ? "resume" : "resumes"} will be unfiled, not deleted.`
+      : "It is empty.";
+    if (!confirm(`Delete the folder "${folder}"? ${detail}`)) return;
+
+    setFolderBusy(true);
+    try {
+      await Promise.all(
+        affected.map((resume) =>
+          enqueueResumeMeta(resume.id, async () => {
+            await patchResumeListMeta(resume.id, { folder: null });
+          }),
+        ),
+      );
+      persistKnownFolders(knownFolders().filter((f) => f !== folder));
+      if (isSameScope(scope(), folderScope(folder))) setScopeSignal(SCOPE_ALL);
+      toast.success(
+        affected.length
+          ? `Folder deleted — ${affected.length} ${affected.length === 1 ? "resume" : "resumes"} unfiled`
+          : "Folder deleted",
+      );
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to delete folder");
+    } finally {
+      setFolderBusy(false);
+    }
+  };
+
   const handleDelete = async (id: string, event: Event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -309,7 +477,8 @@ export function useHomePage() {
     duplicatingId() !== null ||
     renamingId() !== null ||
     lockingId() !== null ||
-    metaBusyId() !== null;
+    metaBusyId() !== null ||
+    folderBusy();
 
   return {
     layout,
@@ -340,6 +509,22 @@ export function useHomePage() {
     toggleSidebar: toggleHomeSidebar,
     filteredResumes,
     allTags,
+    allFolders,
+    folderDraft,
+    setFolderDraft,
+    folderCreating,
+    openFolderCreator,
+    closeFolderCreator,
+    handleCreateFolder,
+    handleAssignFolder,
+    renamingFolder,
+    folderRenameValue,
+    setFolderRenameValue,
+    startFolderRename,
+    cancelFolderRename,
+    confirmFolderRename,
+    handleDeleteFolder,
+    folderBusy,
     resumeCount,
     lastEditedAt,
     lastEditLabel,

@@ -5,6 +5,7 @@ import { axeConfig } from "../../test/a11y";
 import { Route, Router } from "@solidjs/router";
 import { HOME_LAYOUT_STORAGE_KEY, HomeLayout } from "../../lib/homeLayout";
 import { HOME_SIDEBAR_STORAGE_KEY, HomeSidebarState } from "../../lib/homeSidebar";
+import { HOME_FOLDERS_STORAGE_KEY } from "../../lib/homeFolders";
 import type { ResumeListItem } from "../../stores/persistence";
 import Home from "../Home";
 
@@ -26,8 +27,15 @@ const mockResumes = vi.hoisted(() => {
       updatedAt: new Date("2025-01-01"),
       headline: "Staff Platform Engineer",
       tags: ["backend"],
+      folder: "Applications",
     },
-    { id: "2", name: "Product Manager", updatedAt: new Date("2025-02-01"), locked: true },
+    {
+      id: "2",
+      name: "Product Manager",
+      updatedAt: new Date("2025-02-01"),
+      locked: true,
+      folder: "Applications",
+    },
     {
       id: "3",
       name: "Jane Doe — Designer",
@@ -106,6 +114,7 @@ function resetHomeState() {
   sessionStorage.clear();
   localStorage.removeItem(HOME_LAYOUT_STORAGE_KEY);
   localStorage.removeItem(HOME_SIDEBAR_STORAGE_KEY);
+  localStorage.removeItem(HOME_FOLDERS_STORAGE_KEY);
   listState.items = mockResumes;
   openModalMock.mockClear();
   patchResumeListMetaMock.mockClear();
@@ -828,6 +837,147 @@ describe("Home accessibility", () => {
     const { container } = renderHome();
 
     expect(screen.getByTestId("home-scope-rail")).toBeInTheDocument();
+    expect(await axe(container, axeConfig)).toHaveNoViolations();
+  });
+});
+
+describe("Home folder scopes", () => {
+  beforeEach(resetHomeState);
+
+  function openRail() {
+    localStorage.setItem(HOME_SIDEBAR_STORAGE_KEY, HomeSidebarState.Open);
+    renderHome();
+    return screen.getByTestId("home-scope-rail");
+  }
+
+  it("lists folders derived from what resumes are filed into, with counts", () => {
+    openRail();
+
+    expect(screen.getByTestId("home-scope-folder-Applications")).toHaveTextContent("/Applications");
+    expect(screen.getByTestId("home-scope-folder-count-Applications")).toHaveTextContent("2");
+  });
+
+  it("reports the resumes that are in no folder at all", () => {
+    openRail();
+
+    expect(screen.getByTestId("home-scope-folder-unfiled")).toHaveTextContent("1 unfiled");
+  });
+
+  it("narrows the library to exactly one folder and reports it in the status strip", () => {
+    openRail();
+
+    fireEvent.click(screen.getByTestId("home-scope-folder-Applications"));
+
+    expect(screen.getAllByTestId("resume-card")).toHaveLength(2);
+    expect(screen.getByTestId("home-status-view")).toHaveTextContent("scope: /Applications");
+    expect(screen.getByTestId("home-scope-folder-Applications")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("clears back to the whole library when the active folder is picked again", () => {
+    openRail();
+
+    fireEvent.click(screen.getByTestId("home-scope-folder-Applications"));
+    fireEvent.click(screen.getByTestId("home-scope-folder-Applications"));
+
+    expect(screen.getAllByTestId("resume-card")).toHaveLength(3);
+    expect(screen.getByTestId("home-status-view")).toHaveTextContent("scope: all");
+  });
+
+  it("creates an empty folder without touching any resume", async () => {
+    openRail();
+
+    fireEvent.click(screen.getByTestId("home-scope-folder-new"));
+    const input = screen.getByTestId("home-scope-folder-input");
+    fireEvent.input(input, { target: { value: "Consulting" } });
+    fireEvent.submit(input);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("home-scope-folder-Consulting")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("home-scope-folder-count-Consulting")).toHaveTextContent("0");
+    // Creating a folder is not a write to any resume.
+    expect(patchResumeListMetaMock).not.toHaveBeenCalled();
+  });
+
+  it("files a resume into a folder from the card control", async () => {
+    renderHome();
+
+    // By label rather than position: cards render in sort order, not array order.
+    const select = screen.getByLabelText("Folder for Jane Doe — Designer");
+    fireEvent.change(select, { target: { value: "Applications" } });
+
+    await waitFor(() => {
+      expect(patchResumeListMetaMock).toHaveBeenCalledWith("3", { folder: "Applications" });
+    });
+  });
+
+  it("unfiles a resume when the card control is set back to Unfiled", async () => {
+    renderHome();
+
+    const select = screen.getByLabelText("Folder for Software Engineer");
+    fireEvent.change(select, { target: { value: "" } });
+
+    await waitFor(() => {
+      expect(patchResumeListMetaMock).toHaveBeenCalledWith("1", { folder: null });
+    });
+  });
+
+  it("carries every filed resume across when a folder is renamed", async () => {
+    openRail();
+
+    fireEvent.click(screen.getByTestId("home-scope-folder-rename-Applications"));
+    const input = screen.getByTestId("home-scope-folder-rename-input");
+    fireEvent.input(input, { target: { value: "Job Search" } });
+    fireEvent.submit(input);
+
+    await waitFor(() => {
+      expect(patchResumeListMetaMock).toHaveBeenCalledWith("1", { folder: "Job Search" });
+    });
+    // Rename preserves assignment: both filed resumes move, the unfiled one does not.
+    expect(patchResumeListMetaMock).toHaveBeenCalledWith("2", { folder: "Job Search" });
+    expect(patchResumeListMetaMock).not.toHaveBeenCalledWith("3", expect.anything());
+  });
+
+  it("unfiles rather than deletes the resumes in a deleted folder", async () => {
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => true),
+    );
+    openRail();
+
+    fireEvent.click(screen.getByTestId("home-scope-folder-delete-Applications"));
+
+    await waitFor(() => {
+      expect(patchResumeListMetaMock).toHaveBeenCalledWith("1", { folder: null });
+    });
+    expect(patchResumeListMetaMock).toHaveBeenCalledWith("2", { folder: null });
+    // The whole point: the resumes survive.
+    expect(resumeListMock.deleteResume).not.toHaveBeenCalled();
+    expect(screen.getAllByTestId("resume-card")).toHaveLength(3);
+  });
+
+  it("keeps the folder when the delete confirmation is declined", () => {
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => false),
+    );
+    openRail();
+
+    fireEvent.click(screen.getByTestId("home-scope-folder-delete-Applications"));
+
+    expect(patchResumeListMetaMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId("home-scope-folder-Applications")).toBeInTheDocument();
+  });
+
+  it("has no axe violations with folders in the rail", async () => {
+    localStorage.setItem(HOME_SIDEBAR_STORAGE_KEY, HomeSidebarState.Open);
+
+    const { container } = renderHome();
+
+    expect(screen.getByTestId("home-scope-folder-Applications")).toBeInTheDocument();
     expect(await axe(container, axeConfig)).toHaveNoViolations();
   });
 });
