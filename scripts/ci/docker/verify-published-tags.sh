@@ -79,6 +79,13 @@ MANIFEST_ACCEPT='application/vnd.oci.image.index.v1+json,application/vnd.docker.
 
 err() { printf '%s\n' "$*" >&2; }
 
+for required_command in curl jq; do
+	if ! command -v "$required_command" >/dev/null 2>&1; then
+		err "Required command not found: ${required_command}"
+		exit 2
+	fi
+done
+
 if [[ "$IMAGE_REF" != */* ]]; then
 	err "IMAGE_REF must be <registry>/<repository>, got: ${IMAGE_REF}"
 	exit 2
@@ -149,7 +156,9 @@ manifest_platforms() {
 			.manifests[]?
 			| select(.platform.architecture != "unknown")
 			| "\(.platform.os)/\(.platform.architecture)"
-		' 2>/dev/null
+		' 2>/dev/null || true
+	# `|| true`: a fetch/parse failure must surface as "missing platform X",
+	# not as a set -e abort that loses the attributable message.
 }
 
 # Best effort: has the watched build already concluded without success?
@@ -160,7 +169,14 @@ watched_build_failed() {
 	local endpoint runs conclusion
 	endpoint="repos/${GITHUB_REPOSITORY}/actions/workflows/${WATCH_WORKFLOW}"
 	endpoint+="/runs?head_sha=${GITHUB_SHA:-}&per_page=50"
-	runs="$(gh api "$endpoint" 2>/dev/null)" || return 1
+
+	# Bound the lookup so a hung API call cannot stall the poll loop.
+	local bounded=()
+	if command -v timeout >/dev/null 2>&1; then
+		bounded=(timeout "$CURL_MAX_TIME")
+	fi
+	runs="$(${bounded[@]+"${bounded[@]}"} gh api "$endpoint" 2>/dev/null)" ||
+		return 1
 
 	# A release-bump commit is reachable from both `main` and the tag, so the
 	# same head_sha has two runs. Only the run for THIS ref is relevant.

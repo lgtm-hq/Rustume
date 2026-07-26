@@ -211,6 +211,25 @@ JSON
 	assert_output --partial "did not ship"
 }
 
+@test "a manifest body that cannot be fetched fails cleanly" {
+	# HEAD says the tag exists but the GET fails (auth expiry, timeout). The
+	# script must report the platform verdict, not abort mid-run.
+	mock_command_script "curl" '
+url="${@: -1}"
+if [[ "$url" == *"/token?"* ]]; then printf "{\"token\":\"tok\"}\n"; exit 0; fi
+for arg in "$@"; do
+	if [[ "$arg" == "-I" ]]; then printf "200"; exit 0; fi
+done
+exit 22
+'
+	export TAGS=latest EXPECT_PLATFORMS="linux/amd64"
+
+	run bash "${SCRIPT}"
+	assert_failure
+	assert_equal "1" "${status}"
+	assert_output --partial "is missing platform linux/amd64"
+}
+
 @test "attestation manifests are not treated as platforms" {
 	mock_registry "latest" "$(multi_arch_manifest)"
 	export TAGS=latest EXPECT_PLATFORMS="unknown/unknown"
