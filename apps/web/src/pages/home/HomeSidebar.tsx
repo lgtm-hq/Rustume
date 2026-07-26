@@ -20,6 +20,35 @@ function rowClass(active: boolean): string {
     }`;
 }
 
+/** Everything inside the rail a Tab can land on; the rail itself is tabindex -1. */
+const FOCUSABLE_SELECTOR = 'button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Keep Tab inside the open drawer.
+ *
+ * Only the library is marked inert, so without this the next Tab escapes into
+ * the app shell sitting behind the scrim.
+ */
+function trapTab(event: KeyboardEvent, rail: HTMLElement | undefined): void {
+  if (!rail) return;
+  const focusable = [...rail.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)];
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (!first || !last) return;
+
+  const active = document.activeElement;
+  if (!rail.contains(active)) {
+    event.preventDefault();
+    first.focus();
+  } else if (event.shiftKey && (active === first || active === rail)) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && active === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
 function GroupHeading(props: { id: string; children: JSX.Element }) {
   return (
     <p
@@ -68,12 +97,31 @@ export function HomeSidebar(props: { home: HomePageModel; isDrawer: () => boolea
   };
 
   onMount(() => {
-    // The drawer behaves as a modal layer, so Escape has to dismiss it.
+    // Whatever opened the drawer gets focus back when it goes away, so a
+    // keyboard user resumes where they left off instead of at the document.
+    const invoker = props.isDrawer() ? document.activeElement : null;
+
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && props.isDrawer()) home.setSidebarOpen(false);
+      if (!props.isDrawer()) return;
+      // The drawer behaves as a modal layer, so Escape has to dismiss it.
+      if (event.key === "Escape") {
+        home.setSidebarOpen(false);
+        return;
+      }
+      // ...and Tab must not walk out of it into the app behind the scrim.
+      if (event.key !== "Tab") return;
+      trapTab(event, rail);
     };
     document.addEventListener("keydown", handleKeyDown);
-    onCleanup(() => document.removeEventListener("keydown", handleKeyDown));
+
+    onCleanup(() => {
+      document.removeEventListener("keydown", handleKeyDown);
+      // Deferred: the toggle sits inside the library, which is still `inert`
+      // until this same update clears it — an inert element cannot take focus.
+      queueMicrotask(() => {
+        if (invoker instanceof HTMLElement && document.contains(invoker)) invoker.focus();
+      });
+    });
 
     if (props.isDrawer()) rail?.focus();
   });

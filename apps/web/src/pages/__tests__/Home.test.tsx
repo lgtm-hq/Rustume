@@ -717,6 +717,42 @@ describe("Home scope sidebar", () => {
     expect(screen.queryByTestId("home-scope-rail")).not.toBeInTheDocument();
   });
 
+  it("keeps Tab inside the drawer instead of the shell behind the scrim", () => {
+    stubNarrowViewport();
+    renderHome();
+
+    const rail = openRail();
+    const focusable = [...rail.querySelectorAll<HTMLElement>("button")];
+    const first = focusable[0]!;
+    const last = focusable[focusable.length - 1]!;
+
+    // Tabbing off the end wraps to the top of the rail rather than escaping it.
+    last.focus();
+    fireEvent.keyDown(document, { key: "Tab" });
+    expect(document.activeElement).toBe(first);
+
+    // And Shift+Tab off the top wraps to the bottom.
+    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(last);
+  });
+
+  it("returns focus to the toggle that opened the drawer", async () => {
+    stubNarrowViewport();
+    renderHome();
+
+    const toggle = screen.getByTestId("home-sidebar-toggle");
+    toggle.focus();
+    openRail();
+    expect(document.activeElement).toBe(screen.getByTestId("home-scope-rail"));
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    // The restore is deferred one microtask past the `inert` teardown.
+    await Promise.resolve();
+
+    expect(screen.queryByTestId("home-scope-rail")).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(toggle);
+  });
+
   it("leaves the wide-layout preference untouched while it is a drawer", () => {
     localStorage.setItem(HOME_SIDEBAR_STORAGE_KEY, HomeSidebarState.Open);
     stubNarrowViewport();
