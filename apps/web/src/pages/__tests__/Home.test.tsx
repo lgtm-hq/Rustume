@@ -696,19 +696,15 @@ describe("Home scope sidebar", () => {
     expect(storage).not.toHaveTextContent("on-device");
   });
 
-  it("closes the narrow-viewport drawer on selection without losing the preference", () => {
+  it("closes the narrow-viewport drawer on selection", () => {
     stubNarrowViewport();
     renderHome();
 
     openRail();
-    expect(localStorage.getItem(HOME_SIDEBAR_STORAGE_KEY)).toBe(HomeSidebarState.Open);
-
     fireEvent.click(screen.getByTestId("home-scope-locked"));
 
     expect(screen.queryByTestId("home-scope-rail")).not.toBeInTheDocument();
     expect(screen.getAllByTestId("resume-card")).toHaveLength(1);
-    // The auto-close is incidental — the stored preference must survive it.
-    expect(localStorage.getItem(HOME_SIDEBAR_STORAGE_KEY)).toBe(HomeSidebarState.Open);
   });
 
   it("dismisses the narrow-viewport drawer on Escape", () => {
@@ -719,7 +715,21 @@ describe("Home scope sidebar", () => {
     fireEvent.keyDown(document, { key: "Escape" });
 
     expect(screen.queryByTestId("home-scope-rail")).not.toBeInTheDocument();
-    expect(localStorage.getItem(HOME_SIDEBAR_STORAGE_KEY)).toBe(HomeSidebarState.Collapsed);
+  });
+
+  it("leaves the wide-layout preference untouched while it is a drawer", () => {
+    localStorage.setItem(HOME_SIDEBAR_STORAGE_KEY, HomeSidebarState.Open);
+    stubNarrowViewport();
+    renderHome();
+
+    // The drawer is ephemeral, so neither dismissing nor reopening it below the
+    // breakpoint may rewrite the choice the user made on a wider screen.
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(localStorage.getItem(HOME_SIDEBAR_STORAGE_KEY)).toBe(HomeSidebarState.Open);
+
+    fireEvent.click(screen.getByTestId("home-sidebar-toggle"));
+    fireEvent.click(screen.getByTestId("home-scope-rail-close"));
+    expect(localStorage.getItem(HOME_SIDEBAR_STORAGE_KEY)).toBe(HomeSidebarState.Open);
   });
 
   it("takes the covered library out of the tab order behind the drawer", () => {

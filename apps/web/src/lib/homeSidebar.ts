@@ -1,5 +1,8 @@
 export const HOME_SIDEBAR_STORAGE_KEY = "rustume:home-sidebar";
 
+/** Below this width the rail is a temporary drawer rather than a column. */
+export const HOME_SIDEBAR_NARROW_QUERY = "(max-width: 899px)";
+
 export const HomeSidebarState = {
   Open: "open",
   Collapsed: "collapsed",

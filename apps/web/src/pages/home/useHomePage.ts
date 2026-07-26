@@ -26,7 +26,6 @@ import {
 import { formatRelativeTime } from "../../lib/formatRelativeTime";
 import { authStore } from "../../stores/auth";
 import {
-  closeHomeSidebarTransiently,
   homeSidebarOpen,
   restoreHomeSidebarOpen,
   setHomeSidebarOpen,
@@ -338,7 +337,6 @@ export function useHomePage() {
     activeScopeLabel,
     sidebarOpen: homeSidebarOpen,
     setSidebarOpen: setHomeSidebarOpen,
-    closeSidebarTransiently: closeHomeSidebarTransiently,
     toggleSidebar: toggleHomeSidebar,
     filteredResumes,
     allTags,

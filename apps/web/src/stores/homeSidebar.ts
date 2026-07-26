@@ -2,6 +2,7 @@ import { createSignal } from "solid-js";
 import {
   DEFAULT_HOME_SIDEBAR_OPEN,
   getStoredHomeSidebarOpen,
+  HOME_SIDEBAR_NARROW_QUERY,
   setStoredHomeSidebarOpen,
 } from "../lib/homeSidebar";
 
@@ -15,18 +16,27 @@ const [homeSidebarOpen, setOpenSignal] = createSignal(DEFAULT_HOME_SIDEBAR_OPEN)
 
 export { homeSidebarOpen };
 
-export function setHomeSidebarOpen(open: boolean): void {
-  setOpenSignal(open);
-  setStoredHomeSidebarOpen(open);
+function isDrawerViewport(): boolean {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+  try {
+    return window.matchMedia(HOME_SIDEBAR_NARROW_QUERY).matches;
+  } catch {
+    // matchMedia is unavailable in this environment; treat it as the wide layout
+    return false;
+  }
 }
 
 /**
- * Close without persisting. The narrow-viewport drawer closes on selection —
- * that incidental close must not overwrite the preference the user set
- * deliberately, which may well have been set on a wider screen.
+ * Open or close the rail.
+ *
+ * The stored value describes the wide layout, where the rail is a column the
+ * user chose to keep. Below the breakpoint it is an ephemeral drawer, so opening
+ * and dismissing it there is not written back — otherwise filtering on a phone
+ * would silently discard the choice made on a larger screen.
  */
-export function closeHomeSidebarTransiently(): void {
-  setOpenSignal(false);
+export function setHomeSidebarOpen(open: boolean): void {
+  setOpenSignal(open);
+  if (!isDrawerViewport()) setStoredHomeSidebarOpen(open);
 }
 
 export function toggleHomeSidebar(): void {

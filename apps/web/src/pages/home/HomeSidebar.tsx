@@ -10,9 +10,6 @@ import {
 import { HOME_SIDEBAR_ID } from "../../stores/homeSidebar";
 import type { HomePageModel } from "./useHomePage";
 
-/** Below this width the rail is a temporary drawer rather than a column. */
-export const HOME_SIDEBAR_NARROW_QUERY = "(max-width: 899px)";
-
 function rowClass(active: boolean): string {
   return `flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-xs
     transition-colors motion-reduce:transition-none focus:outline-none focus-visible:ring-2
@@ -67,8 +64,7 @@ export function HomeSidebar(props: { home: HomePageModel; isDrawer: () => boolea
   const select = (scope: HomeScope) => {
     home.setScope(scope);
     // A drawer that stays open over the result hides the thing it just filtered.
-    // This close is incidental, so it must not rewrite the stored preference.
-    if (props.isDrawer()) home.closeSidebarTransiently();
+    if (props.isDrawer()) home.setSidebarOpen(false);
   };
 
   onMount(() => {
