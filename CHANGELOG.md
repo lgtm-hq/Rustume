@@ -22,6 +22,17 @@ and this project adheres to
 
 ### Security
 
+## [0.47.0] - 2026-07-26
+
+### Added
+
+- **web**: add the additive scope sidebar to the Home command centre (#600) (6240159)
+
+### Changed
+
+- **deps**: update ghcr.io/lgtm-hq/py-lintro docker tag to 0.91.52 (patch) (#599)
+  (e5c3cb4)
+
 ## [0.46.0] - 2026-07-26
 
 ### Added
@@ -620,7 +631,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.46.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.47.0...HEAD
+[0.47.0]: https://github.com/lgtm-hq/Rustume/compare/v0.46.0...v0.47.0
 [0.46.0]: https://github.com/lgtm-hq/Rustume/compare/v0.45.0...v0.46.0
 [0.45.0]: https://github.com/lgtm-hq/Rustume/compare/v0.44.0...v0.45.0
 [0.44.0]: https://github.com/lgtm-hq/Rustume/compare/v0.43.2...v0.44.0
