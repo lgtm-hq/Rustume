@@ -1115,6 +1115,7 @@ fn convert_metadata(v3: &V3Metadata) -> Metadata {
         level_display: LevelDisplay::TemplateDefault,
         locked: false,
         tags: Vec::new(),
+        folder: None,
     }
 }
 

@@ -39,6 +39,8 @@ export interface ResumeListItem {
   headline?: string;
   locked?: boolean;
   tags?: string[];
+  /** Single folder this resume is filed under; absent means unfiled. */
+  folder?: string;
 }
 
 /** Serialized form stored in localStorage under the `_meta` key. */
@@ -53,6 +55,8 @@ export interface ResumeMetaEntry {
   headline?: string;
   locked?: boolean;
   tags?: string[];
+  /** Single folder this resume is filed under; absent means unfiled. */
+  folder?: string;
 }
 
 /** Searchable fields snapshotted from resume data into metadata. */
@@ -74,6 +78,7 @@ function isValidMetaEntry(v: unknown): v is ResumeMetaEntry {
   if (typeof obj.updatedAt !== "string") return false;
   if (obj.basicsName !== undefined && typeof obj.basicsName !== "string") return false;
   if (obj.headline !== undefined && typeof obj.headline !== "string") return false;
+  if (obj.folder !== undefined && typeof obj.folder !== "string") return false;
   return !Number.isNaN(Date.parse(obj.updatedAt));
 }
 
@@ -119,7 +124,7 @@ export function setResumeMeta(
   title: string,
   updatedAt?: Date,
   search?: ResumeSearchMeta,
-  extras?: Pick<ResumeMetaEntry, "locked" | "tags">,
+  extras?: Pick<ResumeMetaEntry, "locked" | "tags" | "folder">,
 ): void {
   const map = getMetaMap();
   const existing = map[id];
@@ -132,6 +137,9 @@ export function setResumeMeta(
     headline: search ? search.headline : existing?.headline,
     locked: extras?.locked ?? existing?.locked,
     tags: extras?.tags ?? existing?.tags,
+    // Not `??`: unfiling sets folder to undefined, and coalescing would
+    // resurrect the folder the user just cleared.
+    folder: extras ? extras.folder : existing?.folder,
   };
   setMetaMap(map);
 }
@@ -175,12 +183,20 @@ function resolveResumeTitle(id: string, data: ResumeData): string {
   return deriveTitleFromResume(data);
 }
 
+/** Folder as stored on the resume; blank or non-string reads as unfiled. */
+function readResumeFolder(data: ResumeData): string | undefined {
+  const folder = data.metadata?.folder;
+  if (typeof folder !== "string") return undefined;
+  return folder.trim() || undefined;
+}
+
 function maybeUpdateResumeMeta(id: string, title: string, data?: ResumeData): void {
   const search = data ? deriveSearchMetaFromResume(data) : undefined;
   const extras = data
     ? {
         locked: Boolean(data.metadata?.locked),
         tags: Array.isArray(data.metadata?.tags) ? data.metadata.tags : [],
+        folder: readResumeFolder(data),
       }
     : undefined;
   // Always touch updatedAt on save so the home list reflects recent edits.
@@ -198,6 +214,8 @@ export interface ResumesChangedDetail {
   name?: string;
   locked?: boolean;
   tags?: string[];
+  /** `null` unfiles the resume; omitted leaves the current folder alone. */
+  folder?: string | null;
 }
 
 /** Update list metadata after a resume save (shared by editor + persistence paths). */
@@ -210,6 +228,7 @@ export function notifyResumeSaved(id: string, data: ResumeData): void {
       name: title,
       locked: Boolean(data.metadata?.locked),
       tags: Array.isArray(data.metadata?.tags) ? data.metadata.tags : [],
+      folder: readResumeFolder(data) ?? null,
     };
     window.dispatchEvent(new CustomEvent("rustume:resumes-changed", { detail }));
   }
@@ -391,6 +410,7 @@ async function fetchResumeList(): Promise<ResumeListItem[]> {
         headline: cachedMeta[row.id]?.headline,
         locked: cachedMeta[row.id]?.locked,
         tags: cachedMeta[row.id]?.tags,
+        folder: cachedMeta[row.id]?.folder,
       }));
     }
 
@@ -412,12 +432,16 @@ async function fetchResumeList(): Promise<ResumeListItem[]> {
         const result = migrationResults[i];
         let title = "Untitled Resume";
         let search: ResumeSearchMeta = {};
+        let folder: string | undefined;
         if (result.status === "fulfilled") {
           title = deriveTitleFromResume(result.value.data);
           search = deriveSearchMetaFromResume(result.value.data);
+          // The resume itself is the source of truth for the folder, so a
+          // cleared metadata cache recovers the filing rather than losing it.
+          folder = readResumeFolder(result.value.data);
           // Persist the derived metadata so future loads are instant
           try {
-            setResumeMeta(id, title, undefined, search);
+            setResumeMeta(id, title, undefined, search, { folder });
           } catch (metaErr) {
             console.error("Failed to persist metadata for resume:", id, metaErr);
           }
@@ -428,6 +452,7 @@ async function fetchResumeList(): Promise<ResumeListItem[]> {
           updatedAt: new Date(),
           createdAt: new Date(),
           ...search,
+          folder,
         });
       }
     }
@@ -446,6 +471,7 @@ async function fetchResumeList(): Promise<ResumeListItem[]> {
         headline: meta.headline,
         locked: meta.locked,
         tags: meta.tags,
+        folder: meta.folder,
       };
     });
   } catch (e) {
@@ -473,6 +499,7 @@ export function useResumeList() {
           ...(detail.name !== undefined ? { name: detail.name } : {}),
           ...(detail.locked !== undefined ? { locked: detail.locked } : {}),
           ...(detail.tags !== undefined ? { tags: detail.tags } : {}),
+          ...(detail.folder !== undefined ? { folder: detail.folder ?? undefined } : {}),
           updatedAt: new Date(),
         };
       });
@@ -637,12 +664,17 @@ export async function getStoredResume(id: string): Promise<ResumeData> {
 }
 
 /**
- * Patch lock/tags on a stored resume and refresh list metadata.
+ * Patch lock/tags/folder on a stored resume and refresh list metadata.
  * Works in local and cloud modes via the shared save path.
+ *
+ * `folder: null` unfiles the resume. It is written onto the resume itself
+ * rather than only into the local metadata cache, so the assignment travels
+ * with the resume through the cloud save path instead of being stranded on
+ * whichever device made the change.
  */
 export async function patchResumeListMeta(
   id: string,
-  patch: { locked?: boolean; tags?: string[] },
+  patch: { locked?: boolean; tags?: string[]; folder?: string | null },
 ): Promise<void> {
   const data = await getResume(id);
   if (patch.locked !== undefined) {
@@ -650,6 +682,13 @@ export async function patchResumeListMeta(
   }
   if (patch.tags !== undefined) {
     data.metadata.tags = patch.tags;
+  }
+  if (patch.folder !== undefined) {
+    if (patch.folder === null) {
+      delete data.metadata.folder;
+    } else {
+      data.metadata.folder = patch.folder;
+    }
   }
   await saveResume(id, data);
 }

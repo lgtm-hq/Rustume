@@ -279,6 +279,33 @@ function NoSearchMatches(props: { home: HomePageModel }) {
   );
 }
 
+/**
+ * A scope with nothing in it and no search to blame.
+ *
+ * Only reachable since folders can exist while empty — every other scope is
+ * derived from resumes and so always has at least one.
+ */
+function EmptyScope(props: { home: HomePageModel }) {
+  const { home } = props;
+  return (
+    <div
+      class="rounded-xl border border-dashed border-border bg-surface/40 px-6 py-16 text-center"
+      data-testid="home-empty-scope"
+    >
+      <h3 class="font-display text-2xl font-semibold text-ink mb-2">Nothing here yet</h3>
+      <p class="mx-auto max-w-sm text-sm text-stone">
+        No resumes are in <span class="font-mono text-ink">{home.activeScopeLabel()}</span>. Use the
+        folder control on a resume to file one here.
+      </p>
+      <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
+        <Button variant="secondary" onClick={() => home.setScope(SCOPE_ALL)}>
+          Show all resumes
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 const LAYOUT_CONTAINERS: Record<HomeLayout, { class: string; testId: string }> = {
   [HomeLayout.List]: { class: "grid w-full gap-2.5 stagger-children", testId: "home-resume-list" },
   [HomeLayout.Grid]: {
@@ -307,7 +334,14 @@ function ResumeListBody(props: { home: HomePageModel }) {
       }
     >
       <Show when={home.resumes()?.length} fallback={<EmptyLibrary home={home} />}>
-        <Show when={home.filteredResumes().length > 0} fallback={<NoSearchMatches home={home} />}>
+        <Show
+          when={home.filteredResumes().length > 0}
+          fallback={
+            <Show when={home.searchQuery().trim()} fallback={<EmptyScope home={home} />}>
+              <NoSearchMatches home={home} />
+            </Show>
+          }
+        >
           <div class={container().class} data-testid={container().testId}>
             <For each={home.filteredResumes()}>
               {({ resume, nameSegments }) => (

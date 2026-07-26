@@ -5,6 +5,7 @@ import { axeConfig } from "../../test/a11y";
 import { Route, Router } from "@solidjs/router";
 import { HOME_LAYOUT_STORAGE_KEY, HomeLayout } from "../../lib/homeLayout";
 import { HOME_SIDEBAR_STORAGE_KEY, HomeSidebarState } from "../../lib/homeSidebar";
+import { HOME_FOLDERS_STORAGE_KEY } from "../../lib/homeFolders";
 import type { ResumeListItem } from "../../stores/persistence";
 import Home from "../Home";
 
@@ -26,8 +27,15 @@ const mockResumes = vi.hoisted(() => {
       updatedAt: new Date("2025-01-01"),
       headline: "Staff Platform Engineer",
       tags: ["backend"],
+      folder: "Applications",
     },
-    { id: "2", name: "Product Manager", updatedAt: new Date("2025-02-01"), locked: true },
+    {
+      id: "2",
+      name: "Product Manager",
+      updatedAt: new Date("2025-02-01"),
+      locked: true,
+      folder: "Applications",
+    },
     {
       id: "3",
       name: "Jane Doe — Designer",
@@ -106,6 +114,7 @@ function resetHomeState() {
   sessionStorage.clear();
   localStorage.removeItem(HOME_LAYOUT_STORAGE_KEY);
   localStorage.removeItem(HOME_SIDEBAR_STORAGE_KEY);
+  localStorage.removeItem(HOME_FOLDERS_STORAGE_KEY);
   listState.items = mockResumes;
   openModalMock.mockClear();
   patchResumeListMetaMock.mockClear();
@@ -828,6 +837,236 @@ describe("Home accessibility", () => {
     const { container } = renderHome();
 
     expect(screen.getByTestId("home-scope-rail")).toBeInTheDocument();
+    expect(await axe(container, axeConfig)).toHaveNoViolations();
+  });
+});
+
+describe("Home folder scopes", () => {
+  beforeEach(resetHomeState);
+
+  function openRail() {
+    localStorage.setItem(HOME_SIDEBAR_STORAGE_KEY, HomeSidebarState.Open);
+    renderHome();
+    return screen.getByTestId("home-scope-rail");
+  }
+
+  it("lists folders derived from what resumes are filed into, with counts", () => {
+    openRail();
+
+    expect(screen.getByTestId("home-scope-folder-Applications")).toHaveTextContent("/Applications");
+    expect(screen.getByTestId("home-scope-folder-count-Applications")).toHaveTextContent("2");
+  });
+
+  it("reports the resumes that are in no folder at all", () => {
+    openRail();
+
+    expect(screen.getByTestId("home-scope-folder-unfiled")).toHaveTextContent("1 unfiled");
+  });
+
+  it("narrows the library to exactly one folder and reports it in the status strip", () => {
+    openRail();
+
+    fireEvent.click(screen.getByTestId("home-scope-folder-Applications"));
+
+    expect(screen.getAllByTestId("resume-card")).toHaveLength(2);
+    expect(screen.getByTestId("home-status-view")).toHaveTextContent("scope: /Applications");
+    expect(screen.getByTestId("home-scope-folder-Applications")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("clears back to the whole library when the active folder is picked again", () => {
+    openRail();
+
+    fireEvent.click(screen.getByTestId("home-scope-folder-Applications"));
+    fireEvent.click(screen.getByTestId("home-scope-folder-Applications"));
+
+    expect(screen.getAllByTestId("resume-card")).toHaveLength(3);
+    expect(screen.getByTestId("home-status-view")).toHaveTextContent("scope: all");
+  });
+
+  it("creates an empty folder without touching any resume", async () => {
+    openRail();
+
+    fireEvent.click(screen.getByTestId("home-scope-folder-new"));
+    const input = screen.getByTestId("home-scope-folder-input");
+    fireEvent.input(input, { target: { value: "Consulting" } });
+    fireEvent.submit(input);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("home-scope-folder-Consulting")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("home-scope-folder-count-Consulting")).toHaveTextContent("0");
+    // Creating a folder is not a write to any resume.
+    expect(patchResumeListMetaMock).not.toHaveBeenCalled();
+  });
+
+  it("files a resume into a folder from the card control", async () => {
+    renderHome();
+
+    // By label rather than position: cards render in sort order, not array order.
+    const select = screen.getByLabelText("Folder for Jane Doe — Designer");
+    fireEvent.change(select, { target: { value: "Applications" } });
+
+    await waitFor(() => {
+      expect(patchResumeListMetaMock).toHaveBeenCalledWith("3", { folder: "Applications" });
+    });
+  });
+
+  it("unfiles a resume when the card control is set back to Unfiled", async () => {
+    renderHome();
+
+    const select = screen.getByLabelText("Folder for Software Engineer");
+    fireEvent.change(select, { target: { value: "" } });
+
+    await waitFor(() => {
+      expect(patchResumeListMetaMock).toHaveBeenCalledWith("1", { folder: null });
+    });
+  });
+
+  it("carries every filed resume across when a folder is renamed", async () => {
+    openRail();
+
+    fireEvent.click(screen.getByTestId("home-scope-folder-Applications"));
+    fireEvent.click(screen.getByTestId("home-scope-folder-rename-Applications"));
+    const input = screen.getByTestId("home-scope-folder-rename-input");
+    fireEvent.input(input, { target: { value: "Job Search" } });
+    fireEvent.submit(input);
+
+    await waitFor(() => {
+      expect(patchResumeListMetaMock).toHaveBeenCalledWith("1", { folder: "Job Search" });
+    });
+    // Rename preserves assignment: both filed resumes move, the unfiled one does not.
+    expect(patchResumeListMetaMock).toHaveBeenCalledWith("2", { folder: "Job Search" });
+    expect(patchResumeListMetaMock).not.toHaveBeenCalledWith("3", expect.anything());
+    // The active scope follows the rename rather than dumping the user in All.
+    expect(screen.getByTestId("home-status-view")).toHaveTextContent("scope: /Job Search");
+  });
+
+  it("unfiles rather than deletes the resumes in a deleted folder", async () => {
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => true),
+    );
+    openRail();
+
+    fireEvent.click(screen.getByTestId("home-scope-folder-delete-Applications"));
+
+    await waitFor(() => {
+      expect(patchResumeListMetaMock).toHaveBeenCalledWith("1", { folder: null });
+    });
+    expect(patchResumeListMetaMock).toHaveBeenCalledWith("2", { folder: null });
+    // The whole point: unfiling is the only write, the resumes are never deleted.
+    expect(resumeListMock.deleteResume).not.toHaveBeenCalled();
+    for (const [, patch] of patchResumeListMetaMock.mock.calls) {
+      expect(patch).toEqual({ folder: null });
+    }
+  });
+
+  it("keeps the folder when the delete confirmation is declined", () => {
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => false),
+    );
+    openRail();
+
+    fireEvent.click(screen.getByTestId("home-scope-folder-delete-Applications"));
+
+    expect(patchResumeListMetaMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId("home-scope-folder-Applications")).toBeInTheDocument();
+  });
+
+  it("explains an empty folder instead of blaming a search nobody made", async () => {
+    openRail();
+
+    fireEvent.click(screen.getByTestId("home-scope-folder-new"));
+    const input = screen.getByTestId("home-scope-folder-input");
+    fireEvent.input(input, { target: { value: "Consulting" } });
+    fireEvent.submit(input);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("home-scope-folder-Consulting")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId("home-scope-folder-Consulting"));
+
+    const empty = screen.getByTestId("home-empty-scope");
+    expect(empty).toHaveTextContent("/Consulting");
+    // The search-specific copy would read: Nothing matches "" in /Consulting.
+    expect(screen.queryByTestId("resume-search-empty")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show all resumes" }));
+    expect(screen.getAllByTestId("resume-card")).toHaveLength(3);
+  });
+
+  it("refuses a rename onto a folder that already exists", async () => {
+    openRail();
+
+    fireEvent.click(screen.getByTestId("home-scope-folder-new"));
+    const create = screen.getByTestId("home-scope-folder-input");
+    fireEvent.input(create, { target: { value: "Consulting" } });
+    fireEvent.submit(create);
+    await waitFor(() => {
+      expect(screen.getByTestId("home-scope-folder-Consulting")).toBeInTheDocument();
+    });
+
+    // Differs only in case, so it would read as a second identical row.
+    fireEvent.click(screen.getByTestId("home-scope-folder-rename-Applications"));
+    const rename = screen.getByTestId("home-scope-folder-rename-input");
+    fireEvent.input(rename, { target: { value: "consulting" } });
+    fireEvent.submit(rename);
+
+    expect(patchResumeListMetaMock).not.toHaveBeenCalled();
+    // The editor stays open on the rejected name so it can be corrected.
+    expect(screen.getByTestId("home-scope-folder-rename-input")).toBeInTheDocument();
+  });
+
+  it("counts and filters a folder the same way when casing differs", () => {
+    listState.items = [
+      { id: "1", name: "One", updatedAt: new Date("2025-01-01"), folder: "Applications" },
+      { id: "2", name: "Two", updatedAt: new Date("2025-02-01"), folder: "applications" },
+    ];
+    openRail();
+
+    // One row, and its count must match what selecting it actually shows.
+    expect(screen.getByTestId("home-scope-folder-count-Applications")).toHaveTextContent("2");
+    fireEvent.click(screen.getByTestId("home-scope-folder-Applications"));
+    expect(screen.getAllByTestId("resume-card")).toHaveLength(2);
+  });
+
+  it("hides the card folder control until a folder exists to file into", () => {
+    listState.items = [{ id: "1", name: "One", updatedAt: new Date("2025-01-01") }];
+
+    renderHome();
+
+    expect(screen.queryByTestId("resume-folder-select")).not.toBeInTheDocument();
+  });
+
+  it("keeps Tab inside the drawer when the folder field is the last control", () => {
+    // No tags, so nothing focusable follows the folder field in the rail.
+    listState.items = [{ id: "1", name: "One", updatedAt: new Date("2025-01-01") }];
+    stubNarrowViewport();
+    renderHome();
+    fireEvent.click(screen.getByTestId("home-sidebar-toggle"));
+
+    fireEvent.click(screen.getByTestId("home-scope-folder-new"));
+    const input = screen.getByTestId("home-scope-folder-input");
+    input.focus();
+    expect(document.activeElement).toBe(input);
+
+    // Tabbing off the last focusable element wraps to the first one rather
+    // than escaping into the app behind the scrim.
+    fireEvent.keyDown(document, { key: "Tab" });
+
+    expect(document.activeElement).toBe(screen.getByTestId("home-sidebar-new"));
+  });
+
+  it("has no axe violations with folders in the rail", async () => {
+    localStorage.setItem(HOME_SIDEBAR_STORAGE_KEY, HomeSidebarState.Open);
+
+    const { container } = renderHome();
+
+    expect(screen.getByTestId("home-scope-folder-Applications")).toBeInTheDocument();
     expect(await axe(container, axeConfig)).toHaveNoViolations();
   });
 });

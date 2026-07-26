@@ -57,6 +57,14 @@ pub struct Metadata {
     /// User-defined organization labels (never rendered on the PDF).
     #[serde(default)]
     pub tags: Vec<String>,
+
+    /// Single folder this resume is filed under (never rendered on the PDF).
+    ///
+    /// Folders are mutually exclusive, unlike `tags`. Omitted when unset so an
+    /// absent field reads as "unfiled" rather than an explicit null clients
+    /// have to special-case — no migration is needed for existing resumes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub folder: Option<String>,
 }
 
 impl Default for Metadata {
@@ -72,6 +80,7 @@ impl Default for Metadata {
             level_display: LevelDisplay::TemplateDefault,
             locked: false,
             tags: Vec::new(),
+            folder: None,
         }
     }
 }
@@ -369,5 +378,30 @@ mod tests {
     fn metadata_defaults_missing_level_display_to_template_default() {
         let metadata: Metadata = serde_json::from_value(json!({})).unwrap();
         assert_eq!(metadata.level_display, LevelDisplay::TemplateDefault);
+    }
+
+    #[test]
+    fn metadata_treats_absent_folder_as_unfiled() {
+        let metadata: Metadata = serde_json::from_value(json!({})).unwrap();
+        assert_eq!(metadata.folder, None);
+    }
+
+    #[test]
+    fn metadata_omits_unset_folder_when_serialized() {
+        let json = serde_json::to_value(Metadata::default()).unwrap();
+        assert!(json.get("folder").is_none());
+    }
+
+    #[test]
+    fn metadata_round_trips_folder_assignment() {
+        // The local WASM storage path deserializes into this struct and
+        // re-serializes it, so a folder that does not survive here is silently
+        // dropped for every offline user.
+        let metadata: Metadata =
+            serde_json::from_value(json!({ "folder": "Applications" })).unwrap();
+        assert_eq!(metadata.folder.as_deref(), Some("Applications"));
+
+        let json = serde_json::to_value(&metadata).unwrap();
+        assert_eq!(json["folder"], json!("Applications"));
     }
 }
