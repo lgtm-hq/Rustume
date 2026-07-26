@@ -1,11 +1,12 @@
-import { For, Show } from "solid-js";
+import { createEffect, For, Show } from "solid-js";
 import { Button, Input, Spinner } from "../../components/ui";
 import { HomeLayout } from "../../lib/homeLayout";
 import { isSameScope, SCOPE_ALL, tagScope } from "../../lib/homeScope";
 import { getResumeSortLabels, type ResumeSortMode } from "../../lib/resumeSort";
 import { HOME_SIDEBAR_ID } from "../../stores/homeSidebar";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { HomeLayoutToggle } from "./HomeLayoutToggle";
-import { HomeSidebar } from "./HomeSidebar";
+import { HomeSidebar, HOME_SIDEBAR_NARROW_QUERY } from "./HomeSidebar";
 import { HomeResumeCard } from "./HomeResumeCard";
 import { StatusStrip } from "./StatusStrip";
 import type { HomePageModel } from "./useHomePage";
@@ -327,6 +328,16 @@ function ResumeListBody(props: { home: HomePageModel }) {
 /** Command-center library shell — status strip, dense toolbar, and the active view. */
 export function HomePageLayout(props: { home: HomePageModel }) {
   const { home } = props;
+  const isNarrow = useMediaQuery(HOME_SIDEBAR_NARROW_QUERY);
+  /** Below 900px the rail overlays the library rather than sitting beside it. */
+  const isDrawer = () => home.sidebarOpen() && isNarrow();
+  let library: HTMLDivElement | undefined = undefined;
+
+  // `inert` is set through the DOM API so it always lands as an attribute,
+  // which is what removes the covered subtree from the tab order.
+  createEffect(() => {
+    library?.toggleAttribute("inert", isDrawer());
+  });
 
   return (
     <div class="min-h-[calc(100vh-3.5rem)] bg-paper" data-testid="home-view">
@@ -341,10 +352,17 @@ export function HomePageLayout(props: { home: HomePageModel }) {
             onClick={() => home.setSidebarOpen(false)}
             data-testid="home-scope-scrim"
           />
-          <HomeSidebar home={home} />
+          <HomeSidebar home={home} isDrawer={isDrawer} />
         </Show>
 
-        <div class="min-w-0 flex-1 px-4 pt-4 pb-16" data-testid="home-library">
+        {/* While the drawer covers the library, keep the covered content out of
+            the tab order instead of letting focus wander behind the scrim. */}
+        <div
+          ref={(el) => (library = el)}
+          class="min-w-0 flex-1 px-4 pt-4 pb-16"
+          data-testid="home-library"
+          aria-hidden={isDrawer() || undefined}
+        >
           <StatusStrip home={home} />
 
           <div class="my-4 w-full">

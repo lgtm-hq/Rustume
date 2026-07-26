@@ -26,6 +26,7 @@ import {
 import { formatRelativeTime } from "../../lib/formatRelativeTime";
 import { authStore } from "../../stores/auth";
 import {
+  closeHomeSidebarTransiently,
   homeSidebarOpen,
   restoreHomeSidebarOpen,
   setHomeSidebarOpen,
@@ -62,19 +63,6 @@ export function useHomePage() {
   /** Selecting the active scope again clears back to the whole library. */
   const setScope = (next: HomeScope) => {
     setScopeSignal(next.kind !== "all" && isSameScope(scope(), next) ? SCOPE_ALL : next);
-  };
-
-  /**
-   * The tag chip row and the rail's Tags group are two renderers over the one
-   * scope signal, so neither can drift from the other.
-   */
-  const tagFilter = () => {
-    const active = scope();
-    return active.kind === "tag" ? active.tag : null;
-  };
-
-  const setTagFilter = (tag: string | null) => {
-    setScopeSignal(tag === null ? SCOPE_ALL : tagScope(tag));
   };
 
   /** Serialize lock/tag writes per resume to avoid last-write-wins races. */
@@ -241,11 +229,12 @@ export function useHomePage() {
     try {
       await enqueueResumeMeta(id, async () => {
         await patchResumeListMeta(id, { tags });
-        if (tagFilter() === tag) {
+        // Drop a tag scope that no resume can satisfy any more.
+        if (isSameScope(scope(), tagScope(tag))) {
           const stillUsed = (resumes() ?? []).some(
             (resume) => resume.id !== id && (resume.tags ?? []).includes(tag),
           );
-          if (!stillUsed) setTagFilter(null);
+          if (!stillUsed) setScope(SCOPE_ALL);
         }
       });
     } catch (e) {
@@ -349,6 +338,7 @@ export function useHomePage() {
     activeScopeLabel,
     sidebarOpen: homeSidebarOpen,
     setSidebarOpen: setHomeSidebarOpen,
+    closeSidebarTransiently: closeHomeSidebarTransiently,
     toggleSidebar: toggleHomeSidebar,
     filteredResumes,
     allTags,

@@ -20,6 +20,15 @@ export function setHomeSidebarOpen(open: boolean): void {
   setStoredHomeSidebarOpen(open);
 }
 
+/**
+ * Close without persisting. The narrow-viewport drawer closes on selection —
+ * that incidental close must not overwrite the preference the user set
+ * deliberately, which may well have been set on a wider screen.
+ */
+export function closeHomeSidebarTransiently(): void {
+  setOpenSignal(false);
+}
+
 export function toggleHomeSidebar(): void {
   setHomeSidebarOpen(!homeSidebarOpen());
 }

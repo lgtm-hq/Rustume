@@ -1,4 +1,4 @@
-import { For, Show, type JSX } from "solid-js";
+import { For, onCleanup, onMount, Show, type JSX } from "solid-js";
 import { Button } from "../../components/ui";
 import {
   isSameScope,
@@ -11,12 +11,7 @@ import { HOME_SIDEBAR_ID } from "../../stores/homeSidebar";
 import type { HomePageModel } from "./useHomePage";
 
 /** Below this width the rail is a temporary drawer rather than a column. */
-const NARROW_QUERY = "(max-width: 899px)";
-
-function isNarrowViewport(): boolean {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
-  return window.matchMedia(NARROW_QUERY).matches;
-}
+export const HOME_SIDEBAR_NARROW_QUERY = "(max-width: 899px)";
 
 function rowClass(active: boolean): string {
   return `flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-xs
@@ -65,19 +60,34 @@ function ScopeRow(props: {
  * Additive scope rail. It decides *which* resumes the library shows; the
  * List/Grid/Gallery switcher decides how they render.
  */
-export function HomeSidebar(props: { home: HomePageModel }) {
+export function HomeSidebar(props: { home: HomePageModel; isDrawer: () => boolean }) {
   const { home } = props;
+  let rail: HTMLElement | undefined = undefined;
 
   const select = (scope: HomeScope) => {
     home.setScope(scope);
     // A drawer that stays open over the result hides the thing it just filtered.
-    if (isNarrowViewport()) home.setSidebarOpen(false);
+    // This close is incidental, so it must not rewrite the stored preference.
+    if (props.isDrawer()) home.closeSidebarTransiently();
   };
+
+  onMount(() => {
+    // The drawer behaves as a modal layer, so Escape has to dismiss it.
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && props.isDrawer()) home.setSidebarOpen(false);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    onCleanup(() => document.removeEventListener("keydown", handleKeyDown));
+
+    if (props.isDrawer()) rail?.focus();
+  });
 
   return (
     <aside
+      ref={(el) => (rail = el)}
       id={HOME_SIDEBAR_ID}
       aria-label="Library scope"
+      tabindex={-1}
       data-testid="home-scope-rail"
       class="z-40 flex flex-col border-r border-border bg-surface
         motion-safe:animate-fade-in

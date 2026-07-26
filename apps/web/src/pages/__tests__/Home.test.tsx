@@ -4,7 +4,7 @@ import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { axeConfig } from "../../test/a11y";
 import { Route, Router } from "@solidjs/router";
 import { HOME_LAYOUT_STORAGE_KEY, HomeLayout } from "../../lib/homeLayout";
-import { HOME_SIDEBAR_STORAGE_KEY } from "../../lib/homeSidebar";
+import { HOME_SIDEBAR_STORAGE_KEY, HomeSidebarState } from "../../lib/homeSidebar";
 import type { ResumeListItem } from "../../stores/persistence";
 import Home from "../Home";
 
@@ -89,7 +89,20 @@ vi.mock("../../stores/ui", () => ({
   },
 }));
 
+/** Pretend the viewport is below the 900px breakpoint, where the rail is a drawer. */
+function stubNarrowViewport() {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: query === "(max-width: 899px)",
+    media: query,
+    onchange: null,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    dispatchEvent: () => false,
+  }));
+}
+
 function resetHomeState() {
+  vi.unstubAllGlobals();
   sessionStorage.clear();
   localStorage.removeItem(HOME_LAYOUT_STORAGE_KEY);
   localStorage.removeItem(HOME_SIDEBAR_STORAGE_KEY);
@@ -562,7 +575,7 @@ describe("Home scope sidebar", () => {
     const { unmount } = renderHome();
 
     openRail();
-    expect(localStorage.getItem(HOME_SIDEBAR_STORAGE_KEY)).toBe("open");
+    expect(localStorage.getItem(HOME_SIDEBAR_STORAGE_KEY)).toBe(HomeSidebarState.Open);
 
     unmount();
     renderHome();
@@ -683,6 +696,53 @@ describe("Home scope sidebar", () => {
     expect(storage).not.toHaveTextContent("on-device");
   });
 
+  it("closes the narrow-viewport drawer on selection without losing the preference", () => {
+    stubNarrowViewport();
+    renderHome();
+
+    openRail();
+    expect(localStorage.getItem(HOME_SIDEBAR_STORAGE_KEY)).toBe(HomeSidebarState.Open);
+
+    fireEvent.click(screen.getByTestId("home-scope-locked"));
+
+    expect(screen.queryByTestId("home-scope-rail")).not.toBeInTheDocument();
+    expect(screen.getAllByTestId("resume-card")).toHaveLength(1);
+    // The auto-close is incidental — the stored preference must survive it.
+    expect(localStorage.getItem(HOME_SIDEBAR_STORAGE_KEY)).toBe(HomeSidebarState.Open);
+  });
+
+  it("dismisses the narrow-viewport drawer on Escape", () => {
+    stubNarrowViewport();
+    renderHome();
+
+    openRail();
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(screen.queryByTestId("home-scope-rail")).not.toBeInTheDocument();
+    expect(localStorage.getItem(HOME_SIDEBAR_STORAGE_KEY)).toBe(HomeSidebarState.Collapsed);
+  });
+
+  it("takes the covered library out of the tab order behind the drawer", () => {
+    stubNarrowViewport();
+    renderHome();
+
+    openRail();
+
+    const library = screen.getByTestId("home-library");
+    expect(library).toHaveAttribute("inert");
+    expect(library).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("leaves the library reachable when the rail is a column", () => {
+    renderHome();
+
+    openRail();
+
+    const library = screen.getByTestId("home-library");
+    expect(library).not.toHaveAttribute("inert");
+    expect(library).not.toHaveAttribute("aria-hidden");
+  });
+
   it("reports on-device storage in the rail footer without a cloud session", () => {
     renderHome();
     openRail();
@@ -717,7 +777,7 @@ describe("Home accessibility", () => {
   });
 
   it("has no axe violations with the scope rail open", async () => {
-    localStorage.setItem(HOME_SIDEBAR_STORAGE_KEY, "open");
+    localStorage.setItem(HOME_SIDEBAR_STORAGE_KEY, HomeSidebarState.Open);
 
     const { container } = renderHome();
 
