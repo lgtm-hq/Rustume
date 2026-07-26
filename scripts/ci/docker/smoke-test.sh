@@ -18,6 +18,9 @@ set -euo pipefail
 #   PLATFORM  - Optional platform for docker pull/run (e.g. linux/arm64)
 #   PORT      - Host port mapping (default: 3000)
 #   TIMEOUT   - Health wait timeout seconds (default: 30)
+#
+# The /version check asserts the build metadata baked in by docker/Dockerfile,
+# so images built by hand need `--build-arg GIT_COMMIT=$(git rev-parse HEAD)`.
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
 	cat <<'EOF'
@@ -103,6 +106,23 @@ fi
 echo "Checking Swagger UI"
 if ! curl -sf --max-time "$CURL_TIMEOUT" "http://127.0.0.1:${PORT}/swagger-ui/" | grep -qi "swagger"; then
 	echo "Expected Swagger UI to load" >&2
+	exit 1
+fi
+
+echo "Checking build metadata endpoint"
+version_payload="$(curl -sf --max-time "$CURL_TIMEOUT" "http://127.0.0.1:${PORT}/version" || true)"
+if ! jq -e '.version | type == "string" and length > 0' <<<"$version_payload" >/dev/null 2>&1; then
+	echo "Expected /version to report a version string, got: ${version_payload:-<empty>}" >&2
+	exit 1
+fi
+# The image build passes GIT_COMMIT, so a null commit means the build-arg
+# plumbing (workflow -> Dockerfile -> crates/server/build.rs) is broken.
+if ! jq -e '.commit | type == "string" and length > 0' <<<"$version_payload" >/dev/null 2>&1; then
+	echo "Expected /version to report a commit, got: ${version_payload}" >&2
+	exit 1
+fi
+if ! jq -e '.built_at | type == "string" and length > 0' <<<"$version_payload" >/dev/null 2>&1; then
+	echo "Expected /version to report a build time, got: ${version_payload}" >&2
 	exit 1
 fi
 

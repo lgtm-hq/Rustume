@@ -116,6 +116,12 @@ jobs:
       platforms: linux/amd64,linux/arm64
       runner-map: '{"linux/arm64":"ubuntu-24.04-arm"}'
       smoke-test-script: scripts/ci/docker/smoke-test.sh
+      # Stamps the running build's commit into `GET /version` (#584) so a deploy
+      # can be verified against the `sha-<commit>` tag rustume-ops pins in
+      # deploy/image.txt. docker/Dockerfile truncates it to the same 7 chars
+      # metadata-action uses for that tag.
+      build-args: |
+        GIT_COMMIT=${{ github.sha }}
       # Cold amd64 builds (no registry cache hit) exceed the 60-minute
       # default: the workspace cargo build alone runs ~50 minutes (#439).
       timeout-minutes: 120
