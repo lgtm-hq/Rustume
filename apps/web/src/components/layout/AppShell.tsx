@@ -6,7 +6,6 @@ import { resumeStore } from "../../stores/resume";
 import { uiStore } from "../../stores/ui";
 import { EditorThemeSelector } from "../ui/EditorThemeSelector";
 import { AuthMenu } from "../Auth/AuthMenu";
-import { SignInDialog } from "../Auth/SignInDialog";
 
 export const AppShell: ParentComponent = (props) => {
   const isOnline = useOnline();
@@ -134,8 +133,6 @@ export const AppShell: ParentComponent = (props) => {
           </div>
         </div>
       </header>
-
-      <SignInDialog />
 
       {/* Main Content */}
       <main

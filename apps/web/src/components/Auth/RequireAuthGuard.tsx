@@ -1,6 +1,6 @@
 import { useLocation } from "@solidjs/router";
 import { Show, type ParentComponent } from "solid-js";
-import Unauthorized from "../../pages/Unauthorized";
+import CloudEntry from "../../pages/CloudEntry";
 import { authStore } from "../../stores/auth";
 import { Spinner } from "../ui";
 
@@ -28,17 +28,21 @@ function isProtectedPath(pathname: string): boolean {
   return true;
 }
 
-/** Block protected routes with a sign-in page when hosted require-auth mode is active. */
+/**
+ * Block protected routes with the Cloud entry page whenever a hosted deployment
+ * has no signed-in user.
+ *
+ * Deliberately does NOT key on `state.requireAuth`: anonymous use of Rustume
+ * Cloud is not supported, so the flag would only ever weaken the gate.
+ * Self-hosted deployments (`cloudEnabled === false`) are never blocked — they
+ * have no accounts at all.
+ */
 export const RequireAuthGuard: ParentComponent = (props) => {
   const location = useLocation();
   const { state } = authStore;
 
   const shouldBlock = () =>
-    !state.loading &&
-    state.cloudEnabled &&
-    state.requireAuth &&
-    !state.user &&
-    isProtectedPath(location.pathname);
+    !state.loading && state.cloudEnabled && !state.user && isProtectedPath(location.pathname);
 
   return (
     <Show
@@ -49,7 +53,7 @@ export const RequireAuthGuard: ParentComponent = (props) => {
         </div>
       }
     >
-      <Show when={!shouldBlock()} fallback={<Unauthorized />}>
+      <Show when={!shouldBlock()} fallback={<CloudEntry />}>
         {props.children}
       </Show>
     </Show>

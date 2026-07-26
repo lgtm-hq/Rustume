@@ -60,7 +60,7 @@ function renderGuard(pathname = "/edit/resume-1") {
 }
 
 describe("RequireAuthGuard", () => {
-  it("shows the unauthorized page when require-auth mode blocks access", () => {
+  it("shows the Cloud entry page when a hosted deployment has no user", () => {
     mockAuthState.loading = false;
     mockAuthState.cloudEnabled = true;
     mockAuthState.requireAuth = true;
@@ -68,7 +68,7 @@ describe("RequireAuthGuard", () => {
 
     renderGuard();
 
-    expect(screen.getByTestId("unauthorized-page")).toBeInTheDocument();
+    expect(screen.getByTestId("cloud-entry-page")).toBeInTheDocument();
     expect(screen.queryByTestId("protected-content")).not.toBeInTheDocument();
   });
 
@@ -81,10 +81,12 @@ describe("RequireAuthGuard", () => {
     renderGuard();
 
     expect(screen.getByTestId("protected-content")).toBeInTheDocument();
-    expect(screen.queryByTestId("unauthorized-page")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("cloud-entry-page")).not.toBeInTheDocument();
   });
 
-  it("does not block when require-auth mode is disabled", () => {
+  // Previously this asserted the opposite. Anonymous use of Rustume Cloud is not
+  // supported, so requireAuth must never weaken the gate (#589).
+  it("blocks cloud deployments even when require-auth mode is disabled", () => {
     mockAuthState.loading = false;
     mockAuthState.cloudEnabled = true;
     mockAuthState.requireAuth = false;
@@ -92,7 +94,8 @@ describe("RequireAuthGuard", () => {
 
     renderGuard();
 
-    expect(screen.getByTestId("protected-content")).toBeInTheDocument();
+    expect(screen.getByTestId("cloud-entry-page")).toBeInTheDocument();
+    expect(screen.queryByTestId("protected-content")).not.toBeInTheDocument();
   });
 
   it("does not block in self-hosted mode", () => {
@@ -116,7 +119,7 @@ describe("RequireAuthGuard", () => {
 
     expect(screen.getByLabelText("Loading authentication")).toBeInTheDocument();
     expect(screen.queryByTestId("protected-content")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("unauthorized-page")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("cloud-entry-page")).not.toBeInTheDocument();
   });
 
   it("does not block auth callback paths", () => {
