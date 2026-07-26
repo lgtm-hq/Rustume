@@ -12,6 +12,7 @@ pub mod security_txt;
 pub mod static_files;
 pub mod templates;
 pub mod validate;
+pub mod version;
 
 pub use account::delete_account;
 pub use auth::{callback, login, logout, me};
@@ -28,3 +29,4 @@ pub use security_txt::security_txt;
 pub use static_files::{sanitize_static_path, spa_fallback, static_dir};
 pub use templates::{list_templates, template_thumbnail};
 pub use validate::validate;
+pub use version::version;

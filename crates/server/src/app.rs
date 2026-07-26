@@ -32,7 +32,7 @@ use crate::routes::{
     export_resumes_pdf, get_resume, get_resume_version, health, import_resumes,
     list_resume_versions, list_resumes, list_templates, login, logout, me, metrics, parse,
     render_pdf, render_preview, restore_resume_version, security_txt, spa_fallback, static_dir,
-    template_thumbnail, update_resume, update_sharing, validate,
+    template_thumbnail, update_resume, update_sharing, validate, version,
 };
 use crate::state::AppState;
 
@@ -106,7 +106,12 @@ pub fn create_router_with_state(state: AppState) -> Router {
         ));
     }
 
-    let mut health_routes = Router::new().route("/health", get(health));
+    // `/version` shares `/health`'s unauthenticated, rate-limited treatment so a
+    // deploy pipeline can verify the running build without credentials. Being a
+    // server route, it also takes precedence over the SPA catch-all fallback.
+    let mut health_routes = Router::new()
+        .route("/health", get(health))
+        .route("/version", get(version));
     if cloud_rate_limits {
         health_routes = health_routes.route_layer(middleware::from_fn_with_state(
             state_for_layers.clone(),
