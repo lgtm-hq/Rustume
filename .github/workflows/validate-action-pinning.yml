@@ -17,10 +17,10 @@ concurrency:
 jobs:
   validate:
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-validate-action-pinning.yml@31c25ef2e8992960e218524780e34f44f51271b5 # v0.54.0
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-validate-action-pinning.yml@240daf3ed1f7475b3f322502035b15994be210a8 # v0.59.16
     with:
       job-name: '📌 Validate Action Pinning'
-      tooling-ref: '31c25ef2e8992960e218524780e34f44f51271b5'  # v0.54.0
+      tooling-ref: '240daf3ed1f7475b3f322502035b15994be210a8'  # v0.59.16
       egress-policy: block
       egress-preset: github-tooling
       fail-on-error: true
