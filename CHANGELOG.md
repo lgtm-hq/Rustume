@@ -22,6 +22,19 @@ and this project adheres to
 
 ### Security
 
+## [0.45.0] - 2026-07-26
+
+### Added
+
+- **server**: add GET /version deploy-verification endpoint (#585) (8988281)
+
+### Changed
+
+- **deps**: update ghcr.io/lgtm-hq/py-lintro docker tag to 0.91.47 (patch) (#586)
+  (fccbdfb)
+- **deps**: update ghcr.io/lgtm-hq/py-lintro docker tag to 0.91.46 (patch) (#583)
+  (9c35997)
+
 ## [0.44.0] - 2026-07-25
 
 ### Added
@@ -593,7 +606,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.44.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.45.0...HEAD
+[0.45.0]: https://github.com/lgtm-hq/Rustume/compare/v0.44.0...v0.45.0
 [0.44.0]: https://github.com/lgtm-hq/Rustume/compare/v0.43.2...v0.44.0
 [0.43.2]: https://github.com/lgtm-hq/Rustume/compare/v0.43.1...v0.43.2
 [0.43.1]: https://github.com/lgtm-hq/Rustume/compare/v0.43.0...v0.43.1
