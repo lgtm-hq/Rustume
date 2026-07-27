@@ -11,7 +11,12 @@
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
   let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
-  let muted-color = text-color.lighten(40%)
+  let muted-color = text-color.lighten(30%)
+  // Accent ink: `primary-color` darkened until it clears WCAG AA (4.5:1)
+  // as text on every backdrop this template paints it on — page, tinted
+  // panels, chips and its own profile badge. `primary-color` itself stays
+  // the untouched brand seed the decorative tints below are derived from.
+  let accent-color = primary-color.darken(35%)
 
   // ── Helper functions (capture theme colors from enclosing scope) ──
 
@@ -21,18 +26,18 @@
   // Section heading for main content area (right column)
   let main-section-heading(title) = {
     v(14pt)
-    text(weight: "bold", size: 11pt, fill: primary-color, tracking: 0.06em)[#upper(title)]
+    text(weight: "bold", size: 11pt, fill: accent-color, tracking: 0.06em)[#upper(title)]
     v(2pt)
-    line(length: 100%, stroke: 1.5pt + primary-color)
+    line(length: 100%, stroke: 1.5pt + accent-color)
     v(8pt)
   }
 
   // Section heading for sidebar (left column) - smaller, different style
   let sidebar-section-heading(title) = {
     v(12pt)
-    text(weight: "semibold", size: 9pt, fill: primary-color, tracking: 0.1em)[#upper(title)]
+    text(weight: "semibold", size: 9pt, fill: accent-color, tracking: 0.1em)[#upper(title)]
     v(2pt)
-    line(length: 100%, stroke: 0.75pt + primary-color)
+    line(length: 100%, stroke: 0.75pt + accent-color)
     v(6pt)
   }
 
@@ -40,11 +45,11 @@
   let rating-bars(level) = {
     let level = clamp-level(level)
     if level-display == "template-default" {
-      rating-indicators(level, 14pt, 4pt, primary-color, bar-empty, 2pt, 2pt)
+      rating-indicators(level, 14pt, 4pt, accent-color, bar-empty, 2pt, 2pt)
     } else if level-display == "progress-bar" {
-      render-level(level, level-display, primary-color, bar-empty, track-width: 70pt)
+      render-level(level, level-display, accent-color, bar-empty, track-width: 70pt)
     } else {
-      render-level(level, level-display, primary-color, bar-empty)
+      render-level(level, level-display, accent-color, bar-empty)
     }
   }
 
@@ -165,7 +170,7 @@
       item,
       size: 9pt,
       fill: text-color,
-      link-fill: primary-color,
+      link-fill: accent-color,
       label-mode: "username",
     )
     v(6pt)
@@ -198,7 +203,7 @@
           fill: light-bg,
           radius: 3pt,
           inset: (x: 5pt, y: 2pt),
-          text(size: 8pt, fill: primary-color)[#keyword]
+          text(size: 8pt, fill: accent-color)[#keyword]
         )
         h(3pt)
       }
@@ -267,7 +272,7 @@
           fill: light-bg,
           radius: 3pt,
           inset: (x: 5pt, y: 2pt),
-          text(size: 8pt, fill: primary-color)[#keyword]
+          text(size: 8pt, fill: accent-color)[#keyword]
         )
         h(3pt)
       }
@@ -379,7 +384,7 @@
       text(size: 8pt, fill: muted-color)[#item.keywords.join(", ")]
     }
 
-    render-url(item, primary-color)
+    render-url(item, accent-color)
     v(10pt)
   }
 
@@ -422,7 +427,7 @@
     // ── Header - centered, above columns ──
     align(center)[
       #if has-visible-picture(data.basics) {
-        render-picture(data.basics, primary-color)
+        render-picture(data.basics, accent-color)
         v(8pt)
       }
 
@@ -430,7 +435,7 @@
 
       #if data.basics.headline != "" {
         v(4pt)
-        text(size: 11pt, fill: primary-color)[#data.basics.headline]
+        text(size: 11pt, fill: accent-color)[#data.basics.headline]
       }
 
       #v(8pt)
@@ -446,7 +451,7 @@
     ]
 
     v(16pt)
-    line(length: 100%, stroke: 1pt + primary-color)
+    line(length: 100%, stroke: 1pt + accent-color)
     v(12pt)
 
     // Column indices match the Layout Editor labels: 0 = Main, 1 = Sidebar.

@@ -14,33 +14,38 @@
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
   let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
-  let muted-color = rgb("#64748b")
+  let muted-color = text-color.lighten(35%)
+  // Accent ink: `primary-color` darkened until it clears WCAG AA (4.5:1)
+  // as text on every backdrop this template paints it on — page, tinted
+  // panels, chips and its own profile badge. `primary-color` itself stays
+  // the untouched brand seed the decorative tints below are derived from.
+  let accent-color = primary-color.darken(45%)
   let sidebar-bg = primary-color.lighten(90%)
 
   // ── Helper functions (capture theme colors from enclosing scope) ──
 
   let section-heading(title) = {
     v(14pt)
-    text(weight: "bold", size: 11pt, fill: primary-color)[#title]
+    text(weight: "bold", size: 11pt, fill: accent-color)[#title]
     v(3pt)
-    line(length: 100%, stroke: 1pt + primary-color)
+    line(length: 100%, stroke: 1pt + accent-color)
     v(8pt)
   }
 
   let sidebar-heading(title) = {
     v(12pt)
-    text(weight: "bold", size: 10pt, fill: primary-color)[#title]
+    text(weight: "bold", size: 10pt, fill: accent-color)[#title]
     v(2pt)
-    line(length: 100%, stroke: 0.75pt + primary-color)
+    line(length: 100%, stroke: 0.75pt + accent-color)
     v(6pt)
   }
 
   let skill-dots(level) = {
     let level = clamp-level(level)
     if level-display == "template-default" {
-      rating-indicators(level, 6pt, 6pt, primary-color, primary-color.lighten(70%), 50%, 2pt)
+      rating-indicators(level, 6pt, 6pt, accent-color, accent-color.lighten(70%), 50%, 2pt)
     } else {
-      render-level(level, level-display, primary-color, primary-color.lighten(70%))
+      render-level(level, level-display, accent-color, accent-color.lighten(70%))
     }
   }
 
@@ -158,7 +163,7 @@
       item,
       size: 9pt,
       fill: text-color,
-      link-fill: primary-color,
+      link-fill: accent-color,
       label-mode: "network-username",
       weight: "bold",
     )
@@ -354,7 +359,7 @@
     }
 
 
-    render-url(item, primary-color)
+    render-url(item, accent-color)
     v(8pt)
   }
 
@@ -397,7 +402,7 @@
     let sidebar-before = () => [
       #if has-visible-picture(data.basics) {
         align(center)[
-          #render-picture(data.basics, primary-color, default-size: 80pt)
+          #render-picture(data.basics, accent-color, default-size: 80pt)
         ]
         v(12pt)
       }
@@ -426,7 +431,7 @@
         v(3pt)
       }
       #if has-url(data.basics) {
-        link(data.basics.url.href)[#text(size: 8pt, fill: primary-color)[#url-display-label(data.basics.url)]]
+        link(data.basics.url.href)[#text(size: 8pt, fill: accent-color)[#url-display-label(data.basics.url)]]
         v(3pt)
       }
     ]

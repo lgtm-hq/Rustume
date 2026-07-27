@@ -11,7 +11,12 @@
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
   let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
-  let muted-color = rgb("#6b7280")
+  let muted-color = text-color.lighten(30%)
+  // Accent ink: `primary-color` darkened until it clears WCAG AA (4.5:1)
+  // as text on every backdrop this template paints it on — page, tinted
+  // panels, chips and its own profile badge. `primary-color` itself stays
+  // the untouched brand seed the decorative tints below are derived from.
+  let accent-color = primary-color.darken(30%)
 
   // ── Helper functions (capture theme colors from enclosing scope) ──
 
@@ -21,9 +26,9 @@
 
   let sidebar-heading(title) = {
     v(10pt)
-    text(weight: "bold", size: 8pt, fill: primary-color, tracking: 0.08em)[#upper(title)]
+    text(weight: "bold", size: 8pt, fill: accent-color, tracking: 0.08em)[#upper(title)]
     v(2pt)
-    line(length: 100%, stroke: 0.5pt + primary-color)
+    line(length: 100%, stroke: 0.5pt + accent-color)
     v(6pt)
   }
 
@@ -31,9 +36,9 @@
     v(10pt)
     box(
       width: 100%,
-      stroke: (bottom: 1.5pt + primary-color),
+      stroke: (bottom: 1.5pt + accent-color),
       inset: (bottom: 3pt),
-      text(weight: "bold", size: 9pt, fill: primary-color, tracking: 0.06em)[#upper(title)]
+      text(weight: "bold", size: 9pt, fill: accent-color, tracking: 0.06em)[#upper(title)]
     )
     v(8pt)
   }
@@ -46,7 +51,7 @@
       column-gutter: 8pt,
       [
         #if has-url(item) {
-          link(item.url.href)[#text(weight: "bold", size: 9pt, fill: primary-color)[#item.company]]
+          link(item.url.href)[#text(weight: "bold", size: 9pt, fill: accent-color)[#item.company]]
         } else {
           text(weight: "bold", size: 9pt)[#item.company]
         }
@@ -110,10 +115,10 @@
     let level = clamp-level(item.level)
     if level-display == "template-default" and level > 0 {
       v(2pt)
-      rating-indicators(level, 6pt, 6pt, primary-color, bg-color.darken(10%), 50%, 2pt)
+      rating-indicators(level, 6pt, 6pt, accent-color, bg-color.darken(10%), 50%, 2pt)
     } else if should-render-level(level, level-display) {
       v(2pt)
-      render-level(level, level-display, primary-color, bg-color.darken(10%))
+      render-level(level, level-display, accent-color, bg-color.darken(10%))
     }
 
     if has-keywords(item) {
@@ -136,10 +141,10 @@
     let level = clamp-level(item.level)
     if level-display == "template-default" and level > 0 {
       v(2pt)
-      rating-indicators(level, 6pt, 6pt, primary-color, bg-color.darken(10%), 50%, 2pt)
+      rating-indicators(level, 6pt, 6pt, accent-color, bg-color.darken(10%), 50%, 2pt)
     } else if should-render-level(level, level-display) {
       v(2pt)
-      render-level(level, level-display, primary-color, bg-color.darken(10%))
+      render-level(level, level-display, accent-color, bg-color.darken(10%))
     }
 
     v(6pt)
@@ -153,7 +158,7 @@
       item,
       size: 8pt,
       fill: text-color,
-      link-fill: primary-color,
+      link-fill: accent-color,
       label-mode: "network-username",
       weight: "medium",
     )
@@ -187,7 +192,7 @@
           fill: light-bg,
           radius: 2pt,
           inset: (x: 4pt, y: 1pt),
-          text(size: 7pt, fill: primary-color)[#keyword]
+          text(size: 7pt, fill: accent-color)[#keyword]
         )
         h(3pt)
       }
@@ -254,7 +259,7 @@
           fill: light-bg,
           radius: 2pt,
           inset: (x: 4pt, y: 1pt),
-          text(size: 7pt, fill: primary-color)[#keyword]
+          text(size: 7pt, fill: accent-color)[#keyword]
         )
         h(3pt)
       }
@@ -366,13 +371,13 @@
           fill: light-bg,
           radius: 2pt,
           inset: (x: 4pt, y: 1pt),
-          text(size: 7pt, fill: primary-color)[#keyword]
+          text(size: 7pt, fill: accent-color)[#keyword]
         )
         h(3pt)
       }
     }
 
-    render-url(item, primary-color)
+    render-url(item, accent-color)
     v(8pt)
   }
 
@@ -414,11 +419,11 @@
     // Header - full width teal background bar
     box(
       width: 100%,
-      fill: primary-color,
+      fill: accent-color,
       inset: (x: 24pt, y: 18pt),
       [
         #if has-visible-picture(data.basics) {
-          render-picture(data.basics, primary-color)
+          render-picture(data.basics, accent-color)
           v(8pt)
         }
 
@@ -426,7 +431,7 @@
 
         #if data.basics.headline != "" {
           v(4pt)
-          text(size: 11pt, fill: primary-color.lighten(80%))[#data.basics.headline]
+          text(size: 11pt, fill: accent-color.lighten(80%))[#data.basics.headline]
         }
 
         #v(8pt)
@@ -434,7 +439,7 @@
         #let contact-items = build-contact-items(data.basics)
         #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#text(fill: white)[#url-display-label(data.basics.url)]],) }
 
-        #text(size: 8pt, fill: primary-color.lighten(85%))[#contact-items.join("  |  ")]
+        #text(size: 8pt, fill: accent-color.lighten(85%))[#contact-items.join("  |  ")]
       ]
     )
 

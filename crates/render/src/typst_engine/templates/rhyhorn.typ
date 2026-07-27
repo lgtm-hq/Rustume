@@ -12,15 +12,20 @@
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
   let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
-  let muted-color = rgb("#6b7280")
+  let muted-color = text-color.lighten(40%)
+  // Accent ink: `primary-color` darkened until it clears WCAG AA (4.5:1)
+  // as text on every backdrop this template paints it on — page, tinted
+  // panels, chips and its own profile badge. `primary-color` itself stays
+  // the untouched brand seed the decorative tints below are derived from.
+  let accent-color = primary-color.darken(35%)
 
   // ── Helper functions (capture theme colors from enclosing scope) ──
 
   let section-heading(title) = {
     v(12pt)
-    text(weight: "bold", size: 11pt, fill: primary-color)[#upper(title)]
+    text(weight: "bold", size: 11pt, fill: accent-color)[#upper(title)]
     v(2pt)
-    line(length: 100%, stroke: 0.5pt + primary-color)
+    line(length: 100%, stroke: 0.5pt + accent-color)
     v(6pt)
   }
 
@@ -39,10 +44,10 @@
     let level = clamp-level(level)
     if level-display == "template-default" {
       h(4pt)
-      rating-indicators(level, 8pt, 8pt, primary-color, bg-color.darken(10%), 2pt, 2pt)
+      rating-indicators(level, 8pt, 8pt, accent-color, bg-color.darken(10%), 2pt, 2pt)
     } else if should-render-level(level, level-display) {
       h(4pt)
-      render-level(level, level-display, primary-color, bg-color.darken(10%), width: 8pt, height: 8pt)
+      render-level(level, level-display, accent-color, bg-color.darken(10%), width: 8pt, height: 8pt)
     }
   }
 
@@ -140,7 +145,7 @@
       item,
       size: 10pt,
       fill: text-color,
-      link-fill: primary-color,
+      link-fill: accent-color,
       label-mode: if has-url(item) { "username" } else { "network-username" },
     )
     v(4pt)
@@ -318,7 +323,7 @@
       text(size: 9pt, fill: muted-color)[#item.keywords.join(", ")]
     }
 
-    render-url(item, primary-color)
+    render-url(item, accent-color)
     v(8pt)
   }
 
@@ -367,7 +372,7 @@
             columns: (auto, 1fr),
             column-gutter: 12pt,
             align(horizon)[
-              #render-picture(data.basics, primary-color)
+              #render-picture(data.basics, accent-color)
             ],
             [
               #text(size: 24pt, weight: "bold")[#data.basics.name]
@@ -402,7 +407,7 @@
     )
 
     v(8pt)
-    line(length: 100%, stroke: 0.5pt + primary-color)
+    line(length: 100%, stroke: 0.5pt + accent-color)
     v(8pt)
 
     render-resume(data, (

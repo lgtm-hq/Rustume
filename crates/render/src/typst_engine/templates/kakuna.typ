@@ -12,20 +12,28 @@
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
   let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
-  let muted-color = text-color.lighten(40%)
+  let muted-color = text-color.lighten(30%)
+  // Accent ink: `primary-color` darkened until it clears WCAG AA (4.5:1)
+  // as text on every backdrop this template paints it on — page, tinted
+  // panels, chips and its own profile badge. `primary-color` itself stays
+  // the untouched brand seed the decorative tints below are derived from.
+  let accent-color = primary-color.darken(15%)
 
   // ── Helper functions (capture theme colors from enclosing scope) ──
 
   let light-bg = primary-color.lighten(92%)
-  let border-color = bg-color.darken(15%)
+  // Neutral rule/border ink. `darken(15%)` was #d9d9d9 — 1.41:1 on white,
+  // effectively invisible; this clears the 3:1 that WCAG 2.1 SC 1.4.11
+  // asks of a boundary that separates content.
+  let border-color = bg-color.darken(45%)
 
   let section-heading(title) = {
     v(16pt)
     grid(
       columns: (auto, 1fr),
       column-gutter: 10pt,
-      text(weight: "semibold", size: 10pt, fill: primary-color, tracking: 0.06em)[#upper(title)],
-      line(start: (0pt, 5pt), length: 100%, stroke: 0.75pt + primary-color)
+      text(weight: "semibold", size: 10pt, fill: accent-color, tracking: 0.06em)[#upper(title)],
+      line(start: (0pt, 5pt), length: 100%, stroke: 0.75pt + accent-color)
     )
     v(10pt)
   }
@@ -34,10 +42,10 @@
     let level = clamp-level(level)
     if level-display == "template-default" {
       h(4pt)
-      rating-indicators(level, 8pt, 8pt, primary-color, bg-color.darken(10%), 50%, 2pt)
+      rating-indicators(level, 8pt, 8pt, accent-color, bg-color.darken(10%), 50%, 2pt)
     } else if should-render-level(level, level-display) {
       h(4pt)
-      render-level(level, level-display, primary-color, bg-color.darken(10%), width: 8pt, height: 8pt)
+      render-level(level, level-display, accent-color, bg-color.darken(10%), width: 8pt, height: 8pt)
     }
   }
 
@@ -153,7 +161,7 @@
       item,
       size: 10pt,
       fill: text-color,
-      link-fill: primary-color,
+      link-fill: accent-color,
       label-mode: "network-username",
     )
     h(14pt)
@@ -184,7 +192,7 @@
           fill: light-bg,
           radius: 3pt,
           inset: (x: 6pt, y: 2pt),
-          text(size: 8pt, fill: primary-color)[#keyword]
+          text(size: 8pt, fill: accent-color)[#keyword]
         )
         h(4pt)
       }
@@ -342,7 +350,7 @@
       text(size: 9pt, fill: muted-color)[#item.keywords.join(", ")]
     }
 
-    render-url(item, primary-color)
+    render-url(item, accent-color)
     v(8pt)
   }
 
@@ -390,7 +398,7 @@
         inset: (x: 24pt, y: 20pt),
         [
           #if has-visible-picture(data.basics) {
-            render-picture(data.basics, primary-color)
+            render-picture(data.basics, accent-color)
             v(8pt)
           }
 
@@ -398,7 +406,7 @@
 
           #if data.basics.headline != "" {
             v(6pt)
-            text(size: 11pt, fill: primary-color)[#data.basics.headline]
+            text(size: 11pt, fill: accent-color)[#data.basics.headline]
           }
 
           #v(10pt)
