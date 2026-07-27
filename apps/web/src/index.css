@@ -80,7 +80,16 @@
   --animate-pulse-subtle: pulse-subtle 2s ease-in-out infinite;
 }
 
-/* Keyframes */
+/*
+ * Keyframes.
+ *
+ * Entrance animations that carry text (`slide-up`, `stagger-in`) move only —
+ * they must not interpolate opacity. A partially transparent element is
+ * composited toward whatever sits behind it, so its text and background blend
+ * together and the pair drops below the AA contrast ratio for the duration of
+ * the animation. `fade-in` keeps its opacity ramp because it is only applied
+ * to text-free scrims and overlays.
+ */
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -92,11 +101,9 @@
 
 @keyframes slide-up {
   from {
-    opacity: 0;
     transform: translateY(20px);
   }
   to {
-    opacity: 1;
     transform: translateY(0);
   }
 }
@@ -128,11 +135,9 @@
 
 @keyframes stagger-in {
   from {
-    opacity: 0;
     transform: translateY(8px);
   }
   to {
-    opacity: 1;
     transform: translateY(0);
   }
 }
@@ -153,6 +158,28 @@ body {
 
 #root {
   min-height: 100vh;
+}
+
+/*
+ * Reduced motion.
+ *
+ * Now that `slide-up` and `stagger-in` animate transform alone, movement is
+ * the only entrance cue they offer — which is exactly the cue a motion-
+ * sensitive reader needs suppressed. Components already opt out of their own
+ * transitions via `motion-reduce:transition-none`; this is the global
+ * counterpart that also covers the keyframe animations.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: -0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Focus States */
