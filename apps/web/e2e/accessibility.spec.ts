@@ -138,6 +138,7 @@ test.describe("accessibility", () => {
     await builderPage.fillItemField("Position", "Designer");
     await builderPage.assertSectionItemCount(2);
     await builderPage.assertSaved();
+    await expect(page.getByText("New resume created")).toBeHidden({ timeout: 15_000 });
     expect(await scanForViolations(page)).toEqual([]);
   });
 
@@ -155,6 +156,7 @@ test.describe("accessibility", () => {
     await builderPage.assertSectionOpen("Layout");
     await expect(page.getByRole("group", { name: "Main" })).toBeVisible();
     await expect(page.getByRole("group", { name: "Sidebar" })).toBeVisible();
+    await expect(page.getByText("New resume created")).toBeHidden({ timeout: 15_000 });
     expect(await scanForViolations(page)).toEqual([]);
   });
 

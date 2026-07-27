@@ -46,3 +46,32 @@ describe("RichTextEditor toolbar keyboard navigation", () => {
     );
   });
 });
+
+/**
+ * The ProseMirror surface reports `role="textbox"`, so it is an ARIA input
+ * field and must carry a name of its own — a nearby heading does not count.
+ */
+describe("RichTextEditor accessible name", () => {
+  const surface = () => document.querySelector('.rich-text-editor [role="textbox"]');
+
+  it("points the editing surface at the visible label", () => {
+    render(() => <RichTextEditor label="Summary" value="" onInput={vi.fn()} />);
+
+    const labelledBy = surface()?.getAttribute("aria-labelledby");
+    expect(labelledBy).toBeTruthy();
+    expect(document.getElementById(labelledBy!)?.textContent).toBe("Summary");
+  });
+
+  it("falls back to ariaLabel where no label is rendered", () => {
+    render(() => <RichTextEditor ariaLabel="Cover letter" value="" onInput={vi.fn()} />);
+
+    expect(surface()).toHaveAttribute("aria-label", "Cover letter");
+    expect(surface()).not.toHaveAttribute("aria-labelledby");
+  });
+
+  it("keeps the textbox role that editorProps.attributes would otherwise replace", () => {
+    render(() => <RichTextEditor label="Summary" value="" onInput={vi.fn()} />);
+
+    expect(surface()).toHaveAttribute("aria-multiline", "true");
+  });
+});
