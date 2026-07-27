@@ -63,9 +63,58 @@ jobs:
     permissions:
       contents: read
 
+  # Release gate (#597). docker-build-publish.yml runs as a separate workflow
+  # on the same tag push, so this job waits for the container tags it is
+  # contracted to publish and fails if they never appear. `release` needs it,
+  # which is what keeps a GitHub Release from existing without its image.
+  #
+  # The wait budget covers the docker job's own timeout-minutes: 120 plus
+  # queueing. WATCH_WORKFLOW short-circuits the wait when that workflow has
+  # already concluded without success, so a dead runner fails in minutes
+  # rather than burning the full budget.
+  verify-image:
+    name: 🔍 Verify Release Image
+    needs: verify-tag
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: read
+      actions: read # WATCH_WORKFLOW reads docker-build-publish run status
+    timeout-minutes: 150
+
+    steps:
+      - name: Harden Runner
+        # Direct step-security invocation: lgtm-ci removed its harden-runner
+        # composite in v0.50.0 (the action pre hook must install the agent).
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            codeload.github.com:443
+            objects.githubusercontent.com:443
+            ghcr.io:443
+
+      - name: Checkout
+        # yamllint disable-line rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@240daf3ed1f7475b3f322502035b15994be210a8 # v0.59.16
+
+      - name: Wait for the release image to be published
+        env:
+          IMAGE_REF: ghcr.io/lgtm-hq/rustume
+          EXPECT_PLATFORMS: linux/amd64,linux/arm64
+          TIMEOUT_SECONDS: "8100"
+          POLL_INTERVAL_SECONDS: "30"
+          WATCH_WORKFLOW: docker-build-publish.yml
+          REGISTRY_USERNAME: ${{ github.actor }}
+          REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/ci/docker/verify-published-tags.sh
+
   release:
     name: 📦 Create GitHub Release
-    needs: [verify-tag, build-binaries]
+    needs: [verify-tag, build-binaries, verify-image]
     runs-on: ubuntu-24.04
     permissions:
       contents: write

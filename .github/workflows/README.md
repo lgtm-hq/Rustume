@@ -37,7 +37,10 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
   **Quality - Documentation Site** on `main`, or `workflow_dispatch`)
 - **docker-build-publish.yml** — Multi-arch GHCR publish via `reusable-docker`
   (`ghcr.io/lgtm-hq/rustume:main`; hosted deploys run from the private
-  rustume-ops repo — this repo ends at the GHCR publish)
+  rustume-ops repo — this repo ends at the GHCR publish). A trailing
+  `🔍 Verify Published Tags` job asserts the contracted tags actually resolve
+  (`scripts/ci/docker/verify-published-tags.sh`), so a skipped manifest merge
+  fails the run instead of passing as "mostly green with skips" (#597)
 
 ## Release
 
@@ -48,7 +51,11 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
 - **auto-tag-on-main.yml** — Creates tags when `Cargo.toml` version changes on `main`
   via `reusable-release-auto-tag` (`version-source: cargo`, `create-release: false`)
 - **publish-release-on-tag.yml** — GitHub Release on tag push (inline;
-  `create-github-release` composite)
+  `create-github-release` composite). `📦 Create GitHub Release` is gated on
+  `🔍 Verify Release Image`, which waits for the GHCR tags
+  docker-build-publish.yml is contracted to publish, so a Release is never
+  created without its image (#597). The git tag is created earlier by
+  auto-tag-on-main.yml and is **not** covered by that gate
 - **build-binary.yml** — Cross-platform release binaries (inline; Windows
   `actions/checkout` exception)
 
