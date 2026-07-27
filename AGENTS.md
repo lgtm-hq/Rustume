@@ -9,7 +9,10 @@ those. Notes below capture only non-obvious environment caveats for cloud agents
 For any UI, copy, or template change, read
 [`docs/design/BRAND.md`](docs/design/BRAND.md) first — it is the authoritative
 brand story, design language, voice, and anti-pattern list, and UI changes are
-reviewed against it.
+reviewed against it. For the editor, preview, template picker, import/export
+dialogs, sync status, or empty states specifically, also read
+[`docs/design/UX-PATTERNS.md`](docs/design/UX-PATTERNS.md) — it records which
+interaction pattern each of those surfaces adopts, and why the alternatives lost.
 
 ### Toolchain / dependencies
 
