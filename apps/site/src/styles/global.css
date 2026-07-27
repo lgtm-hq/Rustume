@@ -78,9 +78,9 @@ html {
  *
  * The site's motion is all transition-based — dropdown panels, hover lifts,
  * the theme picker — so zeroing durations sitewide is what honours the
- * preference, and it holds for any animation a component adds later. Note
- * that `scroll-behavior: smooth` above is set on `html` and so needs its own
- * override; it is the one piece of motion the shorthand block cannot reach.
+ * preference, and it holds for any animation a component adds later. The
+ * universal selector also matches `html`, which is what unsets the
+ * `scroll-behavior: smooth` declared above it.
  *
  * `animation-iteration-count` is pinned to 1 because a zero-duration
  * animation that is still `infinite` repaints forever.
@@ -90,10 +90,6 @@ html {
  * advances.
  */
 @media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
-
   *,
   *::before,
   *::after {
