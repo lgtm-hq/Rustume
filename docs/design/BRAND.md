@@ -139,13 +139,15 @@ that fills it.
 
 | Where | Now | Should be |
 | --- | --- | --- |
-| `components/export/ExportModal.tsx:51` | "Failed to export PDF" | "PDF export failed. The render service did not return a file — check that the server is reachable, then export again." |
-| `components/errors/AppErrorFallback.tsx:11` | "An unexpected error occurred." | "Rustume could not render this page. Your resume is saved and unchanged. Reload, or try again." |
-| `pages/home/useHomePage.ts:469` | "3 resumes could not be unfiled — try again" | "Could not unfile 3 resumes. They are still in their folders. Try again." |
-| `pages/home/HomeLayouts.tsx:295` | "Nothing here yet" | "No resumes in Drafts" (body already names the fix — the heading should too) |
+| `ExportModal` PDF-export toast | "Failed to export PDF" | "Could not export the PDF. Your resume is unchanged. Try again." — and where the failure reason is known, say it instead: "…the render service is unreachable. Check that the server is running." |
+| `AppErrorFallback` boundary | "An unexpected error occurred." | "Rustume could not render this page. Your resume is saved and unchanged. Reload, or try again." |
+| `useHomePage` bulk-unfile toast | "3 resumes could not be unfiled — try again" | "Could not unfile 3 resumes. They are still in their folders. Try again." |
+| `EmptyScope` heading in `HomeLayouts` | "Nothing here yet" | "No resumes in Drafts" — the body already names the fix, the heading should too |
 
-Note what the rewrites share: the failure is named as a thing that happened to an object, the
-user's data is accounted for, and the next action is a verb they can take now.
+Note what the rewrites share: the failure is named as something that happened to a specific
+object, the user's data is accounted for, and the next action is a verb they can take now. Note
+also what they avoid — a generic handler must not assert a cause it has not established. Attach
+the specific sentence to the specific error, and keep the neutral one as the fallback.
 
 ## Anti-patterns
 
