@@ -11,7 +11,13 @@
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
   let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
-  let muted-color = text-color.lighten(40%)
+  let muted-color = text-color.lighten(25%)
+  // Accent ink: the ink for headings, links and rules. Every other template
+  // has to darken `primary-color` to clear WCAG AA (4.5:1) on the backdrops
+  // it paints; this crimson already clears 4.79:1 at its worst, so the seed
+  // is used as-is. The alias keeps the ink and the decorative tints below
+  // distinguishable, so a future palette change has an obvious place to go.
+  let accent-color = primary-color
 
   // ── Helper functions (capture theme colors from enclosing scope) ──
 
@@ -25,9 +31,9 @@
     v(10pt)
     box(
       width: 100%,
-      stroke: (bottom: 1.5pt + primary-color),
+      stroke: (bottom: 1.5pt + accent-color),
       inset: (bottom: 4pt),
-      text(weight: "bold", size: 9pt, fill: primary-color, tracking: 0.06em)[#upper(title)]
+      text(weight: "bold", size: 9pt, fill: accent-color, tracking: 0.06em)[#upper(title)]
     )
     v(8pt)
   }
@@ -35,9 +41,9 @@
   let rating-dots(level) = {
     let level = clamp-level(level)
     if level-display == "template-default" {
-      rating-indicators(level, 6pt, 6pt, primary-color, bg-color.darken(10%), 50%, 2pt)
+      rating-indicators(level, 6pt, 6pt, accent-color, bg-color.darken(10%), 50%, 2pt)
     } else {
-      render-level(level, level-display, primary-color, bg-color.darken(10%))
+      render-level(level, level-display, accent-color, bg-color.darken(10%))
     }
   }
 
@@ -49,7 +55,7 @@
       column-gutter: 8pt,
       [
         #if has-url(item) {
-          link(item.url.href)[#text(weight: "bold", size: 10pt, fill: primary-color)[#item.company]]
+          link(item.url.href)[#text(weight: "bold", size: 10pt, fill: accent-color)[#item.company]]
         } else {
           text(weight: "bold", size: 10pt)[#item.company]
         }
@@ -130,7 +136,7 @@
           fill: tag-bg,
           radius: 3pt,
           inset: (x: 5pt, y: 2pt),
-          text(size: 7.5pt, fill: primary-color)[#keyword]
+          text(size: 7.5pt, fill: accent-color)[#keyword]
         )
         h(3pt)
       }
@@ -166,7 +172,7 @@
       item,
       size: 9pt,
       fill: text-color,
-      link-fill: primary-color,
+      link-fill: accent-color,
       label-mode: "network-username",
       weight: "medium",
     )
@@ -200,7 +206,7 @@
           fill: tag-bg,
           radius: 3pt,
           inset: (x: 5pt, y: 2pt),
-          text(size: 7.5pt, fill: primary-color)[#keyword]
+          text(size: 7.5pt, fill: accent-color)[#keyword]
         )
         h(3pt)
       }
@@ -268,7 +274,7 @@
           fill: tag-bg,
           radius: 3pt,
           inset: (x: 5pt, y: 2pt),
-          text(size: 7.5pt, fill: primary-color)[#keyword]
+          text(size: 7.5pt, fill: accent-color)[#keyword]
         )
         h(3pt)
       }
@@ -379,13 +385,13 @@
           fill: tag-bg,
           radius: 3pt,
           inset: (x: 5pt, y: 2pt),
-          text(size: 7.5pt, fill: primary-color)[#keyword]
+          text(size: 7.5pt, fill: accent-color)[#keyword]
         )
         h(3pt)
       }
     }
 
-    render-url(item, primary-color)
+    render-url(item, accent-color)
     v(8pt)
   }
 
@@ -436,7 +442,7 @@
         columns: (1fr, auto),
         column-gutter: 16pt,
         [
-          #text(size: 24pt, weight: "bold", fill: primary-color)[#data.basics.name]
+          #text(size: 24pt, weight: "bold", fill: accent-color)[#data.basics.name]
           #if data.basics.headline != "" {
             v(4pt)
             text(size: 11pt, fill: header-text-color)[#data.basics.headline]
@@ -444,11 +450,11 @@
         ],
         align(right + horizon)[
           #if has-visible-picture(data.basics) {
-            render-picture(data.basics, primary-color)
+            render-picture(data.basics, accent-color)
             if has-url(data.basics) { v(6pt) }
           }
           #if has-url(data.basics) {
-            link(data.basics.url.href)[#text(size: 9pt, fill: primary-color)[#url-display-label(data.basics.url)]]
+            link(data.basics.url.href)[#text(size: 9pt, fill: accent-color)[#url-display-label(data.basics.url)]]
           }
         ]
       )

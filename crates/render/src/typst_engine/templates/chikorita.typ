@@ -11,7 +11,12 @@
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
   let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
-  let muted-color = rgb("#6b7280")
+  let muted-color = text-color.lighten(10%)
+  // Accent ink: `primary-color` darkened until it clears WCAG AA (4.5:1)
+  // as text on every backdrop this template paints it on — page, tinted
+  // panels, chips and its own profile badge. `primary-color` itself stays
+  // the untouched brand seed the decorative tints below are derived from.
+  let accent-color = primary-color.darken(35%)
 
   // ── Helper functions (capture theme colors from enclosing scope) ──
 
@@ -23,27 +28,27 @@
     v(14pt)
     box(
       width: 100%,
-      stroke: (bottom: 2pt + primary-color),
+      stroke: (bottom: 2pt + accent-color),
       inset: (bottom: 4pt),
-      text(weight: "bold", size: 10pt, fill: primary-color, tracking: 0.06em)[#upper(title)]
+      text(weight: "bold", size: 10pt, fill: accent-color, tracking: 0.06em)[#upper(title)]
     )
     v(10pt)
   }
 
   let sidebar-section(title) = {
     v(12pt)
-    text(weight: "bold", size: 9pt, fill: primary-color, tracking: 0.08em)[#upper(title)]
+    text(weight: "bold", size: 9pt, fill: accent-color, tracking: 0.08em)[#upper(title)]
     v(2pt)
-    line(length: 100%, stroke: 0.5pt + border-color)
+    line(length: 100%, stroke: 0.5pt + accent-color)
     v(6pt)
   }
 
   let rating-dots(level) = {
     let level = clamp-level(level)
     if level-display == "template-default" {
-      rating-indicators(level, 6pt, 6pt, primary-color, border-color, 50%, 3pt)
+      rating-indicators(level, 6pt, 6pt, accent-color, border-color, 50%, 3pt)
     } else {
-      render-level(level, level-display, primary-color, border-color, spacing: 3pt)
+      render-level(level, level-display, accent-color, border-color, spacing: 3pt)
     }
   }
 
@@ -56,7 +61,7 @@
       [
         #text(weight: "bold", size: 11pt)[#item.company]
         #v(2pt)
-        #text(size: 10pt, fill: primary-color)[#item.position]
+        #text(size: 10pt, fill: accent-color)[#item.position]
       ],
       align(right)[
         #text(size: 9pt, fill: muted-color)[#item.date]
@@ -157,7 +162,7 @@
       item,
       size: 9pt,
       fill: text-color,
-      link-fill: primary-color,
+      link-fill: accent-color,
       label-mode: "network-username",
       weight: "medium",
     )
@@ -191,7 +196,7 @@
           fill: accent-bg,
           radius: 3pt,
           inset: (x: 6pt, y: 2pt),
-          text(size: 8pt, fill: primary-color)[#keyword]
+          text(size: 8pt, fill: accent-color)[#keyword]
         )
         h(4pt)
       }
@@ -291,7 +296,7 @@
       [
         #text(weight: "bold", size: 11pt)[#item.organization]
         #v(2pt)
-        #text(size: 10pt, fill: primary-color)[#item.position]
+        #text(size: 10pt, fill: accent-color)[#item.position]
       ],
       align(right)[
         #text(size: 9pt, fill: muted-color)[#item.date]
@@ -323,7 +328,7 @@
     if item.summary != "" {
       v(4pt)
       box(
-        stroke: (left: 2pt + primary-color),
+        stroke: (left: 2pt + accent-color),
         inset: (left: 10pt, y: 2pt),
         render-rich-text(item.summary, size: 9pt, style: "italic", fill: muted-color)
       )
@@ -367,13 +372,13 @@
           fill: accent-bg,
           radius: 3pt,
           inset: (x: 6pt, y: 2pt),
-          text(size: 8pt, fill: primary-color)[#keyword]
+          text(size: 8pt, fill: accent-color)[#keyword]
         )
         h(4pt)
       }
     }
 
-    render-url(item, primary-color)
+    render-url(item, accent-color)
     v(12pt)
   }
 
@@ -414,7 +419,7 @@
   if has-resume-body(data) {
     // Header - above columns, left-aligned
     if has-visible-picture(data.basics) {
-      render-picture(data.basics, primary-color)
+      render-picture(data.basics, accent-color)
       v(8pt)
     }
 
@@ -422,7 +427,7 @@
 
     if data.basics.headline != "" {
       v(4pt)
-      text(size: 12pt, fill: primary-color)[#data.basics.headline]
+      text(size: 12pt, fill: accent-color)[#data.basics.headline]
     }
 
     v(10pt)
@@ -436,7 +441,7 @@
     }
 
     v(16pt)
-    line(length: 100%, stroke: 1pt + border-color)
+    line(length: 100%, stroke: 1pt + accent-color)
     v(12pt)
 
     let right-wrapper(body) = {

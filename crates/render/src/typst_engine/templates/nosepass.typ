@@ -12,18 +12,26 @@
   let level-display = data.metadata.at("levelDisplay", default: "template-default")
   // Derived colors (not in schema — computed from theme values)
   let muted-color = text-color.lighten(30%)
+  // Accent ink: `primary-color` darkened until it clears WCAG AA (4.5:1)
+  // as text on every backdrop this template paints it on — page, tinted
+  // panels, chips and its own profile badge. `primary-color` itself stays
+  // the untouched brand seed the decorative tints below are derived from.
+  let accent-color = primary-color.darken(30%)
 
   // ── Helper functions (capture theme colors from enclosing scope) ──
 
   let light-gray = bg-color.darken(5%)
-  let border-color = bg-color.darken(15%)
+  // Neutral rule/border ink. `darken(15%)` was #d9d9d9 — 1.41:1 on white,
+  // effectively invisible; this clears the 3:1 that WCAG 2.1 SC 1.4.11
+  // asks of a boundary that separates content.
+  let border-color = bg-color.darken(45%)
 
   let section-heading(title) = {
     v(14pt)
     grid(
       columns: (auto, 1fr),
       column-gutter: 12pt,
-      text(weight: "bold", size: 11pt, fill: primary-color)[#title],
+      text(weight: "bold", size: 11pt, fill: accent-color)[#title],
       line(start: (0pt, 6pt), length: 100%, stroke: 1pt + border-color)
     )
     v(10pt)
@@ -45,7 +53,7 @@
       columns: (1fr, auto),
       column-gutter: 12pt,
       [
-        #text(weight: "bold", size: 11pt, fill: primary-color)[#item.position]
+        #text(weight: "bold", size: 11pt, fill: accent-color)[#item.position]
         #v(2pt)
         #text(size: 10pt)[#item.company]
         #if item.location != "" {
@@ -70,7 +78,7 @@
       columns: (1fr, auto),
       column-gutter: 12pt,
       [
-        #text(weight: "bold", size: 11pt, fill: primary-color)[#item.institution]
+        #text(weight: "bold", size: 11pt, fill: accent-color)[#item.institution]
         #v(2pt)
         #if item.studyType != "" or item.area != "" {
           let degree = format-degree(item.studyType, item.area)
@@ -99,14 +107,14 @@
         #if level-display == "template-default" and level > 0 {
           h(4pt)
           for i in range(level) {
-            text(fill: primary-color)[●]
+            text(fill: accent-color)[●]
           }
           for i in range(5 - level) {
-            text(fill: border-color)[●]
+            text(fill: bg-color, stroke: 0.4pt + accent-color)[●]
           }
         } else if should-render-level(level, level-display) {
           h(4pt)
-          render-level(level, level-display, primary-color, border-color)
+          render-level(level, level-display, accent-color, bg-color.darken(10%))
         }
       ]
     )
@@ -134,7 +142,7 @@
       item,
       size: 10pt,
       fill: text-color,
-      link-fill: primary-color,
+      link-fill: accent-color,
       label-mode: "network-username",
     )
     v(4pt)
@@ -143,7 +151,7 @@
   let render-project(item) = {
     if item.visible == false { return }
 
-    text(weight: "bold", size: 10pt, fill: primary-color)[#item.name]
+    text(weight: "bold", size: 10pt, fill: accent-color)[#item.name]
 
     if item.description != "" {
       v(4pt)
@@ -225,7 +233,7 @@
       columns: (1fr, auto),
       column-gutter: 12pt,
       [
-        #text(weight: "bold", size: 10pt, fill: primary-color)[#item.name]
+        #text(weight: "bold", size: 10pt, fill: accent-color)[#item.name]
         #if item.publisher != "" {
           v(2pt)
           text(size: 9pt, fill: muted-color)[#item.publisher]
@@ -249,7 +257,7 @@
       columns: (1fr, auto),
       column-gutter: 12pt,
       [
-        #text(weight: "bold", size: 11pt, fill: primary-color)[#item.organization]
+        #text(weight: "bold", size: 11pt, fill: accent-color)[#item.organization]
         #if item.position != "" {
           v(2pt)
           text(size: 10pt)[#item.position]
@@ -272,7 +280,7 @@
   let render-reference(item) = {
     if item.visible == false { return }
 
-    text(weight: "bold", size: 10pt, fill: primary-color)[#item.name]
+    text(weight: "bold", size: 10pt, fill: accent-color)[#item.name]
 
     if item.description != "" {
       v(4pt)
@@ -294,7 +302,7 @@
       columns: (1fr, auto),
       column-gutter: 12pt,
       [
-        #text(weight: "bold", size: 10pt, fill: primary-color)[#item.name]
+        #text(weight: "bold", size: 10pt, fill: accent-color)[#item.name]
         #if item.description != "" {
           v(2pt)
           render-rich-text(item.description, size: 10pt)
@@ -326,7 +334,7 @@
       }
     }
 
-    render-url(item, primary-color)
+    render-url(item, accent-color)
     v(10pt)
   }
 
@@ -369,15 +377,15 @@
     // Header with blue accent bar
     box(
       width: 100%,
-      stroke: (bottom: 3pt + primary-color),
+      stroke: (bottom: 3pt + accent-color),
       inset: (bottom: 12pt),
       [
         #if has-visible-picture(data.basics) {
-          render-picture(data.basics, primary-color)
+          render-picture(data.basics, accent-color)
           v(8pt)
         }
 
-        #text(size: 28pt, weight: "bold", fill: primary-color)[#data.basics.name]
+        #text(size: 28pt, weight: "bold", fill: accent-color)[#data.basics.name]
 
         #if data.basics.headline != "" {
           v(4pt)

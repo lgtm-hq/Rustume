@@ -117,12 +117,27 @@
 /// - `filled-color`, `empty-color`: fill for active/inactive indicators
 /// - `radius`: border radius (50% for circles, 0pt–2pt for squares/rounded)
 /// - `spacing`: horizontal gap between indicators
+///
+/// Every indicator carries a `filled-color` outline, empty ones included. A
+/// rating is a graphical object that conveys information, so WCAG 2.1 SC 1.4.11
+/// asks for 3:1 twice over: between the filled and empty states, AND between an
+/// empty indicator and the page, so a reader can tell how many steps the scale
+/// has. Those two demands pull in opposite directions when both states are
+/// solid — a tint pale enough to read as "empty" against a filled accent is
+/// nearly invisible on white. The outline breaks the tie the way a radio button
+/// does: the ring carries visibility, the fill carries state.
 #let rating-indicators(level, width, height, filled-color, empty-color, radius, spacing) = {
   let level = clamp-level(level)
   for i in range(5) {
     if i > 0 { h(spacing) }
     let color = if i < level { filled-color } else { empty-color }
-    box(width: width, height: height, fill: color, radius: radius)
+    box(
+      width: width,
+      height: height,
+      fill: color,
+      radius: radius,
+      stroke: 0.5pt + filled-color,
+    )
   }
 }
 
@@ -164,6 +179,9 @@
       height: track-height,
       fill: empty-color,
       radius: track-height / 2,
+      // Same reasoning as rating-indicators: the track outline is what makes
+      // the unfilled remainder of the bar visible against the page.
+      stroke: 0.5pt + filled-color,
       place(top + left, box(
         width: track-width * level / 5,
         height: track-height,
@@ -193,7 +211,7 @@
 }
 
 /// Render a clickable URL link for an item, if present.
-/// Uses primary-color for styling — caller must have it in scope.
+/// `color` is link ink, so callers pass their audited `accent-color`.
 #let render-url(item, color) = {
   if has-url(item) {
     v(2pt)
