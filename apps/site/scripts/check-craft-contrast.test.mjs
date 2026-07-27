@@ -142,6 +142,22 @@ describe("parseCustomProperties", () => {
       "--font-body": '"Archivo", sans-serif',
     });
   });
+
+  it("ignores declarations from other selectors", () => {
+    const css = [
+      ":root {\n  --turbo-bg-base: #ffffff;\n}",
+      '[data-theme="craft"] {\n  --turbo-bg-base: #14110e;\n}',
+      '[data-theme="craft-light"] {\n  --turbo-bg-base: #f5efe4;\n}',
+    ].join("\n");
+
+    expect(parseCustomProperties(css)).toEqual({ "--turbo-bg-base": "#14110e" });
+  });
+
+  it("fails when the audited selector is absent", () => {
+    expect(() => parseCustomProperties(":root {\n  --turbo-bg-base: #14110e;\n}")).toThrow(
+      /selector \[data-theme="craft"\] not found/,
+    );
+  });
 });
 
 describe("parseGradientStops", () => {

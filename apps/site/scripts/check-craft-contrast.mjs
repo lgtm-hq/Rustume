@@ -76,18 +76,56 @@ export const GRADIENT_TOKEN = "--gradient-primary";
 /** Ink token gated against the whole gradient ramp. */
 export const GRADIENT_INK_TOKEN = "--turbo-text-on-brand";
 
+/** Selector whose declarations are audited. */
+export const CRAFT_SELECTOR = '[data-theme="craft"]';
+
 const HEX_RE = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
 
 /**
- * Parse `--custom-property: value;` declarations out of a CSS source.
+ * Return the body of the rule introduced by `selector`.
+ *
+ * Scoping matters: a future light variant or a `:root` block redefining the
+ * same tokens would otherwise shadow the craft values and the audit would
+ * silently measure colours the craft theme never paints.
  *
  * @param {string} css
+ * @param {string} selector
+ * @returns {string}
+ */
+function extractRuleBody(css, selector) {
+  const start = css.indexOf(selector);
+  if (start === -1) {
+    throw new Error(`selector ${selector} not found in theme stylesheet`);
+  }
+  const open = css.indexOf("{", start + selector.length);
+  if (open === -1) {
+    throw new Error(`selector ${selector} has no rule body`);
+  }
+  let depth = 0;
+  for (let i = open; i < css.length; i++) {
+    if (css[i] === "{") {
+      depth++;
+    } else if (css[i] === "}") {
+      depth--;
+      if (depth === 0) {
+        return css.slice(open + 1, i);
+      }
+    }
+  }
+  throw new Error(`selector ${selector} has an unterminated rule body`);
+}
+
+/**
+ * Parse the `--custom-property: value;` declarations of one CSS rule.
+ *
+ * @param {string} css
+ * @param {string} [selector]
  * @returns {Record<string, string>}
  */
-export function parseCustomProperties(css) {
+export function parseCustomProperties(css, selector = CRAFT_SELECTOR) {
   /** @type {Record<string, string>} */
   const properties = {};
-  for (const match of css.matchAll(/(--[a-z0-9-]+)\s*:\s*([^;]+);/gi)) {
+  for (const match of extractRuleBody(css, selector).matchAll(/(--[a-z0-9-]+)\s*:\s*([^;]+);/gi)) {
     properties[match[1]] = match[2].trim();
   }
   return properties;
