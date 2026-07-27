@@ -85,13 +85,17 @@ if (typeof document !== "undefined") {
     const style = document.createElement("style");
     style.id = styleId;
     style.textContent = `
+      /* Height only. The panel is text-bearing, and an opacity ramp
+         composites that text toward the surface behind it, so the pair sits
+         below AA contrast for the length of the animation. The clipping
+         wrapper already reveals and hides the content on its own. */
       @keyframes accordion-down {
-        from { height: 0; opacity: 0; }
-        to { height: var(--kb-accordion-content-height); opacity: 1; }
+        from { height: 0; }
+        to { height: var(--kb-accordion-content-height); }
       }
       @keyframes accordion-up {
-        from { height: var(--kb-accordion-content-height); opacity: 1; }
-        to { height: 0; opacity: 0; }
+        from { height: var(--kb-accordion-content-height); }
+        to { height: 0; }
       }
       [data-kb-accordion-content][data-expanded] {
         animation: accordion-down 200ms ease-out;

@@ -31,7 +31,8 @@ export function DraggableSection(props: DraggableSectionProps) {
       aria-selected={props.kbActive ?? false}
       data-section-id={props.id}
       class="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-paper
-        transition-all duration-150 cursor-grab active:cursor-grabbing select-none group
+        transition-[opacity,border-color,box-shadow,transform] duration-150
+        motion-reduce:transition-none cursor-grab active:cursor-grabbing select-none group
         focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
       classList={{
         "opacity-25 border-dashed": sortable.isActiveDraggable,
