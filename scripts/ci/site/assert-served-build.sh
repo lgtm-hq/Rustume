@@ -64,7 +64,10 @@ while :; do
 	)"
 
 	# 000 means the request never completed (nothing listening yet, or the
-	# server is still coming up) — that is the only retryable outcome.
+	# server is still coming up) — that is the only retryable outcome. An
+	# empty status (curl itself failed to run) is treated the same, so it
+	# ends in the explicit timeout error rather than an "HTTP " message.
+	status="${status:-000}"
 	if [[ "${status}" != "000" ]]; then
 		break
 	fi
