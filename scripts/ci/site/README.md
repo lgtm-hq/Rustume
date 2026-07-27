@@ -8,6 +8,8 @@
 | `test.sh` | Vitest with coverage |
 | `test-python.sh` | Pytest for `tests/scripts/ci/` |
 | `test-all.sh` | `test.sh` + `test-python.sh` |
+| `e2e.sh` | Build `dist/`, serve it, verify the served build, run the Playwright a11y suites |
+| `assert-served-build.sh` | Staleness guard: the served site must be the build under test |
 | `preview-serve.sh` | `astro preview` with `ASTRO_BASE` from `defaults.env` |
 | `preview-pages-local.sh` | Build dist + optional local coverage bundles for manual Pages preview |
 
@@ -23,6 +25,32 @@ that value — do not duplicate the path elsewhere.
 | Local `make site-dev` / `site-build` | `ASTRO_BASE_DEFAULT` from `defaults.env` |
 | `site-quality.yml` link check build | `/` (root-relative hrefs under `dist/`; lychee via `reusable-site-quality`) |
 | `deploy-pages.yml` production deploy | `ASTRO_BASE_DEFAULT` via `build.sh` |
+| `test-e2e-site.yml` accessibility suites | `ASTRO_BASE_DEFAULT` via `build.sh` (`e2e.sh`) |
+
+## Site accessibility E2E (`e2e.sh`)
+
+[`.github/workflows/test-e2e-site.yml`](../../../.github/workflows/test-e2e-site.yml)
+runs the `apps/site/e2e` Playwright suites through lgtm-ci's
+`reusable-test-e2e-playwright` with `e2e.sh` as its `test-command`. The suites scan the
+production build served by `astro preview` — never a dev server — so CI exercises what
+deploys.
+
+`e2e.sh` starts that server itself (rather than leaving it to Playwright's `webServer`,
+which `playwright.config.ts` lets it reuse via `PLAYWRIGHT_REUSE_SERVER=1`) so the
+**staleness guard** can run before the suite:
+
+1. `dist/index.html` and `dist/pagefind/pagefind.js` must be newer than the build step —
+   a restored cache or skipped build cannot pass as a build.
+2. `dist/e2e-build-stamp.txt` records a sha256 fingerprint of every other file in
+   `dist/`, the commit, and the run id/attempt plus build timestamp.
+3. [`assert-served-build.sh`](assert-served-build.sh) fetches that stamp over HTTP before
+   and after the suite and fails loudly on a mismatch, a non-200, or no response.
+
+This complements `apps/site/scripts/e2e-build.mjs`, which refuses to start when the port
+is busy (`astro preview` silently hops to the next free port). That keeps a foreign
+server from displacing ours; the guard proves the server that actually answered is
+serving this build. Motivation: turbo-themes#824, where a suite ran green against a
+silently stale site.
 
 ## GitHub Pages (Model B: site + bundled reports)
 

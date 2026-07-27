@@ -25,6 +25,12 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
   regression, accessibility) via `reusable-test-e2e-playwright` (`test-command:
   scripts/ci/testing/web/e2e.sh` supplies the Rust/wasm-pack stage the reusable
   has no input for); one call runs every suite because they share that build
+- **test-e2e-site.yml** — Documentation site Playwright accessibility suites (axe
+  scans across surfaces and themes, keyboard/ARIA chrome) via
+  `reusable-test-e2e-playwright` (`test-command: scripts/ci/site/e2e.sh` builds
+  the production `dist/`, serves it with `astro preview`, and refuses to run
+  unless the served build is the one it just built — see
+  `scripts/ci/site/assert-served-build.sh`)
 - **ci-lintro-analysis.yml** — Lintro quality in Docker via `reusable-quality-lint` and
   `reusable-publish-quality-summary`
 - **site-quality.yml** — Docs site build, link check, Astro check, Vitest + pytest via
@@ -122,7 +128,7 @@ Renovate config lives in `renovate.json`; the shared preset is
 | `.github/workflows/*.yml` | `tooling-ref: '<sha>' # vX.Y.Z` (one per lgtm-ci caller job) | lgtm-ci tooling checkout, mirroring the `uses:` pin in the same file | Renovate custom manager (`lgtm-hq/lgtm-ci`, `github-tags`), enforced by `pin-sync-guard.yml` |
 | `.github/workflows/ci-lintro-analysis.yml`, `.github/workflows/security-dependency-review.yml` | `lintro-image: ghcr.io/lgtm-hq/py-lintro:<version>@sha256:<digest>` | lintro CI image (version and digest together) | Renovate custom manager (`ghcr.io/lgtm-hq/py-lintro`, `docker`) |
 | `.github/workflows/boundary-guard.yml` | `pip install uv==<version>` | uv in the boundary job (`setup-uv` is blocked by the egress policy) | **Manual — no manager** |
-| `.github/workflows/coverage.yml`, `deploy-pages.yml`, `site-quality.yml` | `node-version:`, `python-version:` | CI runtime majors | **Manual — no manager** |
+| `.github/workflows/coverage.yml`, `deploy-pages.yml`, `site-quality.yml`, `test-e2e-web.yml`, `test-e2e-site.yml` | `node-version:`, `python-version:` | CI runtime majors | **Manual — no manager** |
 | `.github/workflows/README.md` | `## Pin format` example | Illustrative lgtm-ci pin | **Manual — no manager**; `pin-sync-guard.yml` does not read Markdown |
 | `docker/Dockerfile` | `FROM <image>@sha256:<digest>` | `rust`, `gcr.io/distroless/static` | Renovate `dockerfile` (digest updates automerged) |
 | `docker/Dockerfile` | `ARG BUN_VERSION=` | bun release tarball | Renovate custom manager (`oven-sh/bun`, `github-releases`) |
