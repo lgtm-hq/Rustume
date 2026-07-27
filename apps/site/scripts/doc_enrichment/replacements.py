@@ -6,8 +6,10 @@ REPLACEMENTS: list[tuple[str, str, str]] = [
     # Reactive Resume naming (keep rrv3 as format id)
     (
         "getting-started/import-formats.md",
-        'description: "Import resumes from JSON Resume, LinkedIn data exports, and '
-        'Reactive Resume v3."',
+        (
+            'description: "Import resumes from JSON Resume, LinkedIn data exports, and '
+            'Reactive Resume v3."'
+        ),
         f'description: "{DESCRIPTIONS["getting-started/import-formats.md"]}"',
     ),
     (
@@ -17,17 +19,23 @@ REPLACEMENTS: list[tuple[str, str, str]] = [
     ),
     (
         "getting-started/import-formats.md",
-        "## Reactive Resume v3 (RRV3)\n\nIf you are migrating from [Reactive "
-        "Resume](https://rxresu.me/) v3, export your resume JSON. RRV3\nfiles contain",
-        "## Reactive Resume\n\nIf you are migrating from [Reactive "
-        "Resume](https://rxresu.me/), export your resume JSON. Reactive Resume\nfiles "
-        "contain",
+        (
+            "## Reactive Resume v3 (RRV3)\n\nIf you are migrating from [Reactive "
+            "Resume](https://rxresu.me/) v3, export your resume JSON. RRV3\nfiles contain"
+        ),
+        (
+            "## Reactive Resume\n\nIf you are migrating from [Reactive "
+            "Resume](https://rxresu.me/), export your resume JSON. Reactive Resume\nfiles "
+            "contain"
+        ),
     ),
     (
         "architecture/overview.md",
         "| `rustume-parser` | Import parsers for JSON Resume, LinkedIn, Reactive Resume v3 |",
-        "| `rustume-parser` | Import parsers for [JSON Resume](https://jsonresume.org/), "
-        "LinkedIn, [Reactive Resume](https://rxresu.me/) |",
+        (
+            "| `rustume-parser` | Import parsers for [JSON Resume](https://jsonresume.org/), "
+            "LinkedIn, [Reactive Resume](https://rxresu.me/) |"
+        ),
     ),
     (
         "api/core-endpoints.md",
@@ -37,14 +45,18 @@ REPLACEMENTS: list[tuple[str, str, str]] = [
     (
         "cli/usage.md",
         "| `parse` | Convert JSON Resume, LinkedIn, RRV3, or Rustume JSON |",
-        "| `parse` | Convert [JSON Resume](https://jsonresume.org/), LinkedIn, [Reactive "
-        "Resume](https://rxresu.me/) (`rrv3`), or Rustume JSON |",
+        (
+            "| `parse` | Convert [JSON Resume](https://jsonresume.org/), LinkedIn, [Reactive "
+            "Resume](https://rxresu.me/) (`rrv3`), or Rustume JSON |"
+        ),
     ),
     (
         "cli/commands.md",
         "(`basics.label` → JSON Resume, `public` + `sections` → RRV3).",
-        "(`basics.label` → [JSON Resume](https://jsonresume.org/), `public` + `sections` "
-        "→ [Reactive Resume](https://rxresu.me/) / `rrv3`).",
+        (
+            "(`basics.label` → [JSON Resume](https://jsonresume.org/), `public` + `sections` "
+            "→ [Reactive Resume](https://rxresu.me/) / `rrv3`)."
+        ),
     ),
     (
         "contributing/web-app.md",
@@ -60,8 +72,10 @@ REPLACEMENTS: list[tuple[str, str, str]] = [
     (
         "getting-started/quickstart.md",
         "- Deploy with [Docker](/docs/deployment/docker/) for self-hosting",
-        "- Deploy with [Docker](/docs/deployment/docker/) for "
-        "[self-hosting](/docs/deployment/self-hosting/)",
+        (
+            "- Deploy with [Docker](/docs/deployment/docker/) for "
+            "[self-hosting](/docs/deployment/self-hosting/)"
+        ),
     ),
     # development.md prerequisites table
     (
@@ -82,21 +96,27 @@ REPLACEMENTS: list[tuple[str, str, str]] = [
     (
         "contributing/development.md",
         "| Python 3.11+ | For lintro |",
-        "| [Python 3.11+](https://www.python.org/) | For "
-        "[lintro](https://github.com/lgtm-hq/py-lintro) |",
+        (
+            "| [Python 3.11+](https://www.python.org/) | For "
+            "[lintro](https://github.com/lgtm-hq/py-lintro) |"
+        ),
     ),
     (
         "contributing/development.md",
         "| uv | `curl -LsSf https://astral.sh/uv/install.sh \\| sh` |",
-        "| [uv](https://docs.astral.sh/uv/) | `curl -LsSf https://astral.sh/uv/install.sh "
-        "\\| sh` |",
+        (
+            "| [uv](https://docs.astral.sh/uv/) | `curl -LsSf https://astral.sh/uv/install.sh "
+            "\\| sh` |"
+        ),
     ),
     # cloud overview stack links
     (
         "cloud/overview.md",
         "| Account / sign-in | No | WorkOS AuthKit |",
-        "| Account / sign-in | No | [WorkOS AuthKit](https://workos.com/docs/user-managem"
-        "ent/authkit) |",
+        (
+            "| Account / sign-in | No | [WorkOS AuthKit](https://workos.com/docs/user-managem"
+            "ent/authkit) |"
+        ),
     ),
     (
         "cloud/overview.md",
@@ -147,98 +167,130 @@ REPLACEMENTS: list[tuple[str, str, str]] = [
     (
         "architecture/cloud-stack.md",
         "| **Hosting** | Railway | Docker deploy of multi-stage image (Axum + SPA) |",
-        "| **Hosting** | [Railway](https://railway.com/) | "
-        "[Docker](/docs/deployment/docker/) deploy of multi-stage image "
-        "([Axum](https://github.com/tokio-rs/axum) + SPA) |",
+        (
+            "| **Hosting** | [Railway](https://railway.com/) | "
+            "[Docker](/docs/deployment/docker/) deploy of multi-stage image "
+            "([Axum](https://github.com/tokio-rs/axum) + SPA) |"
+        ),
     ),
     (
         "architecture/cloud-stack.md",
         "| **Database** | Neon | Managed PostgreSQL — users, resumes, sessions, subscriptions |",
-        "| **Database** | [Neon](https://neon.tech/) | Managed "
-        "[PostgreSQL](/docs/architecture/data-model/) — users, resumes, sessions, "
-        "subscriptions |",
+        (
+            "| **Database** | [Neon](https://neon.tech/) | Managed "
+            "[PostgreSQL](/docs/architecture/data-model/) — users, resumes, sessions, "
+            "subscriptions |"
+        ),
     ),
     (
         "architecture/cloud-stack.md",
         "| **Object storage** | Cloudflare R2 | Profile photos, exported PDFs, OG preview images |",
-        "| **Object storage** | [Cloudflare R2](https://developers.cloudflare.com/r2/) | "
-        "Profile photos, exported PDFs, OG preview images |",
+        (
+            "| **Object storage** | [Cloudflare R2](https://developers.cloudflare.com/r2/) | "
+            "Profile photos, exported PDFs, OG preview images |"
+        ),
     ),
     (
         "architecture/cloud-stack.md",
         "| **Auth** | WorkOS AuthKit | Social login, email/password, MFA, passkeys |",
-        "| **Auth** | [WorkOS AuthKit](/docs/cloud/auth/) | Social login, email/password, "
-        "MFA, passkeys |",
+        (
+            "| **Auth** | [WorkOS AuthKit](/docs/cloud/auth/) | Social login, email/password, "
+            "MFA, passkeys |"
+        ),
     ),
     (
         "architecture/cloud-stack.md",
         "| **Billing** | Paddle (MoR) | Checkout overlay, customer portal, webhooks; EU VAT |",
-        "| **Billing** | [Paddle](/docs/pricing/checkout/) (MoR) | Checkout overlay, "
-        "customer portal, webhooks; EU VAT |",
+        (
+            "| **Billing** | [Paddle](/docs/pricing/checkout/) (MoR) | Checkout overlay, "
+            "customer portal, webhooks; EU VAT |"
+        ),
     ),
     (
         "architecture/cloud-stack.md",
         "| **Metrics** | Grafana Cloud | Prometheus scrape from `/metrics`, dashboards, alerts |",
-        "| **Metrics** | [Grafana Cloud](https://grafana.com/products/cloud/) | "
-        "Prometheus scrape from `/metrics`, dashboards, alerts |",
+        (
+            "| **Metrics** | [Grafana Cloud](https://grafana.com/products/cloud/) | "
+            "Prometheus scrape from `/metrics`, dashboards, alerts |"
+        ),
     ),
     (
         "architecture/cloud-stack.md",
         "| **Errors** | Sentry | Server-side error tracking and release health |",
-        "| **Errors** | [Sentry](https://sentry.io/) | Server-side error tracking and "
-        "release health |",
+        (
+            "| **Errors** | [Sentry](https://sentry.io/) | Server-side error tracking and "
+            "release health |"
+        ),
     ),
     # api overview
     (
         "api/overview.md",
         "Rustume exposes a REST API from the same Axum server that serves the web UI.",
-        "Rustume exposes a REST API from the same "
-        "[Axum](https://github.com/tokio-rs/axum) server that serves the web UI.",
+        (
+            "Rustume exposes a REST API from the same "
+            "[Axum](https://github.com/tokio-rs/axum) server that serves the web UI."
+        ),
     ),
     (
         "api/overview.md",
         "is generated at compile time with `utoipa`.",
-        "is generated at compile time with `utoipa`. See [Core "
-        "endpoints](/docs/api/core-endpoints/) and [Cloud "
-        "endpoints](/docs/api/cloud-endpoints/).",
+        (
+            "is generated at compile time with `utoipa`. See [Core "
+            "endpoints](/docs/api/core-endpoints/) and [Cloud "
+            "endpoints](/docs/api/cloud-endpoints/)."
+        ),
     ),
     # docker
     (
         "deployment/docker.md",
-        "Rustume ships as a single container that serves both the SolidJS resume builder "
-        "and the Rust API.",
-        "Rustume ships as a single [Docker](https://www.docker.com/) container that "
-        "serves both the [SolidJS](https://www.solidjs.com/) resume builder and the "
-        "[Rust](https://www.rust-lang.org/) API.",
+        (
+            "Rustume ships as a single container that serves both the SolidJS resume builder "
+            "and the Rust API."
+        ),
+        (
+            "Rustume ships as a single [Docker](https://www.docker.com/) container that "
+            "serves both the [SolidJS](https://www.solidjs.com/) resume builder and the "
+            "[Rust](https://www.rust-lang.org/) API."
+        ),
     ),
     (
         "deployment/docker.md",
-        "Native development (without Docker) requires Rust, wasm-pack, bun, and the "
-        "`wasm32-unknown-unknown`\ntarget",
-        "Native development (without Docker) requires [Rust](https://www.rust-lang.org/), "
-        "[wasm-pack](https://rustwasm.github.io/wasm-pack/), [bun](https://bun.sh), and "
-        "the `wasm32-unknown-unknown`\ntarget",
+        (
+            "Native development (without Docker) requires Rust, wasm-pack, bun, and the "
+            "`wasm32-unknown-unknown`\ntarget"
+        ),
+        (
+            "Native development (without Docker) requires [Rust](https://www.rust-lang.org/), "
+            "[wasm-pack](https://rustwasm.github.io/wasm-pack/), [bun](https://bun.sh), and "
+            "the `wasm32-unknown-unknown`\ntarget"
+        ),
     ),
     # self-hosting
     (
         "deployment/self-hosting.md",
         "- Resume data lives in the browser (IndexedDB via WASM) — not on the server",
-        "- Resume data lives in the browser ([IndexedDB](https://developer.mozilla.org/en"
-        "-US/docs/Web/API/IndexedDB_API) via [WASM](/docs/architecture/overview/)) — not "
-        "on the server",
+        (
+            "- Resume data lives in the browser ([IndexedDB](https://developer.mozilla.org/en"
+            "-US/docs/Web/API/IndexedDB_API) via [WASM](/docs/architecture/overview/)) — not "
+            "on the server"
+        ),
     ),
     (
         "deployment/self-hosting.md",
         "- The Axum server handles parse, render, validate, and template APIs",
-        "- The [Axum](https://github.com/tokio-rs/axum) server handles parse, render, "
-        "validate, and template APIs",
+        (
+            "- The [Axum](https://github.com/tokio-rs/axum) server handles parse, render, "
+            "validate, and template APIs"
+        ),
     ),
     # cli usage intro
     (
         "cli/usage.md",
         "The `rustume` CLI exposes the same core engine as the web app and REST API",
-        "The `rustume` CLI exposes the same core engine as the [web "
-        "app](/docs/contributing/web-app/) and [REST API](/docs/api/overview/)",
+        (
+            "The `rustume` CLI exposes the same core engine as the [web "
+            "app](/docs/contributing/web-app/) and [REST API](/docs/api/overview/)"
+        ),
     ),
     (
         "cli/usage.md",
@@ -249,46 +301,62 @@ REPLACEMENTS: list[tuple[str, str, str]] = [
     (
         "contributing/web-app.md",
         "The Rustume web app (`apps/web/`) is a SolidJS single-page application built with Vite.",
-        "The Rustume web app (`apps/web/`) is a [SolidJS](https://www.solidjs.com/) "
-        "single-page application built with [Vite](https://vite.dev/).",
+        (
+            "The Rustume web app (`apps/web/`) is a [SolidJS](https://www.solidjs.com/) "
+            "single-page application built with [Vite](https://vite.dev/)."
+        ),
     ),
     (
         "contributing/web-app.md",
         "offline-first with WASM-powered local storage and optionally syncs to Rustume Cloud.",
-        "offline-first with [WASM](/docs/architecture/overview/) + "
-        "[IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API) "
-        "local storage and optionally syncs to [Rustume Cloud](/docs/cloud/overview/).",
+        (
+            "offline-first with [WASM](/docs/architecture/overview/) + "
+            "[IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API) "
+            "local storage and optionally syncs to [Rustume Cloud](/docs/cloud/overview/)."
+        ),
     ),
     # linting
     (
         "contributing/linting.md",
-        "Rustume uses [lintro](https://github.com/lgtm-hq/py-lintro) for all linting and "
-        "formatting. Do not\nrun native tools directly",
-        "Rustume uses [lintro](https://github.com/lgtm-hq/py-lintro) for all linting and "
-        "formatting — `uv run lintro chk` and `uv run lintro fmt`. Do not\nrun native "
-        "tools directly",
+        (
+            "Rustume uses [lintro](https://github.com/lgtm-hq/py-lintro) for all linting and "
+            "formatting. Do not\nrun native tools directly"
+        ),
+        (
+            "Rustume uses [lintro](https://github.com/lgtm-hq/py-lintro) for all linting and "
+            "formatting — `uv run lintro chk` and `uv run lintro fmt`. Do not\nrun native "
+            "tools directly"
+        ),
     ),
     (
         "contributing/linting.md",
         "The Makefile includes native Rust/JS lint targets",
-        "The [Makefile](https://github.com/lgtm-hq/Rustume/blob/main/Makefile) includes "
-        "native Rust/JS lint targets",
+        (
+            "The [Makefile](https://github.com/lgtm-hq/Rustume/blob/main/Makefile) includes "
+            "native Rust/JS lint targets"
+        ),
     ),
     # import formats cross-links
     (
         "getting-started/import-formats.md",
-        "On Rustume Cloud, use **Import from local** after sign-in to upload IndexedDB "
-        "resumes to your\naccount.",
-        "On [Rustume Cloud](/docs/cloud/getting-started/), use **Import from local** "
-        "after sign-in to upload [IndexedDB](https://developer.mozilla.org/en-US/docs/Web"
-        "/API/IndexedDB_API) resumes to your\naccount.",
+        (
+            "On Rustume Cloud, use **Import from local** after sign-in to upload IndexedDB "
+            "resumes to your\naccount."
+        ),
+        (
+            "On [Rustume Cloud](/docs/cloud/getting-started/), use **Import from local** "
+            "after sign-in to upload [IndexedDB](https://developer.mozilla.org/en-US/docs/Web"
+            "/API/IndexedDB_API) resumes to your\naccount."
+        ),
     ),
     # architecture overview render
     (
         "architecture/overview.md",
         "| `rustume-render` | Typst-based PDF/PNG generation with 12 templates |",
-        "| `rustume-render` | [Typst](https://typst.app/)-based PDF/PNG generation with "
-        "12 templates |",
+        (
+            "| `rustume-render` | [Typst](https://typst.app/)-based PDF/PNG generation with "
+            "12 templates |"
+        ),
     ),
     (
         "architecture/overview.md",
@@ -298,8 +366,10 @@ REPLACEMENTS: list[tuple[str, str, str]] = [
     (
         "architecture/overview.md",
         "| `apps/web` | SolidJS resume builder (Vite) |",
-        "| `apps/web` | [SolidJS](https://www.solidjs.com/) resume builder "
-        "([Vite](https://vite.dev/)) |",
+        (
+            "| `apps/web` | [SolidJS](https://www.solidjs.com/) resume builder "
+            "([Vite](https://vite.dev/)) |"
+        ),
     ),
     # cloud auth
     (
@@ -322,8 +392,10 @@ REPLACEMENTS: list[tuple[str, str, str]] = [
     (
         "pricing/plans.md",
         "| Local storage (IndexedDB) | ✅ | ✅ | ✅ |",
-        "| Local storage ([IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/In"
-        "dexedDB_API)) | ✅ | ✅ | ✅ |",
+        (
+            "| Local storage ([IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/In"
+            "dexedDB_API)) | ✅ | ✅ | ✅ |"
+        ),
     ),
     (
         "pricing/plans.md",
@@ -334,8 +406,10 @@ REPLACEMENTS: list[tuple[str, str, str]] = [
     (
         "architecture/data-model.md",
         "Rustume Cloud stores data in PostgreSQL (Neon).",
-        "Rustume Cloud stores data in [PostgreSQL](https://www.postgresql.org/) "
-        "([Neon](https://neon.tech/)).",
+        (
+            "Rustume Cloud stores data in [PostgreSQL](https://www.postgresql.org/) "
+            "([Neon](https://neon.tech/))."
+        ),
     ),
     # monitoring
     (
@@ -352,8 +426,10 @@ REPLACEMENTS: list[tuple[str, str, str]] = [
     (
         "deployment/env-reference.md",
         "| `DATABASE_URL` | Yes | PostgreSQL connection string (Neon in production) |",
-        "| `DATABASE_URL` | Yes | [PostgreSQL](https://www.postgresql.org/) connection "
-        "string ([Neon](https://neon.tech/) in production) |",
+        (
+            "| `DATABASE_URL` | Yes | [PostgreSQL](https://www.postgresql.org/) connection "
+            "string ([Neon](https://neon.tech/) in production) |"
+        ),
     ),
     (
         "deployment/env-reference.md",
@@ -364,35 +440,45 @@ REPLACEMENTS: list[tuple[str, str, str]] = [
     (
         "api/cloud-endpoints.md",
         "| `GET` | `/auth/login` | No | Redirect to WorkOS AuthKit |",
-        "| `GET` | `/auth/login` | No | Redirect to [WorkOS "
-        "AuthKit](https://workos.com/docs/user-management/authkit) |",
+        (
+            "| `GET` | `/auth/login` | No | Redirect to [WorkOS "
+            "AuthKit](https://workos.com/docs/user-management/authkit) |"
+        ),
     ),
     # storage
     (
         "cloud/storage.md",
         "Rustume Cloud persists resumes in PostgreSQL (Neon in production).",
-        "Rustume Cloud persists resumes in [PostgreSQL](https://www.postgresql.org/) "
-        "([Neon](https://neon.tech/) in production).",
+        (
+            "Rustume Cloud persists resumes in [PostgreSQL](https://www.postgresql.org/) "
+            "([Neon](https://neon.tech/) in production)."
+        ),
     ),
     (
         "cloud/storage.md",
         "The browser uses IndexedDB via WASM.",
-        "The browser uses [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/In"
-        "dexedDB_API) via [WASM](/docs/architecture/overview/).",
+        (
+            "The browser uses [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/In"
+            "dexedDB_API) via [WASM](/docs/architecture/overview/)."
+        ),
     ),
     # sync
     (
         "cloud/sync.md",
         "Local\nIndexedDB remains the write path;",
-        "Local\n[IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API"
-        ") remains the write path;",
+        (
+            "Local\n[IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API"
+            ") remains the write path;"
+        ),
     ),
     # public pages
     (
         "cloud/public-pages.md",
         "stored in **Cloudflare R2** (`og/{slug}.png`), generated on",
-        "stored in **[Cloudflare R2](https://developers.cloudflare.com/r2/)** "
-        "(`og/{slug}.png`), generated on",
+        (
+            "stored in **[Cloudflare R2](https://developers.cloudflare.com/r2/)** "
+            "(`og/{slug}.png`), generated on"
+        ),
     ),
     # core endpoints
     (
@@ -403,28 +489,38 @@ REPLACEMENTS: list[tuple[str, str, str]] = [
     (
         "api/core-endpoints.md",
         "| `linkedin` | Base64-encoded ZIP (`base64: true`) |",
-        "| `linkedin` | Base64-encoded [LinkedIn](https://www.linkedin.com/) export ZIP "
-        "(`base64: true`) |",
+        (
+            "| `linkedin` | Base64-encoded [LinkedIn](https://www.linkedin.com/) export ZIP "
+            "(`base64: true`) |"
+        ),
     ),
     # cloud getting started
     (
         "cloud/getting-started.md",
         "1. Open the Rustume Cloud deployment (production URL or your Railway instance)",
-        "1. Open the Rustume Cloud deployment (production URL or your "
-        "[Railway](https://railway.com/) instance)",
+        (
+            "1. Open the Rustume Cloud deployment (production URL or your "
+            "[Railway](https://railway.com/) instance)"
+        ),
     ),
     (
         "cloud/getting-started.md",
         "3. You are redirected to **WorkOS AuthKit** — choose a provider:",
-        "3. You are redirected to **[WorkOS AuthKit](https://workos.com/docs/user-managem"
-        "ent/authkit)** — choose a provider:",
+        (
+            "3. You are redirected to **[WorkOS AuthKit](https://workos.com/docs/user-managem"
+            "ent/authkit)** — choose a provider:"
+        ),
     ),
     (
         "cloud/getting-started.md",
-        "3. The web app reads IndexedDB/localStorage entries and POSTs them to "
-        "`/api/resumes/import`",
-        "3. The web app reads [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/AP"
-        "I/IndexedDB_API)/`localStorage` entries and POSTs them to `/api/resumes/import`",
+        (
+            "3. The web app reads IndexedDB/localStorage entries and POSTs them to "
+            "`/api/resumes/import`"
+        ),
+        (
+            "3. The web app reads [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/AP"
+            "I/IndexedDB_API)/`localStorage` entries and POSTs them to `/api/resumes/import`"
+        ),
     ),
     # checkout
     (
@@ -436,8 +532,10 @@ REPLACEMENTS: list[tuple[str, str, str]] = [
     (
         "pricing/management.md",
         "Manage your Rustume Cloud subscription through Paddle's hosted customer portal.",
-        "Manage your Rustume Cloud subscription through "
-        "[Paddle](https://www.paddle.com/)'s hosted customer portal.",
+        (
+            "Manage your Rustume Cloud subscription through "
+            "[Paddle](https://www.paddle.com/)'s hosted customer portal."
+        ),
     ),
     # commands typst
     (
@@ -453,55 +551,77 @@ REPLACEMENTS: list[tuple[str, str, str]] = [
     # version-history cross-links
     (
         "cloud/version-history.md",
-        "Rustume Cloud captures a snapshot of your resume on every save, enabling revert "
-        "when you make a\nmistake or want to compare earlier drafts.",
-        "Rustume Cloud captures a snapshot of your resume on every save via [resume "
-        "storage](/docs/cloud/storage/), enabling revert when you make a\nmistake or want "
-        "to compare earlier drafts.",
+        (
+            "Rustume Cloud captures a snapshot of your resume on every save, enabling revert "
+            "when you make a\nmistake or want to compare earlier drafts."
+        ),
+        (
+            "Rustume Cloud captures a snapshot of your resume on every save via [resume "
+            "storage](/docs/cloud/storage/), enabling revert when you make a\nmistake or want "
+            "to compare earlier drafts."
+        ),
     ),
     (
         "cloud/version-history.md",
         "Typical usage (50 versions × 50 KB) ≈ 2.5 MB per resume — well within Neon limits.",
-        "Typical usage (50 versions × 50 KB) ≈ 2.5 MB per resume — well within "
-        "[Neon](https://neon.tech/) limits.",
+        (
+            "Typical usage (50 versions × 50 KB) ≈ 2.5 MB per resume — well within "
+            "[Neon](https://neon.tech/) limits."
+        ),
     ),
     (
         "cloud/version-history.md",
-        "Version history is available in connected deployments; the operator sets "
-        "retention behavior and users can also export portable JSON backups.",
-        "Local [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API"
-        ") mode stores the latest state. Connected [version history]"
-        "(/docs/cloud/version-history/) complements portable JSON export backups.",
+        (
+            "Version history is available in connected deployments; the operator sets "
+            "retention behavior and users can also export portable JSON backups."
+        ),
+        (
+            "Local [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API"
+            ") mode stores the latest state. Connected [version history]"
+            "(/docs/cloud/version-history/) complements portable JSON export backups."
+        ),
     ),
     # api-keys cross-links
     (
         "api/api-keys.md",
-        "Connected deployments can create API keys for programmatic access — CI pipelines, "
-        "custom\nintegrations, or headless PDF generation without browser cookies.",
-        "Connected deployments can create API keys for programmatic access — CI pipelines, "
-        "custom\nintegrations, or headless [PDF generation](/docs/api/core-endpoints/) "
-        "without browser cookies.",
+        (
+            "Connected deployments can create API keys for programmatic access — CI pipelines, "
+            "custom\nintegrations, or headless PDF generation without browser cookies."
+        ),
+        (
+            "Connected deployments can create API keys for programmatic access — CI pipelines, "
+            "custom\nintegrations, or headless [PDF generation](/docs/api/core-endpoints/) "
+            "without browser cookies."
+        ),
     ),
     (
         "api/api-keys.md",
-        "Default keys get `resumes:read` + `resumes:write` + `render:pdf`. Custom scope "
-        "selection available\nat creation.",
-        "Default keys get `resumes:read` + `resumes:write` + `render:pdf`. See [Cloud "
-        "endpoints](/docs/api/cloud-endpoints/) for route details. Custom scope selection "
-        "available\nat creation.",
+        (
+            "Default keys get `resumes:read` + `resumes:write` + `render:pdf`. Custom scope "
+            "selection available\nat creation."
+        ),
+        (
+            "Default keys get `resumes:read` + `resumes:write` + `render:pdf`. See [Cloud "
+            "endpoints](/docs/api/cloud-endpoints/) for route details. Custom scope selection "
+            "available\nat creation."
+        ),
     ),
     # cloud-stack terraform row
     (
         "architecture/cloud-stack.md",
         "| **IaC** | Terraform | Railway, Neon, R2, DNS, monitoring wiring |",
-        "| **IaC** | [Terraform](/docs/operations/terraform/) | Railway, Neon, R2, DNS, "
-        "monitoring wiring |",
+        (
+            "| **IaC** | [Terraform](/docs/operations/terraform/) | Railway, Neon, R2, DNS, "
+            "monitoring wiring |"
+        ),
     ),
     (
         "architecture/cloud-stack.md",
         "Rustume Cloud runs on managed services orchestrated with Terraform. The stack prioritizes",
-        "Rustume Cloud runs on managed services orchestrated with "
-        "[Terraform](/docs/operations/terraform/). The stack prioritizes",
+        (
+            "Rustume Cloud runs on managed services orchestrated with "
+            "[Terraform](/docs/operations/terraform/). The stack prioritizes"
+        ),
     ),
     # data-model workos
     (
@@ -523,7 +643,9 @@ REPLACEMENTS: list[tuple[str, str, str]] = [
     (
         "contributing/web-app.md",
         "| Local storage | WASM → IndexedDB |",
-        "| Local storage | [WASM](/docs/architecture/overview/) → "
-        "[IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API) |",
+        (
+            "| Local storage | [WASM](/docs/architecture/overview/) → "
+            "[IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API) |"
+        ),
     ),
 ]
