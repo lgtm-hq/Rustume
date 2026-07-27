@@ -22,6 +22,22 @@ and this project adheres to
 
 ### Security
 
+## [0.50.2] - 2026-07-27
+
+### Changed
+
+- **design**: record UX pattern decisions for the editor, preview, and import/export
+  flows (#649) (6ff863a)
+- **site**: add Playwright and axe accessibility coverage for rustume.com (#647)
+  (79f18ea)
+- **deps**: update dependency h3 to 2.0.1-rc.26 (patch) (#652) (1e3ea45)
+- auto-rerun infra failures on Publish - GitHub Release (#640) (2af52bf)
+
+### Fixed
+
+- **templates**: contrast-audit the 12 resume templates for screen and print (#651)
+  (464f2b4)
+
 ## [0.50.1] - 2026-07-27
 
 ### Changed
@@ -695,7 +711,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.50.1...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.50.2...HEAD
+[0.50.2]: https://github.com/lgtm-hq/Rustume/compare/v0.50.1...v0.50.2
 [0.50.1]: https://github.com/lgtm-hq/Rustume/compare/v0.50.0...v0.50.1
 [0.50.0]: https://github.com/lgtm-hq/Rustume/compare/v0.49.1...v0.50.0
 [0.49.1]: https://github.com/lgtm-hq/Rustume/compare/v0.49.0...v0.49.1
