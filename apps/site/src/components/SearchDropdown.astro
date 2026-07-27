@@ -61,31 +61,58 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
       shortcutMod.setAttribute('data-mod', isMac ? '⌘' : 'Ctrl');
     }
 
+    // Opening the dialog has to move focus into it, and two things used to get
+    // in the way of the single focus() call that lived here: Pagefind renders
+    // its input a frame or more after the constructor returns, and the panel
+    // is still visibility:hidden until its transition completes, so focus()
+    // lands on nothing. Retry across frames until focus actually takes, and
+    // give up as soon as the dialog is closed again.
+    var FOCUS_ATTEMPT_FRAMES = 60;
+
+    function focusSearchInput() {
+      var attempts = 0;
+      (function attempt() {
+        if (!searchBar.classList.contains('open')) return;
+        var input = searchBar.querySelector('.pagefind-ui__search-input');
+        if (input) {
+          input.focus();
+          if (document.activeElement === input) {
+            input.select();
+            return;
+          }
+        }
+        if (attempts++ < FOCUS_ATTEMPT_FRAMES) requestAnimationFrame(attempt);
+      })();
+    }
+
     async function openSearch() {
       searchBar.classList.add('open');
       if (triggerBtn) triggerBtn.setAttribute('aria-expanded', 'true');
       await initSearch();
       if (!searchBar.classList.contains('open')) return;
-      var input = searchBar.querySelector('.pagefind-ui__search-input');
-      if (input) {
-        input.focus();
-        input.select();
-      }
+      focusSearchInput();
     }
 
-    function closeSearch() {
+    /**
+     * @param {boolean} [restoreFocus] Force focus back to the trigger. Set for
+     *   keyboard dismissals: Pagefind handles Escape on its own input first and
+     *   leaves focus on <body>, so by the time this runs the "did the dialog
+     *   hold focus" check reports false and a keyboard user is stranded with no
+     *   focused element. Pointer dismissals must not steal focus, so they omit
+     *   it and keep relying on that check.
+     */
+    function closeSearch(restoreFocus) {
       var hadFocusInside = menu.contains(document.activeElement);
       searchBar.classList.remove('open');
       if (triggerBtn) {
         triggerBtn.setAttribute('aria-expanded', 'false');
-        // Return focus to the trigger when the dialog held focus.
-        if (hadFocusInside) triggerBtn.focus();
+        if (restoreFocus || hadFocusInside) triggerBtn.focus();
       }
     }
 
     function toggleSearch() {
       if (searchBar.classList.contains('open')) {
-        closeSearch();
+        closeSearch(true);
       } else {
         openSearch();
       }
@@ -103,7 +130,15 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
       initSearchPromise = (async function() {
         searchInitialized = true;
         try {
-          var PagefindUI = (await import(baseUrl + '/pagefind/pagefind-ui.js')).PagefindUI;
+          // pagefind-ui.js is an IIFE bundle: it has no ES exports and
+          // registers window.PagefindUI as a side effect. Reading .PagefindUI
+          // off the module namespace yielded undefined, so every visitor got
+          // the "Search available after build" fallback instead of search.
+          await import(baseUrl + '/pagefind/pagefind-ui.js');
+          var PagefindUI = window.PagefindUI;
+          if (typeof PagefindUI !== 'function') {
+            throw new Error('pagefind-ui.js did not register window.PagefindUI');
+          }
           new PagefindUI({
             element: '#search-input-container',
             showImages: false,
@@ -153,7 +188,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
 
       // Escape to close
       if (e.key === 'Escape' && searchBar.classList.contains('open')) {
-        closeSearch();
+        closeSearch(true);
       }
     });
 

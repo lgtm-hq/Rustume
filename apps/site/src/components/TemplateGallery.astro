@@ -50,7 +50,12 @@ const thumb = (id: string) => publicAsset(base, `templates/${id}.png`);
         ×
       </button>
     </header>
-    <div class="template-modal-body">
+    <!--
+      tabindex="0" makes the scrollable preview area reachable by keyboard: the
+      full-page template image overflows this container, and without it the
+      overflow is only scrollable with a pointer (WCAG 2.1.1).
+    -->
+    <div class="template-modal-body" tabindex="0" role="group" aria-label="Template preview">
       <img id="template-modal-image" alt="" width="595" height="842" />
     </div>
   </div>
@@ -71,8 +76,14 @@ const thumb = (id: string) => publicAsset(base, `templates/${id}.png`);
       document.body.appendChild(modal);
     }
 
+    /**
+     * Landmarks hidden from assistive tech while the dialog is open. Scoped to
+     * direct children of <body> on purpose: an unscoped "header, main, footer"
+     * also matched the dialog's own <header>, so opening the preview made its
+     * title and close button inert and aria-hidden.
+     */
     function pageRoots() {
-      return document.querySelectorAll("header, main, footer");
+      return document.querySelectorAll("body > header, body > main, body > footer");
     }
 
     function focusableInModal() {
