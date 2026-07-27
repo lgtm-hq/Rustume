@@ -163,12 +163,11 @@ body {
 /*
  * Reduced motion.
  *
- * Entrance animations (fade-in, slide-up, stagger-in) interpolate opacity,
- * which composites text and its background toward each other mid-flight —
- * a transient contrast failure as well as a motion-sensitivity problem.
- * Components already opt out of their own transitions via
- * `motion-reduce:transition-none`; this is the global counterpart that also
- * covers the keyframe animations.
+ * Now that `slide-up` and `stagger-in` animate transform alone, movement is
+ * the only entrance cue they offer — which is exactly the cue a motion-
+ * sensitive reader needs suppressed. Components already opt out of their own
+ * transitions via `motion-reduce:transition-none`; this is the global
+ * counterpart that also covers the keyframe animations.
  */
 @media (prefers-reduced-motion: reduce) {
   *,
