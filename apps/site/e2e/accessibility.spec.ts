@@ -10,8 +10,8 @@ import {
 } from "./support/fixtures";
 import { SCANNED_THEMES } from "./support/themes";
 
-/** WCAG 2.1 AA scan scope (also includes the 2.0 A/AA baseline). */
-const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
+/** WCAG 2.2 AA scan scope (also includes the 2.0 and 2.1 A/AA baselines). */
+const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa"];
 
 /**
  * Rules deferred to follow-up work, both from the "distinguished by color"
@@ -28,9 +28,22 @@ const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
  *
  * Neither is suppressed to hide a flake — both fail deterministically today,
  * and shipping them red would make the suite unusable as a gate. Every other
- * WCAG 2.1 A/AA rule runs.
+ * WCAG 2.2 A/AA rule runs.
  */
 const DEFERRED_RULES = ["color-contrast", "link-in-text-block"];
+
+/**
+ * Rule overrides layered on top of the tag selection.
+ *
+ * `target-size` (SC 2.5.8, 24x24 CSS px minimum) ships `enabled: false` in
+ * axe-core, so selecting the `wcag22aa` tag is not enough to run it — it has
+ * to be switched on explicitly. The deferred rules are turned off in the same
+ * map because `disableRules()` would replace it wholesale.
+ */
+const RULE_OVERRIDES: Record<string, { enabled: boolean }> = {
+  "target-size": { enabled: true },
+  ...Object.fromEntries(DEFERRED_RULES.map((rule) => [rule, { enabled: false }])),
+};
 
 /** Human-readable summary so failures state the rule, impact, and targets. */
 interface ViolationSummary {
@@ -40,12 +53,38 @@ interface ViolationSummary {
   targets: string[];
 }
 
+/** Every bucket axe reports a rule under once it has actually been evaluated. */
+const RESULT_GROUPS = ["passes", "violations", "incomplete", "inapplicable"] as const;
+
+type AxeResults = Awaited<ReturnType<AxeBuilder["analyze"]>>;
+
+/**
+ * Guard against a silently skipped rule. `target-size` is off by default and
+ * only runs because of `RULE_OVERRIDES`; if a refactor drops that override (or
+ * reorders `options()` after `withTags()`), the suite would keep passing while
+ * scanning strictly less. A rule that ran always lands in one of the four
+ * result buckets, so absence from all of them means it never ran.
+ */
+function assertRuleEvaluated(results: AxeResults, ruleId: string): void {
+  const evaluated = RESULT_GROUPS.some((group) =>
+    results[group].some((result) => result.id === ruleId),
+  );
+  if (!evaluated) {
+    throw new Error(
+      `axe never evaluated the "${ruleId}" rule — check RULE_OVERRIDES and the tag scope.`,
+    );
+  }
+}
+
 async function scanForViolations(page: Page, include?: string): Promise<ViolationSummary[]> {
-  let builder = new AxeBuilder({ page }).withTags(WCAG_TAGS).disableRules(DEFERRED_RULES);
+  // `options()` replaces the whole option object, so it must come before
+  // `withTags()` — the reverse order would drop the tag selection.
+  let builder = new AxeBuilder({ page }).options({ rules: RULE_OVERRIDES }).withTags(WCAG_TAGS);
   if (include) {
     builder = builder.include(include);
   }
   const results = await builder.analyze();
+  assertRuleEvaluated(results, "target-size");
   return results.violations.map((violation) => ({
     rule: violation.id,
     impact: violation.impact ?? "unknown",
@@ -56,21 +95,21 @@ async function scanForViolations(page: Page, include?: string): Promise<Violatio
 
 for (const theme of SCANNED_THEMES) {
   test.describe(`accessibility (${theme.id})`, () => {
-    test("home page has no WCAG 2.1 AA violations", async ({ page, homePage }) => {
+    test("home page has no WCAG 2.2 AA violations", async ({ page, homePage }) => {
       await homePage.open();
       await homePage.assertLoaded();
       await homePage.useTheme(theme);
       expect(await scanForViolations(page)).toEqual([]);
     });
 
-    test("docs page has no WCAG 2.1 AA violations", async ({ page, docsPage }) => {
+    test("docs page has no WCAG 2.2 AA violations", async ({ page, docsPage }) => {
       await docsPage.open(SAMPLE_DOC.slug);
       await docsPage.assertLoaded(SAMPLE_DOC.title);
       await docsPage.useTheme(theme);
       expect(await scanForViolations(page)).toEqual([]);
     });
 
-    test("pricing table has no WCAG 2.1 AA violations", async ({ page, pricingPage }) => {
+    test("pricing table has no WCAG 2.2 AA violations", async ({ page, pricingPage }) => {
       await pricingPage.open();
       await pricingPage.assertLoaded(PRICING_TITLE);
       await pricingPage.assertPlansTableVisible();
@@ -78,7 +117,7 @@ for (const theme of SCANNED_THEMES) {
       expect(await scanForViolations(page)).toEqual([]);
     });
 
-    test("template gallery has no WCAG 2.1 AA violations", async ({
+    test("template gallery has no WCAG 2.2 AA violations", async ({
       page,
       templateGalleryPage,
     }) => {
@@ -89,7 +128,7 @@ for (const theme of SCANNED_THEMES) {
       expect(await scanForViolations(page)).toEqual([]);
     });
 
-    test("open template preview dialog has no WCAG 2.1 AA violations", async ({
+    test("open template preview dialog has no WCAG 2.2 AA violations", async ({
       page,
       templateGalleryPage,
     }) => {
@@ -100,14 +139,14 @@ for (const theme of SCANNED_THEMES) {
       expect(await scanForViolations(page)).toEqual([]);
     });
 
-    test("open search dialog has no WCAG 2.1 AA violations", async ({ page, homePage }) => {
+    test("open search dialog has no WCAG 2.2 AA violations", async ({ page, homePage }) => {
       await homePage.open();
       await homePage.useTheme(theme);
       await homePage.openSearch();
       expect(await scanForViolations(page)).toEqual([]);
     });
 
-    test("open theme picker has no WCAG 2.1 AA violations", async ({ page, homePage }) => {
+    test("open theme picker has no WCAG 2.2 AA violations", async ({ page, homePage }) => {
       await homePage.open();
       await homePage.useTheme(theme);
       await homePage.openThemeMenu();
