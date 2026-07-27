@@ -6,6 +6,11 @@ Rustume is a Rust + SolidJS monorepo (privacy-first, offline-first resume builde
 Standard commands live in the `Makefile`, `README.md`, and `CONTRIBUTING.md`; prefer
 those. Notes below capture only non-obvious environment caveats for cloud agents.
 
+For any UI, copy, or template change, read
+[`docs/design/BRAND.md`](docs/design/BRAND.md) first — it is the authoritative
+brand story, design language, voice, and anti-pattern list, and UI changes are
+reviewed against it.
+
 ### Toolchain / dependencies
 
 - Requires **Rust >= 1.85** (a transitive dependency needs the `edition2024`

@@ -141,6 +141,12 @@ uv run lintro chk        # Check for issues
 uv run lintro fmt        # Auto-fix formatting
 ```
 
+### Design language
+
+Before changing UI, copy, or templates, read
+[docs/design/BRAND.md](docs/design/BRAND.md) — Rustume's brand story, design
+principles, voice, and anti-patterns.
+
 ## 🙏 Acknowledgements
 
 <!-- markdownlint-disable MD033 MD013 -->
