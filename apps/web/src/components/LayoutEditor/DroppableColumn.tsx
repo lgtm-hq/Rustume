@@ -40,7 +40,7 @@ export function DroppableColumn(props: DroppableColumnProps) {
       // carries its own move controls (SC 2.5.7), which a listbox may not own.
       role="group"
       aria-label={label()}
-      class="flex-1 min-w-0 rounded-lg border-2 border-dashed transition-colors duration-150 p-2"
+      class="flex-1 min-w-0 rounded-lg border-2 border-dashed transition-colors duration-150 motion-reduce:transition-none p-2"
       classList={{
         "border-accent/50 bg-accent/5": droppable.isActiveDroppable,
         "border-border bg-surface/30": !droppable.isActiveDroppable,

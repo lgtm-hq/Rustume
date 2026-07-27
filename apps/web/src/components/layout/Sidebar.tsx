@@ -157,7 +157,7 @@ export function Sidebar(props: SidebarProps) {
                       {renderIcon(item.icon)}
                     </Tooltip.Trigger>
                     <Tooltip.Portal>
-                      <Tooltip.Content class="z-50 px-2.5 py-1.5 bg-ink text-paper text-xs font-medium rounded-lg shadow-lg animate-fade-in">
+                      <Tooltip.Content class="z-50 px-2.5 py-1.5 bg-ink text-paper text-xs font-medium rounded-lg shadow-lg">
                         {item.label}
                         <Tooltip.Arrow />
                       </Tooltip.Content>

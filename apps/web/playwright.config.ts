@@ -13,6 +13,25 @@ const allBrowsers = !process.env.CI && process.env.PLAYWRIGHT_ALL_BROWSERS === "
 // baseline on the first attempt, so a retry would silently pass against it).
 const VISUAL_SPEC = /visual\.spec\.ts/;
 
+/**
+ * `reducedMotion` states the intent of these runs — they assert the steady
+ * state of a surface, not a frame of its entrance animation. It is not what
+ * makes them deterministic: Rustume#618 measured that `matchMedia` still
+ * reports `no-preference` under Playwright 1.61 with `devices["Desktop
+ * Chrome"]`, so the `prefers-reduced-motion` rule in `src/index.css` does not
+ * actually engage. What keeps the scans stable is that no entrance animation
+ * interpolates `opacity` any more, so there is no frame in which text is
+ * composited toward its backdrop.
+ *
+ * In Playwright 1.61 the option only type-checks under `contextOptions`; the
+ * top-level `use.reducedMotion` key no longer exists.
+ *
+ * The `visual` project is deliberately excluded: its baselines are committed,
+ * and a flag that is inert today but honoured by a future Playwright would
+ * silently invalidate them.
+ */
+const REDUCED_MOTION = { contextOptions: { reducedMotion: "reduce" } } as const;
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -38,7 +57,11 @@ export default defineConfig({
     serviceWorkers: "block",
   },
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] }, testIgnore: VISUAL_SPEC },
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"], ...REDUCED_MOTION },
+      testIgnore: VISUAL_SPEC,
+    },
     {
       name: "visual",
       use: { ...devices["Desktop Chrome"] },
@@ -49,12 +72,12 @@ export default defineConfig({
       ? [
           {
             name: "firefox",
-            use: { ...devices["Desktop Firefox"] },
+            use: { ...devices["Desktop Firefox"], ...REDUCED_MOTION },
             testIgnore: VISUAL_SPEC,
           },
           {
             name: "webkit",
-            use: { ...devices["Desktop Safari"] },
+            use: { ...devices["Desktop Safari"], ...REDUCED_MOTION },
             testIgnore: VISUAL_SPEC,
           },
         ]

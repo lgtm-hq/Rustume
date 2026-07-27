@@ -129,7 +129,7 @@ export const AppShell: ParentComponent = (props) => {
             {/* Offline Indicator */}
             <Show when={!isOnline()}>
               <div class="flex items-center gap-2 px-3 py-1.5 bg-offline/10 rounded-full">
-                <div class="w-2 h-2 bg-offline rounded-full animate-pulse-subtle" />
+                <div class="w-2 h-2 bg-offline rounded-full animate-pulse-subtle motion-reduce:animate-none" />
                 <span class="text-xs font-mono text-stone">Offline</span>
               </div>
             </Show>

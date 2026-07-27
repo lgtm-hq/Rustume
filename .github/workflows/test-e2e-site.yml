@@ -1,0 +1,102 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+---
+name: Test - Site E2E
+# Playwright accessibility suites for the documentation site (apps/site/e2e) —
+# axe scans across 7 surfaces x 3 themes plus the keyboard/ARIA chrome suite —
+# via lgtm-ci's reusable-test-e2e-playwright.
+#
+# Sibling workflow rather than a job inside site-quality.yml: that workflow
+# delegates wholesale to reusable-site-quality, which offers no hook to run a
+# Playwright suite, so consuming its `site-dist` artifact would mean
+# hand-rolling bun install, the Chromium download and cache, the report
+# artifact and the PR summary comment in this repo — all of which
+# reusable-test-e2e-playwright already owns and test-e2e-web.yml already
+# demonstrates. deploy-pages.yml also rebuilds the site from
+# scripts/ci/site/build.sh rather than deploying site-dist, so "test what
+# deploys" means running that same build script, which scripts/ci/site/e2e.sh
+# does.
+#
+# The suite runs against `astro preview` over the production dist/, never a dev
+# server, and scripts/ci/site/e2e.sh proves the served build is the one it just
+# built (see the staleness guard notes there and in assert-served-build.sh).
+
+"on":
+  push:
+    branches: [main]
+    paths:
+      - 'apps/site/**'
+      - 'docs/**'
+      - 'scripts/ci/site/**'
+      - '.github/workflows/test-e2e-site.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/site/**'
+      - 'docs/**'
+      - 'scripts/ci/site/**'
+      - '.github/workflows/test-e2e-site.yml'
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-e2e-site-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  site-e2e:
+    # yamllint disable-line rule:line-length
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-e2e-playwright.yml@240daf3ed1f7475b3f322502035b15994be210a8 # v0.59.16
+    permissions:
+      contents: read
+      pull-requests: write # publish-test-summary on PRs
+    with:
+      tooling-ref: '240daf3ed1f7475b3f322502035b15994be210a8' # v0.59.16
+      job-name: "♿ Site E2E"
+      node-version: "22"
+      working-directory: apps/site
+      package-manager: bun
+      browsers: chromium
+      # playwright.config.ts already resolves to chromium-only under CI, so no
+      # --project filter is passed.
+      test-command: bash ../../scripts/ci/site/e2e.sh
+      upload-report: true
+      publish-test-summary: true
+      comment-marker: site-e2e-report
+      draft-pr-skip: true
+      egress-policy: block
+      # The reusable's harden-runner step consumes `allowed-endpoints`
+      # verbatim, so `egress-preset: playwright` cannot be extended via
+      # `allowed-endpoints-mode: append` here — the full list is spelled out
+      # instead. It is the lgtm-ci `playwright` preset plus what the Astro +
+      # Pagefind site build needs (npm registry, bun toolchain). Google Fonts
+      # is deliberately absent: e2e/support/fixtures.ts aborts those routes so
+      # the suite renders with fallback fonts and stays hermetic.
+      allowed-endpoints: >-
+        github.com:443
+        api.github.com:443
+        codeload.github.com:443
+        objects.githubusercontent.com:443
+        raw.githubusercontent.com:443
+        release-assets.githubusercontent.com:443
+        pipelines.actions.githubusercontent.com:443
+        results-receiver.actions.githubusercontent.com:443
+        *.blob.core.windows.net:443
+        registry.npmjs.org:443
+        nodejs.org:443
+        bun.sh:443
+        cdn.playwright.dev:443
+        playwright.azureedge.net:443
+        playwright-akamai.azureedge.net:443
+        playwright-verizon.azureedge.net:443
+        playwright.download.prss.microsoft.com:443
+        storage.googleapis.com:443
+        archive.ubuntu.com:80
+        security.ubuntu.com:80
+        azure.archive.ubuntu.com:80
+        esm.ubuntu.com:443
+        packages.microsoft.com:443
+      runner-image: ubuntu-24.04
+      timeout-minutes: 30
