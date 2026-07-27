@@ -73,6 +73,39 @@ html {
   -webkit-font-smoothing: antialiased;
 }
 
+/*
+ * Reduced motion.
+ *
+ * The site's motion is all transition-based — dropdown panels, hover lifts,
+ * the theme picker — so zeroing durations sitewide is what honours the
+ * preference, and it holds for any animation a component adds later. Note
+ * that `scroll-behavior: smooth` above is set on `html` and so needs its own
+ * override; it is the one piece of motion the shorthand block cannot reach.
+ *
+ * `animation-iteration-count` is pinned to 1 because a zero-duration
+ * animation that is still `infinite` repaints forever.
+ *
+ * A near-zero duration rather than `none` keeps `transitionend` and
+ * `animationend` listeners firing, so any script that waits on one still
+ * advances.
+ */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: -0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 body {
   font-family: var(--font-body, var(--turbo-font-sans));
   color: var(--turbo-body-primary, var(--turbo-text-primary));
@@ -1144,7 +1177,11 @@ th {
   z-index: 2;
   margin-bottom: -40px;
   box-shadow: 0 4px 20px color-mix(in srgb, var(--site-accent, var(--turbo-brand-primary)) 40%, transparent);
-  transition: all 0.3s ease;
+  /* Named properties rather than `all`: `all` also covers `color` and
+     `background`, which a theme swap rewrites under the pointer. */
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
 }
 
 .feature-tile:hover .feature-tile-bubble {
@@ -1172,7 +1209,11 @@ th {
   text-align: center;
   width: 100%;
   flex: 1;
-  transition: all 0.3s ease;
+  /* The tile body carries the feature's heading and copy, so it must not
+     transition `color` on a theme swap — only the box the hover changes. */
+  transition:
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -1558,11 +1599,19 @@ th {
   font-weight: 500;
   line-height: 1.2;
   cursor: pointer;
+  /*
+   * `color` is deliberately absent. Picking a theme rewrites every
+   * `--turbo-*` custom property at once, and a transition on `color` makes
+   * the label crossfade from the old theme's ink to the new one while its
+   * background has already switched — the two are momentarily near-identical
+   * and the control fails AA mid-swap. turbo-themes#774 removed exactly this
+   * transition for exactly this reason. Hover and focus still animate,
+   * because those change the box, not the text colour.
+   */
   transition:
     border-color var(--transition-fast),
     background var(--transition-fast),
-    box-shadow var(--transition-fast),
-    color var(--transition-fast);
+    box-shadow var(--transition-fast);
   box-shadow: 0 1px 3px color-mix(in srgb, var(--turbo-bg-base) 25%, transparent);
 }
 
@@ -1668,10 +1717,11 @@ th {
   font-size: 0.84rem;
   text-align: left;
   cursor: pointer;
+  /* `color` omitted for the same reason as `.theme-picker-trigger`: this
+     option list is on screen while the theme swap it triggers repaints. */
   transition:
     background var(--transition-fast),
-    border-color var(--transition-fast),
-    color var(--transition-fast);
+    border-color var(--transition-fast);
 }
 
 .theme-picker-option:hover,
