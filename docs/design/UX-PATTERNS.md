@@ -49,8 +49,10 @@ Three facts about the running code decide most of what follows. They are cited, 
 cached for 60 s keyed on the full payload (`api/render.ts:32`). While a render is in flight and
 a previous page exists, an overlay with `role="status"` announces "Updating preview" (`:752`).
 
-There is no scroll linking and no change highlighting; a repository-wide search for scroll
-synchronisation between the editor and the preview returns nothing.
+There is no scroll linking and no change highlighting. The only programmatic scrolling anywhere
+in `apps/web/src` is the command palette keeping its active item in view
+(`components/ui/CommandPalette.tsx:134`); nothing connects the editor pane's scroll position to
+the preview's.
 
 On render failure the code sets `previewUrl` back to the last cached render and comments that it
 will "keep showing last cached preview" (`:325`). It does not: the guard at `:676` is
@@ -309,15 +311,27 @@ were willing to wait roughly three times longer.
 
 Adopt, in three bands that match what the code can honestly report:
 
-- **Under ~300 ms** (JSON export): no indicator. Already correct.
+- **Under 1 s** (JSON export, which is local and synchronous): no indicator. Already correct, and
+  `BRAND.md` §4 draws the line tighter still, at ~300 ms.
 - **1–10 s** (typical PDF render): the current looped spinner, plus honest status text naming
   what is running — the render happens on the server, and saying so is the difference between a
   wait and a mystery.
-- **Over 10 s**: escalate. A true percent-done is not available — `fetchBlob` in
-  `apps/web/src/api/client.ts` awaits one response with no progress events, so a percentage would
-  be fiction, which `BRAND.md` §4 forbids ("any speed number the repo does not measure"). Show
-  elapsed time, which is real, and offer Cancel, which is implementable client-side with an
-  `AbortController`.
+- **Over 10 s**: escalate, and be explicit about what "determinate" can mean here. `BRAND.md` §4
+  asks for determinate progress on a server render, and the current architecture cannot supply
+  it: `fetchBlob` (`apps/web/src/api/client.ts:248`) issues one `fetch` and awaits
+  `response.blob()`, so there is no progress event to read — and a transfer-progress bar would
+  measure the download rather than the render the user is actually waiting for. Two honest moves,
+  in order of preference:
+  1. **Make it determinate.** Give the render endpoint a progress signal the client can read.
+     That is a `crates/server` change, and it is the only route to what §4 literally asks for.
+  2. **Until then, report only what the client already knows:** elapsed time, and the remaining
+     `Retry-After` interval when a render is queued behind a 429 — `client.ts:280` already sleeps
+     for a known duration, so that sub-case genuinely is determinate. Offer Cancel via an
+     `AbortController`.
+
+  Do not synthesise a percentage in the meantime. §4's prohibition on "any speed number the repo
+  does not measure" outranks its preference for determinacy: a fabricated bar is a worse
+  violation of the design language than an honest elapsed counter.
 
 "Done" also needs scoping. `downloadBlob` clicks a synthetic anchor; whether the file lands in a
 downloads folder or opens a save dialog is the browser's decision, not Rustume's. The completion
@@ -330,6 +344,12 @@ spinner, and an operation that genuinely takes time — "server render, batch ex
 determinate progress and says what is running. The NN/g thresholds are the numbers behind that
 sentence, and the escalation band is where the design language and the architecture meet: the
 render is remote, so it can hang, so there must be an exit.
+
+It is also where the design language currently outruns the code, which is worth naming rather
+than papering over. §4 wants determinacy; the render endpoint cannot yet provide it. The
+resolution above keeps both halves of §4 intact by treating "show determinate progress" as a
+target that needs a server change, and "no speed number the repo does not measure" as the
+constraint that binds today.
 
 ### Runners-up, and why they lost
 
