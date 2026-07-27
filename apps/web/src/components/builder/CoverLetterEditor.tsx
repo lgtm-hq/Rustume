@@ -90,6 +90,7 @@ export function CoverLetterEditor() {
             <div class="space-y-4 pt-4 border-t border-border">
               <h3 class="font-mono text-xs uppercase tracking-wider text-stone">Letter Body</h3>
               <RichTextEditor
+                ariaLabel="Cover letter"
                 placeholder="Write your cover letter. Introduce yourself, explain why you're a strong fit, and close with a clear call to action..."
                 value={resume().sections.coverLetter.content}
                 onInput={updateCoverLetter}
