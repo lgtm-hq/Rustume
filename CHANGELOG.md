@@ -22,6 +22,16 @@ and this project adheres to
 
 ### Security
 
+## [0.51.0] - 2026-07-27
+
+### Added
+
+- **web**: honour prefers-reduced-motion across app and site (#655) (e53f0f5)
+
+### Changed
+
+- **site**: run the site accessibility suite in CI (#656) (d9715d5)
+
 ## [0.50.2] - 2026-07-27
 
 ### Changed
@@ -711,7 +721,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.50.2...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.51.0...HEAD
+[0.51.0]: https://github.com/lgtm-hq/Rustume/compare/v0.50.2...v0.51.0
 [0.50.2]: https://github.com/lgtm-hq/Rustume/compare/v0.50.1...v0.50.2
 [0.50.1]: https://github.com/lgtm-hq/Rustume/compare/v0.50.0...v0.50.1
 [0.50.0]: https://github.com/lgtm-hq/Rustume/compare/v0.49.1...v0.50.0
