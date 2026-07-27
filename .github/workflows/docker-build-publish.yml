@@ -177,3 +177,57 @@ jobs:
         index.crates.io:443
         static.crates.io:443
         registry.npmjs.org:443
+
+  # Publish verification (#597). `Merge Manifests` inside reusable-docker runs
+  # only after EVERY platform succeeds, so one dead runner ("The runner has
+  # received a shutdown signal") skips the merge and publishes NO tags — while
+  # the git tag and GitHub Release may already exist. This job asserts the
+  # contracted tags actually resolve, so the run reads as "the release did not
+  # ship" instead of "one flaky platform".
+  #
+  # `always()` on purpose: when the build fails this job must still run and go
+  # red with an attributable message, not skip. It is required on tag builds
+  # and scoped to :main + :sha- on main builds. It never runs on PRs (nothing
+  # is pushed) and skips exactly when the docker job itself is skipped.
+  verify-images:
+    name: 🔍 Verify Published Tags
+    needs: [classify, docker]
+    if: >-
+      always()
+      && github.event_name != 'pull_request'
+      && (github.ref == 'refs/heads/main'
+      || startsWith(github.ref, 'refs/tags/v'))
+      && needs.classify.outputs.pipeline != 'false'
+      && needs.classify.outputs.bump-only != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            codeload.github.com:443
+            objects.githubusercontent.com:443
+            ghcr.io:443
+
+      - name: Checkout
+        # yamllint disable-line rule:line-length
+        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@240daf3ed1f7475b3f322502035b15994be210a8 # v0.59.16
+
+      - name: Verify published tags resolve
+        env:
+          IMAGE_REF: ghcr.io/lgtm-hq/rustume
+          EXPECT_PLATFORMS: linux/amd64,linux/arm64
+          # The manifest merge has already run; retry only long enough to
+          # absorb GHCR read-after-write lag.
+          TIMEOUT_SECONDS: "120"
+          POLL_INTERVAL_SECONDS: "15"
+          REGISTRY_USERNAME: ${{ github.actor }}
+          REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/ci/docker/verify-published-tags.sh
