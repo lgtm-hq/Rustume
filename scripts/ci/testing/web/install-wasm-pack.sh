@@ -44,7 +44,8 @@ if command -v wasm-pack >/dev/null 2>&1; then
 fi
 
 archive="wasm-pack-v${WASM_PACK_VERSION}-${target_triple}.tar.gz"
-url="https://github.com/rustwasm/wasm-pack/releases/download/v${WASM_PACK_VERSION}/${archive}"
+# wasm-bindgen/wasm-pack is the canonical home; rustwasm/ only redirects there.
+url="https://github.com/wasm-bindgen/wasm-pack/releases/download/v${WASM_PACK_VERSION}/${archive}"
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "${tmp_dir}"' EXIT
 

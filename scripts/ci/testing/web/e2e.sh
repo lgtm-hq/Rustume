@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-only
-# Build the web app's Rust/WASM prerequisites and run the Playwright smoke suite.
+# Build the web app's Rust/WASM prerequisites and run the Playwright suites
+# (smoke, per-flow E2E, visual regression, accessibility).
 #
 # Used as the `test-command` of lgtm-ci's reusable-test-e2e-playwright. That
 # reusable installs bun dependencies and the Chromium browser, but has no Rust
@@ -61,5 +62,17 @@ E2E_WASM_PREBUILT=1 node scripts/e2e-build.js
 echo "::endgroup::"
 
 # Both artifacts were just built above — the webServer only runs vite preview.
+status=0
 E2E_WASM_PREBUILT=1 E2E_APP_PREBUILT=1 bunx playwright test \
-	${playwright_args[@]+"${playwright_args[@]}"}
+	${playwright_args[@]+"${playwright_args[@]}"} || status=$?
+
+# On failure, fold the visual baselines into the uploaded report artifact. When
+# a baseline is missing, Playwright writes the freshly rendered (Linux) image to
+# e2e/__screenshots__ and fails; the reusable only uploads test-results/, so
+# copy them across to keep "commit the baselines from the artifact" workable.
+if [[ "${status}" -ne 0 && -d e2e/__screenshots__ ]]; then
+	mkdir -p test-results
+	cp -R e2e/__screenshots__ test-results/__screenshots__
+fi
+
+exit "${status}"

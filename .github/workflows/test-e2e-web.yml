@@ -1,11 +1,23 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 ---
 name: Test - Web E2E
-# Playwright smoke suite for the web app (apps/web/e2e) via lgtm-ci's
-# reusable-test-e2e-playwright. The reusable owns bun install, the Chromium
-# download/cache, the report artifact, and the PR summary comment; it knows
-# nothing about Rust, so the wasm32 target, wasm-pack, the WASM build, and the
-# production bundle are done by the test-command script below.
+# Playwright suites for the web app (apps/web/e2e) — smoke, per-flow E2E
+# (CRUD, templates, export, import, offline), visual regression, and
+# accessibility — via lgtm-ci's reusable-test-e2e-playwright. The reusable owns
+# bun install, the Chromium download/cache, the report artifact, and the PR
+# summary comment; it knows nothing about Rust, so the wasm32 target,
+# wasm-pack, the WASM build, and the production bundle are done by the
+# test-command script below.
+#
+# One call, not one per suite: every suite needs that same WASM + bundle build,
+# and sibling calls are separate jobs that cannot share it, so splitting would
+# rebuild the WASM module per suite for no extra signal. playwright.config.ts
+# already isolates visual regression in its own project so it can opt out of
+# retries.
+#
+# Visual baselines live in apps/web/e2e/__screenshots__ and are generated on
+# this runner (Linux) — on baseline changes, download the Playwright report
+# artifact and commit the updated screenshots from it.
 
 "on":
   push:
@@ -42,7 +54,7 @@ jobs:
       pull-requests: write # publish-test-summary on PRs
     with:
       tooling-ref: '240daf3ed1f7475b3f322502035b15994be210a8' # v0.59.16
-      job-name: "🎭 Web E2E Smoke"
+      job-name: "🎭 Web E2E"
       node-version: "22"
       working-directory: apps/web
       package-manager: bun

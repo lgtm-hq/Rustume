@@ -21,10 +21,10 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
   compat/coverage contract): `rust-coverage` and `web-coverage` each use
   `coverage: true` and `publish-test-summary: true`; uploads Pages coverage
   HTML artifacts and distinct PR coverage comments (suite name in heading)
-- **test-e2e-web.yml** — Web app Playwright smoke suite via
-  `reusable-test-e2e-playwright` (`test-command:
+- **test-e2e-web.yml** — Web app Playwright suites (smoke, per-flow E2E, visual
+  regression, accessibility) via `reusable-test-e2e-playwright` (`test-command:
   scripts/ci/testing/web/e2e.sh` supplies the Rust/wasm-pack stage the reusable
-  has no input for)
+  has no input for); one call runs every suite because they share that build
 - **ci-lintro-analysis.yml** — Lintro quality in Docker via `reusable-quality-lint` and
   `reusable-publish-quality-summary`
 - **site-quality.yml** — Docs site build, link check, Astro check, Vitest + pytest via
