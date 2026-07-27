@@ -240,7 +240,9 @@ function EmptyLibrary(props: { home: HomePageModel }) {
           Import Resume
         </Button>
       </div>
-      <p class="mt-6 font-mono text-[10px] uppercase tracking-[0.14em] text-stone/70">
+      {/* No alpha modifier on the text colour: `text-stone` is derived to sit
+          just above AA, and diluting it drops this hint below 4.5:1. */}
+      <p class="mt-6 font-mono text-[10px] uppercase tracking-[0.14em] text-stone">
         press ⌘K for commands
       </p>
     </div>
