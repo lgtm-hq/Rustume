@@ -22,6 +22,12 @@ name: Auto Rerun on Infra Failure
       - Deploy - GitHub Pages
       - Rust Build (workspace)
       - Quality - Lint & Format
+      # Release gate. verify-image idles on a runner for up to 8100s polling
+      # GHCR for docker-build-publish's tags, which makes it the job most
+      # exposed to runner reclamation — and the only one whose loss withholds
+      # a published GitHub Release. v0.50.1 hit exactly that (run 30289961951
+      # attempt 1, exit 143 at 680s of budget) and needed a manual rerun. #639
+      - Publish - GitHub Release
     types: [completed]
 
 permissions: {}
