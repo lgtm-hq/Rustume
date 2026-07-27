@@ -22,6 +22,18 @@ and this project adheres to
 
 ### Security
 
+## [0.50.1] - 2026-07-27
+
+### Changed
+
+- **deps-dev**: update dependency lintro to 0.93.1 (patch) (#636) (43a9006)
+- **web**: remove the design-lab playground from the production bundle (#630) (a8b5287)
+
+### Fixed
+
+- **web**: re-enable the axe color-contrast rule and fix failing surfaces (#631)
+  (64b44fe)
+
 ## [0.50.0] - 2026-07-27
 
 ### Added
@@ -683,7 +695,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.50.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.50.1...HEAD
+[0.50.1]: https://github.com/lgtm-hq/Rustume/compare/v0.50.0...v0.50.1
 [0.50.0]: https://github.com/lgtm-hq/Rustume/compare/v0.49.1...v0.50.0
 [0.49.1]: https://github.com/lgtm-hq/Rustume/compare/v0.49.0...v0.49.1
 [0.49.0]: https://github.com/lgtm-hq/Rustume/compare/v0.48.0...v0.49.0
