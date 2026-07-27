@@ -335,7 +335,7 @@ export function ImageUpload(props: ImageUploadProps) {
                     />
                   </svg>
                   <span class="text-sm text-stone">Click to upload or drag and drop</span>
-                  <span class="text-xs text-stone/70">JPG, PNG, or WebP (max 5 MB)</span>
+                  <span class="text-xs text-stone">JPG, PNG, or WebP (max 5 MB)</span>
                 </div>
               </Show>
             </button>
