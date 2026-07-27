@@ -27,16 +27,22 @@ export const AA_FLOOR = 4.75;
 /** Interior steps taken along `--gradient-primary`; 20 steps = 21 samples. */
 export const GRADIENT_STEPS = 20;
 
-/** Backgrounds every ink token must stay readable on. */
-export const BACKDROP_TOKENS = ["--turbo-bg-base", "--turbo-bg-surface"];
+/**
+ * Backgrounds every ink token must stay readable on.
+ *
+ * `--turbo-bg-overlay` belongs here, not in the excluded set: `global.css`
+ * paints it as the fill behind real prose (feature tile bodies, sidebar link
+ * hover/active, docs section nav) and behind the search dropdown, so any ink
+ * the site can place on the page can land on it.
+ */
+export const BACKDROP_TOKENS = ["--turbo-bg-base", "--turbo-bg-surface", "--turbo-bg-overlay"];
 
 /**
  * Tokens painted as ink on the page backdrop.
  *
- * State fills (`--turbo-state-*`) and `--turbo-bg-overlay` are intentionally
- * absent: those are fills, not ink, and gating them here would audit a pair
- * that is never rendered. Fill/ink pairs that ARE rendered together are
- * declared in `TOKEN_PAIRS` instead.
+ * State fills (`--turbo-state-*`) are intentionally absent: those are fills,
+ * not ink. Fill/ink pairs that ARE rendered together are declared in
+ * `TOKEN_PAIRS` or `GRADIENT_RAMPS` instead.
  */
 export const INK_TOKENS = [
   "--turbo-text-primary",
@@ -75,6 +81,31 @@ export const GRADIENT_TOKEN = "--gradient-primary";
 
 /** Ink token gated against the whole gradient ramp. */
 export const GRADIENT_INK_TOKEN = "--turbo-text-on-brand";
+
+/**
+ * Every gradient the site paints ink on, sampled end to end.
+ *
+ * A ramp is either declared whole in one token (`--gradient-primary`) or
+ * assembled in `global.css` from two separate tokens — `.feature-tile-bubble`
+ * builds `linear-gradient(135deg, --site-accent, --turbo-state-info)` and puts
+ * `--turbo-text-inverse` on it, which is why a state fill still has to be
+ * audited even though it is not a backdrop.
+ *
+ * @type {{ ink: string, gradient?: string, from?: string, to?: string, label: string }[]}
+ */
+export const GRADIENT_RAMPS = [
+  {
+    ink: GRADIENT_INK_TOKEN,
+    gradient: GRADIENT_TOKEN,
+    label: GRADIENT_TOKEN,
+  },
+  {
+    ink: "--turbo-text-inverse",
+    from: "--site-accent",
+    to: "--turbo-state-info",
+    label: ".feature-tile-bubble gradient",
+  },
+];
 
 /** Selector whose declarations are audited. */
 export const CRAFT_SELECTOR = '[data-theme="craft"]';
@@ -320,27 +351,33 @@ export function auditTheme(tokens, floor = AA_FLOOR) {
   }
 
   // The whole ramp, not just its ends — see gradientRamp().
-  const [from, to] = parseGradientStops(requireToken(tokens, GRADIENT_TOKEN));
-  const ink = requireToken(tokens, GRADIENT_INK_TOKEN);
-  const ramp = gradientRamp(from, to);
-  let worstSample = ramp[0];
-  let worstRatio = Number.POSITIVE_INFINITY;
-  for (const sample of ramp) {
-    const ratio = contrastRatio(ink, sample);
-    if (ratio < worstRatio) {
-      worstRatio = ratio;
-      worstSample = sample;
+  for (const spec of GRADIENT_RAMPS) {
+    const [from, to] = spec.gradient
+      ? parseGradientStops(requireToken(tokens, spec.gradient))
+      : [
+          requireToken(tokens, /** @type {string} */ (spec.from)),
+          requireToken(tokens, /** @type {string} */ (spec.to)),
+        ];
+    const ink = requireToken(tokens, spec.ink);
+    let worstSample = from;
+    let worstRatio = Number.POSITIVE_INFINITY;
+    for (const sample of gradientRamp(from, to)) {
+      const ratio = contrastRatio(ink, sample);
+      if (ratio < worstRatio) {
+        worstRatio = ratio;
+        worstSample = sample;
+      }
     }
-  }
-  if (worstRatio < floor) {
-    failures.push({
-      token: GRADIENT_INK_TOKEN,
-      foreground: ink,
-      against: `${GRADIENT_TOKEN} ramp ${from} -> ${to}`,
-      background: worstSample,
-      ratio: worstRatio,
-      required: floor,
-    });
+    if (worstRatio < floor) {
+      failures.push({
+        token: spec.ink,
+        foreground: ink,
+        against: `${spec.label} ramp ${from} -> ${to}`,
+        background: worstSample,
+        ratio: worstRatio,
+        required: floor,
+      });
+    }
   }
 
   return failures;

@@ -19,6 +19,7 @@ import {
 const PASSING_TOKENS = {
   "--turbo-bg-base": "#14110e",
   "--turbo-bg-surface": "#1a1612",
+  "--turbo-bg-overlay": "#221c17",
   "--turbo-text-primary": "#f0ebe3",
   "--turbo-text-secondary": "#b8aa98",
   "--turbo-body-primary": "#f0ebe3",
@@ -50,6 +51,7 @@ const PASSING_TOKENS = {
   "--turbo-brand-primary": "#e8622a",
   "--turbo-dropdown-item-hover": "#221c17",
   "--turbo-text-on-brand": "#14110e",
+  "--turbo-state-info": "#83a598",
   "--gradient-primary": "linear-gradient(135deg, #e8622a 0%, #dd581d 100%)",
 };
 
@@ -187,7 +189,13 @@ describe("auditTheme", () => {
   it("reports the token, ratio and pair for ink that fails on a backdrop", () => {
     const failures = auditTheme({ ...PASSING_TOKENS, "--turbo-text-secondary": "#8a7d6c" });
 
-    expect(failures).toHaveLength(2);
+    // One failure per backdrop: base, surface and overlay.
+    expect(failures).toHaveLength(3);
+    expect(failures.map((failure) => failure.against)).toEqual([
+      "--turbo-bg-base",
+      "--turbo-bg-surface",
+      "--turbo-bg-overlay",
+    ]);
     expect(failures[0]).toMatchObject({
       token: "--turbo-text-secondary",
       foreground: "#8a7d6c",
@@ -211,6 +219,17 @@ describe("auditTheme", () => {
     expect(failures[0].against).toContain("#129d8d -> #c16e31");
     expect(failures[0].background).not.toBe("#129d8d");
     expect(failures[0].background).not.toBe("#c16e31");
+  });
+
+  it("gates the feature-tile bubble ramp assembled outside the theme file", () => {
+    const failures = auditTheme({ ...PASSING_TOKENS, "--turbo-state-info": "#4a5f57" });
+
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toMatchObject({
+      token: "--turbo-text-inverse",
+      foreground: "#14110e",
+    });
+    expect(failures[0].against).toContain(".feature-tile-bubble gradient");
   });
 
   it("fails loudly when a gated token is missing", () => {
