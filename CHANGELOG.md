@@ -22,6 +22,22 @@ and this project adheres to
 
 ### Security
 
+## [0.49.1] - 2026-07-27
+
+### Changed
+
+- **deps**: update lintro to 0.91.56 (patch) (#613) (0788f45)
+- fail the run when a release image is not published (#607) (1093b0d)
+- **deps**: lock file maintenance (#612) (66c0ef6)
+- **deps**: update renovatebot/github-action action to v46.1.21 (patch) (#611) (0e8d82a)
+- **deps**: update ghcr.io/lgtm-hq/py-lintro docker tag to 0.91.55 (patch) (#610)
+  (93b691a)
+- **deps-dev**: update dependency lintro to 0.91.55 (patch) (#608) (013fa06)
+
+### Fixed
+
+- **deps**: update dependency @lgtm-hq/turbo-themes to 0.40.3 (minor) (#595) (5bf0397)
+
 ## [0.49.0] - 2026-07-26
 
 ### Added
@@ -649,7 +665,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.49.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.49.1...HEAD
+[0.49.1]: https://github.com/lgtm-hq/Rustume/compare/v0.49.0...v0.49.1
 [0.49.0]: https://github.com/lgtm-hq/Rustume/compare/v0.48.0...v0.49.0
 [0.48.0]: https://github.com/lgtm-hq/Rustume/compare/v0.47.0...v0.48.0
 [0.47.0]: https://github.com/lgtm-hq/Rustume/compare/v0.46.0...v0.47.0
