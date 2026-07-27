@@ -10,6 +10,9 @@ import { DEFAULT_THEME_UNDER_TEST } from "./support/themes";
 
 /** First option after the default one, used to exercise arrow-key movement. */
 const NEXT_THEME = themeMenuItems[1];
+if (!NEXT_THEME) {
+  throw new Error("The theme menu needs at least two options for the keyboard suite");
+}
 
 test.describe("site chrome", () => {
   test("skip link is the first tab stop and moves focus to main", async ({ page, homePage }) => {
@@ -25,10 +28,11 @@ test.describe("site chrome", () => {
     await homePage.open();
     const brand = await homePage.brandLink.boundingBox();
     const firstNavLink = await homePage.mainNav.getByRole("link").first().boundingBox();
-    expect(brand).not.toBeNull();
-    expect(firstNavLink).not.toBeNull();
+    if (!brand || !firstNavLink) {
+      throw new Error("Header brand and nav must both be rendered");
+    }
     // Guards the turbo-themes#747 bug class: a nav item painted over the brand.
-    expect(brand!.x + brand!.width).toBeLessThanOrEqual(firstNavLink!.x);
+    expect(brand.x + brand.width).toBeLessThanOrEqual(firstNavLink.x);
   });
 
   test("theme picker is operable by keyboard and applies the chosen theme", async ({
@@ -42,15 +46,15 @@ test.describe("site chrome", () => {
 
     await page.keyboard.press("ArrowDown");
     const nextOption = homePage.themePanel.getByRole("option", {
-      name: NEXT_THEME!.label,
+      name: NEXT_THEME.label,
       exact: true,
     });
     await expect(nextOption).toBeFocused();
 
     await page.keyboard.press("Enter");
     await expect(homePage.themePanel).toBeHidden();
-    await expect(homePage.themeTrigger).toContainText(NEXT_THEME!.label);
-    await expect(page.locator("html")).toHaveAttribute("data-theme", NEXT_THEME!.id);
+    await expect(homePage.themeTrigger).toContainText(NEXT_THEME.label);
+    await expect(page.locator("html")).toHaveAttribute("data-theme", NEXT_THEME.id);
 
     // Reopen: the options only exist in the a11y tree while the panel is shown.
     await homePage.openThemeMenu();

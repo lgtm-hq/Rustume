@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page } from "@playwright/test";
-import { waitForThemeApplied, type ThemeUnderTest } from "../support/themes";
+import { describeTheme, waitForThemeApplied, type ThemeUnderTest } from "../support/themes";
 
 /** Shared chrome (header, search, theme picker) for every site page. */
 export default class BasePage {
@@ -58,6 +58,18 @@ export default class BasePage {
     await expect(this.mainNav).toBeVisible();
     await expect(this.main).toBeVisible();
     await expect(this.themeTrigger).toHaveAttribute("aria-expanded", "false");
+    // The boot theme is applied from local storage by an inline script, so a
+    // page can be laid out before its stylesheet has painted.
+    await this.assertBootThemeApplied();
+  }
+
+  /** Whatever theme the page booted with has finished painting. */
+  async assertBootThemeApplied(): Promise<void> {
+    const themeId = await this.page.locator("html").getAttribute("data-theme");
+    if (!themeId) {
+      throw new Error("The page did not declare a theme on <html data-theme>");
+    }
+    await waitForThemeApplied(this.page, describeTheme(themeId));
   }
 
   async assertUrl(path: string | RegExp): Promise<void> {

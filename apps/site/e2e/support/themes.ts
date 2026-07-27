@@ -27,7 +27,8 @@ export interface ThemeUnderTest {
  */
 const SCANNED_THEME_IDS = [NATIVE_THEME, "catppuccin-latte", "dracula"] as const;
 
-function describeTheme(id: string): ThemeUnderTest {
+/** Resolves an id to the label and appearance the site itself declares. */
+export function describeTheme(id: string): ThemeUnderTest {
   if (!validThemeIds.includes(id)) {
     throw new Error(`Unknown theme id "${id}" — it is not in src/data/themes`);
   }
