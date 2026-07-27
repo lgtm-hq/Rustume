@@ -13,6 +13,7 @@
     "preview": "bash ../../scripts/ci/site/preview-serve.sh",
     "test": "vitest run --coverage",
     "check": "astro check",
+    "check:contrast": "node scripts/check-craft-contrast.mjs",
     "astro": "astro"
   },
   "dependencies": {

@@ -4,6 +4,7 @@
 | --- | --- |
 | `build.sh` | Build Astro site (`ASTRO_BASE` defaults from `defaults.env`) |
 | `check.sh` | `astro check` and dependency install |
+| `check-contrast.sh` | WCAG AA contrast gate for `src/styles/craft-theme.css` |
 | `test.sh` | Vitest with coverage |
 | `test-python.sh` | Pytest for `tests/scripts/ci/` |
 | `test-all.sh` | `test.sh` + `test-python.sh` |

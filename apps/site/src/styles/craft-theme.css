@@ -1,4 +1,10 @@
-/* Native Craftforge theme — warm workshop palette without turbo theme CSS files. */
+/*
+ * Native Craftforge theme — warm workshop palette without turbo theme CSS files.
+ *
+ * Every ink/fill pair below is gated at 4.75:1 by
+ * `scripts/check-craft-contrast.mjs` (`bun run check:contrast`). Edit colours
+ * here by hand and re-run the checker; it never rewrites this file.
+ */
 
 [data-theme="craft"] {
   --turbo-bg-base: #14110e;
@@ -7,6 +13,8 @@
   --turbo-text-primary: #f0ebe3;
   --turbo-text-secondary: #b8aa98;
   --turbo-text-inverse: #14110e;
+  /* Ink for anything painted on --gradient-primary (CTA fills). */
+  --turbo-text-on-brand: #14110e;
   --turbo-brand-primary: #e8622a;
   --turbo-accent-link: #e8622a;
   --turbo-state-info: #83a598;
@@ -47,7 +55,14 @@
   --turbo-dropdown-bg: #1a1612;
   --turbo-dropdown-border: #3d342a;
   --turbo-dropdown-item-hover: #221c17;
-  --gradient-primary: linear-gradient(135deg, #e8622a 0%, #c44e1a 100%);
+  /*
+   * The old #c44e1a end stop could host no readable ink at all: the best
+   * possible ink (pure black) reached only 4.45:1 there, below even the 4.5
+   * axe threshold. The deep end is raised to #dd581d — still a rust-deepened
+   * ember ramp — so the warm near-black --turbo-text-on-brand clears 4.75:1
+   * at every sampled point (worst 4.92:1 at the 100% stop).
+   */
+  --gradient-primary: linear-gradient(135deg, #e8622a 0%, #dd581d 100%);
   --shadow-md: 0 4px 16px rgba(20, 16, 10, 0.35);
   --shadow-lg: 0 8px 32px rgba(20, 16, 10, 0.45);
   --shadow-glow: 0 0 0 3px color-mix(in srgb, #e8622a 30%, transparent);
