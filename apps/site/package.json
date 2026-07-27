@@ -12,7 +12,11 @@
     "build": "node scripts/copy-assets.mjs && astro build && bun x pagefind --site dist --glob '**/*.html' --exclude-selectors '[data-pagefind-ignore]' --exclude-selectors 'nav' --exclude-selectors 'footer'",
     "preview": "bash ../../scripts/ci/site/preview-serve.sh",
     "test": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "e2e:build": "node scripts/e2e-build.mjs",
+    "e2e:server": "node scripts/e2e-build.mjs && astro preview --host 127.0.0.1 --port \"${E2E_PORT:-4321}\"",
     "check": "astro check",
+    "check:e2e": "tsc --noEmit -p tsconfig.e2e.json",
     "check:contrast": "node scripts/check-craft-contrast.mjs",
     "astro": "astro"
   },
@@ -30,7 +34,9 @@
   },
   "devDependencies": {
     "@astrojs/check": "0.9.9",
+    "@axe-core/playwright": "4.12.1",
     "@pagefind/default-ui": "1.5.2",
+    "@playwright/test": "1.61.1",
     "@types/hast": "3.0.5",
     "@types/sanitize-html": "2.16.1",
     "@vitest/coverage-v8": "4.1.10",
