@@ -22,6 +22,24 @@ and this project adheres to
 
 ### Security
 
+## [0.50.0] - 2026-07-27
+
+### Added
+
+- **site**: audit craft theme tokens against WCAG AA with a contrast checker (#632)
+  (d2b32f1)
+
+### Changed
+
+- **design**: define Rustume brand story and design language (#629) (1c02629)
+- **deps**: update lintro to 0.93.0 (minor) (#634) (673a6cb)
+- **deps**: update lintro to 0.91.59 (patch) (#616) (85c5032)
+- **deps**: update rust crate validator to 0.21.0 (minor) (#615) (0458cdf)
+- let auto-rerun inspect tag workflow failures (#559) (326b6e4)
+- **web**: per-flow E2E suites, visual regression, and accessibility checks (#490)
+  (78e38b0)
+- **web**: add Playwright infrastructure, smoke tests, and CI wiring (#486) (b35c444)
+
 ## [0.49.1] - 2026-07-27
 
 ### Changed
@@ -665,7 +683,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.49.1...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.50.0...HEAD
+[0.50.0]: https://github.com/lgtm-hq/Rustume/compare/v0.49.1...v0.50.0
 [0.49.1]: https://github.com/lgtm-hq/Rustume/compare/v0.49.0...v0.49.1
 [0.49.0]: https://github.com/lgtm-hq/Rustume/compare/v0.48.0...v0.49.0
 [0.48.0]: https://github.com/lgtm-hq/Rustume/compare/v0.47.0...v0.48.0
