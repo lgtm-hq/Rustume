@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 import solid from "vite-plugin-solid";
 
 export default defineConfig({
@@ -21,6 +21,8 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
+    // Playwright specs live in e2e/ and must not be collected by Vitest.
+    exclude: [...configDefaults.exclude, "e2e/**"],
     setupFiles: ["./src/test/setup.ts"],
     coverage: {
       provider: "istanbul",

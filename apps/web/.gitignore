@@ -6,6 +6,9 @@ out
 dist
 *.tgz
 
+# wasm-pack output (bun run build:wasm)
+/wasm/
+
 # code coverage
 coverage
 *.lcov
