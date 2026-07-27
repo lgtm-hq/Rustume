@@ -216,7 +216,12 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
     border: 1px solid var(--turbo-border-default);
     border-radius: var(--radius-full);
     cursor: pointer;
-    transition: all var(--transition-fast);
+    /* Named properties rather than `all`: the bar holds its placeholder text,
+       and `all` would crossfade that text's colour through a theme swap. */
+    transition:
+      background var(--transition-fast),
+      border-color var(--transition-fast),
+      box-shadow var(--transition-fast);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   }
 
@@ -275,7 +280,11 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
     color: var(--turbo-text-inverse, #fff);
     cursor: pointer;
     flex-shrink: 0;
-    transition: all var(--transition-fast);
+    /* Only what :hover changes. `all` also animated the icon colour and the
+       button fill, which a theme swap rewrites simultaneously. */
+    transition:
+      transform var(--transition-fast),
+      box-shadow var(--transition-fast);
   }
 
   .search-bar-btn:hover {
