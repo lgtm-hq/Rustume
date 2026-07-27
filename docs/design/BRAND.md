@@ -9,11 +9,13 @@ this document, it is the change that is wrong, or this document needs an argued 
 Rustume makes one document, and makes it well. A resume is the most consequential page most
 people ever write, and the tools for writing it are rented: you create an account, you paste
 your employment history into someone else's database, and when you want the PDF you find the
-export behind a paywall. Rustume inverts that. The engine is Rust compiled to WebAssembly and
-runs in your browser; the layouts are Typst, not a headless Chrome print hack; the default
-deployment is stateless, needs no database and no sign-in, and the whole thing runs from a
-Docker image you own. There is a CLI that does the same work from a shell, so your resume can
-live in a repo next to everything else you version.
+export behind a paywall. Rustume inverts that. The engine is Rust: compiled to WebAssembly for
+the parsing and editing that happen in your browser, and compiled native for the Typst renderer
+that turns a resume into a PDF or preview PNG — that render runs on the server you point the app
+at, not in a headless Chrome print hack. The default deployment is stateless, needs no database
+and no sign-in, and the whole thing runs from a Docker image you own. There is a CLI that does
+the same work entirely locally, so your resume can live in a repo next to everything else you
+version.
 
 The point is not that Rustume is private in the abstract. It is that the thing you are making
 is a document, not a row in a service — and Rustume is a workbench, not a landlord.
@@ -73,6 +75,10 @@ user rather than acting on the document.
 `Fraunces` display, `Source Serif 4` body, `JetBrains Mono` for anything the machine owns —
 identifiers, shortcuts, scope names, file names, versions. Serif body text is unusual in an app
 and it is deliberate: it makes the editor read like the document it produces.
+
+This is the target, and `apps/site` does not meet it yet: its craft theme loads `Archivo` for
+body copy and its other themes inherit the turbo sans tokens. Treat that as a pending migration,
+not as licence to add more sans body copy.
 
 **Rules out:** substituting a geometric or neo-grotesque sans (Inter, Geist, system-ui) for
 body copy; using the display face for controls and labels; using mono decoratively for prose
@@ -140,7 +146,7 @@ that fills it.
 | Where | Now | Should be |
 | --- | --- | --- |
 | `ExportModal` PDF-export toast | "Failed to export PDF" | "Could not export the PDF. Your resume is unchanged. Try again." — and where the failure reason is known, say it instead: "…the render service is unreachable. Check that the server is running." |
-| `AppErrorFallback` boundary | "An unexpected error occurred." | "Rustume could not render this page. Your resume is saved and unchanged. Reload, or try again." |
+| `AppErrorFallback` boundary | "An unexpected error occurred." | "Rustume could not render this page. Reload, or try again." — a boundary that catches any render error has no view of what was saved, so it must not say the resume is safe |
 | `useHomePage` bulk-unfile toast | "3 resumes could not be unfiled — try again" | "Could not unfile 3 resumes. They are still in their folders. Try again." |
 | `EmptyScope` heading in `HomeLayouts` | "Nothing here yet" | "No resumes in Drafts" — the body already names the fix, the heading should too |
 
