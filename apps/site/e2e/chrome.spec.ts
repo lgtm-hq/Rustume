@@ -354,6 +354,76 @@ test.describe("site chrome", () => {
     await expect(docsPage.searchStatus).toContainText(EMPTY_QUERY);
   });
 
+  test("a dismissed dialog announces nothing when Pagefind keeps repainting", async ({
+    page,
+    docsPage,
+  }) => {
+    await docsPage.open(SAMPLE_DOC.slug);
+    await docsPage.openSearch();
+    await docsPage.searchFor(SEARCH_QUERY);
+    await expect(docsPage.searchStatus).toContainText(SEARCH_QUERY);
+
+    // Dismissed by pointer, deliberately. Escape reaches Pagefind's own input
+    // first and clears its query, which tears the message node down with it, so
+    // that path leaves nothing to announce and cannot exercise this. The
+    // pointer path leaves the query and its result count standing.
+    await page.mouse.click(BEHIND_PANEL_POINT.x, BEHIND_PANEL_POINT.y);
+    await expect(docsPage.searchDialog).toBeHidden();
+    await startCountingStatusWrites(page);
+
+    // Pagefind owns #search-input-container and keeps mutating it after the
+    // dialog is gone. Clearing the in-flight timer in closeSearch() does not
+    // stop that on its own: the observer stays attached for the life of the
+    // page, so any later mutation re-arms the timer it just cleared. Stand in
+    // for one such mutation — the message node is left in place, so an
+    // unguarded observer would mirror its count into the region and read a
+    // result count out over a dialog the user has already dismissed.
+    await page.evaluate(() => {
+      const container = document.getElementById("search-input-container");
+      if (!container) throw new Error("the Pagefind container is missing");
+      container.appendChild(document.createElement("span"));
+    });
+
+    // Outlast the debounce: the claim is that no announcement arrives, and an
+    // absence is only observable across the window one could have arrived in.
+    await page.waitForTimeout(STATUS_SETTLE_MS);
+    expect(await readStatusWrites(page)).toBe(0);
+    await expect(docsPage.page.locator("#search-status")).toHaveText("");
+  });
+
+  test("repeating a query after reopening still announces the count", async ({
+    page,
+    docsPage,
+  }) => {
+    await docsPage.open(SAMPLE_DOC.slug);
+    await docsPage.openSearch();
+    await docsPage.searchFor(SEARCH_QUERY);
+    await expect(docsPage.searchStatus).toContainText(SEARCH_QUERY);
+
+    await docsPage.closeSearch();
+    // The region is emptied on close, not merely left holding the last count.
+    // publishSearchStatus() skips writing text identical to what is already
+    // there, so a count carried across sessions would make the same query on
+    // reopen announce nothing at all.
+    //
+    // Located by id rather than by role: the closed dialog is out of the
+    // accessibility tree, so `searchStatus` matches nothing here — which is the
+    // point of the region being silent while dismissed.
+    await expect(docsPage.page.locator("#search-status")).toHaveText("");
+
+    await docsPage.openSearch();
+    // Installed after reopen so it counts only this session's announcements.
+    await startCountingStatusWrites(page);
+    await docsPage.searchFor(SEARCH_QUERY);
+
+    // A write is the assertion, not the text: the stale text would satisfy any
+    // content check while announcing nothing, because a live region only speaks
+    // when it changes. Outlast the debounce so the absence is real.
+    await page.waitForTimeout(STATUS_SETTLE_MS);
+    expect(await readStatusWrites(page)).toBeGreaterThanOrEqual(1);
+    await expect(docsPage.searchStatus).toContainText(SEARCH_QUERY);
+  });
+
   test("typing a query collapses to fewer announcements than keystrokes", async ({
     page,
     docsPage,

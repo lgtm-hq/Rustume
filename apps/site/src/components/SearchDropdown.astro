@@ -216,6 +216,12 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
         clearTimeout(statusTimer);
         statusTimer = null;
       }
+      // Empty the region too, not just the pending timer. publishSearchStatus()
+      // skips the assignment when the text is unchanged, so a count left over
+      // from the previous session would make the SAME query on reopen a no-op
+      // and announce nothing — the exact failure #673 exists to fix. Clearing
+      // on close scopes the dedupe to one dialog session, where it is correct.
+      if (statusRegion) statusRegion.textContent = '';
       if (triggerBtn) {
         triggerBtn.setAttribute('aria-expanded', 'false');
         if (restoreFocus || hadFocusInside) triggerBtn.focus();
@@ -256,6 +262,15 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
       var container = document.getElementById('search-input-container');
       if (!statusRegion || !container || typeof MutationObserver !== 'function') return;
       new MutationObserver(function() {
+        // Gate on the dialog being open rather than disconnecting on close.
+        // The observer watches a container Pagefind owns and may re-render or
+        // re-initialise, and a disconnect/re-observe pair has to be re-attached
+        // to whatever node exists at that moment; the guard cannot fall out of
+        // step that way. It matters because Pagefind keeps mutating the
+        // container after dismissal, and each of those mutations would
+        // otherwise re-arm the timer that closeSearch() just cleared and
+        // announce a result count over a dialog the user has already closed.
+        if (!searchBar.classList.contains('open')) return;
         if (statusTimer) clearTimeout(statusTimer);
         statusTimer = setTimeout(function() {
           statusTimer = null;
