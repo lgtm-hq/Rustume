@@ -195,6 +195,13 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
       await initSearch();
       if (!searchBar.classList.contains('open')) return;
       focusSearchInput();
+      // Restate whatever the panel is showing. A pointer dismissal leaves
+      // Pagefind's query and its result count standing, so reopening puts a
+      // count back on screen — but the region was emptied on close and only
+      // the observer writes to it, and no mutation is coming for content that
+      // never changed. Without this the dialog reopens visibly showing "31
+      // results" and silently to a screen reader.
+      publishSearchStatus();
     }
 
     /**

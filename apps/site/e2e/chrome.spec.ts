@@ -391,6 +391,32 @@ test.describe("site chrome", () => {
     await expect(docsPage.page.locator("#search-status")).toHaveText("");
   });
 
+  test("reopening after a pointer dismissal restates the standing count", async ({
+    page,
+    docsPage,
+  }) => {
+    await docsPage.open(SAMPLE_DOC.slug);
+    await docsPage.openSearch();
+    await docsPage.searchFor(SEARCH_QUERY);
+    await expect(docsPage.searchStatus).toContainText(SEARCH_QUERY);
+
+    // Pointer again: Escape clears Pagefind's query, so only this path leaves a
+    // result count standing to be restated on reopen.
+    await page.mouse.click(BEHIND_PANEL_POINT.x, BEHIND_PANEL_POINT.y);
+    await expect(docsPage.searchDialog).toBeHidden();
+    await expect(docsPage.page.locator("#search-status")).toHaveText("");
+
+    await docsPage.openSearch();
+    // The count is back on screen, so it has to be back in the region too.
+    // Emptying on close plus an observer that only fires on mutation would
+    // otherwise leave the reopened dialog visibly showing results and saying
+    // nothing, since no mutation is coming for content that never changed.
+    await expect(docsPage.searchMessage).toContainText(SEARCH_QUERY);
+    await expect(docsPage.searchStatus).toHaveText(
+      (await docsPage.searchMessage.innerText()).trim(),
+    );
+  });
+
   test("repeating a query after reopening still announces the count", async ({
     page,
     docsPage,
