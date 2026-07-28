@@ -22,6 +22,12 @@ and this project adheres to
 
 ### Security
 
+## [0.52.3] - 2026-07-28
+
+### Fixed
+
+- **site**: restore focus and fix listbox semantics in the theme picker (#685) (bc4ffce)
+
 ## [0.52.2] - 2026-07-28
 
 ### Fixed
@@ -746,7 +752,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.52.2...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.52.3...HEAD
+[0.52.3]: https://github.com/lgtm-hq/Rustume/compare/v0.52.2...v0.52.3
 [0.52.2]: https://github.com/lgtm-hq/Rustume/compare/v0.52.1...v0.52.2
 [0.52.1]: https://github.com/lgtm-hq/Rustume/compare/v0.52.0...v0.52.1
 [0.52.0]: https://github.com/lgtm-hq/Rustume/compare/v0.51.0...v0.52.0
