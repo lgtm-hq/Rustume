@@ -3467,6 +3467,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "prototype-wasm-render"
+version = "0.0.0"
+dependencies = [
+ "rustume-render",
+ "rustume-schema",
+ "serde_json",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "psm"
 version = "0.1.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
