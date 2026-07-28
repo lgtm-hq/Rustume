@@ -179,7 +179,13 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
           'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
         ),
         function(el) {
-          return !el.hasAttribute('disabled') && el.getClientRects().length > 0;
+          // The tag-name selectors above match regardless of tabindex, so an
+          // explicit -1 has to be filtered here too — otherwise a control the
+          // browser never tabs to could become the first or last element and
+          // the wrap would either land on it or never fire at all.
+          return !el.hasAttribute('disabled') &&
+            el.getAttribute('tabindex') !== '-1' &&
+            el.getClientRects().length > 0;
         }
       );
     }

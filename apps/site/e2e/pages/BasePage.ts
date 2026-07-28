@@ -180,10 +180,20 @@ export default class BasePage {
     await expect(this.searchDialog).toBeHidden();
   }
 
-  /** Runs `query` through the search box and waits for Pagefind to report. */
+  /**
+   * Runs `query` through the search box and waits for Pagefind to report on
+   * *that* query.
+   *
+   * Anchored on the query text rather than on the message being visible:
+   * `fill()` returns immediately and Pagefind's message line is already on
+   * screen from any previous search, so a visibility wait is satisfied by the
+   * previous result and the caller can go on to assert against stale text.
+   * Pagefind names the query in both the hit and the miss message ("31 results
+   * for resume", "No results for zzz"), so this holds for either.
+   */
   async searchFor(query: string): Promise<void> {
     await this.searchInput.fill(query);
-    await expect(this.searchMessage).toBeVisible();
+    await expect(this.searchMessage).toContainText(query);
   }
 
   /**
