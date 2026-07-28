@@ -14,7 +14,7 @@ const hostedAppUrl = cloudAppUrl();
         <p class="footer-tagline">Privacy-first resume builder, powered by Rust.</p>
       </div>
       <div class="footer-col">
-        <h4>Docs</h4>
+        <h2>Docs</h2>
         <a href={`${base}docs/getting-started/quickstart/`}>Quick Start</a>
         <a href={`${base}docs/deployment/docker/`}>Deployment</a>
         <a href={`${base}cloud/`}>Rustume Cloud</a>
@@ -24,7 +24,7 @@ const hostedAppUrl = cloudAppUrl();
         <a href={`${base}docs/api/overview/`}>API</a>
       </div>
       <div class="footer-col">
-        <h4>Community</h4>
+        <h2>Community</h2>
         <a href="https://github.com/lgtm-hq/Rustume" target="_blank" rel="noopener noreferrer">GitHub</a>
         <a href="https://github.com/lgtm-hq/Rustume/issues" target="_blank" rel="noopener noreferrer">Issues</a>
         <a href="https://github.com/lgtm-hq/Rustume/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener noreferrer">Contributing</a>
@@ -56,13 +56,21 @@ const hostedAppUrl = cloudAppUrl();
   }
   .footer-tagline { color: var(--turbo-text-muted); margin-top: 0.5rem; font-size: 0.9rem; }
   .footer-col { display: flex; flex-direction: column; gap: 0.4rem; }
-  .footer-col h4 {
+  /*
+   * Semantically these are h2s — footer columns are peers of the page's
+   * top-level sections, not subsections of whichever one came last — but an
+   * h2's default size would read as another content section. The level is
+   * structural; this resets the presentation back to the old h4 look so the
+   * visual weight never has to double as the level.
+   */
+  .footer-col h2 {
     font-family: var(--font-mono);
     font-size: 0.68rem;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--site-accent-light, var(--rust-brass));
-    margin-bottom: 0.25rem;
+    margin: 0 0 0.25rem;
   }
   .footer-col a { color: var(--turbo-text-muted); font-size: 0.9rem; text-decoration: none; }
   .footer-col a:hover { color: var(--site-accent, var(--rust-forge)); }
