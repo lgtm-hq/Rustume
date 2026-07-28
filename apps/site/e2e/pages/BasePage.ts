@@ -36,6 +36,12 @@ export default class BasePage {
   /** Pagefind's query input, mounted into the dialog on first open. */
   readonly searchInput: Locator;
 
+  /** Pagefind's visible result-count line ("31 results for resume"). */
+  readonly searchMessage: Locator;
+
+  /** Polite region mirroring the result count for assistive tech. */
+  readonly searchStatus: Locator;
+
   constructor(readonly page: Page) {
     this.skipLink = page.getByRole("link", { name: "Skip to content" });
     this.header = page.getByRole("banner");
@@ -50,6 +56,8 @@ export default class BasePage {
     this.searchTrigger = page.getByRole("button", { name: "Search", exact: true });
     this.searchDialog = page.getByRole("dialog", { name: "Search" });
     this.searchInput = this.searchDialog.getByRole("textbox", { name: "Search" });
+    this.searchMessage = this.searchDialog.locator(".pagefind-ui__message");
+    this.searchStatus = this.searchDialog.getByRole("status");
   }
 
   /** Navigates to `path` and waits for the shared chrome to be present. */
@@ -170,5 +178,68 @@ export default class BasePage {
     await this.page.keyboard.press("Escape");
     await expect(this.searchTrigger).toHaveAttribute("aria-expanded", "false");
     await expect(this.searchDialog).toBeHidden();
+  }
+
+  /**
+   * Runs `query` through the search box and waits for Pagefind to report on
+   * *that* query.
+   *
+   * Anchored on the query text rather than on the message being visible:
+   * `fill()` returns immediately and Pagefind's message line is already on
+   * screen from any previous search, so a visibility wait is satisfied by the
+   * previous result and the caller can go on to assert against stale text.
+   * Pagefind names the query in both the hit and the miss message ("31 results
+   * for resume", "No results for zzz"), so this holds for either.
+   */
+  async searchFor(query: string): Promise<void> {
+    await this.searchInput.fill(query);
+    await expect(this.searchMessage).toContainText(query);
+  }
+
+  /**
+   * The dialog claims modality and the rest of the page is out of reach.
+   * `body > main` stands in for the page behind: it is a sibling of the header
+   * the dialog lives in, so it is inert whenever the containment pass ran.
+   */
+  async assertPageInertForSearch(): Promise<void> {
+    await expect(this.searchDialog).toHaveAttribute("aria-modal", "true");
+    await expect(this.page.locator("body > main")).toHaveAttribute("inert", "");
+    await expect(this.page.locator("body > main")).toHaveAttribute("aria-hidden", "true");
+  }
+
+  /**
+   * The page behind is reachable again and nothing claims modality.
+   *
+   * The panel is addressed structurally here rather than by role: once closed
+   * it is `visibility: hidden` and correctly absent from the accessibility
+   * tree, so a role locator cannot reach it to check the attribute is gone.
+   */
+  async assertPageNotInert(): Promise<void> {
+    await expect(this.page.locator("#search-menu")).not.toHaveAttribute("aria-modal", /.*/);
+    await expect(this.page.locator("body > main")).not.toHaveAttribute("inert", /.*/);
+    await expect(this.page.locator("body > main")).not.toHaveAttribute("aria-hidden", /.*/);
+  }
+
+  /**
+   * Whether focus currently sits inside the search panel. Evaluated in the
+   * page because the assertion is about `document.activeElement` itself, not
+   * about any one element being focused.
+   */
+  async isFocusInSearchDialog(): Promise<boolean> {
+    return this.page.evaluate(() => {
+      const active = document.activeElement;
+      const menu = document.getElementById("search-menu");
+      return !!(active && menu?.contains(active));
+    });
+  }
+
+  /** Accessible name of whatever holds focus, for readable failure output. */
+  async focusedDescription(): Promise<string> {
+    return this.page.evaluate(() => {
+      const active = document.activeElement as HTMLElement | null;
+      if (!active) return "nothing";
+      const label = active.getAttribute("aria-label") ?? active.textContent?.trim() ?? "";
+      return `${active.tagName.toLowerCase()} "${label.slice(0, 40)}"`;
+    });
   }
 }
