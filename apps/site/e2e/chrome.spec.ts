@@ -1,6 +1,7 @@
 import { test, expect } from "./support/fixtures";
-import { themeMenuItems } from "../src/data/themes";
+import { themeMenuGroups, themeMenuItems } from "../src/data/themes";
 import { DEFAULT_THEME_UNDER_TEST } from "./support/themes";
+import { findAxNode, readAxTree } from "./support/ax-tree";
 
 /**
  * Keyboard and ARIA behaviour of the header chrome — the interactive surfaces
@@ -12,6 +13,18 @@ import { DEFAULT_THEME_UNDER_TEST } from "./support/themes";
 const NEXT_THEME = themeMenuItems[1];
 if (!NEXT_THEME) {
   throw new Error("The theme menu needs at least two options for the keyboard suite");
+}
+
+/** First and last options in the listbox, used to exercise Home and End. */
+const FIRST_THEME = themeMenuItems.at(0);
+const LAST_THEME = themeMenuItems.at(-1);
+if (!FIRST_THEME || !LAST_THEME) {
+  throw new Error("The theme menu needs at least one option for the keyboard suite");
+}
+
+/** What the picker's live region says once a theme is applied. */
+function themeAnnouncement(label: string): string {
+  return `Theme: ${label}`;
 }
 
 test.describe("site chrome", () => {
@@ -73,6 +86,94 @@ test.describe("site chrome", () => {
     await expect(homePage.themeTrigger).toBeFocused();
     // Escape must not have changed the applied theme.
     await homePage.assertThemeApplied(DEFAULT_THEME_UNDER_TEST);
+    // Closing without selecting anything must not announce a theme change.
+    await expect(homePage.themeStatus).toBeEmpty();
+  });
+
+  test("Home and End move to the first and last theme option", async ({ page, homePage }) => {
+    await homePage.open();
+    await homePage.themeTrigger.focus();
+    await page.keyboard.press("Enter");
+    await expect(homePage.themePanel).toBeVisible();
+
+    await page.keyboard.press("End");
+    await expect(homePage.themeOptionById(LAST_THEME.id)).toBeFocused();
+
+    await page.keyboard.press("Home");
+    await expect(homePage.themeOptionById(FIRST_THEME.id)).toBeFocused();
+
+    // Movement continues from wherever focus actually is, so ArrowUp from the
+    // first option wraps to the last.
+    await page.keyboard.press("ArrowUp");
+    await expect(homePage.themeOptionById(LAST_THEME.id)).toBeFocused();
+  });
+
+  test("selecting a theme by keyboard returns focus to the trigger and announces it", async ({
+    page,
+    homePage,
+  }) => {
+    await homePage.open();
+    await homePage.themeTrigger.focus();
+    await page.keyboard.press("Enter");
+    await expect(homePage.themePanel).toBeVisible();
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("Enter");
+
+    await expect(homePage.themePanel).toBeHidden();
+    // The panel is hidden with the `hidden` attribute while an option inside
+    // it has DOM focus, so without an explicit hand-back focus falls to
+    // `<body>` and the next Tab restarts at the top of the document.
+    await expect(homePage.themeTrigger).toBeFocused();
+    await expect(homePage.themeStatus).toHaveText(themeAnnouncement(NEXT_THEME.label));
+    await expect(page.locator("html")).toHaveAttribute("data-theme", NEXT_THEME.id);
+  });
+
+  test("selecting a theme by pointer returns focus to the trigger and announces it", async ({
+    homePage,
+  }) => {
+    await homePage.open();
+    await homePage.openThemeMenu();
+    await homePage.themeOptionById(NEXT_THEME.id).click();
+
+    await expect(homePage.themePanel).toBeHidden();
+    await expect(homePage.themeTrigger).toBeFocused();
+    await expect(homePage.themeStatus).toHaveText(themeAnnouncement(NEXT_THEME.label));
+  });
+
+  test("theme listbox owns only named groups of options", async ({
+    browserName,
+    page,
+    homePage,
+  }) => {
+    test.skip(browserName !== "chromium", "Reads the accessibility tree over CDP.");
+    await homePage.open();
+    await homePage.openThemeMenu();
+
+    const listbox = findAxNode(await readAxTree(page), "listbox", "Themes");
+    if (!listbox) throw new Error('No listbox named "Themes" in the accessibility tree');
+
+    // A listbox may own only `option` and `group`. Anything else here — a
+    // paragraph, or the `generic` a roleless wrapper reports as — is the
+    // Rustume#675 shape, where the options were grandchildren of a container
+    // with no role and the group headings were orphaned text.
+    expect(listbox.children.map((child) => child.role)).toEqual(themeMenuGroups.map(() => "group"));
+    // Case-insensitive: the heading is `text-transform: uppercase`, and
+    // Chromium computes the accessible name from the transformed text.
+    expect(listbox.children.map((child) => child.name.toLowerCase())).toEqual(
+      themeMenuGroups.map((group) => group.label.toLowerCase()),
+    );
+
+    // Each group owns its options directly plus the heading that names it — no
+    // intermediate layout container anywhere in the ownership chain.
+    for (const [index, group] of listbox.children.entries()) {
+      const expected = themeMenuGroups.at(index);
+      expect(group.children.filter((child) => child.role === "option")).toHaveLength(
+        expected?.themes.length ?? -1,
+      );
+      expect(group.children.map((child) => child.role).filter((role) => role !== "option")).toEqual(
+        ["paragraph"],
+      );
+    }
   });
 
   test("search opens with the keyboard shortcut and closes on Escape", async ({ homePage }) => {

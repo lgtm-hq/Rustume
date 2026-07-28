@@ -24,6 +24,9 @@ export default class BasePage {
   /** Theme picker listbox, rendered only while the picker is open. */
   readonly themePanel: Locator;
 
+  /** Polite live region the picker writes the newly applied theme into. */
+  readonly themeStatus: Locator;
+
   /** Search trigger in the header controls. */
   readonly searchTrigger: Locator;
 
@@ -41,6 +44,9 @@ export default class BasePage {
     this.main = page.getByRole("main");
     this.themeTrigger = page.getByRole("button", { name: "Select theme" });
     this.themePanel = page.getByRole("listbox", { name: "Themes" });
+    // Scoped to the picker: `role=status` is the user-facing handle, and the
+    // header will grow other status regions (docs search count, Rustume#673).
+    this.themeStatus = page.locator("#theme-picker").getByRole("status");
     this.searchTrigger = page.getByRole("button", { name: "Search", exact: true });
     this.searchDialog = page.getByRole("dialog", { name: "Search" });
     this.searchInput = this.searchDialog.getByRole("textbox", { name: "Search" });
@@ -86,6 +92,16 @@ export default class BasePage {
   /** Option row for a theme, addressed by the label the user reads. */
   themeOption(theme: ThemeUnderTest): Locator {
     return this.themePanel.getByRole("option", { name: theme.label, exact: true });
+  }
+
+  /**
+   * Option row addressed by theme id. Menu labels are shortened per vendor
+   * group ("Solarized Light" renders as "Light"), so they are not unique
+   * across the listbox — id is the only handle that always resolves to one
+   * option.
+   */
+  themeOptionById(themeId: string): Locator {
+    return this.themePanel.locator(`[data-theme-id="${themeId}"]`);
   }
 
   /**

@@ -193,11 +193,11 @@ equivalents applies to `apps/site`, not here.
 
 | Criterion | Status | Evidence |
 | --- | --- | --- |
-| 2.4.3 Focus Order — on selection | **fail** ([#674](https://github.com/lgtm-hq/Rustume/issues/674)) | `applyFromPicker` (`:232-239`) calls `setOpen(false)`, which sets `hidden` on the panel while the focused option is inside it. Pure keyboard path (focus trigger, Enter, ArrowDown, Enter): theme applied (trigger label became "Frappé"), `panelHidden: true`, **`document.activeElement: BODY`**. |
-| 4.1.3 Status Messages — theme change | **fail** ([#674](https://github.com/lgtm-hq/Rustume/issues/674)) | Same interaction: `liveRegions: 0`. The page repaints entirely and nothing is announced. The swatch that carries the visual confirmation is correctly `aria-hidden="true"` (`:52`), so there is no fallback. |
-| 1.3.1 / 4.1.2 — listbox structure | **fail** ([#675](https://github.com/lgtm-hq/Rustume/issues/675)) | `role="listbox"` owns `div[role="presentation"] > (p + div) > button[role="option"]`. Measured children: `[{tag:"div",role:"presentation",innerRoles:["p[-]","div[-]"]}, …]`, `optionCount: 44`. `presentation` removes the wrapper's own role but not its descendants', so the listbox owns a `<p>` and a generic `<div>`, and the "Dark"/"Light" group headings are structurally orphaned. |
-| 4.1.2 — aria-activedescendant placement | **fail** ([#675](https://github.com/lgtm-hq/Rustume/issues/675)) | `aria-activedescendant` is set on `#theme-picker-panel` (`:108`, `:202`, `:228`), which has no `tabindex` and never receives DOM focus — `moveActive` (`:114`) calls `option.focus()`. Measured: `panelActiveDescendant` matches `domFocusId`, but the attribute sits on the wrong element. Inert rather than user-visible: roving DOM focus is doing the work. |
-| 2.4.3 Focus Order — on Escape | pass | Escape closes the panel and returns focus to the trigger (`active: "theme-picker-trigger"`). Only the selection path is broken. |
+| 2.4.3 Focus Order — on selection | fixed ([#674](https://github.com/lgtm-hq/Rustume/issues/674)) | Was: `applyFromPicker` (`:232-239`) called `setOpen(false)`, which sets `hidden` on the panel while the focused option is inside it. Pure keyboard path (focus trigger, Enter, ArrowDown, Enter): theme applied (trigger label became "Frappé"), `panelHidden: true`, **`document.activeElement: BODY`**. Now `applyFromPicker` hands focus back to the trigger, the same call the Escape path already made; covered by the keyboard and pointer selection tests in `apps/site/e2e/chrome.spec.ts`. |
+| 4.1.3 Status Messages — theme change | fixed ([#674](https://github.com/lgtm-hq/Rustume/issues/674)) | Was: same interaction, `liveRegions: 0` — the page repainted entirely and nothing was announced, with no fallback since the confirming swatch is correctly `aria-hidden="true"` (`:52`). Now a visually hidden `role="status" aria-live="polite" aria-atomic="true"` region reads `Theme: <name>` on selection only; a theme applied elsewhere on the page does not announce here. |
+| 1.3.1 / 4.1.2 — listbox structure | fixed ([#675](https://github.com/lgtm-hq/Rustume/issues/675)) | Was: `role="listbox"` owning `div[role="presentation"] > (p + div) > button[role="option"]`, `optionCount: 44` — `presentation` removes the wrapper's own role but not its descendants', so the listbox owned a `<p>` and a generic `<div>` and the group headings were structurally orphaned. Now each vendor block is a `role="group"` named by `aria-labelledby` from its own heading, with the options as direct children and the layout wrapper gone. Asserted against Chromium's full accessibility tree (CDP), not DOM attributes — aria snapshots prune the roleless container that was the defect. |
+| 4.1.2 — aria-activedescendant placement | fixed ([#675](https://github.com/lgtm-hq/Rustume/issues/675)) | Was: `aria-activedescendant` on `#theme-picker-panel` (`:108`, `:202`, `:228`), which has no `tabindex` and never receives DOM focus — `moveActive` (`:114`) calls `option.focus()`. Inert rather than user-visible: roving DOM focus was doing the work. Now removed; the keydown handler derives its index from `document.activeElement`, falling back to `is-keyboard-active` for the just-opened panel. |
+| 2.4.3 Focus Order — on Escape | pass | Escape closes the panel and returns focus to the trigger (`active: "theme-picker-trigger"`). This was the path the selection fix was modelled on. |
 | 1.4.1 Use of Color | pass | Each option pairs its colour swatch (`aria-hidden="true"`) with a text label and a "Light"/"Dark" mode word. |
 
 ## Site — template gallery
@@ -441,7 +441,11 @@ change — do not delete a NEEDS-HUMAN row without recording what was heard.
   [#674](https://github.com/lgtm-hq/Rustume/issues/674)). When you add one, say in a comment
   why that politeness is right.
 - **`role="presentation"` does not remove descendants** from the accessibility tree, only the
-  element's own role. This is what breaks the site theme picker's listbox.
+  element's own role. This is what broke the site theme picker's listbox
+  ([#675](https://github.com/lgtm-hq/Rustume/issues/675)). Note also that
+  `expect(locator).toMatchAriaSnapshot()` prunes roleless containers, so it cannot reliably
+  detect this wrapper/ownership relationship — the assertion has to read the full
+  accessibility tree.
 - **The site needs a real build.** Pagefind only exists after `bun run build`; the search
   dialog silently degrades otherwise. That is what #620 fixed.
 - **axe rules tagged `best-practice` do not run** under a WCAG-tag selection —
