@@ -230,7 +230,7 @@ export function CommandPalette(props: CommandPaletteProps) {
                     <>
                       <Show when={headingFor(index())}>
                         {(heading) => (
-                          <div class="px-3 pb-1 pt-3 text-[10px] font-mono uppercase tracking-[0.2em] text-stone/70 first:pt-1">
+                          <div class="px-3 pb-1 pt-3 text-[10px] font-mono uppercase tracking-[0.2em] text-stone first:pt-1">
                             {heading()}
                           </div>
                         )}

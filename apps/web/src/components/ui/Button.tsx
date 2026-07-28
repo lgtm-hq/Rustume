@@ -28,10 +28,18 @@ export const Button: ParentComponent<ButtonProps> = (props) => {
   const baseClasses =
     "inline-flex items-center justify-center font-body font-medium transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed";
 
+  // Hover and active fills come from background tokens (`surface`,
+  // `accent-light` = `--turbo-bg-overlay`), never from `border`. `--color-border`
+  // is deliberately blended toward `--color-ink` (see `--a11y-border` in
+  // index.css) so borders stay visible — which makes it far too close to the
+  // text color to sit behind `text-ink`. `hover:bg-border/50` measured 3.96:1
+  // against ink, below the 4.5:1 AA threshold.
   const variantClasses = {
     primary: "bg-ink text-paper hover:bg-ink/90 active:bg-ink/80 shadow-soft",
-    secondary: "bg-surface text-ink border border-border hover:bg-border/50 active:bg-border",
-    ghost: "text-ink hover:bg-surface active:bg-border",
+    secondary:
+      "bg-surface text-ink border border-border hover:bg-accent-light active:bg-accent-light active:shadow-[inset_0_1px_3px_var(--color-shadow)]",
+    ghost:
+      "text-ink hover:bg-surface active:bg-accent-light active:shadow-[inset_0_1px_3px_var(--color-shadow)]",
     danger: "bg-red-600 text-white hover:bg-red-700 active:bg-red-800 shadow-soft",
   };
 

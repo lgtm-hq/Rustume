@@ -28,7 +28,11 @@ export function ColumnControls(props: ColumnControlsProps) {
           class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono
             transition-colors border"
           classList={{
-            "bg-accent/10 text-accent border-accent/30": props.columnCount === preset.count,
+            // Ink label, not `text-accent`: accent over `bg-accent/10`
+            // measured below 4.5:1, because the tint pulls the background
+            // toward the very color the label is drawn in. The accent cue
+            // moves to the border, which is not held to the text threshold.
+            "bg-accent/10 text-ink border-accent": props.columnCount === preset.count,
             "text-stone hover:text-ink hover:bg-surface border-transparent":
               props.columnCount !== preset.count,
           }}

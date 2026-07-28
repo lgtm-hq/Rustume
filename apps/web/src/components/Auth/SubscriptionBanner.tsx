@@ -59,7 +59,7 @@ export function SubscriptionBanner() {
             </p>
             <a
               href="/account#export"
-              class="inline-flex items-center justify-center rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-ink hover:bg-border/50"
+              class="inline-flex items-center justify-center rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-ink hover:bg-accent-light"
             >
               Export data
             </a>
