@@ -1101,13 +1101,13 @@ dependencies = [
 
 [[package]]
 name = "displaydoc"
-version = "0.2.6"
+version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ac70aa55017e108007fbaf5aa0f54b021c98f92ff8af59d42eda9da96e3dd4f"
+checksum = "c6232dd377dcc64799954cbd3a9bb882e9cdc1308ccd87b1c098f1fb2eaf82a8"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.119",
+ "syn 3.0.3",
 ]
 
 [[package]]
@@ -4124,7 +4124,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-cli"
-version = "0.52.2"
+version = "0.52.3"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -4145,7 +4145,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-parser"
-version = "0.52.2"
+version = "0.52.3"
 dependencies = [
  "csv",
  "cuid2",
@@ -4161,7 +4161,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-render"
-version = "0.52.2"
+version = "0.52.3"
 dependencies = [
  "base64 0.23.0",
  "chrono",
@@ -4184,7 +4184,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-schema"
-version = "0.52.2"
+version = "0.52.3"
 dependencies = [
  "cuid2",
  "once_cell",
@@ -4201,7 +4201,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-schema-macros"
-version = "0.52.2"
+version = "0.52.3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4210,7 +4210,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-server"
-version = "0.52.2"
+version = "0.52.3"
 dependencies = [
  "anyhow",
  "axum",
@@ -4256,7 +4256,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-storage"
-version = "0.52.2"
+version = "0.52.3"
 dependencies = [
  "async-trait",
  "js-sys",
@@ -4273,7 +4273,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-utils"
-version = "0.52.2"
+version = "0.52.3"
 dependencies = [
  "ammonia",
  "chrono",
@@ -4287,7 +4287,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-wasm"
-version = "0.52.2"
+version = "0.52.3"
 dependencies = [
  "js-sys",
  "rustume-parser",
