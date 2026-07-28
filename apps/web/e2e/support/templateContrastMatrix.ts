@@ -11,8 +11,13 @@
  * templates and `_common.typ`, recording which enclosing `box`/`rect`/`grid`
  * fill each piece of ink actually lands on. Text that inherits the page-level
  * `set text(fill: text-color)` is covered by the `text-color` rows.
+ *
+ * That walk was a one-time audit; `uncoveredBindings` below is what keeps it
+ * honest. It fails the suite when a template declares a colour no pair
+ * measures, so a template that gains a tint cannot stay silently unaudited.
  */
 import { ContrastRole } from "./contrast";
+import type { Palette } from "./typstPalette";
 
 /** One ink-on-backdrop relationship a template paints. */
 export interface ContrastPair {
@@ -235,4 +240,54 @@ export function pairsFor(templateId: string): readonly ContrastPair[] {
     throw new Error(`no contrast matrix entry for template ${templateId}`);
   }
   return [...UNIVERSAL_PAIRS, ...specific];
+}
+
+/**
+ * Colour bindings that are declared but never painted, so no pair measures them.
+ *
+ * Listed by binding NAME rather than by template on purpose: a per-template
+ * escape hatch would excuse that template's whole palette, including the tint
+ * it gains next year. Naming the binding keeps the exemption as narrow as the
+ * claim behind it, and makes adding one a deliberate act a reviewer can see.
+ *
+ * Every entry carries a comment saying why it is never painted. If a binding IS
+ * painted somewhere, it belongs in the matrix above, not here.
+ */
+export const UNPAINTED_BINDINGS: ReadonlySet<string> = new Set([
+  // The user-facing brand seed. Every template derives its inks from it
+  // (`accent-color = primary-color.darken(35%)`) and its decorative tints too
+  // (`light-bg = primary-color.lighten(90%)`), but deliberately never paints
+  // the raw seed: it is whatever hue the user picked, so it carries no
+  // contrast guarantee of its own. See the comment at `azurill.typ:15-17`.
+  "primary-color",
+]);
+
+/**
+ * Binding names the matrix measures for one template, as ink or as backdrop.
+ *
+ * Only a pair whose expression IS a bare binding name counts. A pair naming
+ * `bg-color.darken(10%)` measures that derived tint; it says nothing about the
+ * contrast of `bg-color` itself, so it must not be credited with covering it.
+ */
+function measuredBindings(templateId: string): ReadonlySet<string> {
+  return new Set(pairsFor(templateId).flatMap((pair) => [pair.ink, pair.backdrop]));
+}
+
+/**
+ * Report every colour binding of a template that no pair measures.
+ *
+ * `parsePalette` returns exactly the bindings that resolved to a colour, so
+ * anything in it either lands in the matrix or is named in
+ * `UNPAINTED_BINDINGS`. Returns one human-readable line per gap, naming the
+ * template and the binding, so the next person can act on the failure without
+ * re-deriving the audit.
+ */
+export function uncoveredBindings(templateId: string, palette: Palette): string[] {
+  const measured = measuredBindings(templateId);
+  return Object.keys(palette)
+    .filter((binding) => !measured.has(binding) && !UNPAINTED_BINDINGS.has(binding))
+    .map(
+      (binding) =>
+        `${templateId}: binding "${binding}" resolves to a colour but no matrix pair measures it`,
+    );
 }
