@@ -22,6 +22,12 @@ and this project adheres to
 
 ### Security
 
+## [0.52.0] - 2026-07-28
+
+### Added
+
+- **web**: raise axe coverage to WCAG 2.2 AA and enable target-size (#657) (bb60183)
+
 ## [0.51.0] - 2026-07-27
 
 ### Added
@@ -721,7 +727,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.51.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.52.0...HEAD
+[0.52.0]: https://github.com/lgtm-hq/Rustume/compare/v0.51.0...v0.52.0
 [0.51.0]: https://github.com/lgtm-hq/Rustume/compare/v0.50.2...v0.51.0
 [0.50.2]: https://github.com/lgtm-hq/Rustume/compare/v0.50.1...v0.50.2
 [0.50.1]: https://github.com/lgtm-hq/Rustume/compare/v0.50.0...v0.50.1
