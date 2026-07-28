@@ -57,7 +57,7 @@ export default class BasePage {
     this.searchDialog = page.getByRole("dialog", { name: "Search" });
     this.searchInput = this.searchDialog.getByRole("textbox", { name: "Search" });
     this.searchMessage = this.searchDialog.locator(".pagefind-ui__message");
-    this.searchStatus = this.searchDialog.locator("#search-status");
+    this.searchStatus = this.searchDialog.getByRole("status");
   }
 
   /** Navigates to `path` and waits for the shared chrome to be present. */

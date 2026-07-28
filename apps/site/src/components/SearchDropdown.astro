@@ -105,8 +105,9 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
     var inertedElements = [];
 
     // Elements that render nothing: inerting them is meaningless noise in the
-    // DOM, and <body> holds several inline scripts on every page.
-    var NON_RENDERED = { SCRIPT: 1, STYLE: 1, LINK: 1, TEMPLATE: 1, NOSCRIPT: 1, META: 1 };
+    // DOM, and <body> holds several inline scripts on every page. A list rather
+    // than a lookup object, which would report a match for inherited keys.
+    var NON_RENDERED = ['SCRIPT', 'STYLE', 'LINK', 'TEMPLATE', 'NOSCRIPT', 'META'];
 
     /**
      * Makes the rest of the page inert by walking from the dialog up to <body>
@@ -139,7 +140,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
         var parent = node.parentElement;
         for (var i = 0; i < parent.children.length; i++) {
           var sibling = parent.children[i];
-          if (sibling === node || NON_RENDERED[sibling.tagName]) continue;
+          if (sibling === node || NON_RENDERED.indexOf(sibling.tagName) !== -1) continue;
           inertedElements.push({
             element: sibling,
             hadInert: sibling.hasAttribute('inert'),
@@ -209,6 +210,12 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
       searchBar.classList.remove('open');
       menu.removeAttribute('aria-modal');
       releasePageInert();
+      // Drop a debounced announcement that has not fired yet: it would read a
+      // result count out over a dialog the user has already dismissed.
+      if (statusTimer) {
+        clearTimeout(statusTimer);
+        statusTimer = null;
+      }
       if (triggerBtn) {
         triggerBtn.setAttribute('aria-expanded', 'false');
         if (restoreFocus || hadFocusInside) triggerBtn.focus();

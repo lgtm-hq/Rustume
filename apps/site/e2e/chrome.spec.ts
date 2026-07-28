@@ -1,3 +1,4 @@
+import type { Page } from "@playwright/test";
 import { test, expect, SAMPLE_DOC } from "./support/fixtures";
 import { themeMenuGroups, themeMenuItems } from "../src/data/themes";
 import { DEFAULT_THEME_UNDER_TEST } from "./support/themes";
@@ -41,6 +42,41 @@ const STATUS_SETTLE_MS = 900;
 
 /** Page background well clear of the sticky header and the search panel. */
 const BEHIND_PANEL_POINT = { x: 6, y: 320 } as const;
+
+/** Counter the in-page MutationObserver below writes to, parked on `window`. */
+interface StatusWriteCounter {
+  writes: number;
+}
+
+type WindowWithCounter = Window & { statusWrites?: StatusWriteCounter };
+
+/**
+ * Starts counting writes to the search status region.
+ *
+ * Writes to the live region are counted rather than renders of the visible
+ * Pagefind message: the debounce is a property of the announcement, and an
+ * undebounced mirror would write once per character of the query.
+ */
+async function startCountingStatusWrites(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const region = document.querySelector('[role="status"]#search-status');
+    if (!region) throw new Error("the search status region is missing");
+    const counter = { writes: 0 };
+    (window as WindowWithCounter).statusWrites = counter;
+    new MutationObserver(() => {
+      counter.writes += 1;
+    }).observe(region, { childList: true, characterData: true, subtree: true });
+  });
+}
+
+/** Reads the counter back, failing loudly if the observer never installed. */
+async function readStatusWrites(page: Page): Promise<number> {
+  const counter = await page.evaluate(() => (window as WindowWithCounter).statusWrites);
+  if (!counter) {
+    throw new Error("the status write counter was never installed");
+  }
+  return counter.writes;
+}
 
 test.describe("site chrome", () => {
   test("skip link is the first tab stop and moves focus to main", async ({ page, homePage }) => {
@@ -318,24 +354,13 @@ test.describe("site chrome", () => {
     await expect(docsPage.searchStatus).toContainText(EMPTY_QUERY);
   });
 
-  test("result count announces once per query, not once per keystroke", async ({
+  test("typing a query collapses to fewer announcements than keystrokes", async ({
     page,
     docsPage,
   }) => {
     await docsPage.open(SAMPLE_DOC.slug);
     await docsPage.openSearch();
-
-    // Count writes to the live region, not renders of the visible message:
-    // an undebounced mirror would announce every character of the query.
-    await page.evaluate(() => {
-      const region = document.getElementById("search-status");
-      if (!region) throw new Error("the search status region is missing");
-      const counter = { writes: 0 };
-      (window as unknown as { statusWrites: typeof counter }).statusWrites = counter;
-      new MutationObserver(() => {
-        counter.writes += 1;
-      }).observe(region, { childList: true, characterData: true, subtree: true });
-    });
+    await startCountingStatusWrites(page);
 
     // Typed as a burst, the way someone types a word.
     await docsPage.searchInput.pressSequentially(SEARCH_QUERY);
@@ -345,14 +370,12 @@ test.describe("site chrome", () => {
     // arrives, and the only way to observe an absence is to outlast the window
     // one could arrive in. Sized off the component's own 400 ms debounce.
     await page.waitForTimeout(STATUS_SETTLE_MS);
-    const writes = await page.evaluate(
-      () => (window as unknown as { statusWrites: { writes: number } }).statusWrites.writes,
-    );
+    const writes = await readStatusWrites(page);
 
-    // Bounded rather than pinned to 1. Collapsing a burst to strictly fewer
-    // writes than keystrokes is the defining property of the debounce, and it
-    // is the assertion that fails loudly if the debounce is removed (an
-    // undebounced mirror writes once per character). Pinning it to exactly 1
+    // Bounded rather than pinned to 1, which the test name reflects. Collapsing
+    // a burst to strictly fewer writes than keystrokes is the defining property
+    // of the debounce, and it is what fails loudly if the debounce is removed —
+    // an undebounced mirror writes once per character. Pinning it to exactly 1
     // instead measures the machine: a keystroke gap wider than 400 ms is a
     // legitimate second query, and a loaded CI worker produces those.
     expect(writes).toBeGreaterThanOrEqual(1);
