@@ -37,10 +37,19 @@ const defaultLabel = themeTriggerLabels[DEFAULT_THEME] ?? 'Craft';
       /* A listbox may own only `option` and `group`, so each vendor block is a
          real `group` named by its own heading, and its options are direct
          children — no layout wrapper in the ownership chain. The columns are
-         laid out from `.theme-picker-group` in CSS instead. */
+         laid out from `.theme-picker-group` in CSS instead.
+
+         The heading itself is `aria-hidden`: a group inside a listbox owns
+         options, and leaving the heading exposed put a stray paragraph in
+         among them — the same non-option ownership this fixes at the listbox
+         level, one level down. Hidden rather than `role="presentation"`,
+         which would drop the paragraph but leave its text behind as a bare
+         node in the group. `aria-labelledby` still reads the element's text
+         for the accessible name, so the group is announced by heading and the
+         heading is not announced twice. */
       themeMenuGroups.map((group) => (
         <div class="theme-picker-group" role="group" aria-labelledby={`theme-picker-group-${group.id}`}>
-          <p class="theme-picker-group-label" id={`theme-picker-group-${group.id}`}>{group.label}</p>
+          <p class="theme-picker-group-label" id={`theme-picker-group-${group.id}`} aria-hidden="true">{group.label}</p>
           {
             group.themes.map((theme) => (
               <button

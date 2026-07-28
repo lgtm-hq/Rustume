@@ -163,15 +163,19 @@ test.describe("site chrome", () => {
       themeMenuGroups.map((group) => group.label.toLowerCase()),
     );
 
-    // Each group owns its options directly plus the heading that names it — no
-    // intermediate layout container anywhere in the ownership chain.
+    // Each group owns its options and nothing else — no intermediate layout
+    // container anywhere in the ownership chain, and no stray heading node.
+    // The heading is `aria-hidden`, so it names the group without also sitting
+    // among the options; asserting the empty list is what keeps it that way,
+    // since exposing it again is the listbox-level defect repeated one level
+    // down.
     for (const [index, group] of listbox.children.entries()) {
       const expected = themeMenuGroups.at(index);
       expect(group.children.filter((child) => child.role === "option")).toHaveLength(
         expected?.themes.length ?? -1,
       );
       expect(group.children.map((child) => child.role).filter((role) => role !== "option")).toEqual(
-        ["paragraph"],
+        [],
       );
     }
   });
