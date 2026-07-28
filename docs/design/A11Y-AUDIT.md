@@ -36,6 +36,7 @@ item is honest; a fabricated pass is not, and that asymmetry is the reason #623 
 | --- | --- |
 | **pass** | Verified by code reading or a browser measurement stated in the evidence column. |
 | **fail** | Verified failure, with a linked follow-up issue. Not fixed in this pass. |
+| **fixed** | Recorded as **fail** in this pass and resolved by later work. The original measurement is kept verbatim — this is a dated record, not a status board — and the fix and its regression test are named alongside it. The tally below is the tally of the pass and is not restated. |
 | **NEEDS-HUMAN** | Cannot be settled without a screen reader and a human listener. |
 | **not reproduced** | Suspected, actively probed, and not observed. Stated as an absence of evidence, not as proof of correctness. |
 
@@ -183,9 +184,9 @@ equivalents applies to `apps/site`, not here.
 
 | Criterion | Status | Evidence |
 | --- | --- | --- |
-| 2.4.3 Focus Order — containment | **fail** ([#672](https://github.com/lgtm-hq/Rustume/issues/672)) | `:39` declares `role="dialog"` and the trigger declares `aria-haspopup="dialog"`, but nothing contains focus. With the dialog open and `opacity: 1`: `aria-modal: null`, `main[inert]: false`, `main[aria-hidden]: null`. Six Tab presses, dialog still open the whole time: "Select theme" → "GitHub" → "CLI" → "Rustume Cloud" → "Pricing" → "API", **all outside the dialog**. One Tab leaves. |
+| 2.4.3 Focus Order — containment | **fixed** ([#672](https://github.com/lgtm-hq/Rustume/issues/672)) | *As measured in this pass:* `:39` declares `role="dialog"` and the trigger declares `aria-haspopup="dialog"`, but nothing contains focus. With the dialog open and `opacity: 1`: `aria-modal: null`, `main[inert]: false`, `main[aria-hidden]: null`. Six Tab presses, dialog still open the whole time: "Select theme" → "GitHub" → "CLI" → "Rustume Cloud" → "Pricing" → "API", **all outside the dialog**. One Tab leaves. *Since fixed:* `openSearch()` sets `aria-modal="true"` and inerts the page around the panel, and a Tab handler wraps within it. Note the panel lives **inside** `body > header`, so the template gallery's flat `body > header, body > main, body > footer` selector could not be reused verbatim — `inert` inherits, and it would have inerted the dialog itself; the fix walks the panel's ancestor chain and inerts each level's siblings, which reaches `body > main` and `body > footer` and additionally the header's own controls. Regression test: `apps/site/e2e/chrome.spec.ts`, "search dialog keeps Tab inside it and inerts the page behind". |
 | 2.4.3 Focus Order — on open and on Escape | pass | Focus lands on the Pagefind input on open (`focusInside: true`), via the documented cross-frame retry at `:70-94`. This is #620 holding. |
-| 4.1.3 Status Messages — result count | **fail** ([#673](https://github.com/lgtm-hq/Rustume/issues/673)) | Query `resume`: `messageText: "31 results for resume"`, `resultCount: 5`, **live regions inside `#search-menu`: 0**. The count arrives silently. |
+| 4.1.3 Status Messages — result count | **fixed** ([#673](https://github.com/lgtm-hq/Rustume/issues/673)) | *As measured in this pass:* query `resume`: `messageText: "31 results for resume"`, `resultCount: 5`, **live regions inside `#search-menu`: 0**. The count arrives silently. *Since fixed:* an `sr-only` `role="status" aria-live="polite" aria-atomic="true"` region inside `#search-menu` mirrors Pagefind's `.pagefind-ui__message`, debounced 400 ms. Mirrored rather than decorated because Pagefind owns and replaces that subtree. The results drawer is deliberately **not** live — it repaints per keystroke. Regression tests: `apps/site/e2e/chrome.spec.ts`, "search result count is announced politely, including no results" (covers the zero case) and "result count announces once per query, not once per keystroke". |
 | 1.3.1 — closed state removed from the tree | pass | The panel is hidden with `visibility: hidden` (`:308`) rather than the `hidden` attribute. `visibility: hidden` does remove it from the accessibility tree and from the tab order, so the closed state is correct. |
 | 2.4.6 Headings and Labels — result quality | NEEDS-HUMAN | **With VoiceOver on, search "export" and arrow through the results; confirm each result announces a title you can distinguish from the others, rather than repeated boilerplate.** |
 
@@ -327,7 +328,10 @@ recorded on more than one surface.
 
 ## Follow-up issues
 
-None of these are fixed in this pass; the deliverable is the audit.
+None of these are fixed in this pass; the deliverable is the audit. Rows marked **fixed**
+above were resolved afterwards — currently
+[#672](https://github.com/lgtm-hq/Rustume/issues/672) and
+[#673](https://github.com/lgtm-hq/Rustume/issues/673), both in docs search.
 
 | # | Title | Surface | SC |
 | --- | --- | --- | --- |
