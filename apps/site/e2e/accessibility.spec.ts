@@ -35,13 +35,16 @@ const DEFERRED_RULES = ["color-contrast", "link-in-text-block"];
 /**
  * Rule overrides layered on top of the tag selection.
  *
- * `target-size` (SC 2.5.8, 24x24 CSS px minimum) ships `enabled: false` in
- * axe-core, so selecting the `wcag22aa` tag is not enough to run it — it has
- * to be switched on explicitly. The deferred rules are turned off in the same
- * map because `disableRules()` would replace it wholesale.
+ * `target-size` (SC 2.5.8, 24x24 CSS px minimum) and `heading-order`
+ * (SC 1.3.1, no heading level skips) both ship `enabled: false` /
+ * `best-practice`-tagged in axe-core, so selecting the `wcag22aa` tag alone
+ * is not enough to run either — they have to be switched on explicitly. The
+ * deferred rules are turned off in the same map because `disableRules()`
+ * would replace it wholesale.
  */
 const RULE_OVERRIDES: Record<string, { enabled: boolean }> = {
   "target-size": { enabled: true },
+  "heading-order": { enabled: true },
   ...Object.fromEntries(DEFERRED_RULES.map((rule) => [rule, { enabled: false }])),
 };
 
@@ -85,6 +88,7 @@ async function scanForViolations(page: Page, include?: string): Promise<Violatio
   }
   const results = await builder.analyze();
   assertRuleEvaluated(results, "target-size");
+  assertRuleEvaluated(results, "heading-order");
   return results.violations.map((violation) => ({
     rule: violation.id,
     impact: violation.impact ?? "unknown",
