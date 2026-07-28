@@ -86,6 +86,12 @@ async function scanForViolations(page: Page, include?: string): Promise<Violatio
   const results = await builder.analyze();
   assertRuleEvaluated(results, "target-size");
   assertRuleEvaluated(results, "heading-order");
+  // This one is tag-selected rather than overridden, so nothing in
+  // RULE_OVERRIDES keeps it alive — but it was suppressed until #648 and the
+  // claim that it runs again is the point of that change. Dropping it back
+  // into DEFERRED_RULES would otherwise turn the suite green by scanning less,
+  // which is the failure mode this guard exists for.
+  assertRuleEvaluated(results, "link-in-text-block");
   return results.violations.map((violation) => ({
     rule: violation.id,
     impact: violation.impact ?? "unknown",
