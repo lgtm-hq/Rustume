@@ -1031,6 +1031,84 @@ fn test_templates_use_shared_render_contract() {
     }
 }
 
+/// Extract the argument list of the first `set page(...)` call in a template,
+/// balancing nested parentheses so multi-line and nested calls survive.
+fn set_page_arguments(contents: &str) -> Option<&str> {
+    let start = contents.find("set page(")? + "set page(".len();
+    let rest = &contents[start..];
+    let mut depth = 1_usize;
+    for (idx, ch) in rest.char_indices() {
+        match ch {
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(&rest[..idx]);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/// Every template must paint `data.metadata.theme.background` onto the page.
+///
+/// Regression guard for #650: `glalie` bound `bg-color` but never passed it to
+/// `set page`, so a themed background was silently discarded in one of the
+/// twelve templates. Asserting the invariant across all templates is what
+/// would have caught the drift.
+#[test]
+fn test_templates_apply_themed_page_background() {
+    let template_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("typst_engine")
+        .join("templates");
+
+    for template in TEMPLATES {
+        let path = template_dir.join(format!("{template}.typ"));
+        let contents = fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("Failed to read {}: {e}", path.display()));
+
+        assert!(
+            contents.contains(r#"let bg-color = rgb(data.metadata.theme.at("background""#),
+            "{template} must bind bg-color from data.metadata.theme.background"
+        );
+
+        let page_arguments = set_page_arguments(&contents)
+            .unwrap_or_else(|| panic!("{template} must configure the page with `set page(...)`"));
+        assert!(
+            page_arguments.contains("fill: bg-color"),
+            "{template} must apply the themed page background via \
+             `set page(fill: bg-color, ...)`; without it a themed \
+             data.metadata.theme.background is silently ignored"
+        );
+    }
+}
+
+/// The themed background must also survive the Rust → Typst hand-off: the
+/// generated source embeds the resume JSON, so the configured colour has to
+/// reach the template that paints it.
+#[test]
+fn test_generate_source_carries_themed_background() {
+    let renderer = TypstRenderer::new();
+
+    for template in TEMPLATES {
+        let mut resume = sample_resume();
+        resume.metadata.template = (*template).to_string();
+        resume.metadata.theme.background = "#e7e5e4".to_string();
+
+        let source = renderer
+            .generate_source(&resume)
+            .unwrap_or_else(|e| panic!("source generation failed for '{template}': {e:?}"));
+
+        assert!(
+            source.contains("#e7e5e4"),
+            "generated source for '{template}' must carry the themed background colour"
+        );
+    }
+}
+
 #[test]
 fn test_common_defines_profile_icon_helpers() {
     let common = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
