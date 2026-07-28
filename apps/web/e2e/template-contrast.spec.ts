@@ -27,7 +27,7 @@ import { join } from "node:path";
 import type { Page } from "@playwright/test";
 import { test, expect, DEFAULT_TEMPLATE_ID, TEMPLATES_ROUTE } from "./support/fixtures";
 import { ContrastRole, SURFACES, floorFor, surfaceRatio, type Surface } from "./support/contrast";
-import { pairsFor } from "./support/templateContrastMatrix";
+import { pairsFor, uncoveredBindings } from "./support/templateContrastMatrix";
 import {
   TEMPLATE_DIR,
   TEMPLATE_IDS,
@@ -112,6 +112,23 @@ test.describe("template contrast matrix", () => {
     // which is the failure this whole audit started from.
     const missing = TEMPLATE_IDS.filter((templateId) => !readPalette(templateId)["accent-color"]);
     expect(missing).toEqual([]);
+  });
+
+  test("every colour a template declares is measured by the matrix", () => {
+    // The matrix is hand-written, so its coverage was only ever as good as the
+    // one-time walk that produced it. Both drift mechanisms are silent in this
+    // direction: `parsePalette` skips a binding it cannot resolve without
+    // comment, and `resolveColor` throws only for expressions a pair already
+    // REFERENCES — a binding no pair mentions is never looked up. So a template
+    // that gains a tint and paints text on it would stay unaudited while every
+    // test above stayed green, which is the same false-negative class as
+    // scanning the preview `<img>` with axe, one level up. Anything genuinely
+    // never painted is named in `UNPAINTED_BINDINGS`, per binding, with a
+    // reason.
+    const uncovered = TEMPLATE_IDS.flatMap((templateId) =>
+      uncoveredBindings(templateId, readPalette(templateId)),
+    );
+    expect(uncovered).toEqual([]);
   });
 
   test("no template paints ink over an unaudited gradient", () => {
