@@ -192,6 +192,15 @@ code:not(pre code) {
   padding: 0.15em 0.4em;
   border-radius: 3px;
   color: var(--turbo-code-inline-fg, var(--rust-brass-light));
+  /* Inline code tokens (file paths, JSON pointers) routinely have no
+     whitespace or hyphens for the browser's default line-breaking to use, so
+     they don't wrap and overflow the document at narrow widths — e.g.
+     `crates/render/src/typst_engine/templates/*.typ` on
+     `/docs/contributing/development/`. Block code (`pre code`) keeps its own
+     `overflow-x: auto` scroll region (see the `pre` rule below) and is
+     intentionally excluded here (SC 1.4.10 Reflow — Rustume#677).
+  */
+  overflow-wrap: anywhere;
 }
 
 pre {
@@ -453,6 +462,22 @@ th {
 .prose pre,
 .prose table {
   margin: 1.75rem 0 2rem;
+}
+
+.prose table {
+  /* Markdown tables size to their content (auto table layout), which
+     regularly exceeds the viewport at narrow widths — e.g. `/docs/deployment/
+     env-reference/`'s table is 658px wide at a 320px viewport. `pre` already
+     scopes its own overflow (see the base `pre` rule above); tables need the
+     same treatment. `display: block` keeps the table's own child boxes
+     (thead/tbody/tr/td) in table layout while letting the table's outer box
+     become its own horizontal scroll container — the table scrolls on its
+     own axis instead of the document scrolling (SC 1.4.10 Reflow permits a
+     component's own scrolling region; it prohibits the document scrolling).
+  */
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .template-accent-cell {
@@ -748,13 +773,29 @@ th {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  max-width: 100%;
   padding: 0.32rem 0.7rem;
   border: 1px solid var(--turbo-border-default);
   border-radius: var(--radius-full);
   color: var(--a11y-text-secondary);
   font-size: 0.84rem;
+  /* Overrides the base `.smart-link` pill's `white-space: nowrap` (global.css
+     ~L245): that rule assumes a short inline CTA sitting inside a line of
+     prose, where wrapping mid-pill would look broken. A resource tag is a
+     standalone block in a wrapping flex row instead, so keeping the whole
+     label unbreakable is what causes it — an unusually long label (e.g. a doc
+     title used as its "learn more" link) can exceed the viewport at narrow
+     widths with nowhere for the *pill itself* to shrink to. Letting the label
+     wrap keeps the fixed-size icon intact and folds the text instead
+     (SC 1.4.10 Reflow — Rustume#677).
+  */
+  white-space: normal;
   text-decoration: none;
   background: var(--turbo-bg-surface);
+}
+
+.docs-resource-tag .smart-link-label {
+  overflow-wrap: anywhere;
 }
 
 .docs-resource-tag:hover {
