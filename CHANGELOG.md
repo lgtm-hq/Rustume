@@ -22,6 +22,12 @@ and this project adheres to
 
 ### Security
 
+## [0.52.2] - 2026-07-28
+
+### Fixed
+
+- **site**: relevel footer headings from h4 to h2 (#681) (777f238)
+
 ## [0.52.1] - 2026-07-28
 
 ### Changed
@@ -740,7 +746,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.52.1...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.52.2...HEAD
+[0.52.2]: https://github.com/lgtm-hq/Rustume/compare/v0.52.1...v0.52.2
 [0.52.1]: https://github.com/lgtm-hq/Rustume/compare/v0.52.0...v0.52.1
 [0.52.0]: https://github.com/lgtm-hq/Rustume/compare/v0.51.0...v0.52.0
 [0.51.0]: https://github.com/lgtm-hq/Rustume/compare/v0.50.2...v0.51.0
