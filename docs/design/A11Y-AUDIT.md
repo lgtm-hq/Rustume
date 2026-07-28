@@ -255,7 +255,7 @@ Simulated as a 320×512 viewport, which is 1280 px at 400 %.
 | Site `/` | 320 / 320 | pass |
 | Site `/docs/` | 320 / 320 | pass |
 | Site `/cloud/` | 320 / 320 | pass |
-| Site `/faq/` | 320 / 320 | **fixed** ([#677](https://github.com/lgtm-hq/Rustume/issues/677)) — was 324 / 320, from a `.docs-resource-tag` pill whose base `.smart-link` class forces `white-space: nowrap`; a long "learn more" label had nowhere to fold. All other site routes (the full sitemap, not just the four originally sampled) were re-measured at 320 px in the same pass: two `.prose table` pages and three inline `<code>` tokens also overran and are fixed alongside it. |
+| Site `/faq/` | 320 / 320 | not reproduced ([#677](https://github.com/lgtm-hq/Rustume/issues/677), closed as not-planned) — this pass recorded 324 / 320 from a `.docs-resource-tag` pill, but a re-measurement against current page content measured 320 / 320 **before** any fix. The 4 px overrun turned on one long "learn more" label, so page content moving is enough to hide it; this is an absence of evidence, not proof the pill is safe. The pill was hardened anyway (`white-space: normal`, `max-width: 100%`) as defence-in-depth, not as a fix for an observed defect. That re-measurement swept the full sitemap rather than the four routes sampled here, and did find two reproducible overflows — a `.prose table` page and an inline `<code>` page — which are fixed and tracked as [#684](https://github.com/lgtm-hq/Rustume/issues/684). |
 
 ### Forced colors / high contrast (SC 1.4.11, 2.4.7, 1.4.1)
 
@@ -321,6 +321,10 @@ PR #657's other deferred notes:
 | Cross-cutting (zoom, reflow, forced colors) | 8 | 1 | 2 |
 | **Total** | **52** | **21** | **18** |
 
+The tally has no column for **not reproduced**, and the one such row (`/faq/` reflow, #677) is
+counted with the passes for want of a better home. It is not a pass: it is a defect this pass
+measured and a later pass could not, which the row itself says.
+
 The 21 fail rows resolve to **16 distinct defects** — the dialog focus-restore bug
 ([#662](https://github.com/lgtm-hq/Rustume/issues/662)) and the theme-picker defects are each
 recorded on more than one surface.
@@ -347,7 +351,7 @@ None of these are fixed in this pass; the deliverable is the audit.
 | [#674](https://github.com/lgtm-hq/Rustume/issues/674) | Selecting a theme strands focus and announces nothing | theme switcher | 2.4.3, 4.1.3 |
 | [#675](https://github.com/lgtm-hq/Rustume/issues/675) | Theme picker listbox owns non-option elements | theme switcher | 1.3.1, 4.1.2 |
 | [#676](https://github.com/lgtm-hq/Rustume/issues/676) | Footer headings skip from `h2` to `h4` | site chrome | 1.3.1 |
-| [#677](https://github.com/lgtm-hq/Rustume/issues/677) | FAQ resource tags overflow the viewport at 320 px | site FAQ | 1.4.10 — **fixed** |
+| [#677](https://github.com/lgtm-hq/Rustume/issues/677) | FAQ resource tags overflow the viewport at 320 px | site FAQ | 1.4.10 — closed as **not reproduced** on re-measurement; the reproducible reflow defects that pass found are [#684](https://github.com/lgtm-hq/Rustume/issues/684) |
 
 Two suppressions in the site suite are **not** in scope for these issues and were left alone:
 `color-contrast` and `link-in-text-block`, the latter tracked by
