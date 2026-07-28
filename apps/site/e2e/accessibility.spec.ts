@@ -14,23 +14,20 @@ import { SCANNED_THEMES } from "./support/themes";
 const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa"];
 
 /**
- * Rules deferred to follow-up work, both from the "distinguished by color"
- * family. This suite asserts structure, semantics and ARIA across themes;
- * color decisions are design-language work with their own lane.
+ * Rules deferred to follow-up work. This suite asserts structure, semantics
+ * and ARIA across themes; color decisions are design-language work with their
+ * own lane.
  *
  * - `color-contrast`: the audited Craft palette already has a dedicated gate
  *   (`bun run check:contrast`), but the 40+ turbo flavors the picker offers
  *   have not been audited against the site's own components.
- * - `link-in-text-block`: prose links in docs content are currently
- *   distinguished from body text by color alone (no underline, and under 3:1
- *   against surrounding text). Fixing it is a visual change to every docs
- *   page, not a test change.
  *
- * Neither is suppressed to hide a flake — both fail deterministically today,
- * and shipping them red would make the suite unusable as a gate. Every other
- * WCAG 2.2 A/AA rule runs.
+ * It is not suppressed to hide a flake — it fails deterministically today, and
+ * shipping it red would make the suite unusable as a gate. Every other WCAG
+ * 2.2 A/AA rule runs, including `link-in-text-block`, whose failure was fixed
+ * by underlining docs prose links (Rustume#648).
  */
-const DEFERRED_RULES = ["color-contrast", "link-in-text-block"];
+const DEFERRED_RULES = ["color-contrast"];
 
 /**
  * Rule overrides layered on top of the tag selection.
@@ -89,6 +86,12 @@ async function scanForViolations(page: Page, include?: string): Promise<Violatio
   const results = await builder.analyze();
   assertRuleEvaluated(results, "target-size");
   assertRuleEvaluated(results, "heading-order");
+  // This one is tag-selected rather than overridden, so nothing in
+  // RULE_OVERRIDES keeps it alive — but it was suppressed until #648 and the
+  // claim that it runs again is the point of that change. Dropping it back
+  // into DEFERRED_RULES would otherwise turn the suite green by scanning less,
+  // which is the failure mode this guard exists for.
+  assertRuleEvaluated(results, "link-in-text-block");
   return results.violations.map((violation) => ({
     rule: violation.id,
     impact: violation.impact ?? "unknown",
