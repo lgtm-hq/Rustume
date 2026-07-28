@@ -14,6 +14,16 @@ dialogs, sync status, or empty states specifically, also read
 [`docs/design/UX-PATTERNS.md`](docs/design/UX-PATTERNS.md) — it records which
 interaction pattern each of those surfaces adopts, and why the alternatives lost.
 
+For anything touching focus, dialogs, live regions, keyboard navigation, or
+layout at narrow widths, read
+[`docs/design/A11Y-AUDIT.md`](docs/design/A11Y-AUDIT.md) first — it is the dated
+manual accessibility record for both apps. It lists the known open failures (do
+not re-report them), the criteria that can only be settled by a human at a
+screen reader, and the traps that make this area easy to get wrong (`role="status"`
+is polite by default; `role="presentation"` does not remove descendants;
+Playwright's `reducedMotion` is inert here; axe's `best-practice` rules do not
+run under a WCAG-tag selection).
+
 ### Toolchain / dependencies
 
 - Requires **Rust >= 1.85** (a transitive dependency needs the `edition2024`
