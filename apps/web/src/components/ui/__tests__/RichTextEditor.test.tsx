@@ -1,3 +1,4 @@
+import { createSignal } from "solid-js";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@solidjs/testing-library";
 import { RichTextEditor } from "../RichTextEditor";
@@ -52,26 +53,53 @@ describe("RichTextEditor toolbar keyboard navigation", () => {
  * field and must carry a name of its own — a nearby heading does not count.
  */
 describe("RichTextEditor accessible name", () => {
-  const surface = () => document.querySelector('.rich-text-editor [role="textbox"]');
+  // Scoped to the render container: a stale editor left in the document by an
+  // earlier test would otherwise be able to satisfy these assertions.
+  const surface = (container: HTMLElement) =>
+    container.querySelector('.rich-text-editor [role="textbox"]');
 
   it("points the editing surface at the visible label", () => {
-    render(() => <RichTextEditor label="Summary" value="" onInput={vi.fn()} />);
+    const { container } = render(() => (
+      <RichTextEditor label="Summary" value="" onInput={vi.fn()} />
+    ));
 
-    const labelledBy = surface()?.getAttribute("aria-labelledby");
+    const labelledBy = surface(container)?.getAttribute("aria-labelledby");
     expect(labelledBy).toBeTruthy();
-    expect(document.getElementById(labelledBy!)?.textContent).toBe("Summary");
+    expect(container.querySelector(`#${labelledBy}`)?.textContent).toBe("Summary");
   });
 
   it("falls back to ariaLabel where no label is rendered", () => {
-    render(() => <RichTextEditor ariaLabel="Cover letter" value="" onInput={vi.fn()} />);
+    const { container } = render(() => (
+      <RichTextEditor ariaLabel="Cover letter body" value="" onInput={vi.fn()} />
+    ));
 
-    expect(surface()).toHaveAttribute("aria-label", "Cover letter");
-    expect(surface()).not.toHaveAttribute("aria-labelledby");
+    expect(surface(container)).toHaveAttribute("aria-label", "Cover letter body");
+    expect(surface(container)).not.toHaveAttribute("aria-labelledby");
   });
 
   it("keeps the textbox role that editorProps.attributes would otherwise replace", () => {
-    render(() => <RichTextEditor label="Summary" value="" onInput={vi.fn()} />);
+    const { container } = render(() => (
+      <RichTextEditor label="Summary" value="" onInput={vi.fn()} />
+    ));
 
-    expect(surface()).toHaveAttribute("aria-multiline", "true");
+    expect(surface(container)).toHaveAttribute("aria-multiline", "true");
+  });
+
+  it("re-names the surface when the label prop changes", () => {
+    const [label, setLabel] = createSignal<string | undefined>(undefined);
+    const { container } = render(() => (
+      <RichTextEditor label={label()} ariaLabel="Cover letter body" value="" onInput={vi.fn()} />
+    ));
+
+    expect(surface(container)).toHaveAttribute("aria-label", "Cover letter body");
+
+    setLabel("Summary");
+
+    const labelledBy = surface(container)?.getAttribute("aria-labelledby");
+    expect(labelledBy).toBeTruthy();
+    expect(container.querySelector(`#${labelledBy}`)?.textContent).toBe("Summary");
+    // The two naming attributes must never coexist — `aria-labelledby` wins,
+    // so a leftover `aria-label` would be silently dead markup.
+    expect(surface(container)).not.toHaveAttribute("aria-label");
   });
 });

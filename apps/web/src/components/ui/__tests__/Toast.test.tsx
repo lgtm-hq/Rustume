@@ -9,20 +9,22 @@ import { ToastRegion } from "../Toast";
  */
 describe("ToastRegion list semantics", () => {
   it("does not expose the toast stack as a list", async () => {
-    render(() => <ToastRegion />);
+    // Scoped to this render's container: querying the whole document would let
+    // a region left behind by another test satisfy the assertion.
+    const { container } = render(() => <ToastRegion />);
 
     await waitFor(() => {
-      expect(document.querySelector("ol")).toBeTruthy();
+      expect(container.querySelector("ol")).toBeTruthy();
     });
 
-    expect(document.querySelector("ol")).toHaveAttribute("role", "none");
+    expect(container.querySelector("ol")).toHaveAttribute("role", "none");
   });
 
   it("keeps the labelled notification region that carries the announcements", async () => {
-    render(() => <ToastRegion />);
+    const { container } = render(() => <ToastRegion />);
 
     await waitFor(() => {
-      expect(document.querySelector('[role="region"]')).toBeTruthy();
+      expect(container.querySelector('[role="region"]')).toBeTruthy();
     });
   });
 });

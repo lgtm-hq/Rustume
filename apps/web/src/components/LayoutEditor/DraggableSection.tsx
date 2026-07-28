@@ -77,7 +77,12 @@ export function DraggableSection(props: DraggableSectionProps) {
         // listbox model would have made SC 2.5.7's controls invalid ARIA. The
         // pick-up state that `aria-selected` used to carry is announced by the
         // editor's live region on every pick up, move, drop and cancel.
+        //
+        // `group` is stated explicitly: a bare `div` maps to the `generic`
+        // role, which prohibits both `aria-roledescription` and `aria-label`.
+        role="group"
         aria-roledescription="draggable section"
+        aria-label={props.label}
         data-section-id={props.id}
         class="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-paper
           transition-[opacity,border-color,box-shadow,transform] duration-150

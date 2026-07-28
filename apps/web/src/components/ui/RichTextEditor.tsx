@@ -132,6 +132,27 @@ export function RichTextEditor(props: RichTextEditorProps) {
     }
   });
 
+  /**
+   * `editorProps.attributes` is snapshotted when the editor is constructed, so
+   * a later change to `label`/`ariaLabel` would leave the ProseMirror node
+   * naming the editor after text that is no longer on screen. Re-apply the
+   * naming attributes reactively, dropping the inactive alternative so the two
+   * never coexist.
+   */
+  createEffect(() => {
+    const attributes = editorAriaAttributes();
+    const dom = editor()?.view.dom;
+    if (!dom) return;
+    for (const name of ["aria-labelledby", "aria-label"] as const) {
+      const value = attributes[name];
+      if (value === undefined) {
+        dom.removeAttribute(name);
+      } else {
+        dom.setAttribute(name, value);
+      }
+    }
+  });
+
   onCleanup(() => {
     editor()?.destroy();
   });
