@@ -34,6 +34,18 @@
   --shadow-glow-sm: 0 0 0 3px color-mix(in srgb, var(--rust-forge) 30%, transparent);
 
   /*
+   * Prose link underline metrics. A hairline rule set clear of the descenders
+   * reads as a document underline rather than as a control; hover and focus
+   * thicken it so the state change is legible without relying on the colour
+   * shift `a:hover` also applies. BRAND.md §3 records a pending Archivo ->
+   * Source Serif 4 migration for this app — these want a retune against the
+   * final face.
+   */
+  --prose-link-underline: 1px;
+  --prose-link-underline-strong: 2px;
+  --prose-link-underline-offset: 0.18em;
+
+  /*
    * Contrast-improved secondary text: some turbo theme palettes ship a
    * secondary color below the 4.5:1 AA contrast ratio on base/surface
    * backgrounds (e.g. solarized-light #657b83 on #eee8d5 is 3.64:1). Mixing
@@ -393,6 +405,34 @@ th {
 .prose {
   --prose-section-gap: 3.75rem;
   --prose-block-gap: 1.5rem;
+}
+
+/*
+ * WCAG 1.4.1 (axe `link-in-text-block`): a link sitting inside a sentence must
+ * be distinguishable from the prose around it by something other than hue.
+ * Docs body copy is the only place that happens — navigation, buttons, cards
+ * and the template gallery are standalone targets, so they stay undecorated
+ * and are deliberately outside this selector. `.smart-link` / `.doc-link` are
+ * pill chips that already carry a border and a background, so they are
+ * excluded even where they appear inline.
+ *
+ * Scoped to text-bearing blocks rather than `.prose a`, so a link wrapping a
+ * figure or a block-level component does not pick up a stray rule.
+ */
+.prose
+  :where(p, li, blockquote, dd, td, th, figcaption)
+  a[href]:not(.smart-link, .doc-link, .btn),
+.docs-description a[href]:not(.smart-link, .doc-link, .btn) {
+  text-decoration: underline;
+  text-decoration-thickness: var(--prose-link-underline);
+  text-underline-offset: var(--prose-link-underline-offset);
+}
+
+.prose
+  :where(p, li, blockquote, dd, td, th, figcaption)
+  a[href]:not(.smart-link, .doc-link, .btn):is(:hover, :focus-visible),
+.docs-description a[href]:not(.smart-link, .doc-link, .btn):is(:hover, :focus-visible) {
+  text-decoration-thickness: var(--prose-link-underline-strong);
 }
 
 .prose h2 {
