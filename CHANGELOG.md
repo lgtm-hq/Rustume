@@ -22,6 +22,19 @@ and this project adheres to
 
 ### Security
 
+## [0.52.1] - 2026-07-28
+
+### Changed
+
+- **a11y**: record the manual A11Y Project checklist pass (#678) (fc12edb)
+- **deps**: update lintro to 0.94.1 (patch) (#690) (2156a60)
+- **templates**: guard contrast matrix coverage of every colour binding (#680) (bf2de44)
+- **deps**: update lintro to 0.94.0 (minor) (#679) (23a9a9e)
+
+### Fixed
+
+- **typst**: apply the themed page background in glalie (#683) (6054dc1)
+
 ## [0.52.0] - 2026-07-28
 
 ### Added
@@ -727,7 +740,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.52.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.52.1...HEAD
+[0.52.1]: https://github.com/lgtm-hq/Rustume/compare/v0.52.0...v0.52.1
 [0.52.0]: https://github.com/lgtm-hq/Rustume/compare/v0.51.0...v0.52.0
 [0.51.0]: https://github.com/lgtm-hq/Rustume/compare/v0.50.2...v0.51.0
 [0.50.2]: https://github.com/lgtm-hq/Rustume/compare/v0.50.1...v0.50.2
