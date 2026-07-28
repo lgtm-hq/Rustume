@@ -140,6 +140,38 @@ test.describe("site chrome", () => {
     await expect(homePage.themeStatus).toHaveText(themeAnnouncement(NEXT_THEME.label));
   });
 
+  test("reselecting the applied theme announces it again", async ({ page, homePage }) => {
+    await homePage.open();
+    await homePage.openThemeMenu();
+    await homePage.themeOptionById(NEXT_THEME.id).click();
+    await expect(homePage.themeStatus).toHaveText(themeAnnouncement(NEXT_THEME.label));
+
+    // Count writes to the region, since the text is identical either way and
+    // only a change in content is an announcement.
+    await page.evaluate(() => {
+      const region = document.querySelector("#theme-picker-status");
+      if (!region) throw new Error("the theme status region is missing");
+      const counter = { writes: 0 };
+      (window as Window & { themeWrites?: { writes: number } }).themeWrites = counter;
+      new MutationObserver(() => {
+        counter.writes += 1;
+      }).observe(region, { childList: true, characterData: true, subtree: true });
+    });
+
+    // Pick the theme that is already applied. It changes nothing on screen, so
+    // the announcement is the only confirmation the interaction produces.
+    await homePage.openThemeMenu();
+    await homePage.themeOptionById(NEXT_THEME.id).click();
+    await expect(homePage.themeStatus).toHaveText(themeAnnouncement(NEXT_THEME.label));
+
+    const writes = await page.evaluate(
+      () => (window as Window & { themeWrites?: { writes: number } }).themeWrites?.writes,
+    );
+    // Cleared, then refilled: two mutations, so the region genuinely changed
+    // rather than being reassigned the string it already held.
+    expect(writes).toBeGreaterThanOrEqual(2);
+  });
+
   test("theme listbox owns only named groups of options", async ({
     browserName,
     page,

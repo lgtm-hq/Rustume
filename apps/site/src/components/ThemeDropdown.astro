@@ -254,10 +254,25 @@ const defaultLabel = themeTriggerLabels[DEFAULT_THEME] ?? 'Craft';
      * belongs to whatever control did it, and announcing it here would
      * double up.
      */
+    let announceFrame = 0;
+
     const announce = (themeId: string): void => {
       if (!status) return;
       const active = options.find((option) => option.dataset.themeId === themeId);
-      status.textContent = `Theme: ${active?.dataset.themeLabel ?? themeId}`;
+      const message = `Theme: ${active?.dataset.themeLabel ?? themeId}`;
+      // Emptied first, then filled on the next frame. Reselecting the theme
+      // that is already applied writes the same string, and a live region
+      // announces a change in content — assigning identical text is not one,
+      // so the confirmation would go missing on exactly the interaction that
+      // gives no other feedback. Splitting the write across frames is what
+      // makes it a change: done in one task the two mutations coalesce and
+      // the region still ends on the text it started with.
+      if (announceFrame) cancelAnimationFrame(announceFrame);
+      status.textContent = '';
+      announceFrame = requestAnimationFrame(() => {
+        announceFrame = 0;
+        status.textContent = message;
+      });
     };
 
     const applyFromPicker = (themeId: string): void => {
