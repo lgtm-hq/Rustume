@@ -310,7 +310,7 @@ PR #657's other deferred notes:
 | App — dialogs | 4 | 2 | 2 |
 | App — layout editor | 3 | 1 | 2 |
 | App — rich text editor | 3 | 0 | 1 |
-| App — toasts | 3 | 1 | 1 |
+| App — toasts | 2 | 1 | 1 |
 | App — home library | 2 | 1 | 1 |
 | App — account / offline / PWA | 3 | 1 | 1 |
 | Site — global chrome | 6 | 1 | 0 |
@@ -319,7 +319,7 @@ PR #657's other deferred notes:
 | Site — template gallery | 5 | 0 | 0 |
 | Site — pricing | 1 | 0 | 2 |
 | Cross-cutting (zoom, reflow, forced colors) | 7 | 2 | 2 |
-| **Total** | **52** | **22** | **18** |
+| **Total** | **51** | **22** | **18** |
 
 The 22 fail rows resolve to **17 distinct defects** — the dialog focus-restore bug
 ([#662](https://github.com/lgtm-hq/Rustume/issues/662)) and the theme-picker defects are each
