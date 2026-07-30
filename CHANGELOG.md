@@ -22,6 +22,20 @@ and this project adheres to
 
 ### Security
 
+## [0.52.6] - 2026-07-30
+
+### Changed
+
+- **deps**: update dependency @astrojs/check to 0.9.10 (patch) (#710) (81db5db)
+- **deps**: update lintro to 0.94.6 (patch) (#708) (ed83d1f)
+- **deps**: update lintro to 0.94.4 (patch) (#707) (c174ba0)
+- **deps**: update lintro to 0.94.3 (patch) (#704) (6d0f50b)
+
+### Fixed
+
+- **ci**: recover cargo from CARGO_HOME when setup-rust leaves it off PATH (#703)
+  (72d215a)
+
 ## [0.52.5] - 2026-07-28
 
 ### Fixed
@@ -768,7 +782,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.52.5...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.52.6...HEAD
+[0.52.6]: https://github.com/lgtm-hq/Rustume/compare/v0.52.5...v0.52.6
 [0.52.5]: https://github.com/lgtm-hq/Rustume/compare/v0.52.4...v0.52.5
 [0.52.4]: https://github.com/lgtm-hq/Rustume/compare/v0.52.3...v0.52.4
 [0.52.3]: https://github.com/lgtm-hq/Rustume/compare/v0.52.2...v0.52.3
