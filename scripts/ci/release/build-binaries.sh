@@ -33,6 +33,23 @@ if [[ "${USE_CROSS:-}" == "true" ]]; then
 	BUILD_CMD="cross"
 fi
 
-echo "Building with $BUILD_CMD for target $TARGET"
+# The shared setup-rust action can exit 0 without leaving the toolchain on PATH
+# (seen on macos-15-intel: rustup resolves, cargo does not). Recover the
+# canonical bin dir ourselves rather than failing three steps later with a bare
+# "cargo: command not found", which names the script instead of the cause.
+CARGO_BIN="${CARGO_HOME:-$HOME/.cargo}/bin"
+if ! command -v "$BUILD_CMD" >/dev/null 2>&1 && [[ -x "$CARGO_BIN/$BUILD_CMD" ]]; then
+	echo "$BUILD_CMD not on PATH; adding $CARGO_BIN" >&2
+	export PATH="$CARGO_BIN:$PATH"
+fi
+
+if ! command -v "$BUILD_CMD" >/dev/null 2>&1; then
+	echo "$BUILD_CMD not found on PATH after checking $CARGO_BIN." >&2
+	echo "The Rust toolchain setup did not produce a usable $BUILD_CMD." >&2
+	echo "PATH=$PATH" >&2
+	exit 1
+fi
+
+echo "Building with $BUILD_CMD ($("$BUILD_CMD" --version)) for target $TARGET"
 $BUILD_CMD build --release --target "$TARGET" -p rustume-cli
 $BUILD_CMD build --release --target "$TARGET" -p rustume-server
