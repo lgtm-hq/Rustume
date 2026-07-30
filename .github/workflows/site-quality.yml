@@ -26,7 +26,7 @@ permissions: {}
 
 concurrency:
   group: site-quality-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   craft-contrast:

@@ -39,7 +39,12 @@ permissions:
 # (a cancelled publish would leave GHCR tags and signatures in a partial
 # state, and downstream rustume-ops deploys pull these tags).
 concurrency:
-  group: docker-${{ github.ref }}
+  # Give every main commit its own group: a shared group holds only one
+  # pending run, and each new push evicts it regardless of
+  # cancel-in-progress, so post-merge required checks were being lost.
+  group: >-
+    docker-${{ github.ref }}${{ github.ref == 'refs/heads/main'
+    && format('-{0}', github.sha) || '' }}
   cancel-in-progress: >-
     ${{ github.event_name == 'pull_request' }}
 

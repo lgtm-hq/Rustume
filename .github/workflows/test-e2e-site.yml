@@ -42,7 +42,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: test-e2e-site-${{ github.ref }}
+  # Give every main commit its own group: a shared group holds only one
+  # pending run, and each new push evicts it regardless of
+  # cancel-in-progress, so post-merge required checks were being lost.
+  group: >-
+    test-e2e-site-${{ github.ref }}${{ github.ref == 'refs/heads/main'
+    && format('-{0}', github.sha) || '' }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
