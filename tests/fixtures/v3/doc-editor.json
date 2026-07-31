@@ -1,0 +1,504 @@
+{
+  "id": "v3-doc-editor-resume",
+  "name": "Document Editor Fixture",
+  "public": false,
+  "basics": {
+    "name": "Mireille Okafor",
+    "headline": "Principal Design Systems Engineer",
+    "email": "mireille@okafor.design",
+    "phone": "+351 912 004 118",
+    "location": "Lisbon, Portugal",
+    "summary": {
+      "body": "Design systems engineer with **eleven years** of shipping component libraries that survive contact with real product teams. I work at the seam between design and engineering: tokens, accessibility, and the tooling that keeps both honest.\n\nCurrently leading *Halo*, the design system behind every Lumen Health surface. I write about the craft at [okafor.design/notes](https://okafor.design/notes).",
+      "visible": true
+    },
+    "url": {
+      "href": "https://okafor.design",
+      "label": "okafor.design"
+    },
+    "customFields": [
+      {
+        "id": "cf-pronouns",
+        "icon": "user",
+        "name": "Pronouns",
+        "value": "she/her"
+      },
+      {
+        "id": "cf-timezone",
+        "icon": "clock",
+        "name": "Timezone",
+        "value": "WET (UTC+0)"
+      }
+    ]
+  },
+  "sections": {
+    "profiles": {
+      "id": "profiles",
+      "name": "Profiles",
+      "visible": true,
+      "columns": 1,
+      "items": [
+        {
+          "id": "profile-1",
+          "visible": true,
+          "network": "GitHub",
+          "username": "mireilleokafor",
+          "url": {
+            "href": "https://github.com/mireilleokafor"
+          }
+        },
+        {
+          "id": "profile-2",
+          "visible": true,
+          "network": "LinkedIn",
+          "username": "mireilleokafor",
+          "url": {
+            "href": "https://linkedin.com/in/mireilleokafor"
+          }
+        },
+        {
+          "id": "profile-3",
+          "visible": true,
+          "network": "Mastodon",
+          "username": "mireille@front-end.social",
+          "url": {
+            "href": "https://front-end.social/@mireille"
+          }
+        }
+      ]
+    },
+    "experience": {
+      "id": "experience",
+      "name": "Experience",
+      "visible": true,
+      "columns": 1,
+      "items": [
+        {
+          "id": "exp-1",
+          "visible": true,
+          "company": "Lumen Health",
+          "position": "Principal Design Systems Engineer",
+          "location": "Lisbon, Portugal (Remote)",
+          "date": "March 2022 - Present",
+          "summary": "Own **Halo**, the design system behind every Lumen Health surface: the web console, the clinician tablet app, and the patient mobile app.\n\n- Rebuilt the token pipeline so design and code read from a single source, cutting drift reports from roughly fourteen per quarter to two\n  - Shipped a *codemod* that migrated 1,100 hard-coded colour values in one review\n  - Added contrast assertions to CI, which now block any token pair below 4.5:1\n- Wrote the [Halo contribution guide](https://halo.lumenhealth.io/contributing); outside contributions rose from three to thirty-one in a year\n- Led the remediation that took the clinician tablet app to **WCAG 2.2 AA**, verified by an external audit in January 2025\n\nTeam: four engineers.  \nReview load: around sixty component pull requests per quarter.",
+          "url": {
+            "href": "https://lumenhealth.io",
+            "label": "lumenhealth.io"
+          }
+        },
+        {
+          "id": "exp-2",
+          "visible": true,
+          "company": "Northbeam Analytics",
+          "position": "Senior Frontend Engineer",
+          "location": "Berlin, Germany",
+          "date": "January 2019 - February 2022",
+          "summary": "Led the rewrite of Northbeam's reporting console from a jQuery monolith to a typed React application, delivered in three phases without a feature freeze.\n\n1. Split the monolith into nine route-level bundles, taking first contentful paint from 4.8s to 1.3s on a throttled 3G profile\n2. Introduced *contract tests* against the reporting API, which caught twenty-three breaking changes before release\n3. Handed the resulting patterns to the platform team as Northbeam's first shared component library\n\nAlso mentored two engineers through their first year; both are still shipping."
+        },
+        {
+          "id": "exp-3",
+          "visible": true,
+          "company": "Corvid Studio",
+          "position": "Frontend Developer",
+          "location": "Manchester, United Kingdom",
+          "date": "September 2015 - December 2018",
+          "summary": "Built marketing sites and small product front-ends for agency clients: *fast turnarounds, unforgiving briefs*.\n\n- Delivered more than twenty client projects, several on two-week timelines\n- Set up the studio's first shared **Sass toolkit**, which ended the habit of copying the previous project's stylesheet"
+        }
+      ]
+    },
+    "education": {
+      "id": "education",
+      "name": "Education",
+      "visible": true,
+      "columns": 1,
+      "items": [
+        {
+          "id": "edu-1",
+          "visible": true,
+          "institution": "University of Manchester",
+          "area": "Computer Science",
+          "studyType": "BSc (Hons)",
+          "date": "2012 - 2015",
+          "score": "First Class Honours",
+          "summary": "Dissertation on **perceptual colour spaces for data visualisation**, supervised by Dr. Helen Marsh.\n\n- Course representative for the 2014-15 cohort\n- Ran the department's weekly accessibility reading group",
+          "url": {
+            "href": "https://www.manchester.ac.uk"
+          }
+        },
+        {
+          "id": "edu-2",
+          "visible": true,
+          "institution": "Instituto Superior Tecnico",
+          "area": "Human-Computer Interaction",
+          "studyType": "Postgraduate Certificate",
+          "date": "2017 - 2018",
+          "summary": "Taken part-time alongside full-time work. Coursework in *interaction design*, usability evaluation, and assistive technology.\n\nThe final project measured screen-reader task completion across three component library APIs and became the basis for a later conference talk."
+        }
+      ]
+    },
+    "skills": {
+      "id": "skills",
+      "name": "Skills",
+      "visible": true,
+      "columns": 2,
+      "items": [
+        {
+          "id": "skill-1",
+          "visible": true,
+          "name": "TypeScript",
+          "level": 5,
+          "description": "The day-to-day language for **library code**. Comfortable with generic component APIs and the type-level work that keeps them ergonomic.",
+          "keywords": ["React", "Solid", "Vitest"]
+        },
+        {
+          "id": "skill-2",
+          "visible": true,
+          "name": "Design Tokens",
+          "level": 5,
+          "description": "Pipelines from design-tool variables to platform artefacts. Documented in the [Halo token spec](https://halo.lumenhealth.io/tokens).",
+          "keywords": ["Style Dictionary", "Theming", "Dark Mode"]
+        },
+        {
+          "id": "skill-3",
+          "visible": true,
+          "name": "Accessibility",
+          "level": 4,
+          "description": "WCAG 2.2 AA in practice rather than in theory:\n\n- Keyboard and focus-order review\n- Screen reader passes with NVDA and VoiceOver\n- Automated axe checks wired into CI",
+          "keywords": ["WCAG 2.2", "ARIA", "axe-core"]
+        },
+        {
+          "id": "skill-4",
+          "visible": true,
+          "name": "Rust",
+          "level": 3,
+          "description": "Reached for build tooling: a token compiler and a *considerably* faster SVG icon pipeline.",
+          "keywords": ["WebAssembly", "CLI Tooling"]
+        }
+      ]
+    },
+    "projects": {
+      "id": "projects",
+      "name": "Projects",
+      "visible": true,
+      "columns": 1,
+      "items": [
+        {
+          "id": "project-1",
+          "visible": true,
+          "name": "Contrastly",
+          "description": "Browser extension for auditing colour contrast in **live** interfaces",
+          "date": "2023 - Present",
+          "summary": "Started as a debugging aid for the Halo remediation and grew into a small public tool.\n\n1. Samples computed styles rather than design files, so it catches the blends that palettes miss\n2. Reports failures against *both* WCAG 2.1 and 2.2 thresholds\n3. Exports a CSV that plugs straight into an audit spreadsheet\n\nAround 4,000 weekly active users.",
+          "keywords": ["TypeScript", "Accessibility", "Browser Extension"],
+          "url": {
+            "href": "https://github.com/mireilleokafor/contrastly"
+          }
+        },
+        {
+          "id": "project-2",
+          "visible": true,
+          "name": "tokenwright",
+          "description": "*Zero-config* CLI that compiles design tokens to CSS, Swift, and Kotlin",
+          "date": "2024",
+          "summary": "Written in Rust after the Node build step became the slowest part of Halo's release.\n\n- Full compile of 2,300 tokens went from 11s to under 400ms\n- Emits a diff report so reviewers can see what a token change actually costs\n- Ships as a single binary; see the [installation notes](https://github.com/mireilleokafor/tokenwright#install)",
+          "keywords": ["Rust", "Design Tokens", "Build Tooling"],
+          "url": {
+            "href": "https://github.com/mireilleokafor/tokenwright"
+          }
+        }
+      ]
+    },
+    "publications": {
+      "id": "publications",
+      "name": "Publications",
+      "visible": true,
+      "columns": 1,
+      "items": [
+        {
+          "id": "pub-1",
+          "visible": true,
+          "name": "Tokens Are a Contract, Not a Palette",
+          "publisher": "Smashing Magazine",
+          "date": "March 2024",
+          "summary": "Argues that a token set is an **API** with the same compatibility obligations as any other, and proposes a deprecation policy for teams that rename things too freely.",
+          "url": {
+            "href": "https://www.smashingmagazine.com/2024/03/tokens-are-a-contract"
+          }
+        },
+        {
+          "id": "pub-2",
+          "visible": true,
+          "name": "Auditing a Design System for WCAG 2.2",
+          "publisher": "Halo Engineering Blog",
+          "date": "September 2023",
+          "summary": "A write-up of the Halo audit, including the failures that automated tooling missed.\n\n- Target size was the most common new 2.2 failure\n- Focus appearance failures clustered in *composed* components rather than primitives",
+          "url": {
+            "href": "https://halo.lumenhealth.io/blog/wcag-22-audit"
+          }
+        }
+      ]
+    },
+    "volunteer": {
+      "id": "volunteer",
+      "name": "Volunteering",
+      "visible": true,
+      "columns": 1,
+      "items": [
+        {
+          "id": "vol-1",
+          "visible": true,
+          "organization": "codebar Lisbon",
+          "position": "Coach",
+          "location": "Lisbon, Portugal",
+          "date": "2022 - Present",
+          "summary": "Coach at fortnightly workshops for people underrepresented in tech.\n\nUsually paired with a student for a full term, working through HTML and CSS before moving on to their first JavaScript project.",
+          "url": {
+            "href": "https://codebar.io/lisbon"
+          }
+        }
+      ]
+    },
+    "awards": {
+      "id": "awards",
+      "name": "Awards",
+      "visible": true,
+      "columns": 1,
+      "items": [
+        {
+          "id": "award-1",
+          "visible": true,
+          "title": "Systems Craft Award",
+          "awarder": "Clarity Conference",
+          "date": "2024",
+          "summary": "Awarded for the Halo token pipeline, cited by the panel as *\"the clearest worked example of tokens as versioned infrastructure\"*.",
+          "url": {
+            "href": "https://www.clarityconf.com/awards/2024"
+          }
+        },
+        {
+          "id": "award-2",
+          "visible": true,
+          "title": "Accessibility Advocate of the Year",
+          "awarder": "Front-End Lisbon",
+          "date": "2023",
+          "summary": "Community-nominated award recognising the **WCAG 2.2 audit write-up** and the open office hours that followed it."
+        }
+      ]
+    },
+    "certifications": {
+      "id": "certifications",
+      "name": "Certifications",
+      "visible": true,
+      "columns": 1,
+      "items": [
+        {
+          "id": "cert-1",
+          "visible": true,
+          "name": "Certified Professional in Accessibility Core Competencies",
+          "issuer": "International Association of Accessibility Professionals",
+          "date": "2023",
+          "summary": "The **CPACC** covers disability models, standards, and organisational policy. Verification is available through the [IAAP directory](https://www.accessibilityassociation.org/certification).",
+          "url": {
+            "href": "https://www.accessibilityassociation.org/certification"
+          }
+        },
+        {
+          "id": "cert-2",
+          "visible": true,
+          "name": "Professional Scrum Master I",
+          "issuer": "Scrum.org",
+          "date": "2019",
+          "summary": "Taken during the Northbeam rewrite, mostly to *argue more precisely* about scope with the delivery team."
+        }
+      ]
+    },
+    "languages": {
+      "id": "languages",
+      "name": "Languages",
+      "visible": true,
+      "columns": 1,
+      "items": [
+        {
+          "id": "lang-1",
+          "visible": true,
+          "name": "English",
+          "level": 5,
+          "description": "**Native.** Schooling and all professional work to date."
+        },
+        {
+          "id": "lang-2",
+          "visible": true,
+          "name": "Portuguese",
+          "level": 4,
+          "description": "Fluent; day-to-day language *outside* work since 2018."
+        },
+        {
+          "id": "lang-3",
+          "visible": true,
+          "name": "Igbo",
+          "level": 3,
+          "description": "Conversational, spoken at home."
+        },
+        {
+          "id": "lang-4",
+          "visible": true,
+          "name": "German",
+          "level": 2,
+          "description": "Working proficiency, retained from three years in Berlin."
+        }
+      ]
+    },
+    "interests": {
+      "id": "interests",
+      "name": "Interests",
+      "visible": true,
+      "columns": 2,
+      "items": [
+        {
+          "id": "interest-1",
+          "visible": true,
+          "name": "Letterpress printing",
+          "keywords": ["Typography", "Bookbinding"]
+        },
+        {
+          "id": "interest-2",
+          "visible": true,
+          "name": "Trail running",
+          "keywords": ["Sintra", "Ultramarathons"]
+        }
+      ]
+    },
+    "references": {
+      "id": "references",
+      "name": "References",
+      "visible": false,
+      "columns": 1,
+      "items": [
+        {
+          "id": "ref-1",
+          "visible": true,
+          "name": "Dr. Helen Marsh",
+          "description": "**Dissertation supervisor**, University of Manchester",
+          "summary": "Contact details supplied on request, alongside a reference from my current engineering director."
+        }
+      ]
+    },
+    "custom": {
+      "speaking": {
+        "id": "speaking",
+        "name": "Talks & Workshops",
+        "visible": true,
+        "columns": 1,
+        "items": [
+          {
+            "id": "talk-1",
+            "visible": true,
+            "title": "Design Tokens Beyond Colour",
+            "subtitle": "Clarity Conference",
+            "date": "May 2025",
+            "location": "Amsterdam, Netherlands",
+            "summary": "Forty minutes on what happens when a token set has to describe motion, elevation, and density rather than just colour.\n\n- Why *semantic* naming breaks down at the third platform\n- The versioning policy we adopted after two painful renames\n\nSlides and a transcript are at [okafor.design/talks/beyond-colour](https://okafor.design/talks/beyond-colour).",
+            "keywords": ["Design Tokens", "Conference Talk"],
+            "url": {
+              "href": "https://okafor.design/talks/beyond-colour"
+            }
+          },
+          {
+            "id": "talk-2",
+            "visible": true,
+            "title": "Shipping Accessible Components by Default",
+            "subtitle": "Front-End Lisbon",
+            "date": "November 2024",
+            "location": "Lisbon, Portugal",
+            "summary": "A meetup talk on making the accessible path the **easy** path: sensible defaults, a focus-visible policy, and CI checks that fail loudly.",
+            "keywords": ["Accessibility", "Meetup"]
+          },
+          {
+            "id": "talk-3",
+            "visible": true,
+            "title": "Maintaining a Design System with Four People",
+            "subtitle": "Smashing Workshop",
+            "date": "June 2024",
+            "location": "Remote",
+            "summary": "A half-day workshop, run twice, on the operational side of a small systems team.\n\n1. Triage: what earns a place in the library and what stays in the product\n2. Contribution: review turnaround as the *only* metric that matters\n3. Deprecation: how to remove a component without breaking six teams",
+            "keywords": ["Workshop", "Design Systems"],
+            "url": {
+              "href": "https://okafor.design/talks/four-people"
+            }
+          }
+        ]
+      },
+      "advisory": {
+        "id": "advisory",
+        "name": "Advisory & Standards Work",
+        "visible": false,
+        "columns": 2,
+        "items": [
+          {
+            "id": "advisory-1",
+            "visible": true,
+            "title": "Technical Advisor",
+            "subtitle": "Open Health UI Collective",
+            "date": "2023 - Present",
+            "location": "Remote",
+            "summary": "Quarterly review of the collective's shared patterns for clinical interfaces, with a standing focus on *colour-blind safe* status indicators.",
+            "keywords": ["Advisory", "Healthcare"],
+            "url": {
+              "href": "https://openhealthui.org"
+            }
+          },
+          {
+            "id": "advisory-2",
+            "visible": true,
+            "title": "Reviewer, Accessibility Track",
+            "subtitle": "EuroFront",
+            "date": "2024 - 2025",
+            "location": "Remote",
+            "summary": "Reviewed **sixty-odd** talk proposals across two years and mentored three first-time speakers through their outlines."
+          }
+        ]
+      }
+    }
+  },
+  "metadata": {
+    "template": "ditto",
+    "layout": [
+      [
+        ["summary", "experience", "education", "projects"],
+        ["profiles", "skills", "speaking"]
+      ],
+      [
+        ["publications", "volunteer", "awards"],
+        ["languages", "interests", "certifications", "advisory"]
+      ]
+    ],
+    "theme": {
+      "primary": "#0f766e",
+      "background": "#ffffff",
+      "text": "#111827"
+    },
+    "typography": {
+      "font": {
+        "family": "IBM Plex Sans",
+        "subset": "latin",
+        "variants": ["regular", "600"],
+        "size": 13
+      },
+      "lineHeight": 1.55,
+      "hideIcons": false,
+      "underlineLinks": true
+    },
+    "page": {
+      "format": "a4",
+      "margin": 20,
+      "options": {
+        "breakLine": true,
+        "pageNumbers": true
+      }
+    },
+    "css": {
+      "value": "",
+      "visible": false
+    }
+  }
+}
