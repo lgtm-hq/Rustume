@@ -17,6 +17,25 @@ use serde_json::Value;
 /// JSON keys that hold rich text in the v3 schema.
 const RICH_TEXT_KEYS: [&str; 4] = ["body", "content", "description", "summary"];
 
+/// Assert the fixture declares markdown, then hand back its parsed JSON.
+///
+/// The renderer dispatches on `metadata.contentFormat`, never on the shape of
+/// the content, so this corpus is only meaningful while the fixture carries the
+/// marker that puts it on the markdown path.
+fn markdown_fixture() -> Value {
+    let raw = fs::read_to_string(fixture_path()).expect("failed to read doc-editor.json fixture");
+    let json: Value = serde_json::from_str(&raw).expect("doc-editor.json must be valid JSON");
+
+    assert_eq!(
+        json["metadata"]["contentFormat"],
+        Value::String("markdown".to_string()),
+        "the doc-editor fixture must declare contentFormat: markdown, or the renderer \
+         treats it as HTML and this corpus tests a path it never takes",
+    );
+
+    json
+}
+
 /// Path to the document-editor fixture in the workspace test corpus.
 fn fixture_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -82,8 +101,7 @@ fn render_corpus(fields: &[(String, String)]) -> String {
 
 #[test]
 fn doc_editor_fixture_matches_golden() {
-    let raw = fs::read_to_string(fixture_path()).expect("failed to read doc-editor.json fixture");
-    let json: Value = serde_json::from_str(&raw).expect("doc-editor.json must be valid JSON");
+    let json = markdown_fixture();
 
     let mut fields = Vec::new();
     collect_rich_text(&json, "", &mut fields);
@@ -117,8 +135,7 @@ fn doc_editor_fixture_matches_golden() {
 
 #[test]
 fn doc_editor_fixture_never_emits_typst_code() {
-    let raw = fs::read_to_string(fixture_path()).expect("failed to read doc-editor.json fixture");
-    let json: Value = serde_json::from_str(&raw).expect("doc-editor.json must be valid JSON");
+    let json = markdown_fixture();
 
     let mut fields = Vec::new();
     collect_rich_text(&json, "", &mut fields);

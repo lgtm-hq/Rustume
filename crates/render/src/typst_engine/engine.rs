@@ -2,7 +2,7 @@
 
 use crate::traits::{RenderError, Renderer};
 use crate::typst_engine::world::RustumeWorld;
-use rustume_schema::{PageFormat, ResumeData};
+use rustume_schema::{ContentFormat, PageFormat, ResumeData};
 use rustume_utils::{html_to_typst, markdown_to_typst, sanitize_html};
 use tracing::{debug, instrument, warn};
 
@@ -52,21 +52,23 @@ fn extract_picture_asset(resume: &mut ResumeData) -> Option<(String, Vec<u8>)> {
     Some((path, data))
 }
 
-/// Convert one rich-text field to Typst markup.
+/// Convert one rich-text field to Typst markup, in the format the resume
+/// declares.
 ///
-/// Rich text reaches the renderer in two formats during the document-editor
-/// rollout: the form builder stores TipTap HTML, the document editor stores
-/// markdown. Content containing `<` is treated as HTML and takes the original
-/// sanitize → convert path unchanged; everything else is parsed as markdown.
-fn convert_field(content: &str) -> String {
-    let trimmed = content.trim();
-    if trimmed.is_empty() {
+/// Rich text reaches the renderer in two formats: the form builder stores
+/// TipTap HTML, the document editor stores markdown. The format is taken from
+/// the resume's `contentFormat` marker and never inferred from the content —
+/// the two are not distinguishable by inspection, since plain prose like
+/// `1988. A good year` is a valid markdown ordered list. An absent marker means
+/// HTML, so every pre-existing resume takes the original sanitize → convert
+/// path byte for byte.
+fn convert_field(content: &str, format: ContentFormat) -> String {
+    if content.is_empty() {
         return String::new();
     }
-    if trimmed.contains('<') {
-        html_to_typst(&sanitize_html(content))
-    } else {
-        markdown_to_typst(content)
+    match format {
+        ContentFormat::Html => html_to_typst(&sanitize_html(content)),
+        ContentFormat::Markdown => markdown_to_typst(content),
     }
 }
 
@@ -74,70 +76,72 @@ fn convert_field(content: &str) -> String {
 /// from HTML or markdown to Typst markup so templates can `eval()` them.
 fn preprocess_rich_text(resume: &ResumeData) -> ResumeData {
     let mut r = resume.clone();
+    let format = r.metadata.content_format();
+    let convert = |content: &str| convert_field(content, format);
 
     // Summary section content
-    r.sections.summary.content = convert_field(&r.sections.summary.content);
+    r.sections.summary.content = convert(&r.sections.summary.content);
 
     // Cover letter body
-    r.sections.cover_letter.content = convert_field(&r.sections.cover_letter.content);
+    r.sections.cover_letter.content = convert(&r.sections.cover_letter.content);
 
     // Experience: summary
     for item in &mut r.sections.experience.items {
-        item.summary = convert_field(&item.summary);
+        item.summary = convert(&item.summary);
     }
 
     // Education: summary
     for item in &mut r.sections.education.items {
-        item.summary = convert_field(&item.summary);
+        item.summary = convert(&item.summary);
     }
 
     // Skills: description
     for item in &mut r.sections.skills.items {
-        item.description = convert_field(&item.description);
+        item.description = convert(&item.description);
     }
 
     // Projects: summary, description
     for item in &mut r.sections.projects.items {
-        item.summary = convert_field(&item.summary);
-        item.description = convert_field(&item.description);
+        item.summary = convert(&item.summary);
+        item.description = convert(&item.description);
     }
 
     // Awards: summary
     for item in &mut r.sections.awards.items {
-        item.summary = convert_field(&item.summary);
+        item.summary = convert(&item.summary);
     }
 
     // Certifications: summary
     for item in &mut r.sections.certifications.items {
-        item.summary = convert_field(&item.summary);
+        item.summary = convert(&item.summary);
     }
 
     // Publications: summary
     for item in &mut r.sections.publications.items {
-        item.summary = convert_field(&item.summary);
+        item.summary = convert(&item.summary);
     }
 
     // Languages: description
     for item in &mut r.sections.languages.items {
-        item.description = convert_field(&item.description);
+        item.description = convert(&item.description);
     }
 
     // Volunteer: summary
     for item in &mut r.sections.volunteer.items {
-        item.summary = convert_field(&item.summary);
+        item.summary = convert(&item.summary);
     }
 
     // References: summary, description
     for item in &mut r.sections.references.items {
-        item.summary = convert_field(&item.summary);
-        item.description = convert_field(&item.description);
+        item.summary = convert(&item.summary);
+        item.description = convert(&item.description);
     }
 
     // Custom sections: summary, description
     for section in r.sections.custom.values_mut() {
         for item in &mut section.items {
-            item.summary = convert_field(&item.summary);
-            item.description = convert_field(&item.description);
+            item.summary = convert(&item.summary);
+            item.description = convert(&item.description);
         }
     }
 
@@ -600,6 +604,7 @@ mod tests {
     #[test]
     fn test_preprocess_rich_text_converts_markdown() {
         let mut resume = ResumeData::default();
+        resume.metadata.content_format = Some(ContentFormat::Markdown);
         resume.sections.summary.content = "Built **great** things\n\n- Shipped *fast*".to_string();
         resume.sections.experience = Section::new("experience", "Experience");
         resume.sections.experience.add_item(
@@ -619,14 +624,55 @@ mod tests {
     }
 
     #[test]
-    fn test_preprocess_rich_text_html_takes_html_path() {
-        // Asterisks inside HTML content are literal text, not markdown.
+    fn test_preprocess_rich_text_markdown_marker_does_not_change_html_resumes() {
+        // Asterisks inside HTML content are literal text, not markdown. The
+        // default (absent) marker keeps them on the HTML path.
         let mut resume = ResumeData::default();
         resume.sections.summary.content = "<p>Rated 4*5 stars</p>".to_string();
 
         let processed = preprocess_rich_text(&resume);
 
         assert_eq!(processed.sections.summary.content, "Rated 4\\*5 stars");
+    }
+
+    #[test]
+    fn test_preprocess_without_marker_never_parses_markdown() {
+        // Regression guard for the format-sniffing design this replaced.
+        // Legacy resumes hold plain text alongside HTML, and several plain
+        // strings are also valid markdown. Sniffing parsed them as markdown
+        // and silently rewrote the author's words — most destructively
+        // "1988. A good year", where the ordered-list marker swallowed the
+        // year entirely. With no marker, the content is HTML and stays literal.
+        let cases = [
+            // Ordered-list marker: the number must survive.
+            ("1988. A good year", "1988. A good year"),
+            // Emphasis markers inside identifiers and arithmetic.
+            (
+                "Maintainer of __init__ and 4*5*6",
+                "Maintainer of \\_\\_init\\_\\_ and 4\\*5\\*6",
+            ),
+            // A leading hyphen is a bullet in markdown, plain prose here.
+            ("- not a list", "- not a list"),
+            // A leading hash is a heading in markdown; Typst escapes it either
+            // way, but the text must not lose the marker character.
+            ("#1 pick", "\\#1 pick"),
+        ];
+
+        for (content, expected) in cases {
+            let mut resume = ResumeData::default();
+            resume.sections.summary.content = content.to_string();
+            assert_eq!(
+                resume.metadata.content_format, None,
+                "marker must be absent"
+            );
+
+            let processed = preprocess_rich_text(&resume);
+
+            assert_eq!(
+                processed.sections.summary.content, expected,
+                "unmarked content must render literally: {content}"
+            );
+        }
     }
 
     #[test]

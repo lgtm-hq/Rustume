@@ -499,6 +499,7 @@
     "css": {
       "value": "",
       "visible": false
-    }
+    },
+    "contentFormat": "markdown"
   }
 }
