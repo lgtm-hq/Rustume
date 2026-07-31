@@ -33,6 +33,17 @@ Object.defineProperty(globalThis, "localStorage", {
   configurable: true,
 });
 
+// jsdom reports body padding/margin as unitless "0", where browsers report
+// "0px". solid-prevent-scroll interpolates that value straight into
+// `calc(<computed> + <scrollbar>px)`, producing `calc(0 + 1024px)` — invalid
+// CSS, since calc() cannot add a unitless number to a length. jsdom 30's
+// stricter CSS engine throws on it ("object null is not iterable") the moment
+// anything calls getComputedStyle, which Kobalte's focus handling does on every
+// dialog. Seeding explicit units keeps the generated calc() valid; real
+// browsers are unaffected either way.
+document.body.style.paddingRight = "0px";
+document.body.style.marginRight = "0px";
+
 // Mock crypto.randomUUID for deterministic IDs in tests
 if (!globalThis.crypto) {
   Object.defineProperty(globalThis, "crypto", {
