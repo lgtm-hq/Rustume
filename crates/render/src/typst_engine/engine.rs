@@ -3,7 +3,7 @@
 use crate::traits::{RenderError, Renderer};
 use crate::typst_engine::world::RustumeWorld;
 use rustume_schema::{PageFormat, ResumeData};
-use rustume_utils::{html_to_typst, sanitize_html};
+use rustume_utils::{html_to_typst, markdown_to_typst, sanitize_html};
 use tracing::{debug, instrument, warn};
 
 /// Available templates.
@@ -52,16 +52,26 @@ fn extract_picture_asset(resume: &mut ResumeData) -> Option<(String, Vec<u8>)> {
     Some((path, data))
 }
 
-/// Convert an HTML string to Typst markup via sanitize → convert.
-fn convert_field(html: &str) -> String {
-    if html.is_empty() {
+/// Convert one rich-text field to Typst markup.
+///
+/// Rich text reaches the renderer in two formats during the document-editor
+/// rollout: the form builder stores TipTap HTML, the document editor stores
+/// markdown. Content containing `<` is treated as HTML and takes the original
+/// sanitize → convert path unchanged; everything else is parsed as markdown.
+fn convert_field(content: &str) -> String {
+    let trimmed = content.trim();
+    if trimmed.is_empty() {
         return String::new();
     }
-    html_to_typst(&sanitize_html(html))
+    if trimmed.contains('<') {
+        html_to_typst(&sanitize_html(content))
+    } else {
+        markdown_to_typst(content)
+    }
 }
 
 /// Clone resume data and preprocess all rich-text fields (summary, description)
-/// from HTML to Typst markup so templates can `eval()` them.
+/// from HTML or markdown to Typst markup so templates can `eval()` them.
 fn preprocess_rich_text(resume: &ResumeData) -> ResumeData {
     let mut r = resume.clone();
 
@@ -585,6 +595,38 @@ mod tests {
         let processed = preprocess_rich_text(&resume);
 
         assert_eq!(processed.sections.summary.content, "Plain text summary");
+    }
+
+    #[test]
+    fn test_preprocess_rich_text_converts_markdown() {
+        let mut resume = ResumeData::default();
+        resume.sections.summary.content = "Built **great** things\n\n- Shipped *fast*".to_string();
+        resume.sections.experience = Section::new("experience", "Experience");
+        resume.sections.experience.add_item(
+            Experience::new("Acme", "Dev").with_summary("Led [core](https://acme.test) work"),
+        );
+
+        let processed = preprocess_rich_text(&resume);
+
+        assert_eq!(
+            processed.sections.summary.content,
+            "Built #text(weight: \"bold\")[great] things\n\n- Shipped #emph[fast]"
+        );
+        assert_eq!(
+            processed.sections.experience.items[0].summary,
+            "Led #link(\"https://acme.test\")[core] work"
+        );
+    }
+
+    #[test]
+    fn test_preprocess_rich_text_html_takes_html_path() {
+        // Asterisks inside HTML content are literal text, not markdown.
+        let mut resume = ResumeData::default();
+        resume.sections.summary.content = "<p>Rated 4*5 stars</p>".to_string();
+
+        let processed = preprocess_rich_text(&resume);
+
+        assert_eq!(processed.sections.summary.content, "Rated 4\\*5 stars");
     }
 
     #[test]
