@@ -1,0 +1,149 @@
+=== /basics/summary/body ===
+Design systems engineer with #text(weight: "bold")[eleven years] of shipping component libraries that survive contact with real product teams. I work at the seam between design and engineering: tokens, accessibility, and the tooling that keeps both honest.
+
+Currently leading #emph[Halo], the design system behind every Lumen Health surface. I write about the craft at #link("https://okafor.design/notes")[okafor.design/notes].
+
+=== /sections/awards/items[0]/summary ===
+Awarded for the Halo token pipeline, cited by the panel as #emph["the clearest worked example of tokens as versioned infrastructure"].
+
+=== /sections/awards/items[1]/summary ===
+Community-nominated award recognising the #text(weight: "bold")[WCAG 2.2 audit write-up] and the open office hours that followed it.
+
+=== /sections/certifications/items[0]/summary ===
+The #text(weight: "bold")[CPACC] covers disability models, standards, and organisational policy. Verification is available through the #link("https://www.accessibilityassociation.org/certification")[IAAP directory].
+
+=== /sections/certifications/items[1]/summary ===
+Taken during the Northbeam rewrite, mostly to #emph[argue more precisely] about scope with the delivery team.
+
+=== /sections/custom/advisory/items[0]/summary ===
+Quarterly review of the collective's shared patterns for clinical interfaces, with a standing focus on #emph[colour-blind safe] status indicators.
+
+=== /sections/custom/advisory/items[1]/summary ===
+Reviewed #text(weight: "bold")[sixty-odd] talk proposals across two years and mentored three first-time speakers through their outlines.
+
+=== /sections/custom/speaking/items[0]/summary ===
+Forty minutes on what happens when a token set has to describe motion, elevation, and density rather than just colour.
+
+- Why #emph[semantic] naming breaks down at the third platform
+- The versioning policy we adopted after two painful renames
+
+Slides and a transcript are at #link("https://okafor.design/talks/beyond-colour")[okafor.design/talks/beyond-colour].
+
+=== /sections/custom/speaking/items[1]/summary ===
+A meetup talk on making the accessible path the #text(weight: "bold")[easy] path: sensible defaults, a focus-visible policy, and CI checks that fail loudly.
+
+=== /sections/custom/speaking/items[2]/summary ===
+A half-day workshop, run twice, on the operational side of a small systems team.
+
++ Triage: what earns a place in the library and what stays in the product
++ Contribution: review turnaround as the #emph[only] metric that matters
++ Deprecation: how to remove a component without breaking six teams
+
+=== /sections/education/items[0]/summary ===
+Dissertation on #text(weight: "bold")[perceptual colour spaces for data visualisation], supervised by Dr. Helen Marsh.
+
+- Course representative for the 2014-15 cohort
+- Ran the department's weekly accessibility reading group
+
+=== /sections/education/items[1]/summary ===
+Taken part-time alongside full-time work. Coursework in #emph[interaction design], usability evaluation, and assistive technology.
+
+The final project measured screen-reader task completion across three component library APIs and became the basis for a later conference talk.
+
+=== /sections/experience/items[0]/summary ===
+Own #text(weight: "bold")[Halo], the design system behind every Lumen Health surface: the web console, the clinician tablet app, and the patient mobile app.
+
+- Rebuilt the token pipeline so design and code read from a single source, cutting drift reports from roughly fourteen per quarter to two
+- Shipped a #emph[codemod] that migrated 1,100 hard-coded colour values in one review
+- Added contrast assertions to CI, which now block any token pair below 4.5:1
+- Wrote the #link("https://halo.lumenhealth.io/contributing")[Halo contribution guide]; outside contributions rose from three to thirty-one in a year
+- Led the remediation that took the clinician tablet app to #text(weight: "bold")[WCAG 2.2 AA], verified by an external audit in January 2025
+
+Team: four engineers.#linebreak()
+Review load: around sixty component pull requests per quarter.
+
+=== /sections/experience/items[1]/summary ===
+Led the rewrite of Northbeam's reporting console from a jQuery monolith to a typed React application, delivered in three phases without a feature freeze.
+
++ Split the monolith into nine route-level bundles, taking first contentful paint from 4.8s to 1.3s on a throttled 3G profile
++ Introduced #emph[contract tests] against the reporting API, which caught twenty-three breaking changes before release
++ Handed the resulting patterns to the platform team as Northbeam's first shared component library
+
+Also mentored two engineers through their first year; both are still shipping.
+
+=== /sections/experience/items[2]/summary ===
+Built marketing sites and small product front-ends for agency clients: #emph[fast turnarounds, unforgiving briefs].
+
+- Delivered more than twenty client projects, several on two-week timelines
+- Set up the studio's first shared #text(weight: "bold")[Sass toolkit], which ended the habit of copying the previous project's stylesheet
+
+=== /sections/languages/items[0]/description ===
+#text(weight: "bold")[Native.] Schooling and all professional work to date.
+
+=== /sections/languages/items[1]/description ===
+Fluent; day-to-day language #emph[outside] work since 2018.
+
+=== /sections/languages/items[2]/description ===
+Conversational, spoken at home.
+
+=== /sections/languages/items[3]/description ===
+Working proficiency, retained from three years in Berlin.
+
+=== /sections/projects/items[0]/description ===
+Browser extension for auditing colour contrast in #text(weight: "bold")[live] interfaces
+
+=== /sections/projects/items[0]/summary ===
+Started as a debugging aid for the Halo remediation and grew into a small public tool.
+
++ Samples computed styles rather than design files, so it catches the blends that palettes miss
++ Reports failures against #emph[both] WCAG 2.1 and 2.2 thresholds
++ Exports a CSV that plugs straight into an audit spreadsheet
+
+Around 4,000 weekly active users.
+
+=== /sections/projects/items[1]/description ===
+#emph[Zero-config] CLI that compiles design tokens to CSS, Swift, and Kotlin
+
+=== /sections/projects/items[1]/summary ===
+Written in Rust after the Node build step became the slowest part of Halo's release.
+
+- Full compile of 2,300 tokens went from 11s to under 400ms
+- Emits a diff report so reviewers can see what a token change actually costs
+- Ships as a single binary; see the #link("https://github.com/mireilleokafor/tokenwright#install")[installation notes]
+
+=== /sections/publications/items[0]/summary ===
+Argues that a token set is an #text(weight: "bold")[API] with the same compatibility obligations as any other, and proposes a deprecation policy for teams that rename things too freely.
+
+=== /sections/publications/items[1]/summary ===
+A write-up of the Halo audit, including the failures that automated tooling missed.
+
+- Target size was the most common new 2.2 failure
+- Focus appearance failures clustered in #emph[composed] components rather than primitives
+
+=== /sections/references/items[0]/description ===
+#text(weight: "bold")[Dissertation supervisor], University of Manchester
+
+=== /sections/references/items[0]/summary ===
+Contact details supplied on request, alongside a reference from my current engineering director.
+
+=== /sections/skills/items[0]/description ===
+The day-to-day language for #text(weight: "bold")[library code]. Comfortable with generic component APIs and the type-level work that keeps them ergonomic.
+
+=== /sections/skills/items[1]/description ===
+Pipelines from design-tool variables to platform artefacts. Documented in the #link("https://halo.lumenhealth.io/tokens")[Halo token spec].
+
+=== /sections/skills/items[2]/description ===
+WCAG 2.2 AA in practice rather than in theory:
+
+- Keyboard and focus-order review
+- Screen reader passes with NVDA and VoiceOver
+- Automated axe checks wired into CI
+
+=== /sections/skills/items[3]/description ===
+Reached for build tooling: a token compiler and a #emph[considerably] faster SVG icon pipeline.
+
+=== /sections/volunteer/items[0]/summary ===
+Coach at fortnightly workshops for people underrepresented in tech.
+
+Usually paired with a student for a full term, working through HTML and CSS before moving on to their first JavaScript project.
+
