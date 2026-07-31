@@ -7,8 +7,8 @@ use rstest::rstest;
 use rustume_parser::{JsonResumeParser, Parser, ReactiveResumeV3Parser};
 use rustume_render::{get_page_size, get_template_theme, Renderer, TypstRenderer, TEMPLATES};
 use rustume_schema::{
-    Basics, CustomItem, Education, Experience, LevelDisplay, PageFormat, Picture, PictureEffects,
-    Profile, ResumeData, Section, Skill,
+    Basics, ContentFormat, CustomItem, Education, Experience, LevelDisplay, PageFormat, Picture,
+    PictureEffects, Profile, ResumeData, Section, Skill,
 };
 use std::collections::HashMap;
 use std::fs;
@@ -331,6 +331,11 @@ fn test_render_pdf_from_v3_doc_editor_resume() {
     assert_eq!(
         resume.metadata.template, "ditto",
         "fixture should exercise a sidebar template"
+    );
+    assert_eq!(
+        resume.metadata.content_format(),
+        ContentFormat::Markdown,
+        "fixture should declare markdown so the render takes the markdown path"
     );
 
     let renderer = TypstRenderer::new();

@@ -12,10 +12,10 @@
 
 use crate::traits::{ParseError, Parser};
 use rustume_schema::{
-    validate_hex_color_with_optional_alpha, Award, Basics, Certification, CustomCss, CustomField,
-    CustomItem, Education, Experience, FontConfig, Interest, Language, LevelDisplay, Metadata,
-    PageConfig, PageFormat, PageOptions, Profile, Project, Publication, Reference, ResumeData,
-    Section, Skill, SummarySection, Theme, Typography, Url, Volunteer,
+    validate_hex_color_with_optional_alpha, Award, Basics, Certification, ContentFormat, CustomCss,
+    CustomField, CustomItem, Education, Experience, FontConfig, Interest, Language, LevelDisplay,
+    Metadata, PageConfig, PageFormat, PageOptions, Profile, Project, Publication, Reference,
+    ResumeData, Section, Skill, SummarySection, Theme, Typography, Url, Volunteer,
 };
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -412,6 +412,9 @@ pub struct V3Metadata {
     pub css: Option<V3Css>,
     pub locale: Option<String>,
     pub date: Option<V3DateConfig>,
+    /// Rustume extension: declares the rich-text format. Absent in genuine
+    /// Reactive Resume exports, whose rich text is always TipTap HTML.
+    pub content_format: Option<ContentFormat>,
 }
 
 /// V3 Theme
@@ -1116,6 +1119,9 @@ fn convert_metadata(v3: &V3Metadata) -> Metadata {
         locked: false,
         tags: Vec::new(),
         folder: None,
+        // Absent in Reactive Resume exports, which are always HTML; carried
+        // through when a Rustume-authored document declares it.
+        content_format: v3.content_format,
     }
 }
 
