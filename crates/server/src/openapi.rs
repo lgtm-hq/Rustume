@@ -13,8 +13,8 @@ use crate::db::{
     UpdateSharingRequest,
 };
 use crate::dto::{
-    ParseFormat, ParseRequest, RenderPdfRequest, RenderPreviewRequest, TemplateInfo, ThemeInfo,
-    ValidationResponse,
+    LayoutInfo, ParseFormat, ParseRequest, RenderPdfRequest, RenderPreviewRequest, TemplateInfo,
+    ThemeInfo, ValidationResponse,
 };
 use crate::error::ApiError;
 use crate::routes::version::VersionResponse;
@@ -79,6 +79,7 @@ impl Modify for CookieAuthAddon {
             RenderPreviewRequest,
             TemplateInfo,
             ThemeInfo,
+            LayoutInfo,
             ValidationResponse,
             AuthUserResponse,
             AuthMeUnauthorizedResponse,
