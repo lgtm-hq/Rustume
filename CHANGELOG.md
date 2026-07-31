@@ -22,6 +22,12 @@ and this project adheres to
 
 ### Security
 
+## [0.55.0] - 2026-07-31
+
+### Added
+
+- **render**: add a markdown-to-typst adapter via comrak (#742) (db6e145)
+
 ## [0.54.0] - 2026-07-31
 
 ### Added
@@ -825,7 +831,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.54.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.55.0...HEAD
+[0.55.0]: https://github.com/lgtm-hq/Rustume/compare/v0.54.0...v0.55.0
 [0.54.0]: https://github.com/lgtm-hq/Rustume/compare/v0.53.0...v0.54.0
 [0.53.0]: https://github.com/lgtm-hq/Rustume/compare/v0.52.8...v0.53.0
 [0.52.8]: https://github.com/lgtm-hq/Rustume/compare/v0.52.7...v0.52.8
