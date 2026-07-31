@@ -418,9 +418,11 @@ export function nextId(prefix: string, existing: Iterable<string>): string {
 }
 
 /**
- * A blank item shaped for `sectionId`, or `null` for sections that hold rich
- * text rather than items (`summary`, `coverLetter`) and for ids that address no
- * item-bearing section.
+ * A blank item shaped for `sectionId`, or `null` for the fixed sections that
+ * hold rich text rather than items (`summary`, `coverLetter`).
+ *
+ * Any id that is not a fixed section is treated as a custom section id — same
+ * rule as {@link isCustomId} — and yields a blank {@link CustomItem}.
  *
  * The item's `id` is left empty on purpose: id generation is not pure, so the
  * caller assigns one (via {@link nextId} or `generateId`) before storing it.

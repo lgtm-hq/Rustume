@@ -228,6 +228,15 @@ const PROPORTIONAL_TEMPLATE: TemplateLayout = {
   sidebarWidth: null,
 };
 
+/** Mirrors `leafish`: a full-width header band above equal (1fr, 1fr) columns. */
+const HEADER_SPLIT_TEMPLATE: TemplateLayout = {
+  ...SIDEBAR_TEMPLATE,
+  layoutMode: "header-split",
+  headerStyle: "banner",
+  contactIn: "banner",
+  sidebarWidth: null,
+};
+
 describe("FIXED_SECTION_IDS / SECTION_LABELS", () => {
   it("covers every fixed section exactly once", () => {
     expect(new Set(FIXED_SECTION_IDS).size).toBe(FIXED_SECTION_IDS.length);
@@ -379,6 +388,17 @@ describe("layoutColumns", () => {
 
   it("gives a sidebar template its second column even on a one-column page", () => {
     expect(layoutColumns([["summary"]], SIDEBAR_TEMPLATE)).toHaveLength(2);
+  });
+
+  it("splits a header-split template evenly, ignoring any sidebar width", () => {
+    const columns = layoutColumns([["summary"], ["profiles"]], {
+      ...HEADER_SPLIT_TEMPLATE,
+      sidebarWidth: 180,
+    });
+
+    expect(columns).toHaveLength(2);
+    expect(columns.map((column) => column.width)).toEqual([0.5, 0.5]);
+    expect(columns.map((column) => column.order)).toEqual([0, 1]);
   });
 
   it("shares width evenly when a page carries more columns than the mode implies", () => {
@@ -704,6 +724,10 @@ describe("emptyItemFor", () => {
       keywords: [],
       url: { label: "", href: "" },
     });
+  });
+
+  it("shapes an unknown id as a custom item", () => {
+    expect(emptyItemFor("not-a-section")).toEqual(emptyItemFor("speaking"));
   });
 
   it("returns null for sections that hold rich text rather than items", () => {
