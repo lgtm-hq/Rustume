@@ -733,6 +733,70 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_templates_expose_layout_metadata() {
+        let app = create_router();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/templates")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let templates: Vec<serde_json::Value> = serde_json::from_slice(&body).unwrap();
+
+        assert_eq!(templates.len(), 12);
+        for template in &templates {
+            let id = template["id"].as_str().unwrap();
+            let layout = &template["layout"];
+            assert!(layout.is_object(), "{id} is missing layout");
+            assert!(
+                layout["layoutMode"].as_str().is_some_and(|m| !m.is_empty()),
+                "{id} is missing layoutMode"
+            );
+            assert!(
+                layout["headerStyle"]
+                    .as_str()
+                    .is_some_and(|h| !h.is_empty()),
+                "{id} is missing headerStyle"
+            );
+            assert!(
+                layout["contactIn"].as_str().is_some_and(|c| !c.is_empty()),
+                "{id} is missing contactIn"
+            );
+            assert!(layout.get("sidebarWidth").is_some(), "{id} sidebarWidth");
+
+            let columns = layout["defaultColumns"].as_array().unwrap();
+            assert_eq!(columns.len(), 2, "{id} should expose two columns");
+            assert!(
+                !columns[0].as_array().unwrap().is_empty(),
+                "{id} has an empty main column"
+            );
+        }
+
+        let pikachu = templates.iter().find(|t| t["id"] == "pikachu").unwrap();
+        assert_eq!(pikachu["layout"]["layoutMode"], "sidebar-left");
+        assert_eq!(pikachu["layout"]["contactIn"], "sidebar");
+        assert_eq!(pikachu["layout"]["sidebarWidth"], 180);
+
+        let onyx = templates.iter().find(|t| t["id"] == "onyx").unwrap();
+        assert_eq!(onyx["layout"]["layoutMode"], "single");
+        assert!(onyx["layout"]["defaultColumns"][1]
+            .as_array()
+            .unwrap()
+            .is_empty());
+        assert!(onyx["layout"]["sidebarWidth"].is_null());
+    }
+
+    #[tokio::test]
     async fn test_health_returns_json_compatible() {
         let app = create_router();
 

@@ -79,6 +79,32 @@ pub struct TemplateInfo {
     pub name: String,
     /// Theme colors for this template
     pub theme: ThemeInfo,
+    /// Structural layout of this template
+    pub layout: LayoutInfo,
+}
+
+/// Structural layout of a template, as rendered by its Typst source
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LayoutInfo {
+    /// Column arrangement: `single`, `sidebar-left`, `sidebar-right` or `header-split`
+    #[schema(example = "sidebar-left")]
+    pub layout_mode: String,
+    /// Page-0 section ids per column as `[main, sidebar]`, used when the resume
+    /// carries no explicit layout. Single-column templates leave the second
+    /// entry empty.
+    #[schema(example = json!([["summary", "experience"], ["profiles", "skills"]]))]
+    pub default_columns: Vec<Vec<String>>,
+    /// Header presentation: `left`, `center`, `banner`, `boxed` or `sidebar`
+    #[schema(example = "center")]
+    pub header_style: String,
+    /// Where contact details are printed: `sidebar`, `header` or `banner`
+    #[schema(example = "header")]
+    pub contact_in: String,
+    /// Default sidebar width in typographic points, or `null` when the split is
+    /// proportional or the template has no sidebar
+    #[schema(example = 180)]
+    pub sidebar_width: Option<u32>,
 }
 
 /// Theme colors for a template

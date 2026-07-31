@@ -5,13 +5,13 @@ use axum::{
     Json,
 };
 use lru::LruCache;
-use rustume_render::{get_template_theme, Renderer, TEMPLATES};
+use rustume_render::{get_template_layout, get_template_theme, Renderer, TEMPLATES};
 use rustume_schema::ResumeData;
 use std::num::NonZeroUsize;
 use std::sync::OnceLock;
 use tokio::sync::Mutex as AsyncMutex;
 
-use crate::dto::{TemplateInfo, ThemeInfo};
+use crate::dto::{LayoutInfo, TemplateInfo, ThemeInfo};
 use crate::error::ApiError;
 use crate::state::AppState;
 
@@ -102,7 +102,8 @@ fn create_sample_resume() -> ResumeData {
 
 /// List available templates
 ///
-/// Returns a list of all available resume templates with their theme colors.
+/// Returns a list of all available resume templates with their theme colors
+/// and layout structure.
 #[utoipa::path(
     get,
     path = "/api/templates",
@@ -116,6 +117,7 @@ pub async fn list_templates() -> Json<Vec<TemplateInfo>> {
         .iter()
         .map(|name| {
             let theme = get_template_theme(name);
+            let layout = get_template_layout(name);
             // Capitalize first letter for display name
             let display_name = {
                 let mut chars = name.chars();
@@ -131,6 +133,13 @@ pub async fn list_templates() -> Json<Vec<TemplateInfo>> {
                     background: theme.background,
                     text: theme.text,
                     primary: theme.primary,
+                },
+                layout: LayoutInfo {
+                    layout_mode: layout.layout_mode.as_str().to_string(),
+                    default_columns: layout.default_columns.into(),
+                    header_style: layout.header_style.as_str().to_string(),
+                    contact_in: layout.contact_in.as_str().to_string(),
+                    sidebar_width: layout.sidebar_width,
                 },
             }
         })

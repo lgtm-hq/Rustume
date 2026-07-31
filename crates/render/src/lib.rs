@@ -29,5 +29,6 @@ mod typst_engine;
 
 pub use traits::{RenderError, Renderer};
 pub use typst_engine::{
-    get_page_size, get_template_theme, TemplateTheme, TypstRenderer, TEMPLATES,
+    get_page_size, get_template_layout, get_template_theme, ContactIn, HeaderStyle, LayoutMode,
+    TemplateLayout, TemplateTheme, TypstRenderer, TEMPLATES,
 };
