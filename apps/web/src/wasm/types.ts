@@ -272,6 +272,9 @@ export type LevelDisplay =
   | "progress-bar"
   | "text";
 
+/** Authoring format of a resume's rich-text fields. */
+export type ContentFormat = "html" | "markdown";
+
 export interface Metadata {
   template: string;
   layout: string[][][];
@@ -291,6 +294,12 @@ export interface Metadata {
    * Mutually exclusive, unlike `tags`; absent means unfiled.
    */
   folder?: string;
+  /**
+   * Format of this resume's rich-text fields. Absent means `"html"`: every
+   * resume written before this field existed came from the HTML form builder,
+   * and the renderer never guesses the format from the content.
+   */
+  contentFormat?: ContentFormat;
 }
 
 export interface ResumeData {

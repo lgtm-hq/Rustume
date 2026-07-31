@@ -17,6 +17,24 @@ pub enum LevelDisplay {
     Text,
 }
 
+/// Format the resume's rich-text fields are authored in.
+///
+/// Rich text (summaries, descriptions, cover letter) is stored as a string and
+/// converted to Typst markup at render time. The two authoring surfaces store
+/// different formats: the form builder writes TipTap HTML, the document editor
+/// writes markdown. The renderer cannot tell them apart by inspection — plain
+/// prose such as `1988. A good year` is a valid ordered list in markdown — so
+/// the format is declared, never guessed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, ToSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum ContentFormat {
+    /// TipTap HTML, sanitized before conversion. The historical format.
+    #[default]
+    Html,
+    /// CommonMark, as written by the document editor.
+    Markdown,
+}
+
 /// Resume metadata.
 #[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -65,6 +83,25 @@ pub struct Metadata {
     /// have to special-case — no migration is needed for existing resumes.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub folder: Option<String>,
+
+    /// Format of this resume's rich-text fields.
+    ///
+    /// Omitted when unset, and an absent marker means [`ContentFormat::Html`] —
+    /// every resume written before this field existed came from the HTML form
+    /// builder, so the default keeps them rendering exactly as before and no
+    /// migration is needed. Only a resume that explicitly declares `markdown`
+    /// takes the markdown path.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content_format: Option<ContentFormat>,
+}
+
+impl Metadata {
+    /// Format the rich-text fields are authored in, resolving an absent marker
+    /// to the historical [`ContentFormat::Html`].
+    #[must_use]
+    pub fn content_format(&self) -> ContentFormat {
+        self.content_format.unwrap_or_default()
+    }
 }
 
 impl Default for Metadata {
@@ -81,6 +118,7 @@ impl Default for Metadata {
             locked: false,
             tags: Vec::new(),
             folder: None,
+            content_format: None,
         }
     }
 }
@@ -390,6 +428,47 @@ mod tests {
     fn metadata_omits_unset_folder_when_serialized() {
         let json = serde_json::to_value(Metadata::default()).unwrap();
         assert!(json.get("folder").is_none());
+    }
+
+    #[test]
+    fn metadata_treats_absent_content_format_as_html() {
+        // Every resume written before this field existed holds TipTap HTML.
+        // Defaulting to markdown would silently reinterpret it — a field
+        // starting "1988. A good year" would render as a list with the year
+        // dropped — so an absent marker must resolve to HTML.
+        let metadata: Metadata = serde_json::from_value(json!({})).unwrap();
+        assert_eq!(metadata.content_format, None);
+        assert_eq!(metadata.content_format(), ContentFormat::Html);
+    }
+
+    #[test]
+    fn metadata_omits_unset_content_format_when_serialized() {
+        let json = serde_json::to_value(Metadata::default()).unwrap();
+        assert!(json.get("contentFormat").is_none());
+    }
+
+    #[test]
+    fn metadata_round_trips_content_format() {
+        let cases = [
+            ("html", ContentFormat::Html),
+            ("markdown", ContentFormat::Markdown),
+        ];
+
+        for (wire, expected) in cases {
+            let metadata: Metadata =
+                serde_json::from_value(json!({ "contentFormat": wire })).unwrap();
+            assert_eq!(metadata.content_format, Some(expected));
+            assert_eq!(metadata.content_format(), expected);
+
+            let json = serde_json::to_value(&metadata).unwrap();
+            assert_eq!(json["contentFormat"], json!(wire));
+        }
+    }
+
+    #[test]
+    fn metadata_rejects_unknown_content_format() {
+        let parsed = serde_json::from_value::<Metadata>(json!({ "contentFormat": "typst" }));
+        assert!(parsed.is_err());
     }
 
     #[test]
