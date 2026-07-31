@@ -22,6 +22,23 @@ and this project adheres to
 
 ### Security
 
+## [0.53.0] - 2026-07-31
+
+### Added
+
+- **server**: expose template layout metadata in GET /api/templates (#737) (e5875de)
+
+### Changed
+
+- **deps**: update lintro to 0.97.0 (minor) (#739) (5171ccf)
+- **test**: add a document-editor fixture to the v3 test corpus (#736) (8631fd6)
+- **deps**: update dependency jsdom to 30.0.0 (major) (#719) (41926d0)
+- **deps**: update lintro to 0.96.0 (minor) (#720) (474b8d7)
+- **deps**: update dependency oxlint to 1.76.0 (minor) (#716) (8ede1a6)
+- **deps**: update dependency @playwright/test to 1.62.0 (minor) (#658) (ae0384e)
+- **deps**: update sentry-rust monorepo to 0.49.0 (minor) (#705) (230b73a)
+- **deps**: update renovatebot/github-action action to v46.2.0 (minor) (#706) (8f11daf)
+
 ## [0.52.8] - 2026-07-30
 
 ### Changed
@@ -798,7 +815,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.52.8...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.53.0...HEAD
+[0.53.0]: https://github.com/lgtm-hq/Rustume/compare/v0.52.8...v0.53.0
 [0.52.8]: https://github.com/lgtm-hq/Rustume/compare/v0.52.7...v0.52.8
 [0.52.7]: https://github.com/lgtm-hq/Rustume/compare/v0.52.6...v0.52.7
 [0.52.6]: https://github.com/lgtm-hq/Rustume/compare/v0.52.5...v0.52.6
