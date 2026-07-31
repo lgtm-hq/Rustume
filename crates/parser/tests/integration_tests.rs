@@ -386,6 +386,8 @@ mod linkedin {
 
 mod reactive_resume_v3 {
     use super::*;
+    use ::validator::Validate;
+    use rustume_schema::ResumeData;
 
     #[test]
     fn test_parse_complete_v3_resume() {
@@ -590,6 +592,108 @@ mod reactive_resume_v3 {
 
         // Verify metadata
         assert_eq!(resume.metadata.template, "gengar");
+    }
+
+    /// The document-editor fixture is the shared corpus for the markdown
+    /// adapter, the layout model, and the editor e2e path. This test pins the
+    /// properties those consumers rely on: markdown-bearing rich text, two
+    /// populated custom sections, and a two-page layout.
+    #[test]
+    fn test_parse_doc_editor_v3_resume() {
+        let fixture_path = fixtures_path().join("v3").join("doc-editor.json");
+        let data = fs::read(&fixture_path).expect("Failed to read doc-editor.json fixture");
+
+        let parser = ReactiveResumeV3Parser;
+        let resume = parser
+            .parse(&data)
+            .expect("Failed to parse doc-editor.json fixture");
+
+        assert!(
+            resume.validate().is_ok(),
+            "doc-editor.json should produce a schema-valid resume"
+        );
+
+        assert_eq!(resume.basics.name, "Mireille Okafor");
+        assert_eq!(resume.metadata.template, "ditto");
+
+        // Rich text carries markdown, not plain prose.
+        let summary = &resume.sections.summary.content;
+        assert!(summary.contains("**eleven years**"), "bold in summary");
+        assert!(summary.contains("*Halo*"), "italic in summary");
+        assert!(
+            summary.contains("[okafor.design/notes](https://okafor.design/notes)"),
+            "link in summary"
+        );
+        assert!(summary.contains("\n\n"), "paragraph break in summary");
+
+        let lead_role = &resume.sections.experience.items[0].summary;
+        assert!(lead_role.contains("\n- Rebuilt"), "unordered list");
+        assert!(lead_role.contains("\n  - Shipped"), "nested list item");
+        assert!(lead_role.contains("  \n"), "hard line break");
+
+        assert!(
+            resume.sections.experience.items[1]
+                .summary
+                .contains("\n1. "),
+            "ordered list"
+        );
+
+        // Two custom sections, each with its own placement and visibility.
+        assert_eq!(resume.sections.custom.len(), 2);
+
+        let speaking = resume
+            .sections
+            .custom
+            .get("speaking")
+            .expect("speaking custom section");
+        assert_eq!(speaking.name, "Talks & Workshops");
+        assert_eq!(speaking.columns, 1);
+        assert!(speaking.visible);
+        assert_eq!(speaking.items.len(), 3);
+        assert_eq!(speaking.items[0].name, "Design Tokens Beyond Colour");
+        assert_eq!(speaking.items[0].description, "Clarity Conference");
+
+        let advisory = resume
+            .sections
+            .custom
+            .get("advisory")
+            .expect("advisory custom section");
+        assert_eq!(advisory.columns, 2);
+        assert!(!advisory.visible);
+        assert_eq!(advisory.items.len(), 2);
+
+        // Two pages with unbalanced columns, custom keys in both sidebars.
+        let layout = &resume.metadata.layout;
+        assert_eq!(layout.len(), 2, "layout should span two pages");
+        assert_ne!(
+            layout[0][0].len(),
+            layout[0][1].len(),
+            "page one columns should be unbalanced"
+        );
+        assert!(layout[0][1].contains(&"speaking".to_string()));
+        assert!(layout[1][1].contains(&"advisory".to_string()));
+    }
+
+    /// The fixture must survive a serialise/parse cycle unchanged, since the
+    /// editor writes it back out after every edit.
+    #[test]
+    fn test_doc_editor_v3_resume_round_trips_losslessly() {
+        let fixture_path = fixtures_path().join("v3").join("doc-editor.json");
+        let data = fs::read(&fixture_path).expect("Failed to read doc-editor.json fixture");
+
+        let parser = ReactiveResumeV3Parser;
+        let resume = parser
+            .parse(&data)
+            .expect("Failed to parse doc-editor.json fixture");
+
+        let json = resume.to_json().expect("Failed to serialise resume");
+        let reparsed = ResumeData::from_json(&json).expect("Failed to re-parse serialised resume");
+
+        assert_eq!(
+            serde_json::to_value(&resume).expect("Failed to serialise original"),
+            serde_json::to_value(&reparsed).expect("Failed to serialise round-tripped"),
+            "doc-editor.json should round-trip without loss"
+        );
     }
 
     #[test]
