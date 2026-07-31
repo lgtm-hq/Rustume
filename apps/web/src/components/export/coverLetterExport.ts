@@ -1,5 +1,5 @@
 import type { ResumeData } from "../../wasm/types";
-import { isHtmlEmpty } from "../../stores/resume";
+import { isHtmlEmpty } from "../../lib/resumeSections";
 
 export type PdfExportScope = "resume" | "coverLetter";
 

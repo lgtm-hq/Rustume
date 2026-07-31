@@ -26,6 +26,7 @@ import {
   saveCloudResume,
   showResumeVersionConflictToast,
 } from "./cloudStorage";
+import { FIXED_LAYOUT_SECTION_KEYS, isHtmlEmpty } from "../lib/resumeSections";
 import { setUndoRecorder, recordUndo } from "./editorUndo";
 import { saveSnapshot } from "./versionHistory";
 import {
@@ -92,23 +93,6 @@ export function isNotFoundError(error: unknown): boolean {
   return false;
 }
 
-export const FIXED_LAYOUT_SECTION_KEYS: (keyof Omit<
-  Sections,
-  "summary" | "custom" | "coverLetter"
->)[] = [
-  "experience",
-  "education",
-  "skills",
-  "projects",
-  "profiles",
-  "awards",
-  "certifications",
-  "publications",
-  "languages",
-  "interests",
-  "volunteer",
-  "references",
-];
 const FIXED_LAYOUT_SECTION_KEY_SET = new Set<string>([
   "summary",
   "coverLetter",
@@ -154,17 +138,6 @@ function materializeCustomLayoutSentinels(layout: string[][][], customIds: strin
   }
 
   return layoutIds;
-}
-
-/** Check if an HTML string is effectively empty (plain empty or TipTap empty editor). */
-export function isHtmlEmpty(html: string): boolean {
-  const trimmed = html.trim();
-  if (trimmed === "") return true;
-  // Normalize common HTML whitespace entities to regular spaces.
-  const normalized = trimmed.replace(/&nbsp;|&#160;|&#xa0;|&ensp;|&#8194;|&emsp;|&#8195;/gi, " ");
-  // Strip all HTML tags and check if any visible text remains.
-  const textContent = normalized.replace(/<[^>]*>/g, "").trim();
-  return textContent === "";
 }
 
 /**

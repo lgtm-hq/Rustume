@@ -1,8 +1,8 @@
 import { createRoot } from "solid-js";
 import { createDefaultResume } from "../../wasm/defaults";
 import type { ResumeData } from "../../wasm/types";
+import { FIXED_LAYOUT_SECTION_KEYS } from "../../lib/resumeSections";
 import {
-  FIXED_LAYOUT_SECTION_KEYS,
   isResumeEmpty,
   useResumeStore,
   ResumeNotFoundError,
