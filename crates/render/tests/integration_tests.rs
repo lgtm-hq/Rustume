@@ -318,6 +318,30 @@ fn test_render_pdf_from_v3_resume() {
     assert!(pdf.starts_with(b"%PDF-"));
 }
 
+/// The document-editor fixture declares a sidebar template, a two-page layout,
+/// and markdown-bearing rich text. Renders must stay clean as those downstream
+/// features land.
+#[test]
+fn test_render_pdf_from_v3_doc_editor_resume() {
+    let fixture_path = fixtures_path().join("v3").join("doc-editor.json");
+    let data = fs::read(&fixture_path).expect("Failed to read fixture");
+
+    let parser = ReactiveResumeV3Parser;
+    let resume = parser.parse(&data).expect("Failed to parse fixture");
+    assert_eq!(
+        resume.metadata.template, "ditto",
+        "fixture should exercise a sidebar template"
+    );
+
+    let renderer = TypstRenderer::new();
+    let result = renderer.render_pdf(&resume);
+
+    assert!(result.is_ok(), "PDF rendering failed: {:?}", result.err());
+
+    let pdf = result.unwrap();
+    assert!(pdf.starts_with(b"%PDF-"));
+}
+
 // ============================================================================
 // Preview Rendering Tests
 // ============================================================================
