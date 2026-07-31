@@ -22,6 +22,16 @@ and this project adheres to
 
 ### Security
 
+## [0.52.8] - 2026-07-30
+
+### Changed
+
+- **deps**: update lintro to 0.95.0 (minor) (#717) (2092170)
+
+### Fixed
+
+- **ci**: stop cancelling in-progress required checks on main pushes (#715) (9c3c9f4)
+
 ## [0.52.7] - 2026-07-30
 
 ### Fixed
@@ -788,7 +798,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.52.7...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.52.8...HEAD
+[0.52.8]: https://github.com/lgtm-hq/Rustume/compare/v0.52.7...v0.52.8
 [0.52.7]: https://github.com/lgtm-hq/Rustume/compare/v0.52.6...v0.52.7
 [0.52.6]: https://github.com/lgtm-hq/Rustume/compare/v0.52.5...v0.52.6
 [0.52.5]: https://github.com/lgtm-hq/Rustume/compare/v0.52.4...v0.52.5

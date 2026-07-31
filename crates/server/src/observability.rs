@@ -16,12 +16,11 @@ pub fn init_sentry() -> Option<sentry::ClientInitGuard> {
         .ok()
         .filter(|value| !value.is_empty())?;
 
+    // `ClientOptions` is `#[non_exhaustive]`, so it must be built via the
+    // chainable setters rather than a struct expression.
     let guard = sentry::init((
         dsn,
-        sentry::ClientOptions {
-            release: sentry::release_name!(),
-            ..Default::default()
-        },
+        sentry::ClientOptions::new().maybe_release(sentry::release_name!()),
     ));
     tracing::info!("Sentry error tracking initialized");
     Some(guard)
