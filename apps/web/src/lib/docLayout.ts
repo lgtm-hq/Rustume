@@ -13,7 +13,7 @@
  * breaks.
  */
 
-import { FIXED_LAYOUT_SECTION_KEYS, isHtmlEmpty } from "../stores/resume";
+import { FIXED_LAYOUT_SECTION_KEYS, isHtmlEmpty } from "./resumeSections";
 import { createEmptyUrl } from "../wasm/types";
 import type {
   Award,
@@ -38,7 +38,7 @@ export type FixedSectionId = "summary" | "coverLetter" | (typeof FIXED_LAYOUT_SE
 /**
  * Canonical fixed-section ids, in layout order.
  *
- * Derived from `FIXED_LAYOUT_SECTION_KEYS` in `stores/resume` — the single
+ * Derived from `FIXED_LAYOUT_SECTION_KEYS` in `lib/resumeSections` — the single
  * source of truth for item-bearing sections — plus the two rich-text sections
  * that carry content rather than items.
  */
@@ -379,8 +379,12 @@ export function findSectionPlacement(
 /**
  * A fresh `metadata.layout` for a template switch.
  *
- * Adopts the template's default columns and re-places any custom section the
- * defaults do not mention, so switching templates never silently drops one.
+ * Adopts the template's default columns and re-places anything the defaults do
+ * not mention — custom sections, and fixed sections such as `coverLetter` that
+ * no template lists — so switching templates never silently drops a section.
+ * Existing pagination is deliberately not preserved: the new template's page-0
+ * arrangement wins, and everything carried over lands on it.
+ *
  * Returns the value to hand to `resumeStore.updateLayout`; nothing is mutated.
  */
 export function layoutForTemplate(
@@ -393,7 +397,13 @@ export function layoutForTemplate(
   const columns = materializeColumns([seed], resume)[0];
 
   const placed = new Set(columns.flat());
-  const missing = customSectionIds(resume).filter((id) => !placed.has(id));
+  const customIds = customSectionIds(resume);
+  const known = new Set<string>([...FIXED_SECTION_IDS, ...customIds]);
+  // Everything the previous layout carried, plus every custom section, minus
+  // whatever the new defaults already place. `coverLetter` is the fixed section
+  // this saves: no template lists it in `defaultColumns`.
+  const carried = new Set<string>([...(resume.metadata?.layout ?? []).flat(2), ...customIds]);
+  const missing = [...carried].filter((id) => known.has(id) && !placed.has(id));
   if (missing.length > 0) {
     if (columns.length === 0) {
       columns.push([...missing]);

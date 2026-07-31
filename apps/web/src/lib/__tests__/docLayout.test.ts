@@ -296,6 +296,31 @@ describe("layoutPages", () => {
     expect(pages[0][0]).toContain("languages");
   });
 
+  it("falls back to the template defaults when the stored layout holds only empty columns", () => {
+    const resume = loadFixture();
+    resume.metadata.layout = [[[], []]];
+
+    const pages = layoutPages(resume, SIDEBAR_TEMPLATE);
+
+    expect(pages).toHaveLength(1);
+    expect(pages[0][0][0]).toBe("summary");
+    expect(pages[0][1][0]).toBe("profiles");
+  });
+
+  it("expands the custom sentinel only once", () => {
+    const resume = loadFixture();
+    resume.metadata.layout = [
+      [
+        ["experience", CUSTOM_SECTION_SENTINEL],
+        [CUSTOM_SECTION_SENTINEL, "skills"],
+      ],
+    ];
+
+    expect(layoutPages(resume, SIDEBAR_TEMPLATE)).toEqual([
+      [["experience", "speaking", "advisory"], ["skills"]],
+    ]);
+  });
+
   it("keeps only the first occurrence of a repeated section id", () => {
     const resume = loadFixture();
     resume.metadata.layout = [[["experience", "skills"], ["experience"]]];
@@ -340,6 +365,13 @@ describe("renderPages", () => {
     expect(renderPages(resume, SIDEBAR_TEMPLATE)).toEqual([[["experience"]]]);
   });
 
+  it("keeps a column emptied by filtering so column indices stay stable", () => {
+    const resume = loadFixture();
+    resume.metadata.layout = [[["experience"], ["advisory"]]];
+
+    expect(renderPages(resume, SIDEBAR_TEMPLATE)).toEqual([[["experience"], []]]);
+  });
+
   it("removes a page left empty by filtering", () => {
     const resume = loadFixture();
     resume.metadata.layout = [[["experience"]], [["references", "advisory"]]];
@@ -371,11 +403,29 @@ describe("layoutColumns", () => {
     expect(columns).toHaveLength(2);
     expect(columns[1].role).toBe("sidebar");
     // 180pt of a nominal A4 content width (595.28pt - 2 * 18pt).
-    expect(columns[1].width).toBeCloseTo(0.3218, 4);
+    expect(columns[1].width).toBeCloseTo(180 / (595.28 - 2 * 18), 10);
     expect(columns[0].width).toBeCloseTo(1 - columns[1].width, 10);
     // A left sidebar paints before the main column.
     expect(columns[0].order).toBe(1);
     expect(columns[1].order).toBe(0);
+  });
+
+  it("clamps a sidebar wider than half the content width", () => {
+    const columns = layoutColumns([["summary"], ["profiles"]], {
+      ...SIDEBAR_TEMPLATE,
+      sidebarWidth: 500,
+    });
+
+    expect(columns[1].width).toBeCloseTo(0.5, 10);
+  });
+
+  it("clamps a sidebar narrower than a tenth of the content width", () => {
+    const columns = layoutColumns([["summary"], ["profiles"]], {
+      ...SIDEBAR_TEMPLATE,
+      sidebarWidth: 10,
+    });
+
+    expect(columns[1].width).toBeCloseTo(0.1, 10);
   });
 
   it("uses the proportional default when the template has no fixed sidebar", () => {
@@ -560,13 +610,25 @@ describe("layoutForTemplate", () => {
     expect(layout[0][0]).toContain("advisory");
   });
 
-  it("does not mutate the resume", () => {
+  it("preserves a placed fixed section the template defaults omit", () => {
+    const resume = loadFixture();
+    // No template lists `coverLetter` in its default columns.
+    resume.metadata.layout = [[["coverLetter", "experience"], []]];
+
+    const layout = layoutForTemplate(resume, SIDEBAR_TEMPLATE);
+
+    expect(layout.flat(2)).toContain("coverLetter");
+  });
+
+  it("does not mutate the resume or the template layout", () => {
     const resume = loadFixture();
     const before = JSON.stringify(resume.metadata.layout);
+    const templateBefore = JSON.stringify(SINGLE_TEMPLATE.defaultColumns);
 
     layoutForTemplate(resume, SINGLE_TEMPLATE);
 
     expect(JSON.stringify(resume.metadata.layout)).toBe(before);
+    expect(JSON.stringify(SINGLE_TEMPLATE.defaultColumns)).toBe(templateBefore);
   });
 });
 
