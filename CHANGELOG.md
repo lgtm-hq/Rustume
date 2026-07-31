@@ -22,6 +22,16 @@ and this project adheres to
 
 ### Security
 
+## [0.54.0] - 2026-07-31
+
+### Added
+
+- **web**: add the document-editor layout model (#743) (82a6161)
+
+### Changed
+
+- **deps**: update lintro to 0.97.1 (patch) (#741) (597d4a5)
+
 ## [0.53.0] - 2026-07-31
 
 ### Added
@@ -815,7 +825,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.53.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.54.0...HEAD
+[0.54.0]: https://github.com/lgtm-hq/Rustume/compare/v0.53.0...v0.54.0
 [0.53.0]: https://github.com/lgtm-hq/Rustume/compare/v0.52.8...v0.53.0
 [0.52.8]: https://github.com/lgtm-hq/Rustume/compare/v0.52.7...v0.52.8
 [0.52.7]: https://github.com/lgtm-hq/Rustume/compare/v0.52.6...v0.52.7

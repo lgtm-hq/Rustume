@@ -133,11 +133,11 @@ dependencies = [
 
 [[package]]
 name = "ar_archive_writer"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4087686b4b0a3427190bae57a1d9a478dbb2d40c5dc1bd6e2b6d797913bdd348"
+checksum = "73cd58deff2140a0a8eae87e417bd01db68a33e148aa93d1e8cd837e55e312b6"
 dependencies = [
- "object",
+ "object 0.39.1",
 ]
 
 [[package]]
@@ -333,7 +333,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "miniz_oxide",
- "object",
+ "object 0.37.3",
  "rustc-demangle",
  "windows-link",
 ]
@@ -598,9 +598,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.6.4"
+version = "4.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d91e0c145792ef73a6ad36d27c75ac09f1832222a3c209689d90f534685ee5b7"
+checksum = "301b56658598e48f3648647ac6fc887be7e7108eddfa4e9b63fcf3ec58c0cadf"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -608,9 +608,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.6.2"
+version = "4.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f09628afdcc538b57f3c6341e9c8e9970f18e4a481690a64974d7023bd33548b"
+checksum = "94a65403d1a1bd28f7dc68eb8506e8874808ee5eecb59298de588e2e1407a078"
 dependencies = [
  "anstream",
  "anstyle",
@@ -3049,6 +3049,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "object"
+version = "0.39.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2e5a6c098c7a3b6547378093f5cc30bc54fd361ce711e05293a5cc589562739b"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4123,7 +4132,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-cli"
-version = "0.53.0"
+version = "0.54.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -4144,7 +4153,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-parser"
-version = "0.53.0"
+version = "0.54.0"
 dependencies = [
  "csv",
  "cuid2",
@@ -4160,7 +4169,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-render"
-version = "0.53.0"
+version = "0.54.0"
 dependencies = [
  "base64 0.23.0",
  "chrono",
@@ -4183,7 +4192,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-schema"
-version = "0.53.0"
+version = "0.54.0"
 dependencies = [
  "cuid2",
  "once_cell",
@@ -4200,7 +4209,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-schema-macros"
-version = "0.53.0"
+version = "0.54.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4209,7 +4218,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-server"
-version = "0.53.0"
+version = "0.54.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -4255,7 +4264,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-storage"
-version = "0.53.0"
+version = "0.54.0"
 dependencies = [
  "async-trait",
  "js-sys",
@@ -4272,7 +4281,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-utils"
-version = "0.53.0"
+version = "0.54.0"
 dependencies = [
  "ammonia",
  "chrono",
@@ -4286,7 +4295,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-wasm"
-version = "0.53.0"
+version = "0.54.0"
 dependencies = [
  "js-sys",
  "rustume-parser",
