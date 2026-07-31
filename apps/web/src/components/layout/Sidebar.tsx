@@ -131,7 +131,7 @@ export function Sidebar(props: SidebarProps) {
                     </Show>
                   }
                 >
-                  <div class="mb-1 px-2 text-[10px] font-mono uppercase tracking-wider text-stone/70">
+                  <div class="mb-1 px-2 text-[10px] font-mono uppercase tracking-wider text-stone">
                     {item.group}
                   </div>
                 </Show>
@@ -157,7 +157,7 @@ export function Sidebar(props: SidebarProps) {
                       {renderIcon(item.icon)}
                     </Tooltip.Trigger>
                     <Tooltip.Portal>
-                      <Tooltip.Content class="z-50 px-2.5 py-1.5 bg-ink text-paper text-xs font-medium rounded-lg shadow-lg animate-fade-in">
+                      <Tooltip.Content class="z-50 px-2.5 py-1.5 bg-ink text-paper text-xs font-medium rounded-lg shadow-lg">
                         {item.label}
                         <Tooltip.Arrow />
                       </Tooltip.Content>
@@ -173,7 +173,12 @@ export function Sidebar(props: SidebarProps) {
                     class={`w-full px-2.5 py-2 flex items-center gap-3 rounded-lg transition-colors
                       ${
                         isItemActive(item)
-                          ? "text-accent bg-accent/10"
+                          ? // Ink label over the accent tint: `text-accent` here
+                            // measured 4.12:1, since the tint drags the
+                            // background toward the label's own color. The
+                            // accent cue moves to an inset bar, matching the
+                            // selected-item treatment in HomeSidebar.
+                            "text-ink bg-accent/10 shadow-[inset_2px_0_0_var(--color-accent)]"
                           : "text-stone hover:text-ink hover:bg-paper"
                       }`}
                     onClick={() => props.onSelect(item.id)}
@@ -192,7 +197,7 @@ export function Sidebar(props: SidebarProps) {
                             class={`w-full px-2 py-1.5 flex items-center gap-2 rounded-lg transition-colors
                               ${
                                 props.activeId === child.id
-                                  ? "text-accent bg-accent/10"
+                                  ? "text-ink bg-accent/10 shadow-[inset_2px_0_0_var(--color-accent)]"
                                   : "text-stone hover:text-ink hover:bg-paper"
                               }`}
                             onClick={() => props.onSelect(child.id)}

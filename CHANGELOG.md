@@ -22,6 +22,93 @@ and this project adheres to
 
 ### Security
 
+## [0.52.8] - 2026-07-30
+
+### Changed
+
+- **deps**: update lintro to 0.95.0 (minor) (#717) (2092170)
+
+### Fixed
+
+- **ci**: stop cancelling in-progress required checks on main pushes (#715) (9c3c9f4)
+
+## [0.52.7] - 2026-07-30
+
+### Fixed
+
+- **deps**: update dependency @lgtm-hq/turbo-themes to 0.41.1 (minor) (#709) (c189722)
+
+## [0.52.6] - 2026-07-30
+
+### Changed
+
+- **deps**: update dependency @astrojs/check to 0.9.10 (patch) (#710) (81db5db)
+- **deps**: update lintro to 0.94.6 (patch) (#708) (ed83d1f)
+- **deps**: update lintro to 0.94.4 (patch) (#707) (c174ba0)
+- **deps**: update lintro to 0.94.3 (patch) (#704) (6d0f50b)
+
+### Fixed
+
+- **ci**: recover cargo from CARGO_HOME when setup-rust leaves it off PATH (#703)
+  (72d215a)
+
+## [0.52.5] - 2026-07-28
+
+### Fixed
+
+- **site**: underline docs prose links and unsuppress link-in-text-block (#688)
+  (ea850e3)
+- **site**: stop resource tags, tables, and inline code overflowing at 320px (#686)
+  (6b0777e)
+
+## [0.52.4] - 2026-07-28
+
+### Fixed
+
+- **site**: contain focus and announce the result count in the docs search dialog (#687)
+  (a3d00ec)
+
+## [0.52.3] - 2026-07-28
+
+### Fixed
+
+- **site**: restore focus and fix listbox semantics in the theme picker (#685) (bc4ffce)
+
+## [0.52.2] - 2026-07-28
+
+### Fixed
+
+- **site**: relevel footer headings from h4 to h2 (#681) (777f238)
+
+## [0.52.1] - 2026-07-28
+
+### Changed
+
+- **a11y**: record the manual A11Y Project checklist pass (#678) (fc12edb)
+- **deps**: update lintro to 0.94.1 (patch) (#690) (2156a60)
+- **templates**: guard contrast matrix coverage of every colour binding (#680) (bf2de44)
+- **deps**: update lintro to 0.94.0 (minor) (#679) (23a9a9e)
+
+### Fixed
+
+- **typst**: apply the themed page background in glalie (#683) (6054dc1)
+
+## [0.52.0] - 2026-07-28
+
+### Added
+
+- **web**: raise axe coverage to WCAG 2.2 AA and enable target-size (#657) (bb60183)
+
+## [0.51.0] - 2026-07-27
+
+### Added
+
+- **web**: honour prefers-reduced-motion across app and site (#655) (e53f0f5)
+
+### Changed
+
+- **site**: run the site accessibility suite in CI (#656) (d9715d5)
+
 ## [0.50.2] - 2026-07-27
 
 ### Changed
@@ -711,7 +798,17 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.50.2...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.52.8...HEAD
+[0.52.8]: https://github.com/lgtm-hq/Rustume/compare/v0.52.7...v0.52.8
+[0.52.7]: https://github.com/lgtm-hq/Rustume/compare/v0.52.6...v0.52.7
+[0.52.6]: https://github.com/lgtm-hq/Rustume/compare/v0.52.5...v0.52.6
+[0.52.5]: https://github.com/lgtm-hq/Rustume/compare/v0.52.4...v0.52.5
+[0.52.4]: https://github.com/lgtm-hq/Rustume/compare/v0.52.3...v0.52.4
+[0.52.3]: https://github.com/lgtm-hq/Rustume/compare/v0.52.2...v0.52.3
+[0.52.2]: https://github.com/lgtm-hq/Rustume/compare/v0.52.1...v0.52.2
+[0.52.1]: https://github.com/lgtm-hq/Rustume/compare/v0.52.0...v0.52.1
+[0.52.0]: https://github.com/lgtm-hq/Rustume/compare/v0.51.0...v0.52.0
+[0.51.0]: https://github.com/lgtm-hq/Rustume/compare/v0.50.2...v0.51.0
 [0.50.2]: https://github.com/lgtm-hq/Rustume/compare/v0.50.1...v0.50.2
 [0.50.1]: https://github.com/lgtm-hq/Rustume/compare/v0.50.0...v0.50.1
 [0.50.0]: https://github.com/lgtm-hq/Rustume/compare/v0.49.1...v0.50.0

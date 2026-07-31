@@ -137,7 +137,17 @@ const ToastContent: Component<ToastContentProps> = (props) => {
 export const ToastRegion: Component = () => {
   return (
     <ToastPrimitive.Region swipeDirection="right" limit={5}>
-      <ToastPrimitive.List class="fixed bottom-4 right-4 flex flex-col gap-2 z-50 outline-none" />
+      {/*
+        Kobalte renders the stack as an `<ol>` whose children are
+        `<li role="status">`. A status is not a listitem, so the list
+        semantics are invalid (axe `list`). The ordering is a layout detail,
+        not information a screen reader needs — the labelled region plus the
+        per-toast live status carry the meaning — so drop the list role.
+      */}
+      <ToastPrimitive.List
+        role="none"
+        class="fixed bottom-4 right-4 flex flex-col gap-2 z-50 outline-none"
+      />
     </ToastPrimitive.Region>
   );
 };

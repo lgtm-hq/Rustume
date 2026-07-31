@@ -34,6 +34,18 @@
   --shadow-glow-sm: 0 0 0 3px color-mix(in srgb, var(--rust-forge) 30%, transparent);
 
   /*
+   * Prose link underline metrics. A hairline rule set clear of the descenders
+   * reads as a document underline rather than as a control; hover and focus
+   * thicken it so the state change is legible without relying on the colour
+   * shift `a:hover` also applies. BRAND.md §3 records a pending Archivo ->
+   * Source Serif 4 migration for this app — these want a retune against the
+   * final face.
+   */
+  --prose-link-underline: 1px;
+  --prose-link-underline-strong: 2px;
+  --prose-link-underline-offset: 0.18em;
+
+  /*
    * Contrast-improved secondary text: some turbo theme palettes ship a
    * secondary color below the 4.5:1 AA contrast ratio on base/surface
    * backgrounds (e.g. solarized-light #657b83 on #eee8d5 is 3.64:1). Mixing
@@ -71,6 +83,35 @@ html {
   font-size: 16px;
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * Reduced motion.
+ *
+ * The site's motion is all transition-based — dropdown panels, hover lifts,
+ * the theme picker — so zeroing durations sitewide is what honours the
+ * preference, and it holds for any animation a component adds later. The
+ * universal selector also matches `html`, which is what unsets the
+ * `scroll-behavior: smooth` declared above it.
+ *
+ * `animation-iteration-count` is pinned to 1 because a zero-duration
+ * animation that is still `infinite` repaints forever.
+ *
+ * A near-zero duration rather than `none` keeps `transitionend` and
+ * `animationend` listeners firing, so any script that waits on one still
+ * advances.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: -0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 body {
@@ -163,6 +204,15 @@ code:not(pre code) {
   padding: 0.15em 0.4em;
   border-radius: 3px;
   color: var(--turbo-code-inline-fg, var(--rust-brass-light));
+  /* Inline code tokens (file paths, JSON pointers) routinely have no
+     whitespace or hyphens for the browser's default line-breaking to use, so
+     they don't wrap and overflow the document at narrow widths — e.g.
+     `crates/render/src/typst_engine/templates/*.typ` on
+     `/docs/contributing/development/`. Block code (`pre code`) keeps its own
+     `overflow-x: auto` scroll region (see the `pre` rule below) and is
+     intentionally excluded here (SC 1.4.10 Reflow — Rustume#677).
+  */
+  overflow-wrap: anywhere;
 }
 
 pre {
@@ -366,6 +416,34 @@ th {
   --prose-block-gap: 1.5rem;
 }
 
+/*
+ * WCAG 1.4.1 (axe `link-in-text-block`): a link sitting inside a sentence must
+ * be distinguishable from the prose around it by something other than hue.
+ * Docs body copy is the only place that happens — navigation, buttons, cards
+ * and the template gallery are standalone targets, so they stay undecorated
+ * and are deliberately outside this selector. `.smart-link` / `.doc-link` are
+ * pill chips that already carry a border and a background, so they are
+ * excluded even where they appear inline.
+ *
+ * Scoped to text-bearing blocks rather than `.prose a`, so a link wrapping a
+ * figure or a block-level component does not pick up a stray rule.
+ */
+.prose
+  :where(p, li, blockquote, dd, td, th, figcaption)
+  a[href]:not(.smart-link, .doc-link, .btn),
+.docs-description a[href]:not(.smart-link, .doc-link, .btn) {
+  text-decoration: underline;
+  text-decoration-thickness: var(--prose-link-underline);
+  text-underline-offset: var(--prose-link-underline-offset);
+}
+
+.prose
+  :where(p, li, blockquote, dd, td, th, figcaption)
+  a[href]:not(.smart-link, .doc-link, .btn):is(:hover, :focus-visible),
+.docs-description a[href]:not(.smart-link, .doc-link, .btn):is(:hover, :focus-visible) {
+  text-decoration-thickness: var(--prose-link-underline-strong);
+}
+
 .prose h2 {
   margin: var(--prose-section-gap) 0 1rem;
   font-size: 1.5rem;
@@ -424,6 +502,22 @@ th {
 .prose pre,
 .prose table {
   margin: 1.75rem 0 2rem;
+}
+
+.prose table {
+  /* Markdown tables size to their content (auto table layout), which
+     regularly exceeds the viewport at narrow widths — e.g. `/docs/deployment/
+     env-reference/`'s table is 658px wide at a 320px viewport. `pre` already
+     scopes its own overflow (see the base `pre` rule above); tables need the
+     same treatment. `display: block` keeps the table's own child boxes
+     (thead/tbody/tr/td) in table layout while letting the table's outer box
+     become its own horizontal scroll container — the table scrolls on its
+     own axis instead of the document scrolling (SC 1.4.10 Reflow permits a
+     component's own scrolling region; it prohibits the document scrolling).
+  */
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .template-accent-cell {
@@ -719,13 +813,29 @@ th {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  max-width: 100%;
   padding: 0.32rem 0.7rem;
   border: 1px solid var(--turbo-border-default);
   border-radius: var(--radius-full);
   color: var(--a11y-text-secondary);
   font-size: 0.84rem;
+  /* Overrides the base `.smart-link` pill's `white-space: nowrap` (global.css
+     ~L245): that rule assumes a short inline CTA sitting inside a line of
+     prose, where wrapping mid-pill would look broken. A resource tag is a
+     standalone block in a wrapping flex row instead, so keeping the whole
+     label unbreakable is what causes it — an unusually long label (e.g. a doc
+     title used as its "learn more" link) can exceed the viewport at narrow
+     widths with nowhere for the *pill itself* to shrink to. Letting the label
+     wrap keeps the fixed-size icon intact and folds the text instead
+     (SC 1.4.10 Reflow — Rustume#677).
+  */
+  white-space: normal;
   text-decoration: none;
   background: var(--turbo-bg-surface);
+}
+
+.docs-resource-tag .smart-link-label {
+  overflow-wrap: anywhere;
 }
 
 .docs-resource-tag:hover {
@@ -1144,7 +1254,11 @@ th {
   z-index: 2;
   margin-bottom: -40px;
   box-shadow: 0 4px 20px color-mix(in srgb, var(--site-accent, var(--turbo-brand-primary)) 40%, transparent);
-  transition: all 0.3s ease;
+  /* Named properties rather than `all`: `all` also covers `color` and
+     `background`, which a theme swap rewrites under the pointer. */
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
 }
 
 .feature-tile:hover .feature-tile-bubble {
@@ -1172,7 +1286,11 @@ th {
   text-align: center;
   width: 100%;
   flex: 1;
-  transition: all 0.3s ease;
+  /* The tile body carries the feature's heading and copy, so it must not
+     transition `color` on a theme swap — only the box the hover changes. */
+  transition:
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -1558,11 +1676,19 @@ th {
   font-weight: 500;
   line-height: 1.2;
   cursor: pointer;
+  /*
+   * `color` is deliberately absent. Picking a theme rewrites every
+   * `--turbo-*` custom property at once, and a transition on `color` makes
+   * the label crossfade from the old theme's ink to the new one while its
+   * background has already switched — the two are momentarily near-identical
+   * and the control fails AA mid-swap. turbo-themes#774 removed exactly this
+   * transition for exactly this reason. Hover and focus still animate,
+   * because those change the box, not the text colour.
+   */
   transition:
     border-color var(--transition-fast),
     background var(--transition-fast),
-    box-shadow var(--transition-fast),
-    color var(--transition-fast);
+    box-shadow var(--transition-fast);
   box-shadow: 0 1px 3px color-mix(in srgb, var(--turbo-bg-base) 25%, transparent);
 }
 
@@ -1631,6 +1757,15 @@ th {
   display: none;
 }
 
+/* The options are direct children of the group so the listbox owns only
+   groups and the groups own only options; the column layout that used to come
+   from a wrapper div lives here instead. */
+.theme-picker-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
 .theme-picker-group + .theme-picker-group {
   margin-top: 0.55rem;
   padding-top: 0.55rem;
@@ -1638,7 +1773,9 @@ th {
 }
 
 .theme-picker-group-label {
-  margin: 0 0 0.35rem;
+  /* 0.2rem + the group's 0.15rem gap keeps the pre-#675 0.35rem below the
+     heading, with the options now flex children rather than a wrapper. */
+  margin: 0 0 0.2rem;
   padding: 0 0.45rem;
   font-family: var(--font-mono, var(--turbo-font-mono));
   font-size: 0.62rem;
@@ -1647,10 +1784,17 @@ th {
   color: var(--site-accent-light, var(--a11y-text-secondary));
 }
 
-.theme-picker-options {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
+/* Announcement-only: named by the live region, never painted. */
+.theme-picker-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 .theme-picker-option {
@@ -1668,10 +1812,11 @@ th {
   font-size: 0.84rem;
   text-align: left;
   cursor: pointer;
+  /* `color` omitted for the same reason as `.theme-picker-trigger`: this
+     option list is on screen while the theme swap it triggers repaints. */
   transition:
     background var(--transition-fast),
-    border-color var(--transition-fast),
-    color var(--transition-fast);
+    border-color var(--transition-fast);
 }
 
 .theme-picker-option:hover,

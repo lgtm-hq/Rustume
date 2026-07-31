@@ -169,11 +169,17 @@ export function LayoutEditor() {
     announceLive(setAnnouncement, message);
   }
 
-  /** Move a section in the given direction during keyboard drag. */
-  function moveSection(sectionId: string, key: string) {
+  /**
+   * Apply a one-step move of `sectionId` in `key`'s direction to the local
+   * column state, announcing the result. Returns whether anything moved.
+   * Shared by the keyboard drag and the pointer move controls; neither focus
+   * handling nor persistence belongs here, because the two callers differ on
+   * both.
+   */
+  function applyMove(sectionId: string, key: string): boolean {
     const cols = columns();
     const colIdx = findColumnOfSection(sectionId);
-    if (colIdx < 0) return;
+    if (colIdx < 0) return false;
 
     const col = cols[colIdx];
     const sectionIdx = col.indexOf(sectionId);
@@ -203,12 +209,46 @@ export function LayoutEditor() {
       newCols[colIdx + 1].push(sectionId);
       setColumns(newCols);
       announce(`${sectionLabel(sectionId)} moved to column ${colIdx + 2}`);
+    } else {
+      return false;
     }
+
+    return true;
+  }
+
+  /** Move a section in the given direction during keyboard drag. */
+  function moveSection(sectionId: string, key: string) {
+    applyMove(sectionId, key);
 
     // Re-focus the section after DOM updates
     requestAnimationFrame(() => {
       const el = document.querySelector(`[data-section-id="${sectionId}"]`) as HTMLElement | null;
       el?.focus();
+    });
+  }
+
+  /**
+   * Pointer-driven equivalent of a drag, for SC 2.5.7 (Dragging Movements):
+   * every rearrangement possible by dragging is also reachable with a single
+   * click on a move control. Unlike the keyboard drag — which batches into a
+   * pick-up/drop transaction — each click is a complete action, so it persists
+   * immediately.
+   */
+  function handleMoveControl(sectionId: string, key: string) {
+    if (!applyMove(sectionId, key)) return;
+    persistLayout(columns());
+
+    // Keep the pointer/keyboard user on the control they just used. It may
+    // have become disabled at a boundary, in which case fall back to the card.
+    requestAnimationFrame(() => {
+      const control = document.querySelector<HTMLButtonElement>(
+        `[data-layout-move="${sectionId}-${key}"]`,
+      );
+      if (control && !control.disabled) {
+        control.focus();
+        return;
+      }
+      document.querySelector<HTMLElement>(`[data-section-id="${sectionId}"]`)?.focus();
     });
   }
 
@@ -387,7 +427,9 @@ export function LayoutEditor() {
         </div>
         <div>
           <h2 class="font-display text-lg font-semibold text-ink">Layout</h2>
-          <p class="text-sm text-stone">Drag sections between columns to rearrange</p>
+          <p class="text-sm text-stone">
+            Drag sections, or use the move buttons, to rearrange them
+          </p>
         </div>
       </div>
 
@@ -425,6 +467,7 @@ export function LayoutEditor() {
                     totalColumns={columns().length}
                     kbActiveId={kbDragId()}
                     getSectionLabel={sectionLabel}
+                    onMoveSection={handleMoveControl}
                   />
                 )}
               </For>
@@ -445,10 +488,10 @@ export function LayoutEditor() {
       </Show>
 
       {/* Help Text */}
-      <p class="text-xs text-stone/60 leading-relaxed">
-        Drag sections or use the keyboard (Space to pick up, arrow keys to move, Space to drop,
-        Escape to cancel) to reorder them within a column or move them between columns. The layout
-        determines how sections appear in your resume PDF.
+      <p class="text-xs text-stone leading-relaxed">
+        Reorder sections by dragging them, by clicking the move buttons beneath each one, or with
+        the keyboard (Space to pick up, arrow keys to move, Space to drop, Escape to cancel). The
+        layout determines how sections appear in your resume PDF.
       </p>
 
       {/* Screen reader live region for DnD announcements */}

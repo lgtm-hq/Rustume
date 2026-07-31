@@ -303,7 +303,7 @@ export function HomeSidebar(props: { home: HomePageModel; isDrawer: () => boolea
       tabindex={-1}
       data-testid="home-scope-rail"
       class="z-40 flex flex-col border-r border-border bg-surface
-        motion-safe:animate-fade-in
+        motion-safe:animate-slide-up
         max-[899px]:fixed max-[899px]:inset-y-0 max-[899px]:left-0 max-[899px]:w-[17rem]
         max-[899px]:shadow-card
         min-[900px]:sticky min-[900px]:top-14 min-[900px]:self-start

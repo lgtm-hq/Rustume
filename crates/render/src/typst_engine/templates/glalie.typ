@@ -384,6 +384,9 @@
   )
 
   set page(
+    fill: bg-color,
+    // Zero margin is load-bearing: the sidebar is full-bleed and must meet the
+    // page edge, so the themed fill sits behind it rather than framing it.
     margin: 0pt,
   )
 

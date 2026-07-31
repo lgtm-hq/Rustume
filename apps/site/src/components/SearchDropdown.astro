@@ -42,6 +42,20 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
       <kbd class="search-close-kbd">esc</kbd>
     </div>
     <div class="search-results" id="search-results"></div>
+    <!--
+      Mirror of Pagefind's own `.pagefind-ui__message` ("31 results for resume",
+      "No results for zzz"), which is plain text with no live semantics. Only
+      the count is announced: the results drawer repaints on every keystroke,
+      so marking that live would read every result title per character.
+    -->
+    <div
+      class="search-status"
+      id="search-status"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
+    </div>
   </div>
 </div>
 
@@ -54,6 +68,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
     var searchInitialized = false;
     var shortcutMod = searchBar.querySelector('.search-bar-shortcut-mod');
     var triggerBtn = searchBar.querySelector('.search-bar-btn');
+    var statusRegion = document.getElementById('search-status');
 
     if (shortcutMod) {
       var isMac = /Mac|iPhone|iPod|iPad/i.test(navigator.platform) ||
@@ -85,12 +100,114 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
       })();
     }
 
+    // Everything hidden from assistive tech and from the tab order while the
+    // dialog is open, recorded so close() only removes what open() added.
+    var inertedElements = [];
+
+    // Elements that render nothing: inerting them is meaningless noise in the
+    // DOM, and <body> holds several inline scripts on every page. A list rather
+    // than a lookup object, which would report a match for inherited keys.
+    var NON_RENDERED = ['SCRIPT', 'STYLE', 'LINK', 'TEMPLATE', 'NOSCRIPT', 'META'];
+
+    /**
+     * Makes the rest of the page inert by walking from the dialog up to <body>
+     * and inerting every sibling on the way.
+     *
+     * TemplateGallery.astro reaches the same end state with a flat
+     * "body > header, body > main, body > footer" selector, but it can only do
+     * that because it relocates its modal to <body> first. This dialog cannot:
+     * it is rendered inside the site header (Header.astro mounts it in
+     * .header-controls) and is positioned relative to its own .search-bar, so
+     * moving it would break its layout. `inert` is inherited by descendants, so
+     * inerting "body > header" here would inert the dialog itself.
+     *
+     * Walking the ancestor chain instead keeps the intent — the scoping note in
+     * TemplateGallery, that the dialog's own subtree must stay live — and
+     * generalises it. It still lands `inert` on body > main and body > footer,
+     * and additionally covers the header's own controls (theme picker, GitHub
+     * link, main nav), which the flat selector could never have reached.
+     *
+     * The walk starts at .search-bar rather than at the panel so the trigger
+     * button stays live: it is the dialog's own control, and hiding it would
+     * drop the aria-expanded/aria-controls pair it announces the dialog with.
+     * Tab never reaches it anyway — the wrap handler below cycles within the
+     * panel.
+     */
+    function applyPageInert() {
+      releasePageInert();
+      var node = searchBar;
+      while (node && node.parentElement) {
+        var parent = node.parentElement;
+        for (var i = 0; i < parent.children.length; i++) {
+          var sibling = parent.children[i];
+          if (sibling === node || NON_RENDERED.indexOf(sibling.tagName) !== -1) continue;
+          inertedElements.push({
+            element: sibling,
+            hadInert: sibling.hasAttribute('inert'),
+            hadAriaHidden: sibling.getAttribute('aria-hidden'),
+          });
+          sibling.setAttribute('inert', '');
+          sibling.setAttribute('aria-hidden', 'true');
+        }
+        if (parent === document.body) break;
+        node = parent;
+      }
+    }
+
+    /** Restores every attribute applyPageInert() changed, and only those. */
+    function releasePageInert() {
+      inertedElements.forEach(function(entry) {
+        if (!entry.hadInert) entry.element.removeAttribute('inert');
+        if (entry.hadAriaHidden === null) {
+          entry.element.removeAttribute('aria-hidden');
+        } else {
+          entry.element.setAttribute('aria-hidden', entry.hadAriaHidden);
+        }
+      });
+      inertedElements = [];
+    }
+
+    /**
+     * Focusable controls inside the dialog, computed at Tab time rather than
+     * cached on open: Pagefind injects result links as the user types, and
+     * hides its own clear button with display:none. getClientRects() drops the
+     * latter without also dropping position:fixed content.
+     */
+    function focusableInMenu() {
+      return Array.prototype.filter.call(
+        menu.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        ),
+        function(el) {
+          // The tag-name selectors above match regardless of tabindex, so an
+          // explicit -1 has to be filtered here too — otherwise a control the
+          // browser never tabs to could become the first or last element and
+          // the wrap would either land on it or never fire at all.
+          return !el.hasAttribute('disabled') &&
+            el.getAttribute('tabindex') !== '-1' &&
+            el.getClientRects().length > 0;
+        }
+      );
+    }
+
     async function openSearch() {
       searchBar.classList.add('open');
       if (triggerBtn) triggerBtn.setAttribute('aria-expanded', 'true');
+      // Only claimed while it is true: the panel sits in the DOM at all times
+      // and is hidden with visibility, so a static aria-modal on the markup
+      // would contradict the page state whenever the dialog is closed.
+      menu.setAttribute('aria-modal', 'true');
+      applyPageInert();
       await initSearch();
       if (!searchBar.classList.contains('open')) return;
       focusSearchInput();
+      // Restate whatever the panel is showing. A pointer dismissal leaves
+      // Pagefind's query and its result count standing, so reopening puts a
+      // count back on screen — but the region was emptied on close and only
+      // the observer writes to it, and no mutation is coming for content that
+      // never changed. Without this the dialog reopens visibly showing "31
+      // results" and silently to a screen reader.
+      publishSearchStatus();
     }
 
     /**
@@ -104,6 +221,20 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
     function closeSearch(restoreFocus) {
       var hadFocusInside = menu.contains(document.activeElement);
       searchBar.classList.remove('open');
+      menu.removeAttribute('aria-modal');
+      releasePageInert();
+      // Drop a debounced announcement that has not fired yet: it would read a
+      // result count out over a dialog the user has already dismissed.
+      if (statusTimer) {
+        clearTimeout(statusTimer);
+        statusTimer = null;
+      }
+      // Empty the region too, not just the pending timer. publishSearchStatus()
+      // skips the assignment when the text is unchanged, so a count left over
+      // from the previous session would make the SAME query on reopen a no-op
+      // and announce nothing — the exact failure #673 exists to fix. Clearing
+      // on close scopes the dedupe to one dialog session, where it is correct.
+      if (statusRegion) statusRegion.textContent = '';
       if (triggerBtn) {
         triggerBtn.setAttribute('aria-expanded', 'false');
         if (restoreFocus || hadFocusInside) triggerBtn.focus();
@@ -116,6 +247,49 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
       } else {
         openSearch();
       }
+    }
+
+    // Long enough that typing a word produces one announcement rather than one
+    // per keystroke, short enough to land while the reader is still on the
+    // results.
+    var STATUS_DEBOUNCE_MS = 400;
+    var statusTimer = null;
+
+    /**
+     * Mirrors Pagefind's result-count message into the polite region.
+     *
+     * Mirrored rather than decorated: Pagefind owns the #search-input-container
+     * subtree and replaces its message node per query, so role/aria-live set on
+     * that node would be discarded on the next render.
+     */
+    function publishSearchStatus() {
+      if (!statusRegion) return;
+      var message = document.querySelector('#search-input-container .pagefind-ui__message');
+      var text = message ? message.textContent.trim() : '';
+      // Reassigning identical text would re-announce it; an unchanged count is
+      // not news.
+      if (text !== statusRegion.textContent) statusRegion.textContent = text;
+    }
+
+    function observeSearchStatus() {
+      var container = document.getElementById('search-input-container');
+      if (!statusRegion || !container || typeof MutationObserver !== 'function') return;
+      new MutationObserver(function() {
+        // Gate on the dialog being open rather than disconnecting on close.
+        // The observer watches a container Pagefind owns and may re-render or
+        // re-initialise, and a disconnect/re-observe pair has to be re-attached
+        // to whatever node exists at that moment; the guard cannot fall out of
+        // step that way. It matters because Pagefind keeps mutating the
+        // container after dismissal, and each of those mutations would
+        // otherwise re-arm the timer that closeSearch() just cleared and
+        // announce a result count over a dialog the user has already closed.
+        if (!searchBar.classList.contains('open')) return;
+        if (statusTimer) clearTimeout(statusTimer);
+        statusTimer = setTimeout(function() {
+          statusTimer = null;
+          publishSearchStatus();
+        }, STATUS_DEBOUNCE_MS);
+      }).observe(container, { childList: true, subtree: true, characterData: true });
     }
 
     var initSearchPromise = null;
@@ -147,6 +321,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
             resetStyles: false,
             autofocus: true,
           });
+          observeSearchStatus();
         } catch (e) {
           searchInitialized = false;
           initSearchPromise = null;
@@ -192,6 +367,24 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
       }
     });
 
+    // Wrap Tab within the panel. The inert pass above already removes the rest
+    // of the page from the tab order; this keeps the cycle explicit rather than
+    // relying on the browser's fallback of stepping through browser chrome.
+    menu.addEventListener('keydown', function(e) {
+      if (e.key !== 'Tab') return;
+      var focusable = focusableInMenu();
+      if (!focusable.length) return;
+      var first = focusable[0];
+      var last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    });
+
     // Prevent menu clicks from closing
     menu.addEventListener('click', function(e) {
       e.stopPropagation();
@@ -216,7 +409,12 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
     border: 1px solid var(--turbo-border-default);
     border-radius: var(--radius-full);
     cursor: pointer;
-    transition: all var(--transition-fast);
+    /* Named properties rather than `all`: the bar holds its placeholder text,
+       and `all` would crossfade that text's colour through a theme swap. */
+    transition:
+      background var(--transition-fast),
+      border-color var(--transition-fast),
+      box-shadow var(--transition-fast);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   }
 
@@ -275,7 +473,11 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
     color: var(--turbo-text-inverse, #fff);
     cursor: pointer;
     flex-shrink: 0;
-    transition: all var(--transition-fast);
+    /* Only what :hover changes. `all` also animated the icon colour and the
+       button fill, which a theme swap rewrites simultaneously. */
+    transition:
+      transform var(--transition-fast),
+      box-shadow var(--transition-fast);
   }
 
   .search-bar-btn:hover {
@@ -337,6 +539,21 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
     border: 1px solid var(--turbo-border-default);
     border-radius: var(--radius-sm);
     color: var(--turbo-text-tertiary);
+  }
+
+  /* Screen-reader-only mirror of the Pagefind result count. Clipped rather
+     than display:none or visibility:hidden, both of which would take it out of
+     the accessibility tree and silence the announcement. */
+  .search-status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
   }
 
   /* Search Results Area */

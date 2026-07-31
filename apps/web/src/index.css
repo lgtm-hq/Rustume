@@ -163,11 +163,17 @@ body {
 /*
  * Reduced motion.
  *
- * Now that `slide-up` and `stagger-in` animate transform alone, movement is
- * the only entrance cue they offer — which is exactly the cue a motion-
- * sensitive reader needs suppressed. Components already opt out of their own
- * transitions via `motion-reduce:transition-none`; this is the global
- * counterpart that also covers the keyframe animations.
+ * Now that `slide-up`, `stagger-in`, `tooltip-in` and the toast keyframes
+ * animate transform alone, movement is the only entrance cue they offer —
+ * which is exactly the cue a motion-sensitive reader needs suppressed.
+ * Components already opt out of their own transitions via
+ * `motion-reduce:transition-none`; this is the global counterpart that also
+ * covers the keyframe animations, including ones declared at runtime (the
+ * accordion's injected stylesheet) and any a component adds later.
+ *
+ * `animation-iteration-count` matters on its own: `pulse-subtle` runs
+ * `infinite`, and a zero-duration animation that never stops still repaints
+ * forever.
  */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -378,13 +384,13 @@ body {
   animation: tooltip-in 0.15s ease-out;
 }
 
+/* Scale only: the tooltip carries its label text, so an opacity ramp would
+   composite that text toward the page behind it for the duration. */
 @keyframes tooltip-in {
   from {
-    opacity: 0;
     transform: scale(0.96);
   }
   to {
-    opacity: 1;
     transform: scale(1);
   }
 }
@@ -416,35 +422,39 @@ body {
   animation: toast-swipe-out 0.15s ease-out forwards;
 }
 
+/*
+ * Toast motion is translation only.
+ *
+ * A toast is a text-bearing surface that arrives unannounced and overlaps
+ * whatever is beneath it, so fading it in or out composites its message and
+ * its own background toward the page behind — the pair drops below AA for the
+ * length of the ramp, and an axe scan that lands mid-flight reports a contrast
+ * failure that does not exist at rest. Sliding fully off-canvas ends the exit
+ * animations just as decisively as `opacity: 0` did.
+ */
 @keyframes toast-slide-in {
   from {
-    opacity: 0;
     transform: translateX(100%);
   }
   to {
-    opacity: 1;
     transform: translateX(0);
   }
 }
 
 @keyframes toast-slide-out {
   from {
-    opacity: 1;
     transform: translateX(0);
   }
   to {
-    opacity: 0;
     transform: translateX(100%);
   }
 }
 
 @keyframes toast-swipe-out {
   from {
-    opacity: 1;
     transform: translateX(var(--kb-toast-swipe-end-x));
   }
   to {
-    opacity: 0;
     transform: translateX(100%);
   }
 }

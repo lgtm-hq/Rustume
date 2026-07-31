@@ -115,6 +115,11 @@ the `--a11y-*` derived tokens in `apps/web/src/index.css`; the site's craft them
 hand-authored and is not yet normalised. Resume templates must hold contrast in print and in
 grayscale as well as on screen.
 
+Contrast is only the machine-checkable part of the floor. The manual half — focus order, focus
+restoration, live-region politeness, reflow, forced colors — is recorded in
+[`A11Y-AUDIT.md`](A11Y-AUDIT.md), which also lists the open failures and the criteria that
+still need a human at a screen reader.
+
 **Rules out:** introducing a raw hex value that has not been checked against its background;
 low-contrast placeholder, helper, or disabled text used for visual calm; colour as the only
 carrier of state; text over a gradient ramp whose whole range has not been audited; text on the
@@ -176,5 +181,7 @@ render a document; hide the export; ship a colour that has not been contrast-che
 
 - Parent epic: [#352](https://github.com/lgtm-hq/Rustume/issues/352) — WCAG 2.2 AA and design
   language for app and site
+- Manual accessibility audit: [`A11Y-AUDIT.md`](A11Y-AUDIT.md) — dated pass/fail/NEEDS-HUMAN
+  record for both apps, and how to re-run it
 - Evidence this document is built on: `apps/site/src/styles/craft-theme.css`,
   `apps/web/src/index.css`, `apps/site/src/pages/index.astro`, [README](../../README.md)

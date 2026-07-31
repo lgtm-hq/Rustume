@@ -34,35 +34,52 @@ const defaultLabel = themeTriggerLabels[DEFAULT_THEME] ?? 'Craft';
 
   <div class="theme-picker-panel" id="theme-picker-panel" role="listbox" aria-label="Themes" hidden>
     {
+      /* A listbox may own only `option` and `group`, so each vendor block is a
+         real `group` named by its own heading, and its options are direct
+         children — no layout wrapper in the ownership chain. The columns are
+         laid out from `.theme-picker-group` in CSS instead.
+
+         The heading itself is `aria-hidden`: a group inside a listbox owns
+         options, and leaving the heading exposed put a stray paragraph in
+         among them — the same non-option ownership this fixes at the listbox
+         level, one level down. Hidden rather than `role="presentation"`,
+         which would drop the paragraph but leave its text behind as a bare
+         node in the group. `aria-labelledby` still reads the element's text
+         for the accessible name, so the group is announced by heading and the
+         heading is not announced twice. */
       themeMenuGroups.map((group) => (
-        <div class="theme-picker-group" role="presentation">
-          <p class="theme-picker-group-label">{group.label}</p>
-          <div class="theme-picker-options">
-            {
-              group.themes.map((theme) => (
-                <button
-                  type="button"
-                  class="theme-picker-option"
-                  role="option"
-                  data-theme-id={theme.id}
-                  data-theme-label={theme.label}
-                  data-theme-swatch={theme.swatch}
-                  aria-selected={theme.id === DEFAULT_THEME ? 'true' : 'false'}
-                >
-                  <span class="theme-swatch" style={`background: ${theme.swatch}`} aria-hidden="true"></span>
-                  <span class="theme-picker-option-label">{theme.label}</span>
-                  <span class="theme-picker-mode" aria-hidden="true">{theme.appearance === 'light' ? 'Light' : 'Dark'}</span>
-                  <svg class="theme-picker-check" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-                  </svg>
-                </button>
-              ))
-            }
-          </div>
+        <div class="theme-picker-group" role="group" aria-labelledby={`theme-picker-group-${group.id}`}>
+          <p class="theme-picker-group-label" id={`theme-picker-group-${group.id}`} aria-hidden="true">{group.label}</p>
+          {
+            group.themes.map((theme) => (
+              <button
+                type="button"
+                class="theme-picker-option"
+                role="option"
+                data-theme-id={theme.id}
+                data-theme-label={theme.label}
+                data-theme-swatch={theme.swatch}
+                aria-selected={theme.id === DEFAULT_THEME ? 'true' : 'false'}
+              >
+                <span class="theme-swatch" style={`background: ${theme.swatch}`} aria-hidden="true"></span>
+                <span class="theme-picker-option-label">{theme.label}</span>
+                <span class="theme-picker-mode" aria-hidden="true">{theme.appearance === 'light' ? 'Light' : 'Dark'}</span>
+                <svg class="theme-picker-check" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+            ))
+          }
         </div>
       ))
     }
   </div>
+
+  <!-- Selecting a theme repaints the page and the confirming swatch is
+       `aria-hidden`, so the change needs a spoken counterpart. `role="status"`
+       is polite by default; the explicit `aria-live` states that as a choice,
+       not an inheritance. -->
+  <p class="theme-picker-status" id="theme-picker-status" role="status" aria-live="polite" aria-atomic="true"></p>
 </div>
 
 <script>
@@ -95,8 +112,13 @@ const defaultLabel = themeTriggerLabels[DEFAULT_THEME] ?? 'Craft';
     }
 
     const options = Array.from(picker.querySelectorAll<HTMLButtonElement>('.theme-picker-option'));
-    const activeId = panel.getAttribute('aria-activedescendant');
-    let activeIndex = options.findIndex((option) => option.id === activeId);
+    // This picker moves real DOM focus, so focus is the truth about where the
+    // user is. `is-keyboard-active` covers the just-opened panel, where focus
+    // is still on the trigger, and the selected option is the last resort.
+    let activeIndex = options.findIndex((option) => option === activeEl);
+    if (activeIndex < 0) {
+      activeIndex = options.findIndex((option) => option.classList.contains('is-keyboard-active'));
+    }
     if (activeIndex < 0) {
       activeIndex = options.findIndex((option) => option.getAttribute('aria-selected') === 'true');
     }
@@ -105,7 +127,6 @@ const defaultLabel = themeTriggerLabels[DEFAULT_THEME] ?? 'Craft';
     const moveActive = (nextIndex: number): void => {
       const option = options[nextIndex];
       if (!option) return;
-      panel.setAttribute('aria-activedescendant', option.id);
       for (const candidate of options) {
         const isFocused = candidate === option;
         candidate.tabIndex = isFocused ? 0 : -1;
@@ -181,6 +202,7 @@ const defaultLabel = themeTriggerLabels[DEFAULT_THEME] ?? 'Craft';
     const panel = document.getElementById('theme-picker-panel');
     const swatch = document.getElementById('theme-picker-swatch');
     const label = document.getElementById('theme-picker-label');
+    const status = document.getElementById('theme-picker-status');
 
     if (!picker || !trigger || !panel || !swatch || !label || picker.dataset.bound === 'true') return;
     picker.dataset.bound = 'true';
@@ -199,14 +221,12 @@ const defaultLabel = themeTriggerLabels[DEFAULT_THEME] ?? 'Craft';
         const selected =
           options.find((option) => option.getAttribute('aria-selected') === 'true') ?? options[0];
         if (selected) {
-          panel.setAttribute('aria-activedescendant', selected.id);
           for (const option of options) {
             option.classList.toggle('is-keyboard-active', option === selected);
           }
         }
       } else {
         panel.setAttribute('hidden', '');
-        panel.removeAttribute('aria-activedescendant');
         for (const option of options) {
           option.classList.remove('is-keyboard-active');
         }
@@ -225,8 +245,34 @@ const defaultLabel = themeTriggerLabels[DEFAULT_THEME] ?? 'Craft';
       if (active) {
         label.textContent = active.dataset.themeLabel ?? themeId;
         swatch.style.background = active.dataset.themeSwatch ?? '';
-        panel.setAttribute('aria-activedescendant', active.id);
       }
+    };
+
+    /**
+     * Names the applied theme in the live region. Only the picker's own
+     * selection path calls this: a theme applied from elsewhere on the page
+     * belongs to whatever control did it, and announcing it here would
+     * double up.
+     */
+    let announceFrame = 0;
+
+    const announce = (themeId: string): void => {
+      if (!status) return;
+      const active = options.find((option) => option.dataset.themeId === themeId);
+      const message = `Theme: ${active?.dataset.themeLabel ?? themeId}`;
+      // Emptied first, then filled on the next frame. Reselecting the theme
+      // that is already applied writes the same string, and a live region
+      // announces a change in content — assigning identical text is not one,
+      // so the confirmation would go missing on exactly the interaction that
+      // gives no other feedback. Splitting the write across frames is what
+      // makes it a change: done in one task the two mutations coalesce and
+      // the region still ends on the text it started with.
+      if (announceFrame) cancelAnimationFrame(announceFrame);
+      status.textContent = '';
+      announceFrame = requestAnimationFrame(() => {
+        announceFrame = 0;
+        status.textContent = message;
+      });
     };
 
     const applyFromPicker = (themeId: string): void => {
@@ -236,6 +282,11 @@ const defaultLabel = themeTriggerLabels[DEFAULT_THEME] ?? 'Craft';
       }
       setActive(themeId);
       setOpen(false);
+      // `setOpen(false)` hides the panel while the chosen option still has DOM
+      // focus, which drops focus on `<body>`. Same hand-back as the Escape
+      // path, and synchronous so nothing observes the gap.
+      trigger.focus();
+      announce(themeId);
     };
 
     trigger.addEventListener('click', (event) => {

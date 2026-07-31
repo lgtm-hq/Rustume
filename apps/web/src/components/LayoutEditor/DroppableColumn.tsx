@@ -1,6 +1,6 @@
 import { For, Show } from "solid-js";
 import { createDroppable } from "@thisbeyond/solid-dnd";
-import { DraggableSection } from "./DraggableSection";
+import { DraggableSection, type MoveDirection } from "./DraggableSection";
 
 interface DroppableColumnProps {
   /** Unique identifier for this column droppable (e.g. "col-0", "col-1"). */
@@ -15,6 +15,8 @@ interface DroppableColumnProps {
   kbActiveId?: string | null;
   /** Resolve a section ID to its human-friendly label. */
   getSectionLabel: (id: string) => string;
+  /** Move a section one step in the given direction (single-pointer path). */
+  onMoveSection: (sectionId: string, direction: MoveDirection) => void;
 }
 
 const COLUMN_LABELS: Record<number, string[]> = {
@@ -34,9 +36,11 @@ export function DroppableColumn(props: DroppableColumnProps) {
   return (
     <div
       ref={droppable.ref}
-      role="listbox"
+      // A group, not a listbox: nothing here is selected, and each section now
+      // carries its own move controls (SC 2.5.7), which a listbox may not own.
+      role="group"
       aria-label={label()}
-      class="flex-1 min-w-0 rounded-lg border-2 border-dashed transition-colors duration-150 p-2"
+      class="flex-1 min-w-0 rounded-lg border-2 border-dashed transition-colors duration-150 motion-reduce:transition-none p-2"
       classList={{
         "border-accent/50 bg-accent/5": droppable.isActiveDroppable,
         "border-border bg-surface/30": !droppable.isActiveDroppable,
@@ -47,7 +51,7 @@ export function DroppableColumn(props: DroppableColumnProps) {
         <span class="text-xs font-mono font-semibold text-stone uppercase tracking-wider">
           {label()}
         </span>
-        <span class="text-xs font-mono text-stone/60">
+        <span class="text-xs font-mono text-stone">
           {props.sectionIds.length} {props.sectionIds.length === 1 ? "section" : "sections"}
         </span>
       </div>
@@ -55,18 +59,24 @@ export function DroppableColumn(props: DroppableColumnProps) {
       {/* Sortable Section List */}
       <div class="space-y-1.5 min-h-[48px]">
         <For each={props.sectionIds}>
-          {(sectionId) => (
+          {(sectionId, index) => (
             <DraggableSection
               id={sectionId}
               label={props.getSectionLabel(sectionId)}
               kbActive={props.kbActiveId === sectionId}
+              onMove={(direction) => props.onMoveSection(sectionId, direction)}
+              isFirstInColumn={index() === 0}
+              isLastInColumn={index() === props.sectionIds.length - 1}
+              isFirstColumn={props.index === 0}
+              isLastColumn={props.index === props.totalColumns - 1}
+              showLateralControls={props.totalColumns > 1}
             />
           )}
         </For>
 
         {/* Empty state */}
         <Show when={props.sectionIds.length === 0}>
-          <div class="flex items-center justify-center h-12 text-xs text-stone/50 italic">
+          <div class="flex items-center justify-center h-12 text-xs text-stone italic">
             Drop sections here
           </div>
         </Show>

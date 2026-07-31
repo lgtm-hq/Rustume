@@ -17,6 +17,12 @@ export interface RichTextEditorProps {
   class?: string;
   /** Hide the expand-to-fullscreen control (used inside the fullscreen modal itself). */
   hideExpand?: boolean;
+  /**
+   * Accessible name for the editing surface when no visible `label` is
+   * rendered. The ProseMirror surface exposes `role="textbox"`, so it needs a
+   * name of its own — a nearby heading does not supply one.
+   */
+  ariaLabel?: string;
 }
 
 let editorIdCounter = 0;
@@ -37,11 +43,29 @@ export function RichTextEditor(props: RichTextEditorProps) {
   const [txVersion, setTxVersion] = createSignal(0);
   const [expanded, setExpanded] = createSignal(false);
 
+  /**
+   * Name the editing surface. `editorProps.attributes` replaces Tiptap's own
+   * defaults rather than merging with them, so `role="textbox"` is restated
+   * here — without it the contenteditable loses its role and the naming
+   * attribute becomes prohibited. Prefer the visible label so the accessible
+   * name matches what a sighted user reads.
+   */
+  const editorAriaAttributes = (): Record<string, string> => {
+    const attributes: Record<string, string> = { role: "textbox", "aria-multiline": "true" };
+    if (props.label) {
+      attributes["aria-labelledby"] = labelId;
+    } else if (props.ariaLabel) {
+      attributes["aria-label"] = props.ariaLabel;
+    }
+    return attributes;
+  };
+
   onMount(() => {
     const el = editorEl();
     if (!el) return;
     const ed = new Editor({
       element: el,
+      editorProps: { attributes: editorAriaAttributes() },
       extensions: [
         StarterKit.configure({
           heading: false,
@@ -105,6 +129,27 @@ export function RichTextEditor(props: RichTextEditorProps) {
     const ed = editor();
     if (ed) {
       ed.setEditable(!props.disabled);
+    }
+  });
+
+  /**
+   * `editorProps.attributes` is snapshotted when the editor is constructed, so
+   * a later change to `label`/`ariaLabel` would leave the ProseMirror node
+   * naming the editor after text that is no longer on screen. Re-apply the
+   * naming attributes reactively, dropping the inactive alternative so the two
+   * never coexist.
+   */
+  createEffect(() => {
+    const attributes = editorAriaAttributes();
+    const dom = editor()?.view.dom;
+    if (!dom) return;
+    for (const name of ["aria-labelledby", "aria-label"] as const) {
+      const value = attributes[name];
+      if (value === undefined) {
+        dom.removeAttribute(name);
+      } else {
+        dom.setAttribute(name, value);
+      }
     }
   });
 
@@ -336,6 +381,9 @@ export function RichTextEditor(props: RichTextEditorProps) {
           <RichTextEditor
             hideExpand
             label={undefined}
+            // The modal title carries the visible name; the nested surface is
+            // rendered without a label of its own, so name it explicitly.
+            ariaLabel={props.label || props.ariaLabel || "Edit content"}
             placeholder={props.placeholder}
             value={props.value}
             onInput={props.onInput}

@@ -34,6 +34,7 @@ export function SummaryEditor() {
       <Show when={store.resume}>
         {(resume) => (
           <RichTextEditor
+            ariaLabel="Summary"
             placeholder="Write a compelling summary that highlights your key strengths, experience, and what you're looking for in your next role..."
             value={resume().sections.summary.content}
             onInput={updateSummary}
