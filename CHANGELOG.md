@@ -22,6 +22,13 @@ and this project adheres to
 
 ### Security
 
+## [0.56.0] - 2026-08-01
+
+### Added
+
+- **web**: add runtime feature flags and a gated read-only document sheet (#748)
+  (99b94b4)
+
 ## [0.55.0] - 2026-07-31
 
 ### Added
@@ -831,7 +838,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.55.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.56.0...HEAD
+[0.56.0]: https://github.com/lgtm-hq/Rustume/compare/v0.55.0...v0.56.0
 [0.55.0]: https://github.com/lgtm-hq/Rustume/compare/v0.54.0...v0.55.0
 [0.54.0]: https://github.com/lgtm-hq/Rustume/compare/v0.53.0...v0.54.0
 [0.53.0]: https://github.com/lgtm-hq/Rustume/compare/v0.52.8...v0.53.0
