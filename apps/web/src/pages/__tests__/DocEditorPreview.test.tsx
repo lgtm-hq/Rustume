@@ -61,6 +61,18 @@ vi.mock("../../components/ui", async (importOriginal) => {
   };
 });
 
+// The print-stack prefetch debounces off the preview URL and, on a slow CI
+// runner, its window elapses mid-test and injects extra renderPreview calls —
+// breaking the exact call counts these tests pin. It has its own unit tests
+// (printStack.test.ts), so stub it to keep the counts deterministic.
+vi.mock("../../components/preview/printStack", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../components/preview/printStack")>();
+  return {
+    ...actual,
+    prefetchPrintStackPages: vi.fn().mockResolvedValue({ urls: [], hasHardFailure: false }),
+  };
+});
+
 vi.mock("../../stores/auth", () => ({
   authStore: {
     get state() {
