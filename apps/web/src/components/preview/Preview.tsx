@@ -3,6 +3,7 @@ import { toast } from "../ui";
 import { resumeStore } from "../../stores/resume";
 import { uiStore } from "../../stores/ui";
 import { renderPreview } from "../../api/render";
+import type { ResumeData } from "../../wasm/types";
 import { useDebounce } from "../../hooks/useDebounce";
 import { useOnline } from "../../hooks/useOnline";
 import { clearPrintPageFormat, setPrintPageFormat } from "../../lib/printFormat";
@@ -331,8 +332,11 @@ export function Preview(props: PreviewProps) {
     setIsLoading(true);
     setError(null);
 
+    // Pass a plain snapshot, never the store proxy: renderPreview stringifies
+    // its argument synchronously, and doing that to the proxy inside this
+    // effect's tracking scope would deep-subscribe it to every resume field.
     renderPreview(
-      store.resume,
+      JSON.parse(resumeJson) as ResumeData,
       untrack(() => ui.previewPage),
     )
       .then((result) => {
@@ -388,7 +392,8 @@ export function Preview(props: PreviewProps) {
       return;
     }
 
-    const requestKey = `${page}|${untrack(() => JSON.stringify(store.resume))}`;
+    const resumeJson = untrack(() => JSON.stringify(store.resume));
+    const requestKey = `${page}|${resumeJson}`;
     if (requestKey === lastRequestedKey) return;
     lastRequestedKey = requestKey;
 
@@ -396,7 +401,10 @@ export function Preview(props: PreviewProps) {
     setIsLoading(true);
     setError(null);
 
-    renderPreview(store.resume, page)
+    // Same snapshot rule as the resume effect: the proxy must never be read
+    // inside the tracking scope, or this effect deep-subscribes and every
+    // keystroke bypasses the debounce from the first page interaction on.
+    renderPreview(JSON.parse(resumeJson) as ResumeData, page)
       .then((result) => {
         if (currentRequestId !== previewRequestId) return;
         setPreviewUrl(result.url);

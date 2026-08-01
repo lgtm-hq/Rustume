@@ -245,6 +245,35 @@ describe("DocEditor preview pane", () => {
     await waitLong(() => expect(uiStore.store.previewPage).toBe(1));
   }, 20_000);
 
+  it("keeps refreshes debounced after a page flip, under production mock physics", async () => {
+    // The real renderPreview stringifies its resume argument synchronously
+    // (cloneResumeForApi). A mock that never touches the proxy cannot form
+    // the deep subscription that once let the page effect bypass the
+    // debounce, so this mock reproduces that read.
+    vi.mocked(renderPreview).mockImplementation((resume) => {
+      JSON.stringify(resume);
+      return Promise.resolve({ url: "blob:preview-1", totalPages: 3 });
+    });
+
+    await renderEditorWithPreview();
+    await waitLong(() => expect(renderPreview).toHaveBeenCalledTimes(1));
+    await settleDebounce();
+
+    // A page flip runs the page-driven fetch...
+    uiStore.setPreviewPage(1);
+    await waitLong(() => expect(renderPreview).toHaveBeenCalledTimes(2));
+
+    // ...after which store mutations must still refresh once, debounced —
+    // not immediately per keystroke via a page-effect deep subscription.
+    resumeStore.updateBasics("name", "Mireille Okafor-Reyes");
+    resumeStore.updateBasics("headline", "Staff Design Systems Engineer");
+    expect(renderPreview).toHaveBeenCalledTimes(2);
+    await settleDebounce();
+    await waitLong(() => expect(renderPreview).toHaveBeenCalledTimes(3));
+    await settleDebounce();
+    expect(renderPreview).toHaveBeenCalledTimes(3);
+  }, 20_000);
+
   it("surfaces a render failure through the error toast", async () => {
     vi.mocked(renderPreview).mockRejectedValue(new Error("typst blew up"));
 
