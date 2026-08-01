@@ -67,12 +67,10 @@ export function VersionHistory() {
   /** Monotonic token so overlapping list/preview loads cannot clobber newer UI state. */
   let loadSeq = 0;
 
-  function revokePreviewUrl() {
-    const url = previewUrl();
-    if (url) {
-      URL.revokeObjectURL(url);
-      setPreviewUrl(null);
-    }
+  // Preview URLs are owned by `renderPreview`'s TTL cache (`api/render.ts`);
+  // revoking them here would break later cache hits, so only drop the reference.
+  function clearPreviewUrl() {
+    setPreviewUrl(null);
   }
 
   async function loadSnapshotData(entry: VersionListEntry): Promise<ResumeData | null> {
@@ -92,7 +90,7 @@ export function VersionHistory() {
 
     setIsLoadingPreview(true);
     setLoadError(null);
-    revokePreviewUrl();
+    clearPreviewUrl();
     setSelectedSnapshot(null);
 
     try {
@@ -105,10 +103,7 @@ export function VersionHistory() {
 
       setSelectedSnapshot(data);
       const result = await renderPreview(data, 0);
-      if (seq !== loadSeq) {
-        URL.revokeObjectURL(result.url);
-        return;
-      }
+      if (seq !== loadSeq) return;
       setPreviewUrl(result.url);
       setPreviewPages(result.totalPages);
     } catch (error) {
@@ -130,7 +125,7 @@ export function VersionHistory() {
     setLoadError(null);
     setEntries([]);
     setSelectedKey(null);
-    revokePreviewUrl();
+    clearPreviewUrl();
     setSelectedSnapshot(null);
 
     try {
@@ -170,7 +165,7 @@ export function VersionHistory() {
 
   onCleanup(() => {
     loadSeq += 1;
-    revokePreviewUrl();
+    clearPreviewUrl();
   });
 
   const handleSelect = async (entry: VersionListEntry) => {
