@@ -336,7 +336,7 @@ function sectionHasItems(resume: ResumeData, sectionId: string): boolean {
 /** How many items a section holds, hidden ones included. Zero for rich text. */
 function sectionItemCount(resume: ResumeData, sectionId: string): number {
   if (isCustomId(sectionId)) {
-    return resume.sections.custom?.[sectionId]?.items.length ?? 0;
+    return resume.sections.custom?.[sectionId]?.items?.length ?? 0;
   }
   if (!FIXED_SECTION_ID_SET.has(sectionId)) return 0;
   const section = resume.sections[sectionId as FixedSectionId] as { items?: unknown[] } | undefined;

@@ -435,14 +435,14 @@
 }
 
 /* Square icon control — arrows and drag handles. Sized in em so it scales
-   with the page, with a floor near the SC 2.5.8 24px target size. */
+   with the page, with a hard floor at the SC 2.5.8 24px target size. */
 .doc-sheet__action--icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0.15em;
-  min-width: 1.5em;
-  min-height: 1.5em;
+  min-width: max(1.5em, 24px);
+  min-height: max(1.5em, 24px);
 }
 
 .doc-sheet__action--icon svg {
@@ -522,9 +522,10 @@
   padding: 0.1em 0.4em;
 }
 
-/* Drop feedback: the card (or column) the drag would land on. */
-.doc-sheet__section--drop,
-.doc-sheet__item--drop {
+/* Drop feedback: the card (or column) the drag would land on. Doubled class
+   so it outweighs the hover outline above while the pointer is over it. */
+.doc-sheet__section.doc-sheet__section--drop,
+.doc-sheet__item.doc-sheet__item--drop {
   outline: 2px solid var(--doc-sheet-accent);
   outline-offset: 0.35em;
 }

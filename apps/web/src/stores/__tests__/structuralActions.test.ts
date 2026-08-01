@@ -96,6 +96,20 @@ describe("duplicateCustomSectionItem", () => {
       dispose();
     });
   });
+
+  it("does nothing for an index that holds no item", () => {
+    createRoot((dispose) => {
+      const { store, createNewResume, addCustomSection, duplicateCustomSectionItem } =
+        useResumeStore();
+      createNewResume("dup-4");
+      const sectionId = addCustomSection("Talks");
+
+      duplicateCustomSectionItem(sectionId, 99);
+
+      expect(store.resume!.sections.custom[sectionId].items.length).toBe(0);
+      dispose();
+    });
+  });
 });
 
 describe("moveCustomSectionItem", () => {

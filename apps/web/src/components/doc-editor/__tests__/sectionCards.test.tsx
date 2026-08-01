@@ -202,13 +202,15 @@ describe("document sheet structural chrome", () => {
     });
 
     it("hides an entry, keeps it drawn, and can show it again", () => {
-      renderSheet();
+      const first = renderSheet();
       fireEvent.click(screen.getByRole("button", { name: "Hide Lumen Health" }));
       expect(store.updateSectionItem).toHaveBeenCalledExactlyOnceWith("experience", 0, {
         visible: false,
       });
 
       // Redraw with the item actually hidden: still present, now as chrome.
+      // Unmounted first, so the queries below see exactly one sheet.
+      first.unmount();
       resume.sections.experience.items[0].visible = false;
       vi.clearAllMocks();
       renderSheet();
