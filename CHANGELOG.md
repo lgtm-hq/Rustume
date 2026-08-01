@@ -22,6 +22,16 @@ and this project adheres to
 
 ### Security
 
+## [0.60.0] - 2026-08-01
+
+### Added
+
+- **web**: integrate the PDF preview pane into the document editor (#765) (3c17454)
+
+### Changed
+
+- **deps**: update lintro to 0.104.1 (minor) (#771) (1c172e9)
+
 ## [0.59.0] - 2026-08-01
 
 ### Added
@@ -884,7 +894,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.59.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.60.0...HEAD
+[0.60.0]: https://github.com/lgtm-hq/Rustume/compare/v0.59.0...v0.60.0
 [0.59.0]: https://github.com/lgtm-hq/Rustume/compare/v0.58.0...v0.59.0
 [0.58.0]: https://github.com/lgtm-hq/Rustume/compare/v0.57.2...v0.58.0
 [0.57.2]: https://github.com/lgtm-hq/Rustume/compare/v0.57.1...v0.57.2
