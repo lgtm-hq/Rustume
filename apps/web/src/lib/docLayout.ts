@@ -352,8 +352,9 @@ function sectionItemCount(resume: ResumeData, sectionId: string): number {
  * Unlike {@link renderPages}, hidden sections stay drawn (flagged, as chrome):
  * hidden means "not rendered to PDF", not "gone from the editing surface". Item
  * sections are drawn whenever they hold any item — hidden items are chrome too —
- * and rich-text sections whenever they have content or are switched on, so an
- * empty summary still offers its click-to-edit surface.
+ * and a placed rich-text section always draws, whatever its content or
+ * visibility, so a hidden or empty summary keeps its click-to-edit surface and
+ * hiding it stays reversible.
  */
 export function editorPages(
   resume: ResumeData,

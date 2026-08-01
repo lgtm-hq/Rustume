@@ -9,7 +9,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
+import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-library";
 import { loadDocEditorFixture, SIDEBAR_TEMPLATE } from "../../../test/docEditorFixture";
 import { DocSheet } from "../DocSheet";
 import type { ResumeData } from "../../../wasm/types";
@@ -329,10 +329,12 @@ describe("document sheet structural chrome", () => {
       renderSheet();
 
       fireEvent.click(screen.getByRole("button", { name: "Add project" }));
-      fireEvent.input(screen.getByRole("textbox", { name: "Name" }), {
+      // Scoped to the dialog: the add-block trigger shares the same name.
+      const dialog = screen.getByRole("dialog");
+      fireEvent.input(within(dialog).getByRole("textbox", { name: "Name" }), {
         target: { value: "Halo" },
       });
-      fireEvent.click(screen.getByRole("button", { name: "Add project", hidden: false }));
+      fireEvent.click(within(dialog).getByRole("button", { name: "Add project" }));
 
       expect(store.addSectionItem).toHaveBeenCalledOnce();
       const [sectionId, item] = store.addSectionItem.mock.calls[0] as [

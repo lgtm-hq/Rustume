@@ -140,6 +140,31 @@ describe("moveCustomSectionItem", () => {
     });
   });
 
+  it("clamps an out-of-range destination index to the section's end", () => {
+    createRoot((dispose) => {
+      const {
+        store,
+        createNewResume,
+        addCustomSection,
+        addCustomSectionItem,
+        moveCustomSectionItem,
+      } = useResumeStore();
+      createNewResume("move-4");
+      const talks = addCustomSection("Talks");
+      const advisory = addCustomSection("Advisory");
+      addCustomSectionItem(talks, customItem("t1", "First"));
+      addCustomSectionItem(advisory, customItem("a1", "Board"));
+
+      moveCustomSectionItem(talks, 0, advisory, 99);
+
+      expect(store.resume!.sections.custom[advisory].items.map((item) => item.id)).toEqual([
+        "a1",
+        "t1",
+      ]);
+      dispose();
+    });
+  });
+
   it("refuses a move onto the same section", () => {
     createRoot((dispose) => {
       const {
