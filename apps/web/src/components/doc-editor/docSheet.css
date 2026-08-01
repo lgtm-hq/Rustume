@@ -429,28 +429,171 @@
   outline-offset: 1px;
 }
 
-/*
- * Per-item controls stay out of the document's way until the item is hovered
- * or something inside it takes focus. `opacity` rather than `display`, so the
- * control is always focusable and always announced.
+.doc-sheet__action--danger {
+  color: var(--turbo-state-error, #b3261e);
+  border-color: currentcolor;
+}
+
+/* Square icon control — arrows and drag handles. Sized in em so it scales
+   with the page, with a floor near the SC 2.5.8 24px target size. */
+.doc-sheet__action--icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.15em;
+  min-width: 1.5em;
+  min-height: 1.5em;
+}
+
+.doc-sheet__action--icon svg {
+  width: 1em;
+  height: 1em;
+}
+
+.doc-sheet__drag-handle {
+  cursor: grab;
+  touch-action: none;
+}
+
+.doc-sheet__drag-handle:active {
+  cursor: grabbing;
+}
+
+/* ── Structural chrome ─────────────────────────────────────────────────────
+ *
+ * Card and entry controls stay out of the document's way until their card is
+ * hovered or something inside it takes focus. `opacity` rather than `display`,
+ * so every control is always focusable and always announced.
  */
-.doc-sheet__action--item {
-  align-self: flex-start;
+
+.doc-sheet__section-chrome,
+.doc-sheet__item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3em;
   opacity: 0;
 }
 
-.doc-sheet__item:hover .doc-sheet__action--item,
-.doc-sheet__item:focus-within .doc-sheet__action--item {
+.doc-sheet__section:hover > .doc-sheet__section-chrome,
+.doc-sheet__section:focus-within > .doc-sheet__section-chrome,
+.doc-sheet__item:hover .doc-sheet__item-actions,
+.doc-sheet__item:focus-within .doc-sheet__item-actions {
   opacity: 1;
 }
 
 /*
- * Without hover there is nothing to reveal it, and this is the only route to
- * the fields the sheet has no room to draw — so a touch user would be left
- * with an invisible control sitting on a tappable rect.
+ * Without hover there is nothing to reveal them, and this is the only route to
+ * duplicating, hiding or deleting — so a touch user would be left with
+ * invisible controls sitting on tappable rects.
  */
 @media (hover: none) {
-  .doc-sheet__action--item {
+  .doc-sheet__section-chrome,
+  .doc-sheet__item-actions {
     opacity: 1;
   }
+}
+
+/* Card affordances: a quiet outline that declares the card on hover/focus. */
+.doc-sheet__section {
+  border-radius: 0.25em;
+  outline: 1px dashed transparent;
+  outline-offset: 0.35em;
+}
+
+.doc-sheet__section:hover,
+.doc-sheet__section:focus-within {
+  outline-color: var(--doc-sheet-rule);
+}
+
+/* Hidden means "not rendered to PDF" — still on the surface, dimmed. */
+.doc-sheet__section--hidden > :not(.doc-sheet__section-chrome),
+.doc-sheet__item--hidden > :not(.doc-sheet__item-actions) {
+  opacity: 0.45;
+}
+
+.doc-sheet__hidden-badge {
+  font-size: 0.7em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--doc-sheet-muted);
+  border: 1px solid var(--doc-sheet-rule);
+  border-radius: 0.2em;
+  padding: 0.1em 0.4em;
+}
+
+/* Drop feedback: the card (or column) the drag would land on. */
+.doc-sheet__section--drop,
+.doc-sheet__item--drop {
+  outline: 2px solid var(--doc-sheet-accent);
+  outline-offset: 0.35em;
+}
+
+.doc-sheet__section--dragging,
+.doc-sheet__item--dragging {
+  opacity: 0.35;
+}
+
+.doc-sheet__column--drop {
+  background: var(--doc-sheet-tint);
+  box-shadow: inset 0 0 0 2px var(--doc-sheet-accent);
+}
+
+/* ── Add-blocks ────────────────────────────────────────────────────────── */
+
+.doc-sheet__add-block {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4em;
+  margin-top: auto;
+  padding-top: 0.6em;
+}
+
+/* ── New-page drop zone ────────────────────────────────────────────────── */
+
+.doc-sheet__new-page {
+  width: var(--doc-sheet-page-width);
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  color: var(--color-ink, inherit);
+  border: 2px dashed var(--color-border);
+  border-radius: 0.375rem;
+  transition: opacity 150ms;
+  /* Mounted before any drag so the droppable is registered; shown only while
+     a section drag — the one thing it accepts — is under way. */
+  height: 0;
+  padding: 0;
+  margin: 0;
+  border-width: 0;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.doc-sheet__new-page--active {
+  height: auto;
+  padding: 1.25rem;
+  border-width: 2px;
+  opacity: 1;
+}
+
+.doc-sheet__new-page--drop {
+  border-color: var(--doc-sheet-accent);
+  background: var(--doc-sheet-tint);
+}
+
+/* ── Drag overlay ──────────────────────────────────────────────────────── */
+
+.doc-sheet__drag-overlay {
+  pointer-events: none;
+  display: inline-block;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+  color: var(--color-ink, inherit);
+  background: var(--color-paper, #fff);
+  border: 1px solid var(--doc-sheet-accent);
+  border-radius: 0.375rem;
+  box-shadow: 0 4px 16px var(--color-shadow);
 }

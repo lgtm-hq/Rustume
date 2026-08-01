@@ -13,6 +13,13 @@
  * one field (a degree, say) carry no key and are edited in the item dialog
  * instead, which is also where the fields the sheet has no room for live.
  *
+ * Structural chrome lives here too: each section is a card with hover/focus
+ * controls (move, hide, rename, delete) and each entry carries its own action
+ * row. Drags start from the handles only — never from the surface — so text
+ * selection and inline editing keep working; the sheet (`DocSheet`) owns the
+ * drag-drop context, drop resolution and announcements, and every mutation
+ * still goes through `docEdits`.
+ *
  * URLs still render as text rather than anchors: the sheet is a document
  * surface, not a navigation surface, and a link inside an item would compete
  * with the item's own click targets. Faithful markdown rendering is the PDF
@@ -20,11 +27,24 @@
  */
 
 import { For, Show, createSignal, type JSX } from "solid-js";
+import { createDraggable, createDroppable } from "@thisbeyond/solid-dnd";
+import { CustomSectionDialog } from "./CustomSectionDialog";
 import { InlineMarkdown } from "./InlineMarkdown";
 import { InlineText } from "./InlineText";
 import { ItemDialog } from "./ItemDialog";
-import { renameSection, updateCoverLetter, updateItem, updateSummary } from "./docEdits";
+import {
+  removeItem,
+  removeSection,
+  renameSection,
+  setItemVisibility,
+  toggleSection,
+  duplicateItem,
+  updateCoverLetter,
+  updateItem,
+  updateSummary,
+} from "./docEdits";
 import { itemNoun } from "./itemFields";
+import type { MoveStep } from "../../lib/docDnd";
 import { isCustomId, sectionTitle } from "../../lib/docLayout";
 import type {
   Award,
@@ -275,17 +295,20 @@ interface ItemEntry {
   id: string;
   /** Index into the unfiltered `items` array — what the store actions address. */
   index: number;
+  /** Switched off — drawn as chrome, but absent from the PDF. */
+  hidden: boolean;
   item: Record<string, unknown>;
   view: ItemView;
 }
 
 /**
- * The visible items of `sectionId`, already flattened to {@link ItemView}.
+ * The items of `sectionId`, already flattened to {@link ItemView}.
  *
  * Item shapes differ per section, and the adapter table above is the only
  * place that knows which is which — so the lookup is done once, here, behind a
- * cast the table's own keys justify. Hidden items are dropped from the drawing
- * but keep their index, because that is what `updateSectionItem` addresses.
+ * cast the table's own keys justify. Hidden items stay in the drawing as
+ * flagged chrome — hidden means "not rendered to PDF", not "gone from the
+ * editing surface" — which also keeps drawn order identical to stored order.
  */
 function itemEntries(resume: ResumeData, sectionId: string): ItemEntry[] {
   const adapter = isCustomId(sectionId)
@@ -297,16 +320,13 @@ function itemEntries(resume: ResumeData, sectionId: string): ItemEntry[] {
     ? resume.sections.custom?.[sectionId]
     : (resume.sections[sectionId as ItemSectionId] as { items?: VisibleItem[] } | undefined);
 
-  return (section?.items ?? [])
-    .map((item, index) => ({
-      id: item.id,
-      index,
-      item: item as unknown as Record<string, unknown>,
-      view: adapter(item),
-      visible: item.visible,
-    }))
-    .filter((entry) => entry.visible)
-    .map(({ visible: _visible, ...entry }) => entry);
+  return (section?.items ?? []).map((item, index) => ({
+    id: item.id,
+    index,
+    hidden: !item.visible,
+    item: item as unknown as Record<string, unknown>,
+    view: adapter(item),
+  }));
 }
 
 function Level(props: { value: number }): JSX.Element {
@@ -349,12 +369,38 @@ function Slot(props: {
   );
 }
 
+/** Icon paths for the chrome controls, drawn on a 24x24 grid. */
+const CHROME_ICONS = {
+  handle: "M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01",
+  up: "M5 15l7-7 7 7",
+  down: "M19 9l-7 7-7-7",
+  previous: "M15 19l-7-7 7-7",
+  next: "M9 5l7 7-7 7",
+} as const;
+
+function ChromeIcon(props: { path: string }): JSX.Element {
+  return (
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={props.path} />
+    </svg>
+  );
+}
+
+/** The one-step move controls: label suffix per step, in render order. */
+const STEP_WORDS: Record<MoveStep, string> = {
+  up: "up",
+  down: "down",
+  previous: "to the previous section",
+  next: "to the next section",
+};
+
 function Item(props: {
   sectionId: string;
   entry: ItemEntry;
-  /** Singular noun for this section's items, used in the edit button's label. */
+  /** Singular noun for this section's items, used in the controls' labels. */
   noun: string;
   onEdit: (entry: ItemEntry) => void;
+  onMove: (itemId: string, step: MoveStep) => void;
 }): JSX.Element {
   const view = () => props.entry.view;
   // Stable across redraws: the item's own id, not its position. Inline editors
@@ -363,13 +409,42 @@ function Item(props: {
   const meta = () => view().meta ?? [];
   const keywords = () => (view().keywords ?? []).filter((keyword) => keyword.trim() !== "");
   const url = () => urlLabel(view().url);
+  const label = () => (view().title.value.trim() === "" ? props.noun : view().title.value);
+
+  const draggable = createDraggable(`drag:entry:${props.sectionId}:${props.entry.id}`, {
+    type: "entry",
+    sectionId: props.sectionId,
+    itemId: props.entry.id,
+  });
+  const droppable = createDroppable(`drop:entry:${props.sectionId}:${props.entry.id}`, {
+    type: "entry",
+    sectionId: props.sectionId,
+    itemId: props.entry.id,
+  });
+
+  // Lateral steps mirror the cross-section drag, which only custom sections
+  // support — the only pair with a shared item shape.
+  const steps = (): MoveStep[] =>
+    isCustomId(props.sectionId) ? ["up", "down", "previous", "next"] : ["up", "down"];
 
   const commit = (field: string, value: string): void => {
     updateItem(props.sectionId, props.entry.index, { [field]: value });
   };
 
   return (
-    <article class="doc-sheet__item">
+    <article
+      ref={(element) => {
+        draggable.ref(element);
+        droppable.ref(element);
+      }}
+      class="doc-sheet__item"
+      classList={{
+        "doc-sheet__item--hidden": props.entry.hidden,
+        "doc-sheet__item--drop": droppable.isActiveDroppable,
+        "doc-sheet__item--dragging": draggable.isActiveDraggable,
+      }}
+      data-entry-id={props.entry.id}
+    >
       <div class="doc-sheet__item-head">
         <div>
           <h4 class="doc-sheet__item-title">
@@ -433,14 +508,66 @@ function Item(props: {
         <p class="doc-sheet__url">{url()}</p>
       </Show>
 
-      <button
-        type="button"
-        class="doc-sheet__action doc-sheet__action--item"
-        aria-label={`Edit ${view().title.value.trim() === "" ? props.noun : view().title.value} details`}
-        onClick={() => props.onEdit(props.entry)}
-      >
-        Edit
-      </button>
+      <div class="doc-sheet__item-actions" role="group" aria-label={`${label()} actions`}>
+        <button
+          type="button"
+          class="doc-sheet__action doc-sheet__action--icon doc-sheet__drag-handle"
+          aria-label={`Drag ${label()} to move it`}
+          title={`Drag ${label()} to move it`}
+          {...draggable.dragActivators}
+        >
+          <ChromeIcon path={CHROME_ICONS.handle} />
+        </button>
+        <For each={steps()}>
+          {(step) => (
+            <button
+              type="button"
+              class="doc-sheet__action doc-sheet__action--icon"
+              data-doc-move-entry={`${props.entry.id}:${step}`}
+              aria-label={`Move ${label()} ${STEP_WORDS[step]}`}
+              title={`Move ${label()} ${STEP_WORDS[step]}`}
+              onClick={() => props.onMove(props.entry.id, step)}
+            >
+              <ChromeIcon path={CHROME_ICONS[step]} />
+            </button>
+          )}
+        </For>
+        <button
+          type="button"
+          class="doc-sheet__action"
+          aria-label={`Edit ${label()} details`}
+          onClick={() => props.onEdit(props.entry)}
+        >
+          Edit
+        </button>
+        <button
+          type="button"
+          class="doc-sheet__action"
+          aria-label={`Duplicate ${label()}`}
+          onClick={() => duplicateItem(props.sectionId, props.entry.index)}
+        >
+          Duplicate
+        </button>
+        <button
+          type="button"
+          class="doc-sheet__action"
+          aria-label={`${props.entry.hidden ? "Show" : "Hide"} ${label()}`}
+          onClick={() => setItemVisibility(props.sectionId, props.entry.index, props.entry.hidden)}
+        >
+          {props.entry.hidden ? "Show" : "Hide"}
+        </button>
+        <button
+          type="button"
+          class="doc-sheet__action doc-sheet__action--danger"
+          aria-label={`Delete ${label()}`}
+          onClick={() => removeItem(props.sectionId, props.entry.index)}
+        >
+          Delete
+        </button>
+        <Show when={props.entry.hidden}>
+          <span class="doc-sheet__hidden-badge">Hidden</span>
+        </Show>
+      </div>
     </article>
   );
 }
@@ -449,18 +576,34 @@ export interface DocSectionProps {
   resume: ResumeData;
   /** A fixed section id, or a custom section's own id. */
   sectionId: string;
+  /** Switched off — drawn as chrome, but absent from the PDF. */
+  hidden: boolean;
+  /** Perform (and announce) a one-step section move. */
+  onMoveSection: (sectionId: string, step: MoveStep) => void;
+  /** Perform (and announce) a one-step entry move. */
+  onMoveEntry: (sectionId: string, itemId: string, step: MoveStep) => void;
 }
 
+/** The section move controls' label suffixes. */
+const SECTION_STEP_WORDS: Record<MoveStep, string> = {
+  up: "up",
+  down: "down",
+  previous: "to the previous column",
+  next: "to the next column",
+};
+
 /**
- * One section of the sheet: its heading plus an editable view of its content.
+ * One section of the sheet: a card with structural chrome around an editable
+ * view of its content.
  *
  * `summary` and `coverLetter` carry rich text; every other section carries
- * items. Hidden items are dropped; hidden and empty *sections* never reach
- * here, because `renderPages()` has already filtered them out.
+ * items. Hidden sections and items are drawn dimmed, as chrome — the editor
+ * keeps them reachable, the PDF drops them.
  */
 export function DocSection(props: DocSectionProps): JSX.Element {
   const [editing, setEditing] = createSignal<ItemEntry | null>(null);
   const [isDialogOpen, setIsDialogOpen] = createSignal(false);
+  const [isRenameOpen, setIsRenameOpen] = createSignal(false);
 
   const title = () => sectionTitle(props.resume, props.sectionId);
   const isRichText = () => props.sectionId === "summary" || props.sectionId === "coverLetter";
@@ -471,6 +614,16 @@ export function DocSection(props: DocSectionProps): JSX.Element {
   };
   const entries = () => itemEntries(props.resume, props.sectionId);
   const noun = () => itemNoun(title());
+  const isCustom = () => isCustomId(props.sectionId);
+
+  const draggable = createDraggable(`drag:section:${props.sectionId}`, {
+    type: "section",
+    sectionId: props.sectionId,
+  });
+  const droppable = createDroppable(`drop:section:${props.sectionId}`, {
+    type: "section",
+    sectionId: props.sectionId,
+  });
 
   function openAdd(): void {
     setEditing(null);
@@ -483,7 +636,78 @@ export function DocSection(props: DocSectionProps): JSX.Element {
   }
 
   return (
-    <section class="doc-sheet__section" data-section-id={props.sectionId}>
+    <section
+      ref={(element) => {
+        draggable.ref(element);
+        droppable.ref(element);
+      }}
+      class="doc-sheet__section"
+      classList={{
+        "doc-sheet__section--hidden": props.hidden,
+        "doc-sheet__section--drop": droppable.isActiveDroppable,
+        "doc-sheet__section--dragging": draggable.isActiveDraggable,
+      }}
+      data-section-id={props.sectionId}
+    >
+      <div
+        class="doc-sheet__section-chrome"
+        role="group"
+        aria-label={`${title()} section controls`}
+      >
+        <button
+          type="button"
+          class="doc-sheet__action doc-sheet__action--icon doc-sheet__drag-handle"
+          aria-label={`Drag ${title()} section to move it`}
+          title={`Drag ${title()} section to move it`}
+          {...draggable.dragActivators}
+        >
+          <ChromeIcon path={CHROME_ICONS.handle} />
+        </button>
+        <For each={["up", "down", "previous", "next"] as MoveStep[]}>
+          {(step) => (
+            <button
+              type="button"
+              class="doc-sheet__action doc-sheet__action--icon"
+              data-doc-move-section={`${props.sectionId}:${step}`}
+              aria-label={`Move ${title()} section ${SECTION_STEP_WORDS[step]}`}
+              title={`Move ${title()} section ${SECTION_STEP_WORDS[step]}`}
+              onClick={() => props.onMoveSection(props.sectionId, step)}
+            >
+              <ChromeIcon path={CHROME_ICONS[step]} />
+            </button>
+          )}
+        </For>
+        <button
+          type="button"
+          class="doc-sheet__action"
+          aria-label={`${props.hidden ? "Show" : "Hide"} ${title()} section`}
+          onClick={() => toggleSection(props.sectionId)}
+        >
+          {props.hidden ? "Show" : "Hide"}
+        </button>
+        <Show when={isCustom()}>
+          <button
+            type="button"
+            class="doc-sheet__action"
+            aria-label={`Rename ${title()} section`}
+            onClick={() => setIsRenameOpen(true)}
+          >
+            Rename
+          </button>
+          <button
+            type="button"
+            class="doc-sheet__action doc-sheet__action--danger"
+            aria-label={`Delete ${title()} section`}
+            onClick={() => removeSection(props.sectionId)}
+          >
+            Delete
+          </button>
+        </Show>
+        <Show when={props.hidden}>
+          <span class="doc-sheet__hidden-badge">Hidden</span>
+        </Show>
+      </div>
+
       <h3 class="doc-sheet__section-title">
         <InlineText
           value={title()}
@@ -508,7 +732,13 @@ export function DocSection(props: DocSectionProps): JSX.Element {
         <div class="doc-sheet__items">
           <For each={entries()}>
             {(entry) => (
-              <Item sectionId={props.sectionId} entry={entry} noun={noun()} onEdit={openEdit} />
+              <Item
+                sectionId={props.sectionId}
+                entry={entry}
+                noun={noun()}
+                onEdit={openEdit}
+                onMove={(itemId, step) => props.onMoveEntry(props.sectionId, itemId, step)}
+              />
             )}
           </For>
         </div>
@@ -528,6 +758,15 @@ export function DocSection(props: DocSectionProps): JSX.Element {
           index={editing()?.index}
           item={editing()?.item}
           onOpenChange={setIsDialogOpen}
+        />
+      </Show>
+
+      <Show when={isCustom()}>
+        <CustomSectionDialog
+          open={isRenameOpen()}
+          sectionId={props.sectionId}
+          name={title()}
+          onOpenChange={setIsRenameOpen}
         />
       </Show>
     </section>

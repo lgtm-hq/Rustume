@@ -84,3 +84,76 @@ export function addItem(sectionId: string, item: ItemUpdates): void {
   }
   resumeStore.addSectionItem(sectionId as SectionKey, item as never);
 }
+
+/**
+ * Flip a section between shown and hidden.
+ *
+ * Hidden means "not rendered to PDF": the section stays on the editing surface
+ * as chrome, which is also what makes this toggle reversible from the sheet.
+ */
+export function toggleSection(sectionId: string): void {
+  if (isCustomId(sectionId)) {
+    const section = resumeStore.store.resume?.sections.custom[sectionId];
+    if (!section) return;
+    resumeStore.updateCustomSection(sectionId, { visible: !section.visible });
+    return;
+  }
+  resumeStore.toggleSectionVisibility(sectionId as LayoutSectionKey);
+}
+
+/** Delete a custom section. Fixed sections can only be hidden, never deleted. */
+export function removeSection(sectionId: string): void {
+  if (!isCustomId(sectionId)) return;
+  resumeStore.removeCustomSection(sectionId);
+}
+
+/** Show or hide one item. Same rule as sections: hidden items stay as chrome. */
+export function setItemVisibility(sectionId: string, index: number, visible: boolean): void {
+  updateItem(sectionId, index, { visible });
+}
+
+/** Clone the item at `index` with a fresh id, inserted right after it. */
+export function duplicateItem(sectionId: string, index: number): void {
+  if (isCustomId(sectionId)) {
+    resumeStore.duplicateCustomSectionItem(sectionId, index);
+    return;
+  }
+  resumeStore.duplicateSectionItem(sectionId as SectionKey, index);
+}
+
+/** Delete one item of a section. */
+export function removeItem(sectionId: string, index: number): void {
+  if (isCustomId(sectionId)) {
+    resumeStore.removeCustomSectionItem(sectionId, index);
+    return;
+  }
+  resumeStore.removeSectionItem(sectionId as SectionKey, index);
+}
+
+/** Reorder one item within its section. */
+export function reorderItem(sectionId: string, fromIndex: number, toIndex: number): void {
+  if (isCustomId(sectionId)) {
+    resumeStore.reorderCustomSectionItem(sectionId, fromIndex, toIndex);
+    return;
+  }
+  resumeStore.reorderSectionItem(sectionId as SectionKey, fromIndex, toIndex);
+}
+
+/**
+ * Move an item between two custom sections — one store action, one undo entry.
+ * The only cross-section pair with a shared item shape (see `docDnd.ts`).
+ */
+export function moveItemAcrossSections(
+  fromSectionId: string,
+  fromIndex: number,
+  toSectionId: string,
+  toIndex: number,
+): void {
+  if (!isCustomId(fromSectionId) || !isCustomId(toSectionId)) return;
+  resumeStore.moveCustomSectionItem(fromSectionId, fromIndex, toSectionId, toIndex);
+}
+
+/** Replace `metadata.layout` wholesale — one drop, one layout write. */
+export function applyLayout(layout: string[][][]): void {
+  resumeStore.updateLayout(layout);
+}
