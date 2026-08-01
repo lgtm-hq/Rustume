@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
-import { render, screen, waitFor, within } from "@solidjs/testing-library";
+import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-library";
 import { MemoryRouter, Route, createMemoryHistory } from "@solidjs/router";
 import { Suspense, type Component } from "solid-js";
 import { axeConfig } from "../../test/a11y";
@@ -163,13 +163,39 @@ describe("DocEditor sheet", () => {
     expect(screen.queryByRole("heading", { name: "Advisory & Standards Work" })).toBeNull();
   });
 
-  it("offers no editing affordances", async () => {
+  it("offers every drawn value as a keyboard-reachable editing affordance", async () => {
     const { container } = await renderSheet();
     const sheet = screen.getByTestId("doc-sheet");
 
-    expect(sheet.querySelectorAll("input, textarea, select, button")).toHaveLength(0);
+    // #728 replaced the read-only sheet: values are buttons that swap for an
+    // input in place. What must stay true is that nothing is click-only and
+    // that no dialog is open until the user asks for one.
+    const experience = sheet.querySelector<HTMLElement>('[data-section-id="experience"]');
+    expect(
+      within(experience as HTMLElement).getByRole("button", { name: "Lumen Health" }),
+    ).toBeInTheDocument();
     expect(sheet.querySelectorAll("[contenteditable]")).toHaveLength(0);
     expect(within(container).queryByRole("dialog")).toBeNull();
+  });
+
+  it("edits a value in place and writes it through the store", async () => {
+    await renderSheet();
+    const sheet = screen.getByTestId("doc-sheet");
+    const experience = sheet.querySelector<HTMLElement>('[data-section-id="experience"]');
+
+    fireEvent.click(
+      within(experience as HTMLElement).getByRole("button", { name: "Lumen Health" }),
+    );
+    const input = within(experience as HTMLElement).getByRole("textbox", { name: "Company" });
+    fireEvent.input(input, { target: { value: "Lumen Health Group" } });
+    fireEvent.blur(input);
+
+    // The store is the real one here, so the sheet redraws from what it holds.
+    await waitFor(() =>
+      expect(
+        within(experience as HTMLElement).getByRole("button", { name: "Lumen Health Group" }),
+      ).toBeInTheDocument(),
+    );
   });
 
   it("reports no overflow when nothing is clipped", async () => {

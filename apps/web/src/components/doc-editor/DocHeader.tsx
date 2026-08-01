@@ -6,17 +6,31 @@
  * says where and how the name block is drawn (`banner`, `sidebar`, `boxed`,
  * `left`, `center`) and `contactIn` says which of those regions prints the
  * contact details. Both arrive as layout metadata from `GET /api/templates`.
+ *
+ * Everything the header draws is editable in place. The core contact fields
+ * (email, phone, location) are drawn even when empty, as muted placeholders, so
+ * a blank resume still offers somewhere to type; the personal URL and the
+ * resume's own custom fields appear only once they carry a value, because they
+ * are additions rather than expected parts of a document.
  */
 
-import { For, Show, type JSX } from "solid-js";
+import { For, Show, createSignal, type JSX } from "solid-js";
+import { InlineText } from "./InlineText";
+import { PhotoDialog } from "./PhotoDialog";
+import { updateBasicsField } from "./docEdits";
 import type { TemplateHeaderStyle } from "../../lib/docLayout";
-import type { Basics, Picture, Url } from "../../wasm/types";
+import type { Basics, CustomField, Picture, Url } from "../../wasm/types";
 
-/** One contact line: an optional label plus the value the template prints. */
+/** One contact line: an optional label, the value, and where it writes back. */
 interface ContactEntry {
   key: string;
   label?: string;
   value: string;
+  /** Field name announced by the inline editor. */
+  fieldLabel: string;
+  commit: (value: string) => void;
+  /** Whether the line is drawn even when the value is empty. */
+  alwaysShown?: boolean;
 }
 
 /**
@@ -38,20 +52,61 @@ function urlLabel(url: Url | undefined): string {
  * follow, as the templates that print them do.
  */
 function contactEntries(basics: Basics): ContactEntry[] {
-  const entries: ContactEntry[] = [];
-  if (basics.email.trim() !== "") entries.push({ key: "email", value: basics.email });
-  if (basics.phone.trim() !== "") entries.push({ key: "phone", value: basics.phone });
-  if (basics.location.trim() !== "") entries.push({ key: "location", value: basics.location });
+  const entries: ContactEntry[] = [
+    {
+      key: "email",
+      value: basics.email,
+      fieldLabel: "Email",
+      commit: (value) => updateBasicsField("email", value),
+      alwaysShown: true,
+    },
+    {
+      key: "phone",
+      value: basics.phone,
+      fieldLabel: "Phone",
+      commit: (value) => updateBasicsField("phone", value),
+      alwaysShown: true,
+    },
+    {
+      key: "location",
+      value: basics.location,
+      fieldLabel: "Location",
+      commit: (value) => updateBasicsField("location", value),
+      alwaysShown: true,
+    },
+  ];
 
   const url = urlLabel(basics.url);
-  if (url !== "") entries.push({ key: "url", value: url });
+  if (url !== "") {
+    // The sheet prints the label when there is one, so that is what an inline
+    // edit changes; with no label the href is what is on the page.
+    const hasLabel = (basics.url?.label ?? "").trim() !== "";
+    entries.push({
+      key: "url",
+      value: url,
+      fieldLabel: hasLabel ? "Website label" : "Website URL",
+      commit: (value) =>
+        updateBasicsField("url", { ...basics.url, [hasLabel ? "label" : "href"]: value }),
+    });
+  }
 
   for (const field of basics.customFields) {
     if (field.value.trim() === "") continue;
-    entries.push({ key: `custom:${field.id}`, label: field.name, value: field.value });
+    entries.push({
+      key: `custom:${field.id}`,
+      label: field.name,
+      value: field.value,
+      fieldLabel: field.name === "" ? "Custom field" : field.name,
+      commit: (value) => updateBasicsField("customFields", replaceField(basics, field.id, value)),
+    });
   }
 
   return entries;
+}
+
+/** `customFields` with one field's value replaced — committed as one action. */
+function replaceField(basics: Basics, id: string, value: string): CustomField[] {
+  return basics.customFields.map((field) => (field.id === id ? { ...field, value } : field));
 }
 
 /** Whether a picture is set and not switched off. Mirrors `has-visible-picture`. */
@@ -117,7 +172,12 @@ export interface DocHeaderProps {
 }
 
 export function DocHeader(props: DocHeaderProps): JSX.Element {
-  const entries = () => contactEntries(props.basics);
+  const [isPhotoOpen, setIsPhotoOpen] = createSignal(false);
+
+  const entries = () =>
+    contactEntries(props.basics).filter(
+      (entry) => entry.alwaysShown === true || entry.value.trim() !== "",
+    );
   const links = () => props.profileLinks ?? [];
   const stacked = () => props.headerStyle === "sidebar";
   const showIdentity = () => props.showIdentity ?? true;
@@ -134,16 +194,48 @@ export function DocHeader(props: DocHeaderProps): JSX.Element {
       }}
       data-testid="doc-sheet-header"
     >
-      <Show when={showIdentity() && pictureVisible(props.basics.picture)}>
-        <Avatar picture={props.basics.picture} name={props.basics.name} />
-      </Show>
+      <Show when={showIdentity()}>
+        <Show
+          when={pictureVisible(props.basics.picture)}
+          fallback={
+            <button type="button" class="doc-sheet__action" onClick={() => setIsPhotoOpen(true)}>
+              Add photo
+            </button>
+          }
+        >
+          <button
+            type="button"
+            class="doc-sheet__editable doc-sheet__avatar-button"
+            title="Edit photo"
+            onClick={() => setIsPhotoOpen(true)}
+          >
+            <Avatar picture={props.basics.picture} name={props.basics.name} />
+          </button>
+        </Show>
 
-      <Show when={showIdentity() && props.basics.name.trim() !== ""}>
-        <h2 class="doc-sheet__name">{props.basics.name}</h2>
-      </Show>
+        <h2 class="doc-sheet__name">
+          <InlineText
+            value={props.basics.name}
+            label="Name"
+            placeholder="Your name"
+            onCommit={(value) => updateBasicsField("name", value)}
+          />
+        </h2>
 
-      <Show when={showIdentity() && props.basics.headline.trim() !== ""}>
-        <p class="doc-sheet__headline">{props.basics.headline}</p>
+        <p class="doc-sheet__headline">
+          <InlineText
+            value={props.basics.headline}
+            label="Headline"
+            placeholder="Your headline"
+            onCommit={(value) => updateBasicsField("headline", value)}
+          />
+        </p>
+
+        <PhotoDialog
+          open={isPhotoOpen()}
+          picture={props.basics.picture}
+          onOpenChange={setIsPhotoOpen}
+        />
       </Show>
 
       <Show when={props.showContact && entries().length > 0}>
@@ -154,7 +246,7 @@ export function DocHeader(props: DocHeaderProps): JSX.Element {
                 <Show when={entry.label}>
                   <span class="doc-sheet__contact-label">{entry.label}: </span>
                 </Show>
-                {entry.value}
+                <InlineText value={entry.value} label={entry.fieldLabel} onCommit={entry.commit} />
               </li>
             )}
           </For>
@@ -163,6 +255,8 @@ export function DocHeader(props: DocHeaderProps): JSX.Element {
 
       <Show when={props.showContact && links().length > 0}>
         <ul class="doc-sheet__contact" classList={{ "doc-sheet__contact--stacked": stacked() }}>
+          {/* Profile links mirror the `profiles` section, which is edited where
+              the layout places it rather than twice over. */}
           <For each={links()}>{(link) => <li>{link.label}</li>}</For>
         </ul>
       </Show>

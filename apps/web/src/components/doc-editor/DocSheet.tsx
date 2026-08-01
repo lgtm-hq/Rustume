@@ -1,10 +1,13 @@
 /**
- * The read-only document sheet: A4 page frames, the template's column grid, the
- * header region, and a read view of every placed section.
+ * The document sheet: A4 page frames, the template's column grid, the header
+ * region, and an editable view of every placed section.
  *
  * The page/column structure comes straight from `renderPages()` and
- * `layoutColumns()` — this component draws that model and nothing else. It has
- * no editing affordances: no inputs, no `contentEditable`, no modals.
+ * `layoutColumns()` — this component draws that model and nothing else. Editing
+ * is click-to-edit in place (`InlineText`, `InlineMarkdown`) plus the item,
+ * section and photo dialogs; every one of them writes through a `resumeStore`
+ * action, never `setStore` (see `docEdits.ts`). Structural editing — moving or
+ * reordering sections — is #729 and is not here.
  *
  * Overflow is *reported*, never absorbed. A column that cannot fit its sections
  * is clipped and flagged; moving a section to another page is a `metadata.layout`
@@ -12,6 +15,7 @@
  */
 
 import { For, Show, createEffect, createMemo, createSignal, onCleanup, type JSX } from "solid-js";
+import { CustomSectionDialog } from "./CustomSectionDialog";
 import { DocHeader } from "./DocHeader";
 import { DocSection } from "./DocSection";
 import {
@@ -84,6 +88,7 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
   const theme = () => props.resume.metadata.theme;
 
   const [overflowing, setOverflowing] = createSignal<number[]>([]);
+  const [isSectionDialogOpen, setIsSectionDialogOpen] = createSignal(false);
   let root: HTMLDivElement | undefined;
 
   /**
@@ -222,6 +227,20 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
           );
         }}
       </For>
+
+      {/* Sheet-level chrome: creating a section is not part of any one page. */}
+      <div class="doc-sheet__actions">
+        <button
+          type="button"
+          class="doc-sheet__action"
+          data-testid="doc-sheet-add-section"
+          onClick={() => setIsSectionDialogOpen(true)}
+        >
+          Add section
+        </button>
+      </div>
+
+      <CustomSectionDialog open={isSectionDialogOpen()} onOpenChange={setIsSectionDialogOpen} />
     </div>
   );
 }
