@@ -371,4 +371,20 @@ describe("editorPages", () => {
 
     expect(drawn.some((section) => section.id === "summary")).toBe(true);
   });
+
+  it("keeps a hidden, empty rich-text section drawn so hiding is reversible", () => {
+    // Regression: hiding an empty summary used to drop the card entirely —
+    // and rich text has no add-block, so nothing on the sheet could show it
+    // again. A placed rich-text section must always draw.
+    const resume = loadDocEditorFixture();
+    resume.sections.summary.content = "";
+    resume.sections.summary.visible = false;
+
+    const drawn = editorPages(resume, SIDEBAR_TEMPLATE).flat(2);
+
+    expect(drawn.find((section) => section.id === "summary")).toEqual({
+      id: "summary",
+      hidden: true,
+    });
+  });
 });

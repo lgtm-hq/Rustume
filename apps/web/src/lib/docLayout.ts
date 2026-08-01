@@ -364,7 +364,11 @@ export function editorPages(
       column
         .filter((id) => {
           if (id === "summary" || id === "coverLetter") {
-            return sectionHasContent(resume, id) || sectionVisible(resume, id);
+            // A placed rich-text section always draws: its editing surface is
+            // the card itself, and an add-block cannot resurface rich text —
+            // dropping a hidden, empty one would make hiding it irreversible
+            // from the sheet.
+            return true;
           }
           return sectionHasItems(resume, id);
         })

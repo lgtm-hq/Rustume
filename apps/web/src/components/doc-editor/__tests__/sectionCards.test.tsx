@@ -99,6 +99,22 @@ describe("document sheet structural chrome", () => {
       expect(store.toggleSectionVisibility).toHaveBeenCalledExactlyOnceWith("experience");
     });
 
+    it("keeps a hidden, empty summary on the surface with a Show control", () => {
+      // Regression: rich text has no add-block, so if hiding an empty summary
+      // dropped its card, nothing on the sheet could ever show it again.
+      resume.sections.summary.content = "";
+      resume.sections.summary.visible = false;
+      renderSheet();
+
+      const summary = document.querySelector('[data-section-id="summary"]');
+      expect(summary).toBeTruthy();
+      expect(summary?.classList.contains("doc-sheet__section--hidden")).toBe(true);
+
+      fireEvent.click(screen.getByRole("button", { name: "Show Summary section" }));
+
+      expect(store.toggleSectionVisibility).toHaveBeenCalledExactlyOnceWith("summary");
+    });
+
     it("deletes a custom section through removeCustomSection", () => {
       renderSheet();
 
