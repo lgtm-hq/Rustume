@@ -571,6 +571,7 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
                               hidden={section.hidden}
                               onMoveSection={moveSection}
                               onMoveEntry={moveEntry}
+                              onAnnounce={announce}
                             />
                           )}
                         </For>

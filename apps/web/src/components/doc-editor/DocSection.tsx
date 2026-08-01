@@ -401,6 +401,8 @@ function Item(props: {
   noun: string;
   onEdit: (entry: ItemEntry) => void;
   onMove: (itemId: string, step: MoveStep) => void;
+  /** Announce a completed action to the sheet's live region. */
+  onAnnounce: (message: string) => void;
 }): JSX.Element {
   const view = () => props.entry.view;
   // Stable across redraws: the item's own id, not its position. Inline editors
@@ -544,7 +546,10 @@ function Item(props: {
           type="button"
           class="doc-sheet__action"
           aria-label={`Duplicate ${label()}`}
-          onClick={() => duplicateItem(props.sectionId, props.entry.index)}
+          onClick={() => {
+            duplicateItem(props.sectionId, props.entry.index);
+            props.onAnnounce(`${label()} duplicated`);
+          }}
         >
           Duplicate
         </button>
@@ -552,7 +557,10 @@ function Item(props: {
           type="button"
           class="doc-sheet__action"
           aria-label={`${props.entry.hidden ? "Show" : "Hide"} ${label()}`}
-          onClick={() => setItemVisibility(props.sectionId, props.entry.index, props.entry.hidden)}
+          onClick={() => {
+            setItemVisibility(props.sectionId, props.entry.index, props.entry.hidden);
+            props.onAnnounce(`${label()} ${props.entry.hidden ? "shown" : "hidden"}`);
+          }}
         >
           {props.entry.hidden ? "Show" : "Hide"}
         </button>
@@ -560,7 +568,10 @@ function Item(props: {
           type="button"
           class="doc-sheet__action doc-sheet__action--danger"
           aria-label={`Delete ${label()}`}
-          onClick={() => removeItem(props.sectionId, props.entry.index)}
+          onClick={() => {
+            removeItem(props.sectionId, props.entry.index);
+            props.onAnnounce(`${label()} deleted`);
+          }}
         >
           Delete
         </button>
@@ -582,6 +593,8 @@ export interface DocSectionProps {
   onMoveSection: (sectionId: string, step: MoveStep) => void;
   /** Perform (and announce) a one-step entry move. */
   onMoveEntry: (sectionId: string, itemId: string, step: MoveStep) => void;
+  /** Announce a completed action to the sheet's live region. */
+  onAnnounce: (message: string) => void;
 }
 
 /** The section move controls' label suffixes. */
@@ -681,7 +694,10 @@ export function DocSection(props: DocSectionProps): JSX.Element {
           type="button"
           class="doc-sheet__action"
           aria-label={`${props.hidden ? "Show" : "Hide"} ${title()} section`}
-          onClick={() => toggleSection(props.sectionId)}
+          onClick={() => {
+            toggleSection(props.sectionId);
+            props.onAnnounce(`${title()} section ${props.hidden ? "shown" : "hidden"}`);
+          }}
         >
           {props.hidden ? "Show" : "Hide"}
         </button>
@@ -698,7 +714,11 @@ export function DocSection(props: DocSectionProps): JSX.Element {
             type="button"
             class="doc-sheet__action doc-sheet__action--danger"
             aria-label={`Delete ${title()} section`}
-            onClick={() => removeSection(props.sectionId)}
+            onClick={() => {
+              const name = title();
+              removeSection(props.sectionId);
+              props.onAnnounce(`${name} section deleted`);
+            }}
           >
             Delete
           </button>
@@ -738,6 +758,7 @@ export function DocSection(props: DocSectionProps): JSX.Element {
                 noun={noun()}
                 onEdit={openEdit}
                 onMove={(itemId, step) => props.onMoveEntry(props.sectionId, itemId, step)}
+                onAnnounce={props.onAnnounce}
               />
             )}
           </For>

@@ -10,6 +10,7 @@
 
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-library";
+import { entryStep } from "../../../lib/docDnd";
 import { loadDocEditorFixture, SIDEBAR_TEMPLATE } from "../../../test/docEditorFixture";
 import { DocSheet } from "../DocSheet";
 import type { ResumeData } from "../../../wasm/types";
@@ -67,13 +68,16 @@ describe("document sheet structural chrome", () => {
   }
 
   describe("section cards", () => {
-    it("hides a fixed section through toggleSectionVisibility", () => {
+    it("hides a fixed section through toggleSectionVisibility, and says so", async () => {
       renderSheet();
 
       fireEvent.click(screen.getByRole("button", { name: "Hide Experience section" }));
 
       expect(store.toggleSectionVisibility).toHaveBeenCalledExactlyOnceWith("experience");
       expect(writeCount()).toBe(1);
+      await waitFor(() => {
+        expect(liveRegionText()).toMatch(/Experience section hidden/i);
+      });
     });
 
     it("hides a custom section through updateCustomSection", () => {
@@ -188,6 +192,16 @@ describe("document sheet structural chrome", () => {
       });
     });
 
+    it("hands focus back to the control that was used", async () => {
+      renderSheet();
+      const control = screen.getByRole("button", { name: "Move Experience section down" });
+
+      fireEvent.click(control);
+
+      // The refocus rides requestAnimationFrame, after the sheet redraws.
+      await waitFor(() => expect(document.activeElement).toBe(control));
+    });
+
     it("steps past a placed-but-undrawn section, and counts only drawn cards", async () => {
       // `education` keeps its layout slot but has nothing to draw, so one
       // press on Experience must clear it in a single visible step — and the
@@ -230,12 +244,15 @@ describe("document sheet structural chrome", () => {
       expect(writeCount()).toBe(1);
     });
 
-    it("deletes the right entry through removeSectionItem", () => {
+    it("deletes the right entry through removeSectionItem, and says so", async () => {
       renderSheet();
 
       fireEvent.click(screen.getByRole("button", { name: "Delete Lumen Health" }));
 
       expect(store.removeSectionItem).toHaveBeenCalledExactlyOnceWith("experience", 0);
+      await waitFor(() => {
+        expect(liveRegionText()).toMatch(/Lumen Health deleted/i);
+      });
     });
 
     it("hides an entry, keeps it drawn, and can show it again", () => {
@@ -284,17 +301,20 @@ describe("document sheet structural chrome", () => {
     });
 
     it("performs the same mutation as the equivalent drag would", () => {
-      // The drag path resolves through `entryStep`/`resolveEntryDrop` to a
-      // (from, to) pair; the control must hand the store the identical pair.
       renderSheet();
 
       fireEvent.click(screen.getByRole("button", { name: "Move Lumen Health down" }));
-      const [sectionId, from, to] = store.reorderSectionItem.mock.calls[0] as [
-        string,
-        number,
-        number,
-      ];
-      expect([sectionId, from, to]).toEqual(["experience", 0, 1]);
+
+      // The drag path resolves through `entryStep` to a (from, to) pair; the
+      // control must hand the store the identical pair.
+      const items = resume.sections.experience.items.map(({ id, visible }) => ({ id, visible }));
+      const expected = entryStep(items, items[0].id, "down");
+      expect(expected).not.toBeNull();
+      expect(store.reorderSectionItem).toHaveBeenCalledExactlyOnceWith(
+        "experience",
+        expected!.fromIndex,
+        expected!.toIndex,
+      );
     });
 
     it("offers lateral moves only where a cross-section drag exists", () => {

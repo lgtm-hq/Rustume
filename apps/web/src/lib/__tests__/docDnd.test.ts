@@ -80,6 +80,12 @@ describe("moveSectionInLayout", () => {
     expect(moveSectionInLayout(LAYOUT, "missing", { page: 0, column: 0, index: 0 })).toBeNull();
   });
 
+  it("returns null for out-of-range targets", () => {
+    expect(moveSectionInLayout(LAYOUT, "summary", { page: -1, column: 0, index: 0 })).toBeNull();
+    expect(moveSectionInLayout(LAYOUT, "summary", { page: 0, column: -1, index: 0 })).toBeNull();
+    expect(moveSectionInLayout(LAYOUT, "summary", { page: 5, column: 0, index: 0 })).toBeNull();
+  });
+
   it("never mutates its input", () => {
     const before = JSON.parse(JSON.stringify(LAYOUT));
     moveSectionInLayout(LAYOUT, "summary", { page: 1, column: 1, index: 2 });

@@ -83,7 +83,9 @@ export function moveSectionInLayout(
   target: SectionDropTarget,
 ): string[][][] | null {
   const placement = findSectionPlacement(layout, sectionId);
-  if (!placement || target.page < 0 || target.page > layout.length) return null;
+  if (!placement || target.page < 0 || target.page > layout.length || target.column < 0) {
+    return null;
+  }
 
   const next = cloneLayout(layout);
   next[placement.page][placement.column].splice(placement.index, 1);
