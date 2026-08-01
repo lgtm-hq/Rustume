@@ -7,10 +7,14 @@ import { axeConfig } from "../../test/a11y";
 import { loadDocEditorFixture, SIDEBAR_TEMPLATE } from "../../test/docEditorFixture";
 import DocEditor from "../DocEditor";
 
-const { docEditorEnabled, fixture, RESUME_ID } = vi.hoisted(() => ({
+const { docEditorEnabled, fixture, resumeId } = vi.hoisted(() => ({
   docEditorEnabled: { value: false },
   fixture: { value: null as unknown },
-  RESUME_ID: "doc-editor-fixture",
+  // `resumeStore` is a module singleton and `useResumeRouteLoad` skips the load
+  // when the route id already matches what it holds. A fresh id per test forces
+  // the reload, so a test that writes through the store cannot leak into the
+  // next one's fixture.
+  resumeId: { value: "doc-editor-fixture-0" },
 }));
 
 vi.mock("../../lib/flags", () => ({
@@ -52,7 +56,7 @@ vi.mock("../../stores/auth", () => ({
 
 function renderAt(component: Component) {
   const history = createMemoryHistory();
-  history.set({ value: `/edit/${RESUME_ID}`, scroll: false, replace: true });
+  history.set({ value: `/edit/${resumeId.value}`, scroll: false, replace: true });
 
   return render(() => (
     <Suspense fallback={<p>Loading route</p>}>
@@ -74,9 +78,12 @@ function pageColumns(page: HTMLElement): [string, string[]][] {
 }
 
 describe("DocEditor sheet", () => {
+  let renderCount = 0;
+
   beforeEach(() => {
     fixture.value = loadDocEditorFixture();
     docEditorEnabled.value = true;
+    resumeId.value = `doc-editor-fixture-${++renderCount}`;
   });
 
   async function renderSheet() {

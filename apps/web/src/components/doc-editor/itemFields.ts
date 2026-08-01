@@ -10,6 +10,10 @@
  */
 
 import { isCustomId } from "../../lib/docLayout";
+import { FIXED_LAYOUT_SECTION_KEYS } from "../../lib/resumeSections";
+
+/** The fixed sections that carry items, and therefore need descriptors. */
+type FixedItemSectionKey = (typeof FIXED_LAYOUT_SECTION_KEYS)[number];
 
 /** How a field is edited. */
 export type ItemFieldKind = "text" | "markdown" | "keywords" | "level" | "url";
@@ -51,8 +55,13 @@ export const CUSTOM_ITEM_FIELDS: readonly ItemFieldSpec[] = [
   URL_FIELD,
 ];
 
-/** Editable fields of every fixed, item-bearing section. */
-export const FIXED_ITEM_FIELDS: Readonly<Record<string, readonly ItemFieldSpec[]>> = {
+/**
+ * Editable fields of every fixed, item-bearing section.
+ *
+ * Keyed by the section union rather than `string` so a new fixed section, or a
+ * misspelled key, fails to compile instead of silently drawing an empty dialog.
+ */
+export const FIXED_ITEM_FIELDS: Readonly<Record<FixedItemSectionKey, readonly ItemFieldSpec[]>> = {
   experience: [
     text("company", "Company"),
     text("position", "Position"),
@@ -132,7 +141,7 @@ export const FIXED_ITEM_FIELDS: Readonly<Record<string, readonly ItemFieldSpec[]
  */
 export function itemFieldsFor(sectionId: string): readonly ItemFieldSpec[] {
   if (isCustomId(sectionId)) return CUSTOM_ITEM_FIELDS;
-  return FIXED_ITEM_FIELDS[sectionId] ?? [];
+  return FIXED_ITEM_FIELDS[sectionId as FixedItemSectionKey] ?? [];
 }
 
 /** Singular noun for a section's items, used in dialog titles and buttons. */

@@ -17,6 +17,7 @@ import {
   expandShortHex,
   isHexColor,
   normalizeHexColor,
+  picturePreviewStyle,
   processImage,
   validateImageFile,
 } from "../../lib/imageUpload";
@@ -79,7 +80,9 @@ export function PhotoDialog(props: PhotoDialogProps): JSX.Element {
         ...current,
         url: dataUrl,
         aspectRatio,
-        effects: { ...current.effects, hidden: false },
+        // A first upload reveals the photo; replacing one leaves the user's own
+        // hidden choice alone. Same rule as the form builder's ImageUpload.
+        effects: { ...current.effects, hidden: current.url ? current.effects.hidden : false },
       }));
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Failed to process image");
@@ -109,17 +112,7 @@ export function PhotoDialog(props: PhotoDialogProps): JSX.Element {
     props.onOpenChange(false);
   }
 
-  const previewStyle = () => {
-    const picture = draft();
-    const size = picture.size || 64;
-    return {
-      width: `${size}px`,
-      height: `${size}px`,
-      "border-radius": `${Math.min(picture.borderRadius, Math.round(size / 2))}px`,
-      filter: picture.effects.grayscale ? "grayscale(100%)" : undefined,
-      transform: picture.effects.rotation ? `rotate(${picture.effects.rotation}deg)` : undefined,
-    };
-  };
+  const previewStyle = () => picturePreviewStyle(draft());
 
   return (
     <Modal open={props.open} onOpenChange={props.onOpenChange} title="Photo" size="lg">
@@ -174,7 +167,15 @@ export function PhotoDialog(props: PhotoDialogProps): JSX.Element {
             max={MAX_SIZE}
             step="4"
             value={draft().size}
-            onInput={(event) => patch({ size: parseInt(event.currentTarget.value, 10) })}
+            onInput={(event) => {
+              const size = parseInt(event.currentTarget.value, 10);
+              // The radius slider's max follows the size; keep the stored value
+              // inside it so shrinking the photo cannot save an over-large radius.
+              patch({
+                size,
+                borderRadius: Math.min(draft().borderRadius, Math.round(size / 2)),
+              });
+            }}
             class="w-full accent-accent"
           />
         </div>
@@ -301,7 +302,11 @@ export function PhotoDialog(props: PhotoDialogProps): JSX.Element {
         <Button variant="ghost" onClick={() => props.onOpenChange(false)}>
           Cancel
         </Button>
-        <Button onClick={save}>Save photo</Button>
+        {/* Saving mid-upload would commit a draft without the new image and
+            close the dialog, discarding the photo the user just chose. */}
+        <Button disabled={isProcessing()} onClick={save}>
+          Save photo
+        </Button>
       </div>
     </Modal>
   );

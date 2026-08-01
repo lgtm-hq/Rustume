@@ -12,6 +12,9 @@
  * being stored at source resolution.
  */
 
+import type { JSX } from "solid-js";
+import type { Picture } from "../wasm/types";
+
 /** Resume photos display at <=200px; keep the encoded asset compact. */
 const MAX_SIZE_PX = 512;
 
@@ -96,6 +99,8 @@ export async function processImage(file: File): Promise<ProcessedImage> {
       const canvas = document.createElement("canvas");
 
       let { width, height } = img;
+      // Captured before resizing: rounding the scaled side would shift the ratio.
+      const sourceAspectRatio = width / height;
       if (width > MAX_SIZE_PX || height > MAX_SIZE_PX) {
         if (width > height) {
           height = Math.max(1, Math.round((height * MAX_SIZE_PX) / width));
@@ -120,7 +125,7 @@ export async function processImage(file: File): Promise<ProcessedImage> {
         reject(new Error("Image is still too large after compression. Try a smaller photo."));
         return;
       }
-      resolve({ dataUrl, aspectRatio: width / height });
+      resolve({ dataUrl, aspectRatio: sourceAspectRatio });
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
@@ -128,6 +133,37 @@ export async function processImage(file: File): Promise<ProcessedImage> {
     };
     img.src = url;
   });
+}
+
+/**
+ * CSS for a photo preview, shared by both photo surfaces so the two previews
+ * cannot drift from each other or from what the Typst render produces.
+ *
+ * The shadow is a solid diagonal offset with no blur (`dx = dy = size / 2`),
+ * matching the PDF output rather than a browser-idiomatic soft shadow.
+ */
+export function picturePreviewStyle(picture: Picture): JSX.CSSProperties {
+  const size = picture.size || 64;
+  const { effects } = picture;
+  const borderWidth = effects.borderWidth ?? 2;
+  const shadowSize = effects.shadowSize || 0;
+  const shadowOffset = shadowSize / 2;
+
+  return {
+    width: `${size}px`,
+    height: `${size}px`,
+    "border-radius": `${Math.min(picture.borderRadius, Math.round(size / 2))}px`,
+    filter: effects.grayscale ? "grayscale(100%)" : undefined,
+    transform: effects.rotation ? `rotate(${effects.rotation}deg)` : undefined,
+    border:
+      effects.border && borderWidth > 0
+        ? `${borderWidth}px solid ${effects.borderColor || "var(--turbo-brand-primary)"}`
+        : undefined,
+    "box-shadow":
+      shadowSize > 0
+        ? `${shadowOffset}px ${shadowOffset}px 0 ${effects.shadowColor || "#00000040"}`
+        : undefined,
+  };
 }
 
 /** The reason `file` cannot be used as a photo, or `null` when it can. */

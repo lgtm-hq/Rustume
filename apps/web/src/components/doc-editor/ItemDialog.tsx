@@ -65,6 +65,11 @@ function parseKeywords(raw: string): string[] {
 
 export function ItemDialog(props: ItemDialogProps): JSX.Element {
   const [draft, setDraft] = createSignal<ItemUpdates>({});
+  // `Input` is controlled, so rendering the parsed list back would erase the
+  // separator the moment it is typed — "rust," reads back as "rust" and a
+  // second keyword can never be started. Keep the raw text the user typed and
+  // parse alongside it; the draft still holds the array the store wants.
+  const [keywordText, setKeywordText] = createSignal<Record<string, string>>({});
 
   const fields = () => itemFieldsFor(props.sectionId);
   const isAdding = () => props.index === undefined;
@@ -76,6 +81,7 @@ export function ItemDialog(props: ItemDialogProps): JSX.Element {
     if (!props.open) return;
     const seed = props.item ?? (emptyItemFor(props.sectionId) as Record<string, unknown> | null);
     setDraft({ ...(seed ?? {}) });
+    setKeywordText({});
   });
 
   function setField(key: string, value: unknown): void {
@@ -120,8 +126,11 @@ export function ItemDialog(props: ItemDialogProps): JSX.Element {
           <Input
             label={spec().label}
             description="Comma separated"
-            value={asKeywords(value()).join(", ")}
-            onInput={(next) => setField(spec().key, parseKeywords(next))}
+            value={keywordText()[spec().key] ?? asKeywords(value()).join(", ")}
+            onInput={(next) => {
+              setKeywordText((current) => ({ ...current, [spec().key]: next }));
+              setField(spec().key, parseKeywords(next));
+            }}
           />
         </Match>
 

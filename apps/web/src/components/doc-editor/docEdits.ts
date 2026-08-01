@@ -13,7 +13,7 @@
  */
 
 import { isCustomId } from "../../lib/docLayout";
-import { resumeStore, type SectionKey } from "../../stores/resume";
+import { resumeStore, type LayoutSectionKey, type SectionKey } from "../../stores/resume";
 import type { Basics, CustomItem, Picture } from "../../wasm/types";
 
 /** A partial item, keyed by the field names in `itemFields.ts`. */
@@ -50,7 +50,7 @@ export function renameSection(sectionId: string, name: string): void {
     resumeStore.updateCustomSection(sectionId, { name });
     return;
   }
-  resumeStore.updateSectionName(sectionId as SectionKey, name);
+  resumeStore.updateSectionName(sectionId as LayoutSectionKey, name);
 }
 
 /** Create a custom section and return its generated id. */

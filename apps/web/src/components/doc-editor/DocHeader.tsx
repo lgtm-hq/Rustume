@@ -86,7 +86,12 @@ function contactEntries(basics: Basics): ContactEntry[] {
       value: url,
       fieldLabel: hasLabel ? "Website label" : "Website URL",
       commit: (value) =>
-        updateBasicsField("url", { ...basics.url, [hasLabel ? "label" : "href"]: value }),
+        // Spreading a missing `url` alone would drop the other half of the
+        // required `{label, href}` shape.
+        updateBasicsField("url", {
+          ...(basics.url ?? { label: "", href: "" }),
+          [hasLabel ? "label" : "href"]: value,
+        }),
     });
   }
 

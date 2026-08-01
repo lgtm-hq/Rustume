@@ -220,6 +220,19 @@ describe("markdown mini editor", () => {
     expect(textarea.value).toBe("[Halo guide](https://halo.example)");
   });
 
+  it("closes the link row when another command runs", () => {
+    const textarea = openSummary();
+    select(textarea, "Halo guide");
+
+    fireEvent.click(screen.getByRole("button", { name: "Link" }));
+    fireEvent.click(screen.getByRole("button", { name: "Bold" }));
+
+    // The pending link held a snapshot of the pre-Bold text; applying it later
+    // would have overwritten the bolding with that stale draft.
+    expect(screen.queryByRole("textbox", { name: "Link URL" })).toBeNull();
+    expect(textarea.value).toBe("**Halo guide**");
+  });
+
   it("commits the markdown through updateSummary, once", () => {
     const textarea = openSummary();
     fireEvent.input(textarea, { target: { value: "Rewritten **summary**." } });

@@ -80,6 +80,11 @@ export function MarkdownEditor(props: MarkdownEditorProps): JSX.Element {
       setIsLinkOpen(true);
       return;
     }
+    // Another command invalidates the snapshot the link row was about to act
+    // on, so close it rather than let a later Apply overwrite newer text.
+    linkRange = null;
+    setLinkHref("");
+    setIsLinkOpen(false);
     applyResult(applyMarkdownCommand(selection(), command));
   }
 

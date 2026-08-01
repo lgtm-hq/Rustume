@@ -5,6 +5,7 @@ import {
   expandShortHex,
   isHexColor,
   normalizeHexColor,
+  picturePreviewStyle,
   processImage,
   validateImageFile,
 } from "../../lib/imageUpload";
@@ -126,36 +127,8 @@ export function ImageUpload(props: ImageUploadProps) {
     });
   }
 
-  // Compute CSS for the preview image
-  const previewStyle = () => {
-    const size = props.picture.size || 64;
-    const br = props.picture.borderRadius;
-    const maxRadius = Math.round(size / 2);
-    const borderRadiusPx = Math.min(br, maxRadius);
-    const effects = props.picture.effects;
-    const borderWidth = effects.borderWidth ?? 2;
-    const borderColor = effects.borderColor || "var(--turbo-brand-primary)";
-    const shadowSize = effects.shadowSize || 0;
-    // Match the Typst PDF output: solid diagonal offset (dx = dy = size / 2), no blur.
-    const shadowOffset = shadowSize / 2;
-    const filters: string[] = [];
-    if (effects.grayscale) {
-      filters.push("grayscale(100%)");
-    }
-    return {
-      width: `${size}px`,
-      height: `${size}px`,
-      "border-radius": `${borderRadiusPx}px`,
-      filter: filters.length > 0 ? filters.join(" ") : undefined,
-      transform: effects.rotation ? `rotate(${effects.rotation}deg)` : undefined,
-      border:
-        effects.border && borderWidth > 0 ? `${borderWidth}px solid ${borderColor}` : undefined,
-      "box-shadow":
-        shadowSize > 0
-          ? `${shadowOffset}px ${shadowOffset}px 0 ${effects.shadowColor || "#00000040"}`
-          : undefined,
-    };
-  };
+  // Shared with the document editor's photo dialog so the previews agree.
+  const previewStyle = () => picturePreviewStyle(props.picture);
 
   return (
     <div class="space-y-4 pt-4 border-t border-border">

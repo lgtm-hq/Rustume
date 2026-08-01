@@ -31,14 +31,15 @@ describe("doc-editor store contract", () => {
 
     // A call, not a mention: the modules explain the rule in their own prose.
     expect(source).not.toMatch(/\bsetStore\s*\(/);
-    expect(source).not.toMatch(/from "solid-js\/store"/);
+    // Quote-agnostic: a formatting variation must not defeat the guard.
+    expect(source).not.toMatch(/from\s+['"]solid-js\/store['"]/);
   });
 
   it("routes every store action through docEdits", () => {
     const offenders = sourceFiles().filter(
       (file) =>
         !file.endsWith("docEdits.ts") &&
-        /from "\.\.\/\.\.\/stores\/resume"/.test(readFileSync(file, "utf8")),
+        /from\s+['"]\.\.\/\.\.\/stores\/resume['"]/.test(readFileSync(file, "utf8")),
     );
 
     // One chokepoint keeps the rule above checkable by reading a single file.
