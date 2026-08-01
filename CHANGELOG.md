@@ -22,6 +22,18 @@ and this project adheres to
 
 ### Security
 
+## [0.58.0] - 2026-08-01
+
+### Added
+
+- **web**: add section cards, add-blocks, and whole-surface drag and drop (#759)
+  (d69e72f)
+
+### Changed
+
+- **deps**: update lintro to 0.101.0 (minor) (#764) (fb09e38)
+- **deps-dev**: update dependency lintro to 0.100.0 (minor) (#763) (b124cd6)
+
 ## [0.57.2] - 2026-08-01
 
 ### Fixed
@@ -865,7 +877,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.57.2...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.58.0...HEAD
+[0.58.0]: https://github.com/lgtm-hq/Rustume/compare/v0.57.2...v0.58.0
 [0.57.2]: https://github.com/lgtm-hq/Rustume/compare/v0.57.1...v0.57.2
 [0.57.1]: https://github.com/lgtm-hq/Rustume/compare/v0.57.0...v0.57.1
 [0.57.0]: https://github.com/lgtm-hq/Rustume/compare/v0.56.0...v0.57.0
