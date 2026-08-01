@@ -16,6 +16,7 @@ import { loadDocEditorFixture, SIDEBAR_TEMPLATE } from "../../test/docEditorFixt
 import { renderPreview } from "../../api/render";
 import { toast } from "../../components/ui";
 import { resumeStore } from "../../stores/resume";
+import { uiStore } from "../../stores/ui";
 import DocEditor from "../DocEditor";
 
 const { fixture, resumeId } = vi.hoisted(() => ({
@@ -104,6 +105,9 @@ describe("DocEditor preview pane", () => {
     vi.mocked(renderPreview).mockReset();
     vi.mocked(renderPreview).mockResolvedValue({ url: "blob:preview-1", totalPages: 3 });
     vi.mocked(toast.error).mockClear();
+    // `uiStore` is a module singleton; a page-flipping test must not leak its
+    // page index into the next test's mount fetch.
+    uiStore.setPreviewPage(0);
   });
 
   it("mounts the live preview with exactly one render fetch", async () => {
@@ -143,6 +147,50 @@ describe("DocEditor preview pane", () => {
     const [resume] = vi.mocked(renderPreview).mock.calls[1];
     expect(resume.basics.name).toBe("Mireille Okafor-Reyes");
     expect(resume.basics.headline).toBe("Staff Design Systems Engineer");
+  });
+
+  it("ignores a stale resume render that resolves after a newer page render", async () => {
+    const pending: Array<(result: { url: string; totalPages: number }) => void> = [];
+    vi.mocked(renderPreview).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          pending.push(resolve);
+        }),
+    );
+
+    await renderEditorWithPreview();
+    await waitFor(() => expect(renderPreview).toHaveBeenCalledTimes(1));
+    pending[0]({ url: "blob:initial", totalPages: 3 });
+    await waitFor(() =>
+      expect(screen.getByRole("img", { name: "Resume preview" })).toHaveAttribute(
+        "src",
+        "blob:initial",
+      ),
+    );
+
+    // A debounced resume render goes out and hangs...
+    resumeStore.updateBasics("name", "Mireille Okafor-Reyes");
+    await settleDebounce();
+    await waitFor(() => expect(renderPreview).toHaveBeenCalledTimes(2));
+
+    // ...the user flips the page meanwhile, and that newer render lands first.
+    uiStore.setPreviewPage(1);
+    await waitFor(() => expect(renderPreview).toHaveBeenCalledTimes(3));
+    pending[2]({ url: "blob:page-1", totalPages: 3 });
+    await waitFor(() =>
+      expect(screen.getByRole("img", { name: "Resume preview" })).toHaveAttribute(
+        "src",
+        "blob:page-1",
+      ),
+    );
+
+    // The stale resume response must not clobber the newer page render.
+    pending[1]({ url: "blob:stale", totalPages: 3 });
+    await settleDebounce();
+    expect(screen.getByRole("img", { name: "Resume preview" })).toHaveAttribute(
+      "src",
+      "blob:page-1",
+    );
   });
 
   it("surfaces a render failure through the error toast", async () => {

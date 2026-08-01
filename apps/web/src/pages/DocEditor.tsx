@@ -9,7 +9,15 @@
  * the route swap in `src/index.tsx`.
  */
 
-import { Show, Suspense, createMemo, createResource, createSignal, lazy } from "solid-js";
+import {
+  Show,
+  Suspense,
+  createEffect,
+  createMemo,
+  createResource,
+  createSignal,
+  lazy,
+} from "solid-js";
 import { useNavigate, useParams } from "@solidjs/router";
 import { Button, Spinner, toast } from "../components/ui";
 import { DocSheet } from "../components/doc-editor";
@@ -126,6 +134,13 @@ export default function DocEditor() {
   const [renderedPageCount, setRenderedPageCount] = createSignal(0);
   const displayedPageCount = () => renderedPageCount() || pageCount();
 
+  // A different document must not inherit the previous one's rendered count:
+  // drop back to the sheet's own pagination until its first render lands.
+  createEffect(() => {
+    void params.id;
+    setRenderedPageCount(0);
+  });
+
   const overflowMessage = () => {
     const pages = overflowingPages();
     if (pages.length === 0) return "";
@@ -140,7 +155,7 @@ export default function DocEditor() {
       <Suspense
         fallback={
           <div class="h-full flex items-center justify-center bg-surface/40">
-            <Spinner />
+            <Spinner ariaLabel="Loading preview" />
           </div>
         }
       >

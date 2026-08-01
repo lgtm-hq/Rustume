@@ -136,9 +136,10 @@ export function Preview(props: PreviewProps) {
     props.onTotalPagesChange?.(totalPages());
   });
 
-  // Request ID to guard against race conditions
-  let resumeRequestId = 0;
-  let pageRequestId = 0;
+  // One shared render generation for both fetch effects: whichever effect
+  // starts (or invalidates) a request last wins, so a slow stale response from
+  // one effect can never overwrite a newer render started by the other.
+  let previewRequestId = 0;
 
   // Key of the last request either fetch effect started, so the two effects
   // never duplicate the same render. On mount both run with identical inputs
@@ -310,7 +311,7 @@ export function Preview(props: PreviewProps) {
 
     // Skip if offline — invalidate in-flight requests, keep cached preview
     if (!isOnline()) {
-      ++resumeRequestId;
+      ++previewRequestId;
       lastRequestedKey = "";
       setIsLoading(false);
       if (lastCachedUrl()) {
@@ -326,7 +327,7 @@ export function Preview(props: PreviewProps) {
     if (requestKey === lastRequestedKey) return;
     lastRequestedKey = requestKey;
 
-    const currentRequestId = ++resumeRequestId;
+    const currentRequestId = ++previewRequestId;
     setIsLoading(true);
     setError(null);
 
@@ -335,7 +336,7 @@ export function Preview(props: PreviewProps) {
       untrack(() => ui.previewPage),
     )
       .then((result) => {
-        if (currentRequestId !== resumeRequestId) return;
+        if (currentRequestId !== previewRequestId) return;
         setPreviewUrl(result.url);
         setLastCachedUrl(result.url);
         setTotalPages(result.totalPages);
@@ -347,7 +348,7 @@ export function Preview(props: PreviewProps) {
         lastToastedError = "";
       })
       .catch((e) => {
-        if (currentRequestId !== resumeRequestId) return;
+        if (currentRequestId !== previewRequestId) return;
         lastRequestedKey = "";
         console.error("Preview error:", e);
         const msg = e instanceof Error ? e.message : String(e) || "Failed to load preview";
@@ -362,7 +363,7 @@ export function Preview(props: PreviewProps) {
         }
       })
       .finally(() => {
-        if (currentRequestId === resumeRequestId) {
+        if (currentRequestId === previewRequestId) {
           setIsLoading(false);
         }
       });
@@ -375,7 +376,7 @@ export function Preview(props: PreviewProps) {
 
     // Skip if offline — invalidate in-flight requests, keep cached preview
     if (!isOnline()) {
-      ++pageRequestId;
+      ++previewRequestId;
       lastRequestedKey = "";
       setIsLoading(false);
       if (lastCachedUrl()) {
@@ -391,13 +392,13 @@ export function Preview(props: PreviewProps) {
     if (requestKey === lastRequestedKey) return;
     lastRequestedKey = requestKey;
 
-    const currentRequestId = ++pageRequestId;
+    const currentRequestId = ++previewRequestId;
     setIsLoading(true);
     setError(null);
 
     renderPreview(store.resume, page)
       .then((result) => {
-        if (currentRequestId !== pageRequestId) return;
+        if (currentRequestId !== previewRequestId) return;
         setPreviewUrl(result.url);
         setLastCachedUrl(result.url);
         setTotalPages(result.totalPages);
@@ -405,7 +406,7 @@ export function Preview(props: PreviewProps) {
         lastToastedError = "";
       })
       .catch((e) => {
-        if (currentRequestId !== pageRequestId) return;
+        if (currentRequestId !== previewRequestId) return;
         lastRequestedKey = "";
         console.error("Preview error:", e);
         const msg = e instanceof Error ? e.message : String(e) || "Failed to load preview";
@@ -419,7 +420,7 @@ export function Preview(props: PreviewProps) {
         }
       })
       .finally(() => {
-        if (currentRequestId === pageRequestId) {
+        if (currentRequestId === previewRequestId) {
           setIsLoading(false);
         }
       });
