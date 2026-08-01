@@ -1,6 +1,7 @@
 import { fetchBlob, fetchBlobWithHeaders, get, post } from "./client";
 import { downloadBlob } from "./export";
 import { resumeDataSchema, templateListSchema, validationResultSchema } from "./schemas";
+import type { TemplateLayout } from "../lib/docLayout";
 import type { ResumeData, TemplateInfo, ValidationResult } from "../wasm/types";
 
 /** Plain snapshot for HTTP JSON bodies — avoids edge cases with reactive proxies. */
@@ -106,6 +107,21 @@ export async function downloadPdf(
 
 export async function fetchTemplates(): Promise<TemplateInfo[]> {
   return get("/templates", templateListSchema) as unknown as Promise<TemplateInfo[]>;
+}
+
+/**
+ * Structural layout metadata for every template, keyed by template id.
+ *
+ * Templates served without layout metadata (an older self-hosted server) are
+ * simply absent from the map; callers decide what to fall back to.
+ */
+export async function fetchTemplateLayouts(): Promise<Record<string, TemplateLayout>> {
+  const templates = await get("/templates", templateListSchema);
+  const layouts: Record<string, TemplateLayout> = {};
+  for (const template of templates) {
+    if (template.layout) layouts[template.id] = template.layout;
+  }
+  return layouts;
 }
 
 export function getTemplateThumbnailUrl(templateId: string): string {

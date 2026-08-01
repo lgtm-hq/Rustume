@@ -1,0 +1,274 @@
+/*
+ * Document-sheet styles.
+ *
+ * Every rule in this file is nested under `.doc-sheet`. The sheet paints the
+ * resume's own theme colours on a paper-proportioned frame, which means its
+ * type scale, colours and spacing are deliberately unlike the surrounding app
+ * chrome — so nothing here may escape the root class. Add rules only as
+ * descendants of `.doc-sheet`.
+ *
+ * Sizes are expressed against `--doc-sheet-page-width` so the whole sheet
+ * scales with the pane: one page is an A4 rectangle, and its contents are a
+ * fixed fraction of its width rather than a fixed pixel size.
+ */
+
+.doc-sheet {
+  --doc-sheet-page-width: 100%;
+  --doc-sheet-bg: var(--color-sheet);
+  --doc-sheet-text: var(--color-sheet-ink);
+  --doc-sheet-accent: var(--color-sheet-ink);
+  --doc-sheet-muted: color-mix(in srgb, var(--doc-sheet-text) 65%, transparent);
+  --doc-sheet-rule: color-mix(in srgb, var(--doc-sheet-accent) 35%, transparent);
+  --doc-sheet-tint: color-mix(in srgb, var(--doc-sheet-accent) 10%, transparent);
+  --doc-sheet-gutter: 4.5%;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.5rem;
+}
+
+.doc-sheet__page {
+  width: var(--doc-sheet-page-width);
+  max-width: 100%;
+  /* ISO 216 A4 — 210mm x 297mm. */
+  aspect-ratio: 210 / 297;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--doc-sheet-bg);
+  color: var(--doc-sheet-text);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 1px 12px var(--color-shadow);
+  container-type: inline-size;
+  /*
+   * One typographic point of the document, as a share of the page's width.
+   * A4 is 595.28pt wide, so 1pt is 100/595.28 container-query width units.
+   * Stored point sizes (the avatar, its border) render against this.
+   */
+  --doc-sheet-pt: 0.168cqw;
+  font-family: var(--font-body);
+  /* Page text is sized against the page's own width so a resized pane scales
+     the whole document rather than reflowing it. */
+  font-size: 1.6cqw;
+  line-height: 1.5;
+}
+
+.doc-sheet__columns {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.doc-sheet__column {
+  min-width: 0;
+  /* Clipped, never scrolled: the sheet reports overflow, it does not absorb
+     it. Reflow is a section-level `metadata.layout` decision. */
+  overflow: hidden;
+  padding: var(--doc-sheet-gutter);
+  display: flex;
+  flex-direction: column;
+  gap: 1.1em;
+}
+
+.doc-sheet__column--sidebar {
+  background: var(--doc-sheet-tint);
+}
+
+/* ── Header region ─────────────────────────────────────────────────────── */
+
+.doc-sheet__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  padding: var(--doc-sheet-gutter);
+}
+
+.doc-sheet__header--center {
+  align-items: center;
+  text-align: center;
+}
+
+.doc-sheet__header--boxed {
+  margin: var(--doc-sheet-gutter);
+  padding: calc(var(--doc-sheet-gutter) / 1.5);
+  border: 1px solid var(--doc-sheet-rule);
+  border-radius: 0.25em;
+}
+
+.doc-sheet__header--banner {
+  background: var(--doc-sheet-accent);
+  color: var(--doc-sheet-bg);
+}
+
+.doc-sheet__header--sidebar {
+  padding: 0;
+}
+
+.doc-sheet__name {
+  font-family: var(--font-display);
+  font-size: 2.2em;
+  font-weight: 700;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.doc-sheet__header--sidebar .doc-sheet__name {
+  font-size: 1.7em;
+}
+
+.doc-sheet__headline {
+  font-size: 1.1em;
+  color: var(--doc-sheet-muted);
+  margin: 0;
+}
+
+.doc-sheet__header--banner .doc-sheet__headline,
+.doc-sheet__header--banner .doc-sheet__contact {
+  color: color-mix(in srgb, var(--doc-sheet-bg) 85%, var(--doc-sheet-accent));
+}
+
+.doc-sheet__avatar {
+  display: block;
+  object-fit: cover;
+  border: 0 solid var(--doc-sheet-accent);
+}
+
+.doc-sheet__contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35em 1em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.9em;
+  color: var(--doc-sheet-muted);
+}
+
+.doc-sheet__header--sidebar .doc-sheet__contact,
+.doc-sheet__contact--stacked {
+  flex-direction: column;
+  gap: 0.25em;
+}
+
+.doc-sheet__contact-label {
+  font-weight: 600;
+}
+
+/* ── Sections ──────────────────────────────────────────────────────────── */
+
+.doc-sheet__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+}
+
+.doc-sheet__section-title {
+  font-family: var(--font-display);
+  font-size: 1em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--doc-sheet-accent);
+  border-bottom: 1px solid var(--doc-sheet-rule);
+  padding-bottom: 0.2em;
+  margin: 0;
+}
+
+.doc-sheet__items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9em;
+}
+
+.doc-sheet__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25em;
+}
+
+.doc-sheet__item-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75em;
+}
+
+.doc-sheet__item-title {
+  font-size: 1em;
+  font-weight: 700;
+  margin: 0;
+}
+
+.doc-sheet__item-subtitle {
+  margin: 0;
+  font-size: 0.95em;
+}
+
+.doc-sheet__item-meta {
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 0.85em;
+  color: var(--doc-sheet-muted);
+  display: flex;
+  flex-direction: column;
+}
+
+.doc-sheet__item-detail {
+  margin: 0;
+  font-size: 0.85em;
+  color: var(--doc-sheet-muted);
+}
+
+/*
+ * Rich text is markdown and is shown verbatim at this stage — visible markdown
+ * punctuation is expected. `pre-wrap` keeps the author's own line breaks, which
+ * is the only thing that makes a bullet list legible without a renderer.
+ */
+.doc-sheet__rich-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.doc-sheet__keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.doc-sheet__keyword {
+  font-size: 0.8em;
+  padding: 0.1em 0.45em;
+  border-radius: 0.2em;
+  background: var(--doc-sheet-tint);
+  color: var(--doc-sheet-accent);
+}
+
+.doc-sheet__level {
+  display: inline-flex;
+  gap: 0.25em;
+  align-items: center;
+}
+
+.doc-sheet__level-dot {
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  border: 1px solid var(--doc-sheet-accent);
+}
+
+.doc-sheet__level-dot--filled {
+  background: var(--doc-sheet-accent);
+}
+
+.doc-sheet__url {
+  font-size: 0.85em;
+  color: var(--doc-sheet-accent);
+  overflow-wrap: anywhere;
+}

@@ -47,10 +47,28 @@ export const themeSchema = z.object({
   primary: z.string(),
 });
 
+/**
+ * Structural layout of a template (`LayoutInfo` in `crates/server/src/dto.rs`).
+ *
+ * Optional on the way in: a self-hosted server older than this field still
+ * serves a usable template list, and callers fall back to a default layout.
+ */
+export const templateLayoutSchema = z.object({
+  layoutMode: z.enum(["single", "sidebar-left", "sidebar-right", "header-split"]),
+  defaultColumns: z.array(z.array(z.string())),
+  headerStyle: z.enum(["left", "center", "banner", "boxed", "sidebar"]),
+  contactIn: z.enum(["sidebar", "header", "banner"]),
+  sidebarWidth: z
+    .number()
+    .nullish()
+    .transform((width) => width ?? null),
+});
+
 export const templateInfoSchema = z.object({
   id: z.string(),
   name: z.string(),
   theme: themeSchema,
+  layout: templateLayoutSchema.optional(),
 });
 
 export const templateListSchema = z.array(templateInfoSchema);
