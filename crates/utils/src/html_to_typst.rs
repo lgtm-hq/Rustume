@@ -197,10 +197,11 @@ fn process_list(
 ) {
     if depth > 0 {
         // A nested list starts on its own line, directly under its parent
-        // item: a blank line in between would close the list in Typst.
-        while output.ends_with('\n') {
-            output.pop();
-        }
+        // item: a blank line in between would close the list in Typst. Trim
+        // all trailing whitespace, not just newlines — indented source HTML
+        // leaves spaces after the item's text, and a line of only spaces is
+        // still a paragraph break to Typst.
+        output.truncate(output.trim_end().len());
         if !output.is_empty() {
             output.push('\n');
         }
@@ -469,6 +470,20 @@ mod tests {
         // not open a blank line between the item and its sublist.
         let html = "<ul><li><p>A</p><ul><li>B</li></ul></li><li><p>C</p></li></ul>";
         assert_eq!(html_to_typst(html), "- A\n  - B\n- C");
+    }
+
+    #[test]
+    fn nested_list_survives_indented_source_html() {
+        // Pretty-printed HTML leaves the item's text ending in spaces rather
+        // than a newline; a blank line there would close the list in Typst.
+        let html = "<ul>\n  <li>a\n  <ul>\n    <li>b</li>\n  </ul>\n  </li>\n</ul>";
+        assert_eq!(html_to_typst(html), "- a\n  - b");
+    }
+
+    #[test]
+    fn empty_nested_list_leaves_parent_list_intact() {
+        let html = "<ul><li>A<ul></ul></li><li>C</li></ul>";
+        assert_eq!(html_to_typst(html), "- A\n- C");
     }
 
     #[test]
