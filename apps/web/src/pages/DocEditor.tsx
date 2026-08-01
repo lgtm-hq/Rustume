@@ -134,11 +134,13 @@ export default function DocEditor() {
   const [renderedPageCount, setRenderedPageCount] = createSignal(0);
   const displayedPageCount = () => renderedPageCount() || pageCount();
 
-  // A different document must not inherit the previous one's rendered count:
-  // drop back to the sheet's own pagination until its first render lands.
+  // A different document must not inherit the previous one's counts: drop all
+  // document-scoped display state until the new sheet and render report in.
   createEffect(() => {
     void params.id;
     setRenderedPageCount(0);
+    setPageCount(0);
+    setOverflowingPages([]);
   });
 
   const overflowMessage = () => {

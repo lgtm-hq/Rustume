@@ -402,6 +402,10 @@ export function Preview(props: PreviewProps) {
         setPreviewUrl(result.url);
         setLastCachedUrl(result.url);
         setTotalPages(result.totalPages);
+        // Clamp page index when content shrinks (e.g., user deletes text)
+        if (ui.previewPage >= result.totalPages) {
+          setPreviewPage(Math.max(0, result.totalPages - 1));
+        }
         setError(null);
         lastToastedError = "";
       })

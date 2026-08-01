@@ -85,9 +85,13 @@ function renderAt(component: Component) {
   ));
 }
 
-/** Real-time wait that outlasts the preview's 500 ms resume debounce. */
+/**
+ * Real-time wait that outlasts the preview's 500 ms resume debounce with a
+ * wide margin for CI load. Needed because several assertions here are
+ * negative ("no further fetch happened"), which `waitFor` cannot express.
+ */
 function settleDebounce() {
-  return new Promise((resolve) => setTimeout(resolve, 750));
+  return new Promise((resolve) => setTimeout(resolve, 1100));
 }
 
 async function renderEditorWithPreview() {
@@ -193,6 +197,34 @@ describe("DocEditor preview pane", () => {
     );
   });
 
+  it("clamps the page index when a page-driven render reports fewer pages", async () => {
+    const pending: Array<(result: { url: string; totalPages: number }) => void> = [];
+    vi.mocked(renderPreview).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          pending.push(resolve);
+        }),
+    );
+
+    await renderEditorWithPreview();
+    await waitFor(() => expect(renderPreview).toHaveBeenCalledTimes(1));
+    pending[0]({ url: "blob:initial", totalPages: 3 });
+    await waitFor(() =>
+      expect(screen.getByRole("img", { name: "Resume preview" })).toHaveAttribute(
+        "src",
+        "blob:initial",
+      ),
+    );
+
+    // Flip to the last page; the server now says the content shrank to 2
+    // pages, so the page-driven fetch must clamp the index back in range.
+    uiStore.setPreviewPage(2);
+    await waitFor(() => expect(renderPreview).toHaveBeenCalledTimes(2));
+    pending[1]({ url: "blob:page-3", totalPages: 2 });
+
+    await waitFor(() => expect(uiStore.store.previewPage).toBe(1));
+  });
+
   it("surfaces a render failure through the error toast", async () => {
     vi.mocked(renderPreview).mockRejectedValue(new Error("typst blew up"));
 
@@ -200,6 +232,6 @@ describe("DocEditor preview pane", () => {
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Preview rendering failed"));
     // The pill falls back to the sheet's own pagination when no render lands.
-    expect(screen.getByTestId("doc-editor-page-count")).not.toHaveTextContent("3 pages");
+    expect(screen.getByTestId("doc-editor-page-count")).toHaveTextContent("2 pages");
   });
 });
