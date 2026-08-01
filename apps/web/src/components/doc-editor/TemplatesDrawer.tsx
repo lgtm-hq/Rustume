@@ -42,7 +42,7 @@ export function TemplatesDrawer(props: TemplatesDrawerProps): JSX.Element {
   const [open, setOpen] = createSignal(false);
   // Latches true on first open so the registry is fetched once, lazily.
   const [requested, setRequested] = createSignal(false);
-  const [templates] = createResource(
+  const [templates, { refetch }] = createResource(
     () => requested() || undefined,
     () => fetchTemplates(),
   );
@@ -82,9 +82,14 @@ export function TemplatesDrawer(props: TemplatesDrawerProps): JSX.Element {
           <Show
             when={!templates.error}
             fallback={
-              <p class="py-8 text-center text-sm text-red-600" role="alert">
-                Failed to load templates. Check that the server is running and try again.
-              </p>
+              <div class="flex flex-col items-center gap-3 py-8">
+                <p class="text-center text-sm text-red-600" role="alert">
+                  Failed to load templates. Check that the server is running and try again.
+                </p>
+                <Button variant="secondary" size="sm" onClick={() => void refetch()}>
+                  Retry
+                </Button>
+              </div>
             }
           >
             <Show

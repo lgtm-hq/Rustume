@@ -141,7 +141,7 @@ describe("document editor panels", () => {
       expect(layout[0][0]).toContain("advisory");
     });
 
-    it("reports a registry failure instead of an empty drawer", async () => {
+    it("reports a registry failure, and retries without reopening", async () => {
       api.fetchTemplates.mockRejectedValue(new Error("down"));
       render(() => <TemplatesDrawer resume={resume} />);
 
@@ -149,6 +149,13 @@ describe("document editor panels", () => {
 
       await waitFor(() => {
         expect(screen.getByRole("alert")).toHaveTextContent(/failed to load templates/i);
+      });
+
+      api.fetchTemplates.mockResolvedValue(TEMPLATES);
+      fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId("templates-drawer-list")).toBeInTheDocument();
       });
     });
   });

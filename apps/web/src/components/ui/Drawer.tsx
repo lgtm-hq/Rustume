@@ -44,7 +44,13 @@ export const Drawer: ParentComponent<DrawerProps> = (props) => {
             class="focus-ring absolute top-3 right-3 rounded-lg p-2 text-stone transition-colors
               hover:bg-surface hover:text-ink"
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              class="w-5 h-5"
+              aria-hidden="true"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
