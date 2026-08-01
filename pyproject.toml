@@ -17,7 +17,7 @@ dependencies = []
 # Exact pin, not a floor: an open `>=` range is always satisfied under
 # Renovate's `replace` strategy, so it never proposes a bump and the local
 # venv silently drifts behind the `lintro-image:` pin CI runs (#588).
-lint = ["lintro==0.99.0"]
+lint = ["lintro==0.100.0"]
 test = ["pytest>=8.3"]
 
 [tool.lintro]
