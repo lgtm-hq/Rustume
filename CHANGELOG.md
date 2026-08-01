@@ -22,6 +22,16 @@ and this project adheres to
 
 ### Security
 
+## [0.57.0] - 2026-08-01
+
+### Added
+
+- **web**: add click-to-edit and item dialogs to the document sheet (#752) (86627ee)
+
+### Changed
+
+- **deps**: update lintro to 0.98.0 (minor) (#757) (f2212bb)
+
 ## [0.56.0] - 2026-08-01
 
 ### Added
@@ -838,7 +848,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.56.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.57.0...HEAD
+[0.57.0]: https://github.com/lgtm-hq/Rustume/compare/v0.56.0...v0.57.0
 [0.56.0]: https://github.com/lgtm-hq/Rustume/compare/v0.55.0...v0.56.0
 [0.55.0]: https://github.com/lgtm-hq/Rustume/compare/v0.54.0...v0.55.0
 [0.54.0]: https://github.com/lgtm-hq/Rustume/compare/v0.53.0...v0.54.0
