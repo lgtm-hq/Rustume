@@ -226,3 +226,47 @@ describe("moveCustomSectionItem", () => {
     });
   });
 });
+
+describe("applyTemplate", () => {
+  it("lands template and layout in one write", () => {
+    createRoot((dispose) => {
+      const { store, createNewResume, addCustomSection, applyTemplate } = useResumeStore();
+      createNewResume("tpl-1");
+      const sectionId = addCustomSection("Talks");
+
+      applyTemplate("aurora", [[["summary", "experience"], [sectionId]]]);
+
+      expect(store.resume!.metadata.template).toBe("aurora");
+      expect(store.resume!.metadata.layout).toEqual([[["summary", "experience"], [sectionId]]]);
+      dispose();
+    });
+  });
+
+  it("is a single undo entry: undoing restores template and layout together", () => {
+    vi.useFakeTimers();
+    try {
+      createRoot((dispose) => {
+        const { store, createNewResume, applyTemplate, undo } = useResumeStore();
+        createNewResume("tpl-2");
+        // Settle the undo debounce so the switch opens its own edit burst.
+        vi.advanceTimersByTime(600);
+        const templateBefore = store.resume!.metadata.template;
+        const layoutBefore = JSON.parse(
+          JSON.stringify(store.resume!.metadata.layout),
+        ) as string[][][];
+
+        applyTemplate("aurora", [[["summary"], []]]);
+        vi.advanceTimersByTime(600);
+
+        expect(undo()).toBe(true);
+        expect(store.resume!.metadata.template).toBe(templateBefore);
+        expect(store.resume!.metadata.layout).toEqual(layoutBefore);
+        // One entry, not two: a second undo has nothing of this switch left.
+        expect(undo()).toBe(false);
+        dispose();
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

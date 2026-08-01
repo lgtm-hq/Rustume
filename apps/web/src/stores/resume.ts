@@ -797,6 +797,24 @@ export function useResumeStore() {
       markDirty();
     },
 
+    /**
+     * Switch templates as **one** action: `metadata.template` and the fresh
+     * `metadata.layout` land in a single write, so the switch is a single
+     * undo entry — undoing it restores the previous template and its layout
+     * together.
+     */
+    applyTemplate(template: string, layout: string[][][]) {
+      setStore(
+        produce((s) => {
+          if (s.resume) {
+            s.resume.metadata.template = template;
+            s.resume.metadata.layout = layout;
+          }
+        }),
+      );
+      markDirty();
+    },
+
     updateTheme(theme: Partial<Metadata["theme"]>) {
       setStore(
         produce((s) => {
