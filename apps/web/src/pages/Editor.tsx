@@ -77,7 +77,7 @@ const ExportModal = lazy(() =>
   import("../components/export/ExportModal").then((module) => ({ default: module.ExportModal })),
 );
 const VersionHistory = lazy(() =>
-  import("../components/builder/VersionHistory").then((module) => ({
+  import("../components/version-history/VersionHistory").then((module) => ({
     default: module.VersionHistory,
   })),
 );
