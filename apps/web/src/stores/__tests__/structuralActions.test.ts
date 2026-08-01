@@ -5,7 +5,7 @@
  */
 
 import { createRoot } from "solid-js";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, type Mock } from "vitest";
 import { createDefaultResume } from "../../wasm/defaults";
 import { useResumeStore } from "../resume";
 import type { CustomItem, Skill } from "../../wasm/types";
@@ -59,20 +59,30 @@ describe("duplicateSectionItem", () => {
     });
   });
 
-  it("does nothing for an index that holds no item", () => {
-    createRoot((dispose) => {
-      const { store, createNewResume, duplicateSectionItem } = useResumeStore();
-      createNewResume("dup-2");
-      const before = store.resume!.sections.skills.items.length;
+  it("does nothing for an index that holds no item", async () => {
+    const { saveResume } = await import("../../wasm");
+    vi.useFakeTimers();
+    try {
+      createRoot((dispose) => {
+        const { store, createNewResume, duplicateSectionItem } = useResumeStore();
+        createNewResume("dup-2");
+        const before = store.resume!.sections.skills.items.length;
 
-      const dirtyBefore = store.isDirty;
-      duplicateSectionItem("skills", 99);
+        const dirtyBefore = store.isDirty;
+        const savesBefore = (saveResume as Mock).mock.calls.length;
+        duplicateSectionItem("skills", 99);
 
-      expect(store.resume!.sections.skills.items.length).toBe(before);
-      // A no-op must not record a change, dirty the store, or schedule a save.
-      expect(store.isDirty).toBe(dirtyBefore);
-      dispose();
-    });
+        expect(store.resume!.sections.skills.items.length).toBe(before);
+        // A no-op must not record a change, dirty the store, or schedule a
+        // save — even after the save debounce would have fired.
+        expect(store.isDirty).toBe(dirtyBefore);
+        vi.advanceTimersByTime(1500);
+        expect((saveResume as Mock).mock.calls.length).toBe(savesBefore);
+        dispose();
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

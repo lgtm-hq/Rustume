@@ -406,6 +406,8 @@ describe("document sheet structural chrome", () => {
       expect(sectionHandle).toBeInTheDocument();
       expect(entryHandle).toBeInTheDocument();
       expect(sectionHandle.getAttribute("tabindex")).toBe("-1");
+      expect(sectionHandle.getAttribute("aria-hidden")).toBe("true");
+      expect(entryHandle.getAttribute("tabindex")).toBe("-1");
       expect(entryHandle.getAttribute("aria-hidden")).toBe("true");
       // The section surface itself must not be a drag activator, or text
       // selection and inline editing would fight the drag sensor.
