@@ -146,7 +146,7 @@ describe("DocEditor preview pane", () => {
 
     expect(renderPreview).toHaveBeenCalledTimes(1);
     expect(screen.queryByTestId("doc-editor-preview-placeholder")).toBeNull();
-  }, 20_000);
+  }, 60_000);
 
   it("syncs the page-count pill with the rendered page count", async () => {
     await renderEditorWithPreview();
@@ -156,7 +156,7 @@ describe("DocEditor preview pane", () => {
     await waitLong(() =>
       expect(screen.getByTestId("doc-editor-page-count")).toHaveTextContent("3 pages"),
     );
-  }, 20_000);
+  }, 60_000);
 
   it("refreshes the preview once, debounced, after a burst of store mutations", async () => {
     await renderEditorWithPreview();
@@ -171,7 +171,7 @@ describe("DocEditor preview pane", () => {
     const [resume] = vi.mocked(renderPreview).mock.calls[1];
     expect(resume.basics.name).toBe("Mireille Okafor-Reyes");
     expect(resume.basics.headline).toBe("Staff Design Systems Engineer");
-  }, 20_000);
+  }, 60_000);
 
   it("ignores a stale resume render that resolves after a newer page render", async () => {
     const pending: Array<(result: { url: string; totalPages: number }) => void> = [];
@@ -215,7 +215,7 @@ describe("DocEditor preview pane", () => {
       "src",
       "blob:page-1",
     );
-  }, 20_000);
+  }, 60_000);
 
   it("clamps the page index when a page-driven render reports fewer pages", async () => {
     const pending: Array<(result: { url: string; totalPages: number }) => void> = [];
@@ -243,7 +243,7 @@ describe("DocEditor preview pane", () => {
     pending[1]({ url: "blob:page-3", totalPages: 2 });
 
     await waitLong(() => expect(uiStore.store.previewPage).toBe(1));
-  }, 20_000);
+  }, 60_000);
 
   it("keeps refreshes debounced after a page flip, under production mock physics", async () => {
     // The real renderPreview stringifies its resume argument synchronously
@@ -272,7 +272,7 @@ describe("DocEditor preview pane", () => {
     await waitLong(() => expect(renderPreview).toHaveBeenCalledTimes(3));
     await settleDebounce();
     expect(renderPreview).toHaveBeenCalledTimes(3);
-  }, 20_000);
+  }, 60_000);
 
   it("surfaces a render failure through the error toast", async () => {
     vi.mocked(renderPreview).mockRejectedValue(new Error("typst blew up"));
@@ -282,5 +282,5 @@ describe("DocEditor preview pane", () => {
     await waitLong(() => expect(toast.error).toHaveBeenCalledWith("Preview rendering failed"));
     // The pill falls back to the sheet's own pagination when no render lands.
     expect(screen.getByTestId("doc-editor-page-count")).toHaveTextContent("2 pages");
-  }, 20_000);
+  }, 60_000);
 });

@@ -193,8 +193,10 @@ export default function DocEditor() {
       <div class="h-12 flex items-center justify-between gap-4 border-b border-border bg-paper px-4">
         <p class="font-mono text-xs text-stone" data-testid="doc-editor-page-count">
           {/* No count until a sheet exists — otherwise this reads "0 pages"
-              while loading and behind the load-error screen. */}
-          <Show when={displayedPageCount() > 0}>
+              while loading and behind the load-error screen. Also hidden while
+              a same-document reload is in flight so a stale count never shows
+              over the loading state. */}
+          <Show when={!isLoading() && !loadError() && displayedPageCount() > 0}>
             {displayedPageCount() === 1 ? "1 page" : `${displayedPageCount()} pages`}
           </Show>
         </p>
@@ -204,7 +206,7 @@ export default function DocEditor() {
             class="font-mono text-xs text-[var(--turbo-state-warning)]"
             data-testid="doc-editor-overflow"
           >
-            {overflowMessage()}
+            {!isLoading() && !loadError() ? overflowMessage() : ""}
           </p>
           <Button
             variant="ghost"
