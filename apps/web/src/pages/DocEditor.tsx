@@ -63,7 +63,17 @@ export default function DocEditor() {
 
   useNavigationGuard(() => store.isDirty);
 
-  const [layouts] = createResource(fetchTemplateLayouts);
+  // A rejected resource rethrows on read, which would tear down the whole app
+  // via `AppErrorBoundary`. An unreachable template endpoint is exactly what
+  // FALLBACK_TEMPLATE_LAYOUT exists for, so absorb the failure into an empty
+  // map and let the lookup below fall back.
+  const [layouts] = createResource(async () => {
+    try {
+      return await fetchTemplateLayouts();
+    } catch {
+      return {} as Record<string, TemplateLayout>;
+    }
+  });
   const templateLayout = createMemo<TemplateLayout>(
     () => layouts()?.[store.resume?.metadata.template ?? ""] ?? FALLBACK_TEMPLATE_LAYOUT,
   );
@@ -106,7 +116,11 @@ export default function DocEditor() {
       */}
       <div class="h-12 flex items-center justify-between gap-4 border-b border-border bg-paper px-4">
         <p class="font-mono text-xs text-stone" data-testid="doc-editor-page-count">
-          {pageCount() === 1 ? "1 page" : `${pageCount()} pages`}
+          {/* No count until a sheet exists — otherwise this reads "0 pages"
+              while loading and behind the load-error screen. */}
+          <Show when={pageCount() > 0}>
+            {pageCount() === 1 ? "1 page" : `${pageCount()} pages`}
+          </Show>
         </p>
         <p
           role="status"

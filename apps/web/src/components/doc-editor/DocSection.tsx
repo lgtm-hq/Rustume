@@ -246,8 +246,10 @@ function itemViews(resume: ResumeData, sectionId: string): { id: string; view: I
     | undefined;
   if (!adapter) return [];
 
-  const section = resume.sections[sectionId as ItemSectionId] as { items?: VisibleItem[] };
-  return (section.items ?? [])
+  const section = resume.sections[sectionId as ItemSectionId] as
+    | { items?: VisibleItem[] }
+    | undefined;
+  return (section?.items ?? [])
     .filter((item) => item.visible)
     .map((item) => ({ id: item.id, view: adapter(item) }));
 }

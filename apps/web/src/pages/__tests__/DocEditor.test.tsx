@@ -197,6 +197,23 @@ describe("DocEditor sheet", () => {
       // header placement come from the template.
       expect(first.querySelector(".doc-sheet__column")).toBeTruthy();
       expect(first.querySelector(".doc-sheet__header")).toBeTruthy();
+      // FALLBACK_TEMPLATE_LAYOUT declares headerStyle "left" / contactIn
+      // "header", so the header must sit above the columns rather than inside
+      // the sidebar the way SIDEBAR_TEMPLATE places it.
+      expect(first.querySelector(".doc-sheet__column .doc-sheet__header")).toBeFalsy();
+    });
+  });
+
+  it("falls back to a single-column layout when the template request fails", async () => {
+    const { fetchTemplateLayouts } = await import("../../api/render");
+    vi.mocked(fetchTemplateLayouts).mockRejectedValueOnce(new Error("offline"));
+
+    await renderSheet();
+
+    await waitFor(() => {
+      const [first] = screen.getAllByTestId("doc-sheet-page");
+      expect(first.querySelector(".doc-sheet__column")).toBeTruthy();
+      expect(first.querySelector(".doc-sheet__column .doc-sheet__header")).toBeFalsy();
     });
   });
 });

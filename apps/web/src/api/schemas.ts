@@ -68,7 +68,10 @@ export const templateInfoSchema = z.object({
   id: z.string(),
   name: z.string(),
   theme: themeSchema,
-  layout: templateLayoutSchema.optional(),
+  // `.catch` keeps skew tolerant in both directions: a newer server sending a
+  // layout variant this build does not know drops that one template's layout
+  // rather than failing the whole list and taking the template picker with it.
+  layout: templateLayoutSchema.optional().catch(undefined),
 });
 
 export const templateListSchema = z.array(templateInfoSchema);
