@@ -195,18 +195,6 @@ fn process_list(
     marker: char,
     depth: usize,
 ) {
-    if depth > 0 {
-        // A nested list starts on its own line, directly under its parent
-        // item: a blank line in between would close the list in Typst. Trim
-        // all trailing whitespace, not just newlines — indented source HTML
-        // leaves spaces after the item's text, and a line of only spaces is
-        // still a paragraph break to Typst.
-        output.truncate(output.trim_end().len());
-        if !output.is_empty() {
-            output.push('\n');
-        }
-    }
-
     let indent = "  ".repeat(depth);
     let mut emitted_any = false;
 
@@ -226,6 +214,20 @@ fn process_list(
         }
         let trimmed = inner.trim();
         if !trimmed.is_empty() {
+            if !emitted_any && depth > 0 {
+                // A nested list starts on its own line, directly under its
+                // parent item: a blank line in between would close the list
+                // in Typst. Trim all trailing whitespace, not just newlines
+                // — indented source HTML leaves spaces after the item's
+                // text, and a line of only spaces is still a paragraph break
+                // to Typst. Deferred until an item is known to be emitted so
+                // that a nested list which renders nothing leaves the parent
+                // item's text untouched.
+                output.truncate(output.trim_end().len());
+                if !output.is_empty() {
+                    output.push('\n');
+                }
+            }
             output.push_str(&indent);
             output.push(marker);
             output.push(' ');
@@ -484,6 +486,20 @@ mod tests {
     fn empty_nested_list_leaves_parent_list_intact() {
         let html = "<ul><li>A<ul></ul></li><li>C</li></ul>";
         assert_eq!(html_to_typst(html), "- A\n- C");
+    }
+
+    #[test]
+    fn empty_nested_list_does_not_split_the_item_text() {
+        // A nested list that renders nothing must not inject a line break
+        // between the text before it and the text after it.
+        assert_eq!(
+            html_to_typst("<ul><li>A<ul></ul>B</li><li>C</li></ul>"),
+            "- AB\n- C"
+        );
+        assert_eq!(
+            html_to_typst("<ul><li>A<ul><li></li></ul>B</li><li>C</li></ul>"),
+            "- AB\n- C"
+        );
     }
 
     #[test]
