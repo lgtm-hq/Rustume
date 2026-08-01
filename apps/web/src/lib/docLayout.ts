@@ -321,6 +321,58 @@ export function renderPages(resume: ResumeData, templateLayout: TemplateLayout):
     .filter((page) => page.some((column) => column.length > 0));
 }
 
+/** A section as the editing surface draws it. */
+export interface EditorSectionView {
+  id: string;
+  /** Switched off — kept on the surface as chrome, but absent from the PDF. */
+  hidden: boolean;
+}
+
+/** Whether a section holds any items at all, hidden ones included. */
+function sectionHasItems(resume: ResumeData, sectionId: string): boolean {
+  return sectionItemCount(resume, sectionId) > 0;
+}
+
+/** How many items a section holds, hidden ones included. Zero for rich text. */
+function sectionItemCount(resume: ResumeData, sectionId: string): number {
+  if (isCustomId(sectionId)) {
+    return resume.sections.custom?.[sectionId]?.items.length ?? 0;
+  }
+  if (!FIXED_SECTION_ID_SET.has(sectionId)) return 0;
+  const section = resume.sections[sectionId as FixedSectionId] as { items?: unknown[] } | undefined;
+  return section?.items?.length ?? 0;
+}
+
+/**
+ * {@link layoutPages} as the *editing* surface draws it, aligned index-for-index
+ * with the layout — no page or column is dropped, so a drop target's page and
+ * column indices address `metadata.layout` directly, and no second layout model
+ * exists for drag and drop.
+ *
+ * Unlike {@link renderPages}, hidden sections stay drawn (flagged, as chrome):
+ * hidden means "not rendered to PDF", not "gone from the editing surface". Item
+ * sections are drawn whenever they hold any item — hidden items are chrome too —
+ * and rich-text sections whenever they have content or are switched on, so an
+ * empty summary still offers its click-to-edit surface.
+ */
+export function editorPages(
+  resume: ResumeData,
+  templateLayout: TemplateLayout,
+): EditorSectionView[][][] {
+  return layoutPages(resume, templateLayout).map((page) =>
+    page.map((column) =>
+      column
+        .filter((id) => {
+          if (id === "summary" || id === "coverLetter") {
+            return sectionHasContent(resume, id) || sectionVisible(resume, id);
+          }
+          return sectionHasItems(resume, id);
+        })
+        .map((id) => ({ id, hidden: !sectionVisible(resume, id) })),
+    ),
+  );
+}
+
 /**
  * Column geometry for one page of a layout.
  *
@@ -329,7 +381,8 @@ export function renderPages(resume: ResumeData, templateLayout: TemplateLayout):
  * of them, shared out evenly.
  */
 export function layoutColumns(
-  page: readonly string[][],
+  // Only the column count matters, so any drawn column shape is accepted.
+  page: readonly (readonly unknown[])[],
   templateLayout: TemplateLayout,
 ): LayoutColumn[] {
   const modeColumns = templateLayout.layoutMode === "single" ? 1 : 2;
@@ -363,7 +416,7 @@ export function layoutColumns(
 
 /** Where `sectionId` sits in `layout`, or `null` when it is not placed. */
 export function findSectionPlacement(
-  layout: readonly (readonly string[][])[],
+  layout: readonly (readonly (readonly string[])[])[],
   sectionId: string,
 ): SectionPlacement | null {
   for (let page = 0; page < layout.length; page++) {
