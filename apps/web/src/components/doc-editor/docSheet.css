@@ -272,3 +272,185 @@
   color: var(--doc-sheet-accent);
   overflow-wrap: anywhere;
 }
+
+/* ── Editing affordances ───────────────────────────────────────────────────
+ *
+ * Editable values are real buttons so they are keyboard-reachable, but a
+ * document must not look like a form: they inherit their surroundings entirely
+ * and only declare themselves on hover and on focus. Focus is a visible ring
+ * rather than a colour change, since the sheet paints the resume's own theme
+ * and a colour cue could land on any background.
+ */
+
+.doc-sheet__editable {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: inherit;
+  background: none;
+  border: 0;
+  padding: 0.05em 0.15em;
+  margin: -0.05em -0.15em;
+  border-radius: 0.15em;
+  cursor: text;
+  white-space: inherit;
+  max-width: 100%;
+}
+
+.doc-sheet__editable:hover {
+  background: var(--doc-sheet-tint);
+  box-shadow: inset 0 -1px 0 var(--doc-sheet-rule);
+}
+
+.doc-sheet__editable:focus-visible {
+  outline: 2px solid var(--doc-sheet-accent);
+  outline-offset: 1px;
+}
+
+/* Empty fields are placeholders: present enough to click, quiet enough to
+   leave the document reading as a document. */
+.doc-sheet__editable--empty {
+  color: var(--doc-sheet-muted);
+  font-style: italic;
+}
+
+.doc-sheet__avatar-button {
+  cursor: pointer;
+  display: inline-block;
+  padding: 0;
+  margin: 0;
+  line-height: 0;
+}
+
+.doc-sheet__inline-input {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  width: 100%;
+  padding: 0.05em 0.15em;
+  margin: -0.05em -0.15em;
+  background: var(--doc-sheet-bg);
+  border: 1px solid var(--doc-sheet-accent);
+  border-radius: 0.15em;
+}
+
+.doc-sheet__inline-input:focus-visible {
+  outline: 2px solid var(--doc-sheet-accent);
+  outline-offset: 1px;
+}
+
+/* ── Markdown mini editor ──────────────────────────────────────────────── */
+
+.doc-sheet__markdown {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35em;
+  padding: 0.35em;
+  border: 1px solid var(--doc-sheet-rule);
+  border-radius: 0.25em;
+  background: var(--doc-sheet-bg);
+}
+
+.doc-sheet__markdown-toolbar,
+.doc-sheet__markdown-link,
+.doc-sheet__markdown-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25em;
+  align-items: center;
+}
+
+.doc-sheet__markdown-button {
+  font: inherit;
+  font-size: 0.85em;
+  line-height: 1;
+  color: var(--doc-sheet-accent);
+  background: var(--doc-sheet-tint);
+  border: 1px solid var(--doc-sheet-rule);
+  border-radius: 0.2em;
+  padding: 0.3em 0.5em;
+  cursor: pointer;
+  min-width: 2em;
+}
+
+.doc-sheet__markdown-button:hover {
+  background: var(--doc-sheet-rule);
+}
+
+.doc-sheet__markdown-button:focus-visible {
+  outline: 2px solid var(--doc-sheet-accent);
+  outline-offset: 1px;
+}
+
+.doc-sheet__markdown-input,
+.doc-sheet__markdown-href {
+  font: inherit;
+  color: inherit;
+  width: 100%;
+  padding: 0.25em 0.35em;
+  background: var(--doc-sheet-bg);
+  border: 1px solid var(--doc-sheet-rule);
+  border-radius: 0.2em;
+  resize: vertical;
+}
+
+.doc-sheet__markdown-href {
+  flex: 1;
+  min-width: 8em;
+}
+
+/* ── Add / edit actions ────────────────────────────────────────────────── */
+
+.doc-sheet__actions,
+.doc-sheet__section-actions {
+  display: flex;
+  gap: 0.4em;
+}
+
+.doc-sheet__action {
+  font: inherit;
+  font-size: 0.8em;
+  color: var(--doc-sheet-accent);
+  background: none;
+  border: 1px dashed var(--doc-sheet-rule);
+  border-radius: 0.2em;
+  padding: 0.15em 0.5em;
+  cursor: pointer;
+}
+
+.doc-sheet__action:hover {
+  background: var(--doc-sheet-tint);
+}
+
+.doc-sheet__action:focus-visible {
+  outline: 2px solid var(--doc-sheet-accent);
+  outline-offset: 1px;
+}
+
+/*
+ * Per-item controls stay out of the document's way until the item is hovered
+ * or something inside it takes focus. `opacity` rather than `display`, so the
+ * control is always focusable and always announced.
+ */
+.doc-sheet__action--item {
+  align-self: flex-start;
+  opacity: 0;
+}
+
+.doc-sheet__item:hover .doc-sheet__action--item,
+.doc-sheet__item:focus-within .doc-sheet__action--item {
+  opacity: 1;
+}
+
+/*
+ * Without hover there is nothing to reveal it, and this is the only route to
+ * the fields the sheet has no room to draw — so a touch user would be left
+ * with an invisible control sitting on a tappable rect.
+ */
+@media (hover: none) {
+  .doc-sheet__action--item {
+    opacity: 1;
+  }
+}

@@ -1,3 +1,9 @@
 export { DocSheet, type DocSheetProps } from "./DocSheet";
 export { DocHeader, type DocHeaderProps } from "./DocHeader";
 export { DocSection, type DocSectionProps } from "./DocSection";
+export { InlineText, type InlineTextProps } from "./InlineText";
+export { InlineMarkdown, type InlineMarkdownProps } from "./InlineMarkdown";
+export { MarkdownEditor, type MarkdownEditorProps } from "./MarkdownEditor";
+export { ItemDialog, type ItemDialogProps } from "./ItemDialog";
+export { CustomSectionDialog, type CustomSectionDialogProps } from "./CustomSectionDialog";
+export { PhotoDialog, type PhotoDialogProps } from "./PhotoDialog";

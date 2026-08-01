@@ -536,6 +536,24 @@ export function useResumeStore() {
       markDirty();
     },
 
+    /**
+     * Rename a fixed section.
+     *
+     * The custom-section equivalent is `updateCustomSection`; this is the fixed
+     * sections' counterpart, which the document editor needs because it edits
+     * section headings in place on the sheet.
+     */
+    updateSectionName(sectionKey: LayoutSectionKey, name: string) {
+      setStore(
+        produce((s) => {
+          if (!s.resume || sectionKey === "custom") return;
+          if (sectionKey === "coverLetter") ensureCoverLetterSection(s.resume);
+          s.resume.sections[sectionKey].name = name;
+        }),
+      );
+      markDirty();
+    },
+
     // Generic section item operations
     addSectionItem<K extends SectionKey>(sectionKey: K, item: Sections[K]["items"][number]) {
       setStore(
