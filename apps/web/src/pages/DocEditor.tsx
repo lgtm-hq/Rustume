@@ -9,18 +9,27 @@
  * the route swap in `src/index.tsx`.
  */
 
-import { Show, createMemo, createResource, createSignal } from "solid-js";
+import { Show, Suspense, createMemo, createResource, createSignal, lazy } from "solid-js";
 import { useNavigate, useParams } from "@solidjs/router";
-import { Button, Spinner } from "../components/ui";
+import { Button, Spinner, toast } from "../components/ui";
 import { DocSheet } from "../components/doc-editor";
 import { SplitPane } from "../components/layout/SplitPane";
 import { CustomCssInjector } from "../components/templates/CustomCssInjector";
+import { useHotkeys, type Shortcut } from "../hooks/useHotkeys";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { useNavigationGuard } from "../hooks/useNavigationGuard";
 import { useResumeRouteLoad } from "../hooks/useResumeRouteLoad";
 import { fetchTemplateLayouts } from "../api/render";
 import { CUSTOM_SECTION_SENTINEL, FIXED_SECTION_IDS, type TemplateLayout } from "../lib/docLayout";
 import { resumeStore } from "../stores/resume";
+import { uiStore } from "../stores/ui";
+import { undoHistoryStore } from "../stores/undoHistory";
+
+const VersionHistory = lazy(() =>
+  import("../components/version-history/VersionHistory").then((module) => ({
+    default: module.VersionHistory,
+  })),
+);
 
 /**
  * Layout used when the template's own metadata cannot be fetched.
@@ -53,8 +62,47 @@ function PreviewPlaceholder() {
 export default function DocEditor() {
   const params = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { store } = resumeStore;
+  const { store, undo, redo } = resumeStore;
+  const { store: ui, openModal } = uiStore;
+  const undoState = () => undoHistoryStore.state;
   const { isLoading, loadError, reload } = useResumeRouteLoad(() => params.id);
+
+  // Mirrors Editor.tsx's undo wiring: the sheet's inline inputs keep their
+  // native text-level undo (`skipWhenEditable`), the store handles the rest.
+  const shortcuts: Shortcut[] = [
+    {
+      key: "z",
+      mod: true,
+      skipWhenEditable: true,
+      handler: () => {
+        if (undo()) toast.success("Undone");
+      },
+      label: "Undo",
+      category: "Editing",
+    },
+    {
+      key: "z",
+      mod: true,
+      shift: true,
+      skipWhenEditable: true,
+      handler: () => {
+        if (redo()) toast.success("Redone");
+      },
+      label: "Redo",
+      category: "Editing",
+    },
+    {
+      key: "y",
+      mod: true,
+      skipWhenEditable: true,
+      handler: () => {
+        if (redo()) toast.success("Redone");
+      },
+      label: "Redo",
+      category: "Editing",
+    },
+  ];
+  useHotkeys(shortcuts);
 
   usePageTitle(() => {
     const name = store.resume?.basics.name.trim();
@@ -122,13 +170,78 @@ export default function DocEditor() {
             {pageCount() === 1 ? "1 page" : `${pageCount()} pages`}
           </Show>
         </p>
-        <p
-          role="status"
-          class="font-mono text-xs text-[var(--turbo-state-warning)]"
-          data-testid="doc-editor-overflow"
-        >
-          {overflowMessage()}
-        </p>
+        <div class="flex items-center gap-2">
+          <p
+            role="status"
+            class="font-mono text-xs text-[var(--turbo-state-warning)]"
+            data-testid="doc-editor-overflow"
+          >
+            {overflowMessage()}
+          </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => undo()}
+            disabled={!undoState().canUndo}
+            aria-label="Undo"
+            title="Undo"
+          >
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M3 10h10a5 5 0 015 5v2M3 10l4-4M3 10l4 4"
+              />
+            </svg>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => redo()}
+            disabled={!undoState().canRedo}
+            aria-label="Redo"
+            title="Redo"
+          >
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M21 10H11a5 5 0 00-5 5v2M21 10l-4-4M21 10l-4 4"
+              />
+            </svg>
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => openModal("versionHistory")}>
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            History
+          </Button>
+        </div>
       </div>
 
       <div class="flex-1 overflow-hidden">
@@ -168,6 +281,13 @@ export default function DocEditor() {
           <SplitPane defaultRatio={0.6} left={<SheetPane />} right={<PreviewPlaceholder />} />
         </Show>
       </div>
+
+      {/* Loaded on demand, exactly as Editor.tsx mounts it. */}
+      <Show when={ui.modal === "versionHistory"}>
+        <Suspense fallback={null}>
+          <VersionHistory />
+        </Suspense>
+      </Show>
     </div>
   );
 }
