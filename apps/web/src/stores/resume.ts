@@ -11,6 +11,7 @@ import type {
   CustomItem,
   CoverLetterRecipient,
 } from "../wasm/types";
+import { generateId } from "../wasm/types";
 import {
   createEmptyResume,
   createEmptyPicture,
@@ -597,6 +598,27 @@ export function useResumeStore() {
       markDirty();
     },
 
+    /**
+     * Clone the item at `index` — fresh id, same everything else — and insert
+     * the copy right after the original, as one action and one undo entry.
+     */
+    duplicateSectionItem<K extends SectionKey>(sectionKey: K, index: number) {
+      const section = store.resume?.sections[sectionKey] as Section<{ id: string }> | undefined;
+      if (!section?.items[index]) return;
+      setStore(
+        produce((s) => {
+          if (!s.resume) return;
+          const target = s.resume.sections[sectionKey] as Section<{ id: string }>;
+          const item = target.items[index];
+          if (!item) return;
+          const clone = JSON.parse(JSON.stringify(item)) as { id: string };
+          clone.id = generateId();
+          target.items.splice(index + 1, 0, clone);
+        }),
+      );
+      markDirty();
+    },
+
     reorderSectionItem<K extends SectionKey>(sectionKey: K, fromIndex: number, toIndex: number) {
       setStore(
         produce((s) => {
@@ -706,6 +728,49 @@ export function useResumeStore() {
       if (!item) return;
       nextItems.splice(toIndex, 0, item);
       setStore("resume", "sections", "custom", sectionId, "items", nextItems);
+      markDirty();
+    },
+
+    /** Custom-section counterpart of `duplicateSectionItem`. */
+    duplicateCustomSectionItem(sectionId: string, index: number) {
+      const items = store.resume?.sections.custom[sectionId]?.items;
+      const item = items?.[index];
+      if (!items || !item) return;
+      const clone = JSON.parse(JSON.stringify(item)) as CustomItem;
+      clone.id = generateId();
+      const nextItems = [...items];
+      nextItems.splice(index + 1, 0, clone);
+      setStore("resume", "sections", "custom", sectionId, "items", nextItems);
+      markDirty();
+    },
+
+    /**
+     * Move an item between two custom sections as **one** action — removal and
+     * insertion together, so a cross-section drag is a single undo entry.
+     * Custom sections only: they are the only sections sharing an item shape.
+     */
+    moveCustomSectionItem(
+      fromSectionId: string,
+      fromIndex: number,
+      toSectionId: string,
+      toIndex: number,
+    ) {
+      if (fromSectionId === toSectionId) return;
+      const fromItems = store.resume?.sections.custom[fromSectionId]?.items;
+      const toItems = store.resume?.sections.custom[toSectionId]?.items;
+      const item = fromItems?.[fromIndex];
+      if (!fromItems || !toItems || !item) return;
+      setStore(
+        produce((s) => {
+          if (!s.resume) return;
+          const source = s.resume.sections.custom[fromSectionId];
+          const target = s.resume.sections.custom[toSectionId];
+          if (!source || !target) return;
+          const [moved] = source.items.splice(fromIndex, 1);
+          if (!moved) return;
+          target.items.splice(Math.max(0, Math.min(toIndex, target.items.length)), 0, moved);
+        }),
+      );
       markDirty();
     },
 

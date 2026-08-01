@@ -113,8 +113,8 @@ describe("DocEditor sheet", () => {
       ["main", ["summary", "experience", "education", "projects"]],
     ]);
     expect(pageColumns(second)).toEqual([
-      // `advisory` is placed by the layout but switched off, so it never draws.
-      ["sidebar", ["languages", "interests", "certifications"]],
+      // `advisory` is switched off but stays drawn as chrome (see below).
+      ["sidebar", ["languages", "interests", "certifications", "advisory"]],
       ["main", ["publications", "volunteer", "awards"]],
     ]);
   });
@@ -162,12 +162,17 @@ describe("DocEditor sheet", () => {
     ).toBeInTheDocument();
   });
 
-  it("omits hidden sections", async () => {
+  it("keeps hidden sections on the surface as flagged chrome", async () => {
     await renderSheet();
 
-    // Both are present in the fixture and switched off — one fixed, one custom.
+    // `advisory` is placed and switched off: hidden means "not rendered to
+    // PDF", not "gone from the editing surface" — the section stays drawn,
+    // dimmed and flagged, so it can be shown again from the sheet.
+    const advisory = document.querySelector('[data-section-id="advisory"]');
+    expect(advisory).not.toBeNull();
+    expect(advisory?.classList.contains("doc-sheet__section--hidden")).toBe(true);
+    // A section the layout never places is genuinely absent.
     expect(document.querySelector('[data-section-id="references"]')).toBeNull();
-    expect(screen.queryByRole("heading", { name: "Advisory & Standards Work" })).toBeNull();
   });
 
   it("offers every drawn value as a keyboard-reachable editing affordance", async () => {
