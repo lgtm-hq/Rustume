@@ -43,8 +43,6 @@ const Preview = lazy(() =>
   import("../components/preview").then((module) => ({ default: module.Preview })),
 );
 
-export { FALLBACK_TEMPLATE_LAYOUT };
-
 export default function DocEditor() {
   const params = useParams<{ id: string }>();
   const navigate = useNavigate();

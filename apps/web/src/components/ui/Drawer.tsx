@@ -16,7 +16,10 @@ export interface DrawerProps {
  * edge so it reads as chrome around the page rather than an interruption.
  */
 export const Drawer: ParentComponent<DrawerProps> = (props) => {
-  const sideClass = () => (props.side === "left" ? "left-0 border-r" : "right-0 border-l");
+  const sideClass = () =>
+    props.side === "left"
+      ? "left-0 border-r animate-slide-in-left"
+      : "right-0 border-l animate-slide-in-right";
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
@@ -24,7 +27,7 @@ export const Drawer: ParentComponent<DrawerProps> = (props) => {
         <Dialog.Overlay class="fixed inset-0 bg-ink/40 backdrop-blur-sm z-40 animate-fade-in" />
         <Dialog.Content
           class={`fixed inset-y-0 z-50 flex w-full max-w-sm flex-col border-border bg-paper
-            shadow-elevated animate-fade-in ${sideClass()}`}
+            shadow-elevated ${sideClass()}`}
         >
           <div class="border-b border-border px-5 py-4">
             <Dialog.Title class="font-display text-lg font-semibold text-ink">
