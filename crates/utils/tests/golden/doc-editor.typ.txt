@@ -54,8 +54,8 @@ The final project measured screen-reader task completion across three component 
 Own #text(weight: "bold")[Halo], the design system behind every Lumen Health surface: the web console, the clinician tablet app, and the patient mobile app.
 
 - Rebuilt the token pipeline so design and code read from a single source, cutting drift reports from roughly fourteen per quarter to two
-- Shipped a #emph[codemod] that migrated 1,100 hard-coded colour values in one review
-- Added contrast assertions to CI, which now block any token pair below 4.5:1
+  - Shipped a #emph[codemod] that migrated 1,100 hard-coded colour values in one review
+  - Added contrast assertions to CI, which now block any token pair below 4.5:1
 - Wrote the #link("https://halo.lumenhealth.io/contributing")[Halo contribution guide]; outside contributions rose from three to thirty-one in a year
 - Led the remediation that took the clinician tablet app to #text(weight: "bold")[WCAG 2.2 AA], verified by an external audit in January 2025
 

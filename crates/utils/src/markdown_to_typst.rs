@@ -174,6 +174,33 @@ mod tests {
     }
 
     #[test]
+    fn nested_bullet_list() {
+        assert_eq!(
+            markdown_to_typst("- a\n  - b\n- c"),
+            "- a\n  - b\n- c",
+            "an indented markdown sublist must stay nested through the HTML path"
+        );
+    }
+
+    #[test]
+    fn nested_ordered_list() {
+        assert_eq!(markdown_to_typst("1. a\n   1. b\n2. c"), "+ a\n  + b\n+ c");
+    }
+
+    #[test]
+    fn mixed_nested_list_keeps_per_level_markers() {
+        assert_eq!(markdown_to_typst("- a\n  1. b"), "- a\n  + b");
+    }
+
+    #[test]
+    fn three_level_nested_list() {
+        assert_eq!(
+            markdown_to_typst("- a\n  - b\n    - c"),
+            "- a\n  - b\n    - c"
+        );
+    }
+
+    #[test]
     fn paragraph_then_list() {
         let result = markdown_to_typst("Responsibilities:\n\n- Item A\n- Item B");
         assert_eq!(result, "Responsibilities:\n\n- Item A\n- Item B");
