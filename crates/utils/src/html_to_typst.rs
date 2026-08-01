@@ -17,6 +17,10 @@ use scraper::{Html, Node};
 /// - `<ol><li>` — `+ item`
 /// - `<br>` — `#linebreak()`
 ///
+/// Lists nest to arbitrary depth: a `<ul>` or `<ol>` inside an `<li>` is
+/// emitted as an indented sublist, and each level takes its marker from its
+/// own tag, so `<ol>` inside `<ul>` (and the reverse) renders correctly.
+///
 /// All other tags are stripped; their text content is preserved.
 /// Plain text without any HTML tags passes through unchanged.
 pub fn html_to_typst(html: &str) -> String {
@@ -36,7 +40,7 @@ pub fn html_to_typst(html: &str) -> String {
     let mut output = String::new();
 
     for child in document.root_element().children() {
-        process_node(&child, &mut output, false);
+        process_node(&child, &mut output, 0);
     }
 
     clean_output(&output)
@@ -67,7 +71,13 @@ fn escape_typst(text: &str) -> String {
 }
 
 /// Recursively process a DOM node and append Typst markup.
-fn process_node(node: &ego_tree::NodeRef<'_, Node>, output: &mut String, in_list: bool) {
+///
+/// `list_depth` is how many `<li>` ancestors the node sits inside: `0` outside
+/// any list, `1` inside a top-level item, and so on. A list encountered at
+/// depth `d` indents its markers by `d` levels, which is how Typst expresses
+/// list nesting.
+fn process_node(node: &ego_tree::NodeRef<'_, Node>, output: &mut String, list_depth: usize) {
+    let in_list = list_depth > 0;
     match node.value() {
         Node::Text(text) => {
             let t = text.text.as_ref();
@@ -84,7 +94,7 @@ fn process_node(node: &ego_tree::NodeRef<'_, Node>, output: &mut String, in_list
                 "p" => {
                     let mut inner = String::new();
                     for child in node.children() {
-                        process_node(&child, &mut inner, false);
+                        process_node(&child, &mut inner, 0);
                     }
                     let trimmed = inner.trim();
                     // TipTap produces <p><br></p> for empty editors — treat as empty.
@@ -96,7 +106,7 @@ fn process_node(node: &ego_tree::NodeRef<'_, Node>, output: &mut String, in_list
                 "strong" | "b" => {
                     let mut inner = String::new();
                     for child in node.children() {
-                        process_node(&child, &mut inner, in_list);
+                        process_node(&child, &mut inner, list_depth);
                     }
                     if !inner.is_empty() {
                         output.push_str("#text(weight: \"bold\")[");
@@ -107,7 +117,7 @@ fn process_node(node: &ego_tree::NodeRef<'_, Node>, output: &mut String, in_list
                 "em" | "i" => {
                     let mut inner = String::new();
                     for child in node.children() {
-                        process_node(&child, &mut inner, in_list);
+                        process_node(&child, &mut inner, list_depth);
                     }
                     if !inner.is_empty() {
                         output.push_str("#emph[");
@@ -118,7 +128,7 @@ fn process_node(node: &ego_tree::NodeRef<'_, Node>, output: &mut String, in_list
                 "u" => {
                     let mut inner = String::new();
                     for child in node.children() {
-                        process_node(&child, &mut inner, in_list);
+                        process_node(&child, &mut inner, list_depth);
                     }
                     if !inner.is_empty() {
                         output.push_str("#underline[");
@@ -130,7 +140,7 @@ fn process_node(node: &ego_tree::NodeRef<'_, Node>, output: &mut String, in_list
                     let href = el.attr("href").unwrap_or("");
                     let mut inner = String::new();
                     for child in node.children() {
-                        process_node(&child, &mut inner, in_list);
+                        process_node(&child, &mut inner, list_depth);
                     }
                     if !inner.is_empty() {
                         // Only emit links with safe schemes.
@@ -152,51 +162,9 @@ fn process_node(node: &ego_tree::NodeRef<'_, Node>, output: &mut String, in_list
                         }
                     }
                 }
-                "ul" => {
-                    let mut emitted_any = false;
-                    for child in node.children() {
-                        if let Node::Element(child_el) = child.value() {
-                            if child_el.name.local.as_ref() == "li" {
-                                let mut inner = String::new();
-                                for li_child in child.children() {
-                                    process_node(&li_child, &mut inner, true);
-                                }
-                                let trimmed = inner.trim();
-                                if !trimmed.is_empty() {
-                                    output.push_str("- ");
-                                    output.push_str(trimmed);
-                                    output.push('\n');
-                                    emitted_any = true;
-                                }
-                            }
-                        }
-                    }
-                    if emitted_any {
-                        output.push('\n');
-                    }
-                }
-                "ol" => {
-                    let mut emitted_any = false;
-                    for child in node.children() {
-                        if let Node::Element(child_el) = child.value() {
-                            if child_el.name.local.as_ref() == "li" {
-                                let mut inner = String::new();
-                                for li_child in child.children() {
-                                    process_node(&li_child, &mut inner, true);
-                                }
-                                let trimmed = inner.trim();
-                                if !trimmed.is_empty() {
-                                    output.push_str("+ ");
-                                    output.push_str(trimmed);
-                                    output.push('\n');
-                                    emitted_any = true;
-                                }
-                            }
-                        }
-                    }
-                    if emitted_any {
-                        output.push('\n');
-                    }
+                "ul" | "ol" => {
+                    let marker = if tag == "ul" { '-' } else { '+' };
+                    process_list(node, output, marker, list_depth);
                 }
                 "br" => {
                     output.push_str("#linebreak()\n");
@@ -204,13 +172,75 @@ fn process_node(node: &ego_tree::NodeRef<'_, Node>, output: &mut String, in_list
                 // Unknown tags: process children, strip the tag itself.
                 _ => {
                     for child in node.children() {
-                        process_node(&child, output, in_list);
+                        process_node(&child, output, list_depth);
                     }
                 }
             }
         }
         // Skip comments, doctypes, processing instructions, etc.
         _ => {}
+    }
+}
+
+/// Render a `<ul>`/`<ol>` element as Typst list lines.
+///
+/// `marker` is the bullet character for this list only (`-` for `ul`, `+` for
+/// `ol`), so mixed nesting keeps each level's own marker. `depth` is the
+/// nesting level: `0` for a top-level list, `1` for a list inside a top-level
+/// item, and so on. Each level indents by two spaces, which is how Typst
+/// distinguishes a sublist from a sibling item.
+fn process_list(
+    node: &ego_tree::NodeRef<'_, Node>,
+    output: &mut String,
+    marker: char,
+    depth: usize,
+) {
+    let indent = "  ".repeat(depth);
+    let mut emitted_any = false;
+
+    for child in node.children() {
+        let Node::Element(child_el) = child.value() else {
+            continue;
+        };
+        if child_el.name.local.as_ref() != "li" {
+            continue;
+        }
+
+        let mut inner = String::new();
+        for li_child in child.children() {
+            // Children of this item sit one level deeper, so a list among
+            // them renders as a sublist rather than more sibling bullets.
+            process_node(&li_child, &mut inner, depth + 1);
+        }
+        let trimmed = inner.trim();
+        if !trimmed.is_empty() {
+            if !emitted_any && depth > 0 {
+                // A nested list starts on its own line, directly under its
+                // parent item: a blank line in between would close the list
+                // in Typst. Trim all trailing whitespace, not just newlines
+                // — indented source HTML leaves spaces after the item's
+                // text, and a line of only spaces is still a paragraph break
+                // to Typst. Deferred until an item is known to be emitted so
+                // that a nested list which renders nothing leaves the parent
+                // item's text untouched.
+                output.truncate(output.trim_end().len());
+                if !output.is_empty() {
+                    output.push('\n');
+                }
+            }
+            output.push_str(&indent);
+            output.push(marker);
+            output.push(' ');
+            output.push_str(trimmed);
+            output.push('\n');
+            emitted_any = true;
+        }
+    }
+
+    // Only a top-level list is followed by a paragraph break; a blank line
+    // after a sublist would end the enclosing list too.
+    if emitted_any && depth == 0 {
+        output.push('\n');
     }
 }
 
@@ -394,6 +424,91 @@ mod tests {
         assert!(result.contains("Responsibilities:"));
         assert!(result.contains("- Item A"));
         assert!(result.contains("- Item B"));
+    }
+
+    #[test]
+    fn nested_bullet_list() {
+        let html = "<ul><li>A<ul><li>B</li></ul></li></ul>";
+        assert_eq!(html_to_typst(html), "- A\n  - B");
+    }
+
+    #[test]
+    fn nested_ordered_list() {
+        let html = "<ol><li>A<ol><li>B</li></ol></li></ol>";
+        assert_eq!(html_to_typst(html), "+ A\n  + B");
+    }
+
+    #[test]
+    fn ordered_list_nested_in_bullet_list() {
+        let html = "<ul><li>A<ol><li>B</li></ol></li></ul>";
+        assert_eq!(html_to_typst(html), "- A\n  + B");
+    }
+
+    #[test]
+    fn bullet_list_nested_in_ordered_list() {
+        let html = "<ol><li>A<ul><li>B</li></ul></li></ol>";
+        assert_eq!(html_to_typst(html), "+ A\n  - B");
+    }
+
+    #[test]
+    fn three_level_nesting() {
+        let html = "<ul><li>A<ul><li>B<ul><li>C</li></ul></li></ul></li></ul>";
+        assert_eq!(html_to_typst(html), "- A\n  - B\n    - C");
+    }
+
+    #[test]
+    fn parent_list_continues_after_nested_block() {
+        let html = "<ul><li>A</li><li>B<ul><li>B1</li><li>B2</li></ul></li><li>C</li></ul>";
+        assert_eq!(
+            html_to_typst(html),
+            "- A\n- B\n  - B1\n  - B2\n- C",
+            "items after a sublist must return to the parent level"
+        );
+    }
+
+    #[test]
+    fn nested_list_inside_paragraph_wrapped_item() {
+        // Loose-list markup: the item's text is wrapped in a <p>, which must
+        // not open a blank line between the item and its sublist.
+        let html = "<ul><li><p>A</p><ul><li>B</li></ul></li><li><p>C</p></li></ul>";
+        assert_eq!(html_to_typst(html), "- A\n  - B\n- C");
+    }
+
+    #[test]
+    fn nested_list_survives_indented_source_html() {
+        // Pretty-printed HTML leaves the item's text ending in spaces rather
+        // than a newline; a blank line there would close the list in Typst.
+        let html = "<ul>\n  <li>a\n  <ul>\n    <li>b</li>\n  </ul>\n  </li>\n</ul>";
+        assert_eq!(html_to_typst(html), "- a\n  - b");
+    }
+
+    #[test]
+    fn empty_nested_list_leaves_parent_list_intact() {
+        let html = "<ul><li>A<ul></ul></li><li>C</li></ul>";
+        assert_eq!(html_to_typst(html), "- A\n- C");
+    }
+
+    #[test]
+    fn empty_nested_list_does_not_split_the_item_text() {
+        // A nested list that renders nothing must not inject a line break
+        // between the text before it and the text after it.
+        assert_eq!(
+            html_to_typst("<ul><li>A<ul></ul>B</li><li>C</li></ul>"),
+            "- AB\n- C"
+        );
+        assert_eq!(
+            html_to_typst("<ul><li>A<ul><li></li></ul>B</li><li>C</li></ul>"),
+            "- AB\n- C"
+        );
+    }
+
+    #[test]
+    fn nested_list_items_keep_inline_formatting() {
+        let html = "<ul><li>A<ul><li><strong>B</strong> deep</li></ul></li></ul>";
+        assert_eq!(
+            html_to_typst(html),
+            "- A\n  - #text(weight: \"bold\")[B] deep"
+        );
     }
 
     #[test]

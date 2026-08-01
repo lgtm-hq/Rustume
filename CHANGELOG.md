@@ -22,6 +22,23 @@ and this project adheres to
 
 ### Security
 
+## [0.57.2] - 2026-08-01
+
+### Fixed
+
+- **utils**: render nested lists as nested in html_to_typst (#756) (595a440)
+
+## [0.57.1] - 2026-08-01
+
+### Changed
+
+- **deps**: update lintro to 0.99.0 (minor) (#761) (851dae9)
+- **deps**: update dependency jsdom to 30.0.1 (patch) (#755) (4a518e3)
+
+### Fixed
+
+- **deps**: disable base64 default simd-unsafe feature (#754) (ffa8c35)
+
 ## [0.57.0] - 2026-08-01
 
 ### Added
@@ -848,7 +865,9 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.57.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.57.2...HEAD
+[0.57.2]: https://github.com/lgtm-hq/Rustume/compare/v0.57.1...v0.57.2
+[0.57.1]: https://github.com/lgtm-hq/Rustume/compare/v0.57.0...v0.57.1
 [0.57.0]: https://github.com/lgtm-hq/Rustume/compare/v0.56.0...v0.57.0
 [0.56.0]: https://github.com/lgtm-hq/Rustume/compare/v0.55.0...v0.56.0
 [0.55.0]: https://github.com/lgtm-hq/Rustume/compare/v0.54.0...v0.55.0
