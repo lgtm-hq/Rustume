@@ -66,6 +66,9 @@ describe("duplicateSectionItem", () => {
       createRoot((dispose) => {
         const { store, createNewResume, duplicateSectionItem } = useResumeStore();
         createNewResume("dup-2");
+        // Drain the setup's own scheduled save so the baseline below measures
+        // only what the no-op adds.
+        vi.advanceTimersByTime(1500);
         const before = store.resume!.sections.skills.items.length;
 
         const dirtyBefore = store.isDirty;
