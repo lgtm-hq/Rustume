@@ -37,6 +37,7 @@ import { itemNoun } from "./itemFields";
 import {
   adjacentCustomSectionId,
   canMoveEntryAcross,
+  drawnSectionPosition,
   entryStep,
   moveSectionInLayout,
   moveSectionStep,
@@ -48,7 +49,6 @@ import {
 } from "../../lib/docDnd";
 import {
   editorPages,
-  findSectionPlacement,
   layoutColumns,
   layoutPages,
   sectionTitle,
@@ -299,23 +299,36 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
   createEffect(() => props.onOverflowChange?.(overflowing()));
   createEffect(() => props.onPageCountChange?.(pages().length));
 
-  /** Announce where `sectionId` landed in `nextLayout`. */
+  // The cards the sheet draws. Drawn-ness depends on content and visibility,
+  // never on placement — so the set stays valid for a layout about to change.
+  const drawnIds = createMemo(
+    () => new Set(pages().flatMap((page) => page.flatMap((column) => column.map((s) => s.id)))),
+  );
+  const isDrawn = (id: string): boolean => drawnIds().has(id);
+
+  /**
+   * Announce where `sectionId` landed in `nextLayout`, in drawn-card terms:
+   * what is spoken must match what is seen, so positions count the cards the
+   * sheet draws, not the slots the layout stores.
+   */
   function announceSectionMove(sectionId: string, nextLayout: string[][][]): void {
-    const placement = findSectionPlacement(nextLayout, sectionId);
+    const position = drawnSectionPosition(nextLayout, sectionId, isDrawn);
     const title = sectionTitle(props.resume, sectionId);
-    if (!placement) {
+    if (!position) {
       announce(`${title} section moved`);
       return;
     }
     announce(
-      `${title} section moved to position ${placement.index + 1} in column ` +
-        `${placement.column + 1} of page ${placement.page + 1}`,
+      `${title} section moved to position ${position.index + 1} of ${position.total} ` +
+        `in column ${position.column + 1} of page ${position.page + 1}`,
     );
   }
 
   /** One-step section move, shared by the move controls (click and keyboard). */
   function moveSection(sectionId: string, step: MoveStep): void {
-    const next = moveSectionStep(layout(), sectionId, step);
+    // Stepping is drawn-aware: slots the sheet does not draw are skipped, so
+    // a press never announces a move with zero visual change.
+    const next = moveSectionStep(layout(), sectionId, step, isDrawn);
     if (!next) {
       announce(`${sectionTitle(props.resume, sectionId)} section did not move`);
       return;
@@ -361,15 +374,23 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
   }
 
   // Only droppables that mean something for the active drag may catch it —
-  // a section drag must never land on an entry, nor an entry on a column.
-  const detectCollisions: CollisionDetector = (draggable, droppables, context) =>
-    closestCenter(
-      draggable,
-      droppables.filter((droppable) =>
-        acceptsDrop(draggable.data as SheetDragData, droppable.data as SheetDropData),
-      ),
-      context,
+  // a section drag must never land on an entry, nor an entry on a column —
+  // and only droppables the dragged card actually overlaps count at all, so a
+  // sloppy release over dead space cancels instead of snapping to the nearest
+  // centre. Among the overlapping targets, closest-centre keeps the familiar
+  // card-versus-column selection.
+  const detectCollisions: CollisionDetector = (draggable, droppables, context) => {
+    const dragged = draggable.transformed;
+    const touching = droppables.filter(
+      (droppable) =>
+        acceptsDrop(draggable.data as SheetDragData, droppable.data as SheetDropData) &&
+        dragged.left < droppable.layout.right &&
+        dragged.right > droppable.layout.left &&
+        dragged.top < droppable.layout.bottom &&
+        dragged.bottom > droppable.layout.top,
     );
+    return touching.length > 0 ? closestCenter(draggable, touching, context) : null;
+  };
 
   function onDragStart({ draggable }: DragEvent): void {
     setActiveDrag(draggable.data as SheetDragData);

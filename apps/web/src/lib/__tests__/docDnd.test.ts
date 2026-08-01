@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   adjacentCustomSectionId,
   canMoveEntryAcross,
+  drawnSectionPosition,
   entryStep,
   moveSectionInLayout,
   moveSectionStep,
@@ -172,6 +173,53 @@ describe("moveSectionStep", () => {
 
     expect(next).toHaveLength(3);
     expect(next?.[2][0]).toEqual(["languages"]);
+  });
+
+  it("steps past slots the sheet does not draw", () => {
+    // `experience` is placed but not drawn: one press must still make exactly
+    // one visible change, so `summary` steps past it to the nearest drawn
+    // card — never announcing a move nothing on screen reflects.
+    const isDrawn = (id: string): boolean => id !== "experience";
+
+    const next = moveSectionStep(LAYOUT, "summary", "down", isDrawn);
+    expect(next?.[0][0]).toEqual(["experience", "education", "summary", "projects"]);
+
+    const back = moveSectionStep(LAYOUT, "education", "up", isDrawn);
+    expect(back?.[0][0]).toEqual(["education", "summary", "experience", "projects"]);
+  });
+
+  it("returns null when only undrawn slots remain in the step's direction", () => {
+    const isDrawn = (id: string): boolean => id !== "projects";
+
+    expect(moveSectionStep(LAYOUT, "education", "down", isDrawn)).toBeNull();
+  });
+});
+
+describe("drawnSectionPosition", () => {
+  it("counts drawn cards rather than layout slots", () => {
+    // `experience` is placed but not drawn, so `education` is the second of
+    // three cards on screen even though it holds the third layout slot.
+    const isDrawn = (id: string): boolean => id !== "experience";
+
+    expect(drawnSectionPosition(LAYOUT, "education", isDrawn)).toEqual({
+      page: 0,
+      column: 0,
+      index: 1,
+      total: 3,
+    });
+  });
+
+  it("always counts the section itself as drawn", () => {
+    expect(drawnSectionPosition(LAYOUT, "speaking", () => false)).toEqual({
+      page: 0,
+      column: 1,
+      index: 0,
+      total: 1,
+    });
+  });
+
+  it("returns null for a section the layout does not place", () => {
+    expect(drawnSectionPosition(LAYOUT, "missing")).toBeNull();
   });
 });
 

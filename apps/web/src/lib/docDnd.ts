@@ -166,26 +166,38 @@ function columnSequence(
 /**
  * Move `sectionId` one step, mirroring what a drag of the same distance does.
  *
- * `up`/`down` reorder within the column; `previous`/`next` append the section
- * to the adjacent column in page-then-column order. `next` past the final
- * column starts a new page, exactly like the sheet's new-page drop zone.
+ * `up`/`down` reorder within the column, past the nearest *drawn* neighbour —
+ * `isDrawn` names the sections the sheet actually draws, and slots the layout
+ * places but the sheet does not draw are stepped over, so one press is always
+ * one visible change. `previous`/`next` append the section to the adjacent
+ * column in page-then-column order; `next` past the final column starts a new
+ * page, exactly like the sheet's new-page drop zone.
  */
 export function moveSectionStep(
   layout: readonly (readonly (readonly string[])[])[],
   sectionId: string,
   step: MoveStep,
+  isDrawn: (id: string) => boolean = () => true,
 ): string[][][] | null {
   const placement = findSectionPlacement(layout, sectionId);
   if (!placement) return null;
   const column = layout[placement.page][placement.column];
 
   if (step === "up") {
-    if (placement.index === 0) return null;
-    return resolveSectionDropOnSection(layout, sectionId, column[placement.index - 1]);
+    for (let index = placement.index - 1; index >= 0; index--) {
+      if (isDrawn(column[index])) {
+        return resolveSectionDropOnSection(layout, sectionId, column[index]);
+      }
+    }
+    return null;
   }
   if (step === "down") {
-    if (placement.index >= column.length - 1) return null;
-    return resolveSectionDropOnSection(layout, sectionId, column[placement.index + 1]);
+    for (let index = placement.index + 1; index < column.length; index++) {
+      if (isDrawn(column[index])) {
+        return resolveSectionDropOnSection(layout, sectionId, column[index]);
+      }
+    }
+    return null;
   }
 
   const sequence = columnSequence(layout);
@@ -202,6 +214,39 @@ export function moveSectionStep(
     return resolveSectionDropOnColumn(layout, sectionId, next.page, next.column);
   }
   return moveSectionInLayout(layout, sectionId, { page: layout.length, column: 0, index: 0 });
+}
+
+/** Where a section sits among the *drawn* cards of its column. */
+export interface DrawnSectionPosition {
+  page: number;
+  column: number;
+  /** 0-based position among the column's drawn cards. */
+  index: number;
+  /** How many cards the column draws. */
+  total: number;
+}
+
+/**
+ * `sectionId`'s position in `layout`, counted in drawn cards rather than
+ * layout slots, so an announcement matches what is on screen. The section
+ * itself always counts as drawn — only drawn cards carry move controls.
+ */
+export function drawnSectionPosition(
+  layout: readonly (readonly (readonly string[])[])[],
+  sectionId: string,
+  isDrawn: (id: string) => boolean = () => true,
+): DrawnSectionPosition | null {
+  const placement = findSectionPlacement(layout, sectionId);
+  if (!placement) return null;
+  const drawn = layout[placement.page][placement.column].filter(
+    (id) => id === sectionId || isDrawn(id),
+  );
+  return {
+    page: placement.page,
+    column: placement.column,
+    index: drawn.indexOf(sectionId),
+    total: drawn.length,
+  };
 }
 
 /**

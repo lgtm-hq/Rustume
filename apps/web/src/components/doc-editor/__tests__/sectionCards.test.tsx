@@ -176,13 +176,34 @@ describe("document sheet structural chrome", () => {
       expect(layout[1][0]).toEqual(["publications", "volunteer", "awards", "speaking"]);
     });
 
-    it("announces the move", async () => {
+    it("announces the move in drawn-card terms", async () => {
       renderSheet();
 
       fireEvent.click(screen.getByRole("button", { name: "Move Experience section down" }));
 
       await waitFor(() => {
-        expect(liveRegionText()).toMatch(/Experience section moved to position 3 in column 1/i);
+        expect(liveRegionText()).toMatch(
+          /Experience section moved to position 3 of 4 in column 1 of page 1/i,
+        );
+      });
+    });
+
+    it("steps past a placed-but-undrawn section, and counts only drawn cards", async () => {
+      // `education` keeps its layout slot but has nothing to draw, so one
+      // press on Experience must clear it in a single visible step — and the
+      // announced position must match the three cards on screen, not the four
+      // slots in the layout.
+      resume.sections.education.items = [];
+      renderSheet();
+
+      fireEvent.click(screen.getByRole("button", { name: "Move Experience section down" }));
+
+      const [layout] = store.updateLayout.mock.calls[0] as [string[][][]];
+      expect(layout[0][0]).toEqual(["summary", "education", "projects", "experience"]);
+      await waitFor(() => {
+        expect(liveRegionText()).toMatch(
+          /Experience section moved to position 3 of 3 in column 1 of page 1/i,
+        );
       });
     });
 
