@@ -34,6 +34,17 @@ vi.mock("../../wasm", async (importOriginal) => {
 
 vi.mock("../../api/render", () => ({
   fetchTemplateLayouts: vi.fn(() => Promise.resolve({ ditto: SIDEBAR_TEMPLATE })),
+  fetchTemplates: vi.fn(() =>
+    Promise.resolve([
+      {
+        id: "ditto",
+        name: "Ditto",
+        theme: { background: "#ffffff", text: "#1c1917", primary: "#7c3aed" },
+        layout: SIDEBAR_TEMPLATE,
+      },
+    ]),
+  ),
+  getTemplateThumbnailUrl: vi.fn((id: string) => `/api/templates/${id}/thumbnail`),
   renderPreview: vi.fn().mockResolvedValue(new Blob()),
   downloadPdf: vi.fn().mockResolvedValue(undefined),
 }));

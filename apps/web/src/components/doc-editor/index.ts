@@ -7,3 +7,5 @@ export { MarkdownEditor, type MarkdownEditorProps } from "./MarkdownEditor";
 export { ItemDialog, type ItemDialogProps } from "./ItemDialog";
 export { CustomSectionDialog, type CustomSectionDialogProps } from "./CustomSectionDialog";
 export { PhotoDialog, type PhotoDialogProps } from "./PhotoDialog";
+export { TemplatesDrawer, type TemplatesDrawerProps } from "./TemplatesDrawer";
+export { SectionsPanel, type SectionsPanelProps } from "./SectionsPanel";
