@@ -3,6 +3,7 @@ import { toast } from "../ui";
 import { resumeStore } from "../../stores/resume";
 import { uiStore } from "../../stores/ui";
 import { renderPreview } from "../../api/render";
+import type { ResumeData } from "../../wasm/types";
 import { useDebounce } from "../../hooks/useDebounce";
 import { useOnline } from "../../hooks/useOnline";
 import { clearPrintPageFormat, setPrintPageFormat } from "../../lib/printFormat";
@@ -23,7 +24,16 @@ import {
 } from "./previewPan";
 import { prefetchPrintStackPages } from "./printStack";
 
-export function Preview() {
+export interface PreviewProps {
+  /**
+   * Reports the page count of the latest successful server render. The doc
+   * editor uses it to keep its page-count pill on the ground truth rather than
+   * the sheet's own client-side pagination.
+   */
+  onTotalPagesChange?: (totalPages: number) => void;
+}
+
+export function Preview(props: PreviewProps) {
   const { store } = resumeStore;
   const { store: ui, setPreviewPage, setPreviewZoom, zoomIn, zoomOut } = uiStore;
   const isOnline = useOnline();
@@ -112,15 +122,32 @@ export function Preview() {
   });
 
   // Viewport resizes can leave a previously valid pan out of bounds.
-  const resizeObserver = new ResizeObserver(() => reclampPan());
+  // Guarded like DocSheet's observer: jsdom has no ResizeObserver.
+  const resizeObserver =
+    typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => reclampPan());
   createEffect(() => {
-    if (viewportRef) resizeObserver.observe(viewportRef);
+    if (viewportRef) resizeObserver?.observe(viewportRef);
   });
-  onCleanup(() => resizeObserver.disconnect());
+  onCleanup(() => resizeObserver?.disconnect());
 
-  // Request ID to guard against race conditions
-  let resumeRequestId = 0;
-  let pageRequestId = 0;
+  // Surface the rendered page count to the host page (doc editor pill). Gated
+  // on a completed render so the placeholder initial value never reports.
+  createEffect(() => {
+    if (!previewUrl()) return;
+    props.onTotalPagesChange?.(totalPages());
+  });
+
+  // One shared render generation for both fetch effects: whichever effect
+  // starts (or invalidates) a request last wins, so a slow stale response from
+  // one effect can never overwrite a newer render started by the other.
+  let previewRequestId = 0;
+
+  // Key of the last request either fetch effect started, so the two effects
+  // never duplicate the same render. On mount both run with identical inputs
+  // (the debounced resume snapshot initialises to the current store value);
+  // without this guard that means two identical fetches for one paint. Reset
+  // whenever a request fails or is skipped offline so retries still happen.
+  let lastRequestedKey = "";
 
   // Dedup guard to prevent toast spam on repeated preview errors
   let lastToastedError = "";
@@ -278,31 +305,38 @@ export function Preview() {
     500,
   );
 
-  // Fetch preview when resume changes
-  createEffect(() => {
-    const resumeJson = debouncedResume();
-    if (!resumeJson || !store.resume) return;
-
-    // Skip if offline — invalidate in-flight requests, keep cached preview
-    if (!isOnline()) {
-      ++resumeRequestId;
-      setIsLoading(false);
-      if (lastCachedUrl()) {
-        setPreviewUrl(lastCachedUrl());
-        setError(null);
-      } else {
-        setError("Preview unavailable offline");
-      }
-      return;
+  // Invalidate in-flight requests while offline and fall back to the cache.
+  const handleOffline = () => {
+    ++previewRequestId;
+    lastRequestedKey = "";
+    setIsLoading(false);
+    if (lastCachedUrl()) {
+      setPreviewUrl(lastCachedUrl());
+      setError(null);
+    } else {
+      setError("Preview unavailable offline");
     }
+  };
 
-    const currentRequestId = ++resumeRequestId;
+  // Deduplicated render-request lifecycle shared by both fetch effects: build
+  // the request key, bail on the in-flight duplicate, claim the render
+  // generation, then apply the result only if no newer request started since.
+  const startRender = (page: number, resumeJson: string) => {
+    const requestKey = `${page}|${resumeJson}`;
+    if (requestKey === lastRequestedKey) return;
+    lastRequestedKey = requestKey;
+
+    const currentRequestId = ++previewRequestId;
     setIsLoading(true);
     setError(null);
 
-    renderPreview(store.resume, ui.previewPage)
+    // Pass a plain snapshot, never the store proxy: renderPreview stringifies
+    // its argument synchronously, and doing that to the proxy inside the
+    // calling effect's tracking scope would deep-subscribe it to every resume
+    // field, bypassing the debounce from the first page interaction on.
+    renderPreview(JSON.parse(resumeJson) as ResumeData, page)
       .then((result) => {
-        if (currentRequestId !== resumeRequestId) return;
+        if (currentRequestId !== previewRequestId) return;
         setPreviewUrl(result.url);
         setLastCachedUrl(result.url);
         setTotalPages(result.totalPages);
@@ -314,7 +348,8 @@ export function Preview() {
         lastToastedError = "";
       })
       .catch((e) => {
-        if (currentRequestId !== resumeRequestId) return;
+        if (currentRequestId !== previewRequestId) return;
+        lastRequestedKey = "";
         console.error("Preview error:", e);
         const msg = e instanceof Error ? e.message : String(e) || "Failed to load preview";
         setError(msg);
@@ -328,61 +363,38 @@ export function Preview() {
         }
       })
       .finally(() => {
-        if (currentRequestId === resumeRequestId) {
+        if (currentRequestId === previewRequestId) {
           setIsLoading(false);
         }
       });
+  };
+
+  // Fetch preview when the (debounced) resume changes
+  createEffect(() => {
+    const resumeJson = debouncedResume();
+    if (!resumeJson || !store.resume) return;
+    if (!isOnline()) {
+      handleOffline();
+      return;
+    }
+    startRender(
+      untrack(() => ui.previewPage),
+      resumeJson,
+    );
   });
 
-  // Also refresh when page changes
+  // Also refresh when the page changes, rendering the current resume snapshot
   createEffect(() => {
     const page = ui.previewPage;
     if (!store.resume) return;
-
-    // Skip if offline — invalidate in-flight requests, keep cached preview
     if (!isOnline()) {
-      ++pageRequestId;
-      setIsLoading(false);
-      if (lastCachedUrl()) {
-        setPreviewUrl(lastCachedUrl());
-        setError(null);
-      } else {
-        setError("Preview unavailable offline");
-      }
+      handleOffline();
       return;
     }
-
-    const currentRequestId = ++pageRequestId;
-    setIsLoading(true);
-    setError(null);
-
-    renderPreview(store.resume, page)
-      .then((result) => {
-        if (currentRequestId !== pageRequestId) return;
-        setPreviewUrl(result.url);
-        setLastCachedUrl(result.url);
-        setTotalPages(result.totalPages);
-        setError(null);
-        lastToastedError = "";
-      })
-      .catch((e) => {
-        if (currentRequestId !== pageRequestId) return;
-        console.error("Preview error:", e);
-        const msg = e instanceof Error ? e.message : String(e) || "Failed to load preview";
-        setError(msg);
-        if (msg !== lastToastedError) {
-          lastToastedError = msg;
-          toast.error("Preview rendering failed");
-        }
-        if (lastCachedUrl()) {
-          setPreviewUrl(lastCachedUrl());
-        }
-      })
-      .finally(() => {
-        if (currentRequestId === pageRequestId) {
-          setIsLoading(false);
-        }
-      });
+    startRender(
+      page,
+      untrack(() => JSON.stringify(store.resume)),
+    );
   });
 
   createEffect(() => {

@@ -1,15 +1,23 @@
 /**
  * The flag-gated document editor at `/edit/:id`.
  *
- * This slice is read-only: it draws the resume as a paper sheet and reports
- * what does not fit. Editing affordances (#728) and the PDF preview pane (#732)
- * land on top of it; until then the right pane is a placeholder.
+ * The left pane is the editable paper sheet (structure fidelity); the right
+ * pane mounts the server-rendered `Preview` — the ground-truth Typst render,
+ * refreshed off resume-store mutations through the preview's own debounce.
  *
  * Reached only when `isDocEditorEnabled()` is true — see `src/lib/flags.ts` and
  * the route swap in `src/index.tsx`.
  */
 
-import { Show, Suspense, createMemo, createResource, createSignal, lazy } from "solid-js";
+import {
+  Show,
+  Suspense,
+  createEffect,
+  createMemo,
+  createResource,
+  createSignal,
+  lazy,
+} from "solid-js";
 import { useNavigate, useParams } from "@solidjs/router";
 import { Button, Spinner, toast } from "../components/ui";
 import { DocSheet } from "../components/doc-editor";
@@ -31,6 +39,10 @@ const VersionHistory = lazy(() =>
   })),
 );
 
+const Preview = lazy(() =>
+  import("../components/preview").then((module) => ({ default: module.Preview })),
+);
+
 /**
  * Layout used when the template's own metadata cannot be fetched.
  *
@@ -45,19 +57,6 @@ export const FALLBACK_TEMPLATE_LAYOUT: TemplateLayout = {
   contactIn: "header",
   sidebarWidth: null,
 };
-
-function PreviewPlaceholder() {
-  return (
-    <div
-      class="h-full flex items-center justify-center border-l border-border bg-surface/40 p-6"
-      data-testid="doc-editor-preview-placeholder"
-    >
-      <p class="max-w-xs text-center text-sm text-stone">
-        The rendered PDF preview appears here once it lands.
-      </p>
-    </div>
-  );
-}
 
 export default function DocEditor() {
   const params = useParams<{ id: string }>();
@@ -129,6 +128,21 @@ export default function DocEditor() {
   const [pageCount, setPageCount] = createSignal(0);
   const [overflowingPages, setOverflowingPages] = createSignal<number[]>([]);
 
+  // Ground truth from the server render. The sheet's own pagination drives the
+  // sheet; the pill prefers what Typst actually produced, falling back to the
+  // sheet's count until the first render lands.
+  const [renderedPageCount, setRenderedPageCount] = createSignal(0);
+  const displayedPageCount = () => renderedPageCount() || pageCount();
+
+  // A different document must not inherit the previous one's counts: drop all
+  // document-scoped display state until the new sheet and render report in.
+  createEffect(() => {
+    void params.id;
+    setRenderedPageCount(0);
+    setPageCount(0);
+    setOverflowingPages([]);
+  });
+
   const overflowMessage = () => {
     const pages = overflowingPages();
     if (pages.length === 0) return "";
@@ -137,6 +151,20 @@ export default function DocEditor() {
       ? `Content overflows page ${labels}`
       : `Content overflows pages ${labels}`;
   };
+
+  const PreviewPane = () => (
+    <div class="h-full border-l border-border" data-testid="doc-editor-preview-pane">
+      <Suspense
+        fallback={
+          <div class="h-full flex items-center justify-center bg-surface/40">
+            <Spinner ariaLabel="Loading preview" />
+          </div>
+        }
+      >
+        <Preview onTotalPagesChange={setRenderedPageCount} />
+      </Suspense>
+    </div>
+  );
 
   const SheetPane = () => (
     <div class="h-full overflow-auto bg-surface/30" data-testid="doc-editor-sheet-pane">
@@ -165,9 +193,11 @@ export default function DocEditor() {
       <div class="h-12 flex items-center justify-between gap-4 border-b border-border bg-paper px-4">
         <p class="font-mono text-xs text-stone" data-testid="doc-editor-page-count">
           {/* No count until a sheet exists — otherwise this reads "0 pages"
-              while loading and behind the load-error screen. */}
-          <Show when={pageCount() > 0}>
-            {pageCount() === 1 ? "1 page" : `${pageCount()} pages`}
+              while loading and behind the load-error screen. Also hidden while
+              a same-document reload is in flight so a stale count never shows
+              over the loading state. */}
+          <Show when={!isLoading() && !loadError() && displayedPageCount() > 0}>
+            {displayedPageCount() === 1 ? "1 page" : `${displayedPageCount()} pages`}
           </Show>
         </p>
         <div class="flex items-center gap-2">
@@ -176,7 +206,7 @@ export default function DocEditor() {
             class="font-mono text-xs text-[var(--turbo-state-warning)]"
             data-testid="doc-editor-overflow"
           >
-            {overflowMessage()}
+            {!isLoading() && !loadError() ? overflowMessage() : ""}
           </p>
           <Button
             variant="ghost"
@@ -278,7 +308,7 @@ export default function DocEditor() {
             </div>
           }
         >
-          <SplitPane defaultRatio={0.6} left={<SheetPane />} right={<PreviewPlaceholder />} />
+          <SplitPane defaultRatio={0.6} left={<SheetPane />} right={<PreviewPane />} />
         </Show>
       </div>
 
