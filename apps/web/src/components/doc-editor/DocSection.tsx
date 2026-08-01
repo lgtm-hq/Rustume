@@ -514,7 +514,8 @@ function Item(props: {
         <button
           type="button"
           class="doc-sheet__action doc-sheet__action--icon doc-sheet__drag-handle"
-          aria-label={`Drag ${label()} to move it`}
+          aria-hidden="true"
+          tabindex="-1"
           title={`Drag ${label()} to move it`}
           {...draggable.dragActivators}
         >
@@ -670,7 +671,8 @@ export function DocSection(props: DocSectionProps): JSX.Element {
         <button
           type="button"
           class="doc-sheet__action doc-sheet__action--icon doc-sheet__drag-handle"
-          aria-label={`Drag ${title()} section to move it`}
+          aria-hidden="true"
+          tabindex="-1"
           title={`Drag ${title()} section to move it`}
           {...draggable.dragActivators}
         >

@@ -318,9 +318,15 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
       announce(`${title} section moved`);
       return;
     }
+    // Speak the visual column position, not the stored index: sidebar-left
+    // templates paint column 1 second, and what is spoken must match what
+    // is seen.
+    const geometry = layoutColumns(nextLayout[position.page], props.templateLayout);
+    const visualColumn =
+      (geometry.find((column) => column.index === position.column)?.order ?? position.column) + 1;
     announce(
       `${title} section moved to position ${position.index + 1} of ${position.total} ` +
-        `in column ${position.column + 1} of page ${position.page + 1}`,
+        `in column ${visualColumn} of page ${position.page + 1}`,
     );
   }
 

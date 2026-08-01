@@ -65,9 +65,12 @@ describe("duplicateSectionItem", () => {
       createNewResume("dup-2");
       const before = store.resume!.sections.skills.items.length;
 
+      const dirtyBefore = store.isDirty;
       duplicateSectionItem("skills", 99);
 
       expect(store.resume!.sections.skills.items.length).toBe(before);
+      // A no-op must not record a change, dirty the store, or schedule a save.
+      expect(store.isDirty).toBe(dirtyBefore);
       dispose();
     });
   });

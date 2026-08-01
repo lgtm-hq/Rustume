@@ -603,15 +603,17 @@ export function useResumeStore() {
      * the copy right after the original, as one action and one undo entry.
      */
     duplicateSectionItem<K extends SectionKey>(sectionKey: K, index: number) {
+      const section = store.resume?.sections[sectionKey] as Section<{ id: string }> | undefined;
+      if (!section?.items[index]) return;
       setStore(
         produce((s) => {
           if (!s.resume) return;
-          const section = s.resume.sections[sectionKey] as Section<{ id: string }>;
-          const item = section.items[index];
+          const target = s.resume.sections[sectionKey] as Section<{ id: string }>;
+          const item = target.items[index];
           if (!item) return;
           const clone = JSON.parse(JSON.stringify(item)) as { id: string };
           clone.id = generateId();
-          section.items.splice(index + 1, 0, clone);
+          target.items.splice(index + 1, 0, clone);
         }),
       );
       markDirty();

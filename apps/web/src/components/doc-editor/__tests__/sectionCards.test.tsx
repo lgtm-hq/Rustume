@@ -187,7 +187,7 @@ describe("document sheet structural chrome", () => {
 
       await waitFor(() => {
         expect(liveRegionText()).toMatch(
-          /Experience section moved to position 3 of 4 in column 1 of page 1/i,
+          /Experience section moved to position 3 of 4 in column 2 of page 1/i,
         );
       });
     });
@@ -216,7 +216,7 @@ describe("document sheet structural chrome", () => {
       expect(layout[0][0]).toEqual(["summary", "education", "projects", "experience"]);
       await waitFor(() => {
         expect(liveRegionText()).toMatch(
-          /Experience section moved to position 3 of 3 in column 1 of page 1/i,
+          /Experience section moved to position 3 of 3 in column 2 of page 1/i,
         );
       });
     });
@@ -398,12 +398,15 @@ describe("document sheet structural chrome", () => {
     it("gives cards and entries drag handles rather than surface capture", () => {
       renderSheet();
 
-      expect(
-        screen.getByRole("button", { name: "Drag Experience section to move it" }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: "Drag Lumen Health to move it" }),
-      ).toBeInTheDocument();
+      // Handles are pointer-only chrome: out of the tab order and hidden from
+      // assistive tech (the move buttons are the keyboard/SR path), so they
+      // are found by title rather than accessible name.
+      const sectionHandle = screen.getByTitle("Drag Experience section to move it");
+      const entryHandle = screen.getByTitle("Drag Lumen Health to move it");
+      expect(sectionHandle).toBeInTheDocument();
+      expect(entryHandle).toBeInTheDocument();
+      expect(sectionHandle.getAttribute("tabindex")).toBe("-1");
+      expect(entryHandle.getAttribute("aria-hidden")).toBe("true");
       // The section surface itself must not be a drag activator, or text
       // selection and inline editing would fight the drag sensor.
       const section = document.querySelector('[data-section-id="experience"]');
