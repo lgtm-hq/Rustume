@@ -44,7 +44,7 @@ tracing.workspace = true
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Base64 for binary data in JSON
-base64 = "0.23"
+base64 = { version = "0.23", default-features = false, features = ["std"] }
 
 # Caching
 lru.workspace = true
