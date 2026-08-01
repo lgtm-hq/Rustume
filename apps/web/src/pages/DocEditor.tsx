@@ -1,9 +1,9 @@
 /**
  * The flag-gated document editor at `/edit/:id`.
  *
- * This slice is read-only: it draws the resume as a paper sheet and reports
- * what does not fit. Editing affordances (#728) and the PDF preview pane (#732)
- * land on top of it; until then the right pane is a placeholder.
+ * The left pane is the editable paper sheet (structure fidelity); the right
+ * pane mounts the server-rendered `Preview` — the ground-truth Typst render,
+ * refreshed off resume-store mutations through the preview's own debounce.
  *
  * Reached only when `isDocEditorEnabled()` is true — see `src/lib/flags.ts` and
  * the route swap in `src/index.tsx`.
@@ -31,6 +31,10 @@ const VersionHistory = lazy(() =>
   })),
 );
 
+const Preview = lazy(() =>
+  import("../components/preview").then((module) => ({ default: module.Preview })),
+);
+
 /**
  * Layout used when the template's own metadata cannot be fetched.
  *
@@ -45,19 +49,6 @@ export const FALLBACK_TEMPLATE_LAYOUT: TemplateLayout = {
   contactIn: "header",
   sidebarWidth: null,
 };
-
-function PreviewPlaceholder() {
-  return (
-    <div
-      class="h-full flex items-center justify-center border-l border-border bg-surface/40 p-6"
-      data-testid="doc-editor-preview-placeholder"
-    >
-      <p class="max-w-xs text-center text-sm text-stone">
-        The rendered PDF preview appears here once it lands.
-      </p>
-    </div>
-  );
-}
 
 export default function DocEditor() {
   const params = useParams<{ id: string }>();
@@ -129,6 +120,12 @@ export default function DocEditor() {
   const [pageCount, setPageCount] = createSignal(0);
   const [overflowingPages, setOverflowingPages] = createSignal<number[]>([]);
 
+  // Ground truth from the server render. The sheet's own pagination drives the
+  // sheet; the pill prefers what Typst actually produced, falling back to the
+  // sheet's count until the first render lands.
+  const [renderedPageCount, setRenderedPageCount] = createSignal(0);
+  const displayedPageCount = () => renderedPageCount() || pageCount();
+
   const overflowMessage = () => {
     const pages = overflowingPages();
     if (pages.length === 0) return "";
@@ -137,6 +134,20 @@ export default function DocEditor() {
       ? `Content overflows page ${labels}`
       : `Content overflows pages ${labels}`;
   };
+
+  const PreviewPane = () => (
+    <div class="h-full border-l border-border" data-testid="doc-editor-preview-pane">
+      <Suspense
+        fallback={
+          <div class="h-full flex items-center justify-center bg-surface/40">
+            <Spinner />
+          </div>
+        }
+      >
+        <Preview onTotalPagesChange={setRenderedPageCount} />
+      </Suspense>
+    </div>
+  );
 
   const SheetPane = () => (
     <div class="h-full overflow-auto bg-surface/30" data-testid="doc-editor-sheet-pane">
@@ -166,8 +177,8 @@ export default function DocEditor() {
         <p class="font-mono text-xs text-stone" data-testid="doc-editor-page-count">
           {/* No count until a sheet exists — otherwise this reads "0 pages"
               while loading and behind the load-error screen. */}
-          <Show when={pageCount() > 0}>
-            {pageCount() === 1 ? "1 page" : `${pageCount()} pages`}
+          <Show when={displayedPageCount() > 0}>
+            {displayedPageCount() === 1 ? "1 page" : `${displayedPageCount()} pages`}
           </Show>
         </p>
         <div class="flex items-center gap-2">
@@ -278,7 +289,7 @@ export default function DocEditor() {
             </div>
           }
         >
-          <SplitPane defaultRatio={0.6} left={<SheetPane />} right={<PreviewPlaceholder />} />
+          <SplitPane defaultRatio={0.6} left={<SheetPane />} right={<PreviewPane />} />
         </Show>
       </div>
 

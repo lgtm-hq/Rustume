@@ -23,7 +23,16 @@ import {
 } from "./previewPan";
 import { prefetchPrintStackPages } from "./printStack";
 
-export function Preview() {
+export interface PreviewProps {
+  /**
+   * Reports the page count of the latest successful server render. The doc
+   * editor uses it to keep its page-count pill on the ground truth rather than
+   * the sheet's own client-side pagination.
+   */
+  onTotalPagesChange?: (totalPages: number) => void;
+}
+
+export function Preview(props: PreviewProps) {
   const { store } = resumeStore;
   const { store: ui, setPreviewPage, setPreviewZoom, zoomIn, zoomOut } = uiStore;
   const isOnline = useOnline();
@@ -112,15 +121,31 @@ export function Preview() {
   });
 
   // Viewport resizes can leave a previously valid pan out of bounds.
-  const resizeObserver = new ResizeObserver(() => reclampPan());
+  // Guarded like DocSheet's observer: jsdom has no ResizeObserver.
+  const resizeObserver =
+    typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => reclampPan());
   createEffect(() => {
-    if (viewportRef) resizeObserver.observe(viewportRef);
+    if (viewportRef) resizeObserver?.observe(viewportRef);
   });
-  onCleanup(() => resizeObserver.disconnect());
+  onCleanup(() => resizeObserver?.disconnect());
+
+  // Surface the rendered page count to the host page (doc editor pill). Gated
+  // on a completed render so the placeholder initial value never reports.
+  createEffect(() => {
+    if (!previewUrl()) return;
+    props.onTotalPagesChange?.(totalPages());
+  });
 
   // Request ID to guard against race conditions
   let resumeRequestId = 0;
   let pageRequestId = 0;
+
+  // Key of the last request either fetch effect started, so the two effects
+  // never duplicate the same render. On mount both run with identical inputs
+  // (the debounced resume snapshot initialises to the current store value);
+  // without this guard that means two identical fetches for one paint. Reset
+  // whenever a request fails or is skipped offline so retries still happen.
+  let lastRequestedKey = "";
 
   // Dedup guard to prevent toast spam on repeated preview errors
   let lastToastedError = "";
@@ -286,6 +311,7 @@ export function Preview() {
     // Skip if offline — invalidate in-flight requests, keep cached preview
     if (!isOnline()) {
       ++resumeRequestId;
+      lastRequestedKey = "";
       setIsLoading(false);
       if (lastCachedUrl()) {
         setPreviewUrl(lastCachedUrl());
@@ -296,11 +322,18 @@ export function Preview() {
       return;
     }
 
+    const requestKey = `${untrack(() => ui.previewPage)}|${resumeJson}`;
+    if (requestKey === lastRequestedKey) return;
+    lastRequestedKey = requestKey;
+
     const currentRequestId = ++resumeRequestId;
     setIsLoading(true);
     setError(null);
 
-    renderPreview(store.resume, ui.previewPage)
+    renderPreview(
+      store.resume,
+      untrack(() => ui.previewPage),
+    )
       .then((result) => {
         if (currentRequestId !== resumeRequestId) return;
         setPreviewUrl(result.url);
@@ -315,6 +348,7 @@ export function Preview() {
       })
       .catch((e) => {
         if (currentRequestId !== resumeRequestId) return;
+        lastRequestedKey = "";
         console.error("Preview error:", e);
         const msg = e instanceof Error ? e.message : String(e) || "Failed to load preview";
         setError(msg);
@@ -342,6 +376,7 @@ export function Preview() {
     // Skip if offline — invalidate in-flight requests, keep cached preview
     if (!isOnline()) {
       ++pageRequestId;
+      lastRequestedKey = "";
       setIsLoading(false);
       if (lastCachedUrl()) {
         setPreviewUrl(lastCachedUrl());
@@ -351,6 +386,10 @@ export function Preview() {
       }
       return;
     }
+
+    const requestKey = `${page}|${untrack(() => JSON.stringify(store.resume))}`;
+    if (requestKey === lastRequestedKey) return;
+    lastRequestedKey = requestKey;
 
     const currentRequestId = ++pageRequestId;
     setIsLoading(true);
@@ -367,6 +406,7 @@ export function Preview() {
       })
       .catch((e) => {
         if (currentRequestId !== pageRequestId) return;
+        lastRequestedKey = "";
         console.error("Preview error:", e);
         const msg = e instanceof Error ? e.message : String(e) || "Failed to load preview";
         setError(msg);
