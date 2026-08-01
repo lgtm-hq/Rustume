@@ -106,9 +106,17 @@ function settleDebounce() {
   return new Promise((resolve) => setTimeout(resolve, 1100));
 }
 
+/**
+ * `waitFor` with a generous window: the shared coverage runner starves the
+ * event loop well past the 1 s default when test files run in parallel.
+ */
+function waitLong<T>(callback: () => T) {
+  return waitFor(callback, { timeout: 10_000 });
+}
+
 async function renderEditorWithPreview() {
   const result = renderAt(DocEditor);
-  await waitFor(() => expect(screen.getByTestId("doc-editor-preview-pane")).toBeInTheDocument());
+  await waitLong(() => expect(screen.getByTestId("doc-editor-preview-pane")).toBeInTheDocument());
   return result;
 }
 
@@ -129,7 +137,7 @@ describe("DocEditor preview pane", () => {
   it("mounts the live preview with exactly one render fetch", async () => {
     await renderEditorWithPreview();
 
-    await waitFor(() =>
+    await waitLong(() =>
       expect(screen.getByRole("img", { name: "Resume preview" })).toBeInTheDocument(),
     );
     // Let the resume-debounce window close: the second fetch effect must
@@ -138,21 +146,21 @@ describe("DocEditor preview pane", () => {
 
     expect(renderPreview).toHaveBeenCalledTimes(1);
     expect(screen.queryByTestId("doc-editor-preview-placeholder")).toBeNull();
-  });
+  }, 20_000);
 
   it("syncs the page-count pill with the rendered page count", async () => {
     await renderEditorWithPreview();
 
     // The sheet's own pagination says 2 pages; the server render says 3. The
     // pill must report the ground truth.
-    await waitFor(() =>
+    await waitLong(() =>
       expect(screen.getByTestId("doc-editor-page-count")).toHaveTextContent("3 pages"),
     );
-  });
+  }, 20_000);
 
   it("refreshes the preview once, debounced, after a burst of store mutations", async () => {
     await renderEditorWithPreview();
-    await waitFor(() => expect(renderPreview).toHaveBeenCalledTimes(1));
+    await waitLong(() => expect(renderPreview).toHaveBeenCalledTimes(1));
     await settleDebounce();
 
     resumeStore.updateBasics("name", "Mireille Okafor-Reyes");
@@ -163,7 +171,7 @@ describe("DocEditor preview pane", () => {
     const [resume] = vi.mocked(renderPreview).mock.calls[1];
     expect(resume.basics.name).toBe("Mireille Okafor-Reyes");
     expect(resume.basics.headline).toBe("Staff Design Systems Engineer");
-  });
+  }, 20_000);
 
   it("ignores a stale resume render that resolves after a newer page render", async () => {
     const pending: Array<(result: { url: string; totalPages: number }) => void> = [];
@@ -175,9 +183,9 @@ describe("DocEditor preview pane", () => {
     );
 
     await renderEditorWithPreview();
-    await waitFor(() => expect(renderPreview).toHaveBeenCalledTimes(1));
+    await waitLong(() => expect(renderPreview).toHaveBeenCalledTimes(1));
     pending[0]({ url: "blob:initial", totalPages: 3 });
-    await waitFor(() =>
+    await waitLong(() =>
       expect(screen.getByRole("img", { name: "Resume preview" })).toHaveAttribute(
         "src",
         "blob:initial",
@@ -187,13 +195,13 @@ describe("DocEditor preview pane", () => {
     // A debounced resume render goes out and hangs...
     resumeStore.updateBasics("name", "Mireille Okafor-Reyes");
     await settleDebounce();
-    await waitFor(() => expect(renderPreview).toHaveBeenCalledTimes(2));
+    await waitLong(() => expect(renderPreview).toHaveBeenCalledTimes(2));
 
     // ...the user flips the page meanwhile, and that newer render lands first.
     uiStore.setPreviewPage(1);
-    await waitFor(() => expect(renderPreview).toHaveBeenCalledTimes(3));
+    await waitLong(() => expect(renderPreview).toHaveBeenCalledTimes(3));
     pending[2]({ url: "blob:page-1", totalPages: 3 });
-    await waitFor(() =>
+    await waitLong(() =>
       expect(screen.getByRole("img", { name: "Resume preview" })).toHaveAttribute(
         "src",
         "blob:page-1",
@@ -207,7 +215,7 @@ describe("DocEditor preview pane", () => {
       "src",
       "blob:page-1",
     );
-  });
+  }, 20_000);
 
   it("clamps the page index when a page-driven render reports fewer pages", async () => {
     const pending: Array<(result: { url: string; totalPages: number }) => void> = [];
@@ -219,9 +227,9 @@ describe("DocEditor preview pane", () => {
     );
 
     await renderEditorWithPreview();
-    await waitFor(() => expect(renderPreview).toHaveBeenCalledTimes(1));
+    await waitLong(() => expect(renderPreview).toHaveBeenCalledTimes(1));
     pending[0]({ url: "blob:initial", totalPages: 3 });
-    await waitFor(() =>
+    await waitLong(() =>
       expect(screen.getByRole("img", { name: "Resume preview" })).toHaveAttribute(
         "src",
         "blob:initial",
@@ -231,19 +239,19 @@ describe("DocEditor preview pane", () => {
     // Flip to the last page; the server now says the content shrank to 2
     // pages, so the page-driven fetch must clamp the index back in range.
     uiStore.setPreviewPage(2);
-    await waitFor(() => expect(renderPreview).toHaveBeenCalledTimes(2));
+    await waitLong(() => expect(renderPreview).toHaveBeenCalledTimes(2));
     pending[1]({ url: "blob:page-3", totalPages: 2 });
 
-    await waitFor(() => expect(uiStore.store.previewPage).toBe(1));
-  });
+    await waitLong(() => expect(uiStore.store.previewPage).toBe(1));
+  }, 20_000);
 
   it("surfaces a render failure through the error toast", async () => {
     vi.mocked(renderPreview).mockRejectedValue(new Error("typst blew up"));
 
     await renderEditorWithPreview();
 
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Preview rendering failed"));
+    await waitLong(() => expect(toast.error).toHaveBeenCalledWith("Preview rendering failed"));
     // The pill falls back to the sheet's own pagination when no render lands.
     expect(screen.getByTestId("doc-editor-page-count")).toHaveTextContent("2 pages");
-  });
+  }, 20_000);
 });
