@@ -48,7 +48,12 @@ export function TemplatesDrawer(props: TemplatesDrawerProps): JSX.Element {
   );
 
   function select(template: TemplateInfo): void {
-    applyTemplate(template.id, template.layout ?? FALLBACK_TEMPLATE_LAYOUT);
+    // Re-picking the current template is a no-op: applyTemplate would rebuild
+    // `metadata.layout` onto one page, flattening manual page and column
+    // placement for no visible change — and burning an undo entry on it.
+    if (template.id !== props.resume.metadata.template) {
+      applyTemplate(template.id, template.layout ?? FALLBACK_TEMPLATE_LAYOUT);
+    }
     setOpen(false);
   }
 

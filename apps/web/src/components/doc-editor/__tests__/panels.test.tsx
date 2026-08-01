@@ -127,6 +127,19 @@ describe("document editor panels", () => {
       expect(placed).toContain("advisory");
     });
 
+    it("treats re-picking the current template as a no-op", async () => {
+      // Regression: applyTemplate rebuilds metadata.layout onto one page, so
+      // activating the Current card must write nothing — otherwise a stray
+      // click flattens manual page/column placement and burns an undo entry.
+      resume.metadata.template = "aurora";
+      await openDrawer();
+
+      fireEvent.click(screen.getByRole("button", { name: "Use Aurora template" }));
+
+      expect(store.applyTemplate).not.toHaveBeenCalled();
+      expect(writeCount()).toBe(0);
+    });
+
     it("falls back to the single-column layout for a template without metadata", async () => {
       await openDrawer();
 
