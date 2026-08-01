@@ -1,14 +1,4 @@
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  lazy,
-  Match,
-  on,
-  Show,
-  Switch,
-  Suspense,
-} from "solid-js";
+import { createMemo, createSignal, lazy, Match, Show, Switch, Suspense } from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
 import {
   Button,
@@ -20,7 +10,8 @@ import {
 } from "../components/ui";
 import { useHotkeys, type Shortcut } from "../hooks/useHotkeys";
 import { usePageTitle } from "../hooks/usePageTitle";
-import { bypassNextNavigationGuard, useNavigationGuard } from "../hooks/useNavigationGuard";
+import { useNavigationGuard } from "../hooks/useNavigationGuard";
+import { useResumeRouteLoad } from "../hooks/useResumeRouteLoad";
 import { SplitPane } from "../components/layout/SplitPane";
 import { Sidebar, type SidebarItem } from "../components/layout/Sidebar";
 import {
@@ -41,12 +32,11 @@ import {
   CustomSectionEditor,
   CustomSectionsIndex,
 } from "../components/builder";
-import { resumeStore, isNotFoundError } from "../stores/resume";
+import { resumeStore } from "../stores/resume";
 import { downloadResumeJson } from "../components/export/exportJson";
 import { uiStore } from "../stores/ui";
 import { undoHistoryStore } from "../stores/undoHistory";
 import { generateId } from "../wasm/types";
-import { isWasmReady } from "../wasm";
 import { CustomCssInjector } from "../components/templates/CustomCssInjector";
 
 const Preview = lazy(() =>
@@ -271,7 +261,7 @@ function EditorPreviewPane() {
 export default function Editor() {
   const params = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { store, loadResume, createNewResume, undo, redo, forceSave } = resumeStore;
+  const { store, undo, redo } = resumeStore;
   const { store: ui, openModal, closeModal, setPanel } = uiStore;
   const undoState = () => undoHistoryStore.state;
 
@@ -281,8 +271,7 @@ export default function Editor() {
   });
 
   const [activeTab, setActiveTab] = createSignal<EditorTab>("basics");
-  const [isLoading, setIsLoading] = createSignal(true);
-  const [loadError, setLoadError] = createSignal<string | null>(null);
+  const { isLoading, loadError, reload } = useResumeRouteLoad(() => params.id);
   const sidebarItems = createMemo<SidebarItem[]>(() =>
     TABS.map(withSidebarGroup)
       .sort((a, b) => sidebarGroupOrder(a) - sidebarGroupOrder(b))
@@ -470,92 +459,6 @@ export default function Editor() {
       ...sectionActions,
     ];
   });
-
-  /** Monotonic token so overlapping loads cannot clobber a newer route's state. */
-  let loadSeq = 0;
-
-  async function attemptLoad(id: string | undefined) {
-    const seq = ++loadSeq;
-
-    if (!id) {
-      navigate("/");
-      return;
-    }
-
-    // Flush pending autosave before switching resumes so dirty edits aren't lost
-    // or persisted under the destination id after the shared store is replaced.
-    const previousId = store.id;
-    if (previousId && previousId !== id) {
-      await forceSave();
-      if (seq !== loadSeq) return;
-      // persistResume swallows errors — if still dirty, restore the previous route
-      // so the URL stays aligned with the shared store instead of showing A at /edit/B.
-      if (store.isDirty) {
-        toast.error(store.error ?? "Failed to save current resume before switching");
-        // Bypass the dirty-leave confirm so recovery can realign the URL with the store.
-        const recoveryPath = `/edit/${previousId}`;
-        bypassNextNavigationGuard(recoveryPath);
-        navigate(recoveryPath, { replace: true });
-        return;
-      }
-    } else if (store.id === id && store.resume) {
-      // Already editing this resume (e.g. restored route after a failed flush).
-      setIsLoading(false);
-      setLoadError(null);
-      return;
-    }
-
-    setIsLoading(true);
-    setLoadError(null);
-
-    // Wait for WASM if not ready
-    let attempts = 0;
-    while (!isWasmReady() && attempts < 20) {
-      await new Promise((r) => setTimeout(r, 100));
-      attempts++;
-    }
-    if (seq !== loadSeq) return;
-
-    try {
-      // Try to load existing resume
-      await loadResume(id);
-      if (seq !== loadSeq) return;
-    } catch (error) {
-      if (seq !== loadSeq) return;
-      if (isNotFoundError(error)) {
-        // Resume genuinely does not exist -- safe to create a new one
-        try {
-          createNewResume(id);
-          toast.info("New resume created");
-        } catch (createError) {
-          console.error("Failed to create new resume:", createError);
-          toast.error("Failed to create new resume — redirecting to home");
-          navigate("/", { replace: true });
-        }
-      } else {
-        // Non-"not found" error (corruption, transient I/O, deserialization).
-        // Do NOT create a new resume -- that would destroy existing data.
-        console.error("Failed to load resume:", error);
-        const message = error instanceof Error ? error.message : "An unexpected error occurred";
-        setLoadError(message);
-        toast.error("Failed to load resume — your data has not been modified");
-      }
-    } finally {
-      if (seq === loadSeq) {
-        setIsLoading(false);
-      }
-    }
-  }
-
-  // Reload whenever the route id changes (Create Resume navigates /edit/:id → /edit/:id).
-  createEffect(
-    on(
-      () => params.id,
-      (id) => {
-        void attemptLoad(id);
-      },
-    ),
-  );
 
   // Closure components so SplitPane slots mount once; tab signal reads stay inside.
   const EditorLeftPane = () => {
@@ -869,7 +772,7 @@ export default function Editor() {
                     </h2>
                     <p class="text-stone text-sm mb-6">{errorMsg()}</p>
                     <div class="flex items-center justify-center gap-3">
-                      <Button variant="secondary" onClick={() => void attemptLoad(params.id)}>
+                      <Button variant="secondary" onClick={() => reload()}>
                         Retry
                       </Button>
                       <Button variant="ghost" onClick={() => navigate("/", { replace: true })}>
