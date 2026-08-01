@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { emptyItemFor } from "../../../lib/docLayout";
+import { itemFieldsFor } from "../itemFields";
 import { createEmptyPicture } from "../../../wasm/types";
 import { CustomSectionDialog } from "../CustomSectionDialog";
 import { ItemDialog } from "../ItemDialog";
@@ -184,6 +185,24 @@ describe("item dialog", () => {
     expect([sectionId, index]).toEqual([CUSTOM_SECTION_ID, 1]);
     expect(updates.date).toBe("2025");
   });
+
+  it.each([...ITEM_SECTIONS, CUSTOM_SECTION_ID])(
+    "describes every writable key of a %s item",
+    (sectionId) => {
+      // The shape test above seeds *from* `emptyItemFor`, so it would still
+      // pass with an empty descriptor list. This is what actually ties the
+      // dialog's fields to the item the store holds.
+      const stored = Object.keys(emptyItemFor(sectionId) ?? {}).filter(
+        (key) => key !== "id" && key !== "visible",
+      );
+
+      expect(
+        itemFieldsFor(sectionId)
+          .map((field) => field.key)
+          .sort(),
+      ).toEqual(stored.sort());
+    },
+  );
 
   it("keeps the separator while a keyword list is being typed", () => {
     render(() => (

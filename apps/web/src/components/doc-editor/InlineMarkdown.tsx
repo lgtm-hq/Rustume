@@ -17,6 +17,11 @@ export interface InlineMarkdownProps {
   label: string;
   /** Text shown when the value is empty, so the field stays reachable. */
   placeholder?: string;
+  /**
+   * Stable DOM id for the trigger button. Supplying it is what lets an edit
+   * hand focus back after the commit redraws the sheet — see `InlineText`.
+   */
+  triggerId?: string;
   /** Called with the new markdown when an edit is committed. */
   onCommit: (value: string) => void;
 }
@@ -26,12 +31,19 @@ export function InlineMarkdown(props: InlineMarkdownProps): JSX.Element {
 
   const placeholder = () => props.placeholder ?? `Add ${props.label.toLowerCase()}`;
 
+  function refocusTrigger(): void {
+    const id = props.triggerId;
+    if (id === undefined) return;
+    queueMicrotask(() => document.getElementById(id)?.focus());
+  }
+
   return (
     <Show
       when={isEditing()}
       fallback={
         <button
           type="button"
+          id={props.triggerId}
           class="doc-sheet__editable doc-sheet__rich-text"
           classList={{ "doc-sheet__editable--empty": props.value.trim() === "" }}
           title={`Edit ${props.label.toLowerCase()}`}
@@ -47,8 +59,12 @@ export function InlineMarkdown(props: InlineMarkdownProps): JSX.Element {
         onCommit={(next) => {
           setIsEditing(false);
           props.onCommit(next);
+          refocusTrigger();
         }}
-        onCancel={() => setIsEditing(false)}
+        onCancel={() => {
+          setIsEditing(false);
+          refocusTrigger();
+        }}
       />
     </Show>
   );

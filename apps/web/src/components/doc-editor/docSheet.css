@@ -443,3 +443,14 @@
 .doc-sheet__item:focus-within .doc-sheet__action--item {
   opacity: 1;
 }
+
+/*
+ * Without hover there is nothing to reveal it, and this is the only route to
+ * the fields the sheet has no room to draw — so a touch user would be left
+ * with an invisible control sitting on a tappable rect.
+ */
+@media (hover: none) {
+  .doc-sheet__action--item {
+    opacity: 1;
+  }
+}

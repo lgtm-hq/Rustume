@@ -223,6 +223,7 @@ export function DocHeader(props: DocHeaderProps): JSX.Element {
             value={props.basics.name}
             label="Name"
             placeholder="Your name"
+            triggerId="doc-header-name"
             onCommit={(value) => updateBasicsField("name", value)}
           />
         </h2>
@@ -232,6 +233,7 @@ export function DocHeader(props: DocHeaderProps): JSX.Element {
             value={props.basics.headline}
             label="Headline"
             placeholder="Your headline"
+            triggerId="doc-header-headline"
             onCommit={(value) => updateBasicsField("headline", value)}
           />
         </p>
@@ -251,7 +253,12 @@ export function DocHeader(props: DocHeaderProps): JSX.Element {
                 <Show when={entry.label}>
                   <span class="doc-sheet__contact-label">{entry.label}: </span>
                 </Show>
-                <InlineText value={entry.value} label={entry.fieldLabel} onCommit={entry.commit} />
+                <InlineText
+                  value={entry.value}
+                  label={entry.fieldLabel}
+                  triggerId={`doc-header-${entry.key}`}
+                  onCommit={entry.commit}
+                />
               </li>
             )}
           </For>

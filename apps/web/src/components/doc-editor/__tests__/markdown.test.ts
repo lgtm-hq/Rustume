@@ -67,4 +67,10 @@ describe("applyMarkdownCommand", () => {
   it("only marks the lines the selection touches", () => {
     expect(run("one\ntwo\nthree", 4, 7, "bulletList")).toBe("one\n- two\nthree");
   });
+
+  it("does not reach the next line when the selection ends on the newline", () => {
+    // Shift+Down to the start of line three selects "one\ntwo\n" — the line it
+    // lands on is not part of the selection.
+    expect(run("one\ntwo\nthree", 0, 8, "bulletList")).toBe("- one\n- two\nthree");
+  });
 });

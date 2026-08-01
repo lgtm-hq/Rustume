@@ -31,15 +31,19 @@ describe("doc-editor store contract", () => {
 
     // A call, not a mention: the modules explain the rule in their own prose.
     expect(source).not.toMatch(/\bsetStore\s*\(/);
-    // Quote-agnostic: a formatting variation must not defeat the guard.
+    // Quote-agnostic, and static or dynamic: neither a formatting variation
+    // nor an `import()` may defeat the guard.
     expect(source).not.toMatch(/from\s+['"]solid-js\/store['"]/);
+    expect(source).not.toMatch(/import\s*\(\s*['"]solid-js\/store['"]\s*\)/);
   });
 
   it("routes every store action through docEdits", () => {
     const offenders = sourceFiles().filter(
       (file) =>
         !file.endsWith("docEdits.ts") &&
-        /from\s+['"]\.\.\/\.\.\/stores\/resume['"]/.test(readFileSync(file, "utf8")),
+        /(?:from|import\s*\()\s*['"]\.\.\/\.\.\/stores\/resume['"]/.test(
+          readFileSync(file, "utf8"),
+        ),
     );
 
     // One chokepoint keeps the rule above checkable by reading a single file.

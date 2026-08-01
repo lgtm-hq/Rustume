@@ -10,7 +10,7 @@
  * store action and therefore one undo entry.
  */
 
-import { For, Match, Show, Switch, createEffect, createSignal, type JSX } from "solid-js";
+import { For, Match, Show, Switch, createEffect, createSignal, on, type JSX } from "solid-js";
 import { Button, Input, Modal, TextArea } from "../ui";
 import { emptyItemFor } from "../../lib/docLayout";
 import { addItem, updateItem, type ItemUpdates } from "./docEdits";
@@ -76,13 +76,21 @@ export function ItemDialog(props: ItemDialogProps): JSX.Element {
   const noun = () => itemNoun(props.sectionTitle);
 
   // Reseed every time the dialog opens, so a cancelled edit leaves nothing
-  // behind for the next one.
-  createEffect(() => {
-    if (!props.open) return;
-    const seed = props.item ?? (emptyItemFor(props.sectionId) as Record<string, unknown> | null);
-    setDraft({ ...(seed ?? {}) });
-    setKeywordText({});
-  });
+  // behind for the next one. Tracked on `open` alone: the sheet rebuilds the
+  // item object as it redraws, and reseeding from that would throw away
+  // whatever the user had typed but not yet saved.
+  createEffect(
+    on(
+      () => props.open,
+      (open) => {
+        if (!open) return;
+        const seed =
+          props.item ?? (emptyItemFor(props.sectionId) as Record<string, unknown> | null);
+        setDraft({ ...(seed ?? {}) });
+        setKeywordText({});
+      },
+    ),
+  );
 
   function setField(key: string, value: unknown): void {
     setDraft((current) => ({ ...current, [key]: value }));

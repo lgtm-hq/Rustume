@@ -133,7 +133,9 @@ function educationView(item: Education): ItemView {
   return {
     title: bind(item.institution, "Institution", "institution"),
     // `studyType in area` — two fields in one line, so the dialog owns it.
-    subtitle: derived(formatDegree(item.studyType, item.area), "Degree"),
+    // Absent rather than empty when neither is set: a derived slot is truthy
+    // whatever its value, and `<Show>` would draw a blank line for it.
+    subtitle: nonEmpty([derived(formatDegree(item.studyType, item.area), "Degree")])[0],
     meta: nonEmpty([bind(item.date, "Date", "date")]),
     details: nonEmpty([bind(item.score, "Score", "score")]),
     body: nonEmpty([bind(item.summary, "Summary", "summary")]),
@@ -327,6 +329,8 @@ function Level(props: { value: number }): JSX.Element {
 /** A bound slot as an inline editor; a derived slot as plain text. */
 function Slot(props: {
   field: ItemField;
+  /** Stable per-item id prefix; the field key makes it unique per slot. */
+  idPrefix: string;
   class?: string;
   onCommit: (field: string, value: string) => void;
 }): JSX.Element {
@@ -337,6 +341,7 @@ function Slot(props: {
           value={props.field.value}
           label={props.field.label}
           class={props.class}
+          triggerId={`${props.idPrefix}-${key()}`}
           onCommit={(value) => props.onCommit(key(), value)}
         />
       )}
@@ -352,6 +357,9 @@ function Item(props: {
   onEdit: (entry: ItemEntry) => void;
 }): JSX.Element {
   const view = () => props.entry.view;
+  // Stable across redraws: the item's own id, not its position. Inline editors
+  // use it to find their trigger again after a commit redraws the section.
+  const idPrefix = () => `doc-${props.sectionId}-${props.entry.id}`;
   const meta = () => view().meta ?? [];
   const keywords = () => (view().keywords ?? []).filter((keyword) => keyword.trim() !== "");
   const url = () => urlLabel(view().url);
@@ -365,12 +373,12 @@ function Item(props: {
       <div class="doc-sheet__item-head">
         <div>
           <h4 class="doc-sheet__item-title">
-            <Slot field={view().title} onCommit={commit} />
+            <Slot field={view().title} idPrefix={idPrefix()} onCommit={commit} />
           </h4>
           <Show when={view().subtitle}>
             {(subtitle) => (
               <p class="doc-sheet__item-subtitle">
-                <Slot field={subtitle()} onCommit={commit} />
+                <Slot field={subtitle()} idPrefix={idPrefix()} onCommit={commit} />
               </p>
             )}
           </Show>
@@ -380,7 +388,7 @@ function Item(props: {
             <For each={meta()}>
               {(entry) => (
                 <span>
-                  <Slot field={entry} onCommit={commit} />
+                  <Slot field={entry} idPrefix={idPrefix()} onCommit={commit} />
                 </span>
               )}
             </For>
@@ -391,7 +399,7 @@ function Item(props: {
       <For each={view().details ?? []}>
         {(detail) => (
           <p class="doc-sheet__item-detail">
-            <Slot field={detail} onCommit={commit} />
+            <Slot field={detail} idPrefix={idPrefix()} onCommit={commit} />
           </p>
         )}
       </For>
@@ -403,6 +411,7 @@ function Item(props: {
               <InlineMarkdown
                 value={text.value}
                 label={text.label}
+                triggerId={`${idPrefix()}-${key()}`}
                 onCommit={(value) => commit(key(), value)}
               />
             )}
@@ -479,6 +488,7 @@ export function DocSection(props: DocSectionProps): JSX.Element {
         <InlineText
           value={title()}
           label="Section title"
+          triggerId={`doc-${props.sectionId}-section-title`}
           onCommit={(value) => renameSection(props.sectionId, value)}
         />
       </h3>
@@ -487,6 +497,7 @@ export function DocSection(props: DocSectionProps): JSX.Element {
         <InlineMarkdown
           value={richText()}
           label={title()}
+          triggerId={`doc-${props.sectionId}-rich-text`}
           onCommit={(value) =>
             props.sectionId === "summary" ? updateSummary(value) : updateCoverLetter(value)
           }

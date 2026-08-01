@@ -40,12 +40,14 @@ export interface PhotoDialogProps {
 export function PhotoDialog(props: PhotoDialogProps): JSX.Element {
   const [draft, setDraft] = createSignal<Picture>(props.picture);
   const [isProcessing, setIsProcessing] = createSignal(false);
+  const [colorText, setColorText] = createSignal<Partial<Record<string, string>>>({});
 
   let fileInput: HTMLInputElement | undefined;
 
   createEffect(() => {
     if (!props.open) return;
     setDraft({ ...props.picture, effects: { ...props.picture.effects } });
+    setColorText({});
   });
 
   function patch(updates: Partial<Picture>): void {
@@ -59,12 +61,23 @@ export function PhotoDialog(props: PhotoDialogProps): JSX.Element {
     setDraft((current) => ({ ...current, effects: { ...current.effects, [key]: value } }));
   }
 
+  /**
+   * Hold the raw text of a colour field while it is being typed.
+   *
+   * The inputs are controlled, so writing the expanded value straight back
+   * would rewrite `#abc` to `#aabbcc` under the cursor mid-entry. The buffer is
+   * what the user sees; the effect only takes a value once it parses.
+   */
   function patchColorEffect(key: "borderColor" | "shadowColor", raw: string): void {
+    setColorText((current) => ({ ...current, [key]: raw }));
     const normalized = normalizeHexColor(raw);
     if (normalized === "" || isHexColor(normalized)) {
       patchEffect(key, expandShortHex(normalized));
     }
   }
+
+  const colorValue = (key: "borderColor" | "shadowColor"): string =>
+    colorText()[key] ?? draft().effects[key];
 
   async function handleFile(file: File): Promise<void> {
     const error = validateImageFile(file);
@@ -246,7 +259,7 @@ export function PhotoDialog(props: PhotoDialogProps): JSX.Element {
             <span class="font-mono text-xs uppercase tracking-wider text-stone">Border color</span>
             <input
               type="text"
-              value={draft().effects.borderColor}
+              value={colorValue("borderColor")}
               onInput={(event) => patchColorEffect("borderColor", event.currentTarget.value)}
               placeholder="Theme primary"
               class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-ink"
@@ -274,7 +287,7 @@ export function PhotoDialog(props: PhotoDialogProps): JSX.Element {
             <span class="font-mono text-xs uppercase tracking-wider text-stone">Shadow color</span>
             <input
               type="text"
-              value={draft().effects.shadowColor}
+              value={colorValue("shadowColor")}
               onInput={(event) => patchColorEffect("shadowColor", event.currentTarget.value)}
               placeholder="#00000040"
               class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-ink"

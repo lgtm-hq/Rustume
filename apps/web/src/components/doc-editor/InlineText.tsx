@@ -9,6 +9,12 @@
  * Commit on blur and on Enter; Escape restores the prior value. Every commit
  * calls `onCommit` at most once and only when the text actually changed, which
  * is what keeps one user-visible edit to one store action and one undo entry.
+ *
+ * Ending a keyboard edit puts focus back on the trigger, so Tab carries on from
+ * the field the user was editing rather than restarting at the top of the
+ * document. It refocuses **by id** rather than by ref on purpose: a commit that
+ * changes the store redraws the section, and the button that comes back is a
+ * different DOM node from the one a ref would still be holding.
  */
 
 import { Show, createSignal, type JSX } from "solid-js";
@@ -22,6 +28,11 @@ export interface InlineTextProps {
   placeholder?: string;
   /** Extra class for the trigger and the input, so callers keep their type scale. */
   class?: string;
+  /**
+   * Stable DOM id for the trigger button. Supplying it is what lets a keyboard
+   * edit hand focus back after the commit redraws the sheet.
+   */
+  triggerId?: string;
   /** Called with the new text when an edit is committed. */
   onCommit: (value: string) => void;
 }
@@ -41,6 +52,18 @@ export function InlineText(props: InlineTextProps): JSX.Element {
     setIsEditing(true);
   }
 
+  /**
+   * Put focus back on the trigger once the sheet has settled.
+   *
+   * Only for keyboard exits: a blur means the user has already chosen where
+   * focus should go, and stealing it back would fight them.
+   */
+  function refocusTrigger(): void {
+    const id = props.triggerId;
+    if (id === undefined) return;
+    queueMicrotask(() => document.getElementById(id)?.focus());
+  }
+
   function commit(): void {
     if (isSettled) return;
     isSettled = true;
@@ -58,11 +81,13 @@ export function InlineText(props: InlineTextProps): JSX.Element {
     if (event.key === "Enter") {
       event.preventDefault();
       commit();
+      refocusTrigger();
       return;
     }
     if (event.key === "Escape") {
       event.preventDefault();
       cancel();
+      refocusTrigger();
     }
   }
 
@@ -72,6 +97,7 @@ export function InlineText(props: InlineTextProps): JSX.Element {
       fallback={
         <button
           type="button"
+          id={props.triggerId}
           class={`doc-sheet__editable ${props.class ?? ""}`}
           classList={{ "doc-sheet__editable--empty": props.value.trim() === "" }}
           // No `aria-label`: the accessible name has to stay the value itself,

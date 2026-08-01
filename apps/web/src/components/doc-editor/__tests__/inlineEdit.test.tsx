@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, within } from "@solidjs/testing-library";
+import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-library";
 import { loadDocEditorFixture, SINGLE_TEMPLATE } from "../../../test/docEditorFixture";
 import { DocSheet } from "../DocSheet";
 import type { ResumeData } from "../../../wasm/types";
@@ -52,6 +52,36 @@ describe("document sheet inline editing", () => {
   function header(): HTMLElement {
     return screen.getAllByTestId("doc-sheet-header")[0];
   }
+
+  it.each([
+    { key: "Escape", changed: false },
+    { key: "Enter", changed: false },
+    { key: "Enter", changed: true },
+  ])("hands focus back to the trigger after $key (changed: $changed)", async ({ key, changed }) => {
+    renderSheet();
+
+    const input = edit("Mireille Okafor", "Name", header());
+    if (changed) fireEvent.input(input, { target: { value: "Ada Lovelace" } });
+    fireEvent.keyDown(input, { key });
+
+    // A keyboard edit must not strand focus on <body>: the next Tab has to
+    // carry on from the field, not restart at the top of the document.
+    await waitFor(() =>
+      expect(document.activeElement).toBe(document.getElementById("doc-header-name")),
+    );
+  });
+
+  it("leaves focus alone when the edit ends by blurring", async () => {
+    renderSheet();
+
+    const input = edit("Mireille Okafor", "Name", header());
+    const elsewhere = document.getElementById("doc-header-headline") as HTMLElement;
+    elsewhere.focus();
+    fireEvent.blur(input);
+
+    // The user chose where focus goes; refocusing the trigger would fight them.
+    await waitFor(() => expect(document.activeElement).toBe(elsewhere));
+  });
 
   it("commits a basics field on blur, through one store action", () => {
     renderSheet();

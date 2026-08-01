@@ -86,7 +86,10 @@ function toggleWrap(
 /** Bounds of the whole lines the selection touches. */
 function lineRange(value: string, start: number, end: number): { from: number; to: number } {
   const from = value.lastIndexOf("\n", start - 1) + 1;
-  const lineEnd = value.indexOf("\n", end);
+  // A selection that stops just past a newline (Shift+Down to the start of the
+  // next line) touches the lines *before* it, not the one it lands on.
+  const searchFrom = end > start && value[end - 1] === "\n" ? end - 1 : end;
+  const lineEnd = value.indexOf("\n", searchFrom);
   return { from, to: lineEnd === -1 ? value.length : lineEnd };
 }
 
