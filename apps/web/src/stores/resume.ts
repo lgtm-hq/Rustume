@@ -884,6 +884,25 @@ export function useResumeStore() {
       markDirty();
     },
 
+    /**
+     * Replace the resume with its content-format migration (#786) as one write.
+     *
+     * Behaves like a load-time normalization rather than an edit: the resume
+     * is marked dirty so the migrated form persists through the normal
+     * autosave path, but the undo anchor realigns to the migrated document —
+     * undo must never restore the raw-HTML form the editor cannot display.
+     */
+    applyContentMigration(migrated: ResumeData) {
+      const clone = normalizeResumeForStore(JSON.parse(JSON.stringify(migrated)) as ResumeData);
+      batch(() => {
+        setStore("resume", clone);
+        setStore("isDirty", true);
+        setStore("error", null);
+      });
+      syncUndoAnchor(clone);
+      scheduleSave();
+    },
+
     // Import resume data into the currently open resume id.
     importResume(data: ResumeData) {
       // Deep clone so Solid store owns a plain tree (imported objects may be frozen / aliased).
