@@ -22,6 +22,13 @@ and this project adheres to
 
 ### Security
 
+## [0.62.0] - 2026-08-02
+
+### Added
+
+- **web**: default the document editor on with a form-builder escape hatch (#778)
+  (3dffd3c)
+
 ## [0.61.2] - 2026-08-02
 
 ### Changed
@@ -919,7 +926,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.61.2...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.62.0...HEAD
+[0.62.0]: https://github.com/lgtm-hq/Rustume/compare/v0.61.2...v0.62.0
 [0.61.2]: https://github.com/lgtm-hq/Rustume/compare/v0.61.1...v0.61.2
 [0.61.1]: https://github.com/lgtm-hq/Rustume/compare/v0.61.0...v0.61.1
 [0.61.0]: https://github.com/lgtm-hq/Rustume/compare/v0.60.0...v0.61.0
