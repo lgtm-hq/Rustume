@@ -35,6 +35,12 @@ export default class BuilderPage extends BasePage {
     await expect(this.basicsHeading).toBeVisible();
   }
 
+  /** The form-editor surface renders (and the document sheet does not). */
+  async assertFormSurface(): Promise<void> {
+    await expect(this.basicsHeading).toBeVisible();
+    await expect(this.page.getByTestId("doc-sheet")).toBeHidden();
+  }
+
   async fillFullName(name: string): Promise<void> {
     await this.fullNameInput.fill(name);
   }

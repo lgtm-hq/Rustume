@@ -74,6 +74,14 @@ make test
 - **📥 Import Support** - JSON Resume, LinkedIn export, Reactive Resume V3
 - **🐳 Docker Ready** - Containerized server with OpenAPI docs
 
+## ✍️ Editing
+
+Resumes open in the **document editor** — a paged, WYSIWYG-style sheet where
+you click into the document itself to edit, with drag-and-drop sections, undo,
+autosave, and a live PDF preview. The legacy form builder remains available
+for one milestone as an escape hatch: open any resume with `?ff=form-builder`
+to switch back (persisted until you visit with `?ff=off`).
+
 ## 💻 CLI Usage
 
 ```bash
