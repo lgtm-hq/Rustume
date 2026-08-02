@@ -36,7 +36,7 @@ jobs:
       job-name: "Scan dependencies"
       runner-image: ubuntu-24.04
       # yamllint disable-line rule:line-length
-      lintro-image: ghcr.io/lgtm-hq/py-lintro:0.104.1@sha256:d87c6001872c4e90975a92f6cdd2feaa76f976b8b752a63a3b2f2052fe2f10c9
+      lintro-image: ghcr.io/lgtm-hq/py-lintro:0.104.2@sha256:47350b3a2c1390708506c7185f89d3f5a2eef07fed141a7d5fecc5e9db111e38
       upload-comment-artifact: ${{ github.event_name == 'pull_request' }}
       egress-policy: block
       egress-preset: quality
