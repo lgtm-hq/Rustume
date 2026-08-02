@@ -101,7 +101,7 @@ const ALL_FIXED_LAYOUT_SECTION_IDS: readonly string[] = [
   ...FIXED_LAYOUT_SECTION_KEYS,
 ];
 
-const FIXED_LAYOUT_SECTION_KEY_SET = new Set<string>(ALL_FIXED_LAYOUT_SECTION_IDS);
+const ALL_FIXED_LAYOUT_SECTION_ID_SET = new Set<string>(ALL_FIXED_LAYOUT_SECTION_IDS);
 
 function uniqueLayoutIds(ids: string[]): string[] {
   const seen = new Set<string>();
@@ -267,7 +267,7 @@ function normalizeResumeForStore(resume: ResumeData): ResumeData {
   const page0 = resume.metadata.layout[0];
   if (!page0 || page0.length === 0) {
     const fixedIds = uniqueLayoutIds(
-      resume.metadata.layout.flat(2).filter((id) => FIXED_LAYOUT_SECTION_KEY_SET.has(id)),
+      resume.metadata.layout.flat(2).filter((id) => ALL_FIXED_LAYOUT_SECTION_ID_SET.has(id)),
     );
     // Fixed ids absent from every page get back-filled here too, so this
     // branch upholds the same invariant as the non-empty page-0 path below.
@@ -694,7 +694,9 @@ export function useResumeStore() {
           const page = s.resume.metadata.layout[0] ?? [];
           if (!page || page.length === 0) {
             const fixedIds = uniqueLayoutIds(
-              s.resume.metadata.layout.flat(2).filter((id) => FIXED_LAYOUT_SECTION_KEY_SET.has(id)),
+              s.resume.metadata.layout
+                .flat(2)
+                .filter((id) => ALL_FIXED_LAYOUT_SECTION_ID_SET.has(id)),
             );
             const page0Ids = uniqueLayoutIds([...fixedIds, section.id]);
             s.resume.metadata.layout[0] = [page0Ids];
