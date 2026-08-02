@@ -389,7 +389,14 @@ describe("useResumeStore", () => {
 
       importResume(imported);
 
-      expect(store.resume!.metadata.layout[0]).toEqual([["experience", "custom-speaking"]]);
+      const missing = ["summary", "coverLetter", ...FIXED_LAYOUT_SECTION_KEYS].filter(
+        (id) => id !== "experience",
+      );
+      // Placed fixed ids keep their order, absent ones are back-filled (#770),
+      // custom ids come last.
+      expect(store.resume!.metadata.layout[0]).toEqual([
+        ["experience", ...missing, "custom-speaking"],
+      ]);
       expect(
         store.resume!.metadata.layout.flat(2).filter((id) => id === "experience"),
       ).toHaveLength(1);
@@ -406,7 +413,10 @@ describe("useResumeStore", () => {
 
       importResume(imported);
 
-      expect(store.resume!.metadata.layout[0]).toEqual([["coverLetter", "experience"]]);
+      const missing = ["summary", "coverLetter", ...FIXED_LAYOUT_SECTION_KEYS].filter(
+        (id) => !["coverLetter", "experience"].includes(id),
+      );
+      expect(store.resume!.metadata.layout[0]).toEqual([["coverLetter", "experience", ...missing]]);
       expect(
         store.resume!.metadata.layout.flat(2).filter((id) => id === "coverLetter"),
       ).toHaveLength(1);
@@ -581,7 +591,11 @@ describe("useResumeStore", () => {
 
       importResume(imported);
 
-      expect(store.resume!.metadata.layout).toEqual([[[]], [[]]]);
+      expect(store.resume!.metadata.layout).toEqual([
+        // Nothing was placed, so every fixed id is back-filled (#770).
+        [["summary", "coverLetter", ...FIXED_LAYOUT_SECTION_KEYS]],
+        [[]],
+      ]);
       expect(store.resume!.metadata.layout.flat(2)).not.toContain("custom");
       dispose();
     });
@@ -612,7 +626,12 @@ describe("useResumeStore", () => {
       importResume(imported);
       const sectionId = addCustomSection("Writing");
 
-      expect(store.resume!.metadata.layout[0]).toEqual([["education", "skills", sectionId]]);
+      const missing = ["summary", "coverLetter", ...FIXED_LAYOUT_SECTION_KEYS].filter(
+        (id) => !["education", "skills"].includes(id),
+      );
+      expect(store.resume!.metadata.layout[0]).toEqual([
+        ["education", "skills", ...missing, sectionId],
+      ]);
       expect(store.resume!.metadata.layout.flat(2).filter((id) => id === "education")).toHaveLength(
         1,
       );
@@ -1280,6 +1299,19 @@ describe("unplaced fixed sections (#770)", () => {
       // An empty layout renders the template's default columns, which place
       // every fixed section already — nothing to repair.
       expect(store.resume!.metadata.layout).toEqual([]);
+      dispose();
+    });
+  });
+
+  it("toggling on seeds the main column when page 0 has no columns", () => {
+    createRoot((dispose) => {
+      const { store, createNewResume, updateLayout, toggleSectionVisibility } = useResumeStore();
+      createNewResume("place-5");
+      updateLayout([[], [["experience"]]]);
+
+      toggleSectionVisibility("coverLetter");
+
+      expect(store.resume!.metadata.layout).toEqual([[["coverLetter"]], [["experience"]]]);
       dispose();
     });
   });

@@ -120,12 +120,18 @@ function uniqueLayoutIds(ids: string[]): string[] {
  * sheet and the PDF draw only placed ids).
  */
 function placeFixedSectionId(layout: string[][][], sectionId: string): void {
-  const page0 = layout[0];
-  if (!page0 || page0.length === 0) return;
+  if (layout.length === 0) return;
   for (const page of layout) {
     for (const column of page) {
       if (column.includes(sectionId)) return;
     }
+  }
+  const page0 = layout[0];
+  if (!page0 || page0.length === 0) {
+    // Degenerate but reachable via updateLayout: pages exist, page 0 has no
+    // columns. Seed the main column rather than dropping the placement.
+    layout[0] = [[sectionId]];
+    return;
   }
   page0[0].push(sectionId);
 }
@@ -263,7 +269,10 @@ function normalizeResumeForStore(resume: ResumeData): ResumeData {
     const fixedIds = uniqueLayoutIds(
       resume.metadata.layout.flat(2).filter((id) => FIXED_LAYOUT_SECTION_KEY_SET.has(id)),
     );
-    const page0Ids = uniqueLayoutIds([...fixedIds, ...customIds]);
+    // Fixed ids absent from every page get back-filled here too, so this
+    // branch upholds the same invariant as the non-empty page-0 path below.
+    const absentFixedIds = ALL_FIXED_LAYOUT_SECTION_IDS.filter((id) => !layoutIds.has(id));
+    const page0Ids = uniqueLayoutIds([...fixedIds, ...absentFixedIds, ...customIds]);
     resume.metadata.layout[0] = [page0Ids];
     removeLayoutIdsFromLaterPages(resume.metadata.layout, page0Ids);
     return resume;
