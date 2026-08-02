@@ -46,7 +46,8 @@ fi
 # macos-15-intel again, one layer deeper (#774): rustup is on PATH but the
 # cargo shims never land in CARGO_HOME/bin at all. Ask rustup for the real
 # cargo, installing stable first if the image shipped rustup with no
-# toolchain. cross is exempt — it is installed by cargo-binstall, not rustup.
+# toolchain. cross is exempt — it is installed separately (cargo install
+# cross --locked), never provided by rustup.
 if ! command -v "$BUILD_CMD" >/dev/null 2>&1 &&
 	[[ "$BUILD_CMD" == "cargo" ]] &&
 	command -v rustup >/dev/null 2>&1; then

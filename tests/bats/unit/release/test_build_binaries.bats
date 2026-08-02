@@ -124,8 +124,13 @@ _write_cargo_stub() {
 			exit 1
 			;;
 		toolchain)
-			: >"${marker}"
-			exit 0
+			# Enforce the exact install contract the script promises.
+			if [[ "\$*" == "toolchain install stable --profile minimal" ]]; then
+				: >"${marker}"
+				exit 0
+			fi
+			echo "unexpected rustup toolchain args: \$*" >&2
+			exit 1
 			;;
 		esac
 		exit 0
@@ -147,11 +152,15 @@ _write_cargo_stub() {
 
 @test "cross does not trigger the rustup recovery" {
 	# A rustup that would resolve cargo must not be consulted for cross —
-	# cross is installed by cargo-binstall, not rustup.
+	# cross is installed separately (cargo install cross --locked), never
+	# provided by rustup. The stub records any invocation so a silent call
+	# cannot hide behind the expected final error.
 	local rustup_dir="${BATS_TEST_TMPDIR}/rustupbin3"
+	local called="${BATS_TEST_TMPDIR}/rustup-called"
 	mkdir -p "${rustup_dir}"
-	cat >"${rustup_dir}/rustup" <<-'EOF'
+	cat >"${rustup_dir}/rustup" <<-EOF
 		#!/usr/bin/env bash
+		: >"${called}"
 		echo "rustup should not be called for cross" >&2
 		exit 1
 	EOF
@@ -163,6 +172,10 @@ _write_cargo_stub() {
 
 	assert_failure
 	[[ "${output}" == *"cross not found on PATH"* ]]
+	[[ ! -f "${called}" ]] || {
+		echo "# rustup was invoked during a cross build" >&2
+		return 1
+	}
 }
 
 @test "defaults CARGO_HOME to ~/.cargo when unset" {
