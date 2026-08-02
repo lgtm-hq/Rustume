@@ -43,6 +43,25 @@ if ! command -v "$BUILD_CMD" >/dev/null 2>&1 && [[ -x "$CARGO_BIN/$BUILD_CMD" ]]
 	export PATH="$CARGO_BIN:$PATH"
 fi
 
+# macos-15-intel again, one layer deeper (#774): rustup is on PATH but the
+# cargo shims never land in CARGO_HOME/bin at all. Ask rustup for the real
+# cargo, installing stable first if the image shipped rustup with no
+# toolchain. cross is exempt — it is installed separately (cargo install
+# cross --locked), never provided by rustup.
+if ! command -v "$BUILD_CMD" >/dev/null 2>&1 &&
+	[[ "$BUILD_CMD" == "cargo" ]] &&
+	command -v rustup >/dev/null 2>&1; then
+	if ! rustup which cargo >/dev/null 2>&1; then
+		rustup toolchain install stable --profile minimal >&2
+		rustup default stable >&2
+	fi
+	if TOOLCHAIN_CARGO="$(rustup which cargo 2>/dev/null)"; then
+		echo "cargo absent from $CARGO_BIN; using $(dirname "$TOOLCHAIN_CARGO") via rustup" >&2
+		PATH="$(dirname "$TOOLCHAIN_CARGO"):$PATH"
+		export PATH
+	fi
+fi
+
 if ! command -v "$BUILD_CMD" >/dev/null 2>&1; then
 	echo "$BUILD_CMD not found on PATH after checking $CARGO_BIN." >&2
 	echo "The Rust toolchain setup did not produce a usable $BUILD_CMD." >&2

@@ -74,6 +74,110 @@ _write_cargo_stub() {
 	grep -q -- "--target x86_64-apple-darwin" "${log}"
 }
 
+@test "recovers cargo through rustup when CARGO_HOME/bin has no shims (#774)" {
+	# macos-15-intel: rustup resolves but cargo shims never land in
+	# CARGO_HOME/bin. The script must ask rustup where cargo lives.
+	local rustup_dir="${BATS_TEST_TMPDIR}/rustupbin"
+	local toolchain_bin="${BATS_TEST_TMPDIR}/toolchain/bin"
+	mkdir -p "${rustup_dir}" "${toolchain_bin}"
+	_write_cargo_stub "${toolchain_bin}/cargo"
+	cat >"${rustup_dir}/rustup" <<-EOF
+		#!/usr/bin/env bash
+		if [[ "\${1:-}" == "which" ]]; then
+			echo "${toolchain_bin}/cargo"
+			exit 0
+		fi
+		exit 0
+	EOF
+	chmod +x "${rustup_dir}/rustup"
+	local log="${BATS_TEST_TMPDIR}/cargo-rustup.log"
+
+	run env PATH="${rustup_dir}:${MINIMAL_PATH}" CARGO_HOME="${FAKE_CARGO_HOME}" \
+		CARGO_STUB_LOG="${log}" TARGET=x86_64-apple-darwin \
+		bash "${PROJECT_ROOT}/${SCRIPT}"
+
+	assert_success
+	[[ "${output}" == *"using ${toolchain_bin} via rustup"* ]] || {
+		echo "# expected the rustup recovery to be announced, got: ${output}" >&2
+		return 1
+	}
+	grep -q -- "-p rustume-cli" "${log}"
+	grep -q -- "--target x86_64-apple-darwin" "${log}"
+}
+
+@test "installs stable through rustup when no toolchain is present (#774)" {
+	# rustup exists but `rustup which cargo` fails until a toolchain is
+	# installed — the script must install stable, then retry.
+	local rustup_dir="${BATS_TEST_TMPDIR}/rustupbin2"
+	local toolchain_bin="${BATS_TEST_TMPDIR}/toolchain2/bin"
+	local marker="${BATS_TEST_TMPDIR}/installed"
+	mkdir -p "${rustup_dir}" "${toolchain_bin}"
+	_write_cargo_stub "${toolchain_bin}/cargo"
+	cat >"${rustup_dir}/rustup" <<-EOF
+		#!/usr/bin/env bash
+		case "\${1:-}" in
+		which)
+			if [[ -f "${marker}" ]]; then
+				echo "${toolchain_bin}/cargo"
+				exit 0
+			fi
+			exit 1
+			;;
+		toolchain)
+			# Enforce the exact install contract the script promises.
+			if [[ "\$*" == "toolchain install stable --profile minimal" ]]; then
+				: >"${marker}"
+				exit 0
+			fi
+			echo "unexpected rustup toolchain args: \$*" >&2
+			exit 1
+			;;
+		esac
+		exit 0
+	EOF
+	chmod +x "${rustup_dir}/rustup"
+	local log="${BATS_TEST_TMPDIR}/cargo-install.log"
+
+	run env PATH="${rustup_dir}:${MINIMAL_PATH}" CARGO_HOME="${FAKE_CARGO_HOME}" \
+		CARGO_STUB_LOG="${log}" TARGET=x86_64-apple-darwin \
+		bash "${PROJECT_ROOT}/${SCRIPT}"
+
+	assert_success
+	[[ -f "${marker}" ]] || {
+		echo "# expected rustup toolchain install to be invoked" >&2
+		return 1
+	}
+	grep -q -- "-p rustume-server" "${log}"
+}
+
+@test "cross does not trigger the rustup recovery" {
+	# A rustup that would resolve cargo must not be consulted for cross —
+	# cross is installed separately (cargo install cross --locked), never
+	# provided by rustup. The stub records any invocation so a silent call
+	# cannot hide behind the expected final error.
+	local rustup_dir="${BATS_TEST_TMPDIR}/rustupbin3"
+	local called="${BATS_TEST_TMPDIR}/rustup-called"
+	mkdir -p "${rustup_dir}"
+	cat >"${rustup_dir}/rustup" <<-EOF
+		#!/usr/bin/env bash
+		: >"${called}"
+		echo "rustup should not be called for cross" >&2
+		exit 1
+	EOF
+	chmod +x "${rustup_dir}/rustup"
+
+	run env PATH="${rustup_dir}:${MINIMAL_PATH}" CARGO_HOME="${FAKE_CARGO_HOME}" \
+		TARGET=aarch64-unknown-linux-gnu USE_CROSS=true \
+		bash "${PROJECT_ROOT}/${SCRIPT}"
+
+	assert_failure
+	[[ "${output}" == *"cross not found on PATH"* ]]
+	[[ ! -f "${called}" ]] || {
+		echo "# rustup was invoked during a cross build" >&2
+		return 1
+	}
+}
+
 @test "defaults CARGO_HOME to ~/.cargo when unset" {
 	local home="${BATS_TEST_TMPDIR}/home"
 	mkdir -p "${home}/.cargo/bin"
