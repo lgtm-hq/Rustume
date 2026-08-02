@@ -2,6 +2,7 @@ import { createRoot } from "solid-js";
 import { createDefaultResume } from "../../wasm/defaults";
 import type { ResumeData } from "../../wasm/types";
 import { FIXED_LAYOUT_SECTION_KEYS } from "../../lib/resumeSections";
+import { editorPages, FALLBACK_TEMPLATE_LAYOUT } from "../../lib/docLayout";
 import {
   isResumeEmpty,
   useResumeStore,
@@ -490,7 +491,16 @@ describe("useResumeStore", () => {
       importResume(imported);
 
       expect(store.resume!.metadata.layout).toEqual([
-        [["summary", "custom-speaking", "custom-writing"]],
+        [
+          [
+            "summary",
+            "custom-speaking",
+            "custom-writing",
+            // Missing fixed ids are back-filled after the sentinel expands.
+            "coverLetter",
+            ...FIXED_LAYOUT_SECTION_KEYS,
+          ],
+        ],
       ]);
       expect(store.resume!.metadata.layout.flat(2)).not.toContain("custom");
       dispose();
@@ -553,7 +563,11 @@ describe("useResumeStore", () => {
 
       importResume(imported);
 
-      expect(store.resume!.metadata.layout).toEqual([[["summary"]], [[]]]);
+      expect(store.resume!.metadata.layout).toEqual([
+        // Missing fixed ids are back-filled once the sentinel is dropped.
+        [["summary", "coverLetter", ...FIXED_LAYOUT_SECTION_KEYS]],
+        [[]],
+      ]);
       expect(store.resume!.metadata.layout.flat(2)).not.toContain("custom");
       dispose();
     });
@@ -1173,5 +1187,137 @@ describe("section editor parity — all section types", () => {
         dispose();
       });
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #770 — a visible fixed section must always be placed in a non-empty layout
+// ---------------------------------------------------------------------------
+
+describe("unplaced fixed sections (#770)", () => {
+  it("importResume back-fills fixed ids missing from a non-empty layout", () => {
+    createRoot((dispose) => {
+      const { store, importResume } = useResumeStore();
+      const imported = createDefaultResume();
+      // A legacy layout saved before most fixed sections existed.
+      imported.metadata.layout = [[["summary", "experience"], ["skills"]]];
+
+      importResume(imported);
+
+      const missing = ["summary", "coverLetter", ...FIXED_LAYOUT_SECTION_KEYS].filter(
+        (id) => !["summary", "experience", "skills"].includes(id),
+      );
+      // Back-filled into the first (main) column; the sidebar is untouched.
+      expect(store.resume!.metadata.layout).toEqual([
+        [["summary", "experience", ...missing], ["skills"]],
+      ]);
+      dispose();
+    });
+  });
+
+  it("normalization back-fill is idempotent", () => {
+    createRoot((dispose) => {
+      const { store, importResume } = useResumeStore();
+      const imported = createDefaultResume();
+      imported.metadata.layout = [[["summary", "experience"], ["skills"]]];
+
+      importResume(imported);
+      const first = JSON.parse(JSON.stringify(store.resume!)) as ResumeData;
+      importResume(first);
+
+      expect(store.resume!.metadata.layout).toEqual(first.metadata.layout);
+      dispose();
+    });
+  });
+
+  it("toggling on an unplaced fixed section places it in the first main column", () => {
+    createRoot((dispose) => {
+      const { store, createNewResume, updateLayout, toggleSectionVisibility } = useResumeStore();
+      createNewResume("place-1");
+      // Drop coverLetter from the layout the way a legacy document would.
+      updateLayout([[["summary", "experience"], ["skills"]]]);
+      expect(store.resume!.sections.coverLetter.visible).toBe(false);
+
+      toggleSectionVisibility("coverLetter");
+
+      expect(store.resume!.sections.coverLetter.visible).toBe(true);
+      expect(store.resume!.metadata.layout).toEqual([
+        [["summary", "experience", "coverLetter"], ["skills"]],
+      ]);
+      // The sheet draws only placed ids — the section must actually appear.
+      const drawnIds = editorPages(store.resume!, FALLBACK_TEMPLATE_LAYOUT)
+        .flat(2)
+        .map((section) => section.id);
+      expect(drawnIds).toContain("coverLetter");
+      dispose();
+    });
+  });
+
+  it("toggling the same section off leaves its placement alone", () => {
+    createRoot((dispose) => {
+      const { store, createNewResume, updateLayout, toggleSectionVisibility } = useResumeStore();
+      createNewResume("place-2");
+      updateLayout([[["summary", "experience"], ["skills"]]]);
+
+      // `experience` defaults to visible, so this flips it off.
+      toggleSectionVisibility("experience");
+
+      expect(store.resume!.sections.experience.visible).toBe(false);
+      expect(store.resume!.metadata.layout).toEqual([[["summary", "experience"], ["skills"]]]);
+      dispose();
+    });
+  });
+
+  it("toggling on with an empty layout leaves the template default in charge", () => {
+    createRoot((dispose) => {
+      const { store, createNewResume, updateLayout, toggleSectionVisibility } = useResumeStore();
+      createNewResume("place-3");
+      updateLayout([]);
+
+      toggleSectionVisibility("coverLetter");
+
+      expect(store.resume!.sections.coverLetter.visible).toBe(true);
+      // An empty layout renders the template's default columns, which place
+      // every fixed section already — nothing to repair.
+      expect(store.resume!.metadata.layout).toEqual([]);
+      dispose();
+    });
+  });
+
+  it("is a single undo entry: undoing reverts visibility and placement together", () => {
+    vi.useFakeTimers();
+    try {
+      createRoot((dispose) => {
+        const { store, createNewResume, updateLayout, toggleSectionVisibility, undo } =
+          useResumeStore();
+        createNewResume("place-4");
+        updateLayout([[["summary", "experience"], ["skills"]]]);
+        // Settle the undo debounce so the toggle opens its own edit burst.
+        vi.advanceTimersByTime(600);
+
+        toggleSectionVisibility("coverLetter");
+        vi.advanceTimersByTime(600);
+
+        expect(undo()).toBe(true);
+        // The visibility flip is reverted. The restored snapshot passes
+        // through load normalization, which back-fills the pruned fixed ids
+        // again — so the id stays placed, but hidden, exactly as a reload
+        // of the pre-toggle document would leave it.
+        expect(store.resume!.sections.coverLetter.visible).toBe(false);
+        const missing = ["summary", "coverLetter", ...FIXED_LAYOUT_SECTION_KEYS].filter(
+          (id) => !["summary", "experience", "skills"].includes(id),
+        );
+        expect(store.resume!.metadata.layout).toEqual([
+          [["summary", "experience", ...missing], ["skills"]],
+        ]);
+        // Flip and placement were one entry: the next undo reverts the
+        // updateLayout write, and a third finds nothing left.
+        expect(undo()).toBe(true);
+        expect(undo()).toBe(false);
+        dispose();
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

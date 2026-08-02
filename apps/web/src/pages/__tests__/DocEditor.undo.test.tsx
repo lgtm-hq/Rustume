@@ -187,17 +187,26 @@ describe("DocEditor undo, autosave, and version history", () => {
   it("round-trips a section move as a single undo entry", async () => {
     await renderSheet();
     const before = mainColumnSections();
-    expect(before).toEqual(["summary", "experience", "education", "projects"]);
+    // `coverLetter` and `references` are back-filled by normalization (#770).
+    const moved = ["summary", "education", "experience", "projects", "coverLetter", "references"];
+    expect(before).toEqual([
+      "summary",
+      "experience",
+      "education",
+      "projects",
+      "coverLetter",
+      "references",
+    ]);
 
     fireEvent.click(screen.getByRole("button", { name: "Move Experience section down" }));
     await settleDebounce();
-    expect(mainColumnSections()).toEqual(["summary", "education", "experience", "projects"]);
+    expect(mainColumnSections()).toEqual(moved);
 
     fireEvent.click(undoButton());
     expect(mainColumnSections()).toEqual(before);
 
     fireEvent.click(redoButton());
-    expect(mainColumnSections()).toEqual(["summary", "education", "experience", "projects"]);
+    expect(mainColumnSections()).toEqual(moved);
   });
 
   it("collapses a rapid edit burst into one undo entry", async () => {
