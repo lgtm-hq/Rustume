@@ -157,6 +157,10 @@ export function loadDocEditorFixture(): ResumeData {
       theme: raw.metadata.theme,
       typography: raw.metadata.typography,
       notes: "",
+      // The corpus's rich fields are authored in markdown; without the stamp
+      // the doc editor would treat the fixture as legacy HTML and migrate it
+      // on open (#786), which has its own dedicated tests.
+      contentFormat: "markdown",
     },
   };
 }

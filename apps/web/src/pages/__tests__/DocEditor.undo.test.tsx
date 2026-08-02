@@ -126,6 +126,15 @@ describe("DocEditor undo, autosave, and version history", () => {
   async function renderSheet() {
     const result = renderAt(DocEditor);
     await waitFor(() => expect(screen.getByTestId("doc-sheet")).toBeInTheDocument());
+    // The corpus resume opens as the rendered document (#785); every test
+    // here edits in place, so flip the top-bar toggle into Edit mode first.
+    await waitFor(() =>
+      expect(screen.getByTestId("doc-sheet")).toHaveAttribute("data-sheet-mode", "done"),
+    );
+    fireEvent.click(screen.getByTestId("doc-editor-mode-toggle"));
+    await waitFor(() =>
+      expect(screen.getByTestId("doc-sheet")).toHaveAttribute("data-sheet-mode", "edit"),
+    );
     vi.useFakeTimers();
     return result;
   }

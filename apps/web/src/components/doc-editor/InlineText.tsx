@@ -18,6 +18,7 @@
  */
 
 import { Show, createSignal, type JSX } from "solid-js";
+import { useSheetEditable } from "./sheetMode";
 
 export interface InlineTextProps {
   /** Current stored value. */
@@ -38,6 +39,7 @@ export interface InlineTextProps {
 }
 
 export function InlineText(props: InlineTextProps): JSX.Element {
+  const isEditable = useSheetEditable();
   const [isEditing, setIsEditing] = createSignal(false);
   const [draft, setDraft] = createSignal("");
   // One edit settles once. Escape unmounts the input and Enter commits it, and
@@ -92,40 +94,52 @@ export function InlineText(props: InlineTextProps): JSX.Element {
   }
 
   return (
+    // Done mode: the value as plain document text — no button, no placeholder.
+    // An empty value renders nothing at all; the rendered document has no slot
+    // for a field that holds nothing.
     <Show
-      when={isEditing()}
+      when={isEditable()}
       fallback={
-        <button
-          type="button"
-          id={props.triggerId}
-          class={`doc-sheet__editable ${props.class ?? ""}`}
-          classList={{ "doc-sheet__editable--empty": props.value.trim() === "" }}
-          // No `aria-label`: the accessible name has to stay the value itself,
-          // or every heading that wraps one of these would be announced as
-          // "Edit …" instead of as its own text. `title` carries the hint.
-          title={`Edit ${props.label.toLowerCase()}`}
-          onClick={start}
-        >
-          {props.value.trim() === "" ? placeholder() : props.value}
-        </button>
+        <Show when={props.value.trim() !== ""}>
+          <span class={props.class}>{props.value}</span>
+        </Show>
       }
     >
-      <input
-        ref={(element) =>
-          queueMicrotask(() => {
-            element.focus();
-            element.select();
-          })
+      <Show
+        when={isEditing()}
+        fallback={
+          <button
+            type="button"
+            id={props.triggerId}
+            class={`doc-sheet__editable ${props.class ?? ""}`}
+            classList={{ "doc-sheet__editable--empty": props.value.trim() === "" }}
+            // No `aria-label`: the accessible name has to stay the value itself,
+            // or every heading that wraps one of these would be announced as
+            // "Edit …" instead of as its own text. `title` carries the hint.
+            title={`Edit ${props.label.toLowerCase()}`}
+            onClick={start}
+          >
+            {props.value.trim() === "" ? placeholder() : props.value}
+          </button>
         }
-        type="text"
-        class={`doc-sheet__inline-input ${props.class ?? ""}`}
-        aria-label={props.label}
-        placeholder={placeholder()}
-        value={draft()}
-        onInput={(event) => setDraft(event.currentTarget.value)}
-        onKeyDown={handleKeyDown}
-        onBlur={commit}
-      />
+      >
+        <input
+          ref={(element) =>
+            queueMicrotask(() => {
+              element.focus();
+              element.select();
+            })
+          }
+          type="text"
+          class={`doc-sheet__inline-input ${props.class ?? ""}`}
+          aria-label={props.label}
+          placeholder={placeholder()}
+          value={draft()}
+          onInput={(event) => setDraft(event.currentTarget.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={commit}
+        />
+      </Show>
     </Show>
   );
 }

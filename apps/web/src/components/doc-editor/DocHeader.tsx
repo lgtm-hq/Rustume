@@ -18,6 +18,7 @@ import { For, Show, createSignal, type JSX } from "solid-js";
 import { InlineText } from "./InlineText";
 import { PhotoDialog } from "./PhotoDialog";
 import { updateBasicsField } from "./docEdits";
+import { useSheetEditable } from "./sheetMode";
 import type { TemplateHeaderStyle } from "../../lib/docLayout";
 import type { Basics, CustomField, Picture, Url } from "../../wasm/types";
 
@@ -177,11 +178,14 @@ export interface DocHeaderProps {
 }
 
 export function DocHeader(props: DocHeaderProps): JSX.Element {
+  const isEditable = useSheetEditable();
   const [isPhotoOpen, setIsPhotoOpen] = createSignal(false);
 
+  // `alwaysShown` entries are editing placeholders; the rendered document
+  // (Done mode) only prints contact details that hold a value.
   const entries = () =>
     contactEntries(props.basics).filter(
-      (entry) => entry.alwaysShown === true || entry.value.trim() !== "",
+      (entry) => (isEditable() && entry.alwaysShown === true) || entry.value.trim() !== "",
     );
   const links = () => props.profileLinks ?? [];
   const stacked = () => props.headerStyle === "sidebar";
@@ -200,43 +204,61 @@ export function DocHeader(props: DocHeaderProps): JSX.Element {
       data-testid="doc-sheet-header"
     >
       <Show when={showIdentity()}>
-        <Show
-          when={pictureVisible(props.basics.picture)}
-          fallback={
-            <button type="button" class="doc-sheet__action" onClick={() => setIsPhotoOpen(true)}>
-              Add photo
-            </button>
-          }
-        >
-          <button
-            type="button"
-            class="doc-sheet__editable doc-sheet__avatar-button"
-            title="Edit photo"
-            onClick={() => setIsPhotoOpen(true)}
+        {/* Identity is one region so the header styles can arrange the photo
+            the way their template does: beside the name for `left`, above it
+            for `center`/`boxed`/`banner`/`sidebar`. */}
+        <div class="doc-sheet__identity">
+          <Show
+            when={pictureVisible(props.basics.picture)}
+            fallback={
+              <Show when={isEditable()}>
+                <button
+                  type="button"
+                  class="doc-sheet__action"
+                  onClick={() => setIsPhotoOpen(true)}
+                >
+                  Add photo
+                </button>
+              </Show>
+            }
           >
-            <Avatar picture={props.basics.picture} name={props.basics.name} />
-          </button>
-        </Show>
+            <Show
+              when={isEditable()}
+              fallback={<Avatar picture={props.basics.picture} name={props.basics.name} />}
+            >
+              <button
+                type="button"
+                class="doc-sheet__editable doc-sheet__avatar-button"
+                title="Edit photo"
+                onClick={() => setIsPhotoOpen(true)}
+              >
+                <Avatar picture={props.basics.picture} name={props.basics.name} />
+              </button>
+            </Show>
+          </Show>
 
-        <h2 class="doc-sheet__name">
-          <InlineText
-            value={props.basics.name}
-            label="Name"
-            placeholder="Your name"
-            triggerId="doc-header-name"
-            onCommit={(value) => updateBasicsField("name", value)}
-          />
-        </h2>
+          <div class="doc-sheet__identity-text">
+            <h2 class="doc-sheet__name">
+              <InlineText
+                value={props.basics.name}
+                label="Name"
+                placeholder="Your name"
+                triggerId="doc-header-name"
+                onCommit={(value) => updateBasicsField("name", value)}
+              />
+            </h2>
 
-        <p class="doc-sheet__headline">
-          <InlineText
-            value={props.basics.headline}
-            label="Headline"
-            placeholder="Your headline"
-            triggerId="doc-header-headline"
-            onCommit={(value) => updateBasicsField("headline", value)}
-          />
-        </p>
+            <p class="doc-sheet__headline">
+              <InlineText
+                value={props.basics.headline}
+                label="Headline"
+                placeholder="Your headline"
+                triggerId="doc-header-headline"
+                onCommit={(value) => updateBasicsField("headline", value)}
+              />
+            </p>
+          </div>
+        </div>
 
         <PhotoDialog
           open={isPhotoOpen()}

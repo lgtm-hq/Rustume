@@ -45,14 +45,26 @@
   /*
    * One typographic point of the document, as a share of the page's width.
    * A4 is 595.28pt wide, so 1pt is 100/595.28 container-query width units.
-   * Stored point sizes (the avatar, its border) render against this.
+   * Stored point sizes (the avatar, its border) render against this. Declared
+   * here but *used* by descendants, where cq units resolve against this page.
    */
   --doc-sheet-pt: 0.168cqw;
   font-family: var(--font-body);
-  /* Page text is sized against the page's own width so a resized pane scales
-     the whole document rather than reflowing it. */
-  font-size: 1.6cqw;
   line-height: 1.5;
+}
+
+/*
+ * Page text is sized against the page's own width so a resized surface scales
+ * the whole document rather than reflowing it — the same behaviour as the
+ * Typst render, whose point sizes are fixed fractions of the A4 width.
+ *
+ * The size sits on the page's direct children, not the page: a container
+ * cannot resolve container-query units against itself, and on `.doc-sheet__page`
+ * the unit would silently fall back to the viewport and draw the document
+ * out of proportion.
+ */
+.doc-sheet__page > * {
+  font-size: 1.6cqw;
 }
 
 .doc-sheet__columns {
@@ -86,16 +98,82 @@
   padding: var(--doc-sheet-gutter);
 }
 
+/* The name block: photo plus name/headline, arranged per header style. */
+.doc-sheet__identity {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+.doc-sheet__identity-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25em;
+  min-width: 0;
+}
+
+/*
+ * `left` mirrors onyx/rhyhorn: the photo sits beside the name block, and the
+ * contact details stack right-aligned on the far side of the same row.
+ */
+.doc-sheet__header--left {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1em;
+}
+
+.doc-sheet__header--left .doc-sheet__identity {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75em;
+  /* The name block owns the row's spare width; without this the contact
+     column's shrink-to-fit sizing squeezes the name into wrapping. */
+  flex: 1;
+  min-width: 0;
+}
+
+.doc-sheet__header--left .doc-sheet__contact {
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  gap: 0.25em;
+  margin-left: auto;
+  flex-shrink: 0;
+  /* Contact lines are short (email, phone, location); keeping each on one
+     line is what makes the stacked right-aligned column read as onyx draws
+     it. */
+  white-space: nowrap;
+}
+
 .doc-sheet__header--center {
   align-items: center;
   text-align: center;
 }
 
+.doc-sheet__header--center .doc-sheet__identity,
+.doc-sheet__header--boxed .doc-sheet__identity {
+  align-items: center;
+}
+
+.doc-sheet__header--center .doc-sheet__identity-text,
+.doc-sheet__header--boxed .doc-sheet__identity-text {
+  align-items: center;
+}
+
+.doc-sheet__header--center .doc-sheet__contact,
+.doc-sheet__header--boxed .doc-sheet__contact {
+  justify-content: center;
+}
+
+/* `boxed` (kakuna) centers its name block inside the stroked box. */
 .doc-sheet__header--boxed {
   margin: var(--doc-sheet-gutter);
   padding: calc(var(--doc-sheet-gutter) / 1.5);
   border: 1px solid var(--doc-sheet-rule);
   border-radius: 0.25em;
+  align-items: center;
+  text-align: center;
 }
 
 .doc-sheet__header--banner {
@@ -223,14 +301,60 @@
 }
 
 /*
- * Rich text is markdown and is shown verbatim at this stage — visible markdown
- * punctuation is expected. `pre-wrap` keeps the author's own line breaks, which
- * is the only thing that makes a bullet list legible without a renderer.
+ * Rich text renders formatted (`MarkdownView`): paragraphs, lists, bold,
+ * italic — the sheet is the rendered document (#785). Line breaks are real
+ * `<br>`s from the parser, so no `pre-wrap` is needed.
  */
 .doc-sheet__rich-text {
   margin: 0;
-  white-space: pre-wrap;
   overflow-wrap: anywhere;
+  text-align: inherit;
+}
+
+.doc-sheet__md-paragraph {
+  margin: 0;
+}
+
+.doc-sheet__md-paragraph + .doc-sheet__md-paragraph,
+.doc-sheet__md-paragraph + .doc-sheet__md-list,
+.doc-sheet__md-list + .doc-sheet__md-paragraph,
+.doc-sheet__md-list + .doc-sheet__md-list {
+  margin-top: 0.5em;
+}
+
+.doc-sheet__md-list {
+  margin: 0;
+  padding-left: 1.2em;
+  list-style: disc;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+}
+
+.doc-sheet__md-list--ordered {
+  list-style: decimal;
+}
+
+/* Link labels print in the accent, as templates print them; the sheet is a
+   document surface, not a navigation surface, so no anchor. */
+.doc-sheet__md-link {
+  color: var(--doc-sheet-accent);
+}
+
+/* One profile as templates draw it: network label plus linked username. */
+.doc-sheet__item-inline {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+}
+
+.doc-sheet__item-inline-label {
+  font-weight: 700;
+}
+
+.doc-sheet__item-inline-value {
+  color: var(--doc-sheet-accent);
 }
 
 .doc-sheet__keywords {
@@ -295,7 +419,12 @@
   border-radius: 0.15em;
   cursor: text;
   white-space: inherit;
-  max-width: 100%;
+  /* Not `max-width: 100%`: a percentage max-width on this inline-block makes
+     every ancestor's intrinsic max-content collapse to min-content, wrapping
+     short values word-by-word even when the row has room. `anywhere` gives
+     the same protection against long unbroken values (URLs, emails) without
+     distorting intrinsic sizing. */
+  overflow-wrap: anywhere;
 }
 
 .doc-sheet__editable:hover {
@@ -504,6 +633,14 @@
 .doc-sheet__section:hover,
 .doc-sheet__section:focus-within {
   outline-color: var(--doc-sheet-rule);
+}
+
+/* Done mode is the rendered document: no card affordances on hover. The
+   editing controls themselves are not mounted in this mode (see `sheetMode`);
+   this only silences the hover outline, which is pure CSS. */
+.doc-sheet--done .doc-sheet__section:hover,
+.doc-sheet--done .doc-sheet__section:focus-within {
+  outline-color: transparent;
 }
 
 /* Hidden means "not rendered to PDF" — still on the surface, dimmed. */
