@@ -22,6 +22,13 @@ and this project adheres to
 
 ### Security
 
+## [0.61.1] - 2026-08-02
+
+### Fixed
+
+- **ci**: recover cargo through rustup when the macOS image ships no shims (#775)
+  (1a3654a)
+
 ## [0.61.0] - 2026-08-02
 
 ### Added
@@ -901,7 +908,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.61.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.61.1...HEAD
+[0.61.1]: https://github.com/lgtm-hq/Rustume/compare/v0.61.0...v0.61.1
 [0.61.0]: https://github.com/lgtm-hq/Rustume/compare/v0.60.0...v0.61.0
 [0.60.0]: https://github.com/lgtm-hq/Rustume/compare/v0.59.0...v0.60.0
 [0.59.0]: https://github.com/lgtm-hq/Rustume/compare/v0.58.0...v0.59.0
