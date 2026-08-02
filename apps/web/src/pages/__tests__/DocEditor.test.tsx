@@ -88,6 +88,13 @@ function sheetMode(): string {
   return screen.getByTestId("doc-sheet").getAttribute("data-sheet-mode") ?? "";
 }
 
+/** Mount the editor at the current fixture id and wait for the sheet. */
+async function renderEditor() {
+  const result = renderAt(DocEditor);
+  await waitFor(() => expect(screen.getByTestId("doc-sheet")).toBeInTheDocument());
+  return result;
+}
+
 describe("DocEditor sheet", () => {
   let renderCount = 0;
 
@@ -338,12 +345,6 @@ describe("Edit/Done toggle", () => {
     resumeId.value = `doc-editor-mode-${++renderCount}`;
   });
 
-  async function renderEditor() {
-    const result = renderAt(DocEditor);
-    await waitFor(() => expect(screen.getByTestId("doc-sheet")).toBeInTheDocument());
-    return result;
-  }
-
   it("opens an existing resume as the clean rendered document", async () => {
     await renderEditor();
 
@@ -357,6 +358,10 @@ describe("Edit/Done toggle", () => {
     empty.basics.name = "";
     empty.basics.email = "";
     empty.basics.headline = "";
+    empty.basics.phone = "";
+    empty.basics.location = "";
+    empty.basics.url = { label: "", href: "" };
+    empty.basics.customFields = [];
     empty.sections.summary.content = "";
     for (const section of [
       empty.sections.experience,
@@ -438,12 +443,6 @@ describe("legacy HTML migration (#786)", () => {
       "<ul><li><p>Led the <em>design system</em> programme</p></li></ul>";
     fixture.value = legacy;
   });
-
-  async function renderEditor() {
-    const result = renderAt(DocEditor);
-    await waitFor(() => expect(screen.getByTestId("doc-sheet")).toBeInTheDocument());
-    return result;
-  }
 
   it("shows formatted text, never raw tags, when opening a legacy resume", async () => {
     await renderEditor();

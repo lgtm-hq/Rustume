@@ -11,7 +11,11 @@
  */
 
 import { For, Show, type JSX } from "solid-js";
-import { parseMarkdownBlocks, type MarkdownInline } from "../../lib/markdownBlocks";
+import {
+  parseMarkdownBlocks,
+  type MarkdownInline,
+  type MarkdownList,
+} from "../../lib/markdownBlocks";
 
 function Inlines(props: { inlines: MarkdownInline[] }): JSX.Element {
   return (
@@ -22,6 +26,12 @@ function Inlines(props: { inlines: MarkdownInline[] }): JSX.Element {
             return <strong>{inline.text}</strong>;
           case "em":
             return <em>{inline.text}</em>;
+          case "strong-em":
+            return (
+              <strong>
+                <em>{inline.text}</em>
+              </strong>
+            );
           case "link":
             return <span class="doc-sheet__md-link">{inline.text}</span>;
           default:
@@ -29,6 +39,25 @@ function Inlines(props: { inlines: MarkdownInline[] }): JSX.Element {
         }
       }}
     </For>
+  );
+}
+
+/** One list at any nesting depth; sublists recurse. */
+function ListView(props: { list: MarkdownList }): JSX.Element {
+  const items = (
+    <For each={props.list.items}>
+      {(item) => (
+        <li>
+          <Inlines inlines={item.inlines} />
+          <Show when={item.children}>{(children) => <ListView list={children()} />}</Show>
+        </li>
+      )}
+    </For>
+  );
+  return props.list.ordered ? (
+    <ol class="doc-sheet__md-list doc-sheet__md-list--ordered">{items}</ol>
+  ) : (
+    <ul class="doc-sheet__md-list">{items}</ul>
   );
 }
 
@@ -53,20 +82,7 @@ export function MarkdownView(props: { value: string }): JSX.Element {
     <For each={parseMarkdownBlocks(props.value)}>
       {(block) => {
         if (block.type === "list") {
-          const items = (
-            <For each={block.items}>
-              {(item) => (
-                <li>
-                  <Inlines inlines={item} />
-                </li>
-              )}
-            </For>
-          );
-          return block.ordered ? (
-            <ol class="doc-sheet__md-list doc-sheet__md-list--ordered">{items}</ol>
-          ) : (
-            <ul class="doc-sheet__md-list">{items}</ul>
-          );
+          return <ListView list={block} />;
         }
         return (
           <p class="doc-sheet__md-paragraph">

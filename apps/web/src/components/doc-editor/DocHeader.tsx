@@ -238,25 +238,31 @@ export function DocHeader(props: DocHeaderProps): JSX.Element {
           </Show>
 
           <div class="doc-sheet__identity-text">
-            <h2 class="doc-sheet__name">
-              <InlineText
-                value={props.basics.name}
-                label="Name"
-                placeholder="Your name"
-                triggerId="doc-header-name"
-                onCommit={(value) => updateBasicsField("name", value)}
-              />
-            </h2>
+            {/* Rendered (Done) mode drops the wrappers of empty fields: an
+                empty heading is announced as a nameless landmark stop. */}
+            <Show when={isEditable() || props.basics.name.trim() !== ""}>
+              <h2 class="doc-sheet__name">
+                <InlineText
+                  value={props.basics.name}
+                  label="Name"
+                  placeholder="Your name"
+                  triggerId="doc-header-name"
+                  onCommit={(value) => updateBasicsField("name", value)}
+                />
+              </h2>
+            </Show>
 
-            <p class="doc-sheet__headline">
-              <InlineText
-                value={props.basics.headline}
-                label="Headline"
-                placeholder="Your headline"
-                triggerId="doc-header-headline"
-                onCommit={(value) => updateBasicsField("headline", value)}
-              />
-            </p>
+            <Show when={isEditable() || props.basics.headline.trim() !== ""}>
+              <p class="doc-sheet__headline">
+                <InlineText
+                  value={props.basics.headline}
+                  label="Headline"
+                  placeholder="Your headline"
+                  triggerId="doc-header-headline"
+                  onCommit={(value) => updateBasicsField("headline", value)}
+                />
+              </p>
+            </Show>
           </div>
         </div>
 

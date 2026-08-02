@@ -38,6 +38,7 @@ import { migrateResumeContentToMarkdown, needsContentMigration } from "../lib/ht
 import { isResumeEmpty, resumeStore } from "../stores/resume";
 import { uiStore } from "../stores/ui";
 import { undoHistoryStore } from "../stores/undoHistory";
+import type { ResumeData } from "../wasm/types";
 
 const VersionHistory = lazy(() =>
   import("../components/version-history/VersionHistory").then((module) => ({
@@ -52,6 +53,26 @@ const ImportModal = lazy(() =>
 const ExportModal = lazy(() =>
   import("../components/export/ExportModal").then((module) => ({ default: module.ExportModal })),
 );
+
+/**
+ * Whether a resume holds no user content at all.
+ *
+ * `isResumeEmpty` checks the fields the preview's sample-data heuristic cares
+ * about (name, email, headline, sections); a document that only carries a
+ * phone number, a location, a URL, custom contact fields or a cover letter is
+ * still an existing document, so those are checked here on top.
+ */
+function isBlankResume(resume: ResumeData): boolean {
+  const basics = resume.basics;
+  return (
+    isResumeEmpty(resume) &&
+    basics.phone.trim() === "" &&
+    basics.location.trim() === "" &&
+    (basics.url?.href ?? "").trim() === "" &&
+    basics.customFields.every((field) => field.value.trim() === "") &&
+    (resume.sections.coverLetter?.content ?? "").trim() === ""
+  );
+}
 
 export default function DocEditor() {
   const params = useParams<{ id: string }>();
@@ -134,7 +155,7 @@ export default function DocEditor() {
     const id = store.id;
     if (id === null || modeInitializedFor === id) return;
     modeInitializedFor = id;
-    setMode(isResumeEmpty(resume) ? "edit" : "done");
+    setMode(isBlankResume(resume) ? "edit" : "done");
   });
 
   // One-time legacy migration (#786): a resume whose rich fields are still
