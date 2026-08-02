@@ -94,11 +94,14 @@ export function isNotFoundError(error: unknown): boolean {
   return false;
 }
 
-const FIXED_LAYOUT_SECTION_KEY_SET = new Set<string>([
+/** Every fixed section id a layout can place, in canonical order. */
+const ALL_FIXED_LAYOUT_SECTION_IDS: readonly string[] = [
   "summary",
   "coverLetter",
   ...FIXED_LAYOUT_SECTION_KEYS,
-]);
+];
+
+const ALL_FIXED_LAYOUT_SECTION_ID_SET = new Set<string>(ALL_FIXED_LAYOUT_SECTION_IDS);
 
 function uniqueLayoutIds(ids: string[]): string[] {
   const seen = new Set<string>();
@@ -107,6 +110,30 @@ function uniqueLayoutIds(ids: string[]): string[] {
     seen.add(id);
     return true;
   });
+}
+
+/**
+ * Append a fixed section id to page 0's first (main) column when the id is
+ * absent from a non-empty layout. An empty layout renders the template's
+ * default columns, which already place every fixed section, so it needs no
+ * repair. A visible-but-unplaced section would otherwise never render (the
+ * sheet and the PDF draw only placed ids).
+ */
+function placeFixedSectionId(layout: string[][][], sectionId: string): void {
+  if (layout.length === 0) return;
+  for (const page of layout) {
+    for (const column of page) {
+      if (column.includes(sectionId)) return;
+    }
+  }
+  const page0 = layout[0];
+  if (!page0 || page0.length === 0) {
+    // Degenerate but reachable via updateLayout: pages exist, page 0 has no
+    // columns. Seed the main column rather than dropping the placement.
+    layout[0] = [[sectionId]];
+    return;
+  }
+  page0[0].push(sectionId);
 }
 
 function removeLayoutIdsFromLaterPages(layout: string[][][], ids: readonly string[]): void {
@@ -240,12 +267,24 @@ function normalizeResumeForStore(resume: ResumeData): ResumeData {
   const page0 = resume.metadata.layout[0];
   if (!page0 || page0.length === 0) {
     const fixedIds = uniqueLayoutIds(
-      resume.metadata.layout.flat(2).filter((id) => FIXED_LAYOUT_SECTION_KEY_SET.has(id)),
+      resume.metadata.layout.flat(2).filter((id) => ALL_FIXED_LAYOUT_SECTION_ID_SET.has(id)),
     );
-    const page0Ids = uniqueLayoutIds([...fixedIds, ...customIds]);
+    // Fixed ids absent from every page get back-filled here too, so this
+    // branch upholds the same invariant as the non-empty page-0 path below.
+    const absentFixedIds = ALL_FIXED_LAYOUT_SECTION_IDS.filter((id) => !layoutIds.has(id));
+    const page0Ids = uniqueLayoutIds([...fixedIds, ...absentFixedIds, ...customIds]);
     resume.metadata.layout[0] = [page0Ids];
     removeLayoutIdsFromLaterPages(resume.metadata.layout, page0Ids);
     return resume;
+  }
+
+  // Back-fill fixed ids missing from a non-empty layout (legacy/pruned
+  // layouts saved before a fixed section existed). Hidden sections do not
+  // render, so this only guarantees a visibility toggle has somewhere to
+  // land. Column 0 is always the main column.
+  const missingFixedIds = ALL_FIXED_LAYOUT_SECTION_IDS.filter((id) => !layoutIds.has(id));
+  if (missingFixedIds.length > 0) {
+    page0[0].push(...missingFixedIds);
   }
 
   if (customIds.length === 0) return resume;
@@ -449,7 +488,10 @@ export function useResumeStore() {
     },
 
     createNewResume(id: string) {
-      const resume = createEmptyResume();
+      // Normalize even the factory default: the local fallback default's
+      // layout places only a subset of the fixed sections, and every other
+      // path into the store (load, import, undo) already normalizes.
+      const resume = normalizeResumeForStore(createEmptyResume());
       batch(() => {
         setStore("resume", resume);
         setStore("id", id);
@@ -517,20 +559,22 @@ export function useResumeStore() {
     toggleSectionVisibility(sectionKey: LayoutSectionKey) {
       setStore(
         produce((s) => {
-          if (s.resume) {
-            if (sectionKey === "summary") {
-              s.resume.sections.summary.visible = !s.resume.sections.summary.visible;
-            } else if (sectionKey === "coverLetter") {
-              s.resume.sections.coverLetter.visible = !s.resume.sections.coverLetter.visible;
-            } else if (sectionKey === "custom") {
-              const sections = Object.values(s.resume.sections.custom);
-              const nextVisible = !sections.some((section) => section.visible);
-              for (const section of sections) {
-                section.visible = nextVisible;
-              }
-            } else {
-              s.resume.sections[sectionKey].visible = !s.resume.sections[sectionKey].visible;
+          if (!s.resume) return;
+          if (sectionKey === "custom") {
+            const sections = Object.values(s.resume.sections.custom);
+            const nextVisible = !sections.some((section) => section.visible);
+            for (const section of sections) {
+              section.visible = nextVisible;
             }
+            return;
+          }
+          const section = s.resume.sections[sectionKey];
+          section.visible = !section.visible;
+          // A section toggled visible must also be placed, or the sheet and
+          // the PDF silently never draw it. Same write as the flip, so the
+          // toggle stays one action and one undo entry.
+          if (section.visible) {
+            placeFixedSectionId(s.resume.metadata.layout, sectionKey);
           }
         }),
       );
@@ -650,7 +694,9 @@ export function useResumeStore() {
           const page = s.resume.metadata.layout[0] ?? [];
           if (!page || page.length === 0) {
             const fixedIds = uniqueLayoutIds(
-              s.resume.metadata.layout.flat(2).filter((id) => FIXED_LAYOUT_SECTION_KEY_SET.has(id)),
+              s.resume.metadata.layout
+                .flat(2)
+                .filter((id) => ALL_FIXED_LAYOUT_SECTION_ID_SET.has(id)),
             );
             const page0Ids = uniqueLayoutIds([...fixedIds, section.id]);
             s.resume.metadata.layout[0] = [page0Ids];

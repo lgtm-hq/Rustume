@@ -121,7 +121,9 @@ describe("DocEditor sheet", () => {
     expect(pageColumns(first)).toEqual([
       // `sidebar-left` paints the sidebar column first.
       ["sidebar", ["profiles", "skills", "speaking"]],
-      ["main", ["summary", "experience", "education", "projects"]],
+      // `coverLetter` and `references` are absent from the stored layout, so
+      // normalization back-fills them into the first main column (#770).
+      ["main", ["summary", "experience", "education", "projects", "coverLetter", "references"]],
     ]);
     expect(pageColumns(second)).toEqual([
       // `advisory` is switched off but stays drawn as chrome (see below).
@@ -182,8 +184,12 @@ describe("DocEditor sheet", () => {
     const advisory = document.querySelector('[data-section-id="advisory"]');
     expect(advisory).not.toBeNull();
     expect(advisory?.classList.contains("doc-sheet__section--hidden")).toBe(true);
-    // A section the layout never places is genuinely absent.
-    expect(document.querySelector('[data-section-id="references"]')).toBeNull();
+    // A section the stored layout never placed is back-filled by
+    // normalization (#770), so it surfaces as hidden chrome too instead of
+    // being silently unreachable from the sheet.
+    const references = document.querySelector('[data-section-id="references"]');
+    expect(references).not.toBeNull();
+    expect(references?.classList.contains("doc-sheet__section--hidden")).toBe(true);
   });
 
   it("offers every drawn value as a keyboard-reachable editing affordance", async () => {
