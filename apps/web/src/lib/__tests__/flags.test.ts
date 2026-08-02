@@ -121,6 +121,7 @@ describe("isDocEditorEnabled", () => {
   it("falls back to the live location and localStorage when no environment is given", () => {
     const original = `${window.location.pathname}${window.location.search}`;
     const storedBefore = localStorage.getItem(FORM_BUILDER_KEY);
+    const docEditorStoredBefore = localStorage.getItem(DOC_EDITOR_KEY);
     try {
       window.history.replaceState(null, "", "/edit/abc?ff=form-builder");
 
@@ -139,6 +140,11 @@ describe("isDocEditorEnabled", () => {
         localStorage.removeItem(FORM_BUILDER_KEY);
       } else {
         localStorage.setItem(FORM_BUILDER_KEY, storedBefore);
+      }
+      if (docEditorStoredBefore === null) {
+        localStorage.removeItem(DOC_EDITOR_KEY);
+      } else {
+        localStorage.setItem(DOC_EDITOR_KEY, docEditorStoredBefore);
       }
     }
   });
