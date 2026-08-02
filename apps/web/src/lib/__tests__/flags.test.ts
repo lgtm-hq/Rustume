@@ -120,19 +120,27 @@ describe("isDocEditorEnabled", () => {
 
   it("falls back to the live location and localStorage when no environment is given", () => {
     const original = `${window.location.pathname}${window.location.search}`;
-    window.history.replaceState(null, "", "/edit/abc?ff=form-builder");
+    const storedBefore = localStorage.getItem(FORM_BUILDER_KEY);
+    try {
+      window.history.replaceState(null, "", "/edit/abc?ff=form-builder");
 
-    expect(isDocEditorEnabled()).toBe(false);
-    expect(localStorage.getItem(FORM_BUILDER_KEY)).toBe("true");
+      expect(isDocEditorEnabled()).toBe(false);
+      expect(localStorage.getItem(FORM_BUILDER_KEY)).toBe("true");
 
-    window.history.replaceState(null, "", "/edit/abc");
-    expect(isDocEditorEnabled()).toBe(false);
+      window.history.replaceState(null, "", "/edit/abc");
+      expect(isDocEditorEnabled()).toBe(false);
 
-    window.history.replaceState(null, "", "/edit/abc?ff=off");
-    expect(isDocEditorEnabled()).toBe(true);
-    expect(localStorage.getItem(FORM_BUILDER_KEY)).toBeNull();
-
-    window.history.replaceState(null, "", original);
+      window.history.replaceState(null, "", "/edit/abc?ff=off");
+      expect(isDocEditorEnabled()).toBe(true);
+      expect(localStorage.getItem(FORM_BUILDER_KEY)).toBeNull();
+    } finally {
+      window.history.replaceState(null, "", original);
+      if (storedBefore === null) {
+        localStorage.removeItem(FORM_BUILDER_KEY);
+      } else {
+        localStorage.setItem(FORM_BUILDER_KEY, storedBefore);
+      }
+    }
   });
 });
 

@@ -26,5 +26,8 @@ export default class DocEditorPage extends BasePage {
   async assertDocEditorOpen(): Promise<void> {
     await expect(this.sheet).toBeVisible();
     await expect(this.sheetPane).toBeVisible();
+    await expect(
+      this.page.getByRole("heading", { name: "Personal Information", exact: true }),
+    ).toBeHidden();
   }
 }

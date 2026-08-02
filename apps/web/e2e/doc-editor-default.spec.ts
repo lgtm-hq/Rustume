@@ -46,6 +46,11 @@ test.describe("document editor default", () => {
     await test.step("?ff=off clears the override back to the default", async () => {
       await docEditorPage.openWithFlag(id, "off");
       await docEditorPage.assertDocEditorOpen();
+
+      // A plain revisit proves the persisted override was cleared, not
+      // merely bypassed for the ?ff=off request itself.
+      await docEditorPage.open(id);
+      await docEditorPage.assertDocEditorOpen();
     });
   });
 
