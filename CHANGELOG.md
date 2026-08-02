@@ -22,6 +22,17 @@ and this project adheres to
 
 ### Security
 
+## [0.61.2] - 2026-08-02
+
+### Changed
+
+- **deps**: update lintro to 0.104.2 (patch) (#779) (d4a4220)
+
+### Fixed
+
+- **web**: place fixed sections on toggle-on and back-fill legacy layouts (#777)
+  (357fa8f)
+
 ## [0.61.1] - 2026-08-02
 
 ### Fixed
@@ -908,7 +919,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.61.1...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.61.2...HEAD
+[0.61.2]: https://github.com/lgtm-hq/Rustume/compare/v0.61.1...v0.61.2
 [0.61.1]: https://github.com/lgtm-hq/Rustume/compare/v0.61.0...v0.61.1
 [0.61.0]: https://github.com/lgtm-hq/Rustume/compare/v0.60.0...v0.61.0
 [0.60.0]: https://github.com/lgtm-hq/Rustume/compare/v0.59.0...v0.60.0
