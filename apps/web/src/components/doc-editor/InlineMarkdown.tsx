@@ -56,18 +56,29 @@ export function InlineMarkdown(props: InlineMarkdownProps): JSX.Element {
       <Show
         when={isEditing()}
         fallback={
-          <button
-            type="button"
+          // Not a native <button>: the rendered value is block content
+          // (paragraphs, lists), which phrasing-only button content cannot
+          // legally hold. The div carries the button role and the same
+          // keyboard contract instead.
+          <div
+            role="button"
+            tabindex="0"
             id={props.triggerId}
             class="doc-sheet__editable doc-sheet__rich-text"
             classList={{ "doc-sheet__editable--empty": props.value.trim() === "" }}
             title={`Edit ${props.label.toLowerCase()}`}
             onClick={() => setIsEditing(true)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                setIsEditing(true);
+              }
+            }}
           >
             <Show when={props.value.trim() !== ""} fallback={placeholder()}>
               <MarkdownView value={props.value} />
             </Show>
-          </button>
+          </div>
         }
       >
         <MarkdownEditor

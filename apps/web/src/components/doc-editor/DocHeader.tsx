@@ -266,11 +266,15 @@ export function DocHeader(props: DocHeaderProps): JSX.Element {
           </div>
         </div>
 
-        <PhotoDialog
-          open={isPhotoOpen()}
-          picture={props.basics.picture}
-          onOpenChange={setIsPhotoOpen}
-        />
+        {/* Editing chrome: unmounted in Done mode even when its open flag was
+            left set by a mid-dialog mode switch. */}
+        <Show when={isEditable()}>
+          <PhotoDialog
+            open={isPhotoOpen()}
+            picture={props.basics.picture}
+            onOpenChange={setIsPhotoOpen}
+          />
+        </Show>
       </Show>
 
       <Show when={props.showContact && entries().length > 0}>

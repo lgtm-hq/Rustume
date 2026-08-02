@@ -58,14 +58,24 @@ const ExportModal = lazy(() =>
  * Whether a resume holds no user content at all.
  *
  * `isResumeEmpty` checks the fields the preview's sample-data heuristic cares
- * about (name, email, headline, sections); a document that only carries a
- * phone number, a location, a URL, custom contact fields or a cover letter is
- * still an existing document, so those are checked here on top.
+ * about (name, email, headline, visible sections). An existing document can
+ * carry content none of those cover — a phone number, a location, a URL,
+ * custom contact fields, a cover letter, or items in *hidden* sections — so
+ * those are checked here on top: only a truly blank resume opens in Edit.
  */
 function isBlankResume(resume: ResumeData): boolean {
   const basics = resume.basics;
+  const sections = Object.values(resume.sections) as unknown[];
+  const hasItems = sections.some(
+    (section) => ((section as { items?: unknown[] }).items?.length ?? 0) > 0,
+  );
+  const hasCustomItems = Object.values(resume.sections.custom ?? {}).some(
+    (section) => section.items.length > 0,
+  );
   return (
     isResumeEmpty(resume) &&
+    !hasItems &&
+    !hasCustomItems &&
     basics.phone.trim() === "" &&
     basics.location.trim() === "" &&
     (basics.url?.href ?? "").trim() === "" &&

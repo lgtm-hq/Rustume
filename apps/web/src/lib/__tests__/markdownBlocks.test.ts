@@ -39,6 +39,14 @@ describe("parseMarkdownInlines", () => {
     ]);
   });
 
+  it("flattens italic nested inside bold to strong-em runs", () => {
+    expect(parseMarkdownInlines("**a *b* c**")).toEqual([
+      { type: "strong", text: "a " },
+      { type: "strong-em", text: "b" },
+      { type: "strong", text: " c" },
+    ]);
+  });
+
   it("parses links into label and href", () => {
     expect(parseMarkdownInlines("see [the docs](https://example.com) now")).toEqual([
       text("see "),

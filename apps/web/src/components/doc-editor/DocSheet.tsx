@@ -629,17 +629,24 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
             </div>
           </Show>
 
-          <CustomSectionDialog open={isSectionDialogOpen()} onOpenChange={setIsSectionDialogOpen} />
+          {/* Dialogs are editing chrome: unmounted in Done mode even when an
+              open flag was left set by a mid-dialog mode switch. */}
+          <Show when={isEditable()}>
+            <CustomSectionDialog
+              open={isSectionDialogOpen()}
+              onOpenChange={setIsSectionDialogOpen}
+            />
 
-          {/* Add-block target: adds the first item of a placed-but-empty section. */}
-          <ItemDialog
-            open={addTarget() !== null}
-            sectionId={addTarget() ?? ""}
-            sectionTitle={sectionTitle(props.resume, addTarget() ?? "")}
-            onOpenChange={(open) => {
-              if (!open) setAddTarget(null);
-            }}
-          />
+            {/* Add-block target: adds the first item of a placed-but-empty section. */}
+            <ItemDialog
+              open={addTarget() !== null}
+              sectionId={addTarget() ?? ""}
+              sectionTitle={sectionTitle(props.resume, addTarget() ?? "")}
+              onOpenChange={(open) => {
+                if (!open) setAddTarget(null);
+              }}
+            />
+          </Show>
 
           <LiveRegion message={announcement()} politeness="polite" />
         </div>

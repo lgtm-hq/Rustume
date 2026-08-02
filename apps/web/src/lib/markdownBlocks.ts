@@ -46,10 +46,31 @@ const LIST_LINE = /^(\s*)(-|\d+\.)\s+(.*)$/;
 const INDENT_WIDTH = 2;
 
 /**
+ * Combine an outer emphasis with the runs parsed inside it, keeping the
+ * output flat: `**a *b***` becomes strong("a "), strong-em("b").
+ */
+function emphasize(outer: "strong" | "em", inner: MarkdownInline[]): MarkdownInline[] {
+  return inner.map((run) => {
+    switch (run.type) {
+      case "text":
+        return { type: outer, text: run.text };
+      case "strong":
+      case "em":
+        return run.type === outer ? run : { type: "strong-em", text: run.text };
+      default:
+        // Already both marks, or a link — the accent styling a link carries
+        // outranks emphasis on the sheet, so it passes through unchanged.
+        return run;
+    }
+  });
+}
+
+/**
  * Inline tokens of one line.
  *
  * `***` binds before `**` before `*` — the same disambiguation the editor's
- * own `isWrapped` applies — and an unterminated marker stays literal.
+ * own `isWrapped` applies. Emphasis nests one inside the other (`**a *b* c**`)
+ * and flattens to `strong-em` runs; an unterminated marker stays literal.
  */
 export function parseMarkdownInlines(line: string): MarkdownInline[] {
   const inlines: MarkdownInline[] = [];
@@ -82,18 +103,20 @@ export function parseMarkdownInlines(line: string): MarkdownInline[] {
       continue;
     }
 
-    const strong = /^\*\*([^*]+)\*\*/.exec(rest);
-    if (strong) {
-      flush();
-      inlines.push({ type: "strong", text: strong[1] });
-      index += strong[0].length;
-      continue;
+    if (rest.startsWith("**")) {
+      const close = rest.indexOf("**", 2);
+      if (close > 2) {
+        flush();
+        inlines.push(...emphasize("strong", parseMarkdownInlines(rest.slice(2, close))));
+        index += close + 2;
+        continue;
+      }
     }
 
     const em = /^\*([^*]+)\*/.exec(rest);
     if (em) {
       flush();
-      inlines.push({ type: "em", text: em[1] });
+      inlines.push(...emphasize("em", parseMarkdownInlines(em[1])));
       index += em[0].length;
       continue;
     }

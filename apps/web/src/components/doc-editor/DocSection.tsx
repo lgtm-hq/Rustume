@@ -829,7 +829,7 @@ export function DocSection(props: DocSectionProps): JSX.Element {
         />
       </Show>
 
-      <Show when={isCustom()}>
+      <Show when={isCustom() && isEditable()}>
         <CustomSectionDialog
           open={isRenameOpen()}
           sectionId={props.sectionId}
