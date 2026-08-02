@@ -2,9 +2,14 @@
  * Runtime feature flags.
  *
  * A flag is off for everyone until a URL opts in: `?ff=<flag>` turns it on and
- * remembers the choice, `?ff=off` turns everything off again and forgets it.
- * That is the whole mechanism — it exists so unfinished surfaces can ship to
- * `main` in small reviewable slices while staying invisible to normal traffic.
+ * remembers the choice, `?ff=off` clears every persisted choice and returns
+ * everything to its default. That is the whole mechanism — it exists so
+ * unfinished surfaces can ship to `main` in small reviewable slices while
+ * staying invisible to normal traffic.
+ *
+ * The document editor has graduated: it is on by default, and the flag that
+ * remains is the temporary `?ff=form-builder` escape hatch back to the legacy
+ * form editor (see {@link isDocEditorEnabled}).
  *
  * Nothing here runs at import time: every resolution reads `location` and
  * `localStorage` through {@link FlagEnvironment}, which tests supply directly.
@@ -28,8 +33,17 @@ const ENABLED_VALUE = "true";
  * `ff.<token>` storage key.
  */
 export const FEATURE_FLAGS = {
-  /** The read-only document sheet at `/edit/:id` (#727). */
+  /**
+   * The document sheet at `/edit/:id` (#727). Default on since #734; the
+   * token is still recognized so transition-era URLs keep working.
+   */
   docEditor: "doc-editor",
+  /**
+   * Escape hatch back to the legacy form editor at `/edit/:id`.
+   * TODO(v0.62.0): remove the form-builder override once the doc editor has
+   * held the default for a milestone (#735 retires the form builder).
+   */
+  formBuilder: "form-builder",
 } as const;
 
 /** A flag's wire token, e.g. `"doc-editor"`. */
@@ -134,7 +148,39 @@ export function isFlagEnabled(
   return readStored(storage, flag);
 }
 
-/** Whether the read-only document sheet replaces the form editor at `/edit/:id`. */
-export function isDocEditorEnabled(env?: FlagEnvironment): boolean {
-  return isFlagEnabled(FEATURE_FLAGS.docEditor, env);
+/**
+ * Whether the document sheet serves `/edit/:id`. On by default since #734.
+ *
+ * Resolution order: `?ff=off` clears every persisted flag and restores the
+ * default (on); `?ff=form-builder` opts back into the legacy form editor and
+ * persists that choice; `?ff=doc-editor` — kept for transition-era URLs —
+ * re-enables the sheet and forgets a persisted form-builder override;
+ * otherwise a persisted override decides; otherwise on.
+ *
+ * TODO(v0.62.0): remove the form-builder override (and this bespoke
+ * resolution) when #735 retires the form builder.
+ */
+export function isDocEditorEnabled(env: FlagEnvironment = defaultEnvironment()): boolean {
+  const storage = env.storage === undefined ? defaultStorage() : env.storage;
+  const requested = requestedFlags(env.search);
+
+  if (requested.includes(OFF_TOKEN)) {
+    for (const known of Object.values(FEATURE_FLAGS)) {
+      writeStored(storage, known, false);
+    }
+    return true;
+  }
+
+  if (requested.includes(FEATURE_FLAGS.formBuilder)) {
+    writeStored(storage, FEATURE_FLAGS.formBuilder, true);
+    return false;
+  }
+
+  if (requested.includes(FEATURE_FLAGS.docEditor)) {
+    writeStored(storage, FEATURE_FLAGS.docEditor, true);
+    writeStored(storage, FEATURE_FLAGS.formBuilder, false);
+    return true;
+  }
+
+  return !readStored(storage, FEATURE_FLAGS.formBuilder);
 }

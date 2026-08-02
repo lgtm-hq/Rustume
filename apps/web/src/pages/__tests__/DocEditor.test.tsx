@@ -272,7 +272,7 @@ describe("/edit/:id route swap", () => {
     fixture.value = loadDocEditorFixture();
   });
 
-  it("renders the form editor when the flag is off", async () => {
+  it("renders the form editor when the form-builder override is active", async () => {
     docEditorEnabled.value = false;
     const { resolveEditRoute } = await import("../editRoute");
 
@@ -284,7 +284,7 @@ describe("/edit/:id route swap", () => {
     expect(screen.queryByTestId("doc-sheet")).toBeNull();
   }, 15000);
 
-  it("renders the document sheet when the flag is on", async () => {
+  it("renders the document sheet by default", async () => {
     docEditorEnabled.value = true;
     const { resolveEditRoute } = await import("../editRoute");
 

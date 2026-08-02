@@ -12,8 +12,9 @@ const Editor = lazy(() => import("./Editor"));
 const DocEditor = lazy(() => import("./DocEditor"));
 
 /**
- * The document sheet when the `doc-editor` flag is on, the form editor
- * otherwise. Resolved once at startup, from the URL the app was opened with.
+ * The document sheet by default, the form editor only while the temporary
+ * `?ff=form-builder` override is active (removed by #735). Resolved once at
+ * startup, from the URL the app was opened with.
  */
 export function resolveEditRoute(): Component {
   return isDocEditorEnabled() ? DocEditor : Editor;
