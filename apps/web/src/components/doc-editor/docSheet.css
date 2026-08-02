@@ -139,11 +139,11 @@
   text-align: right;
   gap: 0.25em;
   margin-left: auto;
-  flex-shrink: 0;
-  /* Contact lines are short (email, phone, location); keeping each on one
-     line is what makes the stacked right-aligned column read as onyx draws
-     it. */
-  white-space: nowrap;
+  /* Shrinkable, not nowrap: typical entries stay on one line because the
+     column sizes to its widest entry, while a genuinely long URL or custom
+     field wraps (via the editable's overflow-wrap) instead of being clipped
+     by the page frame. */
+  min-width: 0;
 }
 
 .doc-sheet__header--center {

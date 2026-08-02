@@ -35,6 +35,7 @@ import { useResumeRouteLoad } from "../hooks/useResumeRouteLoad";
 import { fetchTemplateLayouts } from "../api/render";
 import { FALLBACK_TEMPLATE_LAYOUT, type TemplateLayout } from "../lib/docLayout";
 import { migrateResumeContentToMarkdown, needsContentMigration } from "../lib/htmlToMarkdown";
+import { isHtmlEmpty } from "../lib/resumeSections";
 import { isResumeEmpty, resumeStore } from "../stores/resume";
 import { uiStore } from "../stores/ui";
 import { undoHistoryStore } from "../stores/undoHistory";
@@ -80,7 +81,10 @@ function isBlankResume(resume: ResumeData): boolean {
     basics.location.trim() === "" &&
     (basics.url?.href ?? "").trim() === "" &&
     basics.customFields.every((field) => field.value.trim() === "") &&
-    (resume.sections.coverLetter?.content ?? "").trim() === ""
+    // Visibility-independent: `isResumeEmpty` only checks a *visible*
+    // summary, but hidden content is still content.
+    isHtmlEmpty(resume.sections.summary?.content ?? "") &&
+    isHtmlEmpty(resume.sections.coverLetter?.content ?? "")
   );
 }
 

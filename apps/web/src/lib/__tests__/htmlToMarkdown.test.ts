@@ -48,6 +48,15 @@ describe("htmlToMarkdown", () => {
     );
   });
 
+  it("percent-encodes characters in an href that would end the link early", () => {
+    expect(htmlToMarkdown('<p><a href="https://en.example/x_(y)">wiki</a></p>')).toBe(
+      "[wiki](https://en.example/x_%28y%29)",
+    );
+    expect(htmlToMarkdown('<p><a href="https://example.com/a b">docs</a></p>')).toBe(
+      "[docs](https://example.com/a%20b)",
+    );
+  });
+
   it("keeps an anchor with no href as plain text", () => {
     expect(htmlToMarkdown("<p>See <a>the docs</a>.</p>")).toBe("See the docs.");
   });
@@ -104,6 +113,13 @@ describe("htmlToMarkdown", () => {
     expect(htmlToMarkdown("Shipped **things** with - dashes")).toBe(
       "Shipped **things** with - dashes",
     );
+  });
+
+  it("passes plain text with literal angle brackets through untouched", () => {
+    // Imported plain-text content (JSON Resume, LinkedIn) never went through
+    // TipTap; stray comparisons or pseudo-tags are prose, not markup.
+    expect(htmlToMarkdown("Kept latency x < y under load")).toBe("Kept latency x < y under load");
+    expect(htmlToMarkdown("Worked on <redacted> systems")).toBe("Worked on <redacted> systems");
   });
 
   it("converts a realistic TipTap summary", () => {

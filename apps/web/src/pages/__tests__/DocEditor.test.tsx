@@ -4,7 +4,7 @@ import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-lib
 import { MemoryRouter, Route, createMemoryHistory } from "@solidjs/router";
 import { Suspense, type Component } from "solid-js";
 import { axeConfig } from "../../test/a11y";
-import { loadDocEditorFixture, SIDEBAR_TEMPLATE } from "../../test/docEditorFixture";
+import { enterEditMode, loadDocEditorFixture, SIDEBAR_TEMPLATE } from "../../test/docEditorFixture";
 import { resumeStore } from "../../stores/resume";
 import DocEditor from "../DocEditor";
 
@@ -111,12 +111,11 @@ describe("DocEditor sheet", () => {
    * `mode: "edit"` flips the top-bar toggle afterwards, the way a user would.
    */
   async function renderSheet(options: { mode: "edit" | "done" } = { mode: "edit" }) {
-    const result = renderAt(DocEditor);
-    await waitFor(() => expect(screen.getByTestId("doc-sheet")).toBeInTheDocument());
-    await waitFor(() => expect(sheetMode()).toBe("done"));
+    const result = await renderEditor();
     if (options.mode === "edit") {
-      fireEvent.click(screen.getByTestId("doc-editor-mode-toggle"));
-      await waitFor(() => expect(sheetMode()).toBe("edit"));
+      await enterEditMode();
+    } else {
+      await waitFor(() => expect(sheetMode()).toBe("done"));
     }
     return result;
   }

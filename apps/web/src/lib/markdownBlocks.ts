@@ -90,7 +90,13 @@ export function parseMarkdownInlines(line: string): MarkdownInline[] {
     const link = /^\[([^\]]+)\]\(([^)\s]+)\)/.exec(rest);
     if (link) {
       flush();
-      inlines.push({ type: "link", text: link[1], href: link[2] });
+      // A label may carry emphasis markers (`[**text**](url)` from the
+      // migration); the accent styling a link carries outranks emphasis on
+      // the sheet, so the label is flattened to its plain text.
+      const label = parseMarkdownInlines(link[1])
+        .map((run) => run.text)
+        .join("");
+      inlines.push({ type: "link", text: label, href: link[2] });
       index += link[0].length;
       continue;
     }

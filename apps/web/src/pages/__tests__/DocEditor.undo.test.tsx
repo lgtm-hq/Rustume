@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-library";
 import { MemoryRouter, Route, createMemoryHistory } from "@solidjs/router";
 import { Suspense, type Component } from "solid-js";
-import { loadDocEditorFixture, SIDEBAR_TEMPLATE } from "../../test/docEditorFixture";
+import { enterEditMode, loadDocEditorFixture, SIDEBAR_TEMPLATE } from "../../test/docEditorFixture";
 import DocEditor from "../DocEditor";
 
 const { docEditorEnabled, fixture, resumeId } = vi.hoisted(() => ({
@@ -128,13 +128,7 @@ describe("DocEditor undo, autosave, and version history", () => {
     await waitFor(() => expect(screen.getByTestId("doc-sheet")).toBeInTheDocument());
     // The corpus resume opens as the rendered document (#785); every test
     // here edits in place, so flip the top-bar toggle into Edit mode first.
-    await waitFor(() =>
-      expect(screen.getByTestId("doc-sheet")).toHaveAttribute("data-sheet-mode", "done"),
-    );
-    fireEvent.click(screen.getByTestId("doc-editor-mode-toggle"));
-    await waitFor(() =>
-      expect(screen.getByTestId("doc-sheet")).toHaveAttribute("data-sheet-mode", "edit"),
-    );
+    await enterEditMode();
     vi.useFakeTimers();
     return result;
   }

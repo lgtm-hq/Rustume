@@ -669,7 +669,11 @@ export function DocSection(props: DocSectionProps): JSX.Element {
     if (props.sectionId === "coverLetter") return props.resume.sections.coverLetter?.content ?? "";
     return "";
   };
-  const entries = () => itemEntries(props.resume, props.sectionId);
+  // Done mode mirrors the PDF: hidden items are dropped, not dimmed —
+  // `renderPages` already drops hidden *sections*, this is the item-level
+  // half of the same rule.
+  const entries = () =>
+    itemEntries(props.resume, props.sectionId).filter((entry) => isEditable() || !entry.hidden);
   const noun = () => itemNoun(title());
   const isCustom = () => isCustomId(props.sectionId);
 

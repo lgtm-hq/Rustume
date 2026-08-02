@@ -13,6 +13,8 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { expect } from "vitest";
+import { fireEvent, screen, waitFor } from "@solidjs/testing-library";
 import { CUSTOM_SECTION_SENTINEL, type TemplateLayout } from "../lib/docLayout";
 import { createEmptyPicture } from "../wasm/types";
 import type { CustomItem, ResumeData, Section, Theme, Typography, Url } from "../wasm/types";
@@ -163,6 +165,20 @@ export function loadDocEditorFixture(): ResumeData {
       contentFormat: "markdown",
     },
   };
+}
+
+/**
+ * Flip a mounted `DocEditor` into Edit mode via the top-bar toggle.
+ *
+ * The corpus resume is not empty, so the surface settles in Done mode first
+ * (#785); tests that edit in place share this sequence instead of each
+ * re-implementing the wait-toggle-wait dance.
+ */
+export async function enterEditMode(): Promise<void> {
+  const mode = () => screen.getByTestId("doc-sheet").getAttribute("data-sheet-mode");
+  await waitFor(() => expect(mode()).toBe("done"));
+  fireEvent.click(screen.getByTestId("doc-editor-mode-toggle"));
+  await waitFor(() => expect(mode()).toBe("edit"));
 }
 
 /** Mirrors `rhyhorn`: one column holding every section. */

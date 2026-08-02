@@ -55,6 +55,14 @@ describe("parseMarkdownInlines", () => {
     ]);
   });
 
+  it("flattens emphasis markers inside a link label", () => {
+    // The link accent outranks emphasis on the sheet; the markers must not
+    // survive as literal punctuation.
+    expect(parseMarkdownInlines("[**bold label**](https://example.com)")).toEqual([
+      { type: "link", text: "bold label", href: "https://example.com" },
+    ]);
+  });
+
   it("keeps an unterminated marker literal", () => {
     expect(parseMarkdownInlines("2 * 3 = 6")).toEqual([text("2 * 3 = 6")]);
   });

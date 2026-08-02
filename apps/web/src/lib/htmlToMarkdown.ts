@@ -49,7 +49,14 @@ function inlineText(node: Node): string {
   if (EM_TAGS.has(tag)) return wrapTight(inner, "*");
   if (tag === "A") {
     const href = element.getAttribute("href") ?? "";
-    return href === "" ? inner : `[${inner.trim()}](${href})`;
+    if (href === "") return inner;
+    // A `)` or a space inside the href would end the markdown link early.
+    // Percent-encoded by hand: `encodeURIComponent` leaves parentheses as-is.
+    const safeHref = href.replace(
+      /[()\s]/g,
+      (char) => `%${char.charCodeAt(0).toString(16).toUpperCase().padStart(2, "0")}`,
+    );
+    return `[${inner.trim()}](${safeHref})`;
   }
   // `u`, `span`, `code`, anything else TipTap or a paste sneaked in: keep the
   // text, drop the tag.
@@ -95,15 +102,23 @@ function listToMarkdown(list: Element, depth: number): string {
 }
 
 /**
+ * Tags TipTap (or a paste into it) actually serializes. A value containing
+ * none of these is plain text, whatever stray angle brackets it carries.
+ */
+const HTML_TAG_PATTERN = /<\s*\/?\s*(p|br|ul|ol|li|strong|b|em|i|u|a|span|div|h[1-6])\b/i;
+
+/**
  * Convert one TipTap HTML value to markdown.
  *
- * A value with no markup at all passes through untouched (modulo trimming) —
- * plain text is already valid markdown, and this keeps the conversion
- * idempotent for fields that were never rich.
+ * A value that carries no recognizable markup passes through untouched
+ * (modulo trimming) — plain text is already valid markdown, and this keeps
+ * the conversion idempotent for fields that were never rich, including
+ * imported plain text that happens to contain literal `<` or `>` (a JSON
+ * Resume summary saying `x < y`, say), which a DOM parse would mangle.
  */
 export function htmlToMarkdown(html: string): string {
   if (html.trim() === "") return "";
-  if (!/[<>]/.test(html)) return html.trim();
+  if (!HTML_TAG_PATTERN.test(html)) return html.trim();
 
   const document = new DOMParser().parseFromString(html, "text/html");
   const blocks: string[] = [];
