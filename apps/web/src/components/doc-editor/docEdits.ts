@@ -12,7 +12,7 @@
  * once, on save, rather than per keystroke.
  */
 
-import { isCustomId } from "../../lib/docLayout";
+import { isCustomId, layoutForTemplate, type TemplateLayout } from "../../lib/docLayout";
 import { resumeStore, type LayoutSectionKey, type SectionKey } from "../../stores/resume";
 import type { Basics, CustomItem, Picture } from "../../wasm/types";
 
@@ -156,4 +156,22 @@ export function moveItemAcrossSections(
 /** Replace `metadata.layout` wholesale — one drop, one layout write. */
 export function applyLayout(layout: string[][][]): void {
   resumeStore.updateLayout(layout);
+}
+
+/**
+ * Switch the resume to `templateId` — one store action, one undo entry.
+ *
+ * The fresh `metadata.layout` is derived from the new template's default
+ * columns by `layoutForTemplate`, which re-places custom sections (and fixed
+ * sections the defaults do not mention) rather than dropping them.
+ */
+export function applyTemplate(templateId: string, templateLayout: TemplateLayout): void {
+  const resume = resumeStore.store.resume;
+  if (!resume) return;
+  resumeStore.applyTemplate(templateId, layoutForTemplate(resume, templateLayout));
+}
+
+/** Replace the private notes scratch text. Plain text; never rendered to PDF. */
+export function updateNotes(notes: string): void {
+  resumeStore.updateMetadata("notes", notes);
 }

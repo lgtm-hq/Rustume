@@ -1,5 +1,8 @@
 // TypeScript types matching the Rust ResumeData schema
 
+// Type-only: erased at runtime, so no module cycle with `lib/docLayout`.
+import type { TemplateLayout } from "../lib/docLayout";
+
 export interface Url {
   label: string;
   href: string;
@@ -312,6 +315,12 @@ export interface TemplateInfo {
   id: string;
   name: string;
   theme: Theme;
+  /**
+   * Structural layout metadata from the registry (`GET /api/templates`).
+   * Absent when the server predates the field — callers fall back to
+   * `FALLBACK_TEMPLATE_LAYOUT`.
+   */
+  layout?: TemplateLayout;
 }
 
 export interface ValidationResult {

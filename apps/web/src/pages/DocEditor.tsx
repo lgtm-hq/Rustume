@@ -20,7 +20,7 @@ import {
 } from "solid-js";
 import { useNavigate, useParams } from "@solidjs/router";
 import { Button, Spinner, toast } from "../components/ui";
-import { DocSheet } from "../components/doc-editor";
+import { DocSheet, SectionsPanel, TemplatesDrawer } from "../components/doc-editor";
 import { SplitPane } from "../components/layout/SplitPane";
 import { CustomCssInjector } from "../components/templates/CustomCssInjector";
 import { useHotkeys, type Shortcut } from "../hooks/useHotkeys";
@@ -28,7 +28,7 @@ import { usePageTitle } from "../hooks/usePageTitle";
 import { useNavigationGuard } from "../hooks/useNavigationGuard";
 import { useResumeRouteLoad } from "../hooks/useResumeRouteLoad";
 import { fetchTemplateLayouts } from "../api/render";
-import { CUSTOM_SECTION_SENTINEL, FIXED_SECTION_IDS, type TemplateLayout } from "../lib/docLayout";
+import { FALLBACK_TEMPLATE_LAYOUT, type TemplateLayout } from "../lib/docLayout";
 import { resumeStore } from "../stores/resume";
 import { uiStore } from "../stores/ui";
 import { undoHistoryStore } from "../stores/undoHistory";
@@ -42,21 +42,6 @@ const VersionHistory = lazy(() =>
 const Preview = lazy(() =>
   import("../components/preview").then((module) => ({ default: module.Preview })),
 );
-
-/**
- * Layout used when the template's own metadata cannot be fetched.
- *
- * A single column holding every section in canonical order — the same shape a
- * single-column template declares — so the sheet still draws a faithful,
- * complete document when `GET /api/templates` is unavailable.
- */
-export const FALLBACK_TEMPLATE_LAYOUT: TemplateLayout = {
-  layoutMode: "single",
-  defaultColumns: [[...FIXED_SECTION_IDS, CUSTOM_SECTION_SENTINEL], []],
-  headerStyle: "left",
-  contactIn: "header",
-  sidebarWidth: null,
-};
 
 export default function DocEditor() {
   const params = useParams<{ id: string }>();
@@ -191,6 +176,18 @@ export default function DocEditor() {
         decision made elsewhere.
       */}
       <div class="h-12 flex items-center justify-between gap-4 border-b border-border bg-paper px-4">
+        {/* Panel chrome around the sheet: the drawers overlay the surface and
+            never disturb the page frames or their drop zones. */}
+        <div class="flex items-center gap-2">
+          <Show when={store.resume}>
+            {(resume) => (
+              <>
+                <TemplatesDrawer resume={resume()} />
+                <SectionsPanel resume={resume()} />
+              </>
+            )}
+          </Show>
+        </div>
         <p class="font-mono text-xs text-stone" data-testid="doc-editor-page-count">
           {/* No count until a sheet exists — otherwise this reads "0 pages"
               while loading and behind the load-error screen. Also hidden while

@@ -115,6 +115,22 @@ export interface TemplateLayout {
   sidebarWidth: number | null;
 }
 
+/**
+ * Layout used when a template's own metadata cannot be fetched.
+ *
+ * A single column holding every section in canonical order — the same shape a
+ * single-column template declares — so the sheet still draws a faithful,
+ * complete document when `GET /api/templates` is unavailable, or when a
+ * template served by an older self-hosted server carries no layout block.
+ */
+export const FALLBACK_TEMPLATE_LAYOUT: TemplateLayout = {
+  layoutMode: "single",
+  defaultColumns: [[...FIXED_SECTION_IDS, CUSTOM_SECTION_SENTINEL], []],
+  headerStyle: "left",
+  contactIn: "header",
+  sidebarWidth: null,
+};
+
 /** Where a section sits inside a `metadata.layout` array. */
 export interface SectionPlacement {
   /** Index of the page. */
