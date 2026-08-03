@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-library";
 import { MemoryRouter, Route, createMemoryHistory } from "@solidjs/router";
@@ -360,6 +360,12 @@ describe("Edit/Done toggle", () => {
     resumeId.value = `doc-editor-mode-${++renderCount}`;
   });
 
+  // uiStore is a module-level singleton: a modal left open by a failed
+  // assertion would leak into every later test in the file.
+  afterEach(() => {
+    uiStore.closeModal();
+  });
+
   it("opens an existing resume as the clean rendered document", async () => {
     await renderEditor();
 
@@ -373,7 +379,6 @@ describe("Edit/Done toggle", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /import/i }));
     await waitFor(() => expect(screen.getByTestId("import-modal-stub")).toBeInTheDocument());
-    uiStore.closeModal();
   });
 
   it("opens the export modal from the top bar", async () => {
@@ -381,7 +386,6 @@ describe("Edit/Done toggle", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /export/i }));
     await waitFor(() => expect(screen.getByTestId("export-modal-stub")).toBeInTheDocument());
-    uiStore.closeModal();
   });
 
   it("keeps the blank fixture in lockstep with the blank-resume detector", () => {
