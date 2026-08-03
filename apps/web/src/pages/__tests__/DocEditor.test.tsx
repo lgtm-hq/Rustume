@@ -11,7 +11,7 @@ import {
   SIDEBAR_TEMPLATE,
 } from "../../test/docEditorFixture";
 import { resumeStore } from "../../stores/resume";
-import DocEditor from "../DocEditor";
+import DocEditor, { isBlankResume } from "../DocEditor";
 
 const { docEditorEnabled, fixture, resumeId } = vi.hoisted(() => ({
   docEditorEnabled: { value: false },
@@ -355,6 +355,13 @@ describe("Edit/Done toggle", () => {
     await waitFor(() => expect(sheetMode()).toBe("done"));
     // The toggle offers the way in: its label is the action it performs.
     expect(screen.getByTestId("doc-editor-mode-toggle")).toHaveTextContent("Edit");
+  });
+
+  it("keeps the blank fixture in lockstep with the blank-resume detector", () => {
+    // If either side drifts, this fails with a clear message instead of a
+    // confusing mode assertion in the test below.
+    expect(isBlankResume(loadBlankDocEditorFixture())).toBe(true);
+    expect(isBlankResume(loadDocEditorFixture())).toBe(false);
   });
 
   it("opens a brand-new empty resume ready to type", async () => {

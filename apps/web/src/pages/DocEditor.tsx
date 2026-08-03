@@ -64,7 +64,7 @@ const ExportModal = lazy(() =>
  * custom contact fields, a cover letter, or items in *hidden* sections — so
  * those are checked here on top: only a truly blank resume opens in Edit.
  */
-function isBlankResume(resume: ResumeData): boolean {
+export function isBlankResume(resume: ResumeData): boolean {
   const basics = resume.basics;
   const sections = Object.values(resume.sections) as unknown[];
   const hasItems = sections.some(

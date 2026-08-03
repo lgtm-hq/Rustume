@@ -171,7 +171,14 @@ export function loadDocEditorFixture(): ResumeData {
  * The corpus resume with every field a blank document lacks emptied out:
  * basics, summary content, every fixed section's items, custom sections, and
  * the layout. Mirrors what `isBlankResume` checks so mode-selection tests
- * stay aligned with the detector.
+ * stay aligned with the detector — a lockstep test in `DocEditor.test.tsx`
+ * feeds this fixture into `isBlankResume` so drift fails loudly.
+ *
+ * Deliberately keeps the corpus's `contentFormat: "markdown"` stamp: the
+ * blank fixture isolates mode selection from the legacy migration (#786),
+ * which has its own dedicated tests. A production `createEmptyResume` lacks
+ * the stamp, and the migration effect running over an empty resume is a
+ * benign no-op conversion.
  */
 export function loadBlankDocEditorFixture(): ResumeData {
   const empty = loadDocEditorFixture();
