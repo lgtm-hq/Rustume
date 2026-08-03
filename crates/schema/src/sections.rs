@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use utoipa::ToSchema;
 use validator::Validate;
 
-use crate::shared::Url;
+use crate::shared::{CustomField, Url};
 
 /// All resume sections.
 #[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
@@ -350,6 +350,15 @@ pub struct Experience {
     #[validate(nested)]
     #[serde(default)]
     pub url: Url,
+    /// Tag chips rendered under the entry. Omitted when empty so resumes
+    /// written before the field existed serialize unchanged.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub keywords: Vec<String>,
+    /// Free-form label/value rows rendered under the entry (the document
+    /// editor's "custom fields"). Omitted when empty.
+    #[validate(nested)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub custom_fields: Vec<CustomField>,
 }
 
 impl Default for Experience {
@@ -363,6 +372,8 @@ impl Default for Experience {
             date: String::new(),
             summary: String::new(),
             url: Url::default(),
+            keywords: Vec::new(),
+            custom_fields: Vec::new(),
         }
     }
 }
@@ -402,6 +413,18 @@ impl Experience {
         self.url = Url::new(url);
         self
     }
+
+    /// Builder method to set keywords.
+    pub fn with_keywords(mut self, keywords: Vec<String>) -> Self {
+        self.keywords = keywords;
+        self
+    }
+
+    /// Builder method to set custom fields.
+    pub fn with_custom_fields(mut self, custom_fields: Vec<CustomField>) -> Self {
+        self.custom_fields = custom_fields;
+        self
+    }
 }
 
 /// Education item.
@@ -425,6 +448,15 @@ pub struct Education {
     #[validate(nested)]
     #[serde(default)]
     pub url: Url,
+    /// Tag chips rendered under the entry. Omitted when empty so resumes
+    /// written before the field existed serialize unchanged.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub keywords: Vec<String>,
+    /// Free-form label/value rows rendered under the entry (the document
+    /// editor's "custom fields"). Omitted when empty.
+    #[validate(nested)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub custom_fields: Vec<CustomField>,
 }
 
 impl Default for Education {
@@ -439,6 +471,8 @@ impl Default for Education {
             score: String::new(),
             summary: String::new(),
             url: Url::default(),
+            keywords: Vec::new(),
+            custom_fields: Vec::new(),
         }
     }
 }
@@ -478,6 +512,18 @@ impl Education {
         self.summary = summary.into();
         self
     }
+
+    /// Builder method to set keywords.
+    pub fn with_keywords(mut self, keywords: Vec<String>) -> Self {
+        self.keywords = keywords;
+        self
+    }
+
+    /// Builder method to set custom fields.
+    pub fn with_custom_fields(mut self, custom_fields: Vec<CustomField>) -> Self {
+        self.custom_fields = custom_fields;
+        self
+    }
 }
 
 /// Skill item.
@@ -496,6 +542,11 @@ pub struct Skill {
     pub level: u8,
     #[serde(default)]
     pub keywords: Vec<String>,
+    /// Free-form label/value rows rendered under the entry (the document
+    /// editor's "custom fields"). Omitted when empty.
+    #[validate(nested)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub custom_fields: Vec<CustomField>,
 }
 
 impl Default for Skill {
@@ -507,6 +558,7 @@ impl Default for Skill {
             description: String::new(),
             level: 1,
             keywords: Vec::new(),
+            custom_fields: Vec::new(),
         }
     }
 }
@@ -539,6 +591,12 @@ impl Skill {
         self.description = description.into();
         self
     }
+
+    /// Builder method to set custom fields.
+    pub fn with_custom_fields(mut self, custom_fields: Vec<CustomField>) -> Self {
+        self.custom_fields = custom_fields;
+        self
+    }
 }
 
 /// Project item.
@@ -560,6 +618,11 @@ pub struct Project {
     #[validate(nested)]
     #[serde(default)]
     pub url: Url,
+    /// Free-form label/value rows rendered under the entry (the document
+    /// editor's "custom fields"). Omitted when empty.
+    #[validate(nested)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub custom_fields: Vec<CustomField>,
 }
 
 impl Default for Project {
@@ -573,6 +636,7 @@ impl Default for Project {
             summary: String::new(),
             keywords: Vec::new(),
             url: Url::default(),
+            custom_fields: Vec::new(),
         }
     }
 }
@@ -615,6 +679,12 @@ impl Project {
     /// Builder method to set keywords.
     pub fn with_keywords(mut self, keywords: Vec<String>) -> Self {
         self.keywords = keywords;
+        self
+    }
+
+    /// Builder method to set custom fields.
+    pub fn with_custom_fields(mut self, custom_fields: Vec<CustomField>) -> Self {
+        self.custom_fields = custom_fields;
         self
     }
 }
@@ -1244,6 +1314,77 @@ mod tests {
         assert_eq!(exp.location, "San Francisco");
         assert!(!exp.id.is_empty());
         assert!(exp.validate().is_ok());
+    }
+
+    #[test]
+    fn test_experience_parses_without_keywords_and_custom_fields() {
+        // Resumes written before these fields existed must parse unchanged.
+        let json = r#"{"id":"x1","company":"Acme","position":"Dev"}"#;
+        let exp: Experience = serde_json::from_str(json).unwrap();
+        assert!(exp.keywords.is_empty());
+        assert!(exp.custom_fields.is_empty());
+        assert!(exp.validate().is_ok());
+    }
+
+    #[test]
+    fn test_experience_omits_empty_keywords_and_custom_fields() {
+        let exp = Experience::new("Acme", "Dev");
+        let json = serde_json::to_value(&exp).unwrap();
+        assert!(json.get("keywords").is_none());
+        assert!(json.get("customFields").is_none());
+    }
+
+    #[test]
+    fn test_experience_round_trips_keywords_and_custom_fields() {
+        let exp = Experience::new("Acme", "Dev")
+            .with_keywords(vec!["Rust".to_string(), "Typst".to_string()])
+            .with_custom_fields(vec![CustomField::new("Stack", "Axum + SolidJS")]);
+
+        let json = serde_json::to_string(&exp).unwrap();
+        let parsed: Experience = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.keywords, vec!["Rust", "Typst"]);
+        assert_eq!(parsed.custom_fields.len(), 1);
+        assert_eq!(parsed.custom_fields[0].name, "Stack");
+        assert_eq!(parsed.custom_fields[0].value, "Axum + SolidJS");
+        assert!(json.contains("\"customFields\""));
+        assert!(parsed.validate().is_ok());
+    }
+
+    #[test]
+    fn test_education_round_trips_keywords_and_custom_fields() {
+        let edu = Education::new("MIT", "CS")
+            .with_keywords(vec!["Thesis".to_string()])
+            .with_custom_fields(vec![CustomField::new("GPA scale", "4.0")]);
+
+        let json = serde_json::to_string(&edu).unwrap();
+        let parsed: Education = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.keywords, vec!["Thesis"]);
+        assert_eq!(parsed.custom_fields[0].name, "GPA scale");
+
+        // Absent fields still parse (pre-existing resumes).
+        let legacy: Education = serde_json::from_str(r#"{"id":"e1","institution":"MIT"}"#).unwrap();
+        assert!(legacy.keywords.is_empty());
+        assert!(legacy.custom_fields.is_empty());
+    }
+
+    #[test]
+    fn test_project_and_skill_round_trip_custom_fields() {
+        let project =
+            Project::new("Rustume").with_custom_fields(vec![CustomField::new("Role", "Author")]);
+        let json = serde_json::to_string(&project).unwrap();
+        let parsed: Project = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.custom_fields[0].name, "Role");
+
+        let skill = Skill::new("Rust").with_custom_fields(vec![CustomField::new("Years", "6")]);
+        let json = serde_json::to_string(&skill).unwrap();
+        let parsed: Skill = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.custom_fields[0].value, "6");
+
+        // Empty custom fields stay off the wire for both types.
+        let json = serde_json::to_value(Project::new("Rustume")).unwrap();
+        assert!(json.get("customFields").is_none());
+        let json = serde_json::to_value(Skill::new("Rust")).unwrap();
+        assert!(json.get("customFields").is_none());
     }
 
     #[test]

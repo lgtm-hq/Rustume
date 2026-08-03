@@ -413,6 +413,49 @@
   }
 }
 
+/// Render an item's keywords as soft tag chips (doc-editor spec §4.3).
+/// Used for experience/education entries, whose keywords are new fields no
+/// template renders natively. Colors are intentionally neutral so the chips
+/// read as secondary metadata in every template's palette.
+#let render-item-tag-chips(item, size: 7pt, ink: rgb("#57534e")) = {
+  if not has-keywords(item) { return }
+  v(3pt)
+  // No outer box: a box is an unbreakable inline atom, so a long keyword list
+  // would overflow the column instead of wrapping onto the next line. Each
+  // chip stays boxed (it must not split mid-word); the gaps between them are
+  // ordinary spacing, which is where a line break is allowed to happen.
+  for (i, keyword) in item.keywords.enumerate() {
+    if i > 0 { h(3pt) }
+    box(
+      fill: ink.lighten(88%),
+      stroke: 0.4pt + ink.lighten(60%),
+      radius: 999pt,
+      inset: (x: 5pt, y: 2.5pt),
+      text(size: size, fill: ink)[#keyword],
+    )
+  }
+}
+
+/// Render an item's custom fields as uppercase label + value rows
+/// (doc-editor spec §4.3). Rows with neither label nor value are skipped.
+#let render-item-custom-fields(item, size: 7.5pt, muted: rgb("#78716c")) = {
+  let fields = item.at("customFields", default: ())
+  if fields == none or fields.len() == 0 { return }
+  for field in fields {
+    let label = field.at("name", default: "")
+    let value = field.at("value", default: "")
+    if label == "" and value == "" { continue }
+    v(2pt)
+    block[
+      #if label != "" {
+        text(size: size - 0.5pt, fill: muted, tracking: 0.6pt)[#upper(label)]
+        h(4pt)
+      }
+      #text(size: size)[#value]
+    ]
+  }
+}
+
 /// Build a filtered array of non-empty contact text items from basics.
 /// Returns an array of (email, phone, location) strings, excluding empties.
 /// URL is intentionally omitted — templates style it differently.
@@ -686,27 +729,86 @@
   }
 }
 
-/// Render item sections while keeping headings with the first item.
-#let render-item-section(section, heading, render-item) = {
-  if section.visible {
-    let has-items = false
-    let is-first = true
+/// Main-flow section keys allowed to carry mid-section page breaks
+/// (doc-editor spec §3.4). Break markers on any other section are ignored.
+#let item-break-sections = (
+  "experience",
+  "education",
+  "projects",
+  "volunteer",
+  "awards",
+  "certifications",
+  "publications",
+  "references",
+)
 
-    for item in section.items {
-      has-items = true
+/// Item ids that start a new page for a section (metadata.itemBreaks).
+#let item-breaks-for(data, key) = {
+  data.metadata.at("itemBreaks", default: (:)).at(key, default: ())
+}
+
+/// Split a section's items into page slices: a new slice starts at every item
+/// whose id is a break marker. Never yields empty slices — a marker on the
+/// first item is a no-op, matching the editor's rendering pipeline where an
+/// empty leading slice is stripped.
+#let split-items-by-breaks(items, breaks) = {
+  let slices = ()
+  let current = ()
+  for item in items {
+    if current.len() > 0 and item.at("id", default: "") in breaks {
+      slices.push(current)
+      current = ()
+    }
+    current.push(item)
+  }
+  if current.len() > 0 {
+    slices.push(current)
+  }
+  slices
+}
+
+/// Render item sections while keeping headings with the first item.
+///
+/// - `extras`: optional per-item trailer (keyword chips, custom-field rows)
+///   rendered inside the item's unbreakable block.
+/// - `breaks`: item ids that start a new page (metadata.itemBreaks). Each
+///   continuation slice starts after a weak pagebreak and re-renders the
+///   heading as "<Name> (cont.)". Typst forbids pagebreaks inside layout
+///   containers, so grid-based layouts (sidebar/two-column) must not pass
+///   breaks — see render-resume.
+#let render-item-section(section, heading, render-item, extras: none, breaks: ()) = {
+  if not section.visible { return }
+
+  if section.items.len() == 0 {
+    block(breakable: false)[
+      #heading(section.name)
+    ]
+    return
+  }
+
+  let slices = if breaks.len() > 0 {
+    split-items-by-breaks(section.items, breaks)
+  } else {
+    (section.items,)
+  }
+
+  for (slice-index, slice) in slices.enumerate() {
+    if slice-index > 0 {
+      pagebreak(weak: true)
+    }
+    let title = if slice-index == 0 { section.name } else { section.name + " (cont.)" }
+    let is-first = true
+    for item in slice {
       block(breakable: false)[
         #if is-first {
-          heading(section.name)
+          heading(title)
         }
         #render-item(item)
+        #if extras != none {
+          extras(item)
+        }
       ]
       is-first = false
-    }
-
-    if not has-items {
-      block(breakable: false)[
-        #heading(section.name)
-      ]
     }
   }
 }
@@ -721,34 +823,88 @@
   }
 }
 
+/// Per-item trailer for a section key: keyword chips for experience and
+/// education (new fields no template renders natively) plus custom-field rows
+/// for experience, education, projects, and skills (doc-editor spec §4.3).
+#let section-item-extras(key) = {
+  if key == "experience" or key == "education" {
+    item => {
+      render-item-tag-chips(item)
+      render-item-custom-fields(item)
+    }
+  } else if key == "projects" or key == "skills" {
+    item => render-item-custom-fields(item)
+  } else {
+    none
+  }
+}
+
 /// Render a semantic section key using template-provided presentation renderers.
-#let render-section(data, key, heading, renderers) = {
+/// `allow-item-breaks` gates metadata.itemBreaks pagination: only true when
+/// the section renders at page level (single-column layouts), since Typst
+/// forbids pagebreaks inside grid containers.
+#let render-section(data, key, heading, renderers, allow-item-breaks: false) = {
+  let breaks = if allow-item-breaks and key in item-break-sections {
+    item-breaks-for(data, key)
+  } else {
+    ()
+  }
+  let extras = section-item-extras(key)
+
   if key == "summary" {
     render-rich-text-section(data.sections.summary, heading)
   } else if key == "profiles" {
     render-item-section(data.sections.profiles, heading, renderers.profiles)
   } else if key == "experience" {
-    render-item-section(data.sections.experience, heading, renderers.experience)
+    render-item-section(
+      data.sections.experience,
+      heading,
+      renderers.experience,
+      extras: extras,
+      breaks: breaks,
+    )
   } else if key == "education" {
-    render-item-section(data.sections.education, heading, renderers.education)
+    render-item-section(
+      data.sections.education,
+      heading,
+      renderers.education,
+      extras: extras,
+      breaks: breaks,
+    )
   } else if key == "awards" {
-    render-item-section(data.sections.awards, heading, renderers.awards)
+    render-item-section(data.sections.awards, heading, renderers.awards, breaks: breaks)
   } else if key == "certifications" {
-    render-item-section(data.sections.certifications, heading, renderers.certifications)
+    render-item-section(
+      data.sections.certifications,
+      heading,
+      renderers.certifications,
+      breaks: breaks,
+    )
   } else if key == "skills" {
-    render-item-section(data.sections.skills, heading, renderers.skills)
+    render-item-section(data.sections.skills, heading, renderers.skills, extras: extras)
   } else if key == "interests" {
     render-item-section(data.sections.interests, heading, renderers.interests)
   } else if key == "publications" {
-    render-item-section(data.sections.publications, heading, renderers.publications)
+    render-item-section(
+      data.sections.publications,
+      heading,
+      renderers.publications,
+      breaks: breaks,
+    )
   } else if key == "volunteer" {
-    render-item-section(data.sections.volunteer, heading, renderers.volunteer)
+    render-item-section(data.sections.volunteer, heading, renderers.volunteer, breaks: breaks)
   } else if key == "languages" {
     render-item-section(data.sections.languages, heading, renderers.languages)
   } else if key == "projects" {
-    render-item-section(data.sections.projects, heading, renderers.projects)
+    render-item-section(
+      data.sections.projects,
+      heading,
+      renderers.projects,
+      extras: extras,
+      breaks: breaks,
+    )
   } else if key == "references" {
-    render-item-section(data.sections.references, heading, renderers.references)
+    render-item-section(data.sections.references, heading, renderers.references, breaks: breaks)
   } else if key == "coverLetter" {
     // Rendered as a dedicated page via render-cover-letter-page before the
     // resume body (pagebreaks are not allowed inside layout containers), so
@@ -768,9 +924,9 @@
 }
 
 /// Render a configured sequence of semantic section keys.
-#let render-sections(data, keys, heading, renderers) = {
+#let render-sections(data, keys, heading, renderers, allow-item-breaks: false) = {
   for key in keys {
-    render-section(data, key, heading, renderers)
+    render-section(data, key, heading, renderers, allow-item-breaks: allow-item-breaks)
   }
 }
 
@@ -780,8 +936,10 @@
 }
 
 /// Render all configured layout columns in order for single-column templates.
+/// Single-column content flows at page level, so metadata.itemBreaks
+/// pagination is honored here.
 #let render-all-sections(data, heading, renderers) = {
-  render-sections(data, layout-all-sections(data), heading, renderers)
+  render-sections(data, layout-all-sections(data), heading, renderers, allow-item-breaks: true)
 }
 
 /// Render a resume from shared semantic rules and template-provided presentation.
