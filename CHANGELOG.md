@@ -22,6 +22,19 @@ and this project adheres to
 
 ### Security
 
+## [0.63.0] - 2026-08-03
+
+### Added
+
+- **schema**: add itemBreaks, item keywords/customFields, and render support (#798)
+  (2f1be31)
+
+### Changed
+
+- **deps**: lock file maintenance (#792) (3234688)
+- **deps**: update lintro to 0.104.3 (patch) (#789) (ebb78d2)
+- **web**: single-surface document editor with an Edit/Done toggle (#788) (4ea460f)
+
 ## [0.62.0] - 2026-08-02
 
 ### Added
@@ -926,7 +939,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.62.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.63.0...HEAD
+[0.63.0]: https://github.com/lgtm-hq/Rustume/compare/v0.62.0...v0.63.0
 [0.62.0]: https://github.com/lgtm-hq/Rustume/compare/v0.61.2...v0.62.0
 [0.61.2]: https://github.com/lgtm-hq/Rustume/compare/v0.61.1...v0.61.2
 [0.61.1]: https://github.com/lgtm-hq/Rustume/compare/v0.61.0...v0.61.1
