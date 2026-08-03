@@ -207,6 +207,9 @@ export function loadBlankDocEditorFixture(): ResumeData {
     section.items = [];
   }
   empty.sections.custom = {};
+  if (empty.sections.coverLetter) {
+    empty.sections.coverLetter.content = "";
+  }
   empty.metadata.layout = [];
   return empty;
 }

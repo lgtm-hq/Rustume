@@ -180,7 +180,14 @@ export default function DocEditor() {
     const resume = store.resume;
     if (!resume || isLoading() || loadError() !== null) return;
     if (!needsContentMigration(resume)) return;
-    resumeStore.applyContentMigration(migrateResumeContentToMarkdown(resume));
+    try {
+      resumeStore.applyContentMigration(migrateResumeContentToMarkdown(resume));
+    } catch (error) {
+      // A conversion failure must degrade to showing the legacy content, not
+      // take down the editor; the resume stays unstamped so a fixed build
+      // retries the migration on the next open.
+      console.warn("Legacy content migration failed; keeping original content", error);
+    }
   });
 
   // A different document must not inherit the previous one's counts: drop all

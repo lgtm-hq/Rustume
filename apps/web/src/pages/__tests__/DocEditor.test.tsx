@@ -11,6 +11,7 @@ import {
   SIDEBAR_TEMPLATE,
 } from "../../test/docEditorFixture";
 import { resumeStore } from "../../stores/resume";
+import { uiStore } from "../../stores/ui";
 import DocEditor, { isBlankResume } from "../DocEditor";
 
 const { docEditorEnabled, fixture, resumeId } = vi.hoisted(() => ({
@@ -25,6 +26,16 @@ const { docEditorEnabled, fixture, resumeId } = vi.hoisted(() => ({
 
 vi.mock("../../lib/flags", () => ({
   isDocEditorEnabled: () => docEditorEnabled.value,
+}));
+
+// The real modals pull heavy import/export machinery; the toolbar tests only
+// verify the buttons mount them, so lightweight stubs stand in.
+vi.mock("../../components/import/ImportModal", () => ({
+  ImportModal: () => <div data-testid="import-modal-stub" />,
+}));
+
+vi.mock("../../components/export/ExportModal", () => ({
+  ExportModal: () => <div data-testid="export-modal-stub" />,
 }));
 
 vi.mock("../../wasm", async (importOriginal) => {
@@ -355,6 +366,22 @@ describe("Edit/Done toggle", () => {
     await waitFor(() => expect(sheetMode()).toBe("done"));
     // The toggle offers the way in: its label is the action it performs.
     expect(screen.getByTestId("doc-editor-mode-toggle")).toHaveTextContent("Edit");
+  });
+
+  it("opens the import modal from the top bar", async () => {
+    await renderEditor();
+
+    fireEvent.click(screen.getByRole("button", { name: /import/i }));
+    await waitFor(() => expect(screen.getByTestId("import-modal-stub")).toBeInTheDocument());
+    uiStore.closeModal();
+  });
+
+  it("opens the export modal from the top bar", async () => {
+    await renderEditor();
+
+    fireEvent.click(screen.getByRole("button", { name: /export/i }));
+    await waitFor(() => expect(screen.getByTestId("export-modal-stub")).toBeInTheDocument());
+    uiStore.closeModal();
   });
 
   it("keeps the blank fixture in lockstep with the blank-resume detector", () => {
