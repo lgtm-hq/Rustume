@@ -1,14 +1,18 @@
 /**
  * Click-to-edit for the sheet's multi-line markdown fields.
  *
- * Read state is the same verbatim markdown the read-only sheet drew, wrapped in
- * a button so it can be reached by keyboard; edit state is {@link MarkdownEditor}
- * in place. Rendering markdown faithfully is the PDF pane's job (#732), so the
- * text still shows its own punctuation here.
+ * Read state draws the *rendered* markdown ({@link MarkdownView}) — the sheet
+ * is the rendered document (#785), so formatted text is what both modes show.
+ * In Edit mode that view is wrapped in a button so it can be reached by
+ * keyboard, and activating it swaps in {@link MarkdownEditor} (raw markdown)
+ * in place. In Done mode the view is plain content: no button, and an empty
+ * value draws nothing at all.
  */
 
 import { Show, createSignal, type JSX } from "solid-js";
 import { MarkdownEditor } from "./MarkdownEditor";
+import { MarkdownView } from "./MarkdownView";
+import { useSheetEditable } from "./sheetMode";
 
 export interface InlineMarkdownProps {
   /** Current stored markdown. */
@@ -27,6 +31,7 @@ export interface InlineMarkdownProps {
 }
 
 export function InlineMarkdown(props: InlineMarkdownProps): JSX.Element {
+  const isEditable = useSheetEditable();
   const [isEditing, setIsEditing] = createSignal(false);
 
   const placeholder = () => props.placeholder ?? `Add ${props.label.toLowerCase()}`;
@@ -39,33 +44,57 @@ export function InlineMarkdown(props: InlineMarkdownProps): JSX.Element {
 
   return (
     <Show
-      when={isEditing()}
+      when={isEditable()}
       fallback={
-        <button
-          type="button"
-          id={props.triggerId}
-          class="doc-sheet__editable doc-sheet__rich-text"
-          classList={{ "doc-sheet__editable--empty": props.value.trim() === "" }}
-          title={`Edit ${props.label.toLowerCase()}`}
-          onClick={() => setIsEditing(true)}
-        >
-          {props.value.trim() === "" ? placeholder() : props.value}
-        </button>
+        <Show when={props.value.trim() !== ""}>
+          <div class="doc-sheet__rich-text">
+            <MarkdownView value={props.value} />
+          </div>
+        </Show>
       }
     >
-      <MarkdownEditor
-        value={props.value}
-        label={props.label}
-        onCommit={(next) => {
-          setIsEditing(false);
-          props.onCommit(next);
-          refocusTrigger();
-        }}
-        onCancel={() => {
-          setIsEditing(false);
-          refocusTrigger();
-        }}
-      />
+      <Show
+        when={isEditing()}
+        fallback={
+          // Not a native <button>: the rendered value is block content
+          // (paragraphs, lists), which phrasing-only button content cannot
+          // legally hold. The div carries the button role and the same
+          // keyboard contract instead.
+          <div
+            role="button"
+            tabindex="0"
+            id={props.triggerId}
+            class="doc-sheet__editable doc-sheet__rich-text"
+            classList={{ "doc-sheet__editable--empty": props.value.trim() === "" }}
+            title={`Edit ${props.label.toLowerCase()}`}
+            onClick={() => setIsEditing(true)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                setIsEditing(true);
+              }
+            }}
+          >
+            <Show when={props.value.trim() !== ""} fallback={placeholder()}>
+              <MarkdownView value={props.value} />
+            </Show>
+          </div>
+        }
+      >
+        <MarkdownEditor
+          value={props.value}
+          label={props.label}
+          onCommit={(next) => {
+            setIsEditing(false);
+            props.onCommit(next);
+            refocusTrigger();
+          }}
+          onCancel={() => {
+            setIsEditing(false);
+            refocusTrigger();
+          }}
+        />
+      </Show>
     </Show>
   );
 }

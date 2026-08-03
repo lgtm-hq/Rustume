@@ -1,11 +1,18 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-library";
 import { MemoryRouter, Route, createMemoryHistory } from "@solidjs/router";
 import { Suspense, type Component } from "solid-js";
 import { axeConfig } from "../../test/a11y";
-import { loadDocEditorFixture, SIDEBAR_TEMPLATE } from "../../test/docEditorFixture";
-import DocEditor from "../DocEditor";
+import {
+  enterEditMode,
+  loadBlankDocEditorFixture,
+  loadDocEditorFixture,
+  SIDEBAR_TEMPLATE,
+} from "../../test/docEditorFixture";
+import { resumeStore } from "../../stores/resume";
+import { uiStore } from "../../stores/ui";
+import DocEditor, { isBlankResume } from "../DocEditor";
 
 const { docEditorEnabled, fixture, resumeId } = vi.hoisted(() => ({
   docEditorEnabled: { value: false },
@@ -19,6 +26,16 @@ const { docEditorEnabled, fixture, resumeId } = vi.hoisted(() => ({
 
 vi.mock("../../lib/flags", () => ({
   isDocEditorEnabled: () => docEditorEnabled.value,
+}));
+
+// The real modals pull heavy import/export machinery; the toolbar tests only
+// verify the buttons mount them, so lightweight stubs stand in.
+vi.mock("../../components/import/ImportModal", () => ({
+  ImportModal: () => <div data-testid="import-modal-stub" />,
+}));
+
+vi.mock("../../components/export/ExportModal", () => ({
+  ExportModal: () => <div data-testid="export-modal-stub" />,
 }));
 
 vi.mock("../../wasm", async (importOriginal) => {
@@ -47,11 +64,6 @@ vi.mock("../../api/render", () => ({
   getTemplateThumbnailUrl: vi.fn((id: string) => `/api/templates/${id}/thumbnail`),
   renderPreview: vi.fn().mockResolvedValue(new Blob()),
   downloadPdf: vi.fn().mockResolvedValue(undefined),
-}));
-
-// The form editor's preview pane is not what these tests are about.
-vi.mock("../../components/preview", () => ({
-  Preview: () => <div data-testid="preview-stub">Preview</div>,
 }));
 
 vi.mock("../../stores/auth", () => ({
@@ -88,6 +100,17 @@ function pageColumns(page: HTMLElement): [string, string[]][] {
   ]);
 }
 
+function sheetMode(): string {
+  return screen.getByTestId("doc-sheet").getAttribute("data-sheet-mode") ?? "";
+}
+
+/** Mount the editor at the current fixture id and wait for the sheet. */
+async function renderEditor() {
+  const result = renderAt(DocEditor);
+  await waitFor(() => expect(screen.getByTestId("doc-sheet")).toBeInTheDocument());
+  return result;
+}
+
 describe("DocEditor sheet", () => {
   let renderCount = 0;
 
@@ -97,9 +120,19 @@ describe("DocEditor sheet", () => {
     resumeId.value = `doc-editor-fixture-${++renderCount}`;
   });
 
-  async function renderSheet() {
-    const result = renderAt(DocEditor);
-    await waitFor(() => expect(screen.getByTestId("doc-sheet")).toBeInTheDocument());
+  /**
+   * Mount the editor and wait for the sheet.
+   *
+   * The corpus resume is not empty, so the surface settles in Done mode;
+   * `mode: "edit"` flips the top-bar toggle afterwards, the way a user would.
+   */
+  async function renderSheet(options: { mode: "edit" | "done" } = { mode: "edit" }) {
+    const result = await renderEditor();
+    if (options.mode === "edit") {
+      await enterEditMode();
+    } else {
+      await waitFor(() => expect(sheetMode()).toBe("done"));
+    }
     return result;
   }
 
@@ -111,6 +144,16 @@ describe("DocEditor sheet", () => {
     expect(pages[0]).toHaveAttribute("aria-label", "Page 1 of 2");
     expect(pages[1]).toHaveAttribute("aria-label", "Page 2 of 2");
     expect(screen.getByTestId("doc-editor-page-count")).toHaveTextContent("2 pages");
+  });
+
+  it("renders a single document surface with no preview pane", async () => {
+    await renderSheet({ mode: "done" });
+
+    // #785: the sheet is the one document on screen. The server render only
+    // exists behind the Export dialog now.
+    expect(screen.getByTestId("doc-editor-surface")).toBeInTheDocument();
+    expect(screen.queryByTestId("doc-editor-preview-pane")).toBeNull();
+    expect(screen.queryByTestId("doc-editor-sheet-pane")).toBeNull();
   });
 
   it("places every section in the column the stored layout assigns it", async () => {
@@ -159,12 +202,41 @@ describe("DocEditor sheet", () => {
     );
   });
 
-  it("renders markdown as-is rather than parsing it", async () => {
+  it("renders markdown formatted rather than as raw punctuation", async () => {
     await renderSheet();
 
+    // The sheet is the rendered document (#785): `**eleven years**` draws as
+    // bold text, not as literal asterisks.
     const summary = document.querySelector<HTMLElement>('[data-section-id="summary"]');
-    expect(summary?.textContent).toContain("**eleven years**");
-    expect(summary?.querySelector("strong")).toBeNull();
+    expect(summary?.querySelector("strong")?.textContent).toBe("eleven years");
+    expect(summary?.textContent).not.toContain("**");
+  });
+
+  it("renders each profile as one entry, not stacked duplicates", async () => {
+    await renderSheet();
+
+    // #787: network label plus username on one line — no third text run
+    // repeating the URL.
+    const profiles = document.querySelector<HTMLElement>('[data-section-id="profiles"]');
+    const entries = within(profiles as HTMLElement).getAllByRole("article");
+    for (const entry of entries) {
+      expect(entry.querySelector(".doc-sheet__item-inline")).not.toBeNull();
+      expect(entry.querySelector(".doc-sheet__item-subtitle")).toBeNull();
+      expect(entry.querySelector(".doc-sheet__url")).toBeNull();
+    }
+  });
+
+  it("keeps profile fields individually editable", async () => {
+    await renderSheet();
+
+    const profiles = document.querySelector<HTMLElement>('[data-section-id="profiles"]');
+    const first = within(profiles as HTMLElement).getAllByRole("article")[0];
+    const buttons = [...first.querySelectorAll<HTMLButtonElement>(".doc-sheet__editable")];
+
+    // One editable slot for the network, one for the username.
+    expect(buttons.map((button) => button.title)).toEqual(
+      expect.arrayContaining(["Edit network", "Edit username"]),
+    );
   });
 
   it("renders custom sections under their own names", async () => {
@@ -234,8 +306,14 @@ describe("DocEditor sheet", () => {
     expect(screen.getByTestId("doc-editor-overflow")).toHaveTextContent("");
   });
 
-  it("has no axe violations", async () => {
+  it("has no axe violations in Edit mode", async () => {
     const { container } = await renderSheet();
+
+    expect(await axe(container, axeConfig)).toHaveNoViolations();
+  }, 15000);
+
+  it("has no axe violations in Done mode", async () => {
+    const { container } = await renderSheet({ mode: "done" });
 
     expect(await axe(container, axeConfig)).toHaveNoViolations();
   }, 15000);
@@ -270,6 +348,155 @@ describe("DocEditor sheet", () => {
       expect(first.querySelector(".doc-sheet__column")).toBeTruthy();
       expect(first.querySelector(".doc-sheet__column .doc-sheet__header")).toBeFalsy();
     });
+  });
+});
+
+describe("Edit/Done toggle", () => {
+  let renderCount = 0;
+
+  beforeEach(() => {
+    fixture.value = loadDocEditorFixture();
+    docEditorEnabled.value = true;
+    resumeId.value = `doc-editor-mode-${++renderCount}`;
+  });
+
+  // uiStore is a module-level singleton: a modal left open by a failed
+  // assertion would leak into every later test in the file.
+  afterEach(() => {
+    uiStore.closeModal();
+  });
+
+  it("opens an existing resume as the clean rendered document", async () => {
+    await renderEditor();
+
+    await waitFor(() => expect(sheetMode()).toBe("done"));
+    // The toggle offers the way in: its label is the action it performs.
+    expect(screen.getByTestId("doc-editor-mode-toggle")).toHaveTextContent("Edit");
+  });
+
+  it("opens the import modal from the top bar", async () => {
+    await renderEditor();
+
+    fireEvent.click(screen.getByRole("button", { name: /import/i }));
+    await waitFor(() => expect(screen.getByTestId("import-modal-stub")).toBeInTheDocument());
+  });
+
+  it("opens the export modal from the top bar", async () => {
+    await renderEditor();
+
+    fireEvent.click(screen.getByRole("button", { name: /export/i }));
+    await waitFor(() => expect(screen.getByTestId("export-modal-stub")).toBeInTheDocument());
+  });
+
+  it("keeps the blank fixture in lockstep with the blank-resume detector", () => {
+    // If either side drifts, this fails with a clear message instead of a
+    // confusing mode assertion in the test below.
+    expect(isBlankResume(loadBlankDocEditorFixture())).toBe(true);
+    expect(isBlankResume(loadDocEditorFixture())).toBe(false);
+  });
+
+  it("opens a brand-new empty resume ready to type", async () => {
+    fixture.value = loadBlankDocEditorFixture();
+
+    await renderEditor();
+
+    await waitFor(() => expect(sheetMode()).toBe("edit"));
+    expect(screen.getByTestId("doc-editor-mode-toggle")).toHaveTextContent("Done");
+  });
+
+  it("draws Done mode as a document, not a form with hidden chrome", async () => {
+    await renderEditor();
+    await waitFor(() => expect(sheetMode()).toBe("done"));
+    const sheet = screen.getByTestId("doc-sheet");
+
+    // No editing affordances of any kind: no editable buttons, no add
+    // buttons, no move/hide/delete chrome, no placeholders for empty fields.
+    expect(sheet.querySelectorAll(".doc-sheet__editable")).toHaveLength(0);
+    expect(sheet.querySelectorAll(".doc-sheet__action")).toHaveLength(0);
+    expect(sheet.querySelectorAll(".doc-sheet__section-chrome")).toHaveLength(0);
+    expect(sheet.querySelectorAll(".doc-sheet__item-actions")).toHaveLength(0);
+    expect(within(sheet).queryByText("Add section")).toBeNull();
+    // The fixture's phone is empty: Edit mode offers it as a placeholder,
+    // the rendered document simply does not print it.
+    expect(within(sheet).queryByText("Add phone")).toBeNull();
+
+    // Hidden sections are dropped exactly as the PDF drops them.
+    expect(sheet.querySelector('[data-section-id="advisory"]')).toBeNull();
+    expect(sheet.querySelector('[data-section-id="references"]')).toBeNull();
+  });
+
+  it("round-trips between the two modes", async () => {
+    await renderEditor();
+    await waitFor(() => expect(sheetMode()).toBe("done"));
+
+    fireEvent.click(screen.getByTestId("doc-editor-mode-toggle"));
+    await waitFor(() => expect(sheetMode()).toBe("edit"));
+    expect(
+      screen.getByTestId("doc-sheet").querySelectorAll(".doc-sheet__editable").length,
+    ).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByTestId("doc-editor-mode-toggle"));
+    await waitFor(() => expect(sheetMode()).toBe("done"));
+    expect(screen.getByTestId("doc-sheet").querySelectorAll(".doc-sheet__editable")).toHaveLength(
+      0,
+    );
+  });
+});
+
+describe("legacy HTML migration (#786)", () => {
+  let renderCount = 0;
+
+  beforeEach(() => {
+    docEditorEnabled.value = true;
+    resumeId.value = `doc-editor-migration-${++renderCount}`;
+
+    const legacy = loadDocEditorFixture();
+    delete legacy.metadata.contentFormat;
+    legacy.sections.summary.content =
+      "<p>Automation and platform engineer with <strong>eleven years</strong> of experience.</p>";
+    legacy.sections.experience.items[0].summary =
+      "<ul><li><p>Led the <em>design system</em> programme</p></li></ul>";
+    fixture.value = legacy;
+  });
+
+  it("shows formatted text, never raw tags, when opening a legacy resume", async () => {
+    await renderEditor();
+
+    await waitFor(() => {
+      const summary = document.querySelector<HTMLElement>('[data-section-id="summary"]');
+      expect(summary?.textContent).toContain("eleven years");
+      expect(summary?.textContent).not.toContain("<p>");
+      expect(summary?.textContent).not.toContain("<strong>");
+      expect(summary?.querySelector("strong")?.textContent).toBe("eleven years");
+    });
+  });
+
+  it("converts the stored content once and stamps contentFormat", async () => {
+    await renderEditor();
+
+    await waitFor(() => {
+      expect(resumeStore.store.resume?.metadata.contentFormat).toBe("markdown");
+    });
+    expect(resumeStore.store.resume?.sections.summary.content).toBe(
+      "Automation and platform engineer with **eleven years** of experience.",
+    );
+    expect(resumeStore.store.resume?.sections.experience.items[0].summary).toBe(
+      "- Led the *design system* programme",
+    );
+    // The migrated form persists through the normal autosave path.
+    expect(resumeStore.store.isDirty).toBe(true);
+  });
+
+  it("leaves an already-migrated resume untouched", async () => {
+    const migrated = loadDocEditorFixture();
+    const summary = migrated.sections.summary.content;
+    fixture.value = migrated;
+
+    await renderEditor();
+
+    await waitFor(() => expect(resumeStore.store.resume).not.toBeNull());
+    expect(resumeStore.store.resume?.sections.summary.content).toBe(summary);
+    expect(resumeStore.store.isDirty).toBe(false);
   });
 });
 

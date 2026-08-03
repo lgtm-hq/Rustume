@@ -34,6 +34,7 @@ import { DocSection } from "./DocSection";
 import { ItemDialog } from "./ItemDialog";
 import { applyLayout, moveItemAcrossSections, reorderItem } from "./docEdits";
 import { itemNoun } from "./itemFields";
+import { SheetModeContext, type SheetMode } from "./sheetMode";
 import {
   adjacentCustomSectionId,
   canMoveEntryAcross,
@@ -51,6 +52,7 @@ import {
   editorPages,
   layoutColumns,
   layoutPages,
+  renderPages,
   sectionTitle,
   type EditorSectionView,
   type LayoutColumn,
@@ -220,6 +222,12 @@ export interface DocSheetProps {
   resume: ResumeData;
   /** Structural layout metadata for the resume's template. */
   templateLayout: TemplateLayout;
+  /**
+   * Edit draws the in-place editable document; Done draws the clean rendered
+   * document — no chrome, no placeholders, hidden and empty sections dropped
+   * exactly as the PDF drops them. Defaults to Edit.
+   */
+  mode?: SheetMode;
   /** Reports the 0-based indices of pages whose content is clipped. */
   onOverflowChange?: (pages: number[]) => void;
   /** Reports the number of page frames drawn. */
@@ -227,11 +235,21 @@ export interface DocSheetProps {
 }
 
 export function DocSheet(props: DocSheetProps): JSX.Element {
+  const mode = (): SheetMode => props.mode ?? "edit";
+  const isEditable = (): boolean => mode() === "edit";
+
   // The layout the drops address, and the drawn view of it. `editorPages()`
   // never drops a page or column, so the two are aligned index-for-index.
   const layout = createMemo(() => layoutPages(props.resume, props.templateLayout));
   const pages = createMemo<EditorSectionView[][][]>(() => {
-    const rendered = editorPages(props.resume, props.templateLayout);
+    // Done mode draws what the PDF draws: `renderPages` drops hidden sections,
+    // empty sections and empty pages, so the surface is the rendered document
+    // rather than the editing model with its chrome switched off.
+    const rendered = isEditable()
+      ? editorPages(props.resume, props.templateLayout)
+      : renderPages(props.resume, props.templateLayout).map((page) =>
+          page.map((column) => column.map((id) => ({ id, hidden: false }))),
+        );
     // An empty resume still gets one frame, so the sheet reads as a blank page
     // rather than as a failure to load.
     return rendered.length > 0 ? rendered : [[[]]];
@@ -462,6 +480,8 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
 
   /** The placed-but-empty item sections of one column — its add-block targets. */
   function addTargets(pageIndex: number, columnIndex: number): AddTarget[] {
+    // The rendered document (Done mode) has no add affordances.
+    if (!isEditable()) return [];
     const placed = layout()[pageIndex]?.[columnIndex] ?? [];
     const drawn = new Set((pages()[pageIndex]?.[columnIndex] ?? []).map((section) => section.id));
     return placed
@@ -479,151 +499,164 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
   };
 
   return (
-    <DragDropProvider
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-      collisionDetector={detectCollisions}
-    >
-      <DragDropSensors />
-      <div
-        ref={(element) => {
-          root = element;
-          observer?.observe(element);
-        }}
-        class="doc-sheet"
-        data-testid="doc-sheet"
-        style={{
-          "--doc-sheet-bg": theme().background,
-          "--doc-sheet-text": theme().text,
-          "--doc-sheet-accent": theme().primary,
-        }}
+    <SheetModeContext.Provider value={mode}>
+      <DragDropProvider
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+        collisionDetector={detectCollisions}
       >
-        <For each={pages()}>
-          {(page, pageIndex) => {
-            const geometry = createMemo(() => layoutColumns(page, props.templateLayout));
-            const hasSidebar = () => geometry().some((column) => column.role === "sidebar");
-            const isFirst = () => pageIndex() === 0;
-            const identityIn = () => identityRegion(props.templateLayout, hasSidebar());
-            const contactIn = () => contactRegion(props.templateLayout, hasSidebar());
-
-            return (
-              <article
-                class="doc-sheet__page"
-                data-testid="doc-sheet-page"
-                aria-label={`Page ${pageIndex() + 1} of ${pages().length}`}
-                data-overflowing={overflowing().includes(pageIndex()) ? "true" : undefined}
-              >
-                <Show when={isFirst() && identityIn() === "top"}>
-                  <DocHeader
-                    basics={props.resume.basics}
-                    headerStyle={props.templateLayout.headerStyle}
-                    showContact={contactIn() === "top"}
-                    profileLinks={links()}
-                  />
-                </Show>
-                <Show when={isFirst() && identityIn() !== "top" && contactIn() === "top"}>
-                  <DocHeader
-                    basics={props.resume.basics}
-                    headerStyle={props.templateLayout.headerStyle}
-                    showIdentity={false}
-                    showContact
-                    profileLinks={links()}
-                  />
-                </Show>
-
-                <div class="doc-sheet__columns">
-                  <For each={visualColumns(geometry())}>
-                    {(column) => (
-                      <SheetColumn
-                        pageIndex={pageIndex()}
-                        column={column}
-                        addTargets={addTargets(pageIndex(), column.index)}
-                        onAdd={setAddTarget}
-                      >
-                        <Show
-                          when={
-                            isFirst() && column.role === "sidebar" && identityIn() === "sidebar"
-                          }
-                        >
-                          <DocHeader
-                            basics={props.resume.basics}
-                            headerStyle="sidebar"
-                            showContact={contactIn() === "sidebar"}
-                            profileLinks={links()}
-                          />
-                        </Show>
-                        <Show
-                          when={
-                            isFirst() &&
-                            column.role === "sidebar" &&
-                            identityIn() !== "sidebar" &&
-                            contactIn() === "sidebar"
-                          }
-                        >
-                          <DocHeader
-                            basics={props.resume.basics}
-                            headerStyle="sidebar"
-                            showIdentity={false}
-                            showContact
-                            profileLinks={links()}
-                          />
-                        </Show>
-
-                        <For each={page[column.index] ?? []}>
-                          {(section) => (
-                            <DocSection
-                              resume={props.resume}
-                              sectionId={section.id}
-                              hidden={section.hidden}
-                              onMoveSection={moveSection}
-                              onMoveEntry={moveEntry}
-                              onAnnounce={announce}
-                            />
-                          )}
-                        </For>
-                      </SheetColumn>
-                    )}
-                  </For>
-                </div>
-              </article>
-            );
+        <DragDropSensors />
+        <div
+          ref={(element) => {
+            root = element;
+            observer?.observe(element);
           }}
-        </For>
+          class="doc-sheet"
+          classList={{ "doc-sheet--done": !isEditable() }}
+          data-testid="doc-sheet"
+          data-sheet-mode={mode()}
+          style={{
+            "--doc-sheet-bg": theme().background,
+            "--doc-sheet-text": theme().text,
+            "--doc-sheet-accent": theme().primary,
+          }}
+        >
+          <For each={pages()}>
+            {(page, pageIndex) => {
+              const geometry = createMemo(() => layoutColumns(page, props.templateLayout));
+              const hasSidebar = () => geometry().some((column) => column.role === "sidebar");
+              const isFirst = () => pageIndex() === 0;
+              const identityIn = () => identityRegion(props.templateLayout, hasSidebar());
+              const contactIn = () => contactRegion(props.templateLayout, hasSidebar());
 
-        <NewPageZone active={activeDrag()?.type === "section"} />
+              return (
+                <article
+                  class="doc-sheet__page"
+                  data-testid="doc-sheet-page"
+                  aria-label={`Page ${pageIndex() + 1} of ${pages().length}`}
+                  data-overflowing={overflowing().includes(pageIndex()) ? "true" : undefined}
+                >
+                  <Show when={isFirst() && identityIn() === "top"}>
+                    <DocHeader
+                      basics={props.resume.basics}
+                      headerStyle={props.templateLayout.headerStyle}
+                      showContact={contactIn() === "top"}
+                      profileLinks={links()}
+                    />
+                  </Show>
+                  <Show when={isFirst() && identityIn() !== "top" && contactIn() === "top"}>
+                    <DocHeader
+                      basics={props.resume.basics}
+                      headerStyle={props.templateLayout.headerStyle}
+                      showIdentity={false}
+                      showContact
+                      profileLinks={links()}
+                    />
+                  </Show>
 
-        {/* Sheet-level chrome: creating a section is not part of any one page. */}
-        <div class="doc-sheet__actions">
-          <button
-            type="button"
-            class="doc-sheet__action"
-            data-testid="doc-sheet-add-section"
-            onClick={() => setIsSectionDialogOpen(true)}
-          >
-            Add section
-          </button>
+                  <div class="doc-sheet__columns">
+                    <For each={visualColumns(geometry())}>
+                      {(column) => (
+                        <SheetColumn
+                          pageIndex={pageIndex()}
+                          column={column}
+                          addTargets={addTargets(pageIndex(), column.index)}
+                          onAdd={setAddTarget}
+                        >
+                          <Show
+                            when={
+                              isFirst() && column.role === "sidebar" && identityIn() === "sidebar"
+                            }
+                          >
+                            <DocHeader
+                              basics={props.resume.basics}
+                              headerStyle="sidebar"
+                              showContact={contactIn() === "sidebar"}
+                              profileLinks={links()}
+                            />
+                          </Show>
+                          <Show
+                            when={
+                              isFirst() &&
+                              column.role === "sidebar" &&
+                              identityIn() !== "sidebar" &&
+                              contactIn() === "sidebar"
+                            }
+                          >
+                            <DocHeader
+                              basics={props.resume.basics}
+                              headerStyle="sidebar"
+                              showIdentity={false}
+                              showContact
+                              profileLinks={links()}
+                            />
+                          </Show>
+
+                          <For each={page[column.index] ?? []}>
+                            {(section) => (
+                              <DocSection
+                                resume={props.resume}
+                                sectionId={section.id}
+                                hidden={section.hidden}
+                                onMoveSection={moveSection}
+                                onMoveEntry={moveEntry}
+                                onAnnounce={announce}
+                              />
+                            )}
+                          </For>
+                        </SheetColumn>
+                      )}
+                    </For>
+                  </div>
+                </article>
+              );
+            }}
+          </For>
+
+          <NewPageZone active={activeDrag()?.type === "section"} />
+
+          {/* Sheet-level chrome: creating a section is not part of any one page. */}
+          <Show when={isEditable()}>
+            <div class="doc-sheet__actions">
+              <button
+                type="button"
+                class="doc-sheet__action"
+                data-testid="doc-sheet-add-section"
+                onClick={() => setIsSectionDialogOpen(true)}
+              >
+                Add section
+              </button>
+            </div>
+          </Show>
+
+          {/* Dialogs are editing chrome: unmounted in Done mode even when an
+              open flag was left set by a mid-dialog mode switch. */}
+          <Show when={isEditable()}>
+            <CustomSectionDialog
+              open={isSectionDialogOpen()}
+              onOpenChange={setIsSectionDialogOpen}
+            />
+
+            {/* Add-block target: adds the first item of a placed-but-empty section. */}
+            <ItemDialog
+              open={addTarget() !== null}
+              sectionId={addTarget() ?? ""}
+              sectionTitle={sectionTitle(props.resume, addTarget() ?? "")}
+              onOpenChange={(open) => {
+                if (!open) setAddTarget(null);
+              }}
+            />
+          </Show>
+
+          <LiveRegion message={announcement()} politeness="polite" />
         </div>
 
-        <CustomSectionDialog open={isSectionDialogOpen()} onOpenChange={setIsSectionDialogOpen} />
-
-        {/* Add-block target: adds the first item of a placed-but-empty section. */}
-        <ItemDialog
-          open={addTarget() !== null}
-          sectionId={addTarget() ?? ""}
-          sectionTitle={sectionTitle(props.resume, addTarget() ?? "")}
-          onOpenChange={(open) => {
-            if (!open) setAddTarget(null);
-          }}
-        />
-
-        <LiveRegion message={announcement()} politeness="polite" />
-      </div>
-
-      <DragOverlay>
-        <Show when={activeDrag()}>
-          <div class="doc-sheet__drag-overlay">{dragLabel()}</div>
-        </Show>
-      </DragOverlay>
-    </DragDropProvider>
+        <DragOverlay>
+          <Show when={activeDrag()}>
+            <div class="doc-sheet__drag-overlay">{dragLabel()}</div>
+          </Show>
+        </DragOverlay>
+      </DragDropProvider>
+    </SheetModeContext.Provider>
   );
 }

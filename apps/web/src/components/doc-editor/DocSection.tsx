@@ -22,8 +22,8 @@
  *
  * URLs still render as text rather than anchors: the sheet is a document
  * surface, not a navigation surface, and a link inside an item would compete
- * with the item's own click targets. Faithful markdown rendering is the PDF
- * pane's job (#732).
+ * with the item's own click targets. Markdown fields render formatted via
+ * {@link MarkdownView} — the sheet *is* the rendered document (#785).
  */
 
 import { For, Show, createSignal, type JSX } from "solid-js";
@@ -32,6 +32,8 @@ import { CustomSectionDialog } from "./CustomSectionDialog";
 import { InlineMarkdown } from "./InlineMarkdown";
 import { InlineText } from "./InlineText";
 import { ItemDialog } from "./ItemDialog";
+import { MarkdownView } from "./MarkdownView";
+import { useSheetEditable } from "./sheetMode";
 import {
   removeItem,
   removeSection,
@@ -89,6 +91,14 @@ interface ItemField {
 interface ItemView {
   /** Primary line — company, institution, name, title. */
   title: ItemField;
+  /**
+   * Draw title and subtitle as one inline run rather than stacked lines.
+   *
+   * Profiles use this: templates print a profile as one `network username`
+   * entry (`render-profile-entry` in `_common.typ`), so stacking the same
+   * strings as title, subtitle and link reads as duplication (#787).
+   */
+  inline?: boolean;
   /** Secondary line under the title. */
   subtitle?: ItemField;
   /** Right-aligned head-row entries, typically date then location. */
@@ -186,10 +196,14 @@ function projectView(item: Project): ItemView {
 }
 
 function profileView(item: Profile): ItemView {
+  // One entry per profile — network label plus the linked username, the way
+  // every template draws it. The URL itself is edited in the item dialog; a
+  // third line repeating the username-shaped href is exactly the duplication
+  // this view exists to avoid (#787).
   return {
     title: bind(item.network, "Network", "network"),
     subtitle: bind(item.username, "Username", "username"),
-    url: item.url,
+    inline: true,
   };
 }
 
@@ -404,6 +418,7 @@ function Item(props: {
   /** Announce a completed action to the sheet's live region. */
   onAnnounce: (message: string) => void;
 }): JSX.Element {
+  const isEditable = useSheetEditable();
   const view = () => props.entry.view;
   // Stable across redraws: the item's own id, not its position. Inline editors
   // use it to find their trigger again after a commit redraws the section.
@@ -447,31 +462,49 @@ function Item(props: {
       }}
       data-entry-id={props.entry.id}
     >
-      <div class="doc-sheet__item-head">
-        <div>
-          <h4 class="doc-sheet__item-title">
-            <Slot field={view().title} idPrefix={idPrefix()} onCommit={commit} />
-          </h4>
-          <Show when={view().subtitle}>
-            {(subtitle) => (
-              <p class="doc-sheet__item-subtitle">
-                <Slot field={subtitle()} idPrefix={idPrefix()} onCommit={commit} />
-              </p>
-            )}
-          </Show>
-        </div>
-        <Show when={meta().length > 0}>
-          <div class="doc-sheet__item-meta">
-            <For each={meta()}>
-              {(entry) => (
-                <span>
-                  <Slot field={entry} idPrefix={idPrefix()} onCommit={commit} />
+      <Show
+        when={!view().inline}
+        fallback={
+          <p class="doc-sheet__item-inline">
+            <span class="doc-sheet__item-inline-label">
+              <Slot field={view().title} idPrefix={idPrefix()} onCommit={commit} />
+            </span>
+            <Show when={view().subtitle}>
+              {(subtitle) => (
+                <span class="doc-sheet__item-inline-value">
+                  <Slot field={subtitle()} idPrefix={idPrefix()} onCommit={commit} />
                 </span>
               )}
-            </For>
+            </Show>
+          </p>
+        }
+      >
+        <div class="doc-sheet__item-head">
+          <div>
+            <h4 class="doc-sheet__item-title">
+              <Slot field={view().title} idPrefix={idPrefix()} onCommit={commit} />
+            </h4>
+            <Show when={view().subtitle}>
+              {(subtitle) => (
+                <p class="doc-sheet__item-subtitle">
+                  <Slot field={subtitle()} idPrefix={idPrefix()} onCommit={commit} />
+                </p>
+              )}
+            </Show>
           </div>
-        </Show>
-      </div>
+          <Show when={meta().length > 0}>
+            <div class="doc-sheet__item-meta">
+              <For each={meta()}>
+                {(entry) => (
+                  <span>
+                    <Slot field={entry} idPrefix={idPrefix()} onCommit={commit} />
+                  </span>
+                )}
+              </For>
+            </div>
+          </Show>
+        </div>
+      </Show>
 
       <For each={view().details ?? []}>
         {(detail) => (
@@ -483,7 +516,14 @@ function Item(props: {
 
       <For each={view().body ?? []}>
         {(text) => (
-          <Show when={text.field} fallback={<p class="doc-sheet__rich-text">{text.value}</p>}>
+          <Show
+            when={text.field}
+            fallback={
+              <div class="doc-sheet__rich-text">
+                <MarkdownView value={text.value} />
+              </div>
+            }
+          >
             {(key) => (
               <InlineMarkdown
                 value={text.value}
@@ -510,76 +550,78 @@ function Item(props: {
         <p class="doc-sheet__url">{url()}</p>
       </Show>
 
-      <div class="doc-sheet__item-actions" role="group" aria-label={`${label()} actions`}>
-        <button
-          type="button"
-          class="doc-sheet__action doc-sheet__action--icon doc-sheet__drag-handle"
-          aria-hidden="true"
-          tabindex="-1"
-          title={`Drag ${label()} to move it`}
-          {...draggable.dragActivators}
-        >
-          <ChromeIcon path={CHROME_ICONS.handle} />
-        </button>
-        <For each={steps()}>
-          {(step) => (
-            <button
-              type="button"
-              class="doc-sheet__action doc-sheet__action--icon"
-              data-doc-move-entry={`${props.entry.id}:${step}`}
-              aria-label={`Move ${label()} ${STEP_WORDS[step]}`}
-              title={`Move ${label()} ${STEP_WORDS[step]}`}
-              onClick={() => props.onMove(props.entry.id, step)}
-            >
-              <ChromeIcon path={CHROME_ICONS[step]} />
-            </button>
-          )}
-        </For>
-        <button
-          type="button"
-          class="doc-sheet__action"
-          aria-label={`Edit ${label()} details`}
-          onClick={() => props.onEdit(props.entry)}
-        >
-          Edit
-        </button>
-        <button
-          type="button"
-          class="doc-sheet__action"
-          aria-label={`Duplicate ${label()}`}
-          onClick={() => {
-            duplicateItem(props.sectionId, props.entry.index);
-            props.onAnnounce(`${label()} duplicated`);
-          }}
-        >
-          Duplicate
-        </button>
-        <button
-          type="button"
-          class="doc-sheet__action"
-          aria-label={`${props.entry.hidden ? "Show" : "Hide"} ${label()}`}
-          onClick={() => {
-            setItemVisibility(props.sectionId, props.entry.index, props.entry.hidden);
-            props.onAnnounce(`${label()} ${props.entry.hidden ? "shown" : "hidden"}`);
-          }}
-        >
-          {props.entry.hidden ? "Show" : "Hide"}
-        </button>
-        <button
-          type="button"
-          class="doc-sheet__action doc-sheet__action--danger"
-          aria-label={`Delete ${label()}`}
-          onClick={() => {
-            removeItem(props.sectionId, props.entry.index);
-            props.onAnnounce(`${label()} deleted`);
-          }}
-        >
-          Delete
-        </button>
-        <Show when={props.entry.hidden}>
-          <span class="doc-sheet__hidden-badge">Hidden</span>
-        </Show>
-      </div>
+      <Show when={isEditable()}>
+        <div class="doc-sheet__item-actions" role="group" aria-label={`${label()} actions`}>
+          <button
+            type="button"
+            class="doc-sheet__action doc-sheet__action--icon doc-sheet__drag-handle"
+            aria-hidden="true"
+            tabindex="-1"
+            title={`Drag ${label()} to move it`}
+            {...draggable.dragActivators}
+          >
+            <ChromeIcon path={CHROME_ICONS.handle} />
+          </button>
+          <For each={steps()}>
+            {(step) => (
+              <button
+                type="button"
+                class="doc-sheet__action doc-sheet__action--icon"
+                data-doc-move-entry={`${props.entry.id}:${step}`}
+                aria-label={`Move ${label()} ${STEP_WORDS[step]}`}
+                title={`Move ${label()} ${STEP_WORDS[step]}`}
+                onClick={() => props.onMove(props.entry.id, step)}
+              >
+                <ChromeIcon path={CHROME_ICONS[step]} />
+              </button>
+            )}
+          </For>
+          <button
+            type="button"
+            class="doc-sheet__action"
+            aria-label={`Edit ${label()} details`}
+            onClick={() => props.onEdit(props.entry)}
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            class="doc-sheet__action"
+            aria-label={`Duplicate ${label()}`}
+            onClick={() => {
+              duplicateItem(props.sectionId, props.entry.index);
+              props.onAnnounce(`${label()} duplicated`);
+            }}
+          >
+            Duplicate
+          </button>
+          <button
+            type="button"
+            class="doc-sheet__action"
+            aria-label={`${props.entry.hidden ? "Show" : "Hide"} ${label()}`}
+            onClick={() => {
+              setItemVisibility(props.sectionId, props.entry.index, props.entry.hidden);
+              props.onAnnounce(`${label()} ${props.entry.hidden ? "shown" : "hidden"}`);
+            }}
+          >
+            {props.entry.hidden ? "Show" : "Hide"}
+          </button>
+          <button
+            type="button"
+            class="doc-sheet__action doc-sheet__action--danger"
+            aria-label={`Delete ${label()}`}
+            onClick={() => {
+              removeItem(props.sectionId, props.entry.index);
+              props.onAnnounce(`${label()} deleted`);
+            }}
+          >
+            Delete
+          </button>
+          <Show when={props.entry.hidden}>
+            <span class="doc-sheet__hidden-badge">Hidden</span>
+          </Show>
+        </div>
+      </Show>
     </article>
   );
 }
@@ -615,6 +657,7 @@ const SECTION_STEP_WORDS: Record<MoveStep, string> = {
  * keeps them reachable, the PDF drops them.
  */
 export function DocSection(props: DocSectionProps): JSX.Element {
+  const isEditable = useSheetEditable();
   const [editing, setEditing] = createSignal<ItemEntry | null>(null);
   const [isDialogOpen, setIsDialogOpen] = createSignal(false);
   const [isRenameOpen, setIsRenameOpen] = createSignal(false);
@@ -626,7 +669,11 @@ export function DocSection(props: DocSectionProps): JSX.Element {
     if (props.sectionId === "coverLetter") return props.resume.sections.coverLetter?.content ?? "";
     return "";
   };
-  const entries = () => itemEntries(props.resume, props.sectionId);
+  // Done mode mirrors the PDF: hidden items are dropped, not dimmed —
+  // `renderPages` already drops hidden *sections*, this is the item-level
+  // half of the same rule.
+  const entries = () =>
+    itemEntries(props.resume, props.sectionId).filter((entry) => isEditable() || !entry.hidden);
   const noun = () => itemNoun(title());
   const isCustom = () => isCustomId(props.sectionId);
 
@@ -663,72 +710,74 @@ export function DocSection(props: DocSectionProps): JSX.Element {
       }}
       data-section-id={props.sectionId}
     >
-      <div
-        class="doc-sheet__section-chrome"
-        role="group"
-        aria-label={`${title()} section controls`}
-      >
-        <button
-          type="button"
-          class="doc-sheet__action doc-sheet__action--icon doc-sheet__drag-handle"
-          aria-hidden="true"
-          tabindex="-1"
-          title={`Drag ${title()} section to move it`}
-          {...draggable.dragActivators}
+      <Show when={isEditable()}>
+        <div
+          class="doc-sheet__section-chrome"
+          role="group"
+          aria-label={`${title()} section controls`}
         >
-          <ChromeIcon path={CHROME_ICONS.handle} />
-        </button>
-        <For each={["up", "down", "previous", "next"] as MoveStep[]}>
-          {(step) => (
-            <button
-              type="button"
-              class="doc-sheet__action doc-sheet__action--icon"
-              data-doc-move-section={`${props.sectionId}:${step}`}
-              aria-label={`Move ${title()} section ${SECTION_STEP_WORDS[step]}`}
-              title={`Move ${title()} section ${SECTION_STEP_WORDS[step]}`}
-              onClick={() => props.onMoveSection(props.sectionId, step)}
-            >
-              <ChromeIcon path={CHROME_ICONS[step]} />
-            </button>
-          )}
-        </For>
-        <button
-          type="button"
-          class="doc-sheet__action"
-          aria-label={`${props.hidden ? "Show" : "Hide"} ${title()} section`}
-          onClick={() => {
-            toggleSection(props.sectionId);
-            props.onAnnounce(`${title()} section ${props.hidden ? "shown" : "hidden"}`);
-          }}
-        >
-          {props.hidden ? "Show" : "Hide"}
-        </button>
-        <Show when={isCustom()}>
+          <button
+            type="button"
+            class="doc-sheet__action doc-sheet__action--icon doc-sheet__drag-handle"
+            aria-hidden="true"
+            tabindex="-1"
+            title={`Drag ${title()} section to move it`}
+            {...draggable.dragActivators}
+          >
+            <ChromeIcon path={CHROME_ICONS.handle} />
+          </button>
+          <For each={["up", "down", "previous", "next"] as MoveStep[]}>
+            {(step) => (
+              <button
+                type="button"
+                class="doc-sheet__action doc-sheet__action--icon"
+                data-doc-move-section={`${props.sectionId}:${step}`}
+                aria-label={`Move ${title()} section ${SECTION_STEP_WORDS[step]}`}
+                title={`Move ${title()} section ${SECTION_STEP_WORDS[step]}`}
+                onClick={() => props.onMoveSection(props.sectionId, step)}
+              >
+                <ChromeIcon path={CHROME_ICONS[step]} />
+              </button>
+            )}
+          </For>
           <button
             type="button"
             class="doc-sheet__action"
-            aria-label={`Rename ${title()} section`}
-            onClick={() => setIsRenameOpen(true)}
-          >
-            Rename
-          </button>
-          <button
-            type="button"
-            class="doc-sheet__action doc-sheet__action--danger"
-            aria-label={`Delete ${title()} section`}
+            aria-label={`${props.hidden ? "Show" : "Hide"} ${title()} section`}
             onClick={() => {
-              const name = title();
-              removeSection(props.sectionId);
-              props.onAnnounce(`${name} section deleted`);
+              toggleSection(props.sectionId);
+              props.onAnnounce(`${title()} section ${props.hidden ? "shown" : "hidden"}`);
             }}
           >
-            Delete
+            {props.hidden ? "Show" : "Hide"}
           </button>
-        </Show>
-        <Show when={props.hidden}>
-          <span class="doc-sheet__hidden-badge">Hidden</span>
-        </Show>
-      </div>
+          <Show when={isCustom()}>
+            <button
+              type="button"
+              class="doc-sheet__action"
+              aria-label={`Rename ${title()} section`}
+              onClick={() => setIsRenameOpen(true)}
+            >
+              Rename
+            </button>
+            <button
+              type="button"
+              class="doc-sheet__action doc-sheet__action--danger"
+              aria-label={`Delete ${title()} section`}
+              onClick={() => {
+                const name = title();
+                removeSection(props.sectionId);
+                props.onAnnounce(`${name} section deleted`);
+              }}
+            >
+              Delete
+            </button>
+          </Show>
+          <Show when={props.hidden}>
+            <span class="doc-sheet__hidden-badge">Hidden</span>
+          </Show>
+        </div>
+      </Show>
 
       <h3 class="doc-sheet__section-title">
         <InlineText
@@ -767,7 +816,7 @@ export function DocSection(props: DocSectionProps): JSX.Element {
         </div>
       </Show>
 
-      <Show when={!isRichText()}>
+      <Show when={!isRichText() && isEditable()}>
         <div class="doc-sheet__section-actions">
           <button type="button" class="doc-sheet__action" onClick={openAdd}>
             Add {noun()}
@@ -784,7 +833,7 @@ export function DocSection(props: DocSectionProps): JSX.Element {
         />
       </Show>
 
-      <Show when={isCustom()}>
+      <Show when={isCustom() && isEditable()}>
         <CustomSectionDialog
           open={isRenameOpen()}
           sectionId={props.sectionId}

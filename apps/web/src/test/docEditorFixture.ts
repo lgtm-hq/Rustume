@@ -13,6 +13,8 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { expect } from "vitest";
+import { fireEvent, screen, waitFor } from "@solidjs/testing-library";
 import { CUSTOM_SECTION_SENTINEL, type TemplateLayout } from "../lib/docLayout";
 import { createEmptyPicture } from "../wasm/types";
 import type { CustomItem, ResumeData, Section, Theme, Typography, Url } from "../wasm/types";
@@ -157,8 +159,73 @@ export function loadDocEditorFixture(): ResumeData {
       theme: raw.metadata.theme,
       typography: raw.metadata.typography,
       notes: "",
+      // The corpus's rich fields are authored in markdown; without the stamp
+      // the doc editor would treat the fixture as legacy HTML and migrate it
+      // on open (#786), which has its own dedicated tests.
+      contentFormat: "markdown",
     },
   };
+}
+
+/**
+ * The corpus resume with every field a blank document lacks emptied out:
+ * basics, summary content, every fixed section's items, custom sections, and
+ * the layout. Mirrors what `isBlankResume` checks so mode-selection tests
+ * stay aligned with the detector — a lockstep test in `DocEditor.test.tsx`
+ * feeds this fixture into `isBlankResume` so drift fails loudly.
+ *
+ * Deliberately keeps the corpus's `contentFormat: "markdown"` stamp: the
+ * blank fixture isolates mode selection from the legacy migration (#786),
+ * which has its own dedicated tests. A production `createEmptyResume` lacks
+ * the stamp, and the migration effect running over an empty resume is a
+ * benign no-op conversion.
+ */
+export function loadBlankDocEditorFixture(): ResumeData {
+  const empty = loadDocEditorFixture();
+  empty.basics.name = "";
+  empty.basics.email = "";
+  empty.basics.headline = "";
+  empty.basics.phone = "";
+  empty.basics.location = "";
+  empty.basics.url = { label: "", href: "" };
+  empty.basics.customFields = [];
+  empty.sections.summary.content = "";
+  for (const section of [
+    empty.sections.experience,
+    empty.sections.education,
+    empty.sections.skills,
+    empty.sections.projects,
+    empty.sections.profiles,
+    empty.sections.awards,
+    empty.sections.certifications,
+    empty.sections.publications,
+    empty.sections.languages,
+    empty.sections.interests,
+    empty.sections.volunteer,
+    empty.sections.references,
+  ]) {
+    section.items = [];
+  }
+  empty.sections.custom = {};
+  if (empty.sections.coverLetter) {
+    empty.sections.coverLetter.content = "";
+  }
+  empty.metadata.layout = [];
+  return empty;
+}
+
+/**
+ * Flip a mounted `DocEditor` into Edit mode via the top-bar toggle.
+ *
+ * The corpus resume is not empty, so the surface settles in Done mode first
+ * (#785); tests that edit in place share this sequence instead of each
+ * re-implementing the wait-toggle-wait dance.
+ */
+export async function enterEditMode(): Promise<void> {
+  const mode = () => screen.getByTestId("doc-sheet").getAttribute("data-sheet-mode");
+  await waitFor(() => expect(mode()).toBe("done"));
+  fireEvent.click(screen.getByTestId("doc-editor-mode-toggle"));
+  await waitFor(() => expect(mode()).toBe("edit"));
 }
 
 /** Mirrors `rhyhorn`: one column holding every section. */
