@@ -7,8 +7,8 @@ use rstest::rstest;
 use rustume_parser::{JsonResumeParser, Parser, ReactiveResumeV3Parser};
 use rustume_render::{get_page_size, get_template_theme, Renderer, TypstRenderer, TEMPLATES};
 use rustume_schema::{
-    Basics, ContentFormat, CustomItem, Education, Experience, LevelDisplay, PageFormat, Picture,
-    PictureEffects, Profile, ResumeData, Section, Skill,
+    Basics, ContentFormat, CustomField, CustomItem, Education, Experience, LevelDisplay,
+    PageFormat, Picture, PictureEffects, Profile, Project, ResumeData, Section, Skill,
 };
 use std::collections::HashMap;
 use std::fs;
@@ -572,6 +572,297 @@ fn test_sidebar_ratio_changes_layout_and_clamps(#[case] template_name: &str) {
         render(Some(0.75)),
         wide,
         "ratio above range should clamp to 0.5 for '{template_name}'"
+    );
+}
+
+/// Build a resume with `count` experience items carrying predictable ids
+/// (`exp_0`, `exp_1`, …) so tests can reference them as break markers.
+fn resume_with_experience_items(template_name: &str, count: usize) -> ResumeData {
+    let mut resume = ResumeData::default();
+    resume.metadata.template = template_name.to_string();
+    resume.sections.experience = Section::new("experience", "Experience");
+    for i in 0..count {
+        let mut exp = Experience::new(format!("Company {i}"), "Engineer")
+            .with_date("2020 - Present")
+            .with_summary("Shipped features.");
+        exp.id = format!("exp_{i}");
+        resume.sections.experience.add_item(exp);
+    }
+    resume
+}
+
+/// Mid-section item breaks must split a single-column render across pages:
+/// two break markers on a three-item section yield two extra pages, each
+/// continuation slice starting on a fresh page.
+#[rstest]
+#[case("rhyhorn")]
+#[case("onyx")]
+#[case("nosepass")]
+fn test_item_breaks_split_single_column_templates_across_pages(#[case] template_name: &str) {
+    let renderer = TypstRenderer::new();
+
+    let base = resume_with_experience_items(template_name, 3);
+    let (_, pages_without) = renderer
+        .render_preview(&base, 0)
+        .expect("render without breaks");
+
+    let mut broken = base;
+    broken.metadata.item_breaks.insert(
+        "experience".to_string(),
+        vec!["exp_1".to_string(), "exp_2".to_string()],
+    );
+    let (_, pages_with) = renderer
+        .render_preview(&broken, 0)
+        .expect("render with breaks");
+
+    assert_eq!(
+        pages_with,
+        pages_without + 2,
+        "two item breaks should add two pages for '{template_name}' \
+         (without: {pages_without}, with: {pages_with})"
+    );
+}
+
+/// A break marker on a section's first item is a no-op — the editor's
+/// pipeline strips the empty leading slice, and the renderer must agree
+/// instead of emitting a blank page.
+#[test]
+fn test_item_break_on_first_item_is_a_no_op() {
+    let renderer = TypstRenderer::new();
+
+    let base = resume_with_experience_items("rhyhorn", 2);
+    let (_, pages_without) = renderer.render_preview(&base, 0).unwrap();
+
+    let mut broken = base;
+    broken
+        .metadata
+        .item_breaks
+        .insert("experience".to_string(), vec!["exp_0".to_string()]);
+    let (_, pages_with) = renderer.render_preview(&broken, 0).unwrap();
+
+    assert_eq!(pages_with, pages_without);
+}
+
+/// Break markers on non-main-flow sections (spec §3.4 guard) are ignored.
+#[test]
+fn test_item_breaks_ignored_on_non_main_sections() {
+    let renderer = TypstRenderer::new();
+
+    let mut base = resume_with_experience_items("rhyhorn", 2);
+    base.sections.skills = Section::new("skills", "Skills");
+    let mut skill = Skill::new("Rust").with_level(5);
+    skill.id = "skill_0".to_string();
+    base.sections.skills.add_item(skill);
+    let mut skill = Skill::new("Typst").with_level(4);
+    skill.id = "skill_1".to_string();
+    base.sections.skills.add_item(skill);
+
+    let (_, pages_without) = renderer.render_preview(&base, 0).unwrap();
+
+    let mut broken = base.clone();
+    broken
+        .metadata
+        .item_breaks
+        .insert("skills".to_string(), vec!["skill_1".to_string()]);
+    let (_, pages_with) = renderer.render_preview(&broken, 0).unwrap();
+
+    assert_eq!(
+        pages_with, pages_without,
+        "skills is not a main-flow section; its break markers must be ignored"
+    );
+}
+
+/// Every template must keep rendering when item breaks are present. Typst
+/// forbids pagebreaks inside grid containers, so grid-based layouts
+/// (sidebar/two-column) ignore the markers rather than failing to compile.
+#[rstest]
+fn test_all_templates_render_with_item_breaks(
+    #[values(
+        "rhyhorn",
+        "azurill",
+        "pikachu",
+        "nosepass",
+        "bronzor",
+        "chikorita",
+        "ditto",
+        "gengar",
+        "glalie",
+        "kakuna",
+        "leafish",
+        "onyx"
+    )]
+    template_name: &str,
+) {
+    let renderer = TypstRenderer::new();
+    let mut resume = resume_with_experience_items(template_name, 3);
+    resume.metadata.item_breaks.insert(
+        "experience".to_string(),
+        vec!["exp_1".to_string(), "exp_2".to_string()],
+    );
+
+    let result = renderer.render_pdf(&resume);
+    assert!(
+        result.is_ok(),
+        "PDF rendering failed for template '{template_name}' with item breaks: {:?}",
+        result.as_ref().err()
+    );
+    assert!(result.unwrap().starts_with(b"%PDF-"));
+}
+
+/// Each new per-item field must reach the rendered output on its own. They are
+/// asserted one at a time, from the same baseline: bundled together, a single
+/// working path would mask three broken ones.
+#[rstest]
+fn test_each_new_item_field_changes_rendered_output(
+    #[values("rhyhorn", "azurill")] template_name: &str,
+    #[values(
+        "experience-keywords",
+        "experience-custom-fields",
+        "education-keywords",
+        "education-custom-fields"
+    )]
+    field: &str,
+) {
+    let renderer = TypstRenderer::new();
+    let mut base = resume_with_experience_items(template_name, 1);
+    base.sections.education = Section::new("education", "Education");
+    let mut edu = Education::new("MIT", "Computer Science")
+        .with_study_type("BSc")
+        .with_date("2014 - 2018");
+    edu.id = "edu_0".to_string();
+    base.sections.education.add_item(edu);
+
+    // These comparisons require byte-deterministic output. Fail loudly if
+    // that ever changes so the assertions get reworked instead of silently
+    // stopping to enforce anything.
+    let plain = renderer.render_pdf(&base).unwrap();
+    assert_eq!(
+        renderer.render_pdf(&base).unwrap(),
+        plain,
+        "PDF output is no longer byte-deterministic; rework this test's \
+         comparisons instead of skipping"
+    );
+
+    let mut enriched = base;
+    match field {
+        "experience-keywords" => {
+            enriched.sections.experience.items[0].keywords =
+                vec!["Rust".to_string(), "Typst".to_string()];
+        }
+        "experience-custom-fields" => {
+            enriched.sections.experience.items[0].custom_fields =
+                vec![CustomField::new("Stack", "Axum + SolidJS")];
+        }
+        "education-keywords" => {
+            enriched.sections.education.items[0].keywords = vec!["Thesis".to_string()];
+        }
+        "education-custom-fields" => {
+            enriched.sections.education.items[0].custom_fields =
+                vec![CustomField::new("GPA scale", "4.0")];
+        }
+        other => panic!("unhandled field case: {other}"),
+    }
+
+    let with_field = renderer.render_pdf(&enriched).unwrap();
+    assert_ne!(
+        plain, with_field,
+        "'{field}' has no effect on rendered output for '{template_name}'"
+    );
+}
+
+/// Project and skill custom fields render too (they carry no keywords delta —
+/// both types already had `keywords`).
+#[rstest]
+fn test_project_and_skill_custom_fields_change_rendered_output(
+    #[values("projects", "skills")] section: &str,
+) {
+    let renderer = TypstRenderer::new();
+    let mut base = ResumeData::default();
+    base.sections.projects = Section::new("projects", "Projects");
+    let mut project = Project::new("Rustume").with_summary("A resume builder.");
+    project.id = "proj_0".to_string();
+    base.sections.projects.add_item(project);
+    base.sections.skills = Section::new("skills", "Skills");
+    let mut skill = Skill::new("Rust").with_level(5);
+    skill.id = "skill_0".to_string();
+    base.sections.skills.add_item(skill);
+
+    // Same determinism guard as the per-field test above: these assertions
+    // only mean anything while the renderer is byte-deterministic.
+    let plain = renderer.render_pdf(&base).unwrap();
+    assert_eq!(
+        renderer.render_pdf(&base).unwrap(),
+        plain,
+        "PDF output is no longer byte-deterministic; rework this test's \
+         comparisons instead of skipping"
+    );
+
+    let mut enriched = base;
+    match section {
+        "projects" => {
+            enriched.sections.projects.items[0].custom_fields =
+                vec![CustomField::new("Role", "Author")]
+        }
+        "skills" => {
+            enriched.sections.skills.items[0].custom_fields = vec![CustomField::new("Years", "6")]
+        }
+        other => panic!("unhandled section case: {other}"),
+    }
+
+    assert_ne!(
+        plain,
+        renderer.render_pdf(&enriched).unwrap(),
+        "custom fields have no effect on rendered '{section}' output"
+    );
+}
+
+/// Serialize a value the way the engine embeds the resume JSON in the Typst
+/// source: `serde_json`, then backslash and quote escaping.
+fn embedded_json<T: serde::Serialize>(value: &T) -> String {
+    serde_json::to_string(value)
+        .unwrap()
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"")
+}
+
+/// The generated Typst source must carry the new fields end-to-end so the
+/// export path (which serializes stored JSON) round-trips them. The engine
+/// escapes the resume JSON before embedding it, so the expectations are built
+/// by applying that same escaping to the exact serialized values — a bare
+/// `contains("itemBreaks")` would pass even if the ids or the mapping were
+/// lost.
+#[test]
+fn test_generate_source_carries_item_breaks_and_custom_fields() {
+    let renderer = TypstRenderer::new();
+    let mut resume = resume_with_experience_items("rhyhorn", 2);
+    resume
+        .metadata
+        .item_breaks
+        .insert("experience".to_string(), vec!["exp_1".to_string()]);
+    resume.sections.experience.items[0].keywords = vec!["Distributed systems".to_string()];
+    let custom_field = CustomField::new("Team size", "8 engineers");
+    resume.sections.experience.items[0].custom_fields = vec![custom_field.clone()];
+
+    let source = renderer.generate_source(&resume).unwrap();
+
+    let item_breaks = embedded_json(&serde_json::json!({ "experience": ["exp_1"] }));
+    assert!(
+        source.contains(&item_breaks),
+        "expected itemBreaks mapping {item_breaks} in source"
+    );
+
+    let keywords = embedded_json(&serde_json::json!(["Distributed systems"]));
+    assert!(
+        source.contains(&keywords),
+        "expected keywords {keywords} in source"
+    );
+
+    // Serialized from the struct itself, so the expectation tracks the schema's
+    // field order rather than a hand-written literal that could drift.
+    let custom_fields = embedded_json(&vec![custom_field]);
+    assert!(
+        source.contains(&custom_fields),
+        "expected customFields {custom_fields} in source"
     );
 }
 

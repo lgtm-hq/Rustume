@@ -86,6 +86,10 @@ export interface Experience {
   date: string;
   summary: string;
   url: Url;
+  /** Tag chips shown under the entry. Optional: omitted when empty. */
+  keywords?: string[];
+  /** Free-form label/value rows shown under the entry. Omitted when empty. */
+  customFields?: CustomField[];
 }
 
 export interface Education {
@@ -98,6 +102,10 @@ export interface Education {
   score: string;
   summary: string;
   url: Url;
+  /** Tag chips shown under the entry. Optional: omitted when empty. */
+  keywords?: string[];
+  /** Free-form label/value rows shown under the entry. Omitted when empty. */
+  customFields?: CustomField[];
 }
 
 export interface Skill {
@@ -107,6 +115,8 @@ export interface Skill {
   description: string;
   level: number;
   keywords: string[];
+  /** Free-form label/value rows shown under the entry. Omitted when empty. */
+  customFields?: CustomField[];
 }
 
 export interface Project {
@@ -118,6 +128,8 @@ export interface Project {
   summary: string;
   keywords: string[];
   url: Url;
+  /** Free-form label/value rows shown under the entry. Omitted when empty. */
+  customFields?: CustomField[];
 }
 
 export interface Profile {
@@ -303,6 +315,14 @@ export interface Metadata {
    * and the renderer never guesses the format from the content.
    */
   contentFormat?: ContentFormat;
+  /**
+   * Mid-section page breaks: section id → ids of the items that start a new
+   * page. Continuation slices re-render the section title with a "(cont.)"
+   * suffix. Only main-flow sections (experience, education, projects,
+   * volunteer, awards, certifications, publications, references) may carry
+   * breaks. Absent when the resume never used the feature.
+   */
+  itemBreaks?: Record<string, string[]>;
 }
 
 export interface ResumeData {

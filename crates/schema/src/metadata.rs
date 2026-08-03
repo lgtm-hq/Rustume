@@ -1,6 +1,7 @@
 //! Resume metadata - template, layout, theme, typography.
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use utoipa::ToSchema;
 use validator::Validate;
 
@@ -93,6 +94,19 @@ pub struct Metadata {
     /// takes the markdown path.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub content_format: Option<ContentFormat>,
+
+    /// Mid-section page breaks: section id → ids of the items that start a
+    /// new page.
+    ///
+    /// The document editor lets a long section continue across pages; each
+    /// marked item begins a new page and the continuation slice re-renders the
+    /// section title with a "(cont.)" suffix. Only main-flow sections
+    /// (experience, education, projects, volunteer, awards, certifications,
+    /// publications, references) may carry breaks — the renderer ignores
+    /// markers on any other section. Omitted when empty so resumes that never
+    /// used the feature serialize byte-for-byte as before.
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub item_breaks: HashMap<String, Vec<String>>,
 }
 
 impl Metadata {
@@ -119,6 +133,7 @@ impl Default for Metadata {
             tags: Vec::new(),
             folder: None,
             content_format: None,
+            item_breaks: HashMap::new(),
         }
     }
 }
@@ -469,6 +484,49 @@ mod tests {
     fn metadata_rejects_unknown_content_format() {
         let parsed = serde_json::from_value::<Metadata>(json!({ "contentFormat": "typst" }));
         assert!(parsed.is_err());
+    }
+
+    #[test]
+    fn metadata_treats_absent_item_breaks_as_empty() {
+        // Every resume written before this field existed lacks it; an absent
+        // map must parse as "no mid-section breaks", never as an error.
+        let metadata: Metadata = serde_json::from_value(json!({})).unwrap();
+        assert!(metadata.item_breaks.is_empty());
+    }
+
+    #[test]
+    fn metadata_omits_empty_item_breaks_when_serialized() {
+        let json = serde_json::to_value(Metadata::default()).unwrap();
+        assert!(json.get("itemBreaks").is_none());
+    }
+
+    #[test]
+    fn metadata_round_trips_item_breaks() {
+        // The local WASM storage path deserializes into this struct and
+        // re-serializes it, so a break marker that does not survive here is
+        // silently dropped for every offline user.
+        let metadata: Metadata = serde_json::from_value(json!({
+            "itemBreaks": {
+                "experience": ["item_a", "item_b"],
+                "education": ["item_c"],
+            }
+        }))
+        .unwrap();
+        assert_eq!(
+            metadata.item_breaks.get("experience"),
+            Some(&vec!["item_a".to_string(), "item_b".to_string()])
+        );
+        assert_eq!(
+            metadata.item_breaks.get("education"),
+            Some(&vec!["item_c".to_string()])
+        );
+
+        let json = serde_json::to_value(&metadata).unwrap();
+        assert_eq!(
+            json["itemBreaks"]["experience"],
+            json!(["item_a", "item_b"])
+        );
+        assert_eq!(json["itemBreaks"]["education"], json!(["item_c"]));
     }
 
     #[test]

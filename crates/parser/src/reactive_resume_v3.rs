@@ -1122,6 +1122,8 @@ fn convert_metadata(v3: &V3Metadata) -> Metadata {
         // Absent in Reactive Resume exports, which are always HTML; carried
         // through when a Rustume-authored document declares it.
         content_format: v3.content_format,
+        // Reactive Resume has no mid-section page-break concept.
+        item_breaks: HashMap::new(),
     }
 }
 
