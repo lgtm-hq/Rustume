@@ -168,6 +168,43 @@ export function loadDocEditorFixture(): ResumeData {
 }
 
 /**
+ * The corpus resume with every field a blank document lacks emptied out:
+ * basics, summary content, every fixed section's items, custom sections, and
+ * the layout. Mirrors what `isBlankResume` checks so mode-selection tests
+ * stay aligned with the detector.
+ */
+export function loadBlankDocEditorFixture(): ResumeData {
+  const empty = loadDocEditorFixture();
+  empty.basics.name = "";
+  empty.basics.email = "";
+  empty.basics.headline = "";
+  empty.basics.phone = "";
+  empty.basics.location = "";
+  empty.basics.url = { label: "", href: "" };
+  empty.basics.customFields = [];
+  empty.sections.summary.content = "";
+  for (const section of [
+    empty.sections.experience,
+    empty.sections.education,
+    empty.sections.skills,
+    empty.sections.projects,
+    empty.sections.profiles,
+    empty.sections.awards,
+    empty.sections.certifications,
+    empty.sections.publications,
+    empty.sections.languages,
+    empty.sections.interests,
+    empty.sections.volunteer,
+    empty.sections.references,
+  ]) {
+    section.items = [];
+  }
+  empty.sections.custom = {};
+  empty.metadata.layout = [];
+  return empty;
+}
+
+/**
  * Flip a mounted `DocEditor` into Edit mode via the top-bar toggle.
  *
  * The corpus resume is not empty, so the surface settles in Done mode first

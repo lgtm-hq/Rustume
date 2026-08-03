@@ -4,7 +4,12 @@ import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-lib
 import { MemoryRouter, Route, createMemoryHistory } from "@solidjs/router";
 import { Suspense, type Component } from "solid-js";
 import { axeConfig } from "../../test/a11y";
-import { enterEditMode, loadDocEditorFixture, SIDEBAR_TEMPLATE } from "../../test/docEditorFixture";
+import {
+  enterEditMode,
+  loadBlankDocEditorFixture,
+  loadDocEditorFixture,
+  SIDEBAR_TEMPLATE,
+} from "../../test/docEditorFixture";
 import { resumeStore } from "../../stores/resume";
 import DocEditor from "../DocEditor";
 
@@ -353,34 +358,7 @@ describe("Edit/Done toggle", () => {
   });
 
   it("opens a brand-new empty resume ready to type", async () => {
-    const empty = loadDocEditorFixture();
-    empty.basics.name = "";
-    empty.basics.email = "";
-    empty.basics.headline = "";
-    empty.basics.phone = "";
-    empty.basics.location = "";
-    empty.basics.url = { label: "", href: "" };
-    empty.basics.customFields = [];
-    empty.sections.summary.content = "";
-    for (const section of [
-      empty.sections.experience,
-      empty.sections.education,
-      empty.sections.skills,
-      empty.sections.projects,
-      empty.sections.profiles,
-      empty.sections.awards,
-      empty.sections.certifications,
-      empty.sections.publications,
-      empty.sections.languages,
-      empty.sections.interests,
-      empty.sections.volunteer,
-      empty.sections.references,
-    ]) {
-      section.items = [];
-    }
-    empty.sections.custom = {};
-    empty.metadata.layout = [];
-    fixture.value = empty;
+    fixture.value = loadBlankDocEditorFixture();
 
     await renderEditor();
 

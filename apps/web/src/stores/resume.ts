@@ -451,8 +451,17 @@ function markDirty() {
   scheduleSave();
 }
 
+/**
+ * Deep-clone `data` and normalize it for the store — the one step every
+ * entry point (import, restore, undo, migration) must pass through so the
+ * store always owns a plain, invariant-holding tree.
+ */
+function cloneAndNormalize(data: ResumeData): ResumeData {
+  return normalizeResumeForStore(JSON.parse(JSON.stringify(data)) as ResumeData);
+}
+
 function applyHistoryResume(data: ResumeData): void {
-  const clone = normalizeResumeForStore(JSON.parse(JSON.stringify(data)) as ResumeData);
+  const clone = cloneAndNormalize(data);
   batch(() => {
     setStore("resume", clone);
     setStore("isDirty", true);
@@ -893,7 +902,7 @@ export function useResumeStore() {
      * undo must never restore the raw-HTML form the editor cannot display.
      */
     applyContentMigration(migrated: ResumeData) {
-      const clone = normalizeResumeForStore(JSON.parse(JSON.stringify(migrated)) as ResumeData);
+      const clone = cloneAndNormalize(migrated);
       batch(() => {
         setStore("resume", clone);
         setStore("isDirty", true);
@@ -906,7 +915,7 @@ export function useResumeStore() {
     // Import resume data into the currently open resume id.
     importResume(data: ResumeData) {
       // Deep clone so Solid store owns a plain tree (imported objects may be frozen / aliased).
-      const clone = normalizeResumeForStore(JSON.parse(JSON.stringify(data)) as ResumeData);
+      const clone = cloneAndNormalize(data);
       batch(() => {
         setStore("resume", clone);
         setStore("isDirty", true);
@@ -917,7 +926,7 @@ export function useResumeStore() {
 
     /** Import as a brand-new resume (e.g. from the Home screen) and persist under `id`. */
     createFromImport(id: string, data: ResumeData) {
-      const clone = normalizeResumeForStore(JSON.parse(JSON.stringify(data)) as ResumeData);
+      const clone = cloneAndNormalize(data);
       batch(() => {
         setStore("resume", clone);
         setStore("id", id);
@@ -945,7 +954,7 @@ export function useResumeStore() {
     /** Replace the current resume with a historical snapshot (local mode revert). */
     revertToSnapshot(data: ResumeData) {
       recordUndo(store.resume);
-      const clone = normalizeResumeForStore(JSON.parse(JSON.stringify(data)) as ResumeData);
+      const clone = cloneAndNormalize(data);
       batch(() => {
         setStore("resume", clone);
         setStore("isDirty", true);
@@ -960,7 +969,7 @@ export function useResumeStore() {
      * Does not clear undo history or schedule another save.
      */
     applyRestoredResume(data: ResumeData) {
-      const clone = normalizeResumeForStore(JSON.parse(JSON.stringify(data)) as ResumeData);
+      const clone = cloneAndNormalize(data);
       batch(() => {
         setStore("resume", clone);
         setStore("isDirty", false);
