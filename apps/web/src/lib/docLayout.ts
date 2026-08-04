@@ -8,9 +8,9 @@
  * only computes what the next `metadata.layout` *should* be — the write goes
  * through `resumeStore.updateLayout`).
  *
- * `metadata.layout` is `string[][][]`: pages -> columns -> section ids. Section
- * placement is the only pagination mechanism; there are no item-level page
- * breaks.
+ * `metadata.layout` is `string[][][]`: pages -> columns -> section ids.
+ * Mid-section pagination (`metadata.itemBreaks`) layers on top of this raw
+ * structure — see `docPagination.ts` for the expansion pipeline.
  */
 
 import { FIXED_LAYOUT_SECTION_KEYS, isHtmlEmpty } from "./resumeSections";
@@ -263,7 +263,7 @@ export function sectionTitle(resume: ResumeData, sectionId: string): string {
 }
 
 /** Whether a section holds anything worth drawing chrome for. */
-function sectionHasContent(resume: ResumeData, sectionId: string): boolean {
+export function sectionHasContent(resume: ResumeData, sectionId: string): boolean {
   if (isCustomId(sectionId)) {
     const section = resume.sections.custom?.[sectionId];
     return section !== undefined && section.items.some((item) => item.visible);
@@ -348,42 +348,9 @@ export function layoutPages(resume: ResumeData, templateLayout: TemplateLayout):
 }
 
 /**
- * {@link layoutPages} reduced to what actually renders: hidden sections and
- * sections with no content are dropped, and any page left entirely empty is
- * removed. Empty columns are kept so column indices stay meaningful.
- */
-export function renderPages(resume: ResumeData, templateLayout: TemplateLayout): string[][][] {
-  return layoutPages(resume, templateLayout)
-    .map((page) =>
-      page.map((column) =>
-        column.filter((id) => sectionVisible(resume, id) && sectionHasContent(resume, id)),
-      ),
-    )
-    .filter((page) => page.some((column) => column.length > 0));
-}
-
-/**
- * {@link layoutPages} as the *editing* surface draws it, aligned index-for-index
- * with the layout — no page or column is dropped, so a drop target's page and
- * column indices address `metadata.layout` directly, and no second layout model
- * exists for drag and drop.
- *
- * Hidden sections never draw (#794, spec §1.6) — the Sections panel is the
- * recovery path, exactly as it is for the rendered document. Unlike
- * {@link renderPages}, *empty* placed sections stay drawn in edit mode: their
- * card carries the add affordance, so an empty section is a place to type
- * rather than a gap in the layout.
- */
-export function editorPages(resume: ResumeData, templateLayout: TemplateLayout): string[][][] {
-  return layoutPages(resume, templateLayout).map((page) =>
-    page.map((column) => column.filter((id) => sectionVisible(resume, id))),
-  );
-}
-
-/**
- * `layout` with page `pageIndex` merged into the page before it — the simple
- * "remove page break" of #794 (`metadata.itemBreaks`-aware merge semantics
- * arrive with the drag-channel rework, #796). Columns concatenate index-wise;
+ * `layout` with page `pageIndex` merged into the page before it — the layout
+ * half of "remove page break" (`metadata.itemBreaks`-aware semantics live in
+ * `docPagination.resolvePageBreakRemoval`). Columns concatenate index-wise;
  * the first occurrence of a section id wins. Returns `null` when the merge is
  * impossible (page 0, or an index past the last page), so callers write
  * nothing rather than an unchanged layout.

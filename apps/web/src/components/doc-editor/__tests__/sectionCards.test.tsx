@@ -12,7 +12,12 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-library";
 import { entryStep } from "../../../lib/docDnd";
-import { loadDocEditorFixture, SIDEBAR_TEMPLATE } from "../../../test/docEditorFixture";
+import {
+  loadDocEditorFixture,
+  SIDEBAR_TEMPLATE,
+  SINGLE_TEMPLATE,
+} from "../../../test/docEditorFixture";
+import type { TemplateLayout } from "../../../lib/docLayout";
 import { DocSheet } from "../DocSheet";
 import type { ResumeData } from "../../../wasm/types";
 
@@ -38,6 +43,7 @@ const store = vi.hoisted(() => ({
   duplicateCustomSectionItem: vi.fn(),
   moveCustomSectionItem: vi.fn(),
   updateLayout: vi.fn(),
+  updatePagination: vi.fn(),
   updateMetadata: vi.fn(),
 }));
 
@@ -76,11 +82,11 @@ describe("document sheet structural chrome", () => {
     store.store.resume = resume;
   });
 
-  function renderSheet(options: { onOpenSections?: () => void } = {}) {
+  function renderSheet(options: { onOpenSections?: () => void; template?: TemplateLayout } = {}) {
     return render(() => (
       <DocSheet
         resume={resume}
-        templateLayout={SIDEBAR_TEMPLATE}
+        templateLayout={options.template ?? SIDEBAR_TEMPLATE}
         onOpenSections={options.onOpenSections}
       />
     ));
@@ -466,25 +472,177 @@ describe("document sheet structural chrome", () => {
     });
   });
 
-  describe("drag chrome", () => {
-    it("gives cards and entries drag handles rather than surface capture", () => {
+  describe("whole-surface drag and drop", () => {
+    interface MockDataTransfer {
+      data: Record<string, string>;
+      setData: (mime: string, value: string) => void;
+      getData: (mime: string) => string;
+      effectAllowed: string;
+      dropEffect: string;
+    }
+
+    function mockDataTransfer(): MockDataTransfer {
+      const data: Record<string, string> = {};
+      return {
+        data,
+        setData: (mime, value) => {
+          data[mime] = value;
+        },
+        getData: (mime) => data[mime] ?? "",
+        effectAllowed: "",
+        dropEffect: "",
+      };
+    }
+
+    function sectionCard(sectionId: string): HTMLElement {
+      const card = document.querySelector(`[data-section-id="${sectionId}"]`);
+      expect(card).not.toBeNull();
+      return card as HTMLElement;
+    }
+
+    function entryRow(itemId: string): HTMLElement {
+      const row = document.querySelector(`[data-entry-id="${itemId}"]`);
+      expect(row).not.toBeNull();
+      return row as HTMLElement;
+    }
+
+    it("makes the whole row and the whole card drag surfaces, grips included", () => {
       renderSheet();
 
-      // Handles are pointer-only chrome: out of the tab order and hidden from
-      // assistive tech (the menu and pill are the keyboard/SR path), so they
-      // are found by title rather than accessible name.
-      const sectionHandle = screen.getByTitle("Drag Experience section to move it");
-      const entryHandle = screen.getByTitle(`Drag ${FIRST_EXPERIENCE} to move it`);
-      expect(sectionHandle).toBeInTheDocument();
-      expect(entryHandle).toBeInTheDocument();
-      expect(sectionHandle.getAttribute("tabindex")).toBe("-1");
-      expect(sectionHandle.getAttribute("aria-hidden")).toBe("true");
-      expect(entryHandle.getAttribute("tabindex")).toBe("-1");
-      expect(entryHandle.getAttribute("aria-hidden")).toBe("true");
-      // The section surface itself must not be a drag activator, or text
-      // selection and inline editing would fight the drag sensor.
-      const section = document.querySelector('[data-section-id="experience"]');
-      expect(section?.getAttribute("draggable")).toBeNull();
+      expect(sectionCard("experience").getAttribute("draggable")).toBe("true");
+      expect(entryRow("exp-1").getAttribute("draggable")).toBe("true");
+      // The grips remain as visible affordances with their own drag wiring.
+      expect(screen.getByTitle("Drag Experience section to move it")).toBeInTheDocument();
+      expect(screen.getByTitle(`Drag ${FIRST_EXPERIENCE} to move it`)).toBeInTheDocument();
+    });
+
+    it("carries the spec MIME payload and mirrors the drag in row styling", () => {
+      renderSheet();
+      const row = entryRow("exp-1");
+      const dataTransfer = mockDataTransfer();
+
+      fireEvent.mouseDown(row);
+      fireEvent.dragStart(row, { dataTransfer });
+
+      expect(JSON.parse(dataTransfer.data["application/x-entry"])).toEqual({
+        sectionId: "experience",
+        id: "exp-1",
+      });
+      expect(dataTransfer.effectAllowed).toBe("move");
+      expect(row.classList.contains("doc-sheet__entry-row--dragging")).toBe(true);
+    });
+
+    it("vetoes a row drag that began on a control, in dragstart not mousedown", () => {
+      renderSheet();
+      const row = entryRow("exp-1");
+      const control = within(row).getByRole("button", { name: `Edit ${FIRST_EXPERIENCE}` });
+      const dataTransfer = mockDataTransfer();
+
+      fireEvent.mouseDown(control);
+      const proceeded = fireEvent.dragStart(row, { dataTransfer });
+
+      // fireEvent returns false when the handler called preventDefault.
+      expect(proceeded).toBe(false);
+      expect(dataTransfer.data["application/x-entry"]).toBeUndefined();
+    });
+
+    it("reorders an entry within its section from a whole-row drag", () => {
+      renderSheet();
+      const source = entryRow("exp-2");
+      const target = entryRow("exp-1");
+      const dataTransfer = mockDataTransfer();
+
+      fireEvent.mouseDown(source);
+      fireEvent.dragStart(source, { dataTransfer });
+      fireEvent.dragEnter(target, { dataTransfer, clientY: 0 });
+      fireEvent.dragOver(target, { dataTransfer, clientY: 0 });
+      // A 3px slot bar marks the insert position on the target row.
+      expect(target.querySelector(".doc-sheet__entry-slot--before")).not.toBeNull();
+      fireEvent.drop(target, { dataTransfer, clientY: 0 });
+
+      expect(store.reorderSectionItem).toHaveBeenCalledExactlyOnceWith("experience", 1, 0);
+      expect(writeCount()).toBe(1);
+      // Drag state is cleared on drop.
+      expect(document.querySelector(".doc-sheet__entry-slot--before")).toBeNull();
+    });
+
+    it("rejects cross-section item drops — same-section-only by decision", () => {
+      renderSheet();
+      const source = entryRow("exp-1");
+      const target = entryRow("edu-1");
+      const dataTransfer = mockDataTransfer();
+
+      fireEvent.mouseDown(source);
+      fireEvent.dragStart(source, { dataTransfer });
+      fireEvent.dragEnter(target, { dataTransfer, clientY: 0 });
+      fireEvent.dragOver(target, { dataTransfer, clientY: 0 });
+      fireEvent.drop(target, { dataTransfer, clientY: 0 });
+
+      expect(target.querySelector(".doc-sheet__entry-slot--before")).toBeNull();
+      expect(writeCount()).toBe(0);
+    });
+
+    it("moves a section dropped on another card, with a slot indicator", () => {
+      renderSheet();
+      const source = sectionCard("education");
+      const target = sectionCard("experience");
+      const dataTransfer = mockDataTransfer();
+
+      fireEvent.mouseDown(source);
+      fireEvent.dragStart(source, { dataTransfer });
+      expect(JSON.parse(dataTransfer.data["application/x-section"])).toEqual({
+        id: "education",
+      });
+      expect(source.classList.contains("doc-sheet__sec--dragging")).toBe(true);
+
+      fireEvent.dragEnter(target, { dataTransfer, clientY: 0 });
+      fireEvent.dragOver(target, { dataTransfer, clientY: 0 });
+      expect(target.querySelector(".doc-sheet__sec-slot--before")).not.toBeNull();
+      fireEvent.drop(target, { dataTransfer, clientY: 0 });
+
+      expect(store.updateLayout).toHaveBeenCalledExactlyOnceWith([
+        [
+          ["summary", "education", "experience", "projects"],
+          ["profiles", "skills", "speaking"],
+        ],
+        [
+          ["publications", "volunteer", "awards"],
+          ["languages", "interests", "certifications", "advisory"],
+        ],
+      ]);
+      expect(writeCount()).toBe(1);
+    });
+
+    it("vetoes a card drag that began on an entry row — the row owns it", () => {
+      renderSheet();
+      const card = sectionCard("experience");
+      const dataTransfer = mockDataTransfer();
+
+      fireEvent.mouseDown(entryRow("exp-1"));
+      const proceeded = fireEvent.dragStart(card, { dataTransfer });
+
+      expect(proceeded).toBe(false);
+      expect(dataTransfer.data["application/x-section"]).toBeUndefined();
+    });
+
+    it("accepts the Add-section block as the end-of-column drop target", () => {
+      renderSheet();
+      const source = sectionCard("experience");
+      // Sidebar-left template: the sidebar column renders first on the page.
+      const [sidebarBlock] = screen.getAllByTestId("doc-sheet-add-section");
+      const dataTransfer = mockDataTransfer();
+
+      fireEvent.mouseDown(source);
+      fireEvent.dragStart(source, { dataTransfer });
+      fireEvent.dragEnter(sidebarBlock, { dataTransfer });
+      fireEvent.dragOver(sidebarBlock, { dataTransfer });
+      expect(sidebarBlock.classList.contains("doc-sheet__add-section-block--drop-hint")).toBe(true);
+      fireEvent.drop(sidebarBlock, { dataTransfer });
+
+      const [layout] = store.updateLayout.mock.calls[0] as [string[][][]];
+      expect(layout[0][0]).toEqual(["summary", "education", "projects"]);
+      expect(layout[0][1]).toEqual(["profiles", "skills", "speaking", "experience"]);
+      expect(writeCount()).toBe(1);
     });
 
     it("gives the basics contact block no grip, menu, or drag chrome", () => {
@@ -494,6 +652,192 @@ describe("document sheet structural chrome", () => {
       expect(contact).not.toBeNull();
       expect(contact?.querySelector(".doc-sheet__sec-grip")).toBeNull();
       expect(contact?.querySelector(".doc-sheet__sec-pencil")).toBeNull();
+    });
+  });
+
+  describe("explicit pagination (#796)", () => {
+    it("draws item-break continuation slices with a (cont.) title", () => {
+      resume.metadata.itemBreaks = { experience: ["exp-2"] };
+      renderSheet({ template: SINGLE_TEMPLATE });
+
+      const cards = [...document.querySelectorAll('[data-section-id="experience"]')];
+      expect(cards).toHaveLength(2);
+      expect(cards[0].querySelector(".doc-sheet__sec-title")?.textContent).toBe("Experience");
+      expect(cards[1].querySelector(".doc-sheet__sec-title")?.textContent).toBe(
+        "Experience (cont.)",
+      );
+      // Slice 0 holds the item before the marker; the continuation the rest.
+      expect(cards[0].querySelector('[data-entry-id="exp-1"]')).not.toBeNull();
+      expect(cards[0].querySelector('[data-entry-id="exp-2"]')).toBeNull();
+      expect(cards[1].querySelector('[data-entry-id="exp-2"]')).not.toBeNull();
+      expect(cards[1].querySelector('[data-entry-id="exp-3"]')).not.toBeNull();
+      // The add affordance lives only on the last slice (spec 2.6).
+      expect(cards[0].querySelector(".doc-sheet__add-block")).toBeNull();
+      expect(cards[1].querySelector(".doc-sheet__add-block")).not.toBeNull();
+    });
+
+    it("leaves markers inert on templates whose layout cannot honor them", () => {
+      resume.metadata.itemBreaks = { experience: ["exp-2"] };
+      renderSheet({ template: SIDEBAR_TEMPLATE });
+
+      expect(document.querySelectorAll('[data-section-id="experience"]')).toHaveLength(1);
+    });
+
+    it("prefers clearing the item break when removing the page break rule", () => {
+      resume.metadata.itemBreaks = { experience: ["exp-2"] };
+      renderSheet({ template: SINGLE_TEMPLATE });
+
+      const [removeButton] = screen.getAllByRole("button", { name: "Remove page break" });
+      fireEvent.click(removeButton);
+
+      expect(store.updateMetadata).toHaveBeenCalledExactlyOnceWith("itemBreaks", {});
+      expect(store.updateLayout).not.toHaveBeenCalled();
+      expect(writeCount()).toBe(1);
+    });
+
+    it("falls back to merging the raw pages when no item break spans the rule", () => {
+      renderSheet();
+
+      fireEvent.click(screen.getByRole("button", { name: "Remove page break" }));
+
+      expect(store.updateLayout).toHaveBeenCalledExactlyOnceWith([
+        [
+          ["summary", "experience", "education", "projects", "publications", "volunteer", "awards"],
+          [
+            "profiles",
+            "skills",
+            "speaking",
+            "languages",
+            "interests",
+            "certifications",
+            "advisory",
+          ],
+        ],
+      ]);
+      expect(writeCount()).toBe(1);
+    });
+
+    it("inserts an item break from the entry pill on a single-flow template", () => {
+      renderSheet({ template: SINGLE_TEMPLATE });
+
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: "Insert page break before Senior Frontend Engineer",
+        }),
+      );
+
+      expect(store.updateMetadata).toHaveBeenCalledExactlyOnceWith("itemBreaks", {
+        experience: ["exp-2"],
+      });
+      expect(writeCount()).toBe(1);
+    });
+
+    it("greys the pill action out with a reason on the section's first item", () => {
+      renderSheet({ template: SINGLE_TEMPLATE });
+
+      const button = screen.getByRole("button", {
+        name: `Insert page break before ${FIRST_EXPERIENCE}`,
+      });
+      fireEvent.click(button);
+
+      expect(button.getAttribute("aria-disabled")).toBe("true");
+      expect(writeCount()).toBe(0);
+    });
+
+    it("greys the pill action out with the template tooltip on column layouts", () => {
+      renderSheet({ template: SIDEBAR_TEMPLATE });
+
+      const button = screen.getByRole("button", {
+        name: "Insert page break before Senior Frontend Engineer",
+      });
+      expect(button.getAttribute("aria-disabled")).toBe("true");
+      // The reason is a tooltip wired through aria-describedby, reachable on
+      // keyboard focus as well as hover (owner decision 2026-08-03).
+      const tooltipId = button.getAttribute("aria-describedby");
+      expect(tooltipId).not.toBeNull();
+      const tooltip = document.getElementById(tooltipId as string);
+      expect(tooltip?.getAttribute("role")).toBe("tooltip");
+      expect(tooltip?.textContent).toMatch(/single-flow templates/i);
+
+      fireEvent.click(button);
+      expect(writeCount()).toBe(0);
+    });
+
+    it("splits the layout from the pencil menu's insert-break action", () => {
+      renderSheet();
+
+      openMenu("Education");
+      fireEvent.click(
+        screen.getByRole("menuitem", { name: "Insert page break before Education section" }),
+      );
+
+      expect(store.updateLayout).toHaveBeenCalledExactlyOnceWith([
+        [
+          ["summary", "experience"],
+          ["profiles", "skills", "speaking"],
+        ],
+        [["education", "projects"], []],
+        [
+          ["publications", "volunteer", "awards"],
+          ["languages", "interests", "certifications", "advisory"],
+        ],
+      ]);
+      expect(writeCount()).toBe(1);
+    });
+
+    it("disables the pencil insert-break action when the split changes nothing", () => {
+      // A section already at the very top of a page with nothing beside it:
+      // splitting before it reproduces the same page stack.
+      resume.metadata.layout = [[["summary", "experience", "education"]]];
+      renderSheet({ template: SINGLE_TEMPLATE });
+
+      openMenu("Summary");
+      const item = screen.getByRole("menuitem", {
+        name: "Insert page break before Summary section",
+      });
+      expect((item as HTMLButtonElement).disabled).toBe(true);
+
+      // The same action is live for a section with content above it.
+      fireEvent.keyDown(document, { key: "Escape" });
+      openMenu("Experience");
+      const enabled = screen.getByRole("menuitem", {
+        name: "Insert page break before Experience section",
+      });
+      expect((enabled as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    it("drops a moved section's item breaks in the same pagination write", () => {
+      resume.metadata.itemBreaks = { experience: ["exp-2"] };
+      renderSheet({ template: SINGLE_TEMPLATE });
+
+      const source = document.querySelector('[data-section-id="experience"]') as HTMLElement;
+      const target = document.querySelector('[data-section-id="projects"]') as HTMLElement;
+      const data: Record<string, string> = {};
+      const dataTransfer = {
+        data,
+        setData: (mime: string, value: string) => {
+          data[mime] = value;
+        },
+        getData: (mime: string) => data[mime] ?? "",
+        effectAllowed: "",
+        dropEffect: "",
+      };
+      fireEvent.mouseDown(source);
+      fireEvent.dragStart(source, { dataTransfer });
+      fireEvent.dragEnter(target, { dataTransfer, clientY: 0 });
+      fireEvent.drop(target, { dataTransfer, clientY: 0 });
+
+      // One combined write: the new layout and the cleared breaks together
+      // (spec 2.5 - a whole-section move invalidates its mid-section breaks).
+      expect(store.updateLayout).not.toHaveBeenCalled();
+      expect(store.updatePagination).toHaveBeenCalledOnce();
+      const [layout, breaks] = store.updatePagination.mock.calls[0] as [
+        string[][][],
+        Record<string, string[]>,
+      ];
+      expect(layout[0][0]).toEqual(["summary", "education", "experience", "projects"]);
+      expect(breaks).toEqual({});
+      expect(writeCount()).toBe(1);
     });
   });
 

@@ -22,14 +22,20 @@
  */
 
 import { For, Show, createSignal, type JSX } from "solid-js";
-import { createDraggable, createDroppable } from "@thisbeyond/solid-dnd";
 import { EditableField } from "./EditableField";
 import { ItemDialog } from "./ItemDialog";
 import { MarkdownView } from "./MarkdownView";
 import { SectionChrome, sectionTitleTriggerId, type SectionMenuActions } from "./SectionChrome";
-import { SortableEntry } from "./SortableEntry";
+import { SortableEntry, type InsertBreakAction } from "./SortableEntry";
 import { ContactIcon, ProfileIcon } from "./icons";
 import { useSheetEditable } from "./sheetMode";
+import {
+  SECTION_DRAG_MIME,
+  dragStartVetoed,
+  dropIndexFromPointer,
+  readDragPayload,
+  useSheetDnd,
+} from "./sheetDnd";
 import {
   duplicateItem,
   removeItem,
@@ -41,7 +47,8 @@ import {
 } from "./docEdits";
 import { itemNoun } from "./itemFields";
 import { entryDisplayLabel, entryStep, type MoveStep } from "../../lib/docDnd";
-import { isCustomId, sectionTitle } from "../../lib/docLayout";
+import { isCustomId, sectionTitle, type SectionPlacement } from "../../lib/docLayout";
+import type { SectionSlice } from "../../lib/docPagination";
 import type {
   Award,
   CustomField,
@@ -216,24 +223,51 @@ export interface DocSectionProps {
   onMoveEntry: (sectionId: string, itemId: string, step: MoveStep) => void;
   /** Announce a completed action to the sheet's live region. */
   onAnnounce: (message: string) => void;
+  /**
+   * The item slice this instance draws, or `null` for the whole section.
+   * Continuation instances (slice index > 0) render the "(cont.)" title and
+   * carry no add affordance unless they are the last slice (spec §2.6, §3.3).
+   */
+  slice: SectionSlice | null;
+  /** Whether splitting the layout before this section would change anything. */
+  canInsertPageBreak: boolean;
+  /** Split the layout so this section starts a fresh page (spec §3.4). */
+  onInsertPageBreak: (sectionId: string) => void;
+  /**
+   * The pill's "insert page break before this item" state, or `null` when the
+   * section cannot carry item breaks at all (non-main-flow, spec §3.4 guard).
+   */
+  itemBreakAction: (sectionId: string, itemId: string) => InsertBreakAction | null;
 }
 
 /** One section of the sheet: the universal card around a spec-§1.7 body. */
 export function DocSection(props: DocSectionProps): JSX.Element {
   const isEditable = useSheetEditable();
+  const dnd = useSheetDnd();
   const [editing, setEditing] = createSignal<ItemEntry | null>(null);
   const [isDialogOpen, setIsDialogOpen] = createSignal(false);
 
   const id = (): string => props.sectionId;
-  const title = (): string => sectionTitle(props.resume, id());
+  const baseTitle = (): string => sectionTitle(props.resume, id());
+  const isContinuation = (): boolean => (props.slice?.index ?? 0) > 0;
+  /** Continuation slices re-render the title as "<Title> (cont.)" (§3.3). */
+  const title = (): string => (isContinuation() ? `${baseTitle()} (cont.)` : baseTitle());
   const isRichText = (): boolean => id() === "summary" || id() === "coverLetter";
   const isChips = (): boolean => isCustomId(id());
-  const noun = (): string => itemNoun(title());
+  const noun = (): string => itemNoun(baseTitle());
   const addLabel = (): string => ADD_LABELS[id()] ?? `Add ${noun()}`;
+  /** Add affordances live only on the section's last slice (spec §2.6). */
+  const canAdd = (): boolean => props.slice === null || props.slice.isLast;
 
-  // Done mode mirrors the PDF: hidden items are dropped, not dimmed.
-  const entries = (): ItemEntry[] =>
-    itemEntries(props.resume, id()).filter((entry) => isEditable() || !entry.hidden);
+  // Done mode mirrors the PDF: hidden items are dropped, not dimmed. A sliced
+  // instance draws only its own slice of the drawn list.
+  const entries = (): ItemEntry[] => {
+    const drawn = itemEntries(props.resume, id()).filter((entry) => isEditable() || !entry.hidden);
+    const slice = props.slice;
+    if (slice === null) return drawn;
+    const included = new Set(slice.itemIds);
+    return drawn.filter((entry) => included.has(entry.id));
+  };
 
   const richText = (): string => {
     if (id() === "summary") return props.resume.sections.summary?.content ?? "";
@@ -241,13 +275,83 @@ export function DocSection(props: DocSectionProps): JSX.Element {
     return "";
   };
 
-  const draggable = createDraggable(`drag:section:${id()}`, {
-    type: "section",
-    sectionId: id(),
-  });
-  const droppable = createDroppable(`drop:section:${id()}`, {
-    type: "section",
-    sectionId: id(),
+  /** Where the press that may become a card drag started (spec §2.5 veto). */
+  let pressTarget: HTMLElement | null = null;
+
+  const isDragging = (): boolean => dnd !== null && dnd.sectionDrag() === id();
+  const placement = (): SectionPlacement | null => dnd?.sectionPlacement(id()) ?? null;
+
+  const slotState = (): { before: boolean; after: boolean } => {
+    const target = dnd?.sectionDropAt() ?? null;
+    const place = placement();
+    if (!target || !place || target.page !== place.page || target.column !== place.column) {
+      return { before: false, after: false };
+    }
+    return {
+      before: target.index === place.index,
+      after:
+        target.index === place.index + 1 &&
+        place.index === (dnd?.columnLength(place.page, place.column) ?? 0) - 1,
+    };
+  };
+
+  function endCardDrag(): void {
+    dnd?.setSectionDrag(null);
+    dnd?.setSectionDropAt(null);
+  }
+
+  /** dragenter *and* dragover both track — fast drags must register (§2.5). */
+  function trackCardDropTarget(event: DragEvent): void {
+    const dragging = dnd?.sectionDrag() ?? null;
+    if (dragging === null || dragging === id()) return;
+    const place = placement();
+    if (!place) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+    dnd?.setSectionDropAt({
+      page: place.page,
+      column: place.column,
+      index: dropIndexFromPointer(event, place.index),
+    });
+  }
+
+  /** Whole-surface card drag and drop-target wiring (spec §2.5). */
+  const cardDragProps = (): JSX.HTMLAttributes<HTMLElement> => ({
+    draggable: isEditable() && !isContinuation(),
+    onMouseDown: (event: MouseEvent) => {
+      // Record only — never preventDefault here (pinned Chromium bug).
+      pressTarget = event.target as HTMLElement;
+    },
+    onDragStart: (event: DragEvent) => {
+      const pressed = pressTarget;
+      pressTarget = null;
+      // Entry rows and the grip run their own drags (stopPropagation).
+      // Anything reaching here grabbed the card frame — veto presses that
+      // began on controls or on an entry row, so those keep their behaviour.
+      if (dragStartVetoed(pressed, ".doc-sheet__entry-row")) {
+        event.preventDefault();
+        return;
+      }
+      event.stopPropagation();
+      dnd?.setSectionDrag(id());
+      event.dataTransfer?.setData(SECTION_DRAG_MIME, JSON.stringify({ id: id() }));
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+    },
+    onDragEnd: endCardDrag,
+    onDragEnter: trackCardDropTarget,
+    onDragOver: trackCardDropTarget,
+    onDrop: (event: DragEvent) => {
+      const dragging = dnd?.sectionDrag() ?? null;
+      if (dragging === null) return;
+      event.preventDefault();
+      const target = dnd?.sectionDropAt() ?? null;
+      const payload = readDragPayload<{ id?: string }>(event, SECTION_DRAG_MIME);
+      const draggedId = payload?.id ?? dragging;
+      if (target !== null) {
+        dnd?.onSectionDrop(draggedId, target);
+      }
+      endCardDrag();
+    },
   });
 
   function openAdd(): void {
@@ -270,6 +374,7 @@ export function DocSection(props: DocSectionProps): JSX.Element {
     onToggleVisibility: () => void;
     onMoveUp?: () => void;
     onMoveDown?: () => void;
+    insertBreak?: InsertBreakAction;
   } {
     const label = entryLabel(entry, noun());
     const steps = (step: "up" | "down"): (() => void) | undefined => {
@@ -298,12 +403,13 @@ export function DocSection(props: DocSectionProps): JSX.Element {
       },
       onMoveUp: steps("up"),
       onMoveDown: steps("down"),
+      insertBreak: props.itemBreakAction(id(), entry.id) ?? undefined,
     };
   }
 
   const menu = (): SectionMenuActions => ({
-    addLabel: isRichText() ? undefined : addLabel(),
-    onAdd: isRichText() ? undefined : openAdd,
+    addLabel: isRichText() || !canAdd() ? undefined : addLabel(),
+    onAdd: isRichText() || !canAdd() ? undefined : openAdd,
     canMoveUp: props.canMoveSection(id(), "up"),
     canMoveDown: props.canMoveSection(id(), "down"),
     onMoveUp: () => props.onMoveSection(id(), "up"),
@@ -311,10 +417,12 @@ export function DocSection(props: DocSectionProps): JSX.Element {
     otherColumnLabel: props.otherColumnLabel ?? undefined,
     onMoveToOtherColumn:
       props.otherColumnLabel === null ? undefined : () => props.onMoveSectionToOtherColumn(id()),
+    canInsertPageBreak: props.canInsertPageBreak,
+    onInsertPageBreak: () => props.onInsertPageBreak(id()),
     onRename: () => document.getElementById(sectionTitleTriggerId(id()))?.click(),
     onHide: () => {
       toggleSection(id());
-      props.onAnnounce(`${title()} section hidden`);
+      props.onAnnounce(`${baseTitle()} section hidden`);
     },
   });
 
@@ -452,21 +560,30 @@ export function DocSection(props: DocSectionProps): JSX.Element {
     <>
       <SectionChrome
         sectionId={id()}
+        idKey={props.slice === null ? id() : `${id()}-slice-${props.slice.index}`}
         title={title()}
-        onRenameCommit={(value) => renameSection(id(), value)}
+        onRenameCommit={isContinuation() ? undefined : (value) => renameSection(id(), value)}
         isFocused={props.focusedSection === id()}
         onFocus={() => props.onFocusSection(id())}
-        addLabel={isRichText() ? undefined : addLabel()}
-        onAdd={isRichText() ? undefined : openAdd}
+        addLabel={isRichText() || !canAdd() ? undefined : addLabel()}
+        onAdd={isRichText() || !canAdd() ? undefined : openAdd}
         menu={menu()}
-        gripActivators={draggable.dragActivators}
-        gripTitle={`Drag ${title()} section to move it`}
-        ref={(element) => {
-          draggable.ref(element);
-          droppable.ref(element);
+        gripActivators={{
+          draggable: "true",
+          onDragStart: (event: DragEvent) => {
+            // Grip drags stopPropagation so the card doesn't double-fire.
+            event.stopPropagation();
+            dnd?.setSectionDrag(id());
+            event.dataTransfer?.setData(SECTION_DRAG_MIME, JSON.stringify({ id: id() }));
+            if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+          },
+          onDragEnd: endCardDrag,
         }}
-        isDropTarget={droppable.isActiveDroppable}
-        isDragging={draggable.isActiveDraggable}
+        gripTitle={`Drag ${baseTitle()} section to move it`}
+        dragProps={cardDragProps()}
+        isDragging={isDragging()}
+        showSlotBefore={slotState().before}
+        showSlotAfter={slotState().after}
       >
         <Show when={isRichText()}>
           <div class="doc-sheet__summary">
@@ -550,10 +667,12 @@ export function DocSection(props: DocSectionProps): JSX.Element {
 
         <Show when={!isRichText() && !isChips() && id() !== "interests"}>
           <For each={entries()}>
-            {(entry) => (
+            {(entry, drawnIndex) => (
               <SortableEntry
                 sectionId={id()}
                 itemId={entry.id}
+                index={entry.index}
+                isLast={drawnIndex() === entries().length - 1}
                 class={rowClass()}
                 isCompact={isCompact()}
                 isHidden={entry.hidden}
@@ -565,7 +684,7 @@ export function DocSection(props: DocSectionProps): JSX.Element {
           </For>
         </Show>
 
-        <Show when={!isRichText() && isEditable() && entries().length === 0}>
+        <Show when={!isRichText() && isEditable() && canAdd() && entries().length === 0}>
           <p class="doc-sheet__empty-hint">No items yet — use + to add one.</p>
         </Show>
       </SectionChrome>

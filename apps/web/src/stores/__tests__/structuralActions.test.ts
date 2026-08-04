@@ -270,3 +270,69 @@ describe("applyTemplate", () => {
     }
   });
 });
+
+describe("removeSectionItem", () => {
+  it("cleans the removed item's page-break marker in the same write (#796)", () => {
+    createRoot((dispose) => {
+      const { store, createNewResume, addSectionItem, updateMetadata, removeSectionItem } =
+        useResumeStore();
+      createNewResume("break-1");
+      addSectionItem("skills", skill("skill-a", "Alpha"));
+      addSectionItem("skills", skill("skill-b", "Beta"));
+      const base = store.resume!.sections.skills.items.length - 2;
+      updateMetadata("itemBreaks", { skills: ["skill-b"], experience: ["exp-x"] });
+
+      removeSectionItem("skills", base + 1);
+
+      // Only the removed item's marker goes; other sections keep theirs.
+      expect(store.resume!.metadata.itemBreaks).toEqual({ experience: ["exp-x"] });
+      dispose();
+    });
+  });
+
+  it("leaves itemBreaks untouched when the removed item carried no marker", () => {
+    createRoot((dispose) => {
+      const { store, createNewResume, addSectionItem, updateMetadata, removeSectionItem } =
+        useResumeStore();
+      createNewResume("break-2");
+      addSectionItem("skills", skill("skill-a", "Alpha"));
+      updateMetadata("itemBreaks", { experience: ["exp-x"] });
+
+      removeSectionItem("skills", store.resume!.sections.skills.items.length - 1);
+
+      expect(store.resume!.metadata.itemBreaks).toEqual({ experience: ["exp-x"] });
+      dispose();
+    });
+  });
+});
+
+describe("updatePagination", () => {
+  it("writes layout and itemBreaks together as one undo entry", () => {
+    vi.useFakeTimers();
+    try {
+      createRoot((dispose) => {
+        const { store, createNewResume, updateMetadata, updatePagination, undo } = useResumeStore();
+        createNewResume("pagination-1");
+        updateMetadata("itemBreaks", { experience: ["exp-x"] });
+        vi.advanceTimersByTime(600);
+        const layoutBefore = JSON.parse(
+          JSON.stringify(store.resume!.metadata.layout),
+        ) as string[][][];
+
+        updatePagination([[["summary"], []]], {});
+        vi.advanceTimersByTime(600);
+
+        expect(store.resume!.metadata.layout).toEqual([[["summary"], []]]);
+        expect(store.resume!.metadata.itemBreaks).toEqual({});
+
+        // One undo restores both halves at once.
+        expect(undo()).toBe(true);
+        expect(store.resume!.metadata.layout).toEqual(layoutBefore);
+        expect(store.resume!.metadata.itemBreaks).toEqual({ experience: ["exp-x"] });
+        dispose();
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

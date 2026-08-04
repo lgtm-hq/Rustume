@@ -110,6 +110,52 @@ test.describe("single-surface document editor", () => {
     await expect(docEditorPage.sheet.getByRole("button", { name: "Ada Lovelace" })).toBeVisible();
   });
 
+  test("whole-surface drags reorder sections and explicit page breaks split the sheet", async ({
+    page,
+    homePage,
+    docEditorPage,
+  }) => {
+    await homePage.open();
+    await homePage.createResume();
+    await docEditorPage.assertDocEditorOpen();
+    await docEditorPage.assertMode("edit");
+
+    const cards = docEditorPage.sheet.locator('[data-section-id]:not([data-section-id="basics"])');
+    const idsBefore = (await cards.evaluateAll((elements) =>
+      elements.map((element) => element.getAttribute("data-section-id")),
+    )) as string[];
+    expect(idsBefore.length).toBeGreaterThan(2);
+    const [first, second] = idsBefore;
+
+    // Whole-surface drag (#796): grab the second card by its grip and drop it
+    // on the first card — the two swap places through one layout write.
+    const source = docEditorPage.sheet.locator(`[data-section-id="${second}"]`);
+    const target = docEditorPage.sheet.locator(`[data-section-id="${first}"]`);
+    await source.hover();
+    await source.locator(".doc-sheet__sec-grip").dragTo(target);
+    await expect
+      .poll(async () =>
+        cards.evaluateAll((elements) =>
+          elements.map((element) => element.getAttribute("data-section-id")),
+        ),
+      )
+      .toEqual([second, first, ...idsBefore.slice(2)]);
+
+    // Explicit pagination: insert a page break before the now-second section
+    // from its pencil menu, then remove it from the rule between the sheets.
+    const sheets = docEditorPage.sheet.getByTestId("doc-sheet-page");
+    await expect(sheets).toHaveCount(1);
+    await target.getByRole("button", { name: / section options$/ }).click();
+    await page.getByRole("menuitem", { name: /^Insert page break before .* section$/ }).click();
+    await expect(sheets).toHaveCount(2);
+    await expect(docEditorPage.sheet.getByTestId("doc-sheet-page-break")).toBeVisible();
+    await expect(docEditorPage.sheet.getByTestId("doc-sheet-page-count")).toContainText("2");
+
+    await page.getByRole("button", { name: "Remove page break" }).click();
+    await expect(sheets).toHaveCount(1);
+    await expect(docEditorPage.sheet.getByTestId("doc-sheet-page-count")).toContainText("1");
+  });
+
   test("opening a legacy HTML resume shows formatted text, not raw tags", async ({
     page,
     homePage,

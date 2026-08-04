@@ -223,10 +223,6 @@
   margin-bottom: 0.4rem;
 }
 
-/* Column drop feedback while a section drag hovers it. */
-.doc-sheet__column--drop {
-  box-shadow: inset 0 0 0 2px var(--doc-sheet-accent);
-}
 
 /* ── Sidebar resize handle (spec §3.2) ──────────────────────────────────── */
 
@@ -457,9 +453,32 @@
   opacity: 0.45;
 }
 
-.doc-sheet__sec--drop {
-  outline: 2px solid var(--doc-sheet-accent);
-  outline-offset: 0.35em;
+/* Whole-surface drags (spec §2.4–§2.5): selection is suppressed instead of
+   preventDefault on mousedown — the pinned Chromium dragstart bug. */
+.doc-sheet__sec--edit {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* 3px accent slot indicators, absolutely positioned so they never shift
+   layout under a stationary pointer (spec §2.5, pinned bug). */
+.doc-sheet__sec-slot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--doc-sheet-accent);
+  pointer-events: none;
+  z-index: 4;
+}
+
+.doc-sheet__sec-slot--before {
+  top: -5px;
+}
+
+.doc-sheet__sec-slot--after {
+  bottom: -5px;
 }
 
 /* Grip and pencil: ghosts until the card is hovered or focused. */
@@ -689,7 +708,8 @@
 }
 
 .doc-sheet__add-section-block:hover,
-.doc-sheet__add-section-block:focus-visible {
+.doc-sheet__add-section-block:focus-visible,
+.doc-sheet__add-section-block--drop-hint {
   opacity: 1;
   color: var(--doc-sheet-accent);
   border-color: color-mix(in srgb, var(--doc-sheet-accent) 55%, #cfc9bd);
@@ -762,9 +782,39 @@
   opacity: 0.4;
 }
 
-.doc-sheet__entry-row--drop {
-  outline: 2px solid var(--doc-sheet-accent);
-  outline-offset: 2px;
+.doc-sheet__entry-row--edit {
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+}
+
+.doc-sheet__entry-row--edit.doc-sheet__entry-row--dragging {
+  cursor: grabbing;
+}
+
+.doc-sheet__entry-row--edit.doc-sheet__entry-row--compact {
+  cursor: pointer;
+}
+
+/* 3px accent slot bars marking the item drop position (spec §2.4); absolute
+   so indicators never shift layout under a stationary pointer. */
+.doc-sheet__entry-slot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--doc-sheet-accent);
+  pointer-events: none;
+  z-index: 4;
+}
+
+.doc-sheet__entry-slot--before {
+  top: -3px;
+}
+
+.doc-sheet__entry-slot--after {
+  bottom: -3px;
 }
 
 /* Hidden means "not rendered to PDF" — still on the surface, dimmed. */
@@ -1281,16 +1331,46 @@
   border-color: transparent;
 }
 
-/* ── Drag overlay ──────────────────────────────────────────────────────── */
+/* ── Insert-page-break pill control (#796) ─────────────────────────────── */
 
-.doc-sheet__drag-overlay {
-  pointer-events: none;
-  display: inline-block;
-  padding: 0.35rem 0.75rem;
-  font-size: 0.85rem;
-  color: var(--color-ink, inherit);
-  background: var(--color-paper, #fff);
-  border: 1px solid var(--doc-sheet-accent);
+.doc-sheet__entry-act-slot {
+  position: relative;
+  display: inline-flex;
+}
+
+.doc-sheet__break-ico {
+  width: 0.8rem;
+  height: 0.8rem;
+  display: block;
+}
+
+.doc-sheet__entry-act--break[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* The disabled reason: a tooltip reachable on hover AND keyboard focus
+   (owner decision 2026-08-03 — never hover-only). */
+.doc-sheet__act-tooltip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  width: 15rem;
+  padding: 0.4rem 0.55rem;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  text-align: left;
+  color: var(--color-paper, #fff);
+  background: var(--color-ink, #1c1917);
   border-radius: 0.375rem;
   box-shadow: 0 4px 16px var(--color-shadow);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+  z-index: 30;
+}
+
+.doc-sheet__entry-act--break:hover + .doc-sheet__act-tooltip,
+.doc-sheet__entry-act--break:focus-visible + .doc-sheet__act-tooltip {
+  opacity: 1;
 }

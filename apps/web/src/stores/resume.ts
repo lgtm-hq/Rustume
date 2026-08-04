@@ -29,6 +29,7 @@ import {
   showResumeVersionConflictToast,
 } from "./cloudStorage";
 import { FIXED_LAYOUT_SECTION_KEYS, isHtmlEmpty } from "../lib/resumeSections";
+import { sanitizedItemBreaks } from "../lib/docPagination";
 import { setUndoRecorder, recordUndo } from "./editorUndo";
 import { saveSnapshot } from "./versionHistory";
 import {
@@ -248,6 +249,12 @@ function normalizeResumeForStore(resume: ResumeData): ResumeData {
   }
   if (!Array.isArray(resume.metadata.layout)) {
     resume.metadata.layout = [];
+  }
+  // Strip break markers the renderer would ignore (spec §3.4 guard): markers
+  // on chip/side sections over-fragment the sheet into empty continuations.
+  const repairedBreaks = sanitizedItemBreaks(resume.metadata.itemBreaks);
+  if (repairedBreaks !== null) {
+    resume.metadata.itemBreaks = repairedBreaks;
   }
   ensureCoverLetterSection(resume);
 
@@ -648,8 +655,24 @@ export function useResumeStore() {
     removeSectionItem<K extends SectionKey>(sectionKey: K, index: number) {
       setStore(
         produce((s) => {
-          if (s.resume) {
-            (s.resume.sections[sectionKey] as Section<unknown>).items.splice(index, 1);
+          if (!s.resume) return;
+          const items = (s.resume.sections[sectionKey] as Section<{ id: string }>).items;
+          const [removed] = items.splice(index, 1);
+          // Removing an item also cleans its page-break marker (spec §2.7),
+          // in the same write so the removal stays one undo entry.
+          const markers = s.resume.metadata.itemBreaks?.[sectionKey];
+          if (removed !== undefined && markers?.includes(removed.id) === true) {
+            const filtered = markers.filter((id) => id !== removed.id);
+            if (filtered.length > 0) {
+              s.resume.metadata.itemBreaks = {
+                ...s.resume.metadata.itemBreaks,
+                [sectionKey]: filtered,
+              };
+            } else {
+              const next = { ...s.resume.metadata.itemBreaks };
+              delete next[sectionKey];
+              s.resume.metadata.itemBreaks = next;
+            }
           }
         }),
       );
@@ -892,6 +915,24 @@ export function useResumeStore() {
         produce((s) => {
           if (s.resume) {
             s.resume.metadata.layout = layout;
+          }
+        }),
+      );
+      markDirty();
+    },
+
+    /**
+     * Write `metadata.layout` and `metadata.itemBreaks` together as **one**
+     * action and one undo entry — a whole-section move both re-places the
+     * section and drops its now-meaningless mid-section breaks (spec §2.5),
+     * and undoing it must restore both halves at once.
+     */
+    updatePagination(layout: string[][][], itemBreaks: Record<string, string[]>) {
+      setStore(
+        produce((s) => {
+          if (s.resume) {
+            s.resume.metadata.layout = layout;
+            s.resume.metadata.itemBreaks = itemBreaks;
           }
         }),
       );

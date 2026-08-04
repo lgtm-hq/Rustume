@@ -2,7 +2,8 @@ import { createRoot } from "solid-js";
 import { createDefaultResume } from "../../wasm/defaults";
 import type { ResumeData } from "../../wasm/types";
 import { FIXED_LAYOUT_SECTION_KEYS } from "../../lib/resumeSections";
-import { editorPages, FALLBACK_TEMPLATE_LAYOUT } from "../../lib/docLayout";
+import { FALLBACK_TEMPLATE_LAYOUT } from "../../lib/docLayout";
+import { editorSheetPages } from "../../lib/docPagination";
 import {
   isResumeEmpty,
   useResumeStore,
@@ -1264,7 +1265,7 @@ describe("unplaced fixed sections (#770)", () => {
         [["summary", "experience", "coverLetter"], ["skills"]],
       ]);
       // The sheet draws only placed ids — the section must actually appear.
-      const drawnIds = editorPages(store.resume!, FALLBACK_TEMPLATE_LAYOUT).flat(2);
+      const drawnIds = editorSheetPages(store.resume!, FALLBACK_TEMPLATE_LAYOUT).flat(2);
       expect(drawnIds).toContain("coverLetter");
       dispose();
     });

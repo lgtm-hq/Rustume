@@ -36,17 +36,6 @@ export interface EntryListItem {
   visible: boolean;
 }
 
-/** A resolved entry drop: a reorder within one section, or a move across two. */
-export type EntryDrop =
-  | { kind: "reorder"; sectionId: string; fromIndex: number; toIndex: number }
-  | {
-      kind: "move";
-      fromSectionId: string;
-      fromIndex: number;
-      toSectionId: string;
-      toIndex: number;
-    };
-
 function cloneLayout(layout: readonly (readonly (readonly string[])[])[]): string[][][] {
   return layout.map((page) => page.map((column) => [...column]));
 }
@@ -74,8 +63,10 @@ function pruneEmptyPages(layout: string[][][]): string[][][] {
  * section is not placed or the move changes nothing.
  *
  * `target` is expressed in pre-removal coordinates: "insert before whatever is
- * at this position now". A target page of `layout.length` appends a fresh page
- * with the same column count as the last existing page.
+ * at this position now". A target page at or past `layout.length` creates the
+ * missing pages with the same column count as the last existing page; pages
+ * left empty are pruned afterwards, so the section lands on the first fresh
+ * page after the existing content.
  */
 export function moveSectionInLayout(
   layout: readonly (readonly (readonly string[])[])[],
@@ -83,14 +74,17 @@ export function moveSectionInLayout(
   target: SectionDropTarget,
 ): string[][][] | null {
   const placement = findSectionPlacement(layout, sectionId);
-  if (!placement || target.page < 0 || target.page > layout.length || target.column < 0) {
+  if (!placement || target.page < 0 || target.column < 0) {
     return null;
   }
 
   const next = cloneLayout(layout);
   next[placement.page][placement.column].splice(placement.index, 1);
 
-  if (target.page === next.length) {
+  // Auto-create missing pages (spec §2.5): item-break continuations can draw
+  // more sheets than the raw layout stores, and a drop on one of those sheets
+  // targets a raw page that does not exist yet.
+  while (target.page >= next.length) {
     const columnCount = Math.max(1, next[next.length - 1]?.length ?? 1);
     next.push(Array.from({ length: columnCount }, () => []));
   }
@@ -252,58 +246,27 @@ export function drawnSectionPosition(
 }
 
 /**
- * Whether an entry may leave `fromSectionId` for `toSectionId`.
+ * Resolve an entry drop at `dropIndex` — an insert-before position in the
+ * section's own `items` array, `+1` when the pointer was in the target row's
+ * bottom half — as the `(fromIndex, toIndex)` pair the store's splice-based
+ * reorder expects. `null` for an unknown item or a drop that changes nothing
+ * (one drop is one store action, and a no-op drop is no action at all).
  *
- * Only custom sections share an item shape, so they are the only pair a move
- * is defined for; a fixed section's items would be structurally wrong anywhere
- * else, and no store action exists to put them there.
+ * Item drags are same-section-only (spec §2.4, owner decision): callers
+ * never route a drop here across sections.
  */
-export function canMoveEntryAcross(fromSectionId: string, toSectionId: string): boolean {
-  return fromSectionId !== toSectionId && isCustomId(fromSectionId) && isCustomId(toSectionId);
-}
-
-/**
- * Resolve an entry drop onto another entry (or a section's tail) as index
- * pairs into the sections' unfiltered `items` arrays.
- *
- * `targetItemId: null` addresses the end of the target section. Within one
- * section the usual reorder rule applies — dropping onto the entry below lands
- * after it, onto the entry above lands before it (which is what the store's
- * splice-based reorder computes from a plain target index).
- */
-export function resolveEntryDrop(args: {
-  fromSectionId: string;
-  fromItems: readonly EntryListItem[];
-  itemId: string;
-  toSectionId: string;
-  toItems: readonly EntryListItem[];
-  targetItemId: string | null;
-}): EntryDrop | null {
-  const fromIndex = args.fromItems.findIndex((item) => item.id === args.itemId);
+export function resolveEntryDropIndex(
+  items: readonly EntryListItem[],
+  itemId: string,
+  dropIndex: number,
+): { fromIndex: number; toIndex: number } | null {
+  const fromIndex = items.findIndex((item) => item.id === itemId);
   if (fromIndex === -1) return null;
-
-  if (args.fromSectionId === args.toSectionId) {
-    const toIndex =
-      args.targetItemId === null
-        ? args.toItems.length - 1
-        : args.toItems.findIndex((item) => item.id === args.targetItemId);
-    if (toIndex === -1 || toIndex === fromIndex) return null;
-    return { kind: "reorder", sectionId: args.fromSectionId, fromIndex, toIndex };
-  }
-
-  if (!canMoveEntryAcross(args.fromSectionId, args.toSectionId)) return null;
-  const toIndex =
-    args.targetItemId === null
-      ? args.toItems.length
-      : args.toItems.findIndex((item) => item.id === args.targetItemId);
-  if (toIndex === -1) return null;
-  return {
-    kind: "move",
-    fromSectionId: args.fromSectionId,
-    fromIndex,
-    toSectionId: args.toSectionId,
-    toIndex,
-  };
+  const clamped = Math.max(0, Math.min(dropIndex, items.length));
+  // Removing the dragged item first shifts every later position down by one.
+  const toIndex = clamped > fromIndex ? clamped - 1 : clamped;
+  if (toIndex === fromIndex) return null;
+  return { fromIndex, toIndex: Math.min(toIndex, items.length - 1) };
 }
 
 /** One-step reorder of an entry within its section, or `null` at a boundary. */
@@ -317,22 +280,6 @@ export function entryStep(
   const toIndex = step === "up" ? fromIndex - 1 : fromIndex + 1;
   if (toIndex < 0 || toIndex >= items.length) return null;
   return { fromIndex, toIndex };
-}
-
-/**
- * The custom section an entry moves to for a lateral keyboard step: the
- * previous or next custom section in flattened layout order, or `null` when
- * there is none — the keyboard mirror of a cross-section drag.
- */
-export function adjacentCustomSectionId(
-  layout: readonly (readonly (readonly string[])[])[],
-  fromSectionId: string,
-  step: "previous" | "next",
-): string | null {
-  const customIds = layout.flat(2).filter((id) => isCustomId(id));
-  const position = customIds.indexOf(fromSectionId);
-  if (position === -1) return null;
-  return customIds[step === "previous" ? position - 1 : position + 1] ?? null;
 }
 
 /** Head-line fields an entry might carry, in display preference order. */
