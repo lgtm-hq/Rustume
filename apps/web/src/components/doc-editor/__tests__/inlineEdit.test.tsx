@@ -151,7 +151,8 @@ describe("document sheet inline editing (LiveText)", () => {
     renderSheet();
 
     const field = arm("Mireille Okafor", "Name", header());
-    type(field, "Ada Lovelace  ");
+    // A real NBSP, spelled out so no editor can silently swap it for a space.
+    type(field, "Ada\u00a0Lovelace  ");
     blurField(field);
 
     expect(store.updateBasics).toHaveBeenCalledExactlyOnceWith("name", "Ada Lovelace");
@@ -333,6 +334,23 @@ describe("rich LiveText and the floating format toolbar", () => {
     expect(editableText(field)).toBe("[Halo guide](https://halo.example)");
   });
 
+  it("wraps the selection captured before the URL row stole it", () => {
+    const field = armSummary();
+    type(field, "Halo guide");
+    select(field, 0, 4);
+
+    fireEvent.click(within(toolbar()).getByRole("button", { name: "Link" }));
+    // Focusing the URL input moves the document selection out of the field;
+    // the link must act on the range captured when the row opened, or the
+    // markdown would be appended at the end instead of wrapping "Halo".
+    window.getSelection()?.removeAllRanges();
+    const href = screen.getByRole("textbox", { name: "Link URL" });
+    fireEvent.input(href, { target: { value: "https://halo.example" } });
+    fireEvent.keyDown(href, { key: "Enter" });
+
+    expect(editableText(field)).toBe("[Halo](https://halo.example) guide");
+  });
+
   it("keeps the field armed while focus visits the URL row", () => {
     const field = armSummary();
 
@@ -344,6 +362,24 @@ describe("rich LiveText and the floating format toolbar", () => {
     // grace, made deterministic); nothing may commit yet.
     expect(writeCount()).toBe(0);
     expect(screen.getByTestId("doc-sheet-format-toolbar")).toBeInTheDocument();
+  });
+
+  it("commits when focus leaves the session through the toolbar's URL row", () => {
+    const field = armSummary();
+    type(field, "Changed **text**");
+
+    fireEvent.click(within(toolbar()).getByRole("button", { name: "Link" }));
+    const href = screen.getByRole("textbox", { name: "Link URL" });
+    // Field → toolbar is still the same session; nothing commits yet.
+    fireEvent.focusOut(field, { relatedTarget: href });
+    expect(writeCount()).toBe(0);
+
+    // Toolbar → outside ends the session: the edit must not stay armed
+    // forever with its text never reaching the store.
+    fireEvent.focusOut(href, { relatedTarget: document.body });
+
+    expect(store.updateSummary).toHaveBeenCalledExactlyOnceWith("Changed **text**");
+    expect(writeCount()).toBe(1);
   });
 
   it("commits the markdown through updateSummary, once, on blur", () => {

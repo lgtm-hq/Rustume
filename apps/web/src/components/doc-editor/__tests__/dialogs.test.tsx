@@ -283,6 +283,15 @@ describe("item dialog", () => {
       expect(savedKeywords()).toEqual(["wasm"]);
     });
 
+    it("splits a pasted comma list into chips", () => {
+      const input = renderSkills();
+
+      fireEvent.input(input, { target: { value: "wasm, axum , wasm" } });
+      fireEvent.keyDown(input, { key: "Enter" });
+
+      expect(savedKeywords()).toEqual(["wasm", "axum"]);
+    });
+
     it("drops duplicates and trims whitespace", () => {
       const input = renderSkills();
 
@@ -424,10 +433,10 @@ describe("item dialog", () => {
       ));
 
       fireEvent.click(screen.getByRole("button", { name: "+ Add field" }));
-      fireEvent.input(screen.getByRole("textbox", { name: "Field name" }), {
+      fireEvent.input(screen.getByRole("textbox", { name: "Field 1 name" }), {
         target: { value: "Stack" },
       });
-      fireEvent.input(screen.getByRole("textbox", { name: "Field value" }), {
+      fireEvent.input(screen.getByRole("textbox", { name: "Field 1 value" }), {
         target: { value: "Rust · Solid" },
       });
       fireEvent.click(screen.getByRole("button", { name: "Add" }));

@@ -235,7 +235,11 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
   /** Persist a settled width as the document's sidebar ratio. */
   function commitSidebarWidth(px: number): void {
     setDragSidebarWidth(null);
-    updateSidebarRatio(clampSidebarWidth(px) / SHEET_CONTENT_WIDTH_PX);
+    const next = clampSidebarWidth(px);
+    // A no-move release, or a keyboard step pinned at a clamp bound, must not
+    // spend an undo entry on an unchanged width.
+    if (next === sidebarWidth()) return;
+    updateSidebarRatio(next / SHEET_CONTENT_WIDTH_PX);
   }
 
   /**

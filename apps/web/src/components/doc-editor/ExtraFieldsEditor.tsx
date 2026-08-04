@@ -11,7 +11,7 @@
  * dialog owns the draft and commits once, on save.
  */
 
-import { For, type JSX } from "solid-js";
+import { Index, type JSX } from "solid-js";
 import { generateId } from "../../wasm/types";
 import type { CustomField } from "../../wasm/types";
 
@@ -43,36 +43,39 @@ export function ExtraFieldsEditor(props: ExtraFieldsEditorProps): JSX.Element {
     <div class="flex flex-col gap-1.5">
       <span class="font-mono text-xs uppercase tracking-wider text-stone">Custom fields</span>
 
-      <For each={props.fields}>
+      {/* Position-keyed (`Index`), not reference-keyed: a keystroke patches
+          its row into a fresh object, and reference keying would recreate the
+          row's DOM and drop focus mid-word. */}
+      <Index each={props.fields}>
         {(field, index) => (
           <div class="flex items-center gap-2">
             <input
               type="text"
               class="w-2/5 rounded-lg border border-border bg-paper px-3 py-2 font-body text-ink placeholder:text-stone/50 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-              aria-label="Field name"
+              aria-label={`Field ${index + 1} name`}
               placeholder="Field name"
-              value={field.name}
-              onInput={(event) => patchAt(index(), { name: event.currentTarget.value })}
+              value={field().name}
+              onInput={(event) => patchAt(index, { name: event.currentTarget.value })}
             />
             <input
               type="text"
               class="flex-1 rounded-lg border border-border bg-paper px-3 py-2 font-body text-ink placeholder:text-stone/50 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-              aria-label="Field value"
+              aria-label={`Field ${index + 1} value`}
               placeholder="Value"
-              value={field.value}
-              onInput={(event) => patchAt(index(), { value: event.currentTarget.value })}
+              value={field().value}
+              onInput={(event) => patchAt(index, { value: event.currentTarget.value })}
             />
             <button
               type="button"
               class="rounded-md px-2 py-1 text-stone hover:bg-surface hover:text-ink"
-              aria-label={`Remove field ${field.name === "" ? index() + 1 : field.name}`}
-              onClick={() => removeAt(index())}
+              aria-label={`Remove field ${field().name === "" ? index + 1 : field().name}`}
+              onClick={() => removeAt(index)}
             >
               ×
             </button>
           </div>
         )}
-      </For>
+      </Index>
 
       <button
         type="button"

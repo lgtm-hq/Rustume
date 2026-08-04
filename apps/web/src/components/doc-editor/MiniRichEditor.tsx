@@ -16,22 +16,7 @@
 
 import { For, Show, createSignal, type JSX } from "solid-js";
 import { applyMarkdownCommand, type MarkdownCommand, type MarkdownSelection } from "./markdown";
-
-interface ToolbarAction {
-  command: MarkdownCommand;
-  label: string;
-  /** Short glyph drawn in the button; the accessible name is `label`. */
-  glyph: string;
-}
-
-const TOOLBAR: readonly ToolbarAction[] = [
-  { command: "bold", label: "Bold", glyph: "B" },
-  { command: "italic", label: "Italic", glyph: "I" },
-  { command: "bulletList", label: "Bulleted list", glyph: "•" },
-  { command: "orderedList", label: "Numbered list", glyph: "1." },
-  // Typographic glyphs, never emoji — see the brand anti-pattern list.
-  { command: "link", label: "Link", glyph: "Link" },
-];
+import { TOOLBAR_ACTIONS } from "./toolbarActions";
 
 const BUTTON_CLASS =
   "rounded-md border border-border bg-surface px-2 py-1 font-body text-sm text-ink " +
@@ -53,8 +38,10 @@ export function MiniRichEditor(props: MiniRichEditorProps): JSX.Element {
   const [isLinkOpen, setIsLinkOpen] = createSignal(false);
 
   let textarea: HTMLTextAreaElement | undefined;
-  // The selection the link row will act on, captured before focus moves to it.
-  let linkRange: MarkdownSelection | null = null;
+  // The selection the link row will act on, captured before focus moves to
+  // it. Offsets only: the value is read fresh at apply time, so typing after
+  // the row opened is never overwritten by a stale snapshot.
+  let linkRange: { start: number; end: number } | null = null;
 
   function selection(): MarkdownSelection {
     const value = props.value;
@@ -72,7 +59,8 @@ export function MiniRichEditor(props: MiniRichEditorProps): JSX.Element {
 
   function runCommand(command: MarkdownCommand): void {
     if (command === "link") {
-      linkRange = selection();
+      const { start, end } = selection();
+      linkRange = { start, end };
       setIsLinkOpen(true);
       return;
     }
@@ -87,7 +75,14 @@ export function MiniRichEditor(props: MiniRichEditorProps): JSX.Element {
   function applyLink(): void {
     const href = linkHref().trim();
     if (href === "") return;
-    applyResult(applyMarkdownCommand(linkRange ?? selection(), "link", href));
+    const range = linkRange === null ? selection() : { value: props.value, ...linkRange };
+    applyResult(applyMarkdownCommand(range, "link", href));
+    linkRange = null;
+    setLinkHref("");
+    setIsLinkOpen(false);
+  }
+
+  function closeLinkRow(): void {
     linkRange = null;
     setLinkHref("");
     setIsLinkOpen(false);
@@ -103,7 +98,7 @@ export function MiniRichEditor(props: MiniRichEditorProps): JSX.Element {
           role="toolbar"
           aria-label={`${props.label} formatting`}
         >
-          <For each={TOOLBAR}>
+          <For each={TOOLBAR_ACTIONS}>
             {(action) => (
               <button
                 type="button"
@@ -130,9 +125,19 @@ export function MiniRichEditor(props: MiniRichEditorProps): JSX.Element {
               value={linkHref()}
               onInput={(event) => setLinkHref(event.currentTarget.value)}
               onKeyDown={(event) => {
-                if (event.key !== "Enter") return;
-                event.preventDefault();
-                applyLink();
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  applyLink();
+                  return;
+                }
+                if (event.key === "Escape") {
+                  // Abandon the link, not the whole item edit: the dialog
+                  // must not see this Escape and discard the draft.
+                  event.preventDefault();
+                  event.stopPropagation();
+                  closeLinkRow();
+                  textarea?.focus();
+                }
               }}
             />
             <button
@@ -153,7 +158,12 @@ export function MiniRichEditor(props: MiniRichEditorProps): JSX.Element {
           rows={4}
           placeholder="Markdown — **bold**, *italic*, - item"
           value={props.value}
-          onInput={(event) => props.onInput(event.currentTarget.value)}
+          onInput={(event) => {
+            // Typing invalidates the captured link offsets; the row falls
+            // back to the live selection rather than a stale range.
+            linkRange = null;
+            props.onInput(event.currentTarget.value);
+          }}
         />
       </div>
 

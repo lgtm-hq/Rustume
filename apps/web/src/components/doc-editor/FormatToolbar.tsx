@@ -19,18 +19,31 @@
  * still part of the same editing session.
  */
 
-import { For, Show, createContext, createSignal, useContext, type JSX } from "solid-js";
+import { For, Show, createContext, createSignal, onCleanup, useContext, type JSX } from "solid-js";
 import type { MarkdownCommand } from "./markdown";
+import { TOOLBAR_ACTIONS } from "./toolbarActions";
 import { useSheetEditable } from "./sheetMode";
 
 /** What an armed rich field offers the toolbar. */
 export interface RichFieldController {
   /** Field name, e.g. "Summary" — labels the toolbar for assistive tech. */
   label: string;
-  /** Run a markdown command over the field's current selection. */
-  apply: (command: MarkdownCommand, href?: string) => void;
+  /**
+   * Run a markdown command over the field's selection — `range`, when given,
+   * instead of the live one (the URL row steals the live selection).
+   */
+  apply: (command: MarkdownCommand, href?: string, range?: { start: number; end: number }) => void;
+  /** The field's current selection offsets, for a command applied later. */
+  captureSelection: () => { start: number; end: number };
   /** Put focus back on the field (after the URL row took it). */
   focusField: () => void;
+  /**
+   * Focus left the toolbar for `target`. The field commits unless the focus
+   * stayed within the editing session (the field itself or the toolbar) —
+   * without this, an edit whose focus went field → URL row → outside would
+   * stay armed forever and never reach the store.
+   */
+  handleExternalFocus: (target: unknown) => void;
 }
 
 export interface FormatToolbarState {
@@ -73,33 +86,20 @@ export function useFormatToolbar(): FormatToolbarState {
   return useContext(FormatToolbarContext);
 }
 
-interface ToolbarAction {
-  command: MarkdownCommand;
-  label: string;
-  /** Short glyph drawn in the button; the accessible name is `label`. */
-  glyph: string;
-}
-
-/** Underline and strikethrough are absent by design — see the module note. */
-const TOOLBAR: readonly ToolbarAction[] = [
-  { command: "bold", label: "Bold", glyph: "B" },
-  { command: "italic", label: "Italic", glyph: "I" },
-  { command: "bulletList", label: "Bulleted list", glyph: "•" },
-  { command: "orderedList", label: "Numbered list", glyph: "1." },
-  // Typographic glyphs, never emoji — see the brand anti-pattern list.
-  { command: "link", label: "Link", glyph: "Link" },
-];
-
 /** The floating bar. Mounted once per sheet, inside the context provider. */
 export function FormatToolbar(): JSX.Element {
   const isEditable = useSheetEditable();
   const toolbar = useFormatToolbar();
   const [linkHref, setLinkHref] = createSignal("");
   const [isLinkOpen, setIsLinkOpen] = createSignal(false);
+  // The selection the URL row will act on, captured before the row takes
+  // focus — focusing the input moves the document selection out of the field.
+  let linkRange: { start: number; end: number } | null = null;
 
   const controller = (): RichFieldController | null => (isEditable() ? toolbar.controller() : null);
 
   function closeLinkRow(): void {
+    linkRange = null;
     setLinkHref("");
     setIsLinkOpen(false);
   }
@@ -108,6 +108,7 @@ export function FormatToolbar(): JSX.Element {
     const field = controller();
     if (!field) return;
     if (command === "link") {
+      linkRange = field.captureSelection();
       setIsLinkOpen(true);
       return;
     }
@@ -119,7 +120,7 @@ export function FormatToolbar(): JSX.Element {
     const field = controller();
     const href = linkHref().trim();
     if (!field || href === "") return;
-    field.apply("link", href);
+    field.apply("link", href, linkRange ?? undefined);
     closeLinkRow();
     field.focusField();
   }
@@ -130,13 +131,17 @@ export function FormatToolbar(): JSX.Element {
         <div
           ref={(element) => {
             toolbar.setToolbarElement(element);
+            // A stale reference would test blur containment against a
+            // detached node once the toolbar unmounts.
+            onCleanup(() => toolbar.setToolbarElement(undefined));
           }}
           class="doc-sheet__fmtbar"
           role="toolbar"
           aria-label={`${field().label} formatting`}
           data-testid="doc-sheet-format-toolbar"
+          onFocusOut={(event) => field().handleExternalFocus(event.relatedTarget)}
         >
-          <For each={TOOLBAR}>
+          <For each={TOOLBAR_ACTIONS}>
             {(action) => (
               <button
                 type="button"

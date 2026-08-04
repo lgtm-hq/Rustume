@@ -145,6 +145,12 @@ export function ItemDialog(props: ItemDialogProps): JSX.Element {
         // A fresh skill or language starts at the UI default rather than the
         // schema's 0, so the picker opens with a selection (spec §4.2).
         if (isAdding() && hasLevel() && asLevel(next.level) === 0) next.level = DEFAULT_LEVEL;
+        // Normalise custom-field rows once, at seeding — normalising per
+        // render would hand the row editor fresh objects every keystroke and
+        // the recreated inputs would drop focus mid-word.
+        if (fields().some((spec) => spec.kind === "extraFields")) {
+          next.customFields = asCustomFields(next.customFields);
+        }
         setDraft(next);
         // The first field takes focus (spec §1.13).
         queueMicrotask(() => body?.querySelector<HTMLElement>("input, textarea")?.focus());
@@ -228,7 +234,9 @@ export function ItemDialog(props: ItemDialogProps): JSX.Element {
 
         <Match when={spec().kind === "extraFields"}>
           <ExtraFieldsEditor
-            fields={asCustomFields(value())}
+            // Seeded normalised above; passing it through untouched keeps row
+            // identity stable across keystrokes.
+            fields={(value() as CustomField[] | undefined) ?? []}
             onChange={(next) => setField(spec().key, next)}
           />
         </Match>
@@ -241,11 +249,29 @@ export function ItemDialog(props: ItemDialogProps): JSX.Element {
             >
               {spec().label}
             </span>
-            {/* Five equal-width cards, number over label (spec §1.13). */}
+            {/* Five equal-width cards, number over label (spec §1.13). One
+                roving tab stop; arrows move the selection (radiogroup
+                pattern). */}
             <div
               class="grid grid-cols-5 gap-2"
               role="radiogroup"
               aria-labelledby={`doc-item-level-${spec().key}`}
+              onKeyDown={(event) => {
+                const step =
+                  event.key === "ArrowRight" || event.key === "ArrowDown"
+                    ? 1
+                    : event.key === "ArrowLeft" || event.key === "ArrowUp"
+                      ? -1
+                      : 0;
+                if (step === 0) return;
+                event.preventDefault();
+                const current = asLevel(value()) || DEFAULT_LEVEL;
+                const next = Math.min(MAX_LEVEL, Math.max(1, current + step));
+                setField(spec().key, next);
+                event.currentTarget
+                  .querySelectorAll<HTMLButtonElement>('[role="radio"]')
+                  [next - 1]?.focus();
+              }}
             >
               <For each={[...LEVEL_LABELS]}>
                 {(label, index) => {
@@ -256,6 +282,7 @@ export function ItemDialog(props: ItemDialogProps): JSX.Element {
                       type="button"
                       role="radio"
                       aria-checked={isSelected()}
+                      tabindex={isSelected() ? 0 : -1}
                       class="flex flex-col items-center gap-0.5 rounded-lg border px-1 py-2"
                       classList={{
                         "border-accent bg-accent/10 text-ink": isSelected(),

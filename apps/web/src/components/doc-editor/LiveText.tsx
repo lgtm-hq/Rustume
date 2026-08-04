@@ -61,9 +61,14 @@ export interface LiveTextProps {
   onCommit: (value: string) => void;
 }
 
-/** What a commit stores: NBSP as plain spaces, no trailing whitespace. */
-function normalizeCommit(raw: string): string {
-  return raw.replaceAll("\u00A0", " ").trimEnd();
+/**
+ * What a commit stores: NBSP as plain spaces, no trailing whitespace — and,
+ * for single-line fields, any newline a paste dragged in collapsed to a
+ * space, so a Name or Date can never hold a line break.
+ */
+function normalizeCommit(raw: string, rich: boolean): string {
+  const spaced = raw.replaceAll("\u00A0", " ");
+  return (rich ? spaced : spaced.replaceAll(/\s*\n+\s*/g, " ")).trimEnd();
 }
 
 export function LiveText(props: LiveTextProps): JSX.Element {
@@ -87,17 +92,28 @@ export function LiveText(props: LiveTextProps): JSX.Element {
     get label() {
       return props.label;
     },
-    apply(command: MarkdownCommand, href?: string): void {
+    apply(command: MarkdownCommand, href?: string, range?: { start: number; end: number }): void {
       if (!field) return;
       const value = editableText(field);
-      const range = selectionOffsets(field) ?? { start: value.length, end: value.length };
-      const next = applyMarkdownCommand({ value, ...range }, command, href ?? "");
+      const applied = range ??
+        selectionOffsets(field) ?? { start: value.length, end: value.length };
+      const next = applyMarkdownCommand({ value, ...applied }, command, href ?? "");
       field.textContent = next.value;
       field.focus();
       setSelectionOffsets(field, next.start, next.end);
     },
     focusField(): void {
       field?.focus();
+    },
+    captureSelection(): { start: number; end: number } {
+      if (!field) return { start: 0, end: 0 };
+      const value = editableText(field);
+      return selectionOffsets(field) ?? { start: value.length, end: value.length };
+    },
+    handleExternalFocus(target: unknown): void {
+      if (target instanceof Node && field?.contains(target)) return;
+      if (toolbar.isWithinToolbar(target)) return;
+      commit();
     },
   };
 
@@ -148,7 +164,7 @@ export function LiveText(props: LiveTextProps): JSX.Element {
   function commit(): void {
     if (isSettled) return;
     isSettled = true;
-    const next = field ? normalizeCommit(editableText(field)) : props.value;
+    const next = field ? normalizeCommit(editableText(field), isRich()) : props.value;
     disarm();
     if (next !== props.value) props.onCommit(next);
   }

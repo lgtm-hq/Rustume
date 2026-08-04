@@ -488,7 +488,6 @@ describe("document sheet structural chrome", () => {
       renderSheet();
 
       const [handle] = screen.getAllByRole("separator", { name: "Resize sidebar" });
-      const before = Number(handle.getAttribute("aria-valuenow"));
       fireEvent.keyDown(handle, { key: "ArrowLeft" });
 
       // The sidebar split is a document property (spec §4.2, owner decision):
@@ -503,7 +502,6 @@ describe("document sheet structural chrome", () => {
       expect(page.sidebarRatio).toBeGreaterThan(0.1);
       expect(page.sidebarRatio).toBeLessThanOrEqual(0.5);
       expect(writeCount()).toBe(1);
-      void before;
     });
 
     it("draws the width the stored ratio dictates", () => {

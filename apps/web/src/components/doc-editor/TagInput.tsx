@@ -28,12 +28,20 @@ export interface TagInputProps {
 export function TagInput(props: TagInputProps): JSX.Element {
   const [draft, setDraft] = createSignal("");
 
-  /** Commit the draft as a chip: strip commas, trim, drop empties and dupes. */
+  /**
+   * Commit the draft: each comma-separated part becomes its own chip (a
+   * paste can carry a whole list), trimmed, with empties and dupes dropped.
+   */
   function commitDraft(): void {
-    const tag = draft().replaceAll(",", "").trim();
+    const parts = draft()
+      .split(",")
+      .map((part) => part.trim())
+      .filter((part) => part !== "");
     setDraft("");
-    if (tag === "" || props.values.includes(tag)) return;
-    props.onChange([...props.values, tag]);
+    const next = [...props.values];
+    for (const part of parts) if (!next.includes(part)) next.push(part);
+    if (next.length === props.values.length) return;
+    props.onChange(next);
   }
 
   function removeAt(index: number): void {
