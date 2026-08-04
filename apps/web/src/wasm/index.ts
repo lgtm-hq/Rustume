@@ -1,5 +1,6 @@
 import type { ResumeData, ValidationResult } from "./types";
 import { createDefaultResume } from "./defaults";
+import { resumeMapsToObjects } from "./normalize";
 
 // Type definitions for WASM module
 interface WasmModule {
@@ -98,7 +99,7 @@ export async function listResumes(): Promise<string[]> {
 
 export async function getResume(id: string): Promise<ResumeData> {
   const storage = await getStorage();
-  return storage.get(id);
+  return resumeMapsToObjects(await storage.get(id));
 }
 
 export async function saveResume(id: string, data: ResumeData): Promise<void> {
@@ -121,21 +122,21 @@ export function parseJsonResume(input: string): ResumeData {
   if (!wasmModule) {
     throw new Error("WASM not initialized");
   }
-  return wasmModule.parse_json_resume(input);
+  return resumeMapsToObjects(wasmModule.parse_json_resume(input));
 }
 
 export function parseReactiveResumeV3(input: string): ResumeData {
   if (!wasmModule) {
     throw new Error("WASM not initialized");
   }
-  return wasmModule.parse_reactive_resume_v3(input);
+  return resumeMapsToObjects(wasmModule.parse_reactive_resume_v3(input));
 }
 
 export function parseLinkedInExport(data: Uint8Array): ResumeData {
   if (!wasmModule) {
     throw new Error("WASM not initialized");
   }
-  return wasmModule.parse_linkedin_export(data);
+  return resumeMapsToObjects(wasmModule.parse_linkedin_export(data));
 }
 
 // Utility operations
@@ -148,7 +149,7 @@ export function validateResume(input: string): ValidationResult {
 
 export function createEmptyResume(): ResumeData {
   if (wasmModule) {
-    return wasmModule.create_empty_resume();
+    return resumeMapsToObjects(wasmModule.create_empty_resume());
   }
   // Fallback when WASM not available
   return createDefaultResume();

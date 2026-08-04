@@ -1,6 +1,7 @@
 import { unwrap } from "solid-js/store";
 import { isWasmReady, resumeExists } from "../wasm";
 import type { ResumeData } from "../wasm/types";
+import { resumeMapsToObjects } from "../wasm/normalize";
 
 const DB_NAME = "rustume-version-history";
 const STORE_NAME = "snapshots";
@@ -257,7 +258,10 @@ export async function getSnapshot(key: string): Promise<ResumeData | null> {
       const store = tx.objectStore(STORE_NAME);
       const record = (await requestToPromise(store.get(key))) as SnapshotRecord | undefined;
       await transactionDone(tx);
-      return record?.data ?? null;
+      // Snapshots saved by builds where the wasm boundary leaked JS `Map`s
+      // still carry them (`structuredClone` preserves `Map`s); normalize so
+      // preview's JSON body and restore both see plain objects.
+      return record ? resumeMapsToObjects(record.data) : null;
     });
   } catch (error) {
     console.error("Failed to load resume snapshot:", error);
