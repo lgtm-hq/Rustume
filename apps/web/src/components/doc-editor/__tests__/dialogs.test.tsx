@@ -370,6 +370,34 @@ describe("item dialog", () => {
       expect(item.description).toBe("Conversational");
     });
 
+    it("seeds an existing level-0 item at the default level", () => {
+      // Pre-modal data can carry level 0. Seeding it at the default keeps
+      // the picker's selected card consistent with what save would write.
+      render(() => (
+        <ItemDialog
+          open
+          sectionId="skills"
+          sectionTitle="Skills"
+          index={0}
+          item={{ id: "s1", visible: true, name: "Rust", description: "", level: 0 }}
+          onOpenChange={() => {}}
+        />
+      ));
+
+      expect(screen.getByRole("radio", { name: /Conversational/ })).toHaveAttribute(
+        "aria-checked",
+        "true",
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+      const [, , updates] = store.updateSectionItem.mock.calls[0] as [
+        string,
+        number,
+        Record<string, unknown>,
+      ];
+      expect(updates.level).toBe(3);
+    });
+
     it("never clobbers a description the user wrote themselves", () => {
       render(() => (
         <ItemDialog

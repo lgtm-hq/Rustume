@@ -142,9 +142,11 @@ export function ItemDialog(props: ItemDialogProps): JSX.Element {
         const seed =
           props.item ?? (emptyItemFor(props.sectionId) as Record<string, unknown> | null);
         const next = { ...(seed ?? {}) };
-        // A fresh skill or language starts at the UI default rather than the
-        // schema's 0, so the picker opens with a selection (spec §4.2).
-        if (isAdding() && hasLevel() && asLevel(next.level) === 0) next.level = DEFAULT_LEVEL;
+        // A level-0 item — fresh or pre-modal legacy data — seeds at the UI
+        // default rather than the schema's 0, so the picker opens with a
+        // selection that matches what save would write anyway (spec §4.2;
+        // save clamps 0 to the default).
+        if (hasLevel() && asLevel(next.level) === 0) next.level = DEFAULT_LEVEL;
         // Normalise custom-field rows once, at seeding — normalising per
         // render would hand the row editor fresh objects every keystroke and
         // the recreated inputs would drop focus mid-word.
