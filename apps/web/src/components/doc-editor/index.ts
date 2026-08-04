@@ -1,5 +1,5 @@
 export { DocSheet, type DocSheetProps } from "./DocSheet";
-export { DocHeader, type DocHeaderProps } from "./DocHeader";
+export { ContactBlock, NameHeader, SheetAvatar, type ContactBlockProps } from "./DocHeader";
 export { DocSection, type DocSectionProps } from "./DocSection";
 export { InlineText, type InlineTextProps } from "./InlineText";
 export { InlineMarkdown, type InlineMarkdownProps } from "./InlineMarkdown";

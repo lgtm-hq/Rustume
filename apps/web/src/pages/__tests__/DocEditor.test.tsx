@@ -136,14 +136,16 @@ describe("DocEditor sheet", () => {
     return result;
   }
 
-  it("draws one A4 page frame per rendered page", async () => {
+  it("draws one content-sized sheet per rendered page, with the count pill", async () => {
     await renderSheet();
 
     const pages = screen.getAllByTestId("doc-sheet-page");
     expect(pages).toHaveLength(2);
     expect(pages[0]).toHaveAttribute("aria-label", "Page 1 of 2");
     expect(pages[1]).toHaveAttribute("aria-label", "Page 2 of 2");
-    expect(screen.getByTestId("doc-editor-page-count")).toHaveTextContent("2 pages");
+    // The measured page count lives in the sheet's floating pill now (#794);
+    // it can never report fewer pages than there are drawn sheets.
+    expect(screen.getByTestId("doc-sheet-page-count")).toHaveTextContent(/2\s*pages/);
   });
 
   it("renders a single document surface with no preview pane", async () => {
@@ -162,15 +164,16 @@ describe("DocEditor sheet", () => {
     const [first, second] = screen.getAllByTestId("doc-sheet-page");
 
     expect(pageColumns(first)).toEqual([
-      // `sidebar-left` paints the sidebar column first.
-      ["sidebar", ["profiles", "skills", "speaking"]],
-      // `coverLetter` and `references` are absent from the stored layout, so
-      // normalization back-fills them into the first main column (#770).
-      ["main", ["summary", "experience", "education", "projects", "coverLetter", "references"]],
+      // `sidebar-left` paints the sidebar column first. The contact block is
+      // template-owned chrome in the sidebar (`contactIn: "sidebar"`).
+      ["sidebar", ["basics", "profiles", "skills", "speaking"]],
+      // `coverLetter` and `references` are back-filled by normalization
+      // (#770) but hidden, and hidden sections never draw (#794).
+      ["main", ["summary", "experience", "education", "projects"]],
     ]);
     expect(pageColumns(second)).toEqual([
-      // `advisory` is switched off but stays drawn as chrome (see below).
-      ["sidebar", ["languages", "interests", "certifications", "advisory"]],
+      // `advisory` is switched off, so it is absent from the surface (#794).
+      ["sidebar", ["languages", "interests", "certifications"]],
       ["main", ["publications", "volunteer", "awards"]],
     ]);
   });
@@ -179,16 +182,17 @@ describe("DocEditor sheet", () => {
     await renderSheet();
 
     const [first] = screen.getAllByTestId("doc-sheet-page");
-    const sidebar = first.querySelector<HTMLElement>(".doc-sheet__column--sidebar");
+    const sidebar = first.querySelector<HTMLElement>('[data-column-role="sidebar"]');
     const header = within(sidebar as HTMLElement).getByTestId("doc-sheet-header");
 
     expect(within(header).getByRole("heading", { name: "Mireille Okafor" })).toBeInTheDocument();
     expect(header).toHaveTextContent("Principal Design Systems Engineer");
-    // `contactIn: "sidebar"` — contact details print alongside the name block.
-    expect(header).toHaveTextContent("mireille@okafor.design");
-    expect(header).toHaveTextContent("Lisbon, Portugal");
+    // `contactIn: "sidebar"` — the contact block prints in the sidebar too.
+    const contact = within(sidebar as HTMLElement).getByTestId("doc-sheet-contact");
+    expect(contact).toHaveTextContent("mireille@okafor.design");
+    expect(contact).toHaveTextContent("Lisbon, Portugal");
     // Custom fields keep their labels.
-    expect(header).toHaveTextContent("Pronouns:");
+    expect(contact).toHaveTextContent("Pronouns:");
   });
 
   it("renders item fields in the order the Typst templates present them", async () => {
@@ -197,8 +201,9 @@ describe("DocEditor sheet", () => {
     const experience = document.querySelector<HTMLElement>('[data-section-id="experience"]');
     const first = within(experience as HTMLElement).getAllByRole("article")[0];
 
+    // Spec §1.7: position over the company · date meta row, then location.
     expect(first.textContent).toMatch(
-      /Lumen Health.*Principal Design Systems Engineer.*March 2022 - Present.*Lisbon, Portugal \(Remote\)/s,
+      /Principal Design Systems Engineer.*Lumen Health.*March 2022 - Present.*Lisbon, Portugal \(Remote\)/s,
     );
   });
 
@@ -212,31 +217,31 @@ describe("DocEditor sheet", () => {
     expect(summary?.textContent).not.toContain("**");
   });
 
-  it("renders each profile as one entry, not stacked duplicates", async () => {
+  it("renders each profile as one compact icon row, not stacked duplicates", async () => {
     await renderSheet();
 
-    // #787: network label plus username on one line — no third text run
-    // repeating the URL.
+    // Spec §1.7: brand glyph plus username-or-network as a single link — no
+    // second text run repeating the network or the URL.
     const profiles = document.querySelector<HTMLElement>('[data-section-id="profiles"]');
     const entries = within(profiles as HTMLElement).getAllByRole("article");
+    expect(entries).toHaveLength(3);
     for (const entry of entries) {
-      expect(entry.querySelector(".doc-sheet__item-inline")).not.toBeNull();
-      expect(entry.querySelector(".doc-sheet__item-subtitle")).toBeNull();
-      expect(entry.querySelector(".doc-sheet__url")).toBeNull();
+      expect(entry.querySelectorAll(".doc-sheet__side-link")).toHaveLength(1);
+      expect(entry.querySelector(".doc-sheet__icon-row svg")).not.toBeNull();
     }
   });
 
-  it("keeps profile fields individually editable", async () => {
+  it("edits a profile through its dialog — the whole compact row is the affordance", async () => {
     await renderSheet();
 
     const profiles = document.querySelector<HTMLElement>('[data-section-id="profiles"]');
     const first = within(profiles as HTMLElement).getAllByRole("article")[0];
-    const buttons = [...first.querySelectorAll<HTMLButtonElement>(".doc-sheet__editable")];
+    expect(first).toHaveAttribute("title", "Click to edit · hold to drag");
 
-    // One editable slot for the network, one for the username.
-    expect(buttons.map((button) => button.title)).toEqual(
-      expect.arrayContaining(["Edit network", "Edit username"]),
-    );
+    fireEvent.click(first);
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("textbox", { name: "Network" })).toHaveValue("GitHub");
+    expect(within(dialog).getByRole("textbox", { name: "Username" })).toHaveValue("mireilleokafor");
   });
 
   it("renders custom sections under their own names", async () => {
@@ -247,21 +252,15 @@ describe("DocEditor sheet", () => {
     ).toBeInTheDocument();
   });
 
-  it("keeps hidden sections on the surface as flagged chrome", async () => {
+  it("never draws hidden sections — the Sections panel is the recovery path", async () => {
     await renderSheet();
 
-    // `advisory` is placed and switched off: hidden means "not rendered to
-    // PDF", not "gone from the editing surface" — the section stays drawn,
-    // dimmed and flagged, so it can be shown again from the sheet.
-    const advisory = document.querySelector('[data-section-id="advisory"]');
-    expect(advisory).not.toBeNull();
-    expect(advisory?.classList.contains("doc-sheet__section--hidden")).toBe(true);
-    // A section the stored layout never placed is back-filled by
-    // normalization (#770), so it surfaces as hidden chrome too instead of
-    // being silently unreachable from the sheet.
-    const references = document.querySelector('[data-section-id="references"]');
-    expect(references).not.toBeNull();
-    expect(references?.classList.contains("doc-sheet__section--hidden")).toBe(true);
+    // `advisory` is placed and switched off; `references` is back-filled by
+    // normalization (#770) but hidden. Hidden sections never draw (#794) —
+    // they are toggled back on from the Sections panel, exactly as for the
+    // rendered document.
+    expect(document.querySelector('[data-section-id="advisory"]')).toBeNull();
+    expect(document.querySelector('[data-section-id="references"]')).toBeNull();
   });
 
   it("offers every drawn value as a keyboard-reachable editing affordance", async () => {
@@ -299,11 +298,13 @@ describe("DocEditor sheet", () => {
     );
   });
 
-  it("reports no overflow when nothing is clipped", async () => {
+  it("draws no A4 overflow guides while content fits a page", async () => {
     await renderSheet();
 
-    // jsdom reports zero-height layout, so nothing can be clipped.
-    expect(screen.getByTestId("doc-editor-overflow")).toHaveTextContent("");
+    // Sheets size to content and overflow is signalled by dashed guides at
+    // 1122px intervals (#794); jsdom reports zero-height layout, so no sheet
+    // can exceed a page.
+    expect(document.querySelectorAll(".doc-sheet__page-guide")).toHaveLength(0);
   });
 
   it("has no axe violations in Edit mode", async () => {
@@ -326,14 +327,11 @@ describe("DocEditor sheet", () => {
 
     await waitFor(() => {
       const [first] = screen.getAllByTestId("doc-sheet-page");
-      // The stored layout still supplies two columns; only the geometry and the
-      // header placement come from the template.
-      expect(first.querySelector(".doc-sheet__column")).toBeTruthy();
-      expect(first.querySelector(".doc-sheet__header")).toBeTruthy();
-      // FALLBACK_TEMPLATE_LAYOUT declares headerStyle "left" / contactIn
-      // "header", so the header must sit above the columns rather than inside
-      // the sidebar the way SIDEBAR_TEMPLATE places it.
-      expect(first.querySelector(".doc-sheet__column .doc-sheet__header")).toBeFalsy();
+      // FALLBACK_TEMPLATE_LAYOUT is single-column: one continuous section
+      // list with the identity banner at its top, and no sidebar at all.
+      expect(first.querySelector(".doc-sheet__single")).toBeTruthy();
+      expect(first.querySelector('[data-column-role="sidebar"]')).toBeFalsy();
+      expect(within(first).getByTestId("doc-sheet-header")).toBeInTheDocument();
     });
   });
 
@@ -345,8 +343,8 @@ describe("DocEditor sheet", () => {
 
     await waitFor(() => {
       const [first] = screen.getAllByTestId("doc-sheet-page");
-      expect(first.querySelector(".doc-sheet__column")).toBeTruthy();
-      expect(first.querySelector(".doc-sheet__column .doc-sheet__header")).toBeFalsy();
+      expect(first.querySelector(".doc-sheet__single")).toBeTruthy();
+      expect(first.querySelector('[data-column-role="sidebar"]')).toBeFalsy();
     });
   });
 });

@@ -335,6 +335,30 @@ export function adjacentCustomSectionId(
   return customIds[step === "previous" ? position - 1 : position + 1] ?? null;
 }
 
+/** Head-line fields an entry might carry, in display preference order. */
+const ENTRY_LABEL_KEYS = [
+  "name",
+  "position",
+  "company",
+  "institution",
+  "title",
+  "network",
+  "organization",
+] as const;
+
+/**
+ * A short human name for an entry — announcements, drag overlays and the
+ * accessible names of its row controls all speak the same label.
+ */
+export function entryDisplayLabel(item: unknown, fallback: string): string {
+  const record = item as Record<string, unknown> | undefined;
+  for (const key of ENTRY_LABEL_KEYS) {
+    const value = record?.[key];
+    if (typeof value === "string" && value.trim() !== "") return value;
+  }
+  return fallback;
+}
+
 /** The `items` list of any section, read through the shape they all share. */
 export function sectionItemList(resume: ResumeData, sectionId: string): EntryListItem[] {
   if (isCustomId(sectionId)) {

@@ -1,6 +1,7 @@
 /**
- * The structural chrome of #729: section cards, entry action rows, add-blocks
- * and the single-pointer/keyboard move controls that mirror the drags.
+ * The structural chrome of #794: universal section cards with a grip and a
+ * pencil menu, entry rows with the hover action pill, dashed add-blocks, and
+ * the page-break rule.
  *
  * Pointer drags themselves are exercised against the pure resolvers in
  * `lib/__tests__/docDnd.test.ts`; here the assertions are that every control
@@ -54,6 +55,17 @@ function liveRegionText(): string {
     .join(" ");
 }
 
+/** Open a section's pencil menu, the home of its structural actions. */
+function openMenu(title: string): void {
+  fireEvent.click(screen.getByRole("button", { name: `${title} section options` }));
+}
+
+/**
+ * The fixture's first experience entry as the chrome names it — the position,
+ * per the headline-field preference order.
+ */
+const FIRST_EXPERIENCE = "Principal Design Systems Engineer";
+
 describe("document sheet structural chrome", () => {
   let resume: ResumeData;
 
@@ -63,15 +75,22 @@ describe("document sheet structural chrome", () => {
     store.store.resume = resume;
   });
 
-  function renderSheet() {
-    return render(() => <DocSheet resume={resume} templateLayout={SIDEBAR_TEMPLATE} />);
+  function renderSheet(options: { onOpenSections?: () => void } = {}) {
+    return render(() => (
+      <DocSheet
+        resume={resume}
+        templateLayout={SIDEBAR_TEMPLATE}
+        onOpenSections={options.onOpenSections}
+      />
+    ));
   }
 
   describe("section cards", () => {
     it("hides a fixed section through toggleSectionVisibility, and says so", async () => {
       renderSheet();
 
-      fireEvent.click(screen.getByRole("button", { name: "Hide Experience section" }));
+      openMenu("Experience");
+      fireEvent.click(screen.getByRole("menuitem", { name: "Hide Experience section" }));
 
       expect(store.toggleSectionVisibility).toHaveBeenCalledExactlyOnceWith("experience");
       expect(writeCount()).toBe(1);
@@ -83,69 +102,64 @@ describe("document sheet structural chrome", () => {
     it("hides a custom section through updateCustomSection", () => {
       renderSheet();
 
-      fireEvent.click(screen.getByRole("button", { name: "Hide Talks & Workshops section" }));
+      openMenu("Talks & Workshops");
+      fireEvent.click(screen.getByRole("menuitem", { name: "Hide Talks & Workshops section" }));
 
       expect(store.updateCustomSection).toHaveBeenCalledExactlyOnceWith("speaking", {
         visible: false,
       });
     });
 
-    it("keeps a hidden section on the surface, flagged, with a Show control", () => {
+    it("never draws a hidden section — the Sections panel is the recovery path", () => {
       resume.sections.experience.visible = false;
       renderSheet();
 
-      const section = document.querySelector('[data-section-id="experience"]');
-      expect(section).toBeTruthy();
-      expect(section?.classList.contains("doc-sheet__section--hidden")).toBe(true);
-
-      fireEvent.click(screen.getByRole("button", { name: "Show Experience section" }));
-
-      expect(store.toggleSectionVisibility).toHaveBeenCalledExactlyOnceWith("experience");
+      expect(document.querySelector('[data-section-id="experience"]')).toBeNull();
     });
 
-    it("keeps a hidden, empty summary on the surface with a Show control", () => {
-      // Regression: rich text has no add-block, so if hiding an empty summary
-      // dropped its card, nothing on the sheet could ever show it again.
-      resume.sections.summary.content = "";
-      resume.sections.summary.visible = false;
+    it("offers no destructive delete for any section, custom included", () => {
       renderSheet();
 
-      const summary = document.querySelector('[data-section-id="summary"]');
-      expect(summary).toBeTruthy();
-      expect(summary?.classList.contains("doc-sheet__section--hidden")).toBe(true);
-
-      fireEvent.click(screen.getByRole("button", { name: "Show Summary section" }));
-
-      expect(store.toggleSectionVisibility).toHaveBeenCalledExactlyOnceWith("summary");
+      openMenu("Talks & Workshops");
+      expect(
+        screen.queryByRole("menuitem", { name: "Delete Talks & Workshops section" }),
+      ).toBeNull();
+      expect(screen.queryByRole("menuitem", { name: "Delete Experience section" })).toBeNull();
     });
 
-    it("deletes a custom section through removeCustomSection", () => {
+    it("renames a section from the pencil menu through the inline title editor", () => {
       renderSheet();
 
-      fireEvent.click(screen.getByRole("button", { name: "Delete Talks & Workshops section" }));
-
-      expect(store.removeCustomSection).toHaveBeenCalledExactlyOnceWith("speaking");
-      expect(writeCount()).toBe(1);
-    });
-
-    it("offers no delete for fixed sections", () => {
-      renderSheet();
-
-      expect(screen.queryByRole("button", { name: "Delete Experience section" })).toBeNull();
-    });
-
-    it("renames a custom section through its dialog", () => {
-      renderSheet();
-
-      fireEvent.click(screen.getByRole("button", { name: "Rename Talks & Workshops section" }));
-      fireEvent.input(screen.getByRole("textbox", { name: "Section name" }), {
-        target: { value: "Talks" },
-      });
-      fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+      openMenu("Talks & Workshops");
+      fireEvent.click(screen.getByRole("menuitem", { name: "Rename Talks & Workshops section" }));
+      const input = screen.getByRole("textbox", { name: "Section title" });
+      fireEvent.input(input, { target: { value: "Talks" } });
+      fireEvent.blur(input);
 
       expect(store.updateCustomSection).toHaveBeenCalledExactlyOnceWith("speaking", {
         name: "Talks",
       });
+    });
+
+    it("closes the pencil menu on Escape without acting", () => {
+      renderSheet();
+
+      openMenu("Experience");
+      expect(screen.getByRole("menu", { name: "Experience section options" })).toBeInTheDocument();
+
+      fireEvent.keyDown(document, { key: "Escape" });
+
+      expect(screen.queryByRole("menu", { name: "Experience section options" })).toBeNull();
+      expect(writeCount()).toBe(0);
+    });
+
+    it("marks the last-clicked card focused", () => {
+      renderSheet();
+
+      const experience = document.querySelector('[data-section-id="experience"]') as HTMLElement;
+      fireEvent.click(experience);
+
+      expect(experience.classList.contains("doc-sheet__sec--focused")).toBe(true);
     });
   });
 
@@ -153,7 +167,8 @@ describe("document sheet structural chrome", () => {
     it("moves a section one step down through one updateLayout call", () => {
       renderSheet();
 
-      fireEvent.click(screen.getByRole("button", { name: "Move Experience section down" }));
+      openMenu("Experience");
+      fireEvent.click(screen.getByRole("menuitem", { name: "Move Experience section down" }));
 
       expect(store.updateLayout).toHaveBeenCalledExactlyOnceWith([
         [
@@ -168,22 +183,26 @@ describe("document sheet structural chrome", () => {
       expect(writeCount()).toBe(1);
     });
 
-    it("moves a section to the next column, across pages", () => {
+    it("moves a section to the other column's end", () => {
       renderSheet();
 
+      openMenu("Talks & Workshops");
       fireEvent.click(
-        screen.getByRole("button", { name: "Move Talks & Workshops section to the next column" }),
+        screen.getByRole("menuitem", {
+          name: "Move Talks & Workshops section to the main column",
+        }),
       );
 
       const [layout] = store.updateLayout.mock.calls[0] as [string[][][]];
       expect(layout[0][1]).toEqual(["profiles", "skills"]);
-      expect(layout[1][0]).toEqual(["publications", "volunteer", "awards", "speaking"]);
+      expect(layout[0][0]).toEqual(["summary", "experience", "education", "projects", "speaking"]);
     });
 
     it("announces the move in drawn-card terms", async () => {
       renderSheet();
 
-      fireEvent.click(screen.getByRole("button", { name: "Move Experience section down" }));
+      openMenu("Experience");
+      fireEvent.click(screen.getByRole("menuitem", { name: "Move Experience section down" }));
 
       await waitFor(() => {
         expect(liveRegionText()).toMatch(
@@ -192,25 +211,31 @@ describe("document sheet structural chrome", () => {
       });
     });
 
-    it("hands focus back to the control that was used", async () => {
+    it("hands focus back to the card's pencil after a menu move", async () => {
       renderSheet();
-      const control = screen.getByRole("button", { name: "Move Experience section down" });
 
-      fireEvent.click(control);
+      openMenu("Experience");
+      fireEvent.click(screen.getByRole("menuitem", { name: "Move Experience section down" }));
 
-      // The refocus rides requestAnimationFrame, after the sheet redraws.
-      await waitFor(() => expect(document.activeElement).toBe(control));
+      // The menu has closed; a keyboard user's next Tab must carry on from
+      // the card that was acted on, not restart at the top of the document.
+      await waitFor(() =>
+        expect(document.activeElement).toBe(
+          screen.getByRole("button", { name: "Experience section options" }),
+        ),
+      );
     });
 
     it("steps past a placed-but-undrawn section, and counts only drawn cards", async () => {
-      // `education` keeps its layout slot but has nothing to draw, so one
-      // press on Experience must clear it in a single visible step — and the
-      // announced position must match the three cards on screen, not the four
-      // slots in the layout.
-      resume.sections.education.items = [];
+      // `education` keeps its layout slot but is hidden, so one press on
+      // Experience must clear it in a single visible step — and the announced
+      // position must match the three cards on screen, not the four slots in
+      // the layout.
+      resume.sections.education.visible = false;
       renderSheet();
 
-      fireEvent.click(screen.getByRole("button", { name: "Move Experience section down" }));
+      openMenu("Experience");
+      fireEvent.click(screen.getByRole("menuitem", { name: "Move Experience section down" }));
 
       const [layout] = store.updateLayout.mock.calls[0] as [string[][][]];
       expect(layout[0][0]).toEqual(["summary", "education", "projects", "experience"]);
@@ -221,16 +246,17 @@ describe("document sheet structural chrome", () => {
       });
     });
 
-    it("writes nothing at a boundary, and says so", async () => {
+    it("disables the move at a boundary, so nothing is written", () => {
       renderSheet();
 
-      fireEvent.click(screen.getByRole("button", { name: "Move Summary section up" }));
+      openMenu("Summary");
+      const control = screen.getByRole("menuitem", { name: "Move Summary section up" });
+      expect(control).toBeDisabled();
+
+      fireEvent.click(control);
 
       expect(store.updateLayout).not.toHaveBeenCalled();
       expect(writeCount()).toBe(0);
-      await waitFor(() => {
-        expect(liveRegionText()).toMatch(/Summary section did not move/i);
-      });
     });
   });
 
@@ -238,26 +264,26 @@ describe("document sheet structural chrome", () => {
     it("duplicates an entry through duplicateSectionItem", () => {
       renderSheet();
 
-      fireEvent.click(screen.getByRole("button", { name: "Duplicate Lumen Health" }));
+      fireEvent.click(screen.getByRole("button", { name: `Duplicate ${FIRST_EXPERIENCE}` }));
 
       expect(store.duplicateSectionItem).toHaveBeenCalledExactlyOnceWith("experience", 0);
       expect(writeCount()).toBe(1);
     });
 
-    it("deletes the right entry through removeSectionItem, and says so", async () => {
+    it("removes the right entry through removeSectionItem, and says so", async () => {
       renderSheet();
 
-      fireEvent.click(screen.getByRole("button", { name: "Delete Lumen Health" }));
+      fireEvent.click(screen.getByRole("button", { name: `Remove ${FIRST_EXPERIENCE}` }));
 
       expect(store.removeSectionItem).toHaveBeenCalledExactlyOnceWith("experience", 0);
       await waitFor(() => {
-        expect(liveRegionText()).toMatch(/Lumen Health deleted/i);
+        expect(liveRegionText()).toMatch(/Principal Design Systems Engineer removed/i);
       });
     });
 
     it("hides an entry, keeps it drawn, and can show it again", () => {
       const first = renderSheet();
-      fireEvent.click(screen.getByRole("button", { name: "Hide Lumen Health" }));
+      fireEvent.click(screen.getByRole("button", { name: `Hide ${FIRST_EXPERIENCE}` }));
       expect(store.updateSectionItem).toHaveBeenCalledExactlyOnceWith("experience", 0, {
         visible: false,
       });
@@ -269,21 +295,19 @@ describe("document sheet structural chrome", () => {
       vi.clearAllMocks();
       renderSheet();
 
-      expect(screen.getByRole("button", { name: "Show Lumen Health" })).toBeInTheDocument();
-      fireEvent.click(screen.getByRole("button", { name: "Show Lumen Health" }));
+      fireEvent.click(screen.getByRole("button", { name: `Show ${FIRST_EXPERIENCE}` }));
       expect(store.updateSectionItem).toHaveBeenCalledExactlyOnceWith("experience", 0, {
         visible: true,
       });
     });
 
-    it("routes a custom entry's actions to the custom store actions", () => {
+    it("removes a custom entry through its chip, with no dialog round-trip", () => {
       renderSheet();
 
-      fireEvent.click(
-        screen.getByRole("button", { name: "Duplicate Design Tokens Beyond Colour" }),
-      );
+      fireEvent.click(screen.getByRole("button", { name: "Remove Design Tokens Beyond Colour" }));
 
-      expect(store.duplicateCustomSectionItem).toHaveBeenCalledExactlyOnceWith("speaking", 0);
+      expect(store.removeCustomSectionItem).toHaveBeenCalledExactlyOnceWith("speaking", 0);
+      expect(writeCount()).toBe(1);
     });
   });
 
@@ -291,19 +315,21 @@ describe("document sheet structural chrome", () => {
     it("reorders within the section through one reorderSectionItem call", async () => {
       renderSheet();
 
-      fireEvent.click(screen.getByRole("button", { name: "Move Lumen Health down" }));
+      fireEvent.click(screen.getByRole("button", { name: `Move ${FIRST_EXPERIENCE} down` }));
 
       expect(store.reorderSectionItem).toHaveBeenCalledExactlyOnceWith("experience", 0, 1);
       expect(writeCount()).toBe(1);
       await waitFor(() => {
-        expect(liveRegionText()).toMatch(/Lumen Health moved to position 2 of \d+/i);
+        expect(liveRegionText()).toMatch(
+          /Principal Design Systems Engineer moved to position 2 of \d+/i,
+        );
       });
     });
 
     it("performs the same mutation as the equivalent drag would", () => {
       renderSheet();
 
-      fireEvent.click(screen.getByRole("button", { name: "Move Lumen Health down" }));
+      fireEvent.click(screen.getByRole("button", { name: `Move ${FIRST_EXPERIENCE} down` }));
 
       // The drag path resolves through `entryStep` to a (from, to) pair; the
       // control must hand the store the identical pair.
@@ -317,49 +343,12 @@ describe("document sheet structural chrome", () => {
       );
     });
 
-    it("offers lateral moves only where a cross-section drag exists", () => {
+    it("draws no move control at a boundary — the pill has no dead arrows", () => {
       renderSheet();
 
-      // Fixed sections share no item shape with anything: vertical moves only.
-      expect(
-        screen.queryByRole("button", { name: "Move Lumen Health to the next section" }),
-      ).toBeNull();
-      // Custom entries can drag to another custom section, so the keyboard
-      // and single-pointer path exists too.
-      expect(
-        screen.getByRole("button", {
-          name: "Move Design Tokens Beyond Colour to the next section",
-        }),
-      ).toBeInTheDocument();
-    });
-
-    it("moves a custom entry to the adjacent custom section in one action", async () => {
-      renderSheet();
-
-      fireEvent.click(
-        screen.getByRole("button", {
-          name: "Move Design Tokens Beyond Colour to the next section",
-        }),
-      );
-
-      const advisoryLength = resume.sections.custom.advisory.items.length;
-      expect(store.moveCustomSectionItem).toHaveBeenCalledExactlyOnceWith(
-        "speaking",
-        0,
-        "advisory",
-        advisoryLength,
-      );
-      expect(writeCount()).toBe(1);
-      await waitFor(() => {
-        expect(liveRegionText()).toMatch(/Design Tokens Beyond Colour moved to/i);
-      });
-    });
-
-    it("writes nothing at a boundary", () => {
-      renderSheet();
-
-      fireEvent.click(screen.getByRole("button", { name: "Move Lumen Health up" }));
-
+      // The first entry has no neighbour above; per spec §1.9 the arrow is
+      // rendered only when a neighbour exists in that direction.
+      expect(screen.queryByRole("button", { name: `Move ${FIRST_EXPERIENCE} up` })).toBeNull();
       expect(writeCount()).toBe(0);
     });
   });
@@ -369,7 +358,10 @@ describe("document sheet structural chrome", () => {
       resume.sections.projects.items = [];
       renderSheet();
 
-      fireEvent.click(screen.getByRole("button", { name: "Add project" }));
+      const projects = document.querySelector('[data-section-id="projects"]') as HTMLElement;
+      expect(within(projects).getByText("No items yet — use + to add one.")).toBeInTheDocument();
+
+      fireEvent.click(within(projects).getByRole("button", { name: "Add project" }));
       // Scoped to the dialog: the add-block trigger shares the same name.
       const dialog = screen.getByRole("dialog");
       fireEvent.input(within(dialog).getByRole("textbox", { name: "Name" }), {
@@ -387,10 +379,65 @@ describe("document sheet structural chrome", () => {
       expect(item.visible).toBe(true);
     });
 
-    it("draws no add-block when every placed section has content", () => {
+    it("draws a dashed add-block under every item section", () => {
       renderSheet();
 
-      expect(screen.queryByTestId("doc-sheet-add-block")).toBeNull();
+      const experience = document.querySelector('[data-section-id="experience"]') as HTMLElement;
+      expect(within(experience).getByRole("button", { name: "Add experience" })).toHaveClass(
+        "doc-sheet__add-block",
+      );
+      // Rich text takes no items, so it gets no add-block.
+      const summary = document.querySelector('[data-section-id="summary"]') as HTMLElement;
+      expect(within(summary).queryByRole("button", { name: /^Add / })).toBeNull();
+    });
+
+    it("routes the end-of-column Add-section block to the Sections panel", () => {
+      const onOpenSections = vi.fn();
+      renderSheet({ onOpenSections });
+
+      fireEvent.click(screen.getAllByTestId("doc-sheet-add-section")[0]);
+
+      expect(onOpenSections).toHaveBeenCalledOnce();
+      expect(writeCount()).toBe(0);
+    });
+
+    it("falls back to the custom-section dialog when no panel is wired", () => {
+      renderSheet();
+
+      fireEvent.click(screen.getAllByTestId("doc-sheet-add-section")[0]);
+
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+    });
+  });
+
+  describe("page breaks", () => {
+    it("labels the rule between explicit pages", () => {
+      renderSheet();
+
+      const rule = screen.getByTestId("doc-sheet-page-break");
+      expect(rule).toHaveTextContent("Page 2");
+    });
+
+    it("merges the page into the one before it through one updateLayout call", () => {
+      renderSheet();
+
+      fireEvent.click(screen.getByRole("button", { name: "Remove page break" }));
+
+      expect(store.updateLayout).toHaveBeenCalledExactlyOnceWith([
+        [
+          ["summary", "experience", "education", "projects", "publications", "volunteer", "awards"],
+          [
+            "profiles",
+            "skills",
+            "speaking",
+            "languages",
+            "interests",
+            "certifications",
+            "advisory",
+          ],
+        ],
+      ]);
+      expect(writeCount()).toBe(1);
     });
   });
 
@@ -399,10 +446,10 @@ describe("document sheet structural chrome", () => {
       renderSheet();
 
       // Handles are pointer-only chrome: out of the tab order and hidden from
-      // assistive tech (the move buttons are the keyboard/SR path), so they
+      // assistive tech (the menu and pill are the keyboard/SR path), so they
       // are found by title rather than accessible name.
       const sectionHandle = screen.getByTitle("Drag Experience section to move it");
-      const entryHandle = screen.getByTitle("Drag Lumen Health to move it");
+      const entryHandle = screen.getByTitle(`Drag ${FIRST_EXPERIENCE} to move it`);
       expect(sectionHandle).toBeInTheDocument();
       expect(entryHandle).toBeInTheDocument();
       expect(sectionHandle.getAttribute("tabindex")).toBe("-1");
@@ -415,12 +462,25 @@ describe("document sheet structural chrome", () => {
       expect(section?.getAttribute("draggable")).toBeNull();
     });
 
-    it("keeps the new-page drop zone mounted but inert until a section drag", () => {
+    it("gives the basics contact block no grip, menu, or drag chrome", () => {
       renderSheet();
 
-      const zone = screen.getByTestId("doc-sheet-new-page");
-      expect(zone.getAttribute("aria-hidden")).toBe("true");
-      expect(zone.classList.contains("doc-sheet__new-page--active")).toBe(false);
+      const contact = document.querySelector('[data-section-id="basics"]');
+      expect(contact).not.toBeNull();
+      expect(contact?.querySelector(".doc-sheet__sec-grip")).toBeNull();
+      expect(contact?.querySelector(".doc-sheet__sec-pencil")).toBeNull();
+    });
+  });
+
+  describe("sidebar resize handle", () => {
+    it("exposes the handle as a separator with clamped bounds", () => {
+      renderSheet();
+
+      // One handle per drawn sheet; they share the same width signal.
+      const [handle] = screen.getAllByRole("separator", { name: "Resize sidebar" });
+      expect(handle.getAttribute("aria-valuemin")).toBe("160");
+      expect(handle.getAttribute("aria-valuemax")).toBe("360");
+      expect(Number(handle.getAttribute("aria-valuenow"))).toBeGreaterThanOrEqual(160);
     });
   });
 });

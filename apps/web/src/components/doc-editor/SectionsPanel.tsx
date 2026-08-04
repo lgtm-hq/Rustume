@@ -21,11 +21,29 @@ import type { ResumeData } from "../../wasm/types";
 
 export interface SectionsPanelProps {
   resume: ResumeData;
+  /**
+   * Controlled open state, so the sheet's Add-section blocks can open the
+   * panel (#794). Leave both unset for the self-contained top-bar behaviour.
+   */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function SectionsPanel(props: SectionsPanelProps): JSX.Element {
-  const [open, setOpen] = createSignal(false);
+  const [internalOpen, setInternalOpen] = createSignal(false);
   const [adding, setAdding] = createSignal(false);
+
+  // Controlled iff `open` is supplied — and then `onOpenChange` must drive it,
+  // so a one-sided pairing cannot leave the panel stuck open or closed.
+  const isControlled = (): boolean => props.open !== undefined;
+  const open = (): boolean => (isControlled() ? (props.open ?? false) : internalOpen());
+  const setOpen = (next: boolean): void => {
+    if (isControlled()) {
+      props.onOpenChange?.(next);
+      return;
+    }
+    setInternalOpen(next);
+  };
 
   const customIds = (): string[] => Object.keys(props.resume.sections.custom ?? {});
 
