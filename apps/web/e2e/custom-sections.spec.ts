@@ -64,6 +64,57 @@ test.describe("custom sections from the panel", () => {
     await expect(sheetCard(page, "Field Notes")).toHaveCount(0);
   });
 
+  test("a custom section survives autosave, reload, and a post-reload edit", async ({
+    page,
+    homePage,
+    docEditorPage,
+  }) => {
+    await homePage.open();
+    await homePage.createResume();
+    await docEditorPage.assertDocEditorOpen();
+    await docEditorPage.assertMode("edit");
+
+    await page.getByRole("button", { name: "Sections", exact: true }).click();
+    const panel = page.getByTestId("sections-panel");
+    await addCustomSection(page, panel, "Persistent");
+    await expect(panel.getByRole("switch", { name: "Persistent" })).toBeVisible();
+
+    // Let the autosave land before reloading.
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 10_000 });
+    await page.reload();
+    await expect(docEditorPage.sheet).toBeVisible();
+
+    // The wasm load boundary must hand back plain objects: a Map-shaped
+    // sections.custom made the panel list empty after reload and the next
+    // autosave wiped the section from storage for good.
+    if ((await docEditorPage.sheet.getAttribute("data-sheet-mode")) === "done") {
+      await docEditorPage.toggleMode();
+    }
+    await docEditorPage.assertMode("edit");
+    await expect(sheetCard(page, "Persistent")).toHaveCount(1);
+
+    await page.getByRole("button", { name: "Sections", exact: true }).click();
+    const reopened = page.getByTestId("sections-panel");
+    const row = reopened.getByRole("switch", { name: "Persistent" });
+    await expect(row).toBeVisible();
+    await expect(row).toBeChecked();
+
+    // Post-reload writes must land in the real entries, not as expandos.
+    await reopened.getByText("Persistent", { exact: true }).click();
+    await expect(row).not.toBeChecked();
+    await expect(sheetCard(page, "Persistent")).toHaveCount(0);
+
+    // And the toggled state persists through another save/reload cycle.
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 10_000 });
+    await page.reload();
+    await expect(docEditorPage.sheet).toBeVisible();
+    await page.getByRole("button", { name: "Sections", exact: true }).click();
+    const afterSecondReload = page.getByTestId("sections-panel");
+    const persistedRow = afterSecondReload.getByRole("switch", { name: "Persistent" });
+    await expect(persistedRow).toBeVisible();
+    await expect(persistedRow).not.toBeChecked();
+  });
+
   test("hide from the section pencil menu removes the custom section from the sheet", async ({
     page,
     homePage,
