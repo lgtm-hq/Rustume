@@ -461,8 +461,8 @@ function cloneAndNormalize(data: ResumeData): ResumeData {
   // Map-typed fields must become plain objects BEFORE the JSON clone — a JS
   // `Map` stringifies to `{}`, which is how custom sections were once wiped
   // (old IndexedDB snapshots may still carry Maps; structuredClone kept them).
-  resumeMapsToObjects(data);
-  return normalizeResumeForStore(JSON.parse(JSON.stringify(data)) as ResumeData);
+  const plain = resumeMapsToObjects(data);
+  return normalizeResumeForStore(JSON.parse(JSON.stringify(plain)) as ResumeData);
 }
 
 function applyHistoryResume(data: ResumeData): void {

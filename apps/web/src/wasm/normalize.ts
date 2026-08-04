@@ -21,23 +21,37 @@
 
 import type { ResumeData } from "./types";
 
-/** `value` as a plain object: `Map` entries copied over, objects untouched. */
-function asPlainRecord(value: unknown): unknown {
-  return value instanceof Map ? Object.fromEntries(value) : value;
-}
-
 /**
  * Convert any map-typed resume field that arrived as a JS `Map` into the
- * plain object the TypeScript types declare. Mutates and returns `resume`.
+ * plain object the TypeScript types declare.
+ *
+ * Non-mutating: when nothing needs converting the input is returned as-is;
+ * otherwise a shallow copy of `resume` (and of the affected `sections` /
+ * `metadata`) carries the converted field, so frozen or shared inputs are
+ * never written to. Callers must use the return value.
  */
 export function resumeMapsToObjects(resume: ResumeData): ResumeData {
-  const sections = resume.sections as unknown as Record<string, unknown> | undefined;
-  if (sections) {
-    sections.custom = asPlainRecord(sections.custom);
+  const tree = resume as unknown as Record<string, unknown>;
+  const sections = tree.sections as Record<string, unknown> | undefined;
+  const metadata = tree.metadata as Record<string, unknown> | undefined;
+  const customIsMap = sections !== undefined && sections.custom instanceof Map;
+  const breaksAreMap = metadata !== undefined && metadata.itemBreaks instanceof Map;
+  if (!customIsMap && !breaksAreMap) {
+    return resume;
   }
-  const metadata = resume.metadata as unknown as Record<string, unknown> | undefined;
-  if (metadata && metadata.itemBreaks !== undefined) {
-    metadata.itemBreaks = asPlainRecord(metadata.itemBreaks);
+
+  const next: Record<string, unknown> = { ...tree };
+  if (customIsMap) {
+    next.sections = {
+      ...sections,
+      custom: Object.fromEntries(sections.custom as Map<string, unknown>),
+    };
   }
-  return resume;
+  if (breaksAreMap) {
+    next.metadata = {
+      ...metadata,
+      itemBreaks: Object.fromEntries(metadata.itemBreaks as Map<string, unknown>),
+    };
+  }
+  return next as unknown as ResumeData;
 }
