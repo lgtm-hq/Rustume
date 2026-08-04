@@ -138,6 +138,17 @@ mod tests {
     }
 
     #[test]
+    fn wider_fence_keeps_inner_fence_as_body() {
+        // Comrak is CommonMark-conformant: the closer must be at least as
+        // wide as the opener, so the inner ``` is body. Pins parity with the
+        // web dialect parser.
+        assert_eq!(
+            markdown_to_typst("````\na\n```\nb\n````"),
+            "#raw(block: true, \"a\\n```\\nb\")"
+        );
+    }
+
+    #[test]
     fn fenced_code_block_between_paragraphs() {
         assert_eq!(
             markdown_to_typst("Before\n\n```\ncode\n```\n\nAfter"),
