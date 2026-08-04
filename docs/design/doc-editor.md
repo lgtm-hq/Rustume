@@ -105,7 +105,7 @@ this bar.
 ### 1.3 `EditableSheet` — the sheet engine
 
 Props: `ctx`, `variant` (chrome flavor; production uses one), `focusedSection`, `onFocusSection`.
-Renders, in order: `FormatToolbar`, `Modals`, `SectionsPanel`, `TemplatesPanel`, `PageCountPill`,
+Renders, in order: `Modals`, `SectionsPanel`, `TemplatesPanel`, `PageCountPill`,
 then a `.sheet-stack` (centered flex column, `width:min(860px,100%)`) of one `.page-sheet`
 `<article>` per rendered page (`renderPages(doc)`, §3), each preceded (pages ≥ 2) by a
 `.page-break-rule`. Each sheet carries classes
@@ -178,8 +178,9 @@ Pencil menu (`.sec-menu`, white popover anchored top-right of the card, radius 1
 padding; closes on outside mousedown or Escape): **[addLabel]** (when `onAdd`), **Move up**
 (disabled at column top), **Move down** (disabled at column bottom — bounds from `columnNeighbors`,
 i.e. cross-page aware), **Move to sidebar / main column** (hidden on single-column templates),
-separator, **Rename title…** (a text prompt seeded with the current title; commit on non-empty
-change), **Hide section** (danger red; calls `toggleSection`). Every action closes the menu first.
+separator, **Rename title…** (opens the typed rename dialog seeded with the current title; a
+blank commit is discarded), **Hide section** (danger red; calls `toggleSection`). Every action
+closes the menu first.
 
 ### 1.6 `SectionList` — column renderer + Add-section block
 
@@ -292,9 +293,9 @@ section's Add modal.
 
 > **Owner decision (2026-08-04):** the floating format bar is **removed** along with
 > in-place editing. Rich text is edited exclusively through `MiniRichEditor` (§1.13)
-> inside the modals — same toolbar contract (bold / italic / bulleted / numbered / link
-> with an inline URL row, never a prompt; no underline or strikethrough, since markdown
-> has neither), writing **markdown** through the pure command engine.
+> inside the modals — same toolbar contract (bold / italic / bulleted / numbered / code
+> block / link with an inline URL row, never a prompt; no underline or strikethrough,
+> since markdown has neither), writing **markdown** through the pure command engine.
 
 ### 1.13 Modal system
 
@@ -428,15 +429,15 @@ ghosts have no animation (instant).
   pre-filled → Save (single undo entry) or Cancel/backdrop/Escape/✕ (discard).
 - **Section focus**: clicking anywhere in a section marks it `focused` (solid accent border); one
   focused section at a time (host-level signal).
-- **Avatar** → Photo modal. **Section title** → pencil menu → "Rename title…" prompt.
+- **Avatar** → Photo modal. **Section title** → pencil menu → "Rename title…" typed dialog.
 - **Remove**: pill **−** / compact **✕** / chip **✕** remove immediately — **no confirmation** (undo
   is the safety net).
 
 ### 2.4 Item drag & drop (within a section)
 
 - **Drag surfaces**: the `⋮⋮` grip _and the whole row_ (whole-surface drag, HA-style). A drag that
-  started on `button, input, textarea, [contenteditable="true"], .live.armed` is vetoed
-  (`preventDefault`) so controls and armed text keep native behavior. Grip drags `stopPropagation`
+  started on `button, input, textarea` is vetoed
+  (`preventDefault`) so controls keep native behavior. Grip drags `stopPropagation`
   so the row doesn't double-fire; nested rows drag independently of their section card. Never
   `preventDefault` on `mousedown` of a drag surface (pinned bug: it kills Chromium dragstart) —
   selection is suppressed via `user-select:none` instead.
@@ -743,7 +744,8 @@ stylesheet `docSheet.css` (everything nested under `.doc-sheet`).
   (`expandItemBreakPages` / `itemSlicesForSection` / `renderPages` / slice indices / "(cont.)"),
   removal UX, repair guards (§3.3–3.4).
 - Overflow guides, page-count pill, page-break rules (visual pagination layer, §1.16).
-- Floating FormatToolbar for on-sheet rich text (§1.12, reimplemented over markdown commands).
+- ~~Floating FormatToolbar for on-sheet rich text~~ (superseded — rich text is edited through
+  `MiniRichEditor` inside the modals, §1.12).
 - Whole-surface drag + slot-bar indicators + Add-section-block drop target (§2.4–2.5).
 - Focused-section state (solid accent border on last-clicked card).
 - Per-item `keywords`/`customFields` on experience/education (+customFields on projects/skills):
@@ -774,9 +776,10 @@ stylesheet `docSheet.css` (everything nested under `.doc-sheet`).
 6. **Explicit page-break insertion**: breaks can be removed but never _created_ directly (only
    implied by drags/pre-existing data). Add "insert page break before this item/section" (e.g. in
    the pencil/entry menus)?
-7. **Sidebar width persistence**: device preference (localStorage, prototype) vs document property
-   (`page.sidebar_ratio`)? Affects export fidelity — an exported PDF should probably match what the
-   user saw.
+7. **Sidebar width persistence** — _answered_ (owner decision on §4.2, shipped in PR #805): a
+   **document property** — the resize handle reads/writes `metadata.page.sidebarRatio`
+   (content-width relative, matching renderer and theme editor), so an exported PDF matches what
+   the user saw. Not localStorage.
 8. **Cross-section item drag**: item drags are same-section only. Accept as spec, or allow moving
    e.g. a project into experience (probably not — type mismatch)?
 9. **Typed item modals**: confirm the per-type field mappings for
