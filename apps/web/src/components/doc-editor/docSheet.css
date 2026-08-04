@@ -1161,8 +1161,27 @@
 .doc-sheet__md-paragraph + .doc-sheet__md-paragraph,
 .doc-sheet__md-paragraph + .doc-sheet__md-list,
 .doc-sheet__md-list + .doc-sheet__md-paragraph,
-.doc-sheet__md-list + .doc-sheet__md-list {
+.doc-sheet__md-list + .doc-sheet__md-list,
+.doc-sheet__md-code + .doc-sheet__md-paragraph,
+.doc-sheet__md-code + .doc-sheet__md-list,
+.doc-sheet__md-paragraph + .doc-sheet__md-code,
+.doc-sheet__md-list + .doc-sheet__md-code,
+.doc-sheet__md-code + .doc-sheet__md-code {
   margin-top: 0.5em;
+}
+
+/* Fenced code draws in the document's own ink at a slightly reduced size,
+   on a faint panel — legible on any template background. */
+.doc-sheet__md-code {
+  margin: 0;
+  padding: 0.5em 0.75em;
+  border-radius: 4px;
+  background: color-mix(in srgb, currentColor 7%, transparent);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .doc-sheet__md-list {
@@ -1229,84 +1248,6 @@
 .doc-sheet__editable--empty {
   color: var(--doc-sheet-muted);
   font-style: italic;
-}
-
-.doc-sheet__inline-input {
-  font: inherit;
-  color: inherit;
-  letter-spacing: inherit;
-  text-transform: inherit;
-  width: 100%;
-  padding: 0.05em 0.15em;
-  margin: -0.05em -0.15em;
-  background: var(--doc-sheet-bg);
-  border: 1px solid var(--doc-sheet-accent);
-  border-radius: 0.15em;
-}
-
-.doc-sheet__inline-input:focus-visible {
-  outline: 2px solid var(--doc-sheet-accent);
-  outline-offset: 1px;
-}
-
-/* ── Markdown mini editor ──────────────────────────────────────────────── */
-
-.doc-sheet__markdown {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35em;
-  padding: 0.35em;
-  border: 1px solid var(--doc-sheet-rule);
-  border-radius: 0.25em;
-  background: var(--doc-sheet-bg);
-}
-
-.doc-sheet__markdown-toolbar,
-.doc-sheet__markdown-link,
-.doc-sheet__markdown-footer {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25em;
-  align-items: center;
-}
-
-.doc-sheet__markdown-button {
-  font: inherit;
-  font-size: 0.85em;
-  line-height: 1;
-  color: var(--doc-sheet-accent);
-  background: var(--doc-sheet-tint);
-  border: 1px solid var(--doc-sheet-rule);
-  border-radius: 0.2em;
-  padding: 0.3em 0.5em;
-  cursor: pointer;
-  min-width: 2em;
-}
-
-.doc-sheet__markdown-button:hover {
-  background: var(--doc-sheet-rule);
-}
-
-.doc-sheet__markdown-button:focus-visible {
-  outline: 2px solid var(--doc-sheet-accent);
-  outline-offset: 1px;
-}
-
-.doc-sheet__markdown-input,
-.doc-sheet__markdown-href {
-  font: inherit;
-  color: inherit;
-  width: 100%;
-  padding: 0.25em 0.35em;
-  background: var(--doc-sheet-bg);
-  border: 1px solid var(--doc-sheet-rule);
-  border-radius: 0.2em;
-  resize: vertical;
-}
-
-.doc-sheet__markdown-href {
-  flex: 1;
-  min-width: 8em;
 }
 
 /* ── Touch fallback ─────────────────────────────────────────────────────────

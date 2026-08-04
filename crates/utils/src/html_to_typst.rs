@@ -1,7 +1,8 @@
 //! Convert a subset of HTML to Typst markup.
 //!
-//! Handles the formatting tags produced by the TipTap rich text editor:
-//! bold, italic, underline, links, bullet/ordered lists, paragraphs, line breaks.
+//! Handles the formatting tags produced by the TipTap rich text editor and the
+//! markdown pipeline: bold, italic, underline, links, bullet/ordered lists,
+//! paragraphs, line breaks, and inline/block code.
 
 use scraper::{Html, Node};
 
@@ -16,6 +17,8 @@ use scraper::{Html, Node};
 /// - `<ul><li>` — `- item`
 /// - `<ol><li>` — `+ item`
 /// - `<br>` — `#linebreak()`
+/// - `<pre>` — `#raw(block: true, "…")`
+/// - `<code>` (outside `<pre>`) — `#raw("…")`
 ///
 /// Lists nest to arbitrary depth: a `<ul>` or `<ol>` inside an `<li>` is
 /// emitted as an indented sublist, and each level takes its marker from its
@@ -166,6 +169,31 @@ fn process_node(node: &ego_tree::NodeRef<'_, Node>, output: &mut String, list_de
                     let marker = if tag == "ul" { '-' } else { '+' };
                     process_list(node, output, marker, list_depth);
                 }
+                "pre" => {
+                    // A fenced code block (comrak emits `<pre><code>…</code></pre>`).
+                    // Verbatim text goes into a Typst string literal, so it needs
+                    // string escaping, not content-mode escaping.
+                    let text = raw_text(node);
+                    // Comrak terminates the code content with exactly one
+                    // newline; strip only that one so intentional trailing
+                    // blank lines survive.
+                    let trimmed = text.strip_suffix('\n').unwrap_or(&text);
+                    if !trimmed.is_empty() {
+                        output.push_str("#raw(block: true, \"");
+                        output.push_str(&escape_typst_string(trimmed));
+                        output.push_str("\")\n\n");
+                    }
+                }
+                "code" => {
+                    // Inline code (a `<code>` outside `<pre>`; the `pre` arm
+                    // consumes its own children without recursing here).
+                    let text = raw_text(node);
+                    if !text.is_empty() {
+                        output.push_str("#raw(\"");
+                        output.push_str(&escape_typst_string(&text));
+                        output.push_str("\")");
+                    }
+                }
                 "br" => {
                     output.push_str("#linebreak()\n");
                 }
@@ -180,6 +208,34 @@ fn process_node(node: &ego_tree::NodeRef<'_, Node>, output: &mut String, list_de
         // Skip comments, doctypes, processing instructions, etc.
         _ => {}
     }
+}
+
+/// Concatenated text of every descendant text node, tags stripped.
+fn raw_text(node: &ego_tree::NodeRef<'_, Node>) -> String {
+    let mut out = String::new();
+    collect_text(node, &mut out);
+    out
+}
+
+fn collect_text(node: &ego_tree::NodeRef<'_, Node>, out: &mut String) {
+    for child in node.children() {
+        match child.value() {
+            Node::Text(text) => out.push_str(text.text.as_ref()),
+            Node::Element(_) => collect_text(&child, out),
+            _ => {}
+        }
+    }
+}
+
+/// Escape `text` for a Typst double-quoted string literal.
+///
+/// Newlines become the `\n` escape so the literal stays on one output line —
+/// `clean_output` collapses runs of raw newlines and would otherwise mangle
+/// code bodies with consecutive blank lines.
+fn escape_typst_string(text: &str) -> String {
+    text.replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\n', "\\n")
 }
 
 /// Render a `<ul>`/`<ol>` element as Typst list lines.
@@ -516,5 +572,53 @@ mod tests {
         // TipTap produces these for empty editors.
         assert_eq!(html_to_typst("<p></p>"), "");
         assert_eq!(html_to_typst("<p><br></p>"), "");
+    }
+
+    #[test]
+    fn fenced_code_block() {
+        // Comrak's shape for a ``` fence. Verbatim: no content-mode escaping.
+        assert_eq!(
+            html_to_typst("<pre><code>let x = a * b;\n</code></pre>"),
+            "#raw(block: true, \"let x = a * b;\")"
+        );
+    }
+
+    #[test]
+    fn code_block_escapes_string_specials() {
+        assert_eq!(
+            html_to_typst("<pre><code>say \"hi\\\"\n</code></pre>"),
+            "#raw(block: true, \"say \\\"hi\\\\\\\"\")"
+        );
+    }
+
+    #[test]
+    fn inline_code() {
+        assert_eq!(
+            html_to_typst("<p>run <code>cargo test</code> now</p>"),
+            "run #raw(\"cargo test\") now"
+        );
+    }
+
+    #[test]
+    fn empty_code_block_emits_nothing() {
+        assert_eq!(html_to_typst("<pre><code>\n</code></pre>"), "");
+    }
+
+    #[test]
+    fn code_block_keeps_intentional_trailing_blank_line() {
+        // Only the renderer's own terminal newline is stripped.
+        assert_eq!(
+            html_to_typst("<pre><code>a\n\n</code></pre>"),
+            "#raw(block: true, \"a\\n\")"
+        );
+    }
+
+    #[test]
+    fn multi_line_code_block_encodes_newlines() {
+        // Newlines ride as \n escapes so clean_output cannot collapse them.
+        assert_eq!(
+            html_to_typst("<pre><code>a\n\n\n\nb\n</code></pre>"),
+            "#raw(block: true, \"a\\n\\n\\n\\nb\")"
+        );
     }
 }

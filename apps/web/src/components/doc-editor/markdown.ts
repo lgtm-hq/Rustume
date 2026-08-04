@@ -6,14 +6,21 @@
  * DOM, so the whole toolbar is unit-testable without rendering a textarea.
  *
  * The command set is deliberately small — bold, italic, link, unordered list,
- * ordered list. There is no underline: markdown has none, and the render path
- * (`crates/utils/src/html_to_typst.rs`) has nothing to turn one into. Anything
- * emitted here must survive that conversion, which is why the output stays on
- * `**`, `*`, `[label](href)`, `- ` and `1. `.
+ * ordered list, fenced code block. There is no underline: markdown has none,
+ * and the render path (`crates/utils/src/html_to_typst.rs`) has nothing to
+ * turn one into. Anything emitted here must survive that conversion, which is
+ * why the output stays on `**`, `*`, `[label](href)`, `- `, `1. ` and
+ * ``` fences.
  */
 
 /** A toolbar action. Underline is absent by design — see the module note. */
-export type MarkdownCommand = "bold" | "italic" | "link" | "bulletList" | "orderedList";
+export type MarkdownCommand =
+  | "bold"
+  | "italic"
+  | "link"
+  | "bulletList"
+  | "orderedList"
+  | "codeBlock";
 
 /** A field's text with the caret range the user has selected in it. */
 export interface MarkdownSelection {
@@ -31,6 +38,7 @@ const PLACEHOLDERS: Record<MarkdownCommand, string> = {
   link: "link",
   bulletList: "List item",
   orderedList: "List item",
+  codeBlock: "code",
 };
 
 const BULLET_PREFIX = /^(\s*)-\s+/;
@@ -123,6 +131,80 @@ function toggleList(
   return { value: value2, start: from, end: from + next.length };
 }
 
+/**
+ * An opening fence may carry an info string; a closing fence is bare and at
+ * least as wide as its opener (CommonMark — an inner shorter fence is body).
+ * Kept in step with `lib/markdownBlocks.ts`.
+ */
+const FENCE_OPEN = /^\s*(`{3,})/;
+const FENCE_CLOSE = /^\s*(`{3,})\s*$/;
+
+/**
+ * The fenced block enclosing the line range `[startLine, endLine]`, or null.
+ *
+ * `close === lines.length` marks an unterminated fence still being typed —
+ * the block runs to the end of the value, matching how `markdownBlocks`
+ * draws it.
+ */
+function enclosingFence(
+  lines: string[],
+  startLine: number,
+  endLine: number,
+): { open: number; close: number } | null {
+  let open = -1;
+  let openWidth = 0;
+  for (let index = 0; index < lines.length; index += 1) {
+    if (open === -1) {
+      const opened = FENCE_OPEN.exec(lines[index]);
+      if (opened) {
+        open = index;
+        openWidth = opened[1].length;
+      }
+      continue;
+    }
+    const closeWidth = FENCE_CLOSE.exec(lines[index])?.[1].length ?? 0;
+    if (closeWidth >= openWidth) {
+      if (open <= startLine && endLine <= index) return { open, close: index };
+      open = -1;
+    }
+  }
+  return open !== -1 && open <= startLine ? { open, close: lines.length } : null;
+}
+
+/**
+ * Fence the touched lines as a code block, or unfence them.
+ *
+ * Unfencing triggers whenever the selection sits anywhere inside a fenced
+ * block — on a body line, on a fence line, or spanning both — and removes
+ * that block's fence lines, keeping the body.
+ */
+function toggleCodeBlock(selection: MarkdownSelection, placeholder: string): MarkdownSelection {
+  const { value, start, end } = selection;
+  const { from, to } = lineRange(value, start, end);
+  const lines = value.split("\n");
+  const startLine = value.slice(0, from).split("\n").length - 1;
+  const endLine = value.slice(0, to).split("\n").length - 1;
+
+  const fence = enclosingFence(lines, startLine, endLine);
+  if (fence) {
+    const body = lines.slice(fence.open + 1, fence.close).join("\n");
+    const prefix = fence.open === 0 ? "" : `${lines.slice(0, fence.open).join("\n")}\n`;
+    const suffix =
+      fence.close >= lines.length - 1 ? "" : `\n${lines.slice(fence.close + 1).join("\n")}`;
+    return {
+      value: prefix + body + suffix,
+      start: prefix.length,
+      end: prefix.length + body.length,
+    };
+  }
+
+  const block = value.slice(from, to);
+  const body = block === "" ? placeholder : block;
+  const fenced = `\`\`\`\n${body}\n\`\`\``;
+  const next = value.slice(0, from) + fenced + value.slice(to);
+  return { value: next, start: from + 4, end: from + 4 + body.length };
+}
+
 /** Wrap the selection as a markdown link pointing at `href`. */
 function applyLink(selection: MarkdownSelection, href: string): MarkdownSelection {
   const { value, start, end } = selection;
@@ -155,5 +237,7 @@ export function applyMarkdownCommand(
       return toggleList(range, false, PLACEHOLDERS.bulletList);
     case "orderedList":
       return toggleList(range, true, PLACEHOLDERS.orderedList);
+    case "codeBlock":
+      return toggleCodeBlock(range, PLACEHOLDERS.codeBlock);
   }
 }

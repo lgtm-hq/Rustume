@@ -7,6 +7,13 @@
  * `emptyItemFor()` seeds in `lib/docLayout.ts` — every writable key of an item
  * appears here except `id` and `visible`, which the editor owns rather than the
  * user.
+ *
+ * Field order follows spec §1.13's per-type modal layouts; `half` pairs two
+ * consecutive fields into one two-column row (the spec's `.field-row`). Where
+ * the spec's prototype fields and the typed schema diverge, the schema wins
+ * (§4.2: keep the typed items) — so awards keep title/awarder, tags exist only
+ * where the schema carries `keywords`, and custom fields only where it carries
+ * `customFields`.
  */
 
 import { isCustomId } from "../../lib/docLayout";
@@ -15,8 +22,11 @@ import { FIXED_LAYOUT_SECTION_KEYS } from "../../lib/resumeSections";
 /** The fixed sections that carry items, and therefore need descriptors. */
 type FixedItemSectionKey = (typeof FIXED_LAYOUT_SECTION_KEYS)[number];
 
-/** How a field is edited. */
-export type ItemFieldKind = "text" | "markdown" | "keywords" | "level" | "url";
+/**
+ * How a field is edited: plain text, a markdown mini editor, the tag-chip
+ * box, the proficiency picker, a label/href pair, or custom-field rows.
+ */
+export type ItemFieldKind = "text" | "markdown" | "keywords" | "level" | "url" | "extraFields";
 
 /** One editable field of an item. */
 export interface ItemFieldSpec {
@@ -26,32 +36,55 @@ export interface ItemFieldSpec {
   label: string;
   kind: ItemFieldKind;
   placeholder?: string;
+  /** Hint line drawn under the field. */
+  hint?: string;
+  /** Paired with the adjacent `half` field into one two-column row. */
+  half?: boolean;
+  /** Text fields only: drawn as a short textarea (spec §1.13). */
+  multiline?: boolean;
 }
 
 function text(key: string, label: string, placeholder?: string): ItemFieldSpec {
   return { key, label, kind: "text", placeholder };
 }
 
-function markdown(key: string, label: string): ItemFieldSpec {
-  return { key, label, kind: "markdown" };
+function half(key: string, label: string, placeholder?: string): ItemFieldSpec {
+  return { key, label, kind: "text", placeholder, half: true };
 }
 
-const KEYWORDS = {
-  key: "keywords",
-  label: "Keywords",
-  kind: "keywords",
+function markdown(key: string, label: string, hint?: string): ItemFieldSpec {
+  return { key, label, kind: "markdown", hint };
+}
+
+/** A short description textarea (spec §1.13: projects and custom sections). */
+function textarea(key: string, label: string): ItemFieldSpec {
+  return { key, label, kind: "text", multiline: true };
+}
+
+/** The rich-editor hint of spec §1.13's experience modal, shared by all. */
+const RICH_HINT = "Use the toolbar for bold, lists, and links.";
+
+const TAGS = { key: "keywords", label: "Tags", kind: "keywords" } as const satisfies ItemFieldSpec;
+const LEVEL = {
+  key: "level",
+  label: "Proficiency",
+  kind: "level",
 } as const satisfies ItemFieldSpec;
-const LEVEL = { key: "level", label: "Level", kind: "level" } as const satisfies ItemFieldSpec;
 const URL_FIELD = { key: "url", label: "Link", kind: "url" } as const satisfies ItemFieldSpec;
+const EXTRA_FIELDS = {
+  key: "customFields",
+  label: "Custom fields",
+  kind: "extraFields",
+} as const satisfies ItemFieldSpec;
 
 /** Editable fields of a custom section's items. */
 export const CUSTOM_ITEM_FIELDS: readonly ItemFieldSpec[] = [
   text("name", "Name"),
-  text("description", "Description"),
-  text("date", "Date"),
-  text("location", "Location"),
-  markdown("summary", "Summary"),
-  KEYWORDS,
+  textarea("description", "Description"),
+  half("date", "Date"),
+  half("location", "Location"),
+  markdown("summary", "Summary", RICH_HINT),
+  TAGS,
   URL_FIELD,
 ];
 
@@ -63,34 +96,39 @@ export const CUSTOM_ITEM_FIELDS: readonly ItemFieldSpec[] = [
  */
 export const FIXED_ITEM_FIELDS: Readonly<Record<FixedItemSectionKey, readonly ItemFieldSpec[]>> = {
   experience: [
-    text("company", "Company"),
     text("position", "Position"),
-    text("location", "Location"),
+    half("company", "Company"),
+    half("location", "Location"),
     text("date", "Date", "March 2022 - Present"),
-    markdown("summary", "Summary"),
+    markdown("summary", "Highlights", RICH_HINT),
+    TAGS,
+    EXTRA_FIELDS,
     URL_FIELD,
   ],
   education: [
     text("institution", "Institution"),
-    text("studyType", "Study type", "Bachelor's"),
-    text("area", "Area of study"),
-    text("date", "Date", "2016 - 2020"),
-    text("score", "Score"),
-    markdown("summary", "Summary"),
+    half("studyType", "Degree", "Bachelor's"),
+    half("area", "Area of study"),
+    half("date", "Date", "2016 - 2020"),
+    half("score", "Score"),
+    markdown("summary", "Summary", RICH_HINT),
+    TAGS,
+    EXTRA_FIELDS,
     URL_FIELD,
   ],
-  skills: [text("name", "Name"), text("description", "Description"), LEVEL, KEYWORDS],
+  skills: [text("name", "Name"), text("description", "Description"), LEVEL, TAGS, EXTRA_FIELDS],
   projects: [
     text("name", "Name"),
-    text("description", "Description"),
+    textarea("description", "Description"),
     text("date", "Date"),
-    markdown("summary", "Summary"),
-    KEYWORDS,
+    markdown("summary", "Highlights", RICH_HINT),
+    TAGS,
+    EXTRA_FIELDS,
     URL_FIELD,
   ],
   profiles: [
-    text("network", "Network", "GitHub"),
-    text("username", "Username"),
+    half("network", "Network", "GitHub"),
+    half("username", "Username"),
     text("icon", "Icon"),
     URL_FIELD,
   ],
@@ -98,37 +136,37 @@ export const FIXED_ITEM_FIELDS: Readonly<Record<FixedItemSectionKey, readonly It
     text("title", "Title"),
     text("awarder", "Awarder"),
     text("date", "Date"),
-    markdown("summary", "Summary"),
+    markdown("summary", "Summary", RICH_HINT),
     URL_FIELD,
   ],
   certifications: [
     text("name", "Name"),
     text("issuer", "Issuer"),
     text("date", "Date"),
-    markdown("summary", "Summary"),
+    markdown("summary", "Summary", RICH_HINT),
     URL_FIELD,
   ],
   publications: [
     text("name", "Name"),
     text("publisher", "Publisher"),
     text("date", "Date"),
-    markdown("summary", "Summary"),
+    markdown("summary", "Summary", RICH_HINT),
     URL_FIELD,
   ],
   languages: [text("name", "Name"), text("description", "Description"), LEVEL],
-  interests: [text("name", "Name"), KEYWORDS],
+  interests: [text("name", "Name"), TAGS],
   volunteer: [
     text("organization", "Organization"),
-    text("position", "Position"),
-    text("location", "Location"),
+    half("position", "Position"),
+    half("location", "Location"),
     text("date", "Date"),
-    markdown("summary", "Summary"),
+    markdown("summary", "Summary", RICH_HINT),
     URL_FIELD,
   ],
   references: [
     text("name", "Name"),
     text("description", "Description"),
-    markdown("summary", "Summary"),
+    markdown("summary", "Summary", RICH_HINT),
     URL_FIELD,
   ],
 };
@@ -144,7 +182,7 @@ export function itemFieldsFor(sectionId: string): readonly ItemFieldSpec[] {
   return FIXED_ITEM_FIELDS[sectionId as FixedItemSectionKey] ?? [];
 }
 
-/** Singular noun for a section's items, used in dialog titles and buttons. */
+/** Singular noun for a section's items, used by row chrome and add blocks. */
 export function itemNoun(sectionTitle: string): string {
   const lower = sectionTitle.toLowerCase();
   if (lower.endsWith("ies")) return `${lower.slice(0, -3)}y`;

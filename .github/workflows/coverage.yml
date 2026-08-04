@@ -16,6 +16,11 @@ name: Coverage Reports
       - "scripts/ci/testing/**"
   pull_request:
     branches: [main]
+    # `ready_for_review` is not a default activity type: without it a PR
+    # opened as a draft and later marked ready never gets the required
+    # rust-coverage / web-coverage checks, forcing a close/reopen (#801
+    # fixed `quality` the same way).
+    types: [opened, synchronize, reopened, ready_for_review]
   merge_group:
   workflow_dispatch:
 

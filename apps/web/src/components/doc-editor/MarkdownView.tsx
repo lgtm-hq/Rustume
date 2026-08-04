@@ -84,6 +84,13 @@ export function MarkdownView(props: { value: string }): JSX.Element {
         if (block.type === "list") {
           return <ListView list={block} />;
         }
+        if (block.type === "code") {
+          return (
+            <pre class="doc-sheet__md-code">
+              <code>{block.text}</code>
+            </pre>
+          );
+        }
         return (
           <p class="doc-sheet__md-paragraph">
             <Lines lines={block.lines} />

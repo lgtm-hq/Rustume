@@ -45,10 +45,15 @@ export function CustomSectionDialog(props: CustomSectionDialogProps): JSX.Elemen
       open={props.open}
       onOpenChange={props.onOpenChange}
       title={isCreating() ? "Add section" : "Rename section"}
+      description={
+        isCreating()
+          ? "Placed in the side column by default. Toggle visibility anytime in Sections."
+          : undefined
+      }
     >
       <Input
-        label="Section name"
-        placeholder="Talks & Workshops"
+        label="Section title"
+        placeholder="e.g. AI Tooling"
         value={draft()}
         onInput={setDraft}
       />

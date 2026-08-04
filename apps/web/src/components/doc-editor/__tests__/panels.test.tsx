@@ -209,7 +209,7 @@ describe("document editor panels", () => {
 
       fireEvent.click(within(panel).getByRole("button", { name: "Add section" }));
       const dialog = await screen.findByRole("dialog", { name: "Add section" });
-      fireEvent.input(within(dialog).getByRole("textbox", { name: "Section name" }), {
+      fireEvent.input(within(dialog).getByRole("textbox", { name: "Section title" }), {
         target: { value: "Patents" },
       });
       fireEvent.click(within(dialog).getByRole("button", { name: "Add section" }));

@@ -182,4 +182,42 @@ describe("parseMarkdownBlocks", () => {
       { type: "paragraph", lines: [[text("# Not a heading")]] },
     ]);
   });
+
+  it("parses a fenced code block, keeping the body verbatim", () => {
+    expect(parseMarkdownBlocks("```\nlet x = **not bold**;\nsecond\n```")).toEqual([
+      { type: "code", text: "let x = **not bold**;\nsecond" },
+    ]);
+  });
+
+  it("parses a fenced block between paragraphs", () => {
+    expect(parseMarkdownBlocks("before\n```\ncode\n```\nafter")).toEqual([
+      { type: "paragraph", lines: [[text("before")]] },
+      { type: "code", text: "code" },
+      { type: "paragraph", lines: [[text("after")]] },
+    ]);
+  });
+
+  it("draws an unterminated fence as code while it is being typed", () => {
+    expect(parseMarkdownBlocks("```\ncode")).toEqual([{ type: "code", text: "code" }]);
+  });
+
+  it("keeps blank lines inside a fence", () => {
+    expect(parseMarkdownBlocks("```\na\n\nb\n```")).toEqual([{ type: "code", text: "a\n\nb" }]);
+  });
+
+  it("only a bare fence closes a block", () => {
+    // A ``` with trailing text is not a closing fence; it stays body text.
+    expect(parseMarkdownBlocks("```\na\n```not-a-close\nb\n```")).toEqual([
+      { type: "code", text: "a\n```not-a-close\nb" },
+    ]);
+  });
+
+  it("a closing fence must be at least as wide as its opener", () => {
+    // CommonMark: a shorter interior fence is body, matching comrak's export.
+    expect(parseMarkdownBlocks("````\na\n```\nb\n````")).toEqual([
+      { type: "code", text: "a\n```\nb" },
+    ]);
+    // A wider closer still closes.
+    expect(parseMarkdownBlocks("```\na\n````")).toEqual([{ type: "code", text: "a" }]);
+  });
 });

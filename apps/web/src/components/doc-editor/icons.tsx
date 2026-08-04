@@ -114,6 +114,56 @@ export function ProfileIcon(props: { network?: string; icon?: string }): JSX.Ele
   );
 }
 
+/** Which formatting action a toolbar button triggers. */
+export type ToolbarIconKind =
+  | "bold"
+  | "italic"
+  | "bulletList"
+  | "orderedList"
+  | "link"
+  | "codeBlock";
+
+/** mdi format/link glyphs, keyed by the markdown command they trigger. */
+const TOOLBAR_PATHS: Record<ToolbarIconKind, string> = {
+  bold:
+    "M13.5,15.5H10V12.5H13.5A1.5,1.5 0 0,1 15,14A1.5,1.5 0 0,1 13.5,15.5M10,6.5H13A1.5,1.5 0 " +
+    "0,1 14.5,8A1.5,1.5 0 0,1 13,9.5H10M15.6,10.79C16.57,10.11 17.25,9 17.25,8C17.25,5.74 " +
+    "15.5,4 13.25,4H7V18H14.04C16.14,18 17.75,16.3 17.75,14.21C17.75,12.69 16.89,11.39 " +
+    "15.6,10.79Z",
+  italic: "M10,4V7H12.21L8.79,15H6V18H14V15H11.79L15.21,7H18V4H10Z",
+  bulletList:
+    "M7,5H21V7H7V5M7,13V11H21V13H7M4,4.5A1.5,1.5 0 0,1 5.5,6A1.5,1.5 0 0,1 4,7.5A1.5,1.5 0 " +
+    "0,1 2.5,6A1.5,1.5 0 0,1 4,4.5M4,10.5A1.5,1.5 0 0,1 5.5,12A1.5,1.5 0 0,1 4,13.5A1.5,1.5 " +
+    "0 0,1 2.5,12A1.5,1.5 0 0,1 4,10.5M7,19V17H21V19H7M4,16.5A1.5,1.5 0 0,1 5.5,18A1.5,1.5 " +
+    "0 0,1 4,19.5A1.5,1.5 0 0,1 2.5,18A1.5,1.5 0 0,1 4,16.5Z",
+  orderedList:
+    "M7,13V11H21V13H7M7,19V17H21V19H7M7,7V5H21V7H7M3,8V5H2V4H4V8H3M2,17V16H5V20H2V19H4V18.5" +
+    "H3V17.5H4V17H2M4.25,10A0.75,0.75 0 0,1 5,10.75C5,10.95 4.92,11.14 4.79,11.27L3.12,13H5" +
+    "V14H2V13.08L4,11H2V10H4.25Z",
+  link:
+    "M10.59,13.41C11,13.8 11,14.44 10.59,14.83C10.2,15.22 9.56,15.22 9.17,14.83C7.22,12.88 " +
+    "7.22,9.71 9.17,7.76V7.76L12.71,4.22C14.66,2.27 17.83,2.27 19.78,4.22C21.73,6.17 21.73," +
+    "9.34 19.78,11.29L18.29,12.78C18.3,11.96 18.17,11.14 17.89,10.36L18.36,9.88C19.54,8.71 " +
+    "19.54,6.81 18.36,5.64C17.19,4.46 15.29,4.46 14.12,5.64L10.59,9.17C9.41,10.34 9.41,12.24 " +
+    "10.59,13.41M13.41,9.17C13.8,8.78 14.44,8.78 14.83,9.17C16.78,11.12 16.78,14.29 14.83," +
+    "16.24V16.24L11.29,19.78C9.34,21.73 6.17,21.73 4.22,19.78C2.27,17.83 2.27,14.66 4.22," +
+    "12.71L5.71,11.22C5.7,12.04 5.83,12.86 6.11,13.65L5.64,14.12C4.46,15.29 4.46,17.19 5.64," +
+    "18.36C6.81,19.54 8.71,19.54 9.88,18.36L13.41,14.83C14.59,13.66 14.59,11.76 13.41,10.59" +
+    "C13,10.2 13,9.56 13.41,9.17Z",
+  codeBlock:
+    "M14.6,16.6L19.2,12L14.6,7.4L16,6L22,12L16,18L14.6,16.6M9.4,16.6L4.8,12L9.4,7.4L8,6L2," +
+    "12L8,18L9.4,16.6Z",
+};
+
+/** One formatting-toolbar glyph (MiniRichEditor). */
+export function ToolbarIcon(props: { kind: ToolbarIconKind }): JSX.Element {
+  return (
+    <svg class="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="currentColor" d={TOOLBAR_PATHS[props.kind]} />
+    </svg>
+  );
+}
+
 /** Eye open/closed — visibility toggles. */
 export function EyeIcon(props: { isOpen: boolean }): JSX.Element {
   return (

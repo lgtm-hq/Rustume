@@ -38,6 +38,7 @@ const store = vi.hoisted(() => ({
   duplicateCustomSectionItem: vi.fn(),
   moveCustomSectionItem: vi.fn(),
   updateLayout: vi.fn(),
+  updateMetadata: vi.fn(),
 }));
 
 vi.mock("../../../stores/resume", () => ({ resumeStore: store }));
@@ -127,14 +128,16 @@ describe("document sheet structural chrome", () => {
       expect(screen.queryByRole("menuitem", { name: "Delete Experience section" })).toBeNull();
     });
 
-    it("renames a section from the pencil menu through the inline title editor", () => {
+    it("renames a section from the pencil menu through the rename dialog", () => {
       renderSheet();
 
       openMenu("Talks & Workshops");
       fireEvent.click(screen.getByRole("menuitem", { name: "Rename Talks & Workshops section" }));
-      const input = screen.getByRole("textbox", { name: "Section title" });
-      fireEvent.input(input, { target: { value: "Talks" } });
-      fireEvent.blur(input);
+      const dialog = screen.getByRole("dialog", { name: "Rename section" });
+      fireEvent.input(within(dialog).getByRole("textbox", { name: "Section title" }), {
+        target: { value: "Talks" },
+      });
+      fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
 
       expect(store.updateCustomSection).toHaveBeenCalledExactlyOnceWith("speaking", {
         name: "Talks",
@@ -309,6 +312,28 @@ describe("document sheet structural chrome", () => {
       expect(store.removeCustomSectionItem).toHaveBeenCalledExactlyOnceWith("speaking", 0);
       expect(writeCount()).toBe(1);
     });
+
+    it("opens the item modal from a custom entry's chip name", () => {
+      // Chips render outside SortableEntry, so the name itself must be the
+      // edit path — without it, existing custom entries cannot be edited.
+      renderSheet();
+
+      fireEvent.click(screen.getByRole("button", { name: "Edit Design Tokens Beyond Colour" }));
+
+      expect(screen.getByRole("dialog", { name: /^Edit · / })).toBeInTheDocument();
+      expect(writeCount()).toBe(0);
+    });
+
+    it("opens the item modal from an interest's name", () => {
+      // Interests render as a plain list outside SortableEntry; the name is
+      // their edit path.
+      renderSheet();
+
+      fireEvent.click(screen.getByRole("button", { name: "Edit Letterpress printing" }));
+
+      expect(screen.getByRole("dialog", { name: /^Edit · Interests/ })).toBeInTheDocument();
+      expect(writeCount()).toBe(0);
+    });
   });
 
   describe("entry move controls", () => {
@@ -367,7 +392,7 @@ describe("document sheet structural chrome", () => {
       fireEvent.input(within(dialog).getByRole("textbox", { name: "Name" }), {
         target: { value: "Halo" },
       });
-      fireEvent.click(within(dialog).getByRole("button", { name: "Add project" }));
+      fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
 
       expect(store.addSectionItem).toHaveBeenCalledOnce();
       const [sectionId, item] = store.addSectionItem.mock.calls[0] as [
@@ -481,6 +506,40 @@ describe("document sheet structural chrome", () => {
       expect(handle.getAttribute("aria-valuemin")).toBe("160");
       expect(handle.getAttribute("aria-valuemax")).toBe("360");
       expect(Number(handle.getAttribute("aria-valuenow"))).toBeGreaterThanOrEqual(160);
+    });
+
+    it("persists a keyboard resize as the document's sidebar ratio", () => {
+      renderSheet();
+
+      const [handle] = screen.getAllByRole("separator", { name: "Resize sidebar" });
+      fireEvent.keyDown(handle, { key: "ArrowLeft" });
+
+      // The sidebar split is a document property (spec §4.2, owner decision):
+      // it writes metadata.page.sidebarRatio, never device storage.
+      expect(store.updateMetadata).toHaveBeenCalledOnce();
+      const [field, page] = store.updateMetadata.mock.calls[0] as [
+        string,
+        { sidebarRatio: number },
+      ];
+      expect(field).toBe("page");
+      // A right sidebar grows leftwards: ArrowLeft widens by one step.
+      expect(page.sidebarRatio).toBeGreaterThan(0.1);
+      expect(page.sidebarRatio).toBeLessThanOrEqual(0.5);
+      expect(writeCount()).toBe(1);
+    });
+
+    it("draws the width the stored ratio dictates", () => {
+      resume.metadata.page.sidebarRatio = 0.4;
+      renderSheet();
+
+      const sheet = screen.getByTestId("doc-sheet");
+      // 0.4 of the sheet's content width (spec §4.2's pt-based ratio drawn in
+      // sheet pixels), clamped to the handle's px bounds.
+      const [handle] = screen.getAllByRole("separator", { name: "Resize sidebar" });
+      const width = Number(handle.getAttribute("aria-valuenow"));
+      expect(width).toBeGreaterThan(300);
+      expect(width).toBeLessThanOrEqual(360);
+      expect(sheet.style.getPropertyValue("--doc-sheet-side-w")).toBe(`${width}px`);
     });
   });
 });

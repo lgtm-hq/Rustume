@@ -18,7 +18,7 @@
 
 import { Show, createEffect, createSignal, onCleanup, type JSX } from "solid-js";
 import { DragGridIcon, PencilIcon, PlusIcon } from "./icons";
-import { InlineText } from "./InlineText";
+import { EditableField } from "./EditableField";
 import { useSheetEditable } from "./sheetMode";
 
 /** The pencil menu's structural actions and their enablement. */
@@ -186,11 +186,17 @@ export function SectionChrome(props: SectionChromeProps): JSX.Element {
         <h3 class="doc-sheet__sec-title">
           <Show when={props.onRenameCommit} fallback={props.title}>
             {(commit) => (
-              <InlineText
+              <EditableField
                 value={props.title}
                 label="Section title"
+                dialogTitle="Rename section"
                 triggerId={sectionTitleTriggerId(props.sectionId)}
-                onCommit={(value) => commit()(value)}
+                onCommit={(value) => {
+                  // A section must keep a name: a blank commit is discarded
+                  // rather than persisting a whitespace-only title.
+                  const trimmed = value.trim();
+                  if (trimmed !== "") commit()(trimmed);
+                }}
               />
             )}
           </Show>

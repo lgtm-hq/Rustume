@@ -6,10 +6,11 @@
  * exactly the grammar the mini editor emits and the migration produces —
  * paragraphs, `- ` / `1. ` lists (nested by two-space indent, as
  * `htmlToMarkdown` writes them), `**bold**`, `*italic*`, `***both***`,
- * `[label](href)` — into plain data; `MarkdownView` draws it. Pure
- * text-in/data-out, so the whole renderer is unit-testable without a DOM.
+ * `[label](href)`, ``` fenced code blocks — into plain data; `MarkdownView`
+ * draws it. Pure text-in/data-out, so the whole renderer is unit-testable
+ * without a DOM.
  *
- * Anything outside the dialect (headings, code fences) stays literal text:
+ * Anything outside the dialect (headings, inline code) stays literal text:
  * showing the author's punctuation is better than guessing at markdown this
  * pipeline never writes.
  */
@@ -38,9 +39,22 @@ export interface MarkdownList {
 /** One block of a field's value. */
 export type MarkdownBlock =
   | { type: "paragraph"; lines: MarkdownInline[][] }
-  | ({ type: "list" } & MarkdownList);
+  | ({ type: "list" } & MarkdownList)
+  /** A ``` fenced block; `text` is the verbatim body, inlines never apply. */
+  | { type: "code"; text: string };
 
 const LIST_LINE = /^(\s*)(-|\d+\.)\s+(.*)$/;
+/**
+ * An opening fence may carry an info string; a closing fence is bare and at
+ * least as wide as its opener (CommonMark — an inner shorter fence is body).
+ */
+const FENCE_OPEN = /^\s*(`{3,})/;
+const FENCE_CLOSE = /^\s*(`{3,})\s*$/;
+
+/** The closing width of `line` when it is a bare fence, else 0. */
+function closingFenceWidth(line: string): number {
+  return FENCE_CLOSE.exec(line)?.[1].length ?? 0;
+}
 
 /** Spaces per nesting level, matching `LIST_INDENT` in `htmlToMarkdown`. */
 const INDENT_WIDTH = 2;
@@ -162,7 +176,30 @@ export function parseMarkdownBlocks(value: string): MarkdownBlock[] {
     }
   };
 
+  /** Body lines of the open fenced block, or null when outside one. */
+  let codeLines: string[] | null = null;
+  /** Backtick count of the open fence; a closer must be at least as wide. */
+  let openWidth = 0;
+
   for (const line of value.split(/\r?\n/)) {
+    if (codeLines !== null) {
+      if (closingFenceWidth(line) >= openWidth) {
+        blocks.push({ type: "code", text: codeLines.join("\n") });
+        codeLines = null;
+      } else {
+        codeLines.push(line);
+      }
+      continue;
+    }
+    const open = FENCE_OPEN.exec(line);
+    if (open) {
+      flushParagraph();
+      flushList();
+      codeLines = [];
+      openWidth = open[1].length;
+      continue;
+    }
+
     if (line.trim() === "") {
       flushParagraph();
       flushList();
@@ -207,6 +244,12 @@ export function parseMarkdownBlocks(value: string): MarkdownBlock[] {
     paragraph.push(parseMarkdownInlines(line));
   }
 
+  // An unterminated fence (mid-typing) still draws as code: flipping the
+  // block's rendering only once the closing fence lands would flash the raw
+  // punctuation while the user types.
+  if (codeLines !== null) {
+    blocks.push({ type: "code", text: codeLines.join("\n") });
+  }
   flushParagraph();
   flushList();
   return blocks;

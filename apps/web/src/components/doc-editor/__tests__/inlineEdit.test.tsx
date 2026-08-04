@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-library";
+import { fireEvent, render, screen, within } from "@solidjs/testing-library";
 import { loadDocEditorFixture, SINGLE_TEMPLATE } from "../../../test/docEditorFixture";
 import { DocSheet } from "../DocSheet";
 import type { ResumeData } from "../../../wasm/types";
@@ -24,7 +24,7 @@ function writeCount(): number {
   return Object.values(store).reduce((total, action) => total + action.mock.calls.length, 0);
 }
 
-describe("document sheet inline editing", () => {
+describe("document sheet modal editing (owner decision 2026-08-04)", () => {
   let resume: ResumeData;
 
   beforeEach(() => {
@@ -37,15 +37,20 @@ describe("document sheet inline editing", () => {
   }
 
   /**
-   * Open the editor behind the value `name` and return its input.
+   * Open the field dialog behind the value `name` — the double-click of the
+   * modal editing model — and return the dialog.
    *
    * `scope` narrows the search when the same text is drawn twice — a headline
    * and a job title can read identically.
    */
-  function edit(name: string, fieldLabel: string, scope?: HTMLElement): HTMLInputElement {
+  function openField(name: string, dialogTitle: string, scope?: HTMLElement): HTMLElement {
     const region = scope ? within(scope) : screen;
-    fireEvent.click(region.getByRole("button", { name }));
-    return region.getByRole("textbox", { name: fieldLabel }) as HTMLInputElement;
+    fireEvent.dblClick(region.getByRole("button", { name }));
+    return screen.getByRole("dialog", { name: dialogTitle });
+  }
+
+  function fieldInput(dialog: HTMLElement, label: string): HTMLInputElement {
+    return within(dialog).getByRole("textbox", { name: label }) as HTMLInputElement;
   }
 
   /** The header region, where the name and headline are drawn. */
@@ -58,51 +63,49 @@ describe("document sheet inline editing", () => {
     return screen.getAllByTestId("doc-sheet-contact")[0];
   }
 
-  it.each([
-    { key: "Escape", changed: false },
-    { key: "Enter", changed: false },
-    { key: "Enter", changed: true },
-  ])("hands focus back to the trigger after $key (changed: $changed)", async ({ key, changed }) => {
+  it("draws values as plain content whose only affordance is the tooltip", () => {
     renderSheet();
 
-    const input = edit("Mireille Okafor", "Name", header());
-    if (changed) fireEvent.input(input, { target: { value: "Ada Lovelace" } });
-    fireEvent.keyDown(input, { key });
-
-    // A keyboard edit must not strand focus on <body>: the next Tab has to
-    // carry on from the field, not restart at the top of the document.
-    await waitFor(() =>
-      expect(document.activeElement).toBe(document.getElementById("doc-header-name")),
-    );
+    const trigger = within(header()).getByRole("button", { name: "Mireille Okafor" });
+    expect(trigger).toHaveAttribute("title", "Double-click to edit name");
+    // A single pointer click must not open anything.
+    fireEvent.click(trigger, { detail: 1 });
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("leaves focus alone when the edit ends by blurring", async () => {
+  it("double-click opens the typed field dialog — no in-place editor", () => {
     renderSheet();
 
-    const input = edit("Mireille Okafor", "Name", header());
-    const elsewhere = document.getElementById("doc-header-headline") as HTMLElement;
-    elsewhere.focus();
-    fireEvent.blur(input);
-
-    // The user chose where focus goes; refocusing the trigger would fight them.
-    await waitFor(() => expect(document.activeElement).toBe(elsewhere));
+    const dialog = openField("Mireille Okafor", "Edit · Name", header());
+    expect(fieldInput(dialog, "Name").value).toBe("Mireille Okafor");
+    // Nothing on the sheet became editable in place.
+    expect(document.querySelector("[contenteditable]")).toBeNull();
   });
 
-  it("commits a basics field on blur, through one store action", () => {
+  it("opens from the keyboard (button activation carries no pointer detail)", () => {
     renderSheet();
 
-    const input = edit("Mireille Okafor", "Name", header());
-    fireEvent.input(input, { target: { value: "Ada Lovelace" } });
-    fireEvent.blur(input);
+    fireEvent.click(within(header()).getByRole("button", { name: "Mireille Okafor" }));
+    expect(screen.getByRole("dialog", { name: "Edit · Name" })).toBeInTheDocument();
+  });
+
+  it("commits a basics field on Save, through one store action", () => {
+    renderSheet();
+
+    const dialog = openField("Mireille Okafor", "Edit · Name", header());
+    fireEvent.input(fieldInput(dialog, "Name"), { target: { value: "Ada Lovelace" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
 
     expect(store.updateBasics).toHaveBeenCalledExactlyOnceWith("name", "Ada Lovelace");
     expect(writeCount()).toBe(1);
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("commits on Enter", () => {
+  it("commits on Enter inside the one-field dialog", () => {
     renderSheet();
 
-    const input = edit("Principal Design Systems Engineer", "Headline", header());
+    const dialog = openField("Principal Design Systems Engineer", "Edit · Headline", header());
+    const input = fieldInput(dialog, "Headline");
     fireEvent.input(input, { target: { value: "Design Systems Lead" } });
     fireEvent.keyDown(input, { key: "Enter" });
 
@@ -110,10 +113,11 @@ describe("document sheet inline editing", () => {
     expect(writeCount()).toBe(1);
   });
 
-  it("restores the prior value on Escape without writing", () => {
+  it("discards on Escape without writing — typed content included", () => {
     renderSheet();
 
-    const input = edit("mireille@okafor.design", "Email", contact());
+    const dialog = openField("mireille@okafor.design", "Edit · Email", contact());
+    const input = fieldInput(dialog, "Email");
     fireEvent.input(input, { target: { value: "typo@example.com" } });
     fireEvent.keyDown(input, { key: "Escape" });
 
@@ -121,34 +125,72 @@ describe("document sheet inline editing", () => {
     expect(screen.getByRole("button", { name: "mireille@okafor.design" })).toBeInTheDocument();
   });
 
-  it("writes nothing when the text is left unchanged", () => {
+  it("discards on Cancel without writing", () => {
     renderSheet();
 
-    const input = edit("Lisbon, Portugal", "Location", contact());
-    fireEvent.blur(input);
+    const dialog = openField("Lisbon, Portugal", "Edit · Location", contact());
+    fireEvent.input(fieldInput(dialog, "Location"), { target: { value: "Porto" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
 
     expect(writeCount()).toBe(0);
   });
 
-  it("commits an item field through updateSectionItem at the item's own index", () => {
+  it("writes nothing when the text is saved unchanged", () => {
     renderSheet();
 
-    const input = edit("Lumen Health", "Company");
-    fireEvent.input(input, { target: { value: "Lumen Health Group" } });
-    fireEvent.blur(input);
+    const dialog = openField("Lisbon, Portugal", "Edit · Location", contact());
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
 
-    expect(store.updateSectionItem).toHaveBeenCalledExactlyOnceWith("experience", 0, {
-      company: "Lumen Health Group",
-    });
+    expect(writeCount()).toBe(0);
+  });
+
+  it("reseeds the dialog on reopen, so a cancelled draft leaves nothing behind", () => {
+    renderSheet();
+
+    let dialog = openField("Lisbon, Portugal", "Edit · Location", contact());
+    fireEvent.input(fieldInput(dialog, "Location"), { target: { value: "Porto" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+    dialog = openField("Lisbon, Portugal", "Edit · Location", contact());
+    expect(fieldInput(dialog, "Location").value).toBe("Lisbon, Portugal");
+  });
+
+  it("double-click on an entry opens the item modal pre-filled", () => {
+    renderSheet();
+
+    // Entry fields are plain text now; the row itself is the affordance.
+    const experience = document.querySelector('[data-section-id="experience"]') as HTMLElement;
+    const row = experience.querySelector(".doc-sheet__entry-row") as HTMLElement;
+    expect(row).toHaveAttribute("title", "Double-click to edit");
+    fireEvent.dblClick(row);
+
+    const dialog = screen.getByRole("dialog", { name: "Edit · Experience" });
+    expect(fieldInput(dialog, "Company").value).toBe("Lumen Health");
+  });
+
+  it("saves an entry edit through one updateSectionItem call", () => {
+    renderSheet();
+
+    const experience = document.querySelector('[data-section-id="experience"]') as HTMLElement;
+    fireEvent.dblClick(experience.querySelector(".doc-sheet__entry-row") as HTMLElement);
+    const dialog = screen.getByRole("dialog", { name: "Edit · Experience" });
+    fireEvent.input(fieldInput(dialog, "Company"), { target: { value: "Lumen Health Group" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+
+    expect(store.updateSectionItem).toHaveBeenCalledOnce();
+    const [sectionId, index, updates] = store.updateSectionItem.mock.calls[0] as [
+      string,
+      number,
+      Record<string, unknown>,
+    ];
+    expect([sectionId, index]).toEqual(["experience", 0]);
+    expect(updates.company).toBe("Lumen Health Group");
     expect(writeCount()).toBe(1);
   });
 
   it("draws custom-section items as chips with no inline editor (#794)", () => {
     renderSheet();
 
-    // Spec §1.7: custom sections are chip lists; items are managed through
-    // the add-block dialog and the chip's inline remove, never edited in
-    // place. The chip removal path is covered in `sectionCards.test.tsx`.
     expect(screen.queryByRole("button", { name: "Design Tokens Beyond Colour" })).toBeNull();
     const chips = [...document.querySelectorAll(".doc-sheet__skill-chip")].map(
       (chip) => chip.textContent,
@@ -156,12 +198,12 @@ describe("document sheet inline editing", () => {
     expect(chips.join(" ")).toContain("Design Tokens Beyond Colour");
   });
 
-  it("renames a fixed section through updateSectionName", () => {
+  it("renames a fixed section through its dialog and updateSectionName", () => {
     renderSheet();
 
-    const input = edit("Experience", "Section title");
-    fireEvent.input(input, { target: { value: "Work" } });
-    fireEvent.blur(input);
+    const dialog = openField("Experience", "Rename section");
+    fireEvent.input(fieldInput(dialog, "Section title"), { target: { value: "Work" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
 
     expect(store.updateSectionName).toHaveBeenCalledExactlyOnceWith("experience", "Work");
   });
@@ -169,9 +211,9 @@ describe("document sheet inline editing", () => {
   it("renames a custom section through updateCustomSection", () => {
     renderSheet();
 
-    const input = edit("Talks & Workshops", "Section title");
-    fireEvent.input(input, { target: { value: "Talks" } });
-    fireEvent.blur(input);
+    const dialog = openField("Talks & Workshops", "Rename section");
+    fireEvent.input(fieldInput(dialog, "Section title"), { target: { value: "Talks" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
 
     expect(store.updateCustomSection).toHaveBeenCalledExactlyOnceWith("speaking", {
       name: "Talks",
@@ -182,9 +224,9 @@ describe("document sheet inline editing", () => {
     resume.basics.phone = "";
     renderSheet();
 
-    const input = edit("Add phone", "Phone", contact());
-    fireEvent.input(input, { target: { value: "+351 000 000" } });
-    fireEvent.blur(input);
+    const dialog = openField("Add phone", "Edit · Phone", contact());
+    fireEvent.input(fieldInput(dialog, "Phone"), { target: { value: "+351 000 000" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
 
     expect(store.updateBasics).toHaveBeenCalledExactlyOnceWith("phone", "+351 000 000");
   });
@@ -192,13 +234,13 @@ describe("document sheet inline editing", () => {
   it("keeps a heading's accessible name the value it draws", () => {
     renderSheet();
 
-    // The inline trigger must not rename the heading it sits inside — an
+    // The trigger must not rename the heading it sits inside — an
     // `aria-label` here would make every heading announce "Edit …".
     expect(screen.getByRole("heading", { name: "Mireille Okafor" })).toBeInTheDocument();
   });
 });
 
-describe("markdown mini editor", () => {
+describe("summary markdown dialog", () => {
   let resume: ResumeData;
 
   beforeEach(() => {
@@ -206,99 +248,77 @@ describe("markdown mini editor", () => {
     resume = loadDocEditorFixture();
   });
 
-  /** Open the summary's markdown editor and return its textarea. */
-  function openSummary(): HTMLTextAreaElement {
+  /** Open the summary's markdown dialog via double-click on the body. */
+  function openSummary(): HTMLElement {
     render(() => <DocSheet resume={resume} templateLayout={SINGLE_TEMPLATE} />);
     const summary = document.querySelector('[data-section-id="summary"]') as HTMLElement;
-    fireEvent.click(within(summary).getByTitle("Edit summary"));
-    return within(summary).getByRole("textbox", { name: "Summary" }) as HTMLTextAreaElement;
+    fireEvent.dblClick(within(summary).getByTitle("Double-click to edit summary"));
+    return screen.getByRole("dialog", { name: "Edit · Summary" });
   }
 
-  function select(textarea: HTMLTextAreaElement, text: string): void {
-    fireEvent.input(textarea, { target: { value: text } });
-    textarea.setSelectionRange(0, text.length);
+  function editor(dialog: HTMLElement): HTMLTextAreaElement {
+    return within(dialog).getByRole("textbox", { name: "Summary" }) as HTMLTextAreaElement;
   }
 
-  it("has no underline control — markdown has none", () => {
-    openSummary();
+  it("opens a full markdown editor seeded with the raw markdown", () => {
+    const dialog = openSummary();
 
-    expect(screen.queryByRole("button", { name: /underline/i })).toBeNull();
-    expect(screen.getByRole("button", { name: "Bold" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Italic" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Link" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Bulleted list" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Numbered list" })).toBeInTheDocument();
+    expect(editor(dialog).value).toBe(resume.sections.summary.content);
+    // The full toolbar, no underline/strikethrough — markdown has neither.
+    expect(within(dialog).getByRole("button", { name: "Bold" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Italic" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Link" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Bulleted list" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Numbered list" })).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: /underline/i })).toBeNull();
+    expect(within(dialog).queryByRole("button", { name: /strike/i })).toBeNull();
   });
 
-  it.each([
-    { action: "Bold", expected: "**text**" },
-    { action: "Italic", expected: "*text*" },
-    { action: "Bulleted list", expected: "- text" },
-    { action: "Numbered list", expected: "1. text" },
-  ])("emits $expected for $action", ({ action, expected }) => {
-    const textarea = openSummary();
-    select(textarea, "text");
+  it("applies a toolbar command to the draft's selection", () => {
+    const dialog = openSummary();
+    const textarea = editor(dialog);
+    fireEvent.input(textarea, { target: { value: "text" } });
+    textarea.setSelectionRange(0, 4);
 
-    fireEvent.click(screen.getByRole("button", { name: action }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Bold" }));
 
-    expect(textarea.value).toBe(expected);
+    expect(textarea.value).toBe("**text**");
+    // Still a draft: nothing reaches the store until Save.
+    expect(writeCount()).toBe(0);
   });
 
-  it("emits a markdown link from the link row", () => {
-    const textarea = openSummary();
-    select(textarea, "Halo guide");
+  it("emits a markdown link from the URL row — no prompt anywhere", () => {
+    const dialog = openSummary();
+    const textarea = editor(dialog);
+    fireEvent.input(textarea, { target: { value: "Halo guide" } });
+    textarea.setSelectionRange(0, 10);
 
-    fireEvent.click(screen.getByRole("button", { name: "Link" }));
-    const href = screen.getByRole("textbox", { name: "Link URL" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Link" }));
+    const href = within(dialog).getByRole("textbox", { name: "Link URL" });
     fireEvent.input(href, { target: { value: "https://halo.example" } });
-    fireEvent.click(screen.getByRole("button", { name: "Apply link" }));
+    fireEvent.keyDown(href, { key: "Enter" });
 
     expect(textarea.value).toBe("[Halo guide](https://halo.example)");
   });
 
-  it("closes the link row when another command runs", () => {
-    const textarea = openSummary();
-    select(textarea, "Halo guide");
+  it("commits the markdown through updateSummary, once, on Save", () => {
+    const dialog = openSummary();
+    fireEvent.input(editor(dialog), { target: { value: "Rewritten **summary**." } });
 
-    fireEvent.click(screen.getByRole("button", { name: "Link" }));
-    fireEvent.click(screen.getByRole("button", { name: "Bold" }));
-
-    // The pending link held a snapshot of the pre-Bold text; applying it later
-    // would have overwritten the bolding with that stale draft.
-    expect(screen.queryByRole("textbox", { name: "Link URL" })).toBeNull();
-    expect(textarea.value).toBe("**Halo guide**");
-  });
-
-  it("commits the markdown through updateSummary, once", () => {
-    const textarea = openSummary();
-    fireEvent.input(textarea, { target: { value: "Rewritten **summary**." } });
-
-    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
 
     expect(store.updateSummary).toHaveBeenCalledExactlyOnceWith("Rewritten **summary**.");
     expect(writeCount()).toBe(1);
   });
 
-  it("commits an item's markdown through updateSectionItem", () => {
-    render(() => <DocSheet resume={resume} templateLayout={SINGLE_TEMPLATE} />);
-    const experience = document.querySelector('[data-section-id="experience"]') as HTMLElement;
-
-    fireEvent.click(within(experience).getAllByTitle("Edit summary")[0]);
-    const textarea = within(experience).getByRole("textbox", { name: "Summary" });
-    fireEvent.input(textarea, { target: { value: "Shorter summary." } });
-    fireEvent.click(within(experience).getByRole("button", { name: "Done" }));
-
-    expect(store.updateSectionItem).toHaveBeenCalledExactlyOnceWith("experience", 0, {
-      summary: "Shorter summary.",
-    });
-  });
-
-  it("restores the prior markdown on Escape without writing", () => {
-    const textarea = openSummary();
+  it("discards on Escape without writing", () => {
+    const dialog = openSummary();
+    const textarea = editor(dialog);
     fireEvent.input(textarea, { target: { value: "discarded" } });
 
     fireEvent.keyDown(textarea, { key: "Escape" });
 
     expect(writeCount()).toBe(0);
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

@@ -11,8 +11,22 @@
 
 use rustume_parser::{JsonResumeParser, LinkedInParser, Parser, ReactiveResumeV3Parser};
 use rustume_schema::ResumeData;
+use serde::Serialize;
 use validator::Validate;
 use wasm_bindgen::prelude::*;
+
+/// Serialize a Rust value for JavaScript with **maps as plain objects**.
+///
+/// `serde_wasm_bindgen`'s default serializer turns a Rust `HashMap` into a
+/// JS `Map`, which the web app's plain-object data model silently loses —
+/// `Object.keys` sees nothing and a JSON clone erases the entries (the
+/// custom-sections data-loss bug). Every value crossing to JS goes through
+/// this helper so `sections.custom` and `metadata.itemBreaks` arrive as the
+/// plain objects the TypeScript types declare.
+fn to_js<T: Serialize>(value: &T) -> Result<JsValue, serde_wasm_bindgen::Error> {
+    let serializer = serde_wasm_bindgen::Serializer::new().serialize_maps_as_objects(true);
+    value.serialize(&serializer)
+}
 
 /// Initialize the WASM module.
 #[wasm_bindgen(start)]
@@ -44,7 +58,7 @@ pub fn parse_json_resume(input: &str) -> Result<JsValue, JsError> {
         .parse(input.as_bytes())
         .map_err(|e| JsError::new(&e.to_string()))?;
 
-    serde_wasm_bindgen::to_value(&resume).map_err(|e| JsError::new(&e.to_string()))
+    to_js(&resume).map_err(|e| JsError::new(&e.to_string()))
 }
 
 /// Parse a Reactive Resume V3 JSON export into Rustume format.
@@ -70,7 +84,7 @@ pub fn parse_reactive_resume_v3(input: &str) -> Result<JsValue, JsError> {
         .parse(input.as_bytes())
         .map_err(|e| JsError::new(&e.to_string()))?;
 
-    serde_wasm_bindgen::to_value(&resume).map_err(|e| JsError::new(&e.to_string()))
+    to_js(&resume).map_err(|e| JsError::new(&e.to_string()))
 }
 
 /// Parse a LinkedIn data export ZIP file into Rustume format.
@@ -100,7 +114,7 @@ pub fn parse_linkedin_export(data: &[u8]) -> Result<JsValue, JsError> {
         .parse(data)
         .map_err(|e| JsError::new(&e.to_string()))?;
 
-    serde_wasm_bindgen::to_value(&resume).map_err(|e| JsError::new(&e.to_string()))
+    to_js(&resume).map_err(|e| JsError::new(&e.to_string()))
 }
 
 // ============================================================================
@@ -124,7 +138,7 @@ pub fn validate_resume(input: &str) -> Result<bool, JsError> {
 #[wasm_bindgen]
 pub fn create_empty_resume() -> Result<JsValue, JsError> {
     let resume = ResumeData::default();
-    serde_wasm_bindgen::to_value(&resume).map_err(|e| JsError::new(&e.to_string()))
+    to_js(&resume).map_err(|e| JsError::new(&e.to_string()))
 }
 
 /// Serialize resume to JSON string.
@@ -172,7 +186,7 @@ pub fn list_templates() -> Result<JsValue, JsError> {
         "leafish",
         "onyx",
     ];
-    serde_wasm_bindgen::to_value(&templates).map_err(|e| JsError::new(&e.to_string()))
+    to_js(&templates).map_err(|e| JsError::new(&e.to_string()))
 }
 
 /// Get the default theme colors for a template.
@@ -207,7 +221,7 @@ pub fn get_template_theme_js(template: &str) -> Result<JsValue, JsError> {
         _ => ("#ffffff", "#000000", "#65a30d"),
     };
 
-    serde_wasm_bindgen::to_value(&serde_json::json!({
+    to_js(&serde_json::json!({
         "background": background,
         "text": text,
         "primary": primary,
@@ -266,7 +280,7 @@ mod storage_wasm {
                     .list()
                     .await
                     .map_err(|e: StorageError| JsValue::from_str(&e.to_string()))?;
-                serde_wasm_bindgen::to_value(&ids).map_err(|e| JsValue::from_str(&e.to_string()))
+                to_js(&ids).map_err(|e| JsValue::from_str(&e.to_string()))
             })
         }
 
@@ -290,7 +304,7 @@ mod storage_wasm {
                     .get(&id)
                     .await
                     .map_err(|e: StorageError| JsValue::from_str(&e.to_string()))?;
-                serde_wasm_bindgen::to_value(&resume).map_err(|e| JsValue::from_str(&e.to_string()))
+                to_js(&resume).map_err(|e| JsValue::from_str(&e.to_string()))
             })
         }
 

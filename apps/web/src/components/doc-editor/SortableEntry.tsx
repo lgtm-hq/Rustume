@@ -170,11 +170,25 @@ export function SortableEntry(props: SortableEntryProps): JSX.Element {
         "doc-sheet__entry-row--dragging": draggable.isActiveDraggable,
       }}
       data-entry-id={props.itemId}
-      title={props.isCompact === true && isEditable() ? "Click to edit · hold to drag" : undefined}
+      title={
+        isEditable()
+          ? props.isCompact === true
+            ? "Click to edit · hold to drag"
+            : "Double-click to edit"
+          : undefined
+      }
       onClick={(event) => {
         // Compact rows: the whole row is the edit affordance. Presses on the
         // grip or any button keep their own behaviour.
         if (props.isCompact !== true || !isEditable()) return;
+        const target = event.target as HTMLElement;
+        if (target.closest("button, a")) return;
+        props.actions.onEdit();
+      }}
+      onDblClick={(event) => {
+        // Full rows: double-click anywhere on the entry opens the item modal
+        // (owner decision 2026-08-04). Controls keep their own behaviour.
+        if (props.isCompact === true || !isEditable()) return;
         const target = event.target as HTMLElement;
         if (target.closest("button, a")) return;
         props.actions.onEdit();

@@ -40,7 +40,7 @@ The single editor store/controller. One instance per document; every component r
 <!-- markdownlint-disable-next-line MD013 -->
 - `modal: null | {kind:"item", sectionId, editId?} | {kind:"custom-section"} | {kind:"language", editId?} | {kind:"photo"}`
   — exactly one modal at a time.
-- `fmtOpen` — floating format toolbar visibility (armed rich LiveText).
+- ~~`fmtOpen` — floating format toolbar visibility~~ (removed with in-place editing, §1.12).
 - `sectionsOpen`, `templatesOpen` — the two panels.
 - Item drag: `dragging: {sectionId, id} | null`, `dropAt: {sectionId, index} | null`.
 - Section drag (separate channel): `secDragging: string | null`,
@@ -105,7 +105,7 @@ this bar.
 ### 1.3 `EditableSheet` — the sheet engine
 
 Props: `ctx`, `variant` (chrome flavor; production uses one), `focusedSection`, `onFocusSection`.
-Renders, in order: `FormatToolbar`, `Modals`, `SectionsPanel`, `TemplatesPanel`, `PageCountPill`,
+Renders, in order: `Modals`, `SectionsPanel`, `TemplatesPanel`, `PageCountPill`,
 then a `.sheet-stack` (centered flex column, `width:min(860px,100%)`) of one `.page-sheet`
 `<article>` per rendered page (`renderPages(doc)`, §3), each preceded (pages ≥ 2) by a
 `.page-break-rule`. Each sheet carries classes
@@ -123,10 +123,12 @@ measurement (§3.5); sidebar resize (§3.2).
 
 These are the **template-layout layer** — the part each template owns (§3.6):
 
-- `NameHeader` — `.sheet-head`: `LiveText.name` (1.7rem, 700) over `LiveText.headline` (accent
-  color, .88rem, 500). Variant `head-in-side` when placed in a sidebar.
+- `NameHeader` — `.sheet-head`: `EditableField.name` (1.7rem, 700) over `EditableField.headline`
+  (accent color, .88rem, 500); each opens its typed dialog on double-click (§1.11). Variant
+  `head-in-side` when placed in a sidebar.
 - `ContactBlock` — a `SectionChrome id="basics" title="Contact"` whose body is icon rows (email /
-  phone / location / optional link), each `ContactIcon` + `LiveText.side-val` inline-editable.
+  phone / location / optional link), each `ContactIcon` + `EditableField.side-val` opening its
+  typed dialog (§1.11).
   `compact` prop switches column list (`.contact-list`) to wrapping inline row (`.contact-inline`)
   for header/banner placements. **`basics` is template-owned chrome: no grip, no pencil, no menu,
   not draggable** (`isLayoutSection()` false).
@@ -176,8 +178,9 @@ Pencil menu (`.sec-menu`, white popover anchored top-right of the card, radius 1
 padding; closes on outside mousedown or Escape): **[addLabel]** (when `onAdd`), **Move up**
 (disabled at column top), **Move down** (disabled at column bottom — bounds from `columnNeighbors`,
 i.e. cross-page aware), **Move to sidebar / main column** (hidden on single-column templates),
-separator, **Rename title…** (a text prompt seeded with the current title; commit on non-empty
-change), **Hide section** (danger red; calls `toggleSection`). Every action closes the menu first.
+separator, **Rename title…** (opens the typed rename dialog seeded with the current title; a
+blank commit is discarded), **Hide section** (danger red; calls `toggleSection`). Every action
+closes the menu first.
 
 ### 1.6 `SectionList` — column renderer + Add-section block
 
@@ -197,9 +200,9 @@ reuse caused stale-closure bugs on reorder.
 
 All bodies live inside `SectionChrome`; per-type rendering:
 
-- **Summary** — no items; body is one rich `LiveText` (`html`, `multiline`, class `.summary`,
-  .84rem) bound to `sections.summary.content`. Only slice 0 renders content (a summary never
-  continues onto later pages). Add block: none.
+- **Summary** — no items; body renders `sections.summary.content` as markdown (class `.summary`,
+  .84rem); double-click opens the full markdown editor dialog (`MiniRichEditor`, §1.11). Only
+  slice 0 renders content (a summary never continues onto later pages). Add block: none.
 - **Experience** (`ExperienceEntry` inside `SortableEntry`, class `.entry`) — `.entry-pos` position
   (700, .88rem); `.entry-meta` row: `.entry-co` company (accent, .78rem, 600) + `.entry-date`
   (muted, .68rem, nowrap); `.entry-loc` location row with small pin icon; `.entry-sum` rich HTML
@@ -241,8 +244,8 @@ Structure: relative-positioned row; optional `.entry-slot` drop bars (3px accent
 edit-mode-only left **grip** `.entry-handle` (`⋮⋮` text glyph, absolutely positioned full-height
 1rem strip on the left edge, opacity 0 → 1 on row hover/focus-within, `cursor:grab`); edit-mode-only
 `EntryActions`; then children. Rows get left padding (~`.85rem`–`1.05rem`) to reserve the grip
-strip. `edit-ready` rows disable text selection (`user-select:none`) and show `cursor:grab` — except
-armed LiveText, which restores selection. Dragged row: `opacity:.4`.
+strip. `edit-ready` rows disable text selection (`user-select:none`) and show `cursor:grab`. Dragged
+row: `opacity:.4`.
 
 ### 1.9 `EntryActions` — the hover action pill
 
@@ -267,34 +270,32 @@ Rendered under a section's items in edit mode: full-width, min-height 2.9rem,
 its own focus-visible raises to 1; self-hover adds accent border + 7% accent fill. Click opens the
 section's Add modal.
 
-### 1.11 `LiveText` — inline editable text (the "no sidebar editing" primitive)
+### 1.11 Editable text opens its typed modal (superseded LiveText)
 
-Props: `value, onCommit, class?, multiline?, editMode, ctx, rich?, html?`. A `<span class="live">`
-that is **plain rendered content until armed**:
+> **Owner decision (2026-08-04, PR #805 verification):** the prototype's armed in-place
+> `LiveText` editing described here was **rejected and superseded**. There is no in-place
+> `contentEditable` anywhere. The production primitive is `EditableField`:
 
-- View mode: inert text.
-- Edit mode, unarmed: hover shows a subtle 40%-accent **underline** (offset 3px) as the only hint;
-  tooltip "Double-click to edit". (Summary variant: no underline, slight opacity dip, since it's a
-  block.)
-- **Double-click arms it**: becomes `contentEditable`, `role="textbox"`, caret placed **at the
-  pointer position** via `caretRangeFromPoint` (fallback: caret at end — never select-all). Armed
-  look: no underline; single-line fields get a 1.5px accent inner underline (`inset box-shadow`);
-  the summary block gets a 1px accent inset outline with small padding compensation (negative
-  margins so text doesn't shift). Armed rich fields open the floating `FormatToolbar`.
-- **Commit on blur**: html fields commit `innerHTML`, plain fields commit `innerText` (NBSP → space,
-  `trimEnd`), only if changed. `Enter` on single-line plain fields blurs (commits). **`Escape`
-  disarms + blurs** (note: content typed before Escape still commits on the blur — see Open
-  questions). Blur also closes the format toolbar after a 150 ms grace (so toolbar clicks land).
-- Uses: name, headline, contact email/phone/location (plain), summary (rich html multiline).
+- View (Done) mode: inert rendered text; an empty value renders nothing.
+- Edit mode: the value is plain rendered content whose only affordances are the hover
+  underline (40%-accent, offset 3px) and the tooltip "Double-click to edit".
+- **Double-click — or keyboard activation — opens the field's typed pop-up modal**: plain
+  fields get a one-input dialog (`Edit · <Field>`; Enter saves), the summary and cover
+  letter get the **full markdown editor** (`MiniRichEditor`, §1.13) in their dialog.
+  Structured entries open the `ItemModal` (§1.13) on row double-click.
+- The dialog commits **once**, on Save, and only when the text changed — one edit, one
+  undo entry. **Escape**, the backdrop, Cancel and the ✕ all discard the draft (the
+  Escape-reverts decision now lives in the modal). No `window.prompt` anywhere.
+- Uses: name, headline, contact email/phone/location (plain), summary and cover letter
+  (markdown dialog), section titles (rename dialog).
 
-### 1.12 `FormatToolbar` — floating rich-text bar
+### 1.12 Rich-text editing lives in the modals (superseded FormatToolbar)
 
-Fixed, top-center under the top bar (`top:4.2rem`, translateX(-50%), z-40; dark `#1c1917` rounded
-bar). Buttons: **B / I / U / S**, separator, **• list / 1. list**, **link** (prompt for URL). Acts
-on the current selection via `document.execCommand`; `onMouseDown preventDefault` keeps focus in the
-armed field. Visible only while a rich LiveText is armed **and** edit mode is on. (Production note:
-replace `execCommand` with the project's rich-text/markdown editing stack; the UX contract —
-floating bar, same actions, selection preserved — is what's normative.)
+> **Owner decision (2026-08-04):** the floating format bar is **removed** along with
+> in-place editing. Rich text is edited exclusively through `MiniRichEditor` (§1.13)
+> inside the modals — same toolbar contract (bold / italic / bulleted / numbered / code
+> block / link with an inline URL row, never a prompt; no underline or strikethrough,
+> since markdown has neither), writing **markdown** through the pure command engine.
 
 ### 1.13 Modal system
 
@@ -315,10 +316,11 @@ field autofocused):
   institution "Institution"; `score` saved as `""`.
 - _profiles_: Network (placeholder "GitHub"), Username. Fallback network "Network"; icon/url saved
   empty.
-- _languages / skills_: Name + **Proficiency picker**: five equal-width cards (1–5) each showing the
-  number over a tiny label (Beginner / Elementary / Conversational / Fluent / Native); selected card
-  gets accent border + 12% accent fill. Saved `level` clamps to 1–5 (default 3) and **`description`
-  is auto-set to the level label**.
+- _languages / skills_: Name + **Level picker**: five equal-width cards showing **numbers only,
+  1–5** (owner decision: no proficiency wording — word labels only made sense for languages, and
+  the picker serves every levelled section; accessible names are "Level n of 5"); selected card
+  gets accent border + 12% accent fill. Saved `level` clamps to 1–5 (default 3); **`description`
+  is never auto-written** — it stays the user's own text.
 - _projects_: Name, Description (2-row textarea), Highlights rich editor.
 - _everything else + custom sections_: Name, Description textarea (custom sections only), Summary
   rich editor; generic saves also carry `level` (default 3).
@@ -398,8 +400,8 @@ dots), `ContactIcon` (email/phone/location/link), `ProfileIcon` (github/linkedin
 Single surface, two modes toggled by the top-bar button:
 
 - **View ("Done" pressed)**: clean document. No dashed cards, grips, pencils, pills, add blocks,
-  guides; links are live; LiveText inert; avatar not clickable. Page-break rules and the page-count
-  pill remain (minus the remove button / guides).
+  guides; links are live; double-click does not open edit dialogs; avatar not clickable.
+  Page-break rules and the page-count pill remain (minus the remove button / guides).
 - **Edit**: every section becomes an HA-style dashed card; all affordances active. `editMode` also
   flips `.is-editing` on each sheet, which is the CSS switch for all edit chrome.
 
@@ -412,7 +414,7 @@ Single surface, two modes toggled by the top-bar button:
 | Full item row (`.entry`, `.edu-entry`) | transparent; grip & pill hidden                                       | 5%-accent row tint; left `⋮⋮` grip fades in; top-right floating pill (✎ / ↑ / ↓ / −) fades in                                                                                |
 | Compact row (profile/lang/skill)       | plain                                                                 | row tint (`#faf8f4` + hairline or 6% accent); grip fades in; bare right-edge ✕ fades in; **proficiency dots fade out** to yield to ✕; tooltip "Click to edit · hold to drag" |
 | Custom-section chip                    | pill                                                                  | inline `✕` fades in inside the chip; ✕ hover turns red                                                                                                                       |
-| LiveText (unarmed)                     | plain text                                                            | 40%-accent underline (summary: slight dim instead)                                                                                                                           |
+| EditableField                          | plain text                                                            | 40%-accent underline (summary: slight dim instead); double-click opens the typed dialog (§1.11)                                                                              |
 | Add block / Add-section block          | 55–60% opacity dashed                                                 | full opacity, accent border + tint (add block also wakes on parent-card hover)                                                                                               |
 | Sidebar edge (edit mode)               | invisible 8px strip                                                   | 2px accent-ish line fades in; `cursor:col-resize`                                                                                                                            |
 | Pencil / grip themselves               | ghost                                                                 | accent-tinted chip (pencil), tinted grab chip (grip)                                                                                                                         |
@@ -422,21 +424,21 @@ ghosts have no animation (instant).
 
 ### 2.3 Click-to-edit flows
 
-- **Inline (LiveText)**: double-click → armed at pointer caret → type → Enter (single-line) or blur
-  commits; Escape disarms. One commit = one undo entry (path-keyed).
+- **Field text (EditableField)**: double-click → typed field dialog → Save commits (Enter on
+  one-line dialogs); Escape/Cancel/backdrop discard. One save = one undo entry.
 - **Structured items**: pencil-pill ✎ (full rows) or row click (compact rows) → `ItemModal`
   pre-filled → Save (single undo entry) or Cancel/backdrop/Escape/✕ (discard).
 - **Section focus**: clicking anywhere in a section marks it `focused` (solid accent border); one
   focused section at a time (host-level signal).
-- **Avatar** → Photo modal. **Section title** → pencil menu → "Rename title…" prompt.
+- **Avatar** → Photo modal. **Section title** → pencil menu → "Rename title…" typed dialog.
 - **Remove**: pill **−** / compact **✕** / chip **✕** remove immediately — **no confirmation** (undo
   is the safety net).
 
 ### 2.4 Item drag & drop (within a section)
 
 - **Drag surfaces**: the `⋮⋮` grip _and the whole row_ (whole-surface drag, HA-style). A drag that
-  started on `button, input, textarea, [contenteditable="true"], .live.armed` is vetoed
-  (`preventDefault`) so controls and armed text keep native behavior. Grip drags `stopPropagation`
+  started on `button, input, textarea` is vetoed
+  (`preventDefault`) so controls keep native behavior. Grip drags `stopPropagation`
   so the row doesn't double-fire; nested rows drag independently of their section card. Never
   `preventDefault` on `mousedown` of a drag surface (pinned bug: it kills Chromium dragstart) —
   selection is suppressed via `user-select:none` instead.
@@ -495,8 +497,8 @@ ghosts have no animation (instant).
 
 - ⌘/Ctrl+Z undo; ⌘/Ctrl+Shift+Z or Ctrl+Y redo — globally, except when focus is in any
   input/textarea/contentEditable (native field undo wins). Top-bar ↩/↪ mirror with disabled states.
-- Escape: disarm LiveText / close modal / close pencil menu / close templates drawer.
-- Enter: commit single-line LiveText; add tag in TagInput (as does comma); Backspace in empty tag
+- Escape: discard and close the open dialog / close pencil menu / close templates drawer.
+- Enter: save a one-line field dialog; add tag in TagInput (as does comma); Backspace in empty tag
   input pops last tag.
 - Undo granularity: one entry per user action; 900 ms same-key coalescing for slider/typing bursts;
   snapshot-based (whole doc, ~25 KB), 100-deep; automatic layout repairs are transparent to undo.
@@ -578,7 +580,7 @@ same source so they always agree.
 Two layers:
 
 - **Shared component library** (template-agnostic): SectionChrome, SortableEntry, EntryActions,
-  section bodies, LiveText, modals, add blocks, SectionsPanel, TemplatesPanel, guides/pill/rules,
+  section bodies, EditableField, modals, add blocks, SectionsPanel, TemplatesPanel, guides/pill/rules,
   the ctx store. These own _all_ behavior.
 - **Template layer** (per template): a layout shell = `layoutMode` compositor choice +
   `defaultColumns` + header/banner/contact placement (`headerStyle`, `contactIn`) + palette +
@@ -743,7 +745,8 @@ stylesheet `docSheet.css` (everything nested under `.doc-sheet`).
   (`expandItemBreakPages` / `itemSlicesForSection` / `renderPages` / slice indices / "(cont.)"),
   removal UX, repair guards (§3.3–3.4).
 - Overflow guides, page-count pill, page-break rules (visual pagination layer, §1.16).
-- Floating FormatToolbar for on-sheet rich text (§1.12, reimplemented over markdown commands).
+- ~~Floating FormatToolbar for on-sheet rich text~~ (superseded — rich text is edited through
+  `MiniRichEditor` inside the modals, §1.12).
 - Whole-surface drag + slot-bar indicators + Add-section-block drop target (§2.4–2.5).
 - Focused-section state (solid accent border on last-clicked card).
 - Per-item `keywords`/`customFields` on experience/education (+customFields on projects/skills):
@@ -760,26 +763,24 @@ stylesheet `docSheet.css` (everything nested under `.doc-sheet`).
 
 ---
 
-## 6. Open questions (owner decisions needed)
+## 6. Open questions (all answered by owner decisions — kept for the record)
 
-1. **Rename UX**: SectionChrome's "Rename title…" uses `window.prompt`. Ship an inline-editable
-   `<h2>` (LiveText) or a small popover instead? (Prompt is clearly placeholder-grade.)
-2. **Link insertion** in rich text also uses `window.prompt` (both FormatToolbar and
-   MiniRichEditor). Needs a real link popover.
-3. **Escape semantics in LiveText**: Escape disarms but the subsequent blur still commits changed
-   text — i.e. there is no true "revert" for inline edits (undo covers it). Intentional, or should
-   Escape restore the original value?
-4. **Rich-text format**: HTML (prototype mechanics, `execCommand`) vs markdown (PR #788 +
-   `contentFormat` schema). Recommendation in §4.2; needs sign-off since it dictates
-   LiveText/FormatToolbar implementation.
+1. **Rename UX** — _answered_: no `window.prompt` anywhere; "Rename title…" opens the typed
+   one-input dialog (§1.11).
+2. **Link insertion** — _answered_: inline URL row inside `MiniRichEditor`; no prompt.
+3. **Escape semantics** — _answered_: Escape/Cancel/backdrop discard the open dialog; only Save
+   commits (§1.11).
+4. **Rich-text format** — _answered_: markdown pipeline (`contentFormat` schema), edited through
+   `MiniRichEditor` (§1.13).
 5. **Custom section deletion**: prototype only ever hides sections (data preserved); customs
    accumulate forever in the Sections panel. Add a destructive "Delete custom section"?
 6. **Explicit page-break insertion**: breaks can be removed but never _created_ directly (only
    implied by drags/pre-existing data). Add "insert page break before this item/section" (e.g. in
    the pencil/entry menus)?
-7. **Sidebar width persistence**: device preference (localStorage, prototype) vs document property
-   (`page.sidebar_ratio`)? Affects export fidelity — an exported PDF should probably match what the
-   user saw.
+7. **Sidebar width persistence** — _answered_ (owner decision on §4.2, shipped in PR #805): a
+   **document property** — the resize handle reads/writes `metadata.page.sidebarRatio`
+   (content-width relative, matching renderer and theme editor), so an exported PDF matches what
+   the user saw. Not localStorage.
 8. **Cross-section item drag**: item drags are same-section only. Accept as spec, or allow moving
    e.g. a project into experience (probably not — type mismatch)?
 9. **Typed item modals**: confirm the per-type field mappings for

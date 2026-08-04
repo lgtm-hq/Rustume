@@ -263,38 +263,42 @@ describe("DocEditor sheet", () => {
     expect(document.querySelector('[data-section-id="references"]')).toBeNull();
   });
 
-  it("offers every drawn value as a keyboard-reachable editing affordance", async () => {
-    const { container } = await renderSheet();
+  it("keeps entry editing keyboard-reachable without any in-place editor", async () => {
+    await renderSheet();
     const sheet = screen.getByTestId("doc-sheet");
 
-    // #728 replaced the read-only sheet: values are buttons that swap for an
-    // input in place. What must stay true is that nothing is click-only and
-    // that no dialog is open until the user asks for one.
+    // Modal editing (owner decision 2026-08-04): entry values are plain
+    // rendered text; the keyboard path to the item modal is the row's Edit
+    // action, nothing is contenteditable, and no dialog is open until the
+    // user asks for one.
     const experience = sheet.querySelector<HTMLElement>('[data-section-id="experience"]');
+    expect(within(experience as HTMLElement).getByText("Lumen Health")).toBeInTheDocument();
     expect(
-      within(experience as HTMLElement).getByRole("button", { name: "Lumen Health" }),
-    ).toBeInTheDocument();
+      within(experience as HTMLElement).getAllByRole("button", { name: /^Edit / }).length,
+    ).toBeGreaterThan(0);
     expect(sheet.querySelectorAll("[contenteditable]")).toHaveLength(0);
-    expect(within(container).queryByRole("dialog")).toBeNull();
+    // Modal portals mount outside the render container, so the "no dialog
+    // open" check must query the whole document.
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("edits a value in place and writes it through the store", async () => {
+  it("edits an entry through its modal and writes it through the store", async () => {
     await renderSheet();
     const sheet = screen.getByTestId("doc-sheet");
     const experience = sheet.querySelector<HTMLElement>('[data-section-id="experience"]');
 
-    fireEvent.click(
-      within(experience as HTMLElement).getByRole("button", { name: "Lumen Health" }),
+    fireEvent.dblClick(
+      (experience as HTMLElement).querySelector(".doc-sheet__entry-row") as HTMLElement,
     );
-    const input = within(experience as HTMLElement).getByRole("textbox", { name: "Company" });
-    fireEvent.input(input, { target: { value: "Lumen Health Group" } });
-    fireEvent.blur(input);
+    const dialog = screen.getByRole("dialog", { name: "Edit · Experience" });
+    fireEvent.input(within(dialog).getByRole("textbox", { name: "Company" }), {
+      target: { value: "Lumen Health Group" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
 
     // The store is the real one here, so the sheet redraws from what it holds.
     await waitFor(() =>
-      expect(
-        within(experience as HTMLElement).getByRole("button", { name: "Lumen Health Group" }),
-      ).toBeInTheDocument(),
+      expect(within(experience as HTMLElement).getByText("Lumen Health Group")).toBeInTheDocument(),
     );
   });
 

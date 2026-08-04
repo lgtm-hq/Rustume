@@ -73,4 +73,57 @@ describe("applyMarkdownCommand", () => {
     // lands on is not part of the selection.
     expect(run("one\ntwo\nthree", 0, 8, "bulletList")).toBe("- one\n- two\nthree");
   });
+
+  it("fences the touched lines as a code block", () => {
+    expect(run("let x = 1;", 0, 10, "codeBlock")).toBe("```\nlet x = 1;\n```");
+    expect(run("one\ntwo", 0, 7, "codeBlock")).toBe("```\none\ntwo\n```");
+  });
+
+  it("fences only the touched lines, leaving neighbours alone", () => {
+    expect(run("before\ncode\nafter", 7, 11, "codeBlock")).toBe("before\n```\ncode\n```\nafter");
+  });
+
+  it("inserts a placeholder code block on an empty selection", () => {
+    const result = applyMarkdownCommand({ value: "", start: 0, end: 0 }, "codeBlock");
+    expect(result.value).toBe("```\ncode\n```");
+    expect(result.value.slice(result.start, result.end)).toBe("code");
+  });
+
+  it("unfences when the selection covers the fences", () => {
+    expect(run("```\ncode\n```", 0, 12, "codeBlock")).toBe("code");
+  });
+
+  it("unfences when the selection sits inside a fenced block", () => {
+    expect(run("before\n```\ncode\n```\nafter", 11, 15, "codeBlock")).toBe("before\ncode\nafter");
+  });
+
+  it("unfences from a caret on any body line of a multi-line block", () => {
+    // Caret on "two" — not adjacent to either fence. The freed body stays
+    // selected so the toggle can be re-applied or typed over.
+    const result = applyMarkdownCommand(
+      { value: "```\none\ntwo\nthree\n```", start: 9, end: 9 },
+      "codeBlock",
+    );
+    expect(result).toEqual({ value: "one\ntwo\nthree", start: 0, end: 13 });
+  });
+
+  it("unfences from a caret on a fence line itself", () => {
+    const result = applyMarkdownCommand({ value: "```\ncode\n```", start: 1, end: 1 }, "codeBlock");
+    expect(result).toEqual({ value: "code", start: 0, end: 4 });
+  });
+
+  it("unfences an unterminated block still being typed", () => {
+    expect(run("```\ncode", 6, 6, "codeBlock")).toBe("code");
+  });
+
+  it("does not treat a fence with trailing text as a closing fence", () => {
+    // "```x" is body, not a close — the block runs on to the real fence.
+    expect(run("```\na\n```x\nb\n```", 7, 7, "codeBlock")).toBe("a\n```x\nb");
+  });
+
+  it("does not close a four-backtick block at an inner three-backtick line", () => {
+    // CommonMark: the closer must be at least as wide as the opener, so the
+    // inner ``` stays body and unfencing frees the whole block.
+    expect(run("````\na\n```\nb\n````", 6, 6, "codeBlock")).toBe("a\n```\nb");
+  });
 });

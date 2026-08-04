@@ -1,10 +1,11 @@
 export { DocSheet, type DocSheetProps } from "./DocSheet";
 export { ContactBlock, NameHeader, SheetAvatar, type ContactBlockProps } from "./DocHeader";
 export { DocSection, type DocSectionProps } from "./DocSection";
-export { InlineText, type InlineTextProps } from "./InlineText";
-export { InlineMarkdown, type InlineMarkdownProps } from "./InlineMarkdown";
-export { MarkdownEditor, type MarkdownEditorProps } from "./MarkdownEditor";
+export { EditableField, type EditableFieldProps } from "./EditableField";
 export { ItemDialog, type ItemDialogProps } from "./ItemDialog";
+export { TagInput, type TagInputProps } from "./TagInput";
+export { ExtraFieldsEditor, type ExtraFieldsEditorProps } from "./ExtraFieldsEditor";
+export { MiniRichEditor, type MiniRichEditorProps } from "./MiniRichEditor";
 export { CustomSectionDialog, type CustomSectionDialogProps } from "./CustomSectionDialog";
 export { PhotoDialog, type PhotoDialogProps } from "./PhotoDialog";
 export { TemplatesDrawer, type TemplatesDrawerProps } from "./TemplatesDrawer";
