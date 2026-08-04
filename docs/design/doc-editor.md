@@ -455,8 +455,8 @@ ghosts have no animation (instant).
 ### 2.5 Section drag & drop (blocks across columns/pages)
 
 - **Drag surfaces**: the header grip _and the whole card_ (same veto rules; presses on entry rows
-  are claimed by the entry drag first — entries carry `.edit-ready`, which the card's veto list
-  includes).
+  are claimed by the entry drag first — the card's veto list includes the entry-row class,
+  `.doc-sheet__entry-row` in production).
 - **Payload**: MIME `application/x-section`, `{id}`; mirrored in `secDragging`.
 - **Targets**: any other section card in any column of any page (drop index = that card's
   `{page, col, index}`, +1 for bottom half) and every column's **Add-section block** as the
@@ -554,10 +554,14 @@ splits). Derivation pipeline (all in `docModel.ts`, all pure):
 
 ### 3.4 Page breaks
 
-- **Creating**: the prototype UI never creates breaks explicitly; extra pages come from
-  `metadata.layout` having multiple pages (via drags to later pages) or from pre-existing
-  `itemBreaks` data. (Deliberate gap — see Open questions for an explicit "insert page break"
-  affordance.)
+- **Creating** (owner decision, §6 Q6 — implemented in #796): explicit "insert page break before"
+  actions. The section pencil menu splits `metadata.layout` so the section starts a fresh page
+  (disabled when the split would change nothing); the entry action pill adds an `itemBreaks`
+  marker before the item. On templates whose layout cannot honor mid-section breaks
+  (sidebar/two-column — Typst cannot page-break inside a grid) the item-level action is greyed
+  out with an explanatory tooltip reachable on hover _and_ keyboard focus (owner decision
+  2026-08-03); existing markers stay inert there. Extra pages also still come from drags to later
+  pages.
 - **Removing** (`removePageBreakAt(pageIndex)`): prefer clearing an **item-break** continuation
   shared across the boundary (find sections present in the same column of both rendered pages with
   slice > 0; delete the responsible break id); otherwise **merge** raw page `pageIndex` into
