@@ -312,6 +312,28 @@ describe("document sheet structural chrome", () => {
       expect(store.removeCustomSectionItem).toHaveBeenCalledExactlyOnceWith("speaking", 0);
       expect(writeCount()).toBe(1);
     });
+
+    it("opens the item modal from a custom entry's chip name", () => {
+      // Chips render outside SortableEntry, so the name itself must be the
+      // edit path — without it, existing custom entries cannot be edited.
+      renderSheet();
+
+      fireEvent.click(screen.getByRole("button", { name: "Edit Design Tokens Beyond Colour" }));
+
+      expect(screen.getByRole("dialog", { name: /^Edit · / })).toBeInTheDocument();
+      expect(writeCount()).toBe(0);
+    });
+
+    it("opens the item modal from an interest's name", () => {
+      // Interests render as a plain list outside SortableEntry; the name is
+      // their edit path.
+      renderSheet();
+
+      fireEvent.click(screen.getByRole("button", { name: "Edit Letterpress printing" }));
+
+      expect(screen.getByRole("dialog", { name: /^Edit · Interests/ })).toBeInTheDocument();
+      expect(writeCount()).toBe(0);
+    });
   });
 
   describe("entry move controls", () => {

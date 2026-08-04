@@ -491,7 +491,17 @@ export function DocSection(props: DocSectionProps): JSX.Element {
                   data-entry-id={entry.id}
                   classList={{ "doc-sheet__entry-row--hidden": entry.hidden }}
                 >
-                  {entry.item.name}
+                  <Show when={isEditable()} fallback={entry.item.name}>
+                    <button
+                      type="button"
+                      class="doc-sheet__editable"
+                      title="Click to edit"
+                      aria-label={`Edit ${entryLabel(entry, noun())}`}
+                      onClick={() => openEdit(entry)}
+                    >
+                      {entry.item.name}
+                    </button>
+                  </Show>
                 </li>
               )}
             </For>
@@ -507,7 +517,17 @@ export function DocSection(props: DocSectionProps): JSX.Element {
                   classList={{ "doc-sheet__entry-row--hidden": entry.hidden }}
                   data-entry-id={entry.id}
                 >
-                  {entry.item.name}
+                  <Show when={isEditable()} fallback={entry.item.name}>
+                    <button
+                      type="button"
+                      class="doc-sheet__editable"
+                      title="Click to edit"
+                      aria-label={`Edit ${entryLabel(entry, noun())}`}
+                      onClick={() => openEdit(entry)}
+                    >
+                      {entry.item.name}
+                    </button>
+                  </Show>
                   <Show when={isEditable()}>
                     <button
                       type="button"
