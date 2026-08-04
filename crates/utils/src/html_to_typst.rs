@@ -174,7 +174,10 @@ fn process_node(node: &ego_tree::NodeRef<'_, Node>, output: &mut String, list_de
                     // Verbatim text goes into a Typst string literal, so it needs
                     // string escaping, not content-mode escaping.
                     let text = raw_text(node);
-                    let trimmed = text.trim_end_matches('\n');
+                    // Comrak terminates the code content with exactly one
+                    // newline; strip only that one so intentional trailing
+                    // blank lines survive.
+                    let trimmed = text.strip_suffix('\n').unwrap_or(&text);
                     if !trimmed.is_empty() {
                         output.push_str("#raw(block: true, \"");
                         output.push_str(&escape_typst_string(trimmed));
@@ -225,8 +228,14 @@ fn collect_text(node: &ego_tree::NodeRef<'_, Node>, out: &mut String) {
 }
 
 /// Escape `text` for a Typst double-quoted string literal.
+///
+/// Newlines become the `\n` escape so the literal stays on one output line —
+/// `clean_output` collapses runs of raw newlines and would otherwise mangle
+/// code bodies with consecutive blank lines.
 fn escape_typst_string(text: &str) -> String {
-    text.replace('\\', "\\\\").replace('"', "\\\"")
+    text.replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\n', "\\n")
 }
 
 /// Render a `<ul>`/`<ol>` element as Typst list lines.
@@ -593,5 +602,23 @@ mod tests {
     #[test]
     fn empty_code_block_emits_nothing() {
         assert_eq!(html_to_typst("<pre><code>\n</code></pre>"), "");
+    }
+
+    #[test]
+    fn code_block_keeps_intentional_trailing_blank_line() {
+        // Only the renderer's own terminal newline is stripped.
+        assert_eq!(
+            html_to_typst("<pre><code>a\n\n</code></pre>"),
+            "#raw(block: true, \"a\\n\")"
+        );
+    }
+
+    #[test]
+    fn multi_line_code_block_encodes_newlines() {
+        // Newlines ride as \n escapes so clean_output cannot collapse them.
+        assert_eq!(
+            html_to_typst("<pre><code>a\n\n\n\nb\n</code></pre>"),
+            "#raw(block: true, \"a\\n\\n\\n\\nb\")"
+        );
     }
 }
