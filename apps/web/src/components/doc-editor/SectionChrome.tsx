@@ -191,7 +191,12 @@ export function SectionChrome(props: SectionChromeProps): JSX.Element {
                 label="Section title"
                 dialogTitle="Rename section"
                 triggerId={sectionTitleTriggerId(props.sectionId)}
-                onCommit={(value) => commit()(value)}
+                onCommit={(value) => {
+                  // A section must keep a name: a blank commit is discarded
+                  // rather than persisting a whitespace-only title.
+                  const trimmed = value.trim();
+                  if (trimmed !== "") commit()(trimmed);
+                }}
               />
             )}
           </Show>
