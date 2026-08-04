@@ -52,6 +52,31 @@ describe("versionHistory store", () => {
     expect(oldest?.basics.name).toBe("Version A");
   });
 
+  it("saves snapshots that differ only in Map-shaped custom sections", async () => {
+    // A Map serializes to {} under JSON.stringify, so without normalization
+    // two snapshots differing only in sections.custom compare equal and the
+    // newer one is silently dropped by the duplicate check.
+    const makeSnapshot = (sectionName: string): ResumeData => {
+      const resume = createResume("Same Name");
+      (resume.sections as unknown as Record<string, unknown>).custom = new Map([
+        ["c1", { id: "c1", name: sectionName, items: [] }],
+      ]);
+      return resume;
+    };
+
+    await saveSnapshot("resume-1", makeSnapshot("First"));
+    await saveSnapshot("resume-1", makeSnapshot("Second"));
+
+    const snapshots = await listSnapshots("resume-1");
+    expect(snapshots).toHaveLength(2);
+
+    // And the stored data is plain-object shaped, not a Map.
+    const latest = await getSnapshot(snapshots[0].key);
+    const custom = latest?.sections.custom as unknown as Record<string, { name: string }>;
+    expect(custom).not.toBeInstanceOf(Map);
+    expect(custom.c1.name).toBe("Second");
+  });
+
   it("retains both snapshots when concurrent saves are triggered", async () => {
     await Promise.all([
       saveSnapshot("resume-1", createResume("Concurrent A")),
