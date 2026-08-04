@@ -130,6 +130,22 @@ mod tests {
     }
 
     #[test]
+    fn fenced_code_block() {
+        assert_eq!(
+            markdown_to_typst("```\nlet x = a * b;\n```"),
+            "#raw(block: true, \"let x = a * b;\")"
+        );
+    }
+
+    #[test]
+    fn fenced_code_block_between_paragraphs() {
+        assert_eq!(
+            markdown_to_typst("Before\n\n```\ncode\n```\n\nAfter"),
+            "Before\n\n#raw(block: true, \"code\")\n\nAfter"
+        );
+    }
+
+    #[test]
     fn hard_break() {
         assert_eq!(
             markdown_to_typst("Line 1  \nLine 2"),
