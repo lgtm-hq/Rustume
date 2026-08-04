@@ -87,12 +87,17 @@ function experienceSection(): HTMLElement {
   return sheet.querySelector<HTMLElement>('[data-section-id="experience"]') as HTMLElement;
 }
 
-/** Commit an inline text edit on the experience company field (LiveText). */
+/** Commit a company edit through the entry's item modal (double-click row). */
 function editCompany(currentLabel: string, value: string) {
-  fireEvent.dblClick(within(experienceSection()).getByRole("button", { name: currentLabel }));
-  const field = within(experienceSection()).getByRole("textbox", { name: "Company" });
-  field.textContent = value;
-  fireEvent.focusOut(field);
+  const row = [...experienceSection().querySelectorAll<HTMLElement>(".doc-sheet__entry-row")].find(
+    (each) => each.textContent?.includes(currentLabel),
+  ) as HTMLElement;
+  fireEvent.dblClick(row);
+  const dialog = screen.getByRole("dialog", { name: "Edit · Experience" });
+  fireEvent.input(within(dialog).getByRole("textbox", { name: "Company" }), {
+    target: { value },
+  });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
 }
 
 function undoButton(): HTMLElement {
@@ -144,23 +149,21 @@ describe("DocEditor undo, autosave, and version history", () => {
     await renderSheet();
     const section = experienceSection();
 
-    fireEvent.dblClick(within(section).getByRole("button", { name: "Lumen Health" }));
-    const field = within(section).getByRole("textbox", { name: "Company" });
-    field.textContent = "Lumen Health Group";
-    fireEvent.focusOut(field);
+    fireEvent.dblClick(section.querySelector(".doc-sheet__entry-row") as HTMLElement);
+    const dialog = screen.getByRole("dialog", { name: "Edit · Experience" });
+    fireEvent.input(within(dialog).getByRole("textbox", { name: "Company" }), {
+      target: { value: "Lumen Health Group" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
     await settleDebounce();
 
     expect(undoButton()).not.toBeDisabled();
     fireEvent.click(undoButton());
-    expect(
-      within(experienceSection()).getByRole("button", { name: "Lumen Health" }),
-    ).toBeInTheDocument();
+    expect(within(experienceSection()).getByText("Lumen Health")).toBeInTheDocument();
 
     expect(redoButton()).not.toBeDisabled();
     fireEvent.click(redoButton());
-    expect(
-      within(experienceSection()).getByRole("button", { name: "Lumen Health Group" }),
-    ).toBeInTheDocument();
+    expect(within(experienceSection()).getByText("Lumen Health Group")).toBeInTheDocument();
   });
 
   it("round-trips an item add through the add dialog", async () => {
@@ -174,17 +177,13 @@ describe("DocEditor undo, autosave, and version history", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
     await settleDebounce();
 
-    expect(
-      within(experienceSection()).getByRole("button", { name: "Aster Labs" }),
-    ).toBeInTheDocument();
+    expect(within(experienceSection()).getByText("Aster Labs")).toBeInTheDocument();
 
     fireEvent.click(undoButton());
     expect(within(experienceSection()).queryByRole("button", { name: "Aster Labs" })).toBeNull();
 
     fireEvent.click(redoButton());
-    expect(
-      within(experienceSection()).getByRole("button", { name: "Aster Labs" }),
-    ).toBeInTheDocument();
+    expect(within(experienceSection()).getByText("Aster Labs")).toBeInTheDocument();
   });
 
   it("round-trips a section move as a single undo entry", async () => {
@@ -218,9 +217,7 @@ describe("DocEditor undo, autosave, and version history", () => {
     await settleDebounce();
 
     fireEvent.click(undoButton());
-    expect(
-      within(experienceSection()).getByRole("button", { name: "Lumen Health" }),
-    ).toBeInTheDocument();
+    expect(within(experienceSection()).getByText("Lumen Health")).toBeInTheDocument();
     expect(undoButton()).toBeDisabled();
   });
 
@@ -228,21 +225,19 @@ describe("DocEditor undo, autosave, and version history", () => {
     await renderSheet();
     const section = experienceSection();
 
-    fireEvent.dblClick(within(section).getByRole("button", { name: "Lumen Health" }));
-    const field = within(section).getByRole("textbox", { name: "Company" });
-    field.textContent = "Lumen Health Group";
-    fireEvent.focusOut(field);
+    fireEvent.dblClick(section.querySelector(".doc-sheet__entry-row") as HTMLElement);
+    const dialog = screen.getByRole("dialog", { name: "Edit · Experience" });
+    fireEvent.input(within(dialog).getByRole("textbox", { name: "Company" }), {
+      target: { value: "Lumen Health Group" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
     await settleDebounce();
 
     fireEvent.keyDown(document.body, { key: "z", ctrlKey: true });
-    expect(
-      within(experienceSection()).getByRole("button", { name: "Lumen Health" }),
-    ).toBeInTheDocument();
+    expect(within(experienceSection()).getByText("Lumen Health")).toBeInTheDocument();
 
     fireEvent.keyDown(document.body, { key: "z", ctrlKey: true, shiftKey: true });
-    expect(
-      within(experienceSection()).getByRole("button", { name: "Lumen Health Group" }),
-    ).toBeInTheDocument();
+    expect(within(experienceSection()).getByText("Lumen Health Group")).toBeInTheDocument();
   });
 
   it("autosaves a sheet edit through the store's save timer", async () => {
@@ -277,16 +272,12 @@ describe("DocEditor undo, autosave, and version history", () => {
     snapshot.sections.experience.items[0].company = "Reverted Corp";
     resumeStore.revertToSnapshot(snapshot);
 
-    expect(
-      within(experienceSection()).getByRole("button", { name: "Reverted Corp" }),
-    ).toBeInTheDocument();
+    expect(within(experienceSection()).getByText("Reverted Corp")).toBeInTheDocument();
 
     // The revert is undoable: the pre-revert resume was pushed as a snapshot.
     expect(undoButton()).not.toBeDisabled();
     fireEvent.click(undoButton());
-    expect(
-      within(experienceSection()).getByRole("button", { name: "Lumen Health" }),
-    ).toBeInTheDocument();
+    expect(within(experienceSection()).getByText("Lumen Health")).toBeInTheDocument();
 
     // And the revert itself was persisted before the undo rewrote it.
     await vi.advanceTimersByTimeAsync(SAVE_DELAY_MS);

@@ -23,8 +23,9 @@
 
 import { For, Show, createSignal, type JSX } from "solid-js";
 import { createDraggable, createDroppable } from "@thisbeyond/solid-dnd";
+import { EditableField } from "./EditableField";
 import { ItemDialog } from "./ItemDialog";
-import { LiveText } from "./LiveText";
+import { MarkdownView } from "./MarkdownView";
 import { SectionChrome, sectionTitleTriggerId, type SectionMenuActions } from "./SectionChrome";
 import { SortableEntry } from "./SortableEntry";
 import { ContactIcon, ProfileIcon } from "./icons";
@@ -36,7 +37,6 @@ import {
   setItemVisibility,
   toggleSection,
   updateCoverLetter,
-  updateItem,
   updateSummary,
 } from "./docEdits";
 import { itemNoun } from "./itemFields";
@@ -127,25 +127,14 @@ function itemEntries(resume: ResumeData, sectionId: string): ItemEntry[] {
   }));
 }
 
-/** A bound slot as an inline editor; a derived slot as plain text. */
-function Slot(props: {
-  field: ItemField;
-  /** Stable per-item id prefix; the field key makes it unique per slot. */
-  idPrefix: string;
-  class?: string;
-  onCommit: (field: string, value: string) => void;
-}): JSX.Element {
+/**
+ * One drawn slot of an entry — plain rendered text. Editing happens in the
+ * item modal (owner decision 2026-08-04): double-clicking the entry opens it.
+ */
+function Slot(props: { field: ItemField; class?: string }): JSX.Element {
   return (
-    <Show when={props.field.field} fallback={<span class={props.class}>{props.field.value}</span>}>
-      {(key) => (
-        <LiveText
-          value={props.field.value}
-          label={props.field.label}
-          class={props.class}
-          triggerId={`${props.idPrefix}-${key()}`}
-          onCommit={(value) => props.onCommit(key(), value)}
-        />
-      )}
+    <Show when={props.field.value.trim() !== ""}>
+      <span class={props.class}>{props.field.value}</span>
     </Show>
   );
 }
@@ -198,23 +187,12 @@ function LevelDots(props: { value: number }): JSX.Element {
   );
 }
 
-/** The rich summary of an item: armed markdown editing in place (spec §1.11). */
-function EntrySummary(props: {
-  value: string;
-  idPrefix: string;
-  onCommit: (value: string) => void;
-}): JSX.Element {
-  const isEditable = useSheetEditable();
+/** The rich summary of an item: rendered markdown, edited in the item modal. */
+function EntrySummary(props: { value: string }): JSX.Element {
   return (
-    <Show when={isEditable() || hasText(props.value)}>
-      <div class="doc-sheet__entry-sum">
-        <LiveText
-          rich
-          value={props.value}
-          label="Summary"
-          triggerId={`${props.idPrefix}-summary`}
-          onCommit={props.onCommit}
-        />
+    <Show when={hasText(props.value)}>
+      <div class="doc-sheet__entry-sum doc-sheet__rich-text">
+        <MarkdownView value={props.value} />
       </div>
     </Show>
   );
@@ -282,12 +260,6 @@ export function DocSection(props: DocSectionProps): JSX.Element {
     setIsDialogOpen(true);
   }
 
-  const commitFor =
-    (entry: ItemEntry) =>
-    (field: string, value: string): void => {
-      updateItem(id(), entry.index, { [field]: value });
-    };
-
   /** Row-chrome action set for one entry; move handlers only at non-edges. */
   function rowActions(entry: ItemEntry): {
     label: string;
@@ -348,48 +320,22 @@ export function DocSection(props: DocSectionProps): JSX.Element {
 
   function experienceBody(entry: ItemEntry): JSX.Element {
     const item = entry.item as Experience;
-    const idPrefix = `doc-${id()}-${entry.id}`;
-    const commit = commitFor(entry);
     return (
       <>
         <div class="doc-sheet__entry-pos">
-          <Slot
-            field={bind(item.position, "Position", "position")}
-            idPrefix={idPrefix}
-            onCommit={commit}
-          />
+          <Slot field={bind(item.position, "Position", "position")} />
         </div>
         <div class="doc-sheet__entry-meta">
-          <Slot
-            field={bind(item.company, "Company", "company")}
-            idPrefix={idPrefix}
-            class="doc-sheet__entry-co"
-            onCommit={commit}
-          />
-          <Show when={isEditable() || hasText(item.date)}>
-            <Slot
-              field={bind(item.date, "Date", "date")}
-              idPrefix={idPrefix}
-              class="doc-sheet__entry-date"
-              onCommit={commit}
-            />
-          </Show>
+          <Slot field={bind(item.company, "Company", "company")} class="doc-sheet__entry-co" />
+          <Slot field={bind(item.date, "Date", "date")} class="doc-sheet__entry-date" />
         </div>
-        <Show when={isEditable() || hasText(item.location)}>
+        <Show when={hasText(item.location)}>
           <div class="doc-sheet__entry-loc">
             <ContactIcon kind="location" />
-            <Slot
-              field={bind(item.location, "Location", "location")}
-              idPrefix={idPrefix}
-              onCommit={commit}
-            />
+            <Slot field={bind(item.location, "Location", "location")} />
           </div>
         </Show>
-        <EntrySummary
-          value={item.summary ?? ""}
-          idPrefix={idPrefix}
-          onCommit={(value) => commit("summary", value)}
-        />
+        <EntrySummary value={item.summary ?? ""} />
         <TagChips tags={item.keywords} />
         <ExtraFieldsView fields={item.customFields} />
       </>
@@ -398,33 +344,22 @@ export function DocSection(props: DocSectionProps): JSX.Element {
 
   function educationBody(entry: ItemEntry): JSX.Element {
     const item = entry.item as Education;
-    const idPrefix = `doc-${id()}-${entry.id}`;
-    const commit = commitFor(entry);
     const school = (): string =>
       [item.institution, item.area].filter((part) => hasText(part)).join(" · ");
     return (
       <>
         <div class="doc-sheet__edu-degree">
-          <Slot
-            field={bind(item.studyType, "Degree", "studyType")}
-            idPrefix={idPrefix}
-            onCommit={commit}
-          />
+          <Slot field={bind(item.studyType, "Degree", "studyType")} />
         </div>
-        {/* Derived from two fields, so the dialog owns it (spec §1.7). */}
         <Show when={hasText(school())}>
           <div class="doc-sheet__edu-school">{school()}</div>
         </Show>
-        <Show when={isEditable() || hasText(item.date)}>
+        <Show when={hasText(item.date)}>
           <div class="doc-sheet__edu-date">
-            <Slot field={bind(item.date, "Date", "date")} idPrefix={idPrefix} onCommit={commit} />
+            <Slot field={bind(item.date, "Date", "date")} />
           </div>
         </Show>
-        <EntrySummary
-          value={item.summary ?? ""}
-          idPrefix={idPrefix}
-          onCommit={(value) => commit("summary", value)}
-        />
+        <EntrySummary value={item.summary ?? ""} />
         <TagChips tags={item.keywords} />
         <ExtraFieldsView fields={item.customFields} />
       </>
@@ -472,8 +407,6 @@ export function DocSection(props: DocSectionProps): JSX.Element {
 
   function genericBody(entry: ItemEntry): JSX.Element {
     const item = entry.item;
-    const idPrefix = `doc-${id()}-${entry.id}`;
-    const commit = commitFor(entry);
     // Awards store their headline as `title`; everything else uses `name`.
     const isAward = id() === "awards";
     const nameField = isAward
@@ -482,35 +415,15 @@ export function DocSection(props: DocSectionProps): JSX.Element {
     return (
       <>
         <div class="doc-sheet__entry-top">
-          <Slot
-            field={nameField}
-            idPrefix={idPrefix}
-            class="doc-sheet__entry-pos"
-            onCommit={commit}
-          />
-          <Show when={isEditable() || hasText(item.date)}>
-            <Slot
-              field={bind(item.date, "Date", "date")}
-              idPrefix={idPrefix}
-              class="doc-sheet__entry-date"
-              onCommit={commit}
-            />
-          </Show>
+          <Slot field={nameField} class="doc-sheet__entry-pos" />
+          <Slot field={bind(item.date, "Date", "date")} class="doc-sheet__entry-date" />
         </div>
-        <Show when={isEditable() || hasText(item.description)}>
+        <Show when={hasText(item.description)}>
           <div class="doc-sheet__entry-desc">
-            <Slot
-              field={bind(item.description, "Description", "description")}
-              idPrefix={idPrefix}
-              onCommit={commit}
-            />
+            <Slot field={bind(item.description, "Description", "description")} />
           </div>
         </Show>
-        <EntrySummary
-          value={item.summary ?? ""}
-          idPrefix={idPrefix}
-          onCommit={(value) => commit("summary", value)}
-        />
+        <EntrySummary value={item.summary ?? ""} />
         <TagChips tags={item.keywords} />
         <ExtraFieldsView fields={item.customFields} />
       </>
@@ -557,10 +470,11 @@ export function DocSection(props: DocSectionProps): JSX.Element {
       >
         <Show when={isRichText()}>
           <div class="doc-sheet__summary">
-            <LiveText
+            <EditableField
               rich
               value={richText()}
               label={title()}
+              dialogTitle={`Edit · ${title()}`}
               triggerId={`doc-${id()}-rich-text`}
               onCommit={(value) =>
                 id() === "summary" ? updateSummary(value) : updateCoverLetter(value)

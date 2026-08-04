@@ -35,7 +35,6 @@ import {
 import { CustomSectionDialog } from "./CustomSectionDialog";
 import { ContactBlock, NameHeader, SheetAvatar } from "./DocHeader";
 import { DocSection } from "./DocSection";
-import { FormatToolbar, FormatToolbarContext, createFormatToolbarState } from "./FormatToolbar";
 import { applyLayout, moveItemAcrossSections, reorderItem, updateSidebarRatio } from "./docEdits";
 import { PlusIcon } from "./icons";
 import { SheetModeContext, type SheetMode } from "./sheetMode";
@@ -506,7 +505,11 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
   }): JSX.Element {
     const droppable = createDroppable(
       `drop:column:${frameProps.pageIndex}:${frameProps.columnIndex}`,
-      { type: "column", page: frameProps.pageIndex, column: frameProps.columnIndex },
+      {
+        type: "column",
+        page: frameProps.pageIndex,
+        column: frameProps.columnIndex,
+      },
     );
     const classes = (): Record<string, boolean> => ({
       "doc-sheet__column": true,
@@ -557,7 +560,9 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
     return (
       <div
         class="doc-sheet__side-resize"
-        classList={{ "doc-sheet__side-resize--right": handleProps.isRightSidebar }}
+        classList={{
+          "doc-sheet__side-resize--right": handleProps.isRightSidebar,
+        }}
         role="separator"
         aria-orientation="vertical"
         aria-label="Resize sidebar"
@@ -782,86 +787,79 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
     );
   }
 
-  const formatToolbar = createFormatToolbarState();
-
   return (
     <SheetModeContext.Provider value={mode}>
-      <FormatToolbarContext.Provider value={formatToolbar}>
-        <DragDropProvider
-          onDragStart={onDragStart}
-          onDragEnd={onDragEnd}
-          collisionDetector={detectCollisions}
+      <DragDropProvider
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+        collisionDetector={detectCollisions}
+      >
+        <DragDropSensors />
+        <div
+          ref={(element) => {
+            root = element;
+            observer?.observe(element);
+          }}
+          class={
+            `doc-sheet doc-sheet--tpl-${props.resume.metadata.template} ` +
+            `doc-sheet--layout-${layoutMode()} doc-sheet--head-${headerStyle()}`
+          }
+          classList={{
+            "doc-sheet--editing": isEditable(),
+            "doc-sheet--done": !isEditable(),
+          }}
+          data-testid="doc-sheet"
+          data-sheet-mode={mode()}
+          style={{
+            "--doc-sheet-bg": theme().background,
+            "--doc-sheet-text": theme().text,
+            "--doc-sheet-accent": theme().primary,
+            "--doc-sheet-side-w": `${sidebarWidth()}px`,
+            "--doc-sheet-page-h": `${PAGE_HEIGHT_PX}px`,
+          }}
         >
-          <DragDropSensors />
-          <div
-            ref={(element) => {
-              root = element;
-              observer?.observe(element);
-            }}
-            class={
-              `doc-sheet doc-sheet--tpl-${props.resume.metadata.template} ` +
-              `doc-sheet--layout-${layoutMode()} doc-sheet--head-${headerStyle()}`
-            }
-            classList={{
-              "doc-sheet--editing": isEditable(),
-              "doc-sheet--done": !isEditable(),
-            }}
-            data-testid="doc-sheet"
-            data-sheet-mode={mode()}
-            style={{
-              "--doc-sheet-bg": theme().background,
-              "--doc-sheet-text": theme().text,
-              "--doc-sheet-accent": theme().primary,
-              "--doc-sheet-side-w": `${sidebarWidth()}px`,
-              "--doc-sheet-page-h": `${PAGE_HEIGHT_PX}px`,
-            }}
-          >
-            <For each={pages()}>
-              {(page, pageIndex) => (
-                <>
-                  <Show when={pageIndex() > 0}>
-                    <div class="doc-sheet__page-break" data-testid="doc-sheet-page-break">
-                      <span class="doc-sheet__page-break-label">Page {pageIndex() + 1}</span>
-                      <Show when={isEditable()}>
-                        <button
-                          type="button"
-                          class="doc-sheet__page-break-remove"
-                          onClick={() => removePageBreak(pageIndex())}
-                        >
-                          Remove page break
-                        </button>
-                      </Show>
-                    </div>
-                  </Show>
-                  <SheetPage pageIndex={pageIndex()} page={page} />
-                </>
-              )}
-            </For>
+          <For each={pages()}>
+            {(page, pageIndex) => (
+              <>
+                <Show when={pageIndex() > 0}>
+                  <div class="doc-sheet__page-break" data-testid="doc-sheet-page-break">
+                    <span class="doc-sheet__page-break-label">Page {pageIndex() + 1}</span>
+                    <Show when={isEditable()}>
+                      <button
+                        type="button"
+                        class="doc-sheet__page-break-remove"
+                        onClick={() => removePageBreak(pageIndex())}
+                      >
+                        Remove page break
+                      </button>
+                    </Show>
+                  </div>
+                </Show>
+                <SheetPage pageIndex={pageIndex()} page={page} />
+              </>
+            )}
+          </For>
 
-            <PageCountPill count={measuredPages()} />
+          <PageCountPill count={measuredPages()} />
 
-            {/* Floating format bar for armed rich LiveText fields (spec §1.12). */}
-            <FormatToolbar />
-
-            {/* Dialogs are editing chrome: unmounted in Done mode even when an
+          {/* Dialogs are editing chrome: unmounted in Done mode even when an
               open flag was left set by a mid-dialog mode switch. */}
-            <Show when={isEditable()}>
-              <CustomSectionDialog
-                open={isSectionDialogOpen()}
-                onOpenChange={setIsSectionDialogOpen}
-              />
-            </Show>
+          <Show when={isEditable()}>
+            <CustomSectionDialog
+              open={isSectionDialogOpen()}
+              onOpenChange={setIsSectionDialogOpen}
+            />
+          </Show>
 
-            <LiveRegion message={announcement()} politeness="polite" />
-          </div>
+          <LiveRegion message={announcement()} politeness="polite" />
+        </div>
 
-          <DragOverlay>
-            <Show when={activeDrag()}>
-              <div class="doc-sheet__drag-overlay">{dragLabel()}</div>
-            </Show>
-          </DragOverlay>
-        </DragDropProvider>
-      </FormatToolbarContext.Provider>
+        <DragOverlay>
+          <Show when={activeDrag()}>
+            <div class="doc-sheet__drag-overlay">{dragLabel()}</div>
+          </Show>
+        </DragOverlay>
+      </DragDropProvider>
     </SheetModeContext.Provider>
   );
 }

@@ -267,34 +267,32 @@ Rendered under a section's items in edit mode: full-width, min-height 2.9rem,
 its own focus-visible raises to 1; self-hover adds accent border + 7% accent fill. Click opens the
 section's Add modal.
 
-### 1.11 `LiveText` — inline editable text (the "no sidebar editing" primitive)
+### 1.11 Editable text opens its typed modal (superseded LiveText)
 
-Props: `value, onCommit, class?, multiline?, editMode, ctx, rich?, html?`. A `<span class="live">`
-that is **plain rendered content until armed**:
+> **Owner decision (2026-08-04, PR #805 verification):** the prototype's armed in-place
+> `LiveText` editing described here was **rejected and superseded**. There is no in-place
+> `contentEditable` anywhere. The production primitive is `EditableField`:
 
-- View mode: inert text.
-- Edit mode, unarmed: hover shows a subtle 40%-accent **underline** (offset 3px) as the only hint;
-  tooltip "Double-click to edit". (Summary variant: no underline, slight opacity dip, since it's a
-  block.)
-- **Double-click arms it**: becomes `contentEditable`, `role="textbox"`, caret placed **at the
-  pointer position** via `caretRangeFromPoint` (fallback: caret at end — never select-all). Armed
-  look: no underline; single-line fields get a 1.5px accent inner underline (`inset box-shadow`);
-  the summary block gets a 1px accent inset outline with small padding compensation (negative
-  margins so text doesn't shift). Armed rich fields open the floating `FormatToolbar`.
-- **Commit on blur**: html fields commit `innerHTML`, plain fields commit `innerText` (NBSP → space,
-  `trimEnd`), only if changed. `Enter` on single-line plain fields blurs (commits). **`Escape`
-  disarms + blurs** (note: content typed before Escape still commits on the blur — see Open
-  questions). Blur also closes the format toolbar after a 150 ms grace (so toolbar clicks land).
-- Uses: name, headline, contact email/phone/location (plain), summary (rich html multiline).
+- View (Done) mode: inert rendered text; an empty value renders nothing.
+- Edit mode: the value is plain rendered content whose only affordances are the hover
+  underline (40%-accent, offset 3px) and the tooltip "Double-click to edit".
+- **Double-click — or keyboard activation — opens the field's typed pop-up modal**: plain
+  fields get a one-input dialog (`Edit · <Field>`; Enter saves), the summary and cover
+  letter get the **full markdown editor** (`MiniRichEditor`, §1.13) in their dialog.
+  Structured entries open the `ItemModal` (§1.13) on row double-click.
+- The dialog commits **once**, on Save, and only when the text changed — one edit, one
+  undo entry. **Escape**, the backdrop, Cancel and the ✕ all discard the draft (the
+  Escape-reverts decision now lives in the modal). No `window.prompt` anywhere.
+- Uses: name, headline, contact email/phone/location (plain), summary and cover letter
+  (markdown dialog), section titles (rename dialog).
 
-### 1.12 `FormatToolbar` — floating rich-text bar
+### 1.12 Rich-text editing lives in the modals (superseded FormatToolbar)
 
-Fixed, top-center under the top bar (`top:4.2rem`, translateX(-50%), z-40; dark `#1c1917` rounded
-bar). Buttons: **B / I / U / S**, separator, **• list / 1. list**, **link** (prompt for URL). Acts
-on the current selection via `document.execCommand`; `onMouseDown preventDefault` keeps focus in the
-armed field. Visible only while a rich LiveText is armed **and** edit mode is on. (Production note:
-replace `execCommand` with the project's rich-text/markdown editing stack; the UX contract —
-floating bar, same actions, selection preserved — is what's normative.)
+> **Owner decision (2026-08-04):** the floating format bar is **removed** along with
+> in-place editing. Rich text is edited exclusively through `MiniRichEditor` (§1.13)
+> inside the modals — same toolbar contract (bold / italic / bulleted / numbered / link
+> with an inline URL row, never a prompt; no underline or strikethrough, since markdown
+> has neither), writing **markdown** through the pure command engine.
 
 ### 1.13 Modal system
 
@@ -422,8 +420,8 @@ ghosts have no animation (instant).
 
 ### 2.3 Click-to-edit flows
 
-- **Inline (LiveText)**: double-click → armed at pointer caret → type → Enter (single-line) or blur
-  commits; Escape disarms. One commit = one undo entry (path-keyed).
+- **Field text (EditableField)**: double-click → typed field dialog → Save commits (Enter on
+  one-line dialogs); Escape/Cancel/backdrop discard. One save = one undo entry.
 - **Structured items**: pencil-pill ✎ (full rows) or row click (compact rows) → `ItemModal`
   pre-filled → Save (single undo entry) or Cancel/backdrop/Escape/✕ (discard).
 - **Section focus**: clicking anywhere in a section marks it `focused` (solid accent border); one

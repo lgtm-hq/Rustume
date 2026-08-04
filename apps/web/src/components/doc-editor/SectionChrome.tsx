@@ -18,7 +18,7 @@
 
 import { Show, createEffect, createSignal, onCleanup, type JSX } from "solid-js";
 import { DragGridIcon, PencilIcon, PlusIcon } from "./icons";
-import { LiveText } from "./LiveText";
+import { EditableField } from "./EditableField";
 import { useSheetEditable } from "./sheetMode";
 
 /** The pencil menu's structural actions and their enablement. */
@@ -186,9 +186,10 @@ export function SectionChrome(props: SectionChromeProps): JSX.Element {
         <h3 class="doc-sheet__sec-title">
           <Show when={props.onRenameCommit} fallback={props.title}>
             {(commit) => (
-              <LiveText
+              <EditableField
                 value={props.title}
                 label="Section title"
+                dialogTitle="Rename section"
                 triggerId={sectionTitleTriggerId(props.sectionId)}
                 onCommit={(value) => commit()(value)}
               />

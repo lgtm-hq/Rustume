@@ -268,9 +268,9 @@ export function ItemDialog(props: ItemDialogProps): JSX.Element {
                 const current = asLevel(value()) || DEFAULT_LEVEL;
                 const next = Math.min(MAX_LEVEL, Math.max(1, current + step));
                 setField(spec().key, next);
-                event.currentTarget
-                  .querySelectorAll<HTMLButtonElement>('[role="radio"]')
-                  [next - 1]?.focus();
+                const cards =
+                  event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]');
+                cards[next - 1]?.focus();
               }}
             >
               <For each={[...LEVEL_LABELS]}>

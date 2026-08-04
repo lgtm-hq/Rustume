@@ -87,11 +87,12 @@ test.describe("single-surface document editor", () => {
     await docEditorPage.assertMode("edit");
 
     // Put some content on the sheet so Done mode has a document to render.
-    // Double-click arms the LiveText in place (#795); typing edits the text
-    // itself and Enter commits.
+    // Double-click opens the typed field dialog (#795, owner decision
+    // 2026-08-04): edit in the modal, Save commits once.
     await page.getByRole("button", { name: "Your name", exact: true }).dblclick();
-    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Ada Lovelace");
-    await page.keyboard.press("Enter");
+    const nameDialog = page.getByRole("dialog", { name: "Edit · Name" });
+    await nameDialog.getByRole("textbox", { name: "Name" }).fill("Ada Lovelace");
+    await nameDialog.getByRole("button", { name: "Save" }).click();
     await expect(page.getByRole("heading", { name: "Ada Lovelace" })).toBeVisible();
 
     await docEditorPage.toggleMode();

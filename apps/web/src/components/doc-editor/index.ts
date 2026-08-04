@@ -1,13 +1,7 @@
 export { DocSheet, type DocSheetProps } from "./DocSheet";
 export { ContactBlock, NameHeader, SheetAvatar, type ContactBlockProps } from "./DocHeader";
 export { DocSection, type DocSectionProps } from "./DocSection";
-export { LiveText, type LiveTextProps } from "./LiveText";
-export {
-  FormatToolbar,
-  FormatToolbarContext,
-  createFormatToolbarState,
-  type RichFieldController,
-} from "./FormatToolbar";
+export { EditableField, type EditableFieldProps } from "./EditableField";
 export { ItemDialog, type ItemDialogProps } from "./ItemDialog";
 export { TagInput, type TagInputProps } from "./TagInput";
 export { ExtraFieldsEditor, type ExtraFieldsEditorProps } from "./ExtraFieldsEditor";

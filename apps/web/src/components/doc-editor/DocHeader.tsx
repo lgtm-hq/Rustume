@@ -14,7 +14,7 @@
  */
 
 import { For, Show, createSignal, type JSX } from "solid-js";
-import { LiveText } from "./LiveText";
+import { EditableField } from "./EditableField";
 import { PhotoDialog } from "./PhotoDialog";
 import { SectionChrome } from "./SectionChrome";
 import { ContactIcon, type ContactIconKind } from "./icons";
@@ -57,9 +57,10 @@ export function NameHeader(props: { basics: Basics; isInSidebar?: boolean }): JS
     >
       <Show when={isEditable() || props.basics.name.trim() !== ""}>
         <h2 class="doc-sheet__name">
-          <LiveText
+          <EditableField
             value={props.basics.name}
             label="Name"
+            dialogTitle="Edit · Name"
             placeholder="Your name"
             triggerId="doc-header-name"
             onCommit={(value) => updateBasicsField("name", value)}
@@ -68,9 +69,10 @@ export function NameHeader(props: { basics: Basics; isInSidebar?: boolean }): JS
       </Show>
       <Show when={isEditable() || props.basics.headline.trim() !== ""}>
         <p class="doc-sheet__headline">
-          <LiveText
+          <EditableField
             value={props.basics.headline}
             label="Headline"
+            dialogTitle="Edit · Headline"
             placeholder="Your headline"
             triggerId="doc-header-headline"
             onCommit={(value) => updateBasicsField("headline", value)}
@@ -290,9 +292,10 @@ export function ContactBlock(props: ContactBlockProps): JSX.Element {
                     <ContactIcon kind={entry.kind} />
                     <span class="sr-only">{entry.fieldLabel}</span>
                   </Show>
-                  <LiveText
+                  <EditableField
                     value={entry.value}
                     label={entry.fieldLabel}
+                    dialogTitle={`Edit · ${entry.fieldLabel}`}
                     class="doc-sheet__side-val"
                     triggerId={`doc-header-${entry.key}`}
                     onCommit={entry.commit}

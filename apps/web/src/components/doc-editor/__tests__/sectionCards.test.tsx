@@ -128,14 +128,16 @@ describe("document sheet structural chrome", () => {
       expect(screen.queryByRole("menuitem", { name: "Delete Experience section" })).toBeNull();
     });
 
-    it("renames a section from the pencil menu through the inline title editor", () => {
+    it("renames a section from the pencil menu through the rename dialog", () => {
       renderSheet();
 
       openMenu("Talks & Workshops");
       fireEvent.click(screen.getByRole("menuitem", { name: "Rename Talks & Workshops section" }));
-      const field = screen.getByRole("textbox", { name: "Section title" });
-      field.textContent = "Talks";
-      fireEvent.focusOut(field);
+      const dialog = screen.getByRole("dialog", { name: "Rename section" });
+      fireEvent.input(within(dialog).getByRole("textbox", { name: "Section title" }), {
+        target: { value: "Talks" },
+      });
+      fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
 
       expect(store.updateCustomSection).toHaveBeenCalledExactlyOnceWith("speaking", {
         name: "Talks",
