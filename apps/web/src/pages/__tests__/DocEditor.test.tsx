@@ -264,7 +264,7 @@ describe("DocEditor sheet", () => {
   });
 
   it("keeps entry editing keyboard-reachable without any in-place editor", async () => {
-    const { container } = await renderSheet();
+    await renderSheet();
     const sheet = screen.getByTestId("doc-sheet");
 
     // Modal editing (owner decision 2026-08-04): entry values are plain
@@ -277,7 +277,9 @@ describe("DocEditor sheet", () => {
       within(experience as HTMLElement).getAllByRole("button", { name: /^Edit / }).length,
     ).toBeGreaterThan(0);
     expect(sheet.querySelectorAll("[contenteditable]")).toHaveLength(0);
-    expect(within(container).queryByRole("dialog")).toBeNull();
+    // Modal portals mount outside the render container, so the "no dialog
+    // open" check must query the whole document.
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("edits an entry through its modal and writes it through the store", async () => {

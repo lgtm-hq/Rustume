@@ -17,6 +17,19 @@ function sheetCard(page: Page, title: string): Locator {
   return page.getByTestId("doc-sheet").locator("[data-section-id]").filter({ hasText: title });
 }
 
+/**
+ * Wait for the save caused by the preceding mutation to land.
+ *
+ * "Saved" alone can be a stale pass — the indicator may still show a prior
+ * save. A mutation flips the status off "Saved" synchronously (dirty for the
+ * 1s autosave debounce), so observing the transition — not-saved, then
+ * saved — pins the new write.
+ */
+async function expectMutationSaved(page: Page): Promise<void> {
+  await expect(page.getByText(/^(Unsaved|Saving\.\.\.)$/)).toBeVisible();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 10_000 });
+}
+
 async function addCustomSection(page: Page, panel: Locator, title: string): Promise<void> {
   await panel.getByRole("button", { name: "Add section" }).click();
   const dialog = page.getByRole("dialog", { name: "Add section" });
@@ -79,8 +92,8 @@ test.describe("custom sections from the panel", () => {
     await addCustomSection(page, panel, "Persistent");
     await expect(panel.getByRole("switch", { name: "Persistent" })).toBeVisible();
 
-    // Let the autosave land before reloading.
-    await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 10_000 });
+    // Let the autosave caused by the add land before reloading.
+    await expectMutationSaved(page);
     await page.reload();
     await expect(docEditorPage.sheet).toBeVisible();
 
@@ -105,7 +118,7 @@ test.describe("custom sections from the panel", () => {
     await expect(sheetCard(page, "Persistent")).toHaveCount(0);
 
     // And the toggled state persists through another save/reload cycle.
-    await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 10_000 });
+    await expectMutationSaved(page);
     await page.reload();
     await expect(docEditorPage.sheet).toBeVisible();
     await page.getByRole("button", { name: "Sections", exact: true }).click();
