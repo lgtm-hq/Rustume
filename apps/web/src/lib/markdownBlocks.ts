@@ -44,9 +44,17 @@ export type MarkdownBlock =
   | { type: "code"; text: string };
 
 const LIST_LINE = /^(\s*)(-|\d+\.)\s+(.*)$/;
-/** An opening fence may carry an info string; a closing fence is bare. */
-const FENCE_OPEN = /^\s*```/;
-const FENCE_CLOSE = /^\s*```+\s*$/;
+/**
+ * An opening fence may carry an info string; a closing fence is bare and at
+ * least as wide as its opener (CommonMark — an inner shorter fence is body).
+ */
+const FENCE_OPEN = /^\s*(`{3,})/;
+const FENCE_CLOSE = /^\s*(`{3,})\s*$/;
+
+/** The closing width of `line` when it is a bare fence, else 0. */
+function closingFenceWidth(line: string): number {
+  return FENCE_CLOSE.exec(line)?.[1].length ?? 0;
+}
 
 /** Spaces per nesting level, matching `LIST_INDENT` in `htmlToMarkdown`. */
 const INDENT_WIDTH = 2;
@@ -170,10 +178,12 @@ export function parseMarkdownBlocks(value: string): MarkdownBlock[] {
 
   /** Body lines of the open fenced block, or null when outside one. */
   let codeLines: string[] | null = null;
+  /** Backtick count of the open fence; a closer must be at least as wide. */
+  let openWidth = 0;
 
   for (const line of value.split(/\r?\n/)) {
     if (codeLines !== null) {
-      if (FENCE_CLOSE.test(line)) {
+      if (closingFenceWidth(line) >= openWidth) {
         blocks.push({ type: "code", text: codeLines.join("\n") });
         codeLines = null;
       } else {
@@ -181,10 +191,12 @@ export function parseMarkdownBlocks(value: string): MarkdownBlock[] {
       }
       continue;
     }
-    if (FENCE_OPEN.test(line)) {
+    const open = FENCE_OPEN.exec(line);
+    if (open) {
       flushParagraph();
       flushList();
       codeLines = [];
+      openWidth = open[1].length;
       continue;
     }
 

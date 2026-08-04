@@ -131,9 +131,13 @@ function toggleList(
   return { value: value2, start: from, end: from + next.length };
 }
 
-/** An opening fence may carry an info string; a closing fence is bare. */
-const FENCE_OPEN = /^\s*```/;
-const FENCE_CLOSE = /^\s*```+\s*$/;
+/**
+ * An opening fence may carry an info string; a closing fence is bare and at
+ * least as wide as its opener (CommonMark — an inner shorter fence is body).
+ * Kept in step with `lib/markdownBlocks.ts`.
+ */
+const FENCE_OPEN = /^\s*(`{3,})/;
+const FENCE_CLOSE = /^\s*(`{3,})\s*$/;
 
 /**
  * The fenced block enclosing the line range `[startLine, endLine]`, or null.
@@ -148,12 +152,18 @@ function enclosingFence(
   endLine: number,
 ): { open: number; close: number } | null {
   let open = -1;
+  let openWidth = 0;
   for (let index = 0; index < lines.length; index += 1) {
     if (open === -1) {
-      if (FENCE_OPEN.test(lines[index])) open = index;
+      const opened = FENCE_OPEN.exec(lines[index]);
+      if (opened) {
+        open = index;
+        openWidth = opened[1].length;
+      }
       continue;
     }
-    if (FENCE_CLOSE.test(lines[index])) {
+    const closeWidth = FENCE_CLOSE.exec(lines[index])?.[1].length ?? 0;
+    if (closeWidth >= openWidth) {
       if (open <= startLine && endLine <= index) return { open, close: index };
       open = -1;
     }

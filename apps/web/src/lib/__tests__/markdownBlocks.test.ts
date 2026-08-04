@@ -211,4 +211,13 @@ describe("parseMarkdownBlocks", () => {
       { type: "code", text: "a\n```not-a-close\nb" },
     ]);
   });
+
+  it("a closing fence must be at least as wide as its opener", () => {
+    // CommonMark: a shorter interior fence is body, matching comrak's export.
+    expect(parseMarkdownBlocks("````\na\n```\nb\n````")).toEqual([
+      { type: "code", text: "a\n```\nb" },
+    ]);
+    // A wider closer still closes.
+    expect(parseMarkdownBlocks("```\na\n````")).toEqual([{ type: "code", text: "a" }]);
+  });
 });

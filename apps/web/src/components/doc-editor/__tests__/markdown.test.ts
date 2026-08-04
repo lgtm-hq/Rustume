@@ -120,4 +120,10 @@ describe("applyMarkdownCommand", () => {
     // "```x" is body, not a close — the block runs on to the real fence.
     expect(run("```\na\n```x\nb\n```", 7, 7, "codeBlock")).toBe("a\n```x\nb");
   });
+
+  it("does not close a four-backtick block at an inner three-backtick line", () => {
+    // CommonMark: the closer must be at least as wide as the opener, so the
+    // inner ``` stays body and unfencing frees the whole block.
+    expect(run("````\na\n```\nb\n````", 6, 6, "codeBlock")).toBe("a\n```\nb");
+  });
 });
