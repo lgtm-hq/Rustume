@@ -81,14 +81,19 @@ export function NameHeader(props: { basics: Basics; isInSidebar?: boolean }): JS
   );
 }
 
-/** The avatar's stored geometry, in sheet pixels. */
+/**
+ * The avatar's stored geometry, in sheet pixels. All stored lengths — size,
+ * radius, border width, shadow size — are points, so every one of them scales
+ * through {@link SHEET_PX_PER_PT} and the on-sheet avatar matches the PDF.
+ */
 function avatarStyle(picture: Picture): JSX.CSSProperties {
   const size = Math.min(Math.round(picture.size * SHEET_PX_PER_PT), MAX_SHEET_AVATAR_PX);
   const radius = Math.min(Math.round(picture.borderRadius * SHEET_PX_PER_PT), size / 2);
   const effects = picture.effects;
   const borderColor =
     effects.borderColor.trim() === "" ? "var(--doc-sheet-accent)" : effects.borderColor;
-  const shadowOffset = (effects.shadowSize || 0) / 2;
+  const borderWidth = effects.borderWidth * SHEET_PX_PER_PT;
+  const shadowOffset = ((effects.shadowSize || 0) * SHEET_PX_PER_PT) / 2;
   return {
     width: `${size}px`,
     height: `${size}px`,
@@ -97,11 +102,11 @@ function avatarStyle(picture: Picture): JSX.CSSProperties {
     transform: effects.rotation === 0 ? undefined : `rotate(${effects.rotation}deg)`,
     border:
       effects.border && effects.borderWidth > 0
-        ? `${effects.borderWidth}px solid ${borderColor}`
+        ? `${borderWidth.toFixed(2)}px solid ${borderColor}`
         : "none",
     "box-shadow":
       effects.shadowSize > 0
-        ? `${shadowOffset}px ${shadowOffset}px 0 ${effects.shadowColor || "#00000040"}`
+        ? `${shadowOffset.toFixed(2)}px ${shadowOffset.toFixed(2)}px 0 ${effects.shadowColor || "#00000040"}`
         : "none",
     "object-fit": "cover",
   };

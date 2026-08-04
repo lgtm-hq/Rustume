@@ -77,12 +77,25 @@ function pencilId(sectionId: string): string {
   return `doc-${sectionId}-section-pencil`;
 }
 
+/** Stable id for a section's pencil menu (`aria-controls` target). */
+function menuId(sectionId: string): string {
+  return `doc-${sectionId}-section-menu`;
+}
+
+/** The menu's operable items, in visual order. */
+function enabledMenuItems(menu: HTMLElement): HTMLButtonElement[] {
+  return [...menu.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')].filter(
+    (item) => !item.disabled,
+  );
+}
+
 export function SectionChrome(props: SectionChromeProps): JSX.Element {
   const isEditable = useSheetEditable();
   const [isMenuOpen, setIsMenuOpen] = createSignal(false);
   const hasChrome = (): boolean => isEditable() && props.menu !== undefined;
 
-  // The menu closes on outside press or Escape, like any popover.
+  // The menu closes on outside press or Escape, like any popover; Escape also
+  // hands focus back to the pencil so a keyboard user is not stranded.
   createEffect(() => {
     if (!isMenuOpen()) return;
     const onDown = (event: MouseEvent): void => {
@@ -90,7 +103,9 @@ export function SectionChrome(props: SectionChromeProps): JSX.Element {
       if (!target?.closest(".doc-sheet__sec-menu, .doc-sheet__sec-pencil")) setIsMenuOpen(false);
     };
     const onKey = (event: KeyboardEvent): void => {
-      if (event.key === "Escape") setIsMenuOpen(false);
+      if (event.key !== "Escape") return;
+      setIsMenuOpen(false);
+      document.getElementById(pencilId(props.sectionId))?.focus();
     };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
@@ -99,6 +114,25 @@ export function SectionChrome(props: SectionChromeProps): JSX.Element {
       document.removeEventListener("keydown", onKey);
     });
   });
+
+  /** Arrow-key roving focus over the menu's enabled items (menu pattern). */
+  function handleMenuKeyDown(event: KeyboardEvent): void {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    const menu = event.currentTarget as HTMLElement;
+    const items = enabledMenuItems(menu);
+    if (items.length === 0) return;
+    event.preventDefault();
+    const active = document.activeElement as HTMLButtonElement | null;
+    const current = active === null ? -1 : items.indexOf(active);
+    const step = event.key === "ArrowDown" ? 1 : -1;
+    const next =
+      current === -1
+        ? step === 1
+          ? 0
+          : items.length - 1
+        : (current + step + items.length) % items.length;
+    items[next]?.focus();
+  }
 
   /**
    * Run a menu action; the menu always closes first.
@@ -170,6 +204,7 @@ export function SectionChrome(props: SectionChromeProps): JSX.Element {
             aria-label={`${props.title} section options`}
             aria-haspopup="menu"
             aria-expanded={isMenuOpen()}
+            aria-controls={isMenuOpen() ? menuId(props.sectionId) : undefined}
             onClick={(event) => {
               event.stopPropagation();
               setIsMenuOpen(!isMenuOpen());
@@ -183,10 +218,16 @@ export function SectionChrome(props: SectionChromeProps): JSX.Element {
       <Show when={hasChrome() && isMenuOpen() && props.menu}>
         {(menu) => (
           <div
+            ref={(element) => {
+              // Focus moves into the menu when it opens, per the menu pattern.
+              queueMicrotask(() => enabledMenuItems(element)[0]?.focus());
+            }}
+            id={menuId(props.sectionId)}
             class="doc-sheet__sec-menu"
             role="menu"
             aria-label={`${props.title} section options`}
             onClick={(event) => event.stopPropagation()}
+            onKeyDown={handleMenuKeyDown}
           >
             <Show when={menu().onAdd}>
               <button type="button" role="menuitem" onClick={menuAct(menu().onAdd)}>

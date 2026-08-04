@@ -135,6 +135,6 @@ test.describe("single-surface document editor", () => {
     // glyph plus the username once — not stacked as title, subtitle and link.
     const profiles = docEditorPage.sheet.locator('[data-section-id="profiles"]');
     await expect(profiles.getByText("lgtm-hq")).toHaveCount(1);
-    await expect(profiles.locator("svg").first()).toBeVisible();
+    await expect(profiles.locator("svg.doc-sheet__row-ico").first()).toBeVisible();
   });
 });

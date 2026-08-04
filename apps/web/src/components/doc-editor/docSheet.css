@@ -389,7 +389,7 @@
   color: inherit;
   text-decoration: underline;
   text-underline-offset: 2px;
-  word-break: break-word;
+  overflow-wrap: anywhere;
   font-size: 0.72rem;
   font-weight: 500;
 }

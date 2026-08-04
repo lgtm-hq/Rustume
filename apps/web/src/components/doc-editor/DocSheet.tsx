@@ -41,6 +41,7 @@ import { SheetModeContext, type SheetMode } from "./sheetMode";
 import {
   canMoveEntryAcross,
   drawnSectionPosition,
+  entryDisplayLabel,
   entryStep,
   moveSectionStep,
   resolveEntryDrop,
@@ -98,27 +99,10 @@ function acceptsDrop(drag: SheetDragData, drop: SheetDropData): boolean {
   return false;
 }
 
-/** Head-line fields an entry might carry, in announcement preference order. */
-const ENTRY_LABEL_KEYS = [
-  "name",
-  "position",
-  "company",
-  "institution",
-  "title",
-  "network",
-  "organization",
-] as const;
-
 /** A short human name for an entry, for announcements and the drag overlay. */
 function entryLabel(resume: ResumeData, sectionId: string, itemId: string): string {
-  const item = sectionItemList(resume, sectionId).find((entry) => entry.id === itemId) as
-    | Record<string, unknown>
-    | undefined;
-  for (const key of ENTRY_LABEL_KEYS) {
-    const value = item?.[key];
-    if (typeof value === "string" && value.trim() !== "") return value;
-  }
-  return "Item";
+  const item = sectionItemList(resume, sectionId).find((entry) => entry.id === itemId);
+  return entryDisplayLabel(item, "Item");
 }
 
 /** The persisted sidebar width override, if any. */
@@ -287,6 +271,11 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
         sheet.querySelector<HTMLElement>(".doc-sheet__main, .doc-sheet__single"),
       );
       sideTotal += columnHeight(sheet.querySelector<HTMLElement>(".doc-sheet__side"));
+      // Legacy >2-column pages: the tallest column stands for the page.
+      const multiColumns = [...sheet.querySelectorAll<HTMLElement>(".doc-sheet__multi-col")].map(
+        (column) => columnHeight(column),
+      );
+      if (multiColumns.length > 0) mainTotal += Math.max(...multiColumns);
     }
     const byHeight = Math.max(1, Math.ceil(Math.max(mainTotal, sideTotal) / PAGE_HEIGHT_PX));
     setMeasuredPages(Math.max(sheets.length, byHeight));
@@ -586,6 +575,11 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
           setSidebarWidth(widthFromPointer(event.clientX));
         }}
         onPointerUp={(event) => {
+          dragOrigin = null;
+          event.currentTarget.releasePointerCapture(event.pointerId);
+        }}
+        onPointerCancel={(event) => {
+          // A cancelled press must not leave stray moves resizing the sidebar.
           dragOrigin = null;
           event.currentTarget.releasePointerCapture(event.pointerId);
         }}

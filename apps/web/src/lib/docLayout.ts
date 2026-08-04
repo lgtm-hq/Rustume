@@ -390,9 +390,16 @@ export function mergePageIntoPrevious(
   const current = pages[pageIndex];
   const columns = Math.max(previous.length, current.length);
   const merged: string[][] = [];
+  // Dedup across the whole merged page, not per column: a section sitting in
+  // a different column on the two pages must still collapse to one placement.
+  const seen = new Set(previous.flat());
   for (let column = 0; column < columns; column++) {
     const head = previous[column] ?? [];
-    const tail = (current[column] ?? []).filter((id) => !head.includes(id));
+    const tail = (current[column] ?? []).filter((id) => {
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
     merged.push([...head, ...tail]);
   }
   pages.splice(pageIndex - 1, 2, merged);

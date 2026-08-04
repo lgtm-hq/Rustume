@@ -42,7 +42,7 @@ import {
   updateSummary,
 } from "./docEdits";
 import { itemNoun } from "./itemFields";
-import { entryStep, type MoveStep } from "../../lib/docDnd";
+import { entryDisplayLabel, entryStep, type MoveStep } from "../../lib/docDnd";
 import { isCustomId, sectionTitle } from "../../lib/docLayout";
 import type {
   Award,
@@ -109,16 +109,9 @@ interface ItemEntry {
   item: AnyItem;
 }
 
-/** Head-line fields an entry might carry, in announcement preference order. */
-const ENTRY_LABEL_KEYS = ["name", "position", "institution", "title", "network"] as const;
-
+/** The entry's display name, shared with the sheet's announcements. */
 function entryLabel(entry: ItemEntry, noun: string): string {
-  const record = entry.item as unknown as Record<string, unknown>;
-  for (const key of ENTRY_LABEL_KEYS) {
-    const value = record[key];
-    if (typeof value === "string" && value.trim() !== "") return value;
-  }
-  return noun;
+  return entryDisplayLabel(entry.item, noun);
 }
 
 /** The items of `sectionId`, with their stored indices. */

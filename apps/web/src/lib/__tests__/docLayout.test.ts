@@ -302,6 +302,23 @@ describe("mergePageIntoPrevious", () => {
     ]);
   });
 
+  it("dedups across columns, not just within the same column index", () => {
+    const layout = [
+      [["summary"], ["skills"]],
+      [
+        ["skills", "projects"],
+        ["summary", "languages"],
+      ],
+    ];
+
+    expect(mergePageIntoPrevious(layout, 1)).toEqual([
+      [
+        ["summary", "projects"],
+        ["skills", "languages"],
+      ],
+    ]);
+  });
+
   it("merges ragged column counts without dropping a column", () => {
     const layout = [[["summary"]], [["experience"], ["languages"]]];
 

@@ -33,10 +33,13 @@ export function SectionsPanel(props: SectionsPanelProps): JSX.Element {
   const [internalOpen, setInternalOpen] = createSignal(false);
   const [adding, setAdding] = createSignal(false);
 
-  const open = (): boolean => props.open ?? internalOpen();
+  // Controlled iff `open` is supplied — and then `onOpenChange` must drive it,
+  // so a one-sided pairing cannot leave the panel stuck open or closed.
+  const isControlled = (): boolean => props.open !== undefined;
+  const open = (): boolean => (isControlled() ? (props.open ?? false) : internalOpen());
   const setOpen = (next: boolean): void => {
-    if (props.onOpenChange) {
-      props.onOpenChange(next);
+    if (isControlled()) {
+      props.onOpenChange?.(next);
       return;
     }
     setInternalOpen(next);
