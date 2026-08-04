@@ -9,6 +9,9 @@ export {
   type RichFieldController,
 } from "./FormatToolbar";
 export { ItemDialog, type ItemDialogProps } from "./ItemDialog";
+export { TagInput, type TagInputProps } from "./TagInput";
+export { ExtraFieldsEditor, type ExtraFieldsEditorProps } from "./ExtraFieldsEditor";
+export { MiniRichEditor, type MiniRichEditorProps } from "./MiniRichEditor";
 export { CustomSectionDialog, type CustomSectionDialogProps } from "./CustomSectionDialog";
 export { PhotoDialog, type PhotoDialogProps } from "./PhotoDialog";
 export { TemplatesDrawer, type TemplatesDrawerProps } from "./TemplatesDrawer";

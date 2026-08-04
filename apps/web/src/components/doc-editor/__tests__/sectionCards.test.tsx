@@ -367,7 +367,7 @@ describe("document sheet structural chrome", () => {
       fireEvent.input(within(dialog).getByRole("textbox", { name: "Name" }), {
         target: { value: "Halo" },
       });
-      fireEvent.click(within(dialog).getByRole("button", { name: "Add project" }));
+      fireEvent.click(within(dialog).getByRole("button", { name: "Add", exact: true }));
 
       expect(store.addSectionItem).toHaveBeenCalledOnce();
       const [sectionId, item] = store.addSectionItem.mock.calls[0] as [

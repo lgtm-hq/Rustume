@@ -58,7 +58,7 @@ describe("item dialog", () => {
       <ItemDialog open sectionId={sectionId} sectionTitle={sectionId} onOpenChange={() => {}} />
     ));
 
-    fireEvent.click(screen.getByRole("button", { name: `Add ${sectionId.replace(/s$/, "")}` }));
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
     expect(store.addSectionItem).toHaveBeenCalledOnce();
     const [committedSection, item] = store.addSectionItem.mock.calls[0] as [
@@ -77,6 +77,26 @@ describe("item dialog", () => {
     expect(item.visible).toBe(true);
   });
 
+  it("titles itself Add · <Section label> and Edit · <Section label>", () => {
+    const { unmount } = render(() => (
+      <ItemDialog open sectionId="awards" sectionTitle="Awards" onOpenChange={() => {}} />
+    ));
+    expect(screen.getByRole("dialog", { name: "Add · Awards" })).toBeInTheDocument();
+    unmount();
+
+    render(() => (
+      <ItemDialog
+        open
+        sectionId="awards"
+        sectionTitle="Awards"
+        index={0}
+        item={{ title: "Ship of the year" }}
+        onOpenChange={() => {}}
+      />
+    ));
+    expect(screen.getByRole("dialog", { name: "Edit · Awards" })).toBeInTheDocument();
+  });
+
   it("carries typed values into the added item", () => {
     render(() => (
       <ItemDialog open sectionId="experience" sectionTitle="Experience" onOpenChange={() => {}} />
@@ -85,15 +105,29 @@ describe("item dialog", () => {
     fireEvent.input(screen.getByRole("textbox", { name: "Company" }), {
       target: { value: "Lumen Health" },
     });
-    fireEvent.input(screen.getByRole("textbox", { name: "Summary" }), {
+    fireEvent.input(screen.getByRole("textbox", { name: "Highlights" }), {
       target: { value: "Owned **Halo**." },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Add experience" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
     expect(store.addSectionItem).toHaveBeenCalledOnce();
     const [, item] = store.addSectionItem.mock.calls[0] as [string, Record<string, unknown>];
     expect(item.company).toBe("Lumen Health");
     expect(item.summary).toBe("Owned **Halo**.");
+  });
+
+  it("falls back to placeholder names for blank headline fields on save", () => {
+    render(() => (
+      <ItemDialog open sectionId="experience" sectionTitle="Experience" onOpenChange={() => {}} />
+    ));
+
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    // Spec §1.13: a blank company/position saves as "Company"/"Role" so the
+    // sheet still draws a recognisable row.
+    const [, item] = store.addSectionItem.mock.calls[0] as [string, Record<string, unknown>];
+    expect(item.company).toBe("Company");
+    expect(item.position).toBe("Role");
   });
 
   it("edits an existing item through one updateSectionItem call", () => {
@@ -114,9 +148,11 @@ describe("item dialog", () => {
       />
     ));
 
-    fireEvent.input(screen.getByRole("textbox", { name: "Keywords" }), {
-      target: { value: "wasm, axum" },
-    });
+    const tags = screen.getByRole("textbox", { name: "Tags" });
+    fireEvent.input(tags, { target: { value: "wasm" } });
+    fireEvent.keyDown(tags, { key: "Enter" });
+    fireEvent.input(tags, { target: { value: "axum" } });
+    fireEvent.keyDown(tags, { key: "Enter" });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     expect(store.addSectionItem).not.toHaveBeenCalled();
@@ -139,7 +175,7 @@ describe("item dialog", () => {
     fireEvent.input(screen.getByRole("textbox", { name: "Name" }), {
       target: { value: "Design Tokens" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Add talk" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
     expect(store.addCustomSectionItem).toHaveBeenCalledOnce();
     const [sectionId, item] = store.addCustomSectionItem.mock.calls[0] as [
@@ -204,42 +240,218 @@ describe("item dialog", () => {
     },
   );
 
-  it("keeps the separator while a keyword list is being typed", () => {
-    render(() => (
-      <ItemDialog
-        open
-        sectionId="skills"
-        sectionTitle="Skills"
-        index={0}
-        item={{ name: "Rust", keywords: [] }}
-        onOpenChange={() => {}}
-      />
-    ));
+  describe("tag input", () => {
+    function renderSkills(): HTMLElement {
+      render(() => (
+        <ItemDialog
+          open
+          sectionId="skills"
+          sectionTitle="Skills"
+          index={0}
+          item={{ ...(emptyItemFor("skills") as object), id: "s1", name: "Rust" }}
+          onOpenChange={() => {}}
+        />
+      ));
+      return screen.getByRole("textbox", { name: "Tags" });
+    }
 
-    // The field is controlled, so rendering the parsed list back would erase
-    // the comma the moment it is typed and no second keyword could be started.
-    const input = screen.getByRole("textbox", { name: "Keywords" }) as HTMLInputElement;
-    fireEvent.input(input, { target: { value: "rust," } });
-    expect(input.value).toBe("rust,");
-    fireEvent.input(input, { target: { value: "rust, wasm" } });
-    expect(input.value).toBe("rust, wasm");
+    function savedKeywords(): unknown {
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+      const [, , updates] = store.updateSectionItem.mock.calls[0] as [
+        string,
+        number,
+        Record<string, unknown>,
+      ];
+      return updates.keywords;
+    }
 
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    it("commits a chip on comma, stripping the separator", () => {
+      const input = renderSkills();
 
-    const [, , updates] = store.updateSectionItem.mock.calls[0] as [
-      string,
-      number,
-      Record<string, unknown>,
-    ];
-    expect(updates.keywords).toEqual(["rust", "wasm"]);
+      fireEvent.input(input, { target: { value: "wasm" } });
+      fireEvent.keyDown(input, { key: "," });
+
+      expect(savedKeywords()).toEqual(["wasm"]);
+    });
+
+    it("commits the draft on blur", () => {
+      const input = renderSkills();
+
+      fireEvent.input(input, { target: { value: "wasm" } });
+      fireEvent.blur(input);
+
+      expect(savedKeywords()).toEqual(["wasm"]);
+    });
+
+    it("drops duplicates and trims whitespace", () => {
+      const input = renderSkills();
+
+      for (const raw of ["wasm ", " wasm"]) {
+        fireEvent.input(input, { target: { value: raw } });
+        fireEvent.keyDown(input, { key: "Enter" });
+      }
+
+      expect(savedKeywords()).toEqual(["wasm"]);
+    });
+
+    it("pops the last chip on Backspace over an empty draft", () => {
+      const input = renderSkills();
+
+      for (const tag of ["wasm", "axum"]) {
+        fireEvent.input(input, { target: { value: tag } });
+        fireEvent.keyDown(input, { key: "Enter" });
+      }
+      fireEvent.keyDown(input, { key: "Backspace" });
+
+      expect(savedKeywords()).toEqual(["wasm"]);
+    });
+
+    it("removes a chip through its own remove button", () => {
+      const input = renderSkills();
+
+      for (const tag of ["wasm", "axum"]) {
+        fireEvent.input(input, { target: { value: tag } });
+        fireEvent.keyDown(input, { key: "Enter" });
+      }
+      fireEvent.click(screen.getByRole("button", { name: "Remove wasm" }));
+
+      expect(savedKeywords()).toEqual(["axum"]);
+    });
   });
 
-  it("is a labelled dialog", () => {
-    render(() => (
-      <ItemDialog open sectionId="awards" sectionTitle="Awards" onOpenChange={() => {}} />
-    ));
+  describe("proficiency picker", () => {
+    it("offers five labelled level cards", () => {
+      render(() => (
+        <ItemDialog open sectionId="languages" sectionTitle="Languages" onOpenChange={() => {}} />
+      ));
 
-    expect(screen.getByRole("dialog", { name: "Add award" })).toBeInTheDocument();
+      const cards = screen.getAllByRole("radio");
+      expect(cards).toHaveLength(5);
+      expect(cards.map((card) => card.textContent)).toEqual([
+        "1Beginner",
+        "2Elementary",
+        "3Conversational",
+        "4Fluent",
+        "5Native",
+      ]);
+    });
+
+    it("saves the picked level with its label as the description", () => {
+      render(() => (
+        <ItemDialog open sectionId="languages" sectionTitle="Languages" onOpenChange={() => {}} />
+      ));
+
+      fireEvent.click(screen.getByRole("radio", { name: /Native/ }));
+      fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+      const [, item] = store.addSectionItem.mock.calls[0] as [string, Record<string, unknown>];
+      expect(item.level).toBe(5);
+      expect(item.description).toBe("Native");
+    });
+
+    it("defaults an untouched add to level 3", () => {
+      render(() => (
+        <ItemDialog open sectionId="skills" sectionTitle="Skills" onOpenChange={() => {}} />
+      ));
+
+      fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+      const [, item] = store.addSectionItem.mock.calls[0] as [string, Record<string, unknown>];
+      expect(item.level).toBe(3);
+      expect(item.description).toBe("Conversational");
+    });
+
+    it("never clobbers a description the user wrote themselves", () => {
+      render(() => (
+        <ItemDialog
+          open
+          sectionId="languages"
+          sectionTitle="Languages"
+          index={0}
+          item={{
+            id: "l1",
+            visible: true,
+            name: "French",
+            description: "Business fluent",
+            level: 4,
+          }}
+          onOpenChange={() => {}}
+        />
+      ));
+
+      fireEvent.click(screen.getByRole("radio", { name: /Native/ }));
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      const [, , updates] = store.updateSectionItem.mock.calls[0] as [
+        string,
+        number,
+        Record<string, unknown>,
+      ];
+      expect(updates.level).toBe(5);
+      // Owner decision: free-text descriptions are preserved; only an empty
+      // or previously auto-set label follows the picker.
+      expect(updates.description).toBe("Business fluent");
+    });
+
+    it("re-labels a description that was itself an auto-set label", () => {
+      render(() => (
+        <ItemDialog
+          open
+          sectionId="languages"
+          sectionTitle="Languages"
+          index={0}
+          item={{ id: "l1", visible: true, name: "French", description: "Fluent", level: 4 }}
+          onOpenChange={() => {}}
+        />
+      ));
+
+      fireEvent.click(screen.getByRole("radio", { name: /Beginner/ }));
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      const [, , updates] = store.updateSectionItem.mock.calls[0] as [
+        string,
+        number,
+        Record<string, unknown>,
+      ];
+      expect(updates.description).toBe("Beginner");
+    });
+  });
+
+  describe("custom fields", () => {
+    it("adds a row and saves it with the schema's name/value shape", () => {
+      render(() => (
+        <ItemDialog open sectionId="experience" sectionTitle="Experience" onOpenChange={() => {}} />
+      ));
+
+      fireEvent.click(screen.getByRole("button", { name: "+ Add field" }));
+      fireEvent.input(screen.getByRole("textbox", { name: "Field name" }), {
+        target: { value: "Stack" },
+      });
+      fireEvent.input(screen.getByRole("textbox", { name: "Field value" }), {
+        target: { value: "Rust · Solid" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+      const [, item] = store.addSectionItem.mock.calls[0] as [string, Record<string, unknown>];
+      const fields = item.customFields as Array<Record<string, string>>;
+      expect(fields).toHaveLength(1);
+      expect(fields[0].name).toBe("Stack");
+      expect(fields[0].value).toBe("Rust · Solid");
+      expect(fields[0].icon).toBe("");
+      expect(fields[0].id).not.toBe("");
+    });
+
+    it("drops rows left entirely blank on save", () => {
+      render(() => (
+        <ItemDialog open sectionId="experience" sectionTitle="Experience" onOpenChange={() => {}} />
+      ));
+
+      fireEvent.click(screen.getByRole("button", { name: "+ Add field" }));
+      fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+      const [, item] = store.addSectionItem.mock.calls[0] as [string, Record<string, unknown>];
+      expect(item.customFields).toEqual([]);
+    });
   });
 });
 
@@ -247,7 +459,7 @@ describe("custom section dialog", () => {
   it("creates a section through addCustomSection", () => {
     render(() => <CustomSectionDialog open onOpenChange={() => {}} />);
 
-    fireEvent.input(screen.getByRole("textbox", { name: "Section name" }), {
+    fireEvent.input(screen.getByRole("textbox", { name: "Section title" }), {
       target: { value: "Talks & Workshops" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Add section" }));
@@ -260,7 +472,7 @@ describe("custom section dialog", () => {
       <CustomSectionDialog open sectionId="speaking" name="Talks" onOpenChange={() => {}} />
     ));
 
-    fireEvent.input(screen.getByRole("textbox", { name: "Section name" }), {
+    fireEvent.input(screen.getByRole("textbox", { name: "Section title" }), {
       target: { value: "Talks & Workshops" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Rename" }));

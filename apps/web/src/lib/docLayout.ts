@@ -549,6 +549,8 @@ export function emptyItemFor(sectionId: string): SectionItem | null {
         date: "",
         summary: "",
         url: createEmptyUrl(),
+        keywords: [],
+        customFields: [],
       } satisfies Experience;
     case "education":
       return {
@@ -561,6 +563,8 @@ export function emptyItemFor(sectionId: string): SectionItem | null {
         score: "",
         summary: "",
         url: createEmptyUrl(),
+        keywords: [],
+        customFields: [],
       } satisfies Education;
     case "skills":
       return {
@@ -570,6 +574,7 @@ export function emptyItemFor(sectionId: string): SectionItem | null {
         description: "",
         level: 0,
         keywords: [],
+        customFields: [],
       } satisfies Skill;
     case "projects":
       return {
@@ -581,6 +586,7 @@ export function emptyItemFor(sectionId: string): SectionItem | null {
         summary: "",
         keywords: [],
         url: createEmptyUrl(),
+        customFields: [],
       } satisfies Project;
     case "profiles":
       return {

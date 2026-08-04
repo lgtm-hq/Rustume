@@ -171,7 +171,7 @@ describe("DocEditor undo, autosave, and version history", () => {
     fireEvent.input(within(dialog).getByRole("textbox", { name: "Company" }), {
       target: { value: "Aster Labs" },
     });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Add experience" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add", exact: true }));
     await settleDebounce();
 
     expect(

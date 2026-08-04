@@ -503,6 +503,8 @@ describe("emptyItemFor", () => {
       date: "",
       summary: "",
       url: { label: "", href: "" },
+      keywords: [],
+      customFields: [],
     });
   });
 
@@ -517,6 +519,8 @@ describe("emptyItemFor", () => {
       score: "",
       summary: "",
       url: { label: "", href: "" },
+      keywords: [],
+      customFields: [],
     });
   });
 
@@ -528,6 +532,7 @@ describe("emptyItemFor", () => {
       description: "",
       level: 0,
       keywords: [],
+      customFields: [],
     });
   });
 
@@ -541,6 +546,7 @@ describe("emptyItemFor", () => {
       summary: "",
       keywords: [],
       url: { label: "", href: "" },
+      customFields: [],
     });
   });
 
