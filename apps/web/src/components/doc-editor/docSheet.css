@@ -1231,82 +1231,91 @@
   font-style: italic;
 }
 
-.doc-sheet__inline-input {
+/* The armed LiveText field: the text itself, editable in place. A single-line
+   field declares itself with a 1.5px accent inner underline; the rich block
+   with a 1px accent inset outline whose padding is compensated by negative
+   margins so the text does not shift (spec §1.11). */
+.doc-sheet__live-field {
   font: inherit;
   color: inherit;
   letter-spacing: inherit;
   text-transform: inherit;
-  width: 100%;
+  text-align: inherit;
   padding: 0.05em 0.15em;
   margin: -0.05em -0.15em;
-  background: var(--doc-sheet-bg);
-  border: 1px solid var(--doc-sheet-accent);
   border-radius: 0.15em;
+  outline: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  caret-color: var(--doc-sheet-accent);
+  box-shadow: inset 0 -1.5px 0 var(--doc-sheet-accent);
 }
 
-.doc-sheet__inline-input:focus-visible {
-  outline: 2px solid var(--doc-sheet-accent);
-  outline-offset: 1px;
-}
-
-/* ── Markdown mini editor ──────────────────────────────────────────────── */
-
-.doc-sheet__markdown {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35em;
+.doc-sheet__live-field--rich {
+  display: block;
   padding: 0.35em;
-  border: 1px solid var(--doc-sheet-rule);
+  margin: -0.35em;
+  box-shadow: inset 0 0 0 1px var(--doc-sheet-accent);
   border-radius: 0.25em;
-  background: var(--doc-sheet-bg);
+  min-height: 1.4em;
 }
 
-.doc-sheet__markdown-toolbar,
-.doc-sheet__markdown-link,
-.doc-sheet__markdown-footer {
+/* ── Floating format toolbar (spec §1.12) ───────────────────────────────────
+ *
+ * Fixed top-centre under the top bar, only while a rich LiveText is armed.
+ * Deliberately dark whatever the sheet palette: it is editor chrome, not
+ * document content, and must read as such on any template background.
+ */
+.doc-sheet__fmtbar {
+  position: fixed;
+  top: 4.2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.25em;
   align-items: center;
+  gap: 0.25rem;
+  padding: 0.3rem 0.45rem;
+  background: #1c1917;
+  border-radius: 0.6rem;
+  box-shadow: 0 6px 24px rgb(12 10 9 / 35%);
 }
 
-.doc-sheet__markdown-button {
+.doc-sheet__fmtbar-button {
   font: inherit;
-  font-size: 0.85em;
+  font-size: 0.85rem;
   line-height: 1;
-  color: var(--doc-sheet-accent);
-  background: var(--doc-sheet-tint);
-  border: 1px solid var(--doc-sheet-rule);
-  border-radius: 0.2em;
-  padding: 0.3em 0.5em;
+  color: #e7e5e4;
+  background: transparent;
+  border: 0;
+  border-radius: 0.35rem;
+  padding: 0.35rem 0.55rem;
   cursor: pointer;
   min-width: 2em;
 }
 
-.doc-sheet__markdown-button:hover {
-  background: var(--doc-sheet-rule);
+.doc-sheet__fmtbar-button:hover {
+  background: rgb(255 255 255 / 12%);
 }
 
-.doc-sheet__markdown-button:focus-visible {
-  outline: 2px solid var(--doc-sheet-accent);
+.doc-sheet__fmtbar-button:focus-visible {
+  outline: 2px solid #e7e5e4;
   outline-offset: 1px;
 }
 
-.doc-sheet__markdown-input,
-.doc-sheet__markdown-href {
+.doc-sheet__fmtbar-href {
   font: inherit;
-  color: inherit;
-  width: 100%;
-  padding: 0.25em 0.35em;
-  background: var(--doc-sheet-bg);
-  border: 1px solid var(--doc-sheet-rule);
-  border-radius: 0.2em;
-  resize: vertical;
+  font-size: 0.85rem;
+  color: #e7e5e4;
+  background: rgb(255 255 255 / 8%);
+  border: 1px solid rgb(255 255 255 / 25%);
+  border-radius: 0.35rem;
+  padding: 0.3rem 0.45rem;
+  min-width: 12em;
 }
 
-.doc-sheet__markdown-href {
-  flex: 1;
-  min-width: 8em;
+.doc-sheet__fmtbar-href::placeholder {
+  color: rgb(231 229 228 / 55%);
 }
 
 /* ── Touch fallback ─────────────────────────────────────────────────────────

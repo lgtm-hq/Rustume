@@ -132,9 +132,9 @@ describe("document sheet structural chrome", () => {
 
       openMenu("Talks & Workshops");
       fireEvent.click(screen.getByRole("menuitem", { name: "Rename Talks & Workshops section" }));
-      const input = screen.getByRole("textbox", { name: "Section title" });
-      fireEvent.input(input, { target: { value: "Talks" } });
-      fireEvent.blur(input);
+      const field = screen.getByRole("textbox", { name: "Section title" });
+      field.textContent = "Talks";
+      fireEvent.focusOut(field);
 
       expect(store.updateCustomSection).toHaveBeenCalledExactlyOnceWith("speaking", {
         name: "Talks",

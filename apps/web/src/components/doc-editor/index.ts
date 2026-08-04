@@ -1,9 +1,13 @@
 export { DocSheet, type DocSheetProps } from "./DocSheet";
 export { ContactBlock, NameHeader, SheetAvatar, type ContactBlockProps } from "./DocHeader";
 export { DocSection, type DocSectionProps } from "./DocSection";
-export { InlineText, type InlineTextProps } from "./InlineText";
-export { InlineMarkdown, type InlineMarkdownProps } from "./InlineMarkdown";
-export { MarkdownEditor, type MarkdownEditorProps } from "./MarkdownEditor";
+export { LiveText, type LiveTextProps } from "./LiveText";
+export {
+  FormatToolbar,
+  FormatToolbarContext,
+  createFormatToolbarState,
+  type RichFieldController,
+} from "./FormatToolbar";
 export { ItemDialog, type ItemDialogProps } from "./ItemDialog";
 export { CustomSectionDialog, type CustomSectionDialogProps } from "./CustomSectionDialog";
 export { PhotoDialog, type PhotoDialogProps } from "./PhotoDialog";

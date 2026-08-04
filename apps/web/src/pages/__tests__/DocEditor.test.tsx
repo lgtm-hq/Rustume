@@ -283,12 +283,12 @@ describe("DocEditor sheet", () => {
     const sheet = screen.getByTestId("doc-sheet");
     const experience = sheet.querySelector<HTMLElement>('[data-section-id="experience"]');
 
-    fireEvent.click(
+    fireEvent.dblClick(
       within(experience as HTMLElement).getByRole("button", { name: "Lumen Health" }),
     );
-    const input = within(experience as HTMLElement).getByRole("textbox", { name: "Company" });
-    fireEvent.input(input, { target: { value: "Lumen Health Group" } });
-    fireEvent.blur(input);
+    const field = within(experience as HTMLElement).getByRole("textbox", { name: "Company" });
+    field.textContent = "Lumen Health Group";
+    fireEvent.focusOut(field);
 
     // The store is the real one here, so the sheet redraws from what it holds.
     await waitFor(() =>

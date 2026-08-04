@@ -87,12 +87,12 @@ function experienceSection(): HTMLElement {
   return sheet.querySelector<HTMLElement>('[data-section-id="experience"]') as HTMLElement;
 }
 
-/** Commit an inline text edit on the experience company field. */
+/** Commit an inline text edit on the experience company field (LiveText). */
 function editCompany(currentLabel: string, value: string) {
-  fireEvent.click(within(experienceSection()).getByRole("button", { name: currentLabel }));
-  const input = within(experienceSection()).getByRole("textbox", { name: "Company" });
-  fireEvent.input(input, { target: { value } });
-  fireEvent.blur(input);
+  fireEvent.dblClick(within(experienceSection()).getByRole("button", { name: currentLabel }));
+  const field = within(experienceSection()).getByRole("textbox", { name: "Company" });
+  field.textContent = value;
+  fireEvent.focusOut(field);
 }
 
 function undoButton(): HTMLElement {
@@ -144,10 +144,10 @@ describe("DocEditor undo, autosave, and version history", () => {
     await renderSheet();
     const section = experienceSection();
 
-    fireEvent.click(within(section).getByRole("button", { name: "Lumen Health" }));
-    const input = within(section).getByRole("textbox", { name: "Company" });
-    fireEvent.input(input, { target: { value: "Lumen Health Group" } });
-    fireEvent.blur(input);
+    fireEvent.dblClick(within(section).getByRole("button", { name: "Lumen Health" }));
+    const field = within(section).getByRole("textbox", { name: "Company" });
+    field.textContent = "Lumen Health Group";
+    fireEvent.focusOut(field);
     await settleDebounce();
 
     expect(undoButton()).not.toBeDisabled();
@@ -214,10 +214,7 @@ describe("DocEditor undo, autosave, and version history", () => {
     editCompany("Lumen Health", "Lumen A");
     // Well inside the 500 ms debounce window — same burst.
     await settleDebounce(100);
-    fireEvent.click(within(experienceSection()).getByRole("button", { name: "Lumen A" }));
-    const input = within(experienceSection()).getByRole("textbox", { name: "Company" });
-    fireEvent.input(input, { target: { value: "Lumen AB" } });
-    fireEvent.blur(input);
+    editCompany("Lumen A", "Lumen AB");
     await settleDebounce();
 
     fireEvent.click(undoButton());
@@ -231,10 +228,10 @@ describe("DocEditor undo, autosave, and version history", () => {
     await renderSheet();
     const section = experienceSection();
 
-    fireEvent.click(within(section).getByRole("button", { name: "Lumen Health" }));
-    const input = within(section).getByRole("textbox", { name: "Company" });
-    fireEvent.input(input, { target: { value: "Lumen Health Group" } });
-    fireEvent.blur(input);
+    fireEvent.dblClick(within(section).getByRole("button", { name: "Lumen Health" }));
+    const field = within(section).getByRole("textbox", { name: "Company" });
+    field.textContent = "Lumen Health Group";
+    fireEvent.focusOut(field);
     await settleDebounce();
 
     fireEvent.keyDown(document.body, { key: "z", ctrlKey: true });

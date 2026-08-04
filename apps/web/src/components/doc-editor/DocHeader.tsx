@@ -14,7 +14,7 @@
  */
 
 import { For, Show, createSignal, type JSX } from "solid-js";
-import { InlineText } from "./InlineText";
+import { LiveText } from "./LiveText";
 import { PhotoDialog } from "./PhotoDialog";
 import { SectionChrome } from "./SectionChrome";
 import { ContactIcon, type ContactIconKind } from "./icons";
@@ -57,7 +57,7 @@ export function NameHeader(props: { basics: Basics; isInSidebar?: boolean }): JS
     >
       <Show when={isEditable() || props.basics.name.trim() !== ""}>
         <h2 class="doc-sheet__name">
-          <InlineText
+          <LiveText
             value={props.basics.name}
             label="Name"
             placeholder="Your name"
@@ -68,7 +68,7 @@ export function NameHeader(props: { basics: Basics; isInSidebar?: boolean }): JS
       </Show>
       <Show when={isEditable() || props.basics.headline.trim() !== ""}>
         <p class="doc-sheet__headline">
-          <InlineText
+          <LiveText
             value={props.basics.headline}
             label="Headline"
             placeholder="Your headline"
@@ -290,7 +290,7 @@ export function ContactBlock(props: ContactBlockProps): JSX.Element {
                     <ContactIcon kind={entry.kind} />
                     <span class="sr-only">{entry.fieldLabel}</span>
                   </Show>
-                  <InlineText
+                  <LiveText
                     value={entry.value}
                     label={entry.fieldLabel}
                     class="doc-sheet__side-val"

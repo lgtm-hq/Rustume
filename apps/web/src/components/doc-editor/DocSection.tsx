@@ -23,10 +23,8 @@
 
 import { For, Show, createSignal, type JSX } from "solid-js";
 import { createDraggable, createDroppable } from "@thisbeyond/solid-dnd";
-import { InlineMarkdown } from "./InlineMarkdown";
-import { InlineText } from "./InlineText";
 import { ItemDialog } from "./ItemDialog";
-import { MarkdownView } from "./MarkdownView";
+import { LiveText } from "./LiveText";
 import { SectionChrome, sectionTitleTriggerId, type SectionMenuActions } from "./SectionChrome";
 import { SortableEntry } from "./SortableEntry";
 import { ContactIcon, ProfileIcon } from "./icons";
@@ -140,7 +138,7 @@ function Slot(props: {
   return (
     <Show when={props.field.field} fallback={<span class={props.class}>{props.field.value}</span>}>
       {(key) => (
-        <InlineText
+        <LiveText
           value={props.field.value}
           label={props.field.label}
           class={props.class}
@@ -200,7 +198,7 @@ function LevelDots(props: { value: number }): JSX.Element {
   );
 }
 
-/** The rich summary of an item: inline-editable markdown, formatted in Done. */
+/** The rich summary of an item: armed markdown editing in place (spec §1.11). */
 function EntrySummary(props: {
   value: string;
   idPrefix: string;
@@ -210,14 +208,13 @@ function EntrySummary(props: {
   return (
     <Show when={isEditable() || hasText(props.value)}>
       <div class="doc-sheet__entry-sum">
-        <Show when={isEditable()} fallback={<MarkdownView value={props.value} />}>
-          <InlineMarkdown
-            value={props.value}
-            label="Summary"
-            triggerId={`${props.idPrefix}-summary`}
-            onCommit={props.onCommit}
-          />
-        </Show>
+        <LiveText
+          rich
+          value={props.value}
+          label="Summary"
+          triggerId={`${props.idPrefix}-summary`}
+          onCommit={props.onCommit}
+        />
       </div>
     </Show>
   );
@@ -560,7 +557,8 @@ export function DocSection(props: DocSectionProps): JSX.Element {
       >
         <Show when={isRichText()}>
           <div class="doc-sheet__summary">
-            <InlineMarkdown
+            <LiveText
+              rich
               value={richText()}
               label={title()}
               triggerId={`doc-${id()}-rich-text`}

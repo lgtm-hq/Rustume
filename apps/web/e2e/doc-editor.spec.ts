@@ -87,7 +87,9 @@ test.describe("single-surface document editor", () => {
     await docEditorPage.assertMode("edit");
 
     // Put some content on the sheet so Done mode has a document to render.
-    await page.getByRole("button", { name: "Your name", exact: true }).click();
+    // Double-click arms the LiveText in place (#795); typing edits the text
+    // itself and Enter commits.
+    await page.getByRole("button", { name: "Your name", exact: true }).dblclick();
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Ada Lovelace");
     await page.keyboard.press("Enter");
     await expect(page.getByRole("heading", { name: "Ada Lovelace" })).toBeVisible();
