@@ -36,7 +36,7 @@ import { CustomSectionDialog } from "./CustomSectionDialog";
 import { ContactBlock, NameHeader, SheetAvatar } from "./DocHeader";
 import { DocSection } from "./DocSection";
 import { FormatToolbar, FormatToolbarContext, createFormatToolbarState } from "./FormatToolbar";
-import { applyLayout, moveItemAcrossSections, reorderItem } from "./docEdits";
+import { applyLayout, moveItemAcrossSections, reorderItem, updateSidebarRatio } from "./docEdits";
 import { PlusIcon } from "./icons";
 import { SheetModeContext, type SheetMode } from "./sheetMode";
 import {
@@ -53,6 +53,7 @@ import {
 } from "../../lib/docDnd";
 import {
   PAGE_HEIGHT_PX,
+  SHEET_CONTENT_WIDTH_PX,
   SHEET_PX_PER_PT,
   editorPages,
   findSectionPlacement,
@@ -73,8 +74,6 @@ const SIDEBAR_MIN_PX = 160;
 const SIDEBAR_MAX_PX = 360;
 /** Fallback sidebar width when the template declares none: a third of A4. */
 const SIDEBAR_DEFAULT_PX = 287;
-/** Where a resized sidebar width persists, per the spec. */
-const SIDEBAR_WIDTH_STORAGE_KEY = "rustume.studio.sidebarWidth";
 /** Keyboard resize step for the handle. */
 const SIDEBAR_KEY_STEP_PX = 8;
 
@@ -104,17 +103,6 @@ function acceptsDrop(drag: SheetDragData, drop: SheetDropData): boolean {
 function entryLabel(resume: ResumeData, sectionId: string, itemId: string): string {
   const item = sectionItemList(resume, sectionId).find((entry) => entry.id === itemId);
   return entryDisplayLabel(item, "Item");
-}
-
-/** The persisted sidebar width override, if any. */
-function storedSidebarWidth(): number | null {
-  try {
-    const raw = globalThis.localStorage?.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
-    const value = raw === null || raw === undefined ? Number.NaN : Number.parseInt(raw, 10);
-    return Number.isFinite(value) ? value : null;
-  } catch {
-    return null;
-  }
 }
 
 function clampSidebarWidth(px: number): number {
@@ -217,30 +205,37 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
   const [activeDrag, setActiveDrag] = createSignal<SheetDragData | null>(null);
   const [announcement, setAnnouncement] = createSignal("");
   const [measuredPages, setMeasuredPages] = createSignal(1);
-  const [sidebarOverride, setSidebarOverride] = createSignal<number | null>(storedSidebarWidth());
+  // Live width while a resize drag is in flight; `null` between gestures.
+  const [dragSidebarWidth, setDragSidebarWidth] = createSignal<number | null>(null);
   let root: HTMLDivElement | undefined;
 
   function announce(message: string): void {
     announceLive(setAnnouncement, message);
   }
 
-  /** The sidebar width in sheet pixels: the user's override, else the template's. */
+  /**
+   * The sidebar width in sheet pixels. The sidebar split is a **document
+   * property** (owner decision, spec §4.2): `metadata.page.sidebarRatio`
+   * overrides the template's declared width, so a resize follows the document
+   * to every device and to the PDF. A drag in flight previews locally and
+   * writes the ratio once, on release — one gesture, one undo entry.
+   */
   const sidebarWidth = createMemo<number>(() => {
-    const override = sidebarOverride();
-    if (override !== null) return clampSidebarWidth(override);
+    const dragging = dragSidebarWidth();
+    if (dragging !== null) return clampSidebarWidth(dragging);
+    const ratio = props.resume.metadata.page.sidebarRatio;
+    if (typeof ratio === "number" && Number.isFinite(ratio)) {
+      return clampSidebarWidth(ratio * SHEET_CONTENT_WIDTH_PX);
+    }
     const declared = props.templateLayout.sidebarWidth;
     if (declared === null || declared <= 0) return SIDEBAR_DEFAULT_PX;
     return clampSidebarWidth(declared * SHEET_PX_PER_PT);
   });
 
-  function setSidebarWidth(px: number): void {
-    const next = clampSidebarWidth(px);
-    setSidebarOverride(next);
-    try {
-      globalThis.localStorage?.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(next));
-    } catch {
-      // Persistence is best-effort; the in-session width still applies.
-    }
+  /** Persist a settled width as the document's sidebar ratio. */
+  function commitSidebarWidth(px: number): void {
+    setDragSidebarWidth(null);
+    updateSidebarRatio(clampSidebarWidth(px) / SHEET_CONTENT_WIDTH_PX);
   }
 
   /**
@@ -573,15 +568,18 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
         }}
         onPointerMove={(event) => {
           if (!dragOrigin) return;
-          setSidebarWidth(widthFromPointer(event.clientX));
+          setDragSidebarWidth(widthFromPointer(event.clientX));
         }}
         onPointerUp={(event) => {
+          if (dragOrigin) commitSidebarWidth(widthFromPointer(event.clientX));
           dragOrigin = null;
           event.currentTarget.releasePointerCapture(event.pointerId);
         }}
         onPointerCancel={(event) => {
-          // A cancelled press must not leave stray moves resizing the sidebar.
+          // A cancelled press must not leave stray moves resizing the sidebar
+          // — and must not write the half-finished width to the document.
           dragOrigin = null;
+          setDragSidebarWidth(null);
           event.currentTarget.releasePointerCapture(event.pointerId);
         }}
         onKeyDown={(event) => {
@@ -589,10 +587,10 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
           const shrink = handleProps.isRightSidebar ? "ArrowRight" : "ArrowLeft";
           if (event.key === grow) {
             event.preventDefault();
-            setSidebarWidth(sidebarWidth() + SIDEBAR_KEY_STEP_PX);
+            commitSidebarWidth(sidebarWidth() + SIDEBAR_KEY_STEP_PX);
           } else if (event.key === shrink) {
             event.preventDefault();
-            setSidebarWidth(sidebarWidth() - SIDEBAR_KEY_STEP_PX);
+            commitSidebarWidth(sidebarWidth() - SIDEBAR_KEY_STEP_PX);
           }
         }}
       />

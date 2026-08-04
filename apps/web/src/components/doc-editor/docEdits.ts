@@ -12,7 +12,12 @@
  * once, on save, rather than per keystroke.
  */
 
-import { isCustomId, layoutForTemplate, type TemplateLayout } from "../../lib/docLayout";
+import {
+  clampSidebarRatio,
+  isCustomId,
+  layoutForTemplate,
+  type TemplateLayout,
+} from "../../lib/docLayout";
 import { resumeStore, type LayoutSectionKey, type SectionKey } from "../../stores/resume";
 import type { Basics, CustomItem, Picture } from "../../wasm/types";
 
@@ -174,4 +179,20 @@ export function applyTemplate(templateId: string, templateLayout: TemplateLayout
 /** Replace the private notes scratch text. Plain text; never rendered to PDF. */
 export function updateNotes(notes: string): void {
   resumeStore.updateMetadata("notes", notes);
+}
+
+/**
+ * Persist the sidebar split as `metadata.page.sidebarRatio` — the sidebar is
+ * a **document property** (owner decision, spec §4.2), not a device
+ * preference, so a resized document renders the same everywhere, PDF
+ * included. Clamped to the schema's 0.1–0.5; one resize gesture is one store
+ * action and one undo entry.
+ */
+export function updateSidebarRatio(ratio: number): void {
+  const resume = resumeStore.store.resume;
+  if (!resume) return;
+  resumeStore.updateMetadata("page", {
+    ...resume.metadata.page,
+    sidebarRatio: clampSidebarRatio(ratio),
+  });
 }

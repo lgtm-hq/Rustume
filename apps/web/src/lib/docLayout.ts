@@ -203,7 +203,15 @@ const DEFAULT_SIDEBAR_RATIO = 1 / 3;
 const MIN_SIDEBAR_RATIO = 0.1;
 const MAX_SIDEBAR_RATIO = 0.5;
 
-function clampSidebarRatio(ratio: number): number {
+/**
+ * The sheet's content width in sheet pixels — what `metadata.page.sidebarRatio`
+ * is a fraction *of*. The ratio is content-relative because that is how the
+ * renderer reads it (`_common.typ`), so a sheet resize and the PDF agree.
+ */
+export const SHEET_CONTENT_WIDTH_PX = NOMINAL_CONTENT_WIDTH_PT * SHEET_PX_PER_PT;
+
+/** Clamp a sidebar ratio to the schema's legal 0.1–0.5 range. */
+export function clampSidebarRatio(ratio: number): number {
   return Math.min(MAX_SIDEBAR_RATIO, Math.max(MIN_SIDEBAR_RATIO, ratio));
 }
 

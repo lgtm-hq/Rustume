@@ -38,6 +38,7 @@ const store = vi.hoisted(() => ({
   duplicateCustomSectionItem: vi.fn(),
   moveCustomSectionItem: vi.fn(),
   updateLayout: vi.fn(),
+  updateMetadata: vi.fn(),
 }));
 
 vi.mock("../../../stores/resume", () => ({ resumeStore: store }));
@@ -367,7 +368,7 @@ describe("document sheet structural chrome", () => {
       fireEvent.input(within(dialog).getByRole("textbox", { name: "Name" }), {
         target: { value: "Halo" },
       });
-      fireEvent.click(within(dialog).getByRole("button", { name: "Add", exact: true }));
+      fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
 
       expect(store.addSectionItem).toHaveBeenCalledOnce();
       const [sectionId, item] = store.addSectionItem.mock.calls[0] as [
@@ -481,6 +482,42 @@ describe("document sheet structural chrome", () => {
       expect(handle.getAttribute("aria-valuemin")).toBe("160");
       expect(handle.getAttribute("aria-valuemax")).toBe("360");
       expect(Number(handle.getAttribute("aria-valuenow"))).toBeGreaterThanOrEqual(160);
+    });
+
+    it("persists a keyboard resize as the document's sidebar ratio", () => {
+      renderSheet();
+
+      const [handle] = screen.getAllByRole("separator", { name: "Resize sidebar" });
+      const before = Number(handle.getAttribute("aria-valuenow"));
+      fireEvent.keyDown(handle, { key: "ArrowLeft" });
+
+      // The sidebar split is a document property (spec §4.2, owner decision):
+      // it writes metadata.page.sidebarRatio, never device storage.
+      expect(store.updateMetadata).toHaveBeenCalledOnce();
+      const [field, page] = store.updateMetadata.mock.calls[0] as [
+        string,
+        { sidebarRatio: number },
+      ];
+      expect(field).toBe("page");
+      // A right sidebar grows leftwards: ArrowLeft widens by one step.
+      expect(page.sidebarRatio).toBeGreaterThan(0.1);
+      expect(page.sidebarRatio).toBeLessThanOrEqual(0.5);
+      expect(writeCount()).toBe(1);
+      void before;
+    });
+
+    it("draws the width the stored ratio dictates", () => {
+      resume.metadata.page.sidebarRatio = 0.4;
+      renderSheet();
+
+      const sheet = screen.getByTestId("doc-sheet");
+      // 0.4 of the sheet's content width (spec §4.2's pt-based ratio drawn in
+      // sheet pixels), clamped to the handle's px bounds.
+      const [handle] = screen.getAllByRole("separator", { name: "Resize sidebar" });
+      const width = Number(handle.getAttribute("aria-valuenow"));
+      expect(width).toBeGreaterThan(300);
+      expect(width).toBeLessThanOrEqual(360);
+      expect(sheet.style.getPropertyValue("--doc-sheet-side-w")).toBe(`${width}px`);
     });
   });
 });
