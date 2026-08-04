@@ -1,3 +1,4 @@
+import { unwrap } from "solid-js/store";
 import { isWasmReady, resumeExists } from "../wasm";
 import type { ResumeData } from "../wasm/types";
 
@@ -212,7 +213,11 @@ async function saveSnapshotRecord(resumeId: string, clone: ResumeData): Promise<
 export async function saveSnapshot(resumeId: string, data: ResumeData): Promise<void> {
   if (!isIndexedDbAvailable()) return;
 
-  const snapshotData = structuredClone(data);
+  // `data` is usually the live Solid store proxy; `structuredClone` throws
+  // `DataCloneError` on any proxy, so unwrap to the raw tree first. Cloning
+  // must also happen before the async lock: by the time the lock is held the
+  // caller's store may already carry newer edits.
+  const snapshotData = structuredClone(unwrap(data));
 
   try {
     await withResumeSnapshotLock(resumeId, () => saveSnapshotRecord(resumeId, snapshotData));
