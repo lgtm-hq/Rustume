@@ -131,40 +131,64 @@ function toggleList(
   return { value: value2, start: from, end: from + next.length };
 }
 
-const FENCE_LINE = /^\s*```/;
+/** An opening fence may carry an info string; a closing fence is bare. */
+const FENCE_OPEN = /^\s*```/;
+const FENCE_CLOSE = /^\s*```+\s*$/;
+
+/**
+ * The fenced block enclosing the line range `[startLine, endLine]`, or null.
+ *
+ * `close === lines.length` marks an unterminated fence still being typed —
+ * the block runs to the end of the value, matching how `markdownBlocks`
+ * draws it.
+ */
+function enclosingFence(
+  lines: string[],
+  startLine: number,
+  endLine: number,
+): { open: number; close: number } | null {
+  let open = -1;
+  for (let index = 0; index < lines.length; index += 1) {
+    if (open === -1) {
+      if (FENCE_OPEN.test(lines[index])) open = index;
+      continue;
+    }
+    if (FENCE_CLOSE.test(lines[index])) {
+      if (open <= startLine && endLine <= index) return { open, close: index };
+      open = -1;
+    }
+  }
+  return open !== -1 && open <= startLine ? { open, close: lines.length } : null;
+}
 
 /**
  * Fence the touched lines as a code block, or unfence them.
  *
- * Unfencing triggers when the touched block is already wrapped: either the
- * selection includes the fence lines themselves, or the lines directly above
- * and below the touched block are fences.
+ * Unfencing triggers whenever the selection sits anywhere inside a fenced
+ * block — on a body line, on a fence line, or spanning both — and removes
+ * that block's fence lines, keeping the body.
  */
 function toggleCodeBlock(selection: MarkdownSelection, placeholder: string): MarkdownSelection {
   const { value, start, end } = selection;
   const { from, to } = lineRange(value, start, end);
+  const lines = value.split("\n");
+  const startLine = value.slice(0, from).split("\n").length - 1;
+  const endLine = value.slice(0, to).split("\n").length - 1;
+
+  const fence = enclosingFence(lines, startLine, endLine);
+  if (fence) {
+    const body = lines.slice(fence.open + 1, fence.close).join("\n");
+    const prefix = fence.open === 0 ? "" : `${lines.slice(0, fence.open).join("\n")}\n`;
+    const suffix =
+      fence.close >= lines.length - 1 ? "" : `\n${lines.slice(fence.close + 1).join("\n")}`;
+    return {
+      value: prefix + body + suffix,
+      start: prefix.length,
+      end: prefix.length + body.length,
+    };
+  }
+
   const block = value.slice(from, to);
-  const lines = block === "" ? [] : block.split("\n");
-
-  // Selection covering the fences themselves: strip them.
-  if (lines.length >= 2 && FENCE_LINE.test(lines[0]) && FENCE_LINE.test(lines.at(-1) ?? "")) {
-    const inner = lines.slice(1, -1).join("\n");
-    const next = value.slice(0, from) + inner + value.slice(to);
-    return { value: next, start: from, end: from + inner.length };
-  }
-
-  // Selection inside a fenced block: strip the surrounding fence lines.
-  const before = value.slice(0, from);
-  const after = value.slice(to);
-  const beforeLines = before === "" ? [] : before.replace(/\n$/, "").split("\n");
-  const afterLines = after === "" ? [] : after.replace(/^\n/, "").split("\n");
-  if (FENCE_LINE.test(beforeLines.at(-1) ?? "") && FENCE_LINE.test(afterLines[0] ?? "")) {
-    const openLen = (beforeLines.at(-1) as string).length + 1;
-    const closeLen = (afterLines[0] as string).length + 1;
-    const next = value.slice(0, from - openLen) + block + value.slice(to + closeLen);
-    return { value: next, start: from - openLen, end: from - openLen + block.length };
-  }
-
   const body = block === "" ? placeholder : block;
   const fenced = `\`\`\`\n${body}\n\`\`\``;
   const next = value.slice(0, from) + fenced + value.slice(to);

@@ -44,7 +44,9 @@ export type MarkdownBlock =
   | { type: "code"; text: string };
 
 const LIST_LINE = /^(\s*)(-|\d+\.)\s+(.*)$/;
-const FENCE_LINE = /^\s*```/;
+/** An opening fence may carry an info string; a closing fence is bare. */
+const FENCE_OPEN = /^\s*```/;
+const FENCE_CLOSE = /^\s*```+\s*$/;
 
 /** Spaces per nesting level, matching `LIST_INDENT` in `htmlToMarkdown`. */
 const INDENT_WIDTH = 2;
@@ -171,7 +173,7 @@ export function parseMarkdownBlocks(value: string): MarkdownBlock[] {
 
   for (const line of value.split(/\r?\n/)) {
     if (codeLines !== null) {
-      if (FENCE_LINE.test(line)) {
+      if (FENCE_CLOSE.test(line)) {
         blocks.push({ type: "code", text: codeLines.join("\n") });
         codeLines = null;
       } else {
@@ -179,7 +181,7 @@ export function parseMarkdownBlocks(value: string): MarkdownBlock[] {
       }
       continue;
     }
-    if (FENCE_LINE.test(line)) {
+    if (FENCE_OPEN.test(line)) {
       flushParagraph();
       flushList();
       codeLines = [];

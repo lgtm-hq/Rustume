@@ -204,4 +204,11 @@ describe("parseMarkdownBlocks", () => {
   it("keeps blank lines inside a fence", () => {
     expect(parseMarkdownBlocks("```\na\n\nb\n```")).toEqual([{ type: "code", text: "a\n\nb" }]);
   });
+
+  it("only a bare fence closes a block", () => {
+    // A ``` with trailing text is not a closing fence; it stays body text.
+    expect(parseMarkdownBlocks("```\na\n```not-a-close\nb\n```")).toEqual([
+      { type: "code", text: "a\n```not-a-close\nb" },
+    ]);
+  });
 });

@@ -96,4 +96,22 @@ describe("applyMarkdownCommand", () => {
   it("unfences when the selection sits inside a fenced block", () => {
     expect(run("before\n```\ncode\n```\nafter", 11, 15, "codeBlock")).toBe("before\ncode\nafter");
   });
+
+  it("unfences from a caret on any body line of a multi-line block", () => {
+    // Caret on "two" — not adjacent to either fence.
+    expect(run("```\none\ntwo\nthree\n```", 9, 9, "codeBlock")).toBe("one\ntwo\nthree");
+  });
+
+  it("unfences from a caret on a fence line itself", () => {
+    expect(run("```\ncode\n```", 1, 1, "codeBlock")).toBe("code");
+  });
+
+  it("unfences an unterminated block still being typed", () => {
+    expect(run("```\ncode", 6, 6, "codeBlock")).toBe("code");
+  });
+
+  it("does not treat a fence with trailing text as a closing fence", () => {
+    // "```x" is body, not a close — the block runs on to the real fence.
+    expect(run("```\na\n```x\nb\n```", 7, 7, "codeBlock")).toBe("a\n```x\nb");
+  });
 });
