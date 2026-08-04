@@ -180,7 +180,7 @@ describe("DocEditor undo, autosave, and version history", () => {
     expect(within(experienceSection()).getByText("Aster Labs")).toBeInTheDocument();
 
     fireEvent.click(undoButton());
-    expect(within(experienceSection()).queryByRole("button", { name: "Aster Labs" })).toBeNull();
+    expect(within(experienceSection()).queryByText("Aster Labs")).toBeNull();
 
     fireEvent.click(redoButton());
     expect(within(experienceSection()).getByText("Aster Labs")).toBeInTheDocument();

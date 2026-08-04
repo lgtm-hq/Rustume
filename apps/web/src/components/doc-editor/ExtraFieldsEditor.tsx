@@ -25,6 +25,8 @@ export interface ExtraFieldsEditorProps {
 }
 
 export function ExtraFieldsEditor(props: ExtraFieldsEditorProps): JSX.Element {
+  let root: HTMLDivElement | undefined;
+
   function patchAt(index: number, patch: Partial<CustomField>): void {
     props.onChange(
       props.fields.map((field, each) => (each === index ? { ...field, ...patch } : field)),
@@ -37,10 +39,15 @@ export function ExtraFieldsEditor(props: ExtraFieldsEditorProps): JSX.Element {
 
   function addRow(): void {
     props.onChange([...props.fields, { id: generateId(), icon: "", name: "", value: "" }]);
+    // Typing continues in the new row, not on the button that made it.
+    queueMicrotask(() => {
+      const inputs = root?.querySelectorAll<HTMLInputElement>("input");
+      inputs?.[inputs.length - 2]?.focus();
+    });
   }
 
   return (
-    <div class="flex flex-col gap-1.5">
+    <div ref={(element) => (root = element)} class="flex flex-col gap-1.5">
       <span class="font-mono text-xs uppercase tracking-wider text-stone">Custom fields</span>
 
       {/* Position-keyed (`Index`), not reference-keyed: a keystroke patches

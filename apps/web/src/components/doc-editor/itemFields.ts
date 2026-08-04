@@ -40,6 +40,8 @@ export interface ItemFieldSpec {
   hint?: string;
   /** Paired with the adjacent `half` field into one two-column row. */
   half?: boolean;
+  /** Text fields only: drawn as a short textarea (spec §1.13). */
+  multiline?: boolean;
 }
 
 function text(key: string, label: string, placeholder?: string): ItemFieldSpec {
@@ -52,6 +54,11 @@ function half(key: string, label: string, placeholder?: string): ItemFieldSpec {
 
 function markdown(key: string, label: string, hint?: string): ItemFieldSpec {
   return { key, label, kind: "markdown", hint };
+}
+
+/** A short description textarea (spec §1.13: projects and custom sections). */
+function textarea(key: string, label: string): ItemFieldSpec {
+  return { key, label, kind: "text", multiline: true };
 }
 
 /** The rich-editor hint of spec §1.13's experience modal, shared by all. */
@@ -73,7 +80,7 @@ const EXTRA_FIELDS = {
 /** Editable fields of a custom section's items. */
 export const CUSTOM_ITEM_FIELDS: readonly ItemFieldSpec[] = [
   text("name", "Name"),
-  text("description", "Description"),
+  textarea("description", "Description"),
   half("date", "Date"),
   half("location", "Location"),
   markdown("summary", "Summary", RICH_HINT),
@@ -112,7 +119,7 @@ export const FIXED_ITEM_FIELDS: Readonly<Record<FixedItemSectionKey, readonly It
   skills: [text("name", "Name"), text("description", "Description"), LEVEL, TAGS, EXTRA_FIELDS],
   projects: [
     text("name", "Name"),
-    text("description", "Description"),
+    textarea("description", "Description"),
     text("date", "Date"),
     markdown("summary", "Highlights", RICH_HINT),
     TAGS,

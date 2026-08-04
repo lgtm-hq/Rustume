@@ -19,7 +19,7 @@
  */
 
 import { For, Match, Show, Switch, createEffect, createSignal, on, type JSX } from "solid-js";
-import { Button, Input, Modal } from "../ui";
+import { Button, Input, Modal, TextArea } from "../ui";
 import { emptyItemFor } from "../../lib/docLayout";
 import { addItem, updateItem, type ItemUpdates } from "./docEdits";
 import { ExtraFieldsEditor } from "./ExtraFieldsEditor";
@@ -206,10 +206,20 @@ export function ItemDialog(props: ItemDialogProps): JSX.Element {
 
     return (
       <Switch>
-        <Match when={spec().kind === "text"}>
+        <Match when={spec().kind === "text" && spec().multiline !== true}>
           <Input
             label={spec().label}
             placeholder={spec().placeholder}
+            value={asText(value())}
+            onInput={(next) => setField(spec().key, next)}
+          />
+        </Match>
+
+        <Match when={spec().kind === "text" && spec().multiline === true}>
+          <TextArea
+            label={spec().label}
+            placeholder={spec().placeholder}
+            rows={2}
             value={asText(value())}
             onInput={(next) => setField(spec().key, next)}
           />
@@ -227,6 +237,7 @@ export function ItemDialog(props: ItemDialogProps): JSX.Element {
         <Match when={spec().kind === "keywords"}>
           <TagInput
             label={spec().label}
+            hint={spec().hint}
             values={asKeywords(value())}
             onChange={(next) => setField(spec().key, next)}
           />
@@ -265,7 +276,9 @@ export function ItemDialog(props: ItemDialogProps): JSX.Element {
                       : 0;
                 if (step === 0) return;
                 event.preventDefault();
-                const current = asLevel(value()) || DEFAULT_LEVEL;
+                // With no selection the first arrow press selects level 1 —
+                // the card holding the roving tab stop — not a preset jump.
+                const current = asLevel(value()) || 1 - step;
                 const next = Math.min(MAX_LEVEL, Math.max(1, current + step));
                 setField(spec().key, next);
                 const cards =
@@ -282,7 +295,7 @@ export function ItemDialog(props: ItemDialogProps): JSX.Element {
                       type="button"
                       role="radio"
                       aria-checked={isSelected()}
-                      tabindex={isSelected() ? 0 : -1}
+                      tabindex={isSelected() || (asLevel(value()) === 0 && level() === 1) ? 0 : -1}
                       class="flex flex-col items-center gap-0.5 rounded-lg border px-1 py-2"
                       classList={{
                         "border-accent bg-accent/10 text-ink": isSelected(),
