@@ -6,7 +6,7 @@ export interface ModalProps {
   onOpenChange: (open: boolean) => void;
   title: string;
   description?: string;
-  size?: "sm" | "md" | "lg" | "xl" | "2xl";
+  size?: "sm" | "md" | "lg" | "xl" | "2xl" | "4xl";
 }
 
 const SIZE_CLASSES = {
@@ -14,7 +14,8 @@ const SIZE_CLASSES = {
   md: "max-w-md",
   lg: "max-w-lg",
   xl: "max-w-xl",
-  "2xl": "max-w-4xl",
+  "2xl": "max-w-2xl",
+  "4xl": "max-w-4xl",
 } as const;
 
 export const Modal: ParentComponent<ModalProps> = (props) => {
@@ -27,7 +28,7 @@ export const Modal: ParentComponent<ModalProps> = (props) => {
         <div class="fixed inset-0 flex items-center justify-center z-50 p-4">
           <Dialog.Content
             class={`bg-paper rounded-xl shadow-elevated w-full ${SIZE_CLASSES[size()]}
-              animate-slide-up overflow-hidden`}
+              animate-slide-up overflow-hidden flex max-h-[calc(100vh-4rem)] flex-col`}
           >
             <div class="px-6 py-5 border-b border-border">
               <Dialog.Title class="font-display text-xl font-semibold text-ink">
@@ -40,7 +41,7 @@ export const Modal: ParentComponent<ModalProps> = (props) => {
               </Show>
             </div>
 
-            <div class="px-6 py-5">{props.children}</div>
+            <div class="overflow-y-auto px-6 py-5">{props.children}</div>
 
             <Dialog.CloseButton
               aria-label="Close"

@@ -376,7 +376,7 @@ export function RichTextEditor(props: RichTextEditorProps) {
           onOpenChange={setExpanded}
           title={props.label || "Edit content"}
           description="Full-screen editing — changes sync back when you close."
-          size="2xl"
+          size="4xl"
         >
           <RichTextEditor
             hideExpand

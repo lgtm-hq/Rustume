@@ -235,7 +235,7 @@ export function VersionHistory() {
       onOpenChange={handleOpenChange}
       title="Version History"
       description="Browse saved snapshots, preview a version, and revert when needed."
-      size="2xl"
+      size="4xl"
     >
       <Show
         when={!isLoadingList()}

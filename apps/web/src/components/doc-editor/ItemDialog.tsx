@@ -338,7 +338,7 @@ export function ItemDialog(props: ItemDialogProps): JSX.Element {
       open={props.open}
       onOpenChange={props.onOpenChange}
       title={`${isAdding() ? "Add" : "Edit"} · ${props.sectionTitle}`}
-      size="lg"
+      size="2xl"
     >
       <Show
         when={fields().length > 0}

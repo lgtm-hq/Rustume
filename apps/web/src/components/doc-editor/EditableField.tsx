@@ -81,7 +81,7 @@ export function EditableField(props: EditableFieldProps): JSX.Element {
       open={isOpen()}
       onOpenChange={setIsOpen}
       title={props.dialogTitle}
-      size={isRich() ? "lg" : "md"}
+      size={isRich() ? "2xl" : "md"}
     >
       <Show
         when={isRich()}
