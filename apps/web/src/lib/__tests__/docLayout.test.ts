@@ -8,6 +8,7 @@ import {
   layoutColumns,
   layoutForTemplate,
   layoutPages,
+  mergePageIntoPrevious,
   nextId,
   renderPages,
   SECTION_LABELS,
@@ -272,6 +273,62 @@ describe("findSectionPlacement", () => {
     const resume = loadFixture();
 
     expect(findSectionPlacement(resume.metadata.layout, "references")).toBeNull();
+  });
+});
+
+describe("mergePageIntoPrevious", () => {
+  it("concatenates the page's columns onto the previous page, index-wise", () => {
+    const layout = [
+      [["summary"], ["skills"]],
+      [["experience"], ["languages"]],
+    ];
+
+    expect(mergePageIntoPrevious(layout, 1)).toEqual([
+      [
+        ["summary", "experience"],
+        ["skills", "languages"],
+      ],
+    ]);
+  });
+
+  it("keeps the first occurrence when the same id appears on both pages", () => {
+    const layout = [
+      [["summary", "experience"], ["skills"]],
+      [["experience", "projects"], []],
+    ];
+
+    expect(mergePageIntoPrevious(layout, 1)).toEqual([
+      [["summary", "experience", "projects"], ["skills"]],
+    ]);
+  });
+
+  it("merges ragged column counts without dropping a column", () => {
+    const layout = [[["summary"]], [["experience"], ["languages"]]];
+
+    expect(mergePageIntoPrevious(layout, 1)).toEqual([[["summary", "experience"], ["languages"]]]);
+  });
+
+  it("leaves later pages untouched", () => {
+    const layout = [[["a"]], [["b"]], [["c"]]];
+
+    expect(mergePageIntoPrevious(layout, 1)).toEqual([[["a", "b"]], [["c"]]]);
+  });
+
+  it("returns null when the merge is impossible", () => {
+    const layout = [[["summary"]], [["experience"]]];
+
+    expect(mergePageIntoPrevious(layout, 0)).toBeNull();
+    expect(mergePageIntoPrevious(layout, 2)).toBeNull();
+    expect(mergePageIntoPrevious(layout, -1)).toBeNull();
+  });
+
+  it("never mutates its input", () => {
+    const layout = [[["summary"]], [["experience"]]];
+    const snapshot = structuredClone(layout);
+
+    mergePageIntoPrevious(layout, 1);
+
+    expect(layout).toEqual(snapshot);
   });
 });
 

@@ -48,9 +48,14 @@ describe("document sheet inline editing", () => {
     return region.getByRole("textbox", { name: fieldLabel }) as HTMLInputElement;
   }
 
-  /** The header region, where the basics are drawn. */
+  /** The header region, where the name and headline are drawn. */
   function header(): HTMLElement {
     return screen.getAllByTestId("doc-sheet-header")[0];
+  }
+
+  /** The contact block, where email, phone and location are drawn (#794). */
+  function contact(): HTMLElement {
+    return screen.getAllByTestId("doc-sheet-contact")[0];
   }
 
   it.each([
@@ -108,7 +113,7 @@ describe("document sheet inline editing", () => {
   it("restores the prior value on Escape without writing", () => {
     renderSheet();
 
-    const input = edit("mireille@okafor.design", "Email", header());
+    const input = edit("mireille@okafor.design", "Email", contact());
     fireEvent.input(input, { target: { value: "typo@example.com" } });
     fireEvent.keyDown(input, { key: "Escape" });
 
@@ -119,7 +124,7 @@ describe("document sheet inline editing", () => {
   it("writes nothing when the text is left unchanged", () => {
     renderSheet();
 
-    const input = edit("Lisbon, Portugal", "Location", header());
+    const input = edit("Lisbon, Portugal", "Location", contact());
     fireEvent.blur(input);
 
     expect(writeCount()).toBe(0);
@@ -138,16 +143,17 @@ describe("document sheet inline editing", () => {
     expect(writeCount()).toBe(1);
   });
 
-  it("commits a custom-section item through updateCustomSectionItem", () => {
+  it("draws custom-section items as chips with no inline editor (#794)", () => {
     renderSheet();
 
-    const input = edit("Design Tokens Beyond Colour", "Name");
-    fireEvent.input(input, { target: { value: "Design Tokens, Beyond Colour" } });
-    fireEvent.blur(input);
-
-    expect(store.updateCustomSectionItem).toHaveBeenCalledExactlyOnceWith("speaking", 0, {
-      name: "Design Tokens, Beyond Colour",
-    });
+    // Spec §1.7: custom sections are chip lists; items are managed through
+    // the add-block dialog and the chip's inline remove, never edited in
+    // place. The chip removal path is covered in `sectionCards.test.tsx`.
+    expect(screen.queryByRole("button", { name: "Design Tokens Beyond Colour" })).toBeNull();
+    const chips = [...document.querySelectorAll(".doc-sheet__skill-chip")].map(
+      (chip) => chip.textContent,
+    );
+    expect(chips.join(" ")).toContain("Design Tokens Beyond Colour");
   });
 
   it("renames a fixed section through updateSectionName", () => {
@@ -176,7 +182,7 @@ describe("document sheet inline editing", () => {
     resume.basics.phone = "";
     renderSheet();
 
-    const input = edit("Add phone", "Phone", header());
+    const input = edit("Add phone", "Phone", contact());
     fireEvent.input(input, { target: { value: "+351 000 000" } });
     fireEvent.blur(input);
 

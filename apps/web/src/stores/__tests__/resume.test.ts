@@ -1264,9 +1264,7 @@ describe("unplaced fixed sections (#770)", () => {
         [["summary", "experience", "coverLetter"], ["skills"]],
       ]);
       // The sheet draws only placed ids — the section must actually appear.
-      const drawnIds = editorPages(store.resume!, FALLBACK_TEMPLATE_LAYOUT)
-        .flat(2)
-        .map((section) => section.id);
+      const drawnIds = editorPages(store.resume!, FALLBACK_TEMPLATE_LAYOUT).flat(2);
       expect(drawnIds).toContain("coverLetter");
       dispose();
     });

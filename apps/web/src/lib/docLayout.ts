@@ -72,6 +72,23 @@ export const SECTION_LABELS: Readonly<Record<FixedSectionId, string>> = {
 const UNTITLED_CUSTOM_SECTION = "Untitled";
 
 /**
+ * CSS-pixel A4 geometry of the sheet (#794, spec §3.1).
+ *
+ * The on-screen sheet is `min(860px, 100%)` wide and sizes to its content;
+ * these constants are what the overflow guides, the measured page count and
+ * the PDF export agree on. 860×1122 is A4 at ~96 dpi.
+ */
+export const PAGE_WIDTH_PX = 860;
+export const PAGE_HEIGHT_PX = 1122;
+
+/**
+ * One typographic point in sheet CSS pixels: stored point sizes (the avatar,
+ * its border) render against the 860px sheet exactly as they do against the
+ * 595.28pt A4 render.
+ */
+export const SHEET_PX_PER_PT = PAGE_WIDTH_PX / 595.28;
+
+/**
  * Placeholder id that stands for "every custom section, in order".
  *
  * Templates emit it in their default columns (`main_with_custom()` in
@@ -337,61 +354,49 @@ export function renderPages(resume: ResumeData, templateLayout: TemplateLayout):
     .filter((page) => page.some((column) => column.length > 0));
 }
 
-/** A section as the editing surface draws it. */
-export interface EditorSectionView {
-  id: string;
-  /** Switched off — kept on the surface as chrome, but absent from the PDF. */
-  hidden: boolean;
-}
-
-/** Whether a section holds any items at all, hidden ones included. */
-function sectionHasItems(resume: ResumeData, sectionId: string): boolean {
-  return sectionItemCount(resume, sectionId) > 0;
-}
-
-/** How many items a section holds, hidden ones included. Zero for rich text. */
-function sectionItemCount(resume: ResumeData, sectionId: string): number {
-  if (isCustomId(sectionId)) {
-    return resume.sections.custom?.[sectionId]?.items?.length ?? 0;
-  }
-  if (!FIXED_SECTION_ID_SET.has(sectionId)) return 0;
-  const section = resume.sections[sectionId as FixedSectionId] as { items?: unknown[] } | undefined;
-  return section?.items?.length ?? 0;
-}
-
 /**
  * {@link layoutPages} as the *editing* surface draws it, aligned index-for-index
  * with the layout — no page or column is dropped, so a drop target's page and
  * column indices address `metadata.layout` directly, and no second layout model
  * exists for drag and drop.
  *
- * Unlike {@link renderPages}, hidden sections stay drawn (flagged, as chrome):
- * hidden means "not rendered to PDF", not "gone from the editing surface". Item
- * sections are drawn whenever they hold any item — hidden items are chrome too —
- * and a placed rich-text section always draws, whatever its content or
- * visibility, so a hidden or empty summary keeps its click-to-edit surface and
- * hiding it stays reversible.
+ * Hidden sections never draw (#794, spec §1.6) — the Sections panel is the
+ * recovery path, exactly as it is for the rendered document. Unlike
+ * {@link renderPages}, *empty* placed sections stay drawn in edit mode: their
+ * card carries the add affordance, so an empty section is a place to type
+ * rather than a gap in the layout.
  */
-export function editorPages(
-  resume: ResumeData,
-  templateLayout: TemplateLayout,
-): EditorSectionView[][][] {
+export function editorPages(resume: ResumeData, templateLayout: TemplateLayout): string[][][] {
   return layoutPages(resume, templateLayout).map((page) =>
-    page.map((column) =>
-      column
-        .filter((id) => {
-          if (id === "summary" || id === "coverLetter") {
-            // A placed rich-text section always draws: its editing surface is
-            // the card itself, and an add-block cannot resurface rich text —
-            // dropping a hidden, empty one would make hiding it irreversible
-            // from the sheet.
-            return true;
-          }
-          return sectionHasItems(resume, id);
-        })
-        .map((id) => ({ id, hidden: !sectionVisible(resume, id) })),
-    ),
+    page.map((column) => column.filter((id) => sectionVisible(resume, id))),
   );
+}
+
+/**
+ * `layout` with page `pageIndex` merged into the page before it — the simple
+ * "remove page break" of #794 (`metadata.itemBreaks`-aware merge semantics
+ * arrive with the drag-channel rework, #796). Columns concatenate index-wise;
+ * the first occurrence of a section id wins. Returns `null` when the merge is
+ * impossible (page 0, or an index past the last page), so callers write
+ * nothing rather than an unchanged layout.
+ */
+export function mergePageIntoPrevious(
+  layout: readonly (readonly (readonly string[])[])[],
+  pageIndex: number,
+): string[][][] | null {
+  if (pageIndex <= 0 || pageIndex >= layout.length) return null;
+  const pages = layout.map((page) => page.map((column) => [...column]));
+  const previous = pages[pageIndex - 1];
+  const current = pages[pageIndex];
+  const columns = Math.max(previous.length, current.length);
+  const merged: string[][] = [];
+  for (let column = 0; column < columns; column++) {
+    const head = previous[column] ?? [];
+    const tail = (current[column] ?? []).filter((id) => !head.includes(id));
+    merged.push([...head, ...tail]);
+  }
+  pages.splice(pageIndex - 1, 2, merged);
+  return pages;
 }
 
 /**

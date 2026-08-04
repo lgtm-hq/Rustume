@@ -155,8 +155,8 @@ export default function DocEditor() {
     () => layouts()?.[store.resume?.metadata.template ?? ""] ?? FALLBACK_TEMPLATE_LAYOUT,
   );
 
-  const [pageCount, setPageCount] = createSignal(0);
-  const [overflowingPages, setOverflowingPages] = createSignal<number[]>([]);
+  // Lifted so the sheet's Add-section blocks can open the panel (#794).
+  const [isSectionsOpen, setIsSectionsOpen] = createSignal(false);
 
   // Edit or Done, per document. A brand-new empty resume opens ready to type;
   // an existing one opens as the clean rendered document.
@@ -190,23 +190,6 @@ export default function DocEditor() {
     }
   });
 
-  // A different document must not inherit the previous one's counts: drop all
-  // document-scoped display state until the new sheet reports in.
-  createEffect(() => {
-    void params.id;
-    setPageCount(0);
-    setOverflowingPages([]);
-  });
-
-  const overflowMessage = () => {
-    const pages = overflowingPages();
-    if (pages.length === 0) return "";
-    const labels = pages.map((page) => page + 1).join(", ");
-    return pages.length === 1
-      ? `Content overflows page ${labels}`
-      : `Content overflows pages ${labels}`;
-  };
-
   return (
     <div class="h-[calc(100vh-3.5rem)] flex flex-col">
       <CustomCssInjector />
@@ -224,28 +207,16 @@ export default function DocEditor() {
             {(resume) => (
               <>
                 <TemplatesDrawer resume={resume()} />
-                <SectionsPanel resume={resume()} />
+                <SectionsPanel
+                  resume={resume()}
+                  open={isSectionsOpen()}
+                  onOpenChange={setIsSectionsOpen}
+                />
               </>
             )}
           </Show>
         </div>
-        <p class="font-mono text-xs text-stone" data-testid="doc-editor-page-count">
-          {/* No count until a sheet exists — otherwise this reads "0 pages"
-              while loading and behind the load-error screen. Also hidden while
-              a same-document reload is in flight so a stale count never shows
-              over the loading state. */}
-          <Show when={!isLoading() && !loadError() && pageCount() > 0}>
-            {pageCount() === 1 ? "1 page" : `${pageCount()} pages`}
-          </Show>
-        </p>
         <div class="flex items-center gap-2">
-          <p
-            role="status"
-            class="font-mono text-xs text-[var(--turbo-state-warning)]"
-            data-testid="doc-editor-overflow"
-          >
-            {!isLoading() && !loadError() ? overflowMessage() : ""}
-          </p>
           <Button
             variant="ghost"
             size="sm"
@@ -400,8 +371,7 @@ export default function DocEditor() {
                     resume={resume()}
                     templateLayout={templateLayout()}
                     mode={mode()}
-                    onPageCountChange={setPageCount}
-                    onOverflowChange={setOverflowingPages}
+                    onOpenSections={() => setIsSectionsOpen(true)}
                   />
                 )}
               </Show>

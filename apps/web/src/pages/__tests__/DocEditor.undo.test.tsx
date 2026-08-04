@@ -190,18 +190,14 @@ describe("DocEditor undo, autosave, and version history", () => {
   it("round-trips a section move as a single undo entry", async () => {
     await renderSheet();
     const before = mainColumnSections();
-    // `coverLetter` and `references` are back-filled by normalization (#770).
-    const moved = ["summary", "education", "experience", "projects", "coverLetter", "references"];
-    expect(before).toEqual([
-      "summary",
-      "experience",
-      "education",
-      "projects",
-      "coverLetter",
-      "references",
-    ]);
+    // `coverLetter` and `references` are back-filled by normalization (#770)
+    // but hidden, and hidden sections never draw (#794).
+    const moved = ["summary", "education", "experience", "projects"];
+    expect(before).toEqual(["summary", "experience", "education", "projects"]);
 
-    fireEvent.click(screen.getByRole("button", { name: "Move Experience section down" }));
+    // The structural actions live in the section's pencil menu (#794).
+    fireEvent.click(screen.getByRole("button", { name: "Experience section options" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Move Experience section down" }));
     await settleDebounce();
     expect(mainColumnSections()).toEqual(moved);
 

@@ -384,19 +384,16 @@ describe("editorPages", () => {
     });
   });
 
-  it("keeps a hidden section drawn, flagged as chrome", () => {
+  it("never draws a hidden section — the Sections panel is the recovery path", () => {
     const resume = loadDocEditorFixture();
     resume.sections.experience.visible = false;
 
     const drawn = editorPages(resume, SIDEBAR_TEMPLATE).flat(2);
 
-    expect(drawn.find((section) => section.id === "experience")).toEqual({
-      id: "experience",
-      hidden: true,
-    });
+    expect(drawn).not.toContain("experience");
   });
 
-  it("keeps a section whose items are all hidden — the items are chrome too", () => {
+  it("keeps a section whose items are all hidden — the items are chrome", () => {
     const resume = loadDocEditorFixture();
     for (const item of resume.sections.experience.items) {
       item.visible = false;
@@ -404,16 +401,16 @@ describe("editorPages", () => {
 
     const drawn = editorPages(resume, SIDEBAR_TEMPLATE).flat(2);
 
-    expect(drawn.some((section) => section.id === "experience")).toBe(true);
+    expect(drawn).toContain("experience");
   });
 
-  it("drops an item section with no items at all", () => {
+  it("keeps an empty item section drawn — its card carries the add affordance", () => {
     const resume = loadDocEditorFixture();
     resume.sections.experience.items = [];
 
     const drawn = editorPages(resume, SIDEBAR_TEMPLATE).flat(2);
 
-    expect(drawn.some((section) => section.id === "experience")).toBe(false);
+    expect(drawn).toContain("experience");
   });
 
   it("keeps an empty rich-text section reachable while it is visible", () => {
@@ -423,22 +420,6 @@ describe("editorPages", () => {
 
     const drawn = editorPages(resume, SIDEBAR_TEMPLATE).flat(2);
 
-    expect(drawn.some((section) => section.id === "summary")).toBe(true);
-  });
-
-  it("keeps a hidden, empty rich-text section drawn so hiding is reversible", () => {
-    // Regression: hiding an empty summary used to drop the card entirely —
-    // and rich text has no add-block, so nothing on the sheet could show it
-    // again. A placed rich-text section must always draw.
-    const resume = loadDocEditorFixture();
-    resume.sections.summary.content = "";
-    resume.sections.summary.visible = false;
-
-    const drawn = editorPages(resume, SIDEBAR_TEMPLATE).flat(2);
-
-    expect(drawn.find((section) => section.id === "summary")).toEqual({
-      id: "summary",
-      hidden: true,
-    });
+    expect(drawn).toContain("summary");
   });
 });

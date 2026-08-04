@@ -1,42 +1,33 @@
 /**
- * The sheet's header region: avatar, name, headline, contact details and — when
- * the resume does not place `profiles` as a section — its profile links.
+ * The sheet's identity and contact chrome (#794, spec §1.4): `NameHeader`,
+ * `SheetAvatar` and `ContactBlock` — the pieces each template's page
+ * compositor places per its `headerStyle` / `contactIn` metadata.
  *
- * Placement is the template's decision, not this component's: `headerStyle`
- * says where and how the name block is drawn (`banner`, `sidebar`, `boxed`,
- * `left`, `center`) and `contactIn` says which of those regions prints the
- * contact details. Both arrive as layout metadata from `GET /api/templates`.
- *
- * Everything the header draws is editable in place. The core contact fields
- * (email, phone, location) are drawn even when empty, as muted placeholders, so
- * a blank resume still offers somewhere to type; the personal URL and the
- * resume's own custom fields appear only once they carry a value, because they
- * are additions rather than expected parts of a document.
+ * `ContactBlock` is the one piece of section chrome the template owns
+ * outright: it reuses {@link SectionChrome} with no grip, no pencil and no
+ * menu, and is never draggable. Its core fields (email, phone, location) draw
+ * even when empty in edit mode, as placeholders, so a blank resume still
+ * offers somewhere to type; the personal URL and custom fields appear once
+ * they carry a value. `SheetAvatar` falls back to an initials disc and opens
+ * the photo dialog — #788's `PhotoDialog` with `lib/imageUpload` processing,
+ * kept as the superset of the prototype's modal.
  */
 
 import { For, Show, createSignal, type JSX } from "solid-js";
 import { InlineText } from "./InlineText";
 import { PhotoDialog } from "./PhotoDialog";
+import { SectionChrome } from "./SectionChrome";
+import { ContactIcon, type ContactIconKind } from "./icons";
 import { updateBasicsField } from "./docEdits";
 import { useSheetEditable } from "./sheetMode";
-import type { TemplateHeaderStyle } from "../../lib/docLayout";
+import { SHEET_PX_PER_PT } from "../../lib/docLayout";
 import type { Basics, CustomField, Picture, Url } from "../../wasm/types";
 
-/** One contact line: an optional label, the value, and where it writes back. */
-interface ContactEntry {
-  key: string;
-  label?: string;
-  value: string;
-  /** Field name announced by the inline editor. */
-  fieldLabel: string;
-  commit: (value: string) => void;
-  /** Whether the line is drawn even when the value is empty. */
-  alwaysShown?: boolean;
-}
+/** Largest avatar the sheet draws, whatever the stored size (spec §1.4). */
+const MAX_SHEET_AVATAR_PX = 120;
 
 /**
  * Visible text for a URL — label, else href. Mirrors `url-display-label`.
- *
  * Both fields are read defensively: imported resumes reach the store with one
  * or the other missing.
  */
@@ -45,17 +36,155 @@ function urlLabel(url: Url | undefined): string {
   return label.trim() !== "" ? label : (url?.href ?? "");
 }
 
+/** `customFields` with one field's value replaced — committed as one action. */
+function replaceField(basics: Basics, id: string, value: string): CustomField[] {
+  return basics.customFields.map((field) => (field.id === id ? { ...field, value } : field));
+}
+
+/** Whether a picture is set and not switched off. Mirrors `has-visible-picture`. */
+function pictureVisible(picture: Picture | undefined): boolean {
+  return picture !== undefined && picture.url.trim() !== "" && !picture.effects.hidden;
+}
+
+/** The name block: display name over the accent headline (spec §1.4). */
+export function NameHeader(props: { basics: Basics; isInSidebar?: boolean }): JSX.Element {
+  const isEditable = useSheetEditable();
+  return (
+    <header
+      class="doc-sheet__head"
+      classList={{ "doc-sheet__head--in-side": props.isInSidebar === true }}
+      data-testid="doc-sheet-header"
+    >
+      <Show when={isEditable() || props.basics.name.trim() !== ""}>
+        <h2 class="doc-sheet__name">
+          <InlineText
+            value={props.basics.name}
+            label="Name"
+            placeholder="Your name"
+            triggerId="doc-header-name"
+            onCommit={(value) => updateBasicsField("name", value)}
+          />
+        </h2>
+      </Show>
+      <Show when={isEditable() || props.basics.headline.trim() !== ""}>
+        <p class="doc-sheet__headline">
+          <InlineText
+            value={props.basics.headline}
+            label="Headline"
+            placeholder="Your headline"
+            triggerId="doc-header-headline"
+            onCommit={(value) => updateBasicsField("headline", value)}
+          />
+        </p>
+      </Show>
+    </header>
+  );
+}
+
+/** The avatar's stored geometry, in sheet pixels. */
+function avatarStyle(picture: Picture): JSX.CSSProperties {
+  const size = Math.min(Math.round(picture.size * SHEET_PX_PER_PT), MAX_SHEET_AVATAR_PX);
+  const radius = Math.min(Math.round(picture.borderRadius * SHEET_PX_PER_PT), size / 2);
+  const effects = picture.effects;
+  const borderColor =
+    effects.borderColor.trim() === "" ? "var(--doc-sheet-accent)" : effects.borderColor;
+  const shadowOffset = (effects.shadowSize || 0) / 2;
+  return {
+    width: `${size}px`,
+    height: `${size}px`,
+    "border-radius": `${radius}px`,
+    filter: effects.grayscale ? "grayscale(1)" : undefined,
+    transform: effects.rotation === 0 ? undefined : `rotate(${effects.rotation}deg)`,
+    border:
+      effects.border && effects.borderWidth > 0
+        ? `${effects.borderWidth}px solid ${borderColor}`
+        : "none",
+    "box-shadow":
+      effects.shadowSize > 0
+        ? `${shadowOffset}px ${shadowOffset}px 0 ${effects.shadowColor || "#00000040"}`
+        : "none",
+    "object-fit": "cover",
+  };
+}
+
 /**
- * Contact entries in template order.
- *
- * `build-contact-items` in `_common.typ` emits email, phone then location, and
- * templates append the personal URL after it; the resume's custom fields
- * follow, as the templates that print them do.
+ * The avatar: photo when set, an initials disc otherwise. In edit mode the
+ * whole avatar is a button that opens the photo dialog; in Done mode it is
+ * inert (and absent entirely while it holds no photo).
+ */
+export function SheetAvatar(props: { basics: Basics }): JSX.Element {
+  const isEditable = useSheetEditable();
+  const [isPhotoOpen, setIsPhotoOpen] = createSignal(false);
+
+  const picture = (): Picture => props.basics.picture;
+  const hasPhoto = (): boolean => pictureVisible(picture());
+  const initials = (): string =>
+    props.basics.name
+      .split(/\s+/)
+      .filter((word) => word !== "")
+      .slice(0, 2)
+      .map((word) => (word[0] ?? "").toUpperCase())
+      .join("") || "·";
+
+  return (
+    <Show when={hasPhoto() || isEditable()}>
+      <button
+        type="button"
+        class="doc-sheet__avatar-btn"
+        title={isEditable() ? "Edit profile photo" : undefined}
+        disabled={!isEditable()}
+        onClick={() => setIsPhotoOpen(true)}
+      >
+        <Show
+          when={hasPhoto()}
+          fallback={
+            <span class="doc-sheet__avatar-initials" aria-hidden="true">
+              {initials()}
+            </span>
+          }
+        >
+          <img
+            class="doc-sheet__avatar-img"
+            src={picture().url}
+            alt={
+              props.basics.name.trim() === ""
+                ? "Profile picture"
+                : `Profile picture of ${props.basics.name}`
+            }
+            style={avatarStyle(picture())}
+          />
+        </Show>
+      </button>
+
+      <Show when={isEditable()}>
+        <PhotoDialog open={isPhotoOpen()} picture={picture()} onOpenChange={setIsPhotoOpen} />
+      </Show>
+    </Show>
+  );
+}
+
+/** One contact line: glyph kind, value, and where it writes back. */
+interface ContactEntry {
+  key: string;
+  kind: ContactIconKind;
+  /** Text label for custom fields, drawn instead of a glyph. */
+  label?: string;
+  value: string;
+  fieldLabel: string;
+  commit: (value: string) => void;
+  /** Whether the line is drawn even when the value is empty (edit mode). */
+  alwaysShown?: boolean;
+}
+
+/**
+ * Contact entries in template order: email, phone, location, then the
+ * personal URL and the resume's custom fields (`build-contact-items`).
  */
 function contactEntries(basics: Basics): ContactEntry[] {
   const entries: ContactEntry[] = [
     {
       key: "email",
+      kind: "email",
       value: basics.email,
       fieldLabel: "Email",
       commit: (value) => updateBasicsField("email", value),
@@ -63,6 +192,7 @@ function contactEntries(basics: Basics): ContactEntry[] {
     },
     {
       key: "phone",
+      kind: "phone",
       value: basics.phone,
       fieldLabel: "Phone",
       commit: (value) => updateBasicsField("phone", value),
@@ -70,6 +200,7 @@ function contactEntries(basics: Basics): ContactEntry[] {
     },
     {
       key: "location",
+      kind: "location",
       value: basics.location,
       fieldLabel: "Location",
       commit: (value) => updateBasicsField("location", value),
@@ -84,11 +215,10 @@ function contactEntries(basics: Basics): ContactEntry[] {
     const hasLabel = (basics.url?.label ?? "").trim() !== "";
     entries.push({
       key: "url",
+      kind: "link",
       value: url,
       fieldLabel: hasLabel ? "Website label" : "Website URL",
       commit: (value) =>
-        // Spreading a missing `url` alone would drop the other half of the
-        // required `{label, href}` shape.
         updateBasicsField("url", {
           ...(basics.url ?? { label: "", href: "" }),
           [hasLabel ? "label" : "href"]: value,
@@ -100,6 +230,7 @@ function contactEntries(basics: Basics): ContactEntry[] {
     if (field.value.trim() === "") continue;
     entries.push({
       key: `custom:${field.id}`,
+      kind: "link",
       label: field.name,
       value: field.value,
       fieldLabel: field.name === "" ? "Custom field" : field.name,
@@ -110,200 +241,63 @@ function contactEntries(basics: Basics): ContactEntry[] {
   return entries;
 }
 
-/** `customFields` with one field's value replaced — committed as one action. */
-function replaceField(basics: Basics, id: string, value: string): CustomField[] {
-  return basics.customFields.map((field) => (field.id === id ? { ...field, value } : field));
-}
-
-/** Whether a picture is set and not switched off. Mirrors `has-visible-picture`. */
-function pictureVisible(picture: Picture | undefined): boolean {
-  return picture !== undefined && picture.url.trim() !== "" && !picture.effects.hidden;
+export interface ContactBlockProps {
+  basics: Basics;
+  /** Wrapping inline row for header/banner placements; column list otherwise. */
+  isCompact?: boolean;
+  /** Draw the avatar above the block (sidebar placement). */
+  withAvatar?: boolean;
 }
 
 /**
- * The stored avatar, drawn at its stored size and shape.
- *
- * Sizes are stored in typographic points, so they are expressed against the
- * page's own `--doc-sheet-pt` unit and scale with the sheet, exactly as they do
- * in the rendered PDF. Like `render-picture`, the frame is square and the image
- * is cropped to fill it; `aspectRatio` records the source image's proportions
- * and is not a display setting.
+ * The contact card: a `SectionChrome` whose body is icon rows. Template-owned
+ * chrome — no grip, no pencil, no menu, never draggable (spec §1.4).
  */
-function Avatar(props: { picture: Picture; name: string }): JSX.Element {
-  const size = () => `calc(var(--doc-sheet-pt) * ${props.picture.size})`;
-  const effects = () => props.picture.effects;
-  const radius = () =>
-    `calc(var(--doc-sheet-pt) * ${Math.min(props.picture.borderRadius, props.picture.size / 2)})`;
-
-  return (
-    <img
-      class="doc-sheet__avatar"
-      src={props.picture.url}
-      alt={props.name.trim() === "" ? "Profile picture" : `Profile picture of ${props.name}`}
-      style={{
-        width: size(),
-        height: size(),
-        "border-radius": radius(),
-        "border-width": effects().border
-          ? `calc(var(--doc-sheet-pt) * ${effects().borderWidth})`
-          : "0",
-        "border-color": effects().borderColor === "" ? undefined : effects().borderColor,
-        filter: effects().grayscale ? "grayscale(1)" : undefined,
-        transform: effects().rotation === 0 ? undefined : `rotate(${effects().rotation}deg)`,
-      }}
-    />
-  );
-}
-
-export interface DocHeaderProps {
-  basics: Basics;
-  /** How the template presents the name block. */
-  headerStyle: TemplateHeaderStyle;
-  /**
-   * Whether to draw the avatar, name and headline.
-   *
-   * False for the second header a template needs when it prints its name block
-   * and its contact details in different regions.
-   */
-  showIdentity?: boolean;
-  /** Whether this region is the one the template prints contact details in. */
-  showContact: boolean;
-  /**
-   * Profile links to print in the header.
-   *
-   * Empty when the resume places `profiles` as a section, so a profile is never
-   * drawn twice on the same sheet.
-   */
-  profileLinks?: { id: string; label: string }[];
-}
-
-export function DocHeader(props: DocHeaderProps): JSX.Element {
+export function ContactBlock(props: ContactBlockProps): JSX.Element {
   const isEditable = useSheetEditable();
-  const [isPhotoOpen, setIsPhotoOpen] = createSignal(false);
-
-  // `alwaysShown` entries are editing placeholders; the rendered document
-  // (Done mode) only prints contact details that hold a value.
-  const entries = () =>
+  const entries = (): ContactEntry[] =>
     contactEntries(props.basics).filter(
       (entry) => (isEditable() && entry.alwaysShown === true) || entry.value.trim() !== "",
     );
-  const links = () => props.profileLinks ?? [];
-  const stacked = () => props.headerStyle === "sidebar";
-  const showIdentity = () => props.showIdentity ?? true;
 
   return (
-    <header
-      class="doc-sheet__header"
-      classList={{
-        "doc-sheet__header--left": props.headerStyle === "left",
-        "doc-sheet__header--center": props.headerStyle === "center",
-        "doc-sheet__header--banner": props.headerStyle === "banner",
-        "doc-sheet__header--boxed": props.headerStyle === "boxed",
-        "doc-sheet__header--sidebar": stacked(),
-      }}
-      data-testid="doc-sheet-header"
-    >
-      <Show when={showIdentity()}>
-        {/* Identity is one region so the header styles can arrange the photo
-            the way their template does: beside the name for `left`, above it
-            for `center`/`boxed`/`banner`/`sidebar`. */}
-        <div class="doc-sheet__identity">
-          <Show
-            when={pictureVisible(props.basics.picture)}
-            fallback={
-              <Show when={isEditable()}>
-                <button
-                  type="button"
-                  class="doc-sheet__action"
-                  onClick={() => setIsPhotoOpen(true)}
-                >
-                  Add photo
-                </button>
-              </Show>
-            }
+    <>
+      <Show when={props.withAvatar === true}>
+        <SheetAvatar basics={props.basics} />
+      </Show>
+      <Show when={entries().length > 0}>
+        <SectionChrome sectionId="basics" title="Contact" isFocused={false} onFocus={() => {}}>
+          <ul
+            class="doc-sheet__contact"
+            classList={{
+              "doc-sheet__contact--inline": props.isCompact === true,
+              "doc-sheet__contact--list": props.isCompact !== true,
+            }}
+            data-testid="doc-sheet-contact"
           >
-            <Show
-              when={isEditable()}
-              fallback={<Avatar picture={props.basics.picture} name={props.basics.name} />}
-            >
-              <button
-                type="button"
-                class="doc-sheet__editable doc-sheet__avatar-button"
-                title="Edit photo"
-                onClick={() => setIsPhotoOpen(true)}
-              >
-                <Avatar picture={props.basics.picture} name={props.basics.name} />
-              </button>
-            </Show>
-          </Show>
-
-          <div class="doc-sheet__identity-text">
-            {/* Rendered (Done) mode drops the wrappers of empty fields: an
-                empty heading is announced as a nameless landmark stop. */}
-            <Show when={isEditable() || props.basics.name.trim() !== ""}>
-              <h2 class="doc-sheet__name">
-                <InlineText
-                  value={props.basics.name}
-                  label="Name"
-                  placeholder="Your name"
-                  triggerId="doc-header-name"
-                  onCommit={(value) => updateBasicsField("name", value)}
-                />
-              </h2>
-            </Show>
-
-            <Show when={isEditable() || props.basics.headline.trim() !== ""}>
-              <p class="doc-sheet__headline">
-                <InlineText
-                  value={props.basics.headline}
-                  label="Headline"
-                  placeholder="Your headline"
-                  triggerId="doc-header-headline"
-                  onCommit={(value) => updateBasicsField("headline", value)}
-                />
-              </p>
-            </Show>
-          </div>
-        </div>
-
-        {/* Editing chrome: unmounted in Done mode even when its open flag was
-            left set by a mid-dialog mode switch. */}
-        <Show when={isEditable()}>
-          <PhotoDialog
-            open={isPhotoOpen()}
-            picture={props.basics.picture}
-            onOpenChange={setIsPhotoOpen}
-          />
-        </Show>
+            <For each={entries()}>
+              {(entry) => (
+                <li class="doc-sheet__icon-row">
+                  <Show
+                    when={entry.label === undefined}
+                    fallback={<span class="doc-sheet__contact-label">{entry.label}: </span>}
+                  >
+                    <ContactIcon kind={entry.kind} />
+                    <span class="sr-only">{entry.fieldLabel}</span>
+                  </Show>
+                  <InlineText
+                    value={entry.value}
+                    label={entry.fieldLabel}
+                    class="doc-sheet__side-val"
+                    triggerId={`doc-header-${entry.key}`}
+                    onCommit={entry.commit}
+                  />
+                </li>
+              )}
+            </For>
+          </ul>
+        </SectionChrome>
       </Show>
-
-      <Show when={props.showContact && entries().length > 0}>
-        <ul class="doc-sheet__contact" classList={{ "doc-sheet__contact--stacked": stacked() }}>
-          <For each={entries()}>
-            {(entry) => (
-              <li>
-                <Show when={entry.label}>
-                  <span class="doc-sheet__contact-label">{entry.label}: </span>
-                </Show>
-                <InlineText
-                  value={entry.value}
-                  label={entry.fieldLabel}
-                  triggerId={`doc-header-${entry.key}`}
-                  onCommit={entry.commit}
-                />
-              </li>
-            )}
-          </For>
-        </ul>
-      </Show>
-
-      <Show when={props.showContact && links().length > 0}>
-        <ul class="doc-sheet__contact" classList={{ "doc-sheet__contact--stacked": stacked() }}>
-          {/* Profile links mirror the `profiles` section, which is edited where
-              the layout places it rather than twice over. */}
-          <For each={links()}>{(link) => <li>{link.label}</li>}</For>
-        </ul>
-      </Show>
-    </header>
+    </>
   );
 }

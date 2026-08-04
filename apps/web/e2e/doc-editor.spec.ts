@@ -131,10 +131,10 @@ test.describe("single-surface document editor", () => {
     await expect(summary).not.toContainText("<strong>");
     await expect(summary.locator("strong")).toHaveText("eleven years");
 
-    // Profiles render one entry per profile (#787): the username appears
-    // once, not stacked as title, subtitle and link.
+    // Profiles render one compact row per profile (#787, #794): a brand
+    // glyph plus the username once — not stacked as title, subtitle and link.
     const profiles = docEditorPage.sheet.locator('[data-section-id="profiles"]');
-    await expect(profiles).toContainText("GitHub");
     await expect(profiles.getByText("lgtm-hq")).toHaveCount(1);
+    await expect(profiles.locator("svg").first()).toBeVisible();
   });
 });
