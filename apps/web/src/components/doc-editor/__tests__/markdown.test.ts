@@ -73,4 +73,27 @@ describe("applyMarkdownCommand", () => {
     // lands on is not part of the selection.
     expect(run("one\ntwo\nthree", 0, 8, "bulletList")).toBe("- one\n- two\nthree");
   });
+
+  it("fences the touched lines as a code block", () => {
+    expect(run("let x = 1;", 0, 10, "codeBlock")).toBe("```\nlet x = 1;\n```");
+    expect(run("one\ntwo", 0, 7, "codeBlock")).toBe("```\none\ntwo\n```");
+  });
+
+  it("fences only the touched lines, leaving neighbours alone", () => {
+    expect(run("before\ncode\nafter", 7, 11, "codeBlock")).toBe("before\n```\ncode\n```\nafter");
+  });
+
+  it("inserts a placeholder code block on an empty selection", () => {
+    const result = applyMarkdownCommand({ value: "", start: 0, end: 0 }, "codeBlock");
+    expect(result.value).toBe("```\ncode\n```");
+    expect(result.value.slice(result.start, result.end)).toBe("code");
+  });
+
+  it("unfences when the selection covers the fences", () => {
+    expect(run("```\ncode\n```", 0, 12, "codeBlock")).toBe("code");
+  });
+
+  it("unfences when the selection sits inside a fenced block", () => {
+    expect(run("before\n```\ncode\n```\nafter", 11, 15, "codeBlock")).toBe("before\ncode\nafter");
+  });
 });

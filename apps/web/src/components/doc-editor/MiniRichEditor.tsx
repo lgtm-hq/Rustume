@@ -17,10 +17,15 @@
 import { For, Show, createSignal, type JSX } from "solid-js";
 import { applyMarkdownCommand, type MarkdownCommand, type MarkdownSelection } from "./markdown";
 import { TOOLBAR_ACTIONS } from "./toolbarActions";
+import { ToolbarIcon } from "./icons";
 
 const BUTTON_CLASS =
   "rounded-md border border-border bg-surface px-2 py-1 font-body text-sm text-ink " +
   "hover:bg-border/60 focus-visible:outline-2 focus-visible:outline-accent min-w-8";
+
+const ICON_BUTTON_CLASS =
+  "flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface " +
+  "text-ink hover:bg-border/60 focus-visible:outline-2 focus-visible:outline-accent";
 
 export interface MiniRichEditorProps {
   /** Field name, e.g. "Highlights". Labels the textarea. */
@@ -102,13 +107,14 @@ export function MiniRichEditor(props: MiniRichEditorProps): JSX.Element {
             {(action) => (
               <button
                 type="button"
-                class={BUTTON_CLASS}
+                class={ICON_BUTTON_CLASS}
                 aria-label={action.label}
+                title={action.label}
                 // Keep focus (and therefore the selection) in the textarea.
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => runCommand(action.command)}
               >
-                {action.glyph}
+                <ToolbarIcon kind={action.icon} />
               </button>
             )}
           </For>
@@ -153,9 +159,9 @@ export function MiniRichEditor(props: MiniRichEditorProps): JSX.Element {
 
         <textarea
           ref={(element) => (textarea = element)}
-          class="max-h-60 min-h-28 w-full resize-y rounded-b-lg bg-paper px-3 py-2 font-body text-ink placeholder:text-stone/50 focus:outline-none"
+          class="max-h-[50vh] min-h-48 w-full resize-y rounded-b-lg bg-paper px-3 py-2 font-body text-ink placeholder:text-stone/50 focus:outline-none"
           aria-label={props.label}
-          rows={4}
+          rows={9}
           placeholder="Markdown — **bold**, *italic*, - item"
           value={props.value}
           onInput={(event) => {

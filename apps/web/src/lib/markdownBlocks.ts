@@ -6,10 +6,11 @@
  * exactly the grammar the mini editor emits and the migration produces —
  * paragraphs, `- ` / `1. ` lists (nested by two-space indent, as
  * `htmlToMarkdown` writes them), `**bold**`, `*italic*`, `***both***`,
- * `[label](href)` — into plain data; `MarkdownView` draws it. Pure
- * text-in/data-out, so the whole renderer is unit-testable without a DOM.
+ * `[label](href)`, ``` fenced code blocks — into plain data; `MarkdownView`
+ * draws it. Pure text-in/data-out, so the whole renderer is unit-testable
+ * without a DOM.
  *
- * Anything outside the dialect (headings, code fences) stays literal text:
+ * Anything outside the dialect (headings, inline code) stays literal text:
  * showing the author's punctuation is better than guessing at markdown this
  * pipeline never writes.
  */
@@ -38,9 +39,12 @@ export interface MarkdownList {
 /** One block of a field's value. */
 export type MarkdownBlock =
   | { type: "paragraph"; lines: MarkdownInline[][] }
-  | ({ type: "list" } & MarkdownList);
+  | ({ type: "list" } & MarkdownList)
+  /** A ``` fenced block; `text` is the verbatim body, inlines never apply. */
+  | { type: "code"; text: string };
 
 const LIST_LINE = /^(\s*)(-|\d+\.)\s+(.*)$/;
+const FENCE_LINE = /^\s*```/;
 
 /** Spaces per nesting level, matching `LIST_INDENT` in `htmlToMarkdown`. */
 const INDENT_WIDTH = 2;
@@ -162,7 +166,26 @@ export function parseMarkdownBlocks(value: string): MarkdownBlock[] {
     }
   };
 
+  /** Body lines of the open fenced block, or null when outside one. */
+  let codeLines: string[] | null = null;
+
   for (const line of value.split(/\r?\n/)) {
+    if (codeLines !== null) {
+      if (FENCE_LINE.test(line)) {
+        blocks.push({ type: "code", text: codeLines.join("\n") });
+        codeLines = null;
+      } else {
+        codeLines.push(line);
+      }
+      continue;
+    }
+    if (FENCE_LINE.test(line)) {
+      flushParagraph();
+      flushList();
+      codeLines = [];
+      continue;
+    }
+
     if (line.trim() === "") {
       flushParagraph();
       flushList();
@@ -207,6 +230,12 @@ export function parseMarkdownBlocks(value: string): MarkdownBlock[] {
     paragraph.push(parseMarkdownInlines(line));
   }
 
+  // An unterminated fence (mid-typing) still draws as code: flipping the
+  // block's rendering only once the closing fence lands would flash the raw
+  // punctuation while the user types.
+  if (codeLines !== null) {
+    blocks.push({ type: "code", text: codeLines.join("\n") });
+  }
   flushParagraph();
   flushList();
   return blocks;

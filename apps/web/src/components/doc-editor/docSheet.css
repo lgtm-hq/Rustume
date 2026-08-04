@@ -1161,8 +1161,27 @@
 .doc-sheet__md-paragraph + .doc-sheet__md-paragraph,
 .doc-sheet__md-paragraph + .doc-sheet__md-list,
 .doc-sheet__md-list + .doc-sheet__md-paragraph,
-.doc-sheet__md-list + .doc-sheet__md-list {
+.doc-sheet__md-list + .doc-sheet__md-list,
+.doc-sheet__md-code + .doc-sheet__md-paragraph,
+.doc-sheet__md-code + .doc-sheet__md-list,
+.doc-sheet__md-paragraph + .doc-sheet__md-code,
+.doc-sheet__md-list + .doc-sheet__md-code,
+.doc-sheet__md-code + .doc-sheet__md-code {
   margin-top: 0.5em;
+}
+
+/* Fenced code draws in the document's own ink at a slightly reduced size,
+   on a faint panel — legible on any template background. */
+.doc-sheet__md-code {
+  margin: 0;
+  padding: 0.5em 0.75em;
+  border-radius: 4px;
+  background: color-mix(in srgb, currentColor 7%, transparent);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .doc-sheet__md-list {
