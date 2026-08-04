@@ -568,17 +568,24 @@ export function DocSection(props: DocSectionProps): JSX.Element {
         addLabel={isRichText() || !canAdd() ? undefined : addLabel()}
         onAdd={isRichText() || !canAdd() ? undefined : openAdd}
         menu={menu()}
-        gripActivators={{
-          draggable: "true",
-          onDragStart: (event: DragEvent) => {
-            // Grip drags stopPropagation so the card doesn't double-fire.
-            event.stopPropagation();
-            dnd?.setSectionDrag(id());
-            event.dataTransfer?.setData(SECTION_DRAG_MIME, JSON.stringify({ id: id() }));
-            if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
-          },
-          onDragEnd: endCardDrag,
-        }}
+        gripActivators={
+          // Continuation slices carry no drag chrome: the slice-0 card is the
+          // one drag surface for the whole section, matching its raw
+          // placement (the only thing a drop can address).
+          isContinuation()
+            ? undefined
+            : {
+                draggable: "true",
+                onDragStart: (event: DragEvent) => {
+                  // Grip drags stopPropagation so the card doesn't double-fire.
+                  event.stopPropagation();
+                  dnd?.setSectionDrag(id());
+                  event.dataTransfer?.setData(SECTION_DRAG_MIME, JSON.stringify({ id: id() }));
+                  if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+                },
+                onDragEnd: endCardDrag,
+              }
+        }
         gripTitle={`Drag ${baseTitle()} section to move it`}
         dragProps={cardDragProps()}
         isDragging={isDragging()}

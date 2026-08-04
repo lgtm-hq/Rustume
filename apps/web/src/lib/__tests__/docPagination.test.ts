@@ -21,8 +21,8 @@ import {
 } from "../../test/docEditorFixture";
 import type { ResumeData } from "../../wasm/types";
 
-/** The fixture on a single-flow template, the only layout that honors breaks. */
-function loadSingleFlowFixture(breaks?: Record<string, string[]>): ResumeData {
+/** The shared doc-editor fixture, optionally seeded with break markers. */
+function loadBreakFixture(breaks?: Record<string, string[]>): ResumeData {
   const resume = loadDocEditorFixture();
   if (breaks !== undefined) {
     resume.metadata.itemBreaks = breaks;
@@ -69,19 +69,19 @@ describe("itemSlices", () => {
 
 describe("orderedItemBreaks", () => {
   it("orders markers by item position and drops unknown ids", () => {
-    const resume = loadSingleFlowFixture({ experience: ["exp-3", "exp-2", "ghost"] });
+    const resume = loadBreakFixture({ experience: ["exp-3", "exp-2", "ghost"] });
 
     expect(orderedItemBreaks(resume, "experience", true)).toEqual(["exp-2", "exp-3"]);
   });
 
   it("ignores markers on sections that cannot carry them", () => {
-    const resume = loadSingleFlowFixture({ skills: ["skill-1"] });
+    const resume = loadBreakFixture({ skills: ["skill-1"] });
 
     expect(orderedItemBreaks(resume, "skills", true)).toEqual([]);
   });
 
   it("drops a hidden item's marker when hidden items are not drawn", () => {
-    const resume = loadSingleFlowFixture({ experience: ["exp-2"] });
+    const resume = loadBreakFixture({ experience: ["exp-2"] });
     resume.sections.experience.items[1].visible = false;
 
     expect(orderedItemBreaks(resume, "experience", false)).toEqual([]);
@@ -91,7 +91,7 @@ describe("orderedItemBreaks", () => {
 
 describe("expandItemBreakPages", () => {
   it("places a broken section on consecutive pages in the same column", () => {
-    const resume = loadSingleFlowFixture({ experience: ["exp-2"] });
+    const resume = loadBreakFixture({ experience: ["exp-2"] });
 
     const pages = expandItemBreakPages(resume, SINGLE_TEMPLATE, true);
 
@@ -101,7 +101,7 @@ describe("expandItemBreakPages", () => {
   });
 
   it("creates missing pages for trailing continuations", () => {
-    const resume = loadSingleFlowFixture({ experience: ["exp-2", "exp-3"] });
+    const resume = loadBreakFixture({ experience: ["exp-2", "exp-3"] });
     resume.metadata.layout = [[["summary", "experience"]]];
 
     const pages = expandItemBreakPages(resume, SINGLE_TEMPLATE, true);
@@ -112,7 +112,7 @@ describe("expandItemBreakPages", () => {
   });
 
   it("expands nothing on templates whose layout cannot honor breaks", () => {
-    const resume = loadSingleFlowFixture({ experience: ["exp-2"] });
+    const resume = loadBreakFixture({ experience: ["exp-2"] });
 
     const pages = expandItemBreakPages(resume, SIDEBAR_TEMPLATE, true);
 
@@ -122,7 +122,7 @@ describe("expandItemBreakPages", () => {
 
 describe("sectionSliceAt", () => {
   it("names each instance's items, index and last-ness", () => {
-    const resume = loadSingleFlowFixture({ experience: ["exp-2"] });
+    const resume = loadBreakFixture({ experience: ["exp-2"] });
 
     const first = sectionSliceAt(resume, SINGLE_TEMPLATE, "experience", 0, 0, true);
     const second = sectionSliceAt(resume, SINGLE_TEMPLATE, "experience", 1, 0, true);
@@ -132,7 +132,7 @@ describe("sectionSliceAt", () => {
   });
 
   it("returns null for unbroken sections and unsupported templates", () => {
-    const resume = loadSingleFlowFixture({ experience: ["exp-2"] });
+    const resume = loadBreakFixture({ experience: ["exp-2"] });
 
     expect(sectionSliceAt(resume, SINGLE_TEMPLATE, "education", 0, 0, true)).toBeNull();
     expect(sectionSliceAt(resume, SIDEBAR_TEMPLATE, "experience", 0, 0, true)).toBeNull();
@@ -141,7 +141,7 @@ describe("sectionSliceAt", () => {
 
 describe("renderSheetPages / editorSheetPages with breaks", () => {
   it("draws the continuation in both modes", () => {
-    const resume = loadSingleFlowFixture({ experience: ["exp-2"] });
+    const resume = loadBreakFixture({ experience: ["exp-2"] });
 
     for (const pages of [
       renderSheetPages(resume, SINGLE_TEMPLATE),
@@ -153,7 +153,7 @@ describe("renderSheetPages / editorSheetPages with breaks", () => {
   });
 
   it("drops only trailing empty pages so drawn indices stay aligned", () => {
-    const resume = loadSingleFlowFixture();
+    const resume = loadBreakFixture();
     resume.metadata.layout = [[["experience"]], [["references"]], [["education"]]];
     // References holds items in the fixture; hide the section so page 1
     // renders empty mid-stack.
@@ -168,7 +168,7 @@ describe("renderSheetPages / editorSheetPages with breaks", () => {
 
 describe("itemBreaksWithBreakBefore", () => {
   it("appends a marker for a breakable item", () => {
-    const resume = loadSingleFlowFixture();
+    const resume = loadBreakFixture();
 
     expect(itemBreaksWithBreakBefore(resume, SINGLE_TEMPLATE, "experience", "exp-2")).toEqual({
       experience: ["exp-2"],
@@ -176,7 +176,7 @@ describe("itemBreaksWithBreakBefore", () => {
   });
 
   it("returns null for inert markers: first item, duplicates, guards", () => {
-    const resume = loadSingleFlowFixture({ experience: ["exp-2"] });
+    const resume = loadBreakFixture({ experience: ["exp-2"] });
 
     expect(itemBreaksWithBreakBefore(resume, SINGLE_TEMPLATE, "experience", "exp-1")).toBeNull();
     expect(itemBreaksWithBreakBefore(resume, SINGLE_TEMPLATE, "experience", "exp-2")).toBeNull();
@@ -226,7 +226,7 @@ describe("splitLayoutBeforeSection", () => {
 
 describe("resolvePageBreakRemoval", () => {
   it("prefers clearing the item break shared across the boundary", () => {
-    const resume = loadSingleFlowFixture({ experience: ["exp-2"] });
+    const resume = loadBreakFixture({ experience: ["exp-2"] });
 
     const removal = resolvePageBreakRemoval(resume, SINGLE_TEMPLATE, 1);
 
@@ -234,7 +234,7 @@ describe("resolvePageBreakRemoval", () => {
   });
 
   it("clears only the responsible marker of a multi-break section", () => {
-    const resume = loadSingleFlowFixture({ experience: ["exp-2", "exp-3"] });
+    const resume = loadBreakFixture({ experience: ["exp-2", "exp-3"] });
     resume.metadata.layout = [[["summary", "experience"]]];
 
     const removal = resolvePageBreakRemoval(resume, SINGLE_TEMPLATE, 1);
@@ -246,7 +246,7 @@ describe("resolvePageBreakRemoval", () => {
   });
 
   it("falls back to merging the raw pages column-wise", () => {
-    const resume = loadSingleFlowFixture();
+    const resume = loadBreakFixture();
 
     const removal = resolvePageBreakRemoval(resume, SIDEBAR_TEMPLATE, 1);
 
@@ -270,7 +270,7 @@ describe("resolvePageBreakRemoval", () => {
   });
 
   it("returns null for page 0 and out-of-range pages", () => {
-    const resume = loadSingleFlowFixture();
+    const resume = loadBreakFixture();
 
     expect(resolvePageBreakRemoval(resume, SIDEBAR_TEMPLATE, 0)).toBeNull();
     expect(resolvePageBreakRemoval(resume, SIDEBAR_TEMPLATE, 9)).toBeNull();

@@ -70,6 +70,7 @@ import {
 import {
   ITEM_BREAK_TEMPLATE_DISABLED_REASON,
   editorSheetPages,
+  expandItemBreakPages,
   itemBreaksWithBreakBefore,
   itemBreaksWithoutSection,
   renderSheetPages,
@@ -189,6 +190,10 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
     // page rather than as a failure to load.
     return rendered.length > 0 ? rendered : [[[]]];
   });
+  // One expansion per render for every card's slice lookup to share.
+  const expandedPages = createMemo(() =>
+    expandItemBreakPages(props.resume, props.templateLayout, isEditable()),
+  );
 
   const theme = (): ResumeData["metadata"]["theme"] => props.resume.metadata.theme;
   const layoutMode = (): TemplateLayout["layoutMode"] => props.templateLayout.layoutMode;
@@ -530,6 +535,7 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
                 listProps.pageIndex,
                 listProps.columnIndex,
                 isEditable(),
+                expandedPages(),
               )}
               canInsertPageBreak={canInsertPageBreakBefore(sectionId)}
               onInsertPageBreak={insertPageBreakBeforeSection}

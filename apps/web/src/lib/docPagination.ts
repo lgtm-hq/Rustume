@@ -151,21 +151,19 @@ export function expandItemBreakPages(
   const pages = cloneLayout(layoutPages(resume, templateLayout));
   if (!templateSupportsItemBreaks(templateLayout)) return pages;
 
-  const placements: { id: string; page: number; column: number }[] = [];
+  const placements: { id: string; page: number; column: number; sliceCount: number }[] = [];
   for (let page = 0; page < pages.length; page++) {
     for (let column = 0; column < pages[page].length; column++) {
       for (const id of pages[page][column]) {
         const breaks = orderedItemBreaks(resume, id, includeHidden);
         if (breaks.length === 0) continue;
         const sliceCount = itemSlices(drawnItemIds(resume, id, includeHidden), breaks).length;
-        if (sliceCount > 1) placements.push({ id, page, column });
+        if (sliceCount > 1) placements.push({ id, page, column, sliceCount });
       }
     }
   }
 
-  for (const { id, page, column } of placements) {
-    const breaks = orderedItemBreaks(resume, id, includeHidden);
-    const sliceCount = itemSlices(drawnItemIds(resume, id, includeHidden), breaks).length;
+  for (const { id, page, column, sliceCount } of placements) {
     for (let slice = 1; slice < sliceCount; slice++) {
       const target = page + slice;
       while (pages.length <= target) {
@@ -210,9 +208,10 @@ export function sectionSliceIndex(
   pageIndex: number,
   columnIndex: number,
   includeHidden: boolean,
+  expandedPages?: readonly (readonly (readonly string[])[])[],
 ): number {
   return sliceIndexInPages(
-    expandItemBreakPages(resume, templateLayout, includeHidden),
+    expandedPages ?? expandItemBreakPages(resume, templateLayout, includeHidden),
     sectionId,
     pageIndex,
     columnIndex,
@@ -232,6 +231,9 @@ export interface SectionSlice {
 /**
  * The slice a section instance draws, or `null` when the section is not
  * sliced at all (no honored breaks) — callers draw the whole section then.
+ *
+ * `expandedPages` lets a caller drawing many instances reuse one
+ * {@link expandItemBreakPages} result instead of re-deriving it per card.
  */
 export function sectionSliceAt(
   resume: ResumeData,
@@ -240,6 +242,7 @@ export function sectionSliceAt(
   pageIndex: number,
   columnIndex: number,
   includeHidden: boolean,
+  expandedPages?: readonly (readonly (readonly string[])[])[],
 ): SectionSlice | null {
   if (!templateSupportsItemBreaks(templateLayout)) return null;
   const breaks = orderedItemBreaks(resume, sectionId, includeHidden);
@@ -247,7 +250,15 @@ export function sectionSliceAt(
   const slices = itemSlices(drawnItemIds(resume, sectionId, includeHidden), breaks);
   if (slices.length <= 1) return null;
   const index = Math.min(
-    sectionSliceIndex(resume, templateLayout, sectionId, pageIndex, columnIndex, includeHidden),
+    sectionSliceIndex(
+      resume,
+      templateLayout,
+      sectionId,
+      pageIndex,
+      columnIndex,
+      includeHidden,
+      expandedPages,
+    ),
     slices.length - 1,
   );
   return { index, itemIds: slices[index], isLast: index === slices.length - 1 };
@@ -361,8 +372,8 @@ export function splitLayoutBeforeSection(
   if (!placement) return null;
   const next = cloneLayout(layout);
   const column = next[placement.page][placement.column];
+  // The tail always holds at least the section itself — the placement is real.
   const tail = column.splice(placement.index);
-  if (tail.length === 0) return null;
   const columnCount = next[placement.page].length;
   next.splice(
     placement.page + 1,
@@ -422,21 +433,32 @@ export function resolvePageBreakRemoval(
 
 /**
  * `breaks` with every unhonorable entry stripped: non-main-flow sections
- * (spec §3.4 guard) and empty marker lists. Returns `null` when nothing
- * needed stripping, so load-time repairs write nothing for a clean document.
+ * (spec §3.4 guard), empty or non-array marker lists, and non-string
+ * markers. Loaded documents can carry any shape here (imports, old
+ * clients), so the value is guarded at runtime like `sections.custom` and
+ * `metadata.layout` are. Returns `null` when nothing needed stripping, so
+ * load-time repairs write nothing for a clean document.
  */
-export function sanitizedItemBreaks(
-  breaks: Record<string, string[]> | undefined,
-): Record<string, string[]> | null {
+export function sanitizedItemBreaks(breaks: unknown): Record<string, string[]> | null {
   if (breaks === undefined) return null;
+  if (typeof breaks !== "object" || breaks === null || Array.isArray(breaks)) {
+    // A malformed field is repaired to "no breaks" rather than left to trip
+    // every Object.entries reader downstream.
+    return {};
+  }
   let changed = false;
   const next: Record<string, string[]> = {};
   for (const [sectionId, markers] of Object.entries(breaks)) {
-    if (!sectionSupportsItemBreaks(sectionId) || markers.length === 0) {
+    const valid =
+      sectionSupportsItemBreaks(sectionId) &&
+      Array.isArray(markers) &&
+      markers.length > 0 &&
+      markers.every((marker) => typeof marker === "string");
+    if (!valid) {
       changed = true;
       continue;
     }
-    next[sectionId] = markers;
+    next[sectionId] = markers as string[];
   }
   return changed ? next : null;
 }

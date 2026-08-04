@@ -539,15 +539,16 @@ invented voids). The sidebar is user-resizable in edit mode via an 8px edge hand
 
 `metadata.layout: string[][][]` = **pages → columns → section ids**, plus
 `metadata.itemBreaks: Record<sectionId, itemId[]>` = items that start a new page (mid-section
-splits). Derivation pipeline (all in `docModel.ts`, all pure):
+splits). Derivation pipeline (production: `apps/web/src/lib/docLayout.ts` +
+`apps/web/src/lib/docPagination.ts`, all pure):
 
 1. `layoutPages` — raw pages with cross-page dedup (first occurrence of a section id wins;
    duplicates cause re-render bugs).
 2. `expandItemBreakPages` — a section with N break markers occupies N+1 consecutive pages **in the
    same column**; missing pages/columns are created.
-3. `renderPages` — strips section ids whose slice has no content on that page/column
+3. `renderSheetPages` — strips section ids whose slice has no content on that page/column
    (`sectionHasSliceContent`: summary only on slice 0; item sections need a non-empty slice from
-   `itemSlicesForSection`), then drops trailing empty pages. Result feeds the sheet stack.
+   `itemSlices`), then drops trailing empty pages. Result feeds the sheet stack.
 4. Per-instance: `sectionSliceIndex(doc, id, page, col)` (counted on **pre-strip** expanded pages so
    indices stay aligned with `itemBreaks`) selects which item slice a given rendered section shows;
    slices > 0 render the title as **`"<Title> (cont.)"`**.

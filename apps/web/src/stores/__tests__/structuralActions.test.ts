@@ -8,7 +8,7 @@ import { createRoot } from "solid-js";
 import { describe, expect, it, vi, type Mock } from "vitest";
 import { createDefaultResume } from "../../wasm/defaults";
 import { useResumeStore } from "../resume";
-import type { CustomItem, Skill } from "../../wasm/types";
+import type { CustomItem, Experience, Skill } from "../../wasm/types";
 
 vi.mock("../../wasm", () => ({
   createEmptyResume: () => createDefaultResume(),
@@ -17,6 +17,21 @@ vi.mock("../../wasm", () => ({
   isWasmReady: () => false,
   ensureWasmReady: async () => false,
 }));
+
+function experienceItem(id: string, company: string): Experience {
+  return {
+    id,
+    visible: true,
+    company,
+    position: "Engineer",
+    location: "",
+    date: "",
+    summary: "",
+    url: { label: "", href: "" },
+    keywords: [],
+    customFields: [],
+  };
+}
 
 function skill(id: string, name: string): Skill {
   return { id, visible: true, name, description: "", level: 3, keywords: ["k"] };
@@ -277,15 +292,15 @@ describe("removeSectionItem", () => {
       const { store, createNewResume, addSectionItem, updateMetadata, removeSectionItem } =
         useResumeStore();
       createNewResume("break-1");
-      addSectionItem("skills", skill("skill-a", "Alpha"));
-      addSectionItem("skills", skill("skill-b", "Beta"));
-      const base = store.resume!.sections.skills.items.length - 2;
-      updateMetadata("itemBreaks", { skills: ["skill-b"], experience: ["exp-x"] });
+      addSectionItem("experience", experienceItem("exp-a", "Alpha Corp"));
+      addSectionItem("experience", experienceItem("exp-b", "Beta Corp"));
+      const base = store.resume!.sections.experience.items.length - 2;
+      updateMetadata("itemBreaks", { experience: ["exp-b"], education: ["edu-x"] });
 
-      removeSectionItem("skills", base + 1);
+      removeSectionItem("experience", base + 1);
 
       // Only the removed item's marker goes; other sections keep theirs.
-      expect(store.resume!.metadata.itemBreaks).toEqual({ experience: ["exp-x"] });
+      expect(store.resume!.metadata.itemBreaks).toEqual({ education: ["edu-x"] });
       dispose();
     });
   });

@@ -73,6 +73,39 @@ function openMenu(title: string): void {
  */
 const FIRST_EXPERIENCE = "Principal Design Systems Engineer";
 
+interface MockDataTransfer {
+  data: Record<string, string>;
+  setData: (mime: string, value: string) => void;
+  getData: (mime: string) => string;
+  effectAllowed: string;
+  dropEffect: string;
+}
+
+function mockDataTransfer(): MockDataTransfer {
+  const data: Record<string, string> = {};
+  return {
+    data,
+    setData: (mime, value) => {
+      data[mime] = value;
+    },
+    getData: (mime) => data[mime] ?? "",
+    effectAllowed: "",
+    dropEffect: "",
+  };
+}
+
+function sectionCard(sectionId: string): HTMLElement {
+  const card = document.querySelector(`[data-section-id="${sectionId}"]`);
+  expect(card).not.toBeNull();
+  return card as HTMLElement;
+}
+
+function entryRow(itemId: string): HTMLElement {
+  const row = document.querySelector(`[data-entry-id="${itemId}"]`);
+  expect(row).not.toBeNull();
+  return row as HTMLElement;
+}
+
 describe("document sheet structural chrome", () => {
   let resume: ResumeData;
 
@@ -473,39 +506,6 @@ describe("document sheet structural chrome", () => {
   });
 
   describe("whole-surface drag and drop", () => {
-    interface MockDataTransfer {
-      data: Record<string, string>;
-      setData: (mime: string, value: string) => void;
-      getData: (mime: string) => string;
-      effectAllowed: string;
-      dropEffect: string;
-    }
-
-    function mockDataTransfer(): MockDataTransfer {
-      const data: Record<string, string> = {};
-      return {
-        data,
-        setData: (mime, value) => {
-          data[mime] = value;
-        },
-        getData: (mime) => data[mime] ?? "",
-        effectAllowed: "",
-        dropEffect: "",
-      };
-    }
-
-    function sectionCard(sectionId: string): HTMLElement {
-      const card = document.querySelector(`[data-section-id="${sectionId}"]`);
-      expect(card).not.toBeNull();
-      return card as HTMLElement;
-    }
-
-    function entryRow(itemId: string): HTMLElement {
-      const row = document.querySelector(`[data-entry-id="${itemId}"]`);
-      expect(row).not.toBeNull();
-      return row as HTMLElement;
-    }
-
     it("makes the whole row and the whole card drag surfaces, grips included", () => {
       renderSheet();
 
@@ -810,18 +810,9 @@ describe("document sheet structural chrome", () => {
       resume.metadata.itemBreaks = { experience: ["exp-2"] };
       renderSheet({ template: SINGLE_TEMPLATE });
 
-      const source = document.querySelector('[data-section-id="experience"]') as HTMLElement;
-      const target = document.querySelector('[data-section-id="projects"]') as HTMLElement;
-      const data: Record<string, string> = {};
-      const dataTransfer = {
-        data,
-        setData: (mime: string, value: string) => {
-          data[mime] = value;
-        },
-        getData: (mime: string) => data[mime] ?? "",
-        effectAllowed: "",
-        dropEffect: "",
-      };
+      const source = sectionCard("experience");
+      const target = sectionCard("projects");
+      const dataTransfer = mockDataTransfer();
       fireEvent.mouseDown(source);
       fireEvent.dragStart(source, { dataTransfer });
       fireEvent.dragEnter(target, { dataTransfer, clientY: 0 });
