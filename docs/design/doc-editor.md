@@ -316,10 +316,11 @@ field autofocused):
   institution "Institution"; `score` saved as `""`.
 - _profiles_: Network (placeholder "GitHub"), Username. Fallback network "Network"; icon/url saved
   empty.
-- _languages / skills_: Name + **Proficiency picker**: five equal-width cards (1–5) each showing the
-  number over a tiny label (Beginner / Elementary / Conversational / Fluent / Native); selected card
-  gets accent border + 12% accent fill. Saved `level` clamps to 1–5 (default 3) and **`description`
-  is auto-set to the level label**.
+- _languages / skills_: Name + **Level picker**: five equal-width cards showing **numbers only,
+  1–5** (owner decision: no proficiency wording — word labels only made sense for languages, and
+  the picker serves every levelled section; accessible names are "Level n of 5"); selected card
+  gets accent border + 12% accent fill. Saved `level` clamps to 1–5 (default 3); **`description`
+  is never auto-written** — it stays the user's own text.
 - _projects_: Name, Description (2-row textarea), Highlights rich editor.
 - _everything else + custom sections_: Name, Description textarea (custom sections only), Summary
   rich editor; generic saves also carry `level` (default 3).

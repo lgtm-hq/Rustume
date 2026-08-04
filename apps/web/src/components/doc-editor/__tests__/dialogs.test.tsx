@@ -328,34 +328,38 @@ describe("item dialog", () => {
     });
   });
 
-  describe("proficiency picker", () => {
-    it("offers five labelled level cards", () => {
+  describe("level picker", () => {
+    it("offers five number-only cards — no proficiency wording", () => {
+      // Owner decision (post-§1.13): word labels only made sense for
+      // languages; every levelled section shows the bare 1–5 scale.
       render(() => (
         <ItemDialog open sectionId="languages" sectionTitle="Languages" onOpenChange={() => {}} />
       ));
 
       const cards = screen.getAllByRole("radio");
       expect(cards).toHaveLength(5);
-      expect(cards.map((card) => card.textContent)).toEqual([
-        "1Beginner",
-        "2Elementary",
-        "3Conversational",
-        "4Fluent",
-        "5Native",
+      expect(cards.map((card) => card.textContent)).toEqual(["1", "2", "3", "4", "5"]);
+      expect(cards.map((card) => card.getAttribute("aria-label"))).toEqual([
+        "Level 1 of 5",
+        "Level 2 of 5",
+        "Level 3 of 5",
+        "Level 4 of 5",
+        "Level 5 of 5",
       ]);
     });
 
-    it("saves the picked level with its label as the description", () => {
+    it("saves the picked level without touching the description", () => {
       render(() => (
         <ItemDialog open sectionId="languages" sectionTitle="Languages" onOpenChange={() => {}} />
       ));
 
-      fireEvent.click(screen.getByRole("radio", { name: /Native/ }));
+      fireEvent.click(screen.getByRole("radio", { name: "Level 5 of 5" }));
       fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
       const [, item] = store.addSectionItem.mock.calls[0] as [string, Record<string, unknown>];
       expect(item.level).toBe(5);
-      expect(item.description).toBe("Native");
+      // Proficiency wording is gone: the description is never auto-written.
+      expect(item.description ?? "").toBe("");
     });
 
     it("defaults an untouched add to level 3", () => {
@@ -367,7 +371,7 @@ describe("item dialog", () => {
 
       const [, item] = store.addSectionItem.mock.calls[0] as [string, Record<string, unknown>];
       expect(item.level).toBe(3);
-      expect(item.description).toBe("Conversational");
+      expect(item.description ?? "").toBe("");
     });
 
     it("seeds an existing level-0 item at the default level", () => {
@@ -384,7 +388,7 @@ describe("item dialog", () => {
         />
       ));
 
-      expect(screen.getByRole("radio", { name: /Conversational/ })).toHaveAttribute(
+      expect(screen.getByRole("radio", { name: "Level 3 of 5" })).toHaveAttribute(
         "aria-checked",
         "true",
       );
@@ -416,7 +420,7 @@ describe("item dialog", () => {
         />
       ));
 
-      fireEvent.click(screen.getByRole("radio", { name: /Native/ }));
+      fireEvent.click(screen.getByRole("radio", { name: "Level 5 of 5" }));
       fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
       const [, , updates] = store.updateSectionItem.mock.calls[0] as [
@@ -425,12 +429,14 @@ describe("item dialog", () => {
         Record<string, unknown>,
       ];
       expect(updates.level).toBe(5);
-      // Owner decision: free-text descriptions are preserved; only an empty
-      // or previously auto-set label follows the picker.
+      // Owner decision: descriptions are the user's own text; the picker
+      // never writes into them.
       expect(updates.description).toBe("Business fluent");
     });
 
-    it("re-labels a description that was itself an auto-set label", () => {
+    it("leaves a legacy auto-set label alone as ordinary user text", () => {
+      // Earlier builds wrote proficiency words into descriptions; with the
+      // wording removed, such text is simply preserved like any other.
       render(() => (
         <ItemDialog
           open
@@ -442,7 +448,7 @@ describe("item dialog", () => {
         />
       ));
 
-      fireEvent.click(screen.getByRole("radio", { name: /Beginner/ }));
+      fireEvent.click(screen.getByRole("radio", { name: "Level 1 of 5" }));
       fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
       const [, , updates] = store.updateSectionItem.mock.calls[0] as [
@@ -450,7 +456,8 @@ describe("item dialog", () => {
         number,
         Record<string, unknown>,
       ];
-      expect(updates.description).toBe("Beginner");
+      expect(updates.level).toBe(1);
+      expect(updates.description).toBe("Fluent");
     });
   });
 

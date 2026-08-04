@@ -34,14 +34,12 @@ const MAX_LEVEL = 5;
 /** What an untouched proficiency saves as (spec §4.2: UI default 3). */
 const DEFAULT_LEVEL = 3;
 
-/** The proficiency picker's card labels, in level order (spec §1.13). */
-export const LEVEL_LABELS = [
-  "Beginner",
-  "Elementary",
-  "Conversational",
-  "Fluent",
-  "Native",
-] as const;
+/**
+ * The level picker's cards, 1–5. Numbers only — proficiency wording was
+ * removed by owner decision (post-§1.13): word labels only made sense for
+ * languages, and the picker serves every levelled section.
+ */
+const LEVELS = [1, 2, 3, 4, 5] as const;
 
 /**
  * Blank headline fields fall back to these on save (spec §1.13), so a
@@ -99,12 +97,6 @@ function asCustomFields(value: unknown): CustomField[] {
 function asUrl(value: unknown): Url {
   const url = value as Partial<Url> | undefined;
   return { label: url?.label ?? "", href: url?.href ?? "" };
-}
-
-/** Whether the level's description was auto-set (or empty) rather than typed. */
-function isAutoDescription(description: string): boolean {
-  const trimmed = description.trim();
-  return trimmed === "" || (LEVEL_LABELS as readonly string[]).includes(trimmed);
 }
 
 /** Consecutive `half` specs paired into two-column rows (spec's field-row). */
@@ -174,13 +166,9 @@ export function ItemDialog(props: ItemDialogProps): JSX.Element {
     }
 
     if (hasLevel()) {
-      const level = Math.min(MAX_LEVEL, Math.max(1, asLevel(next.level) || DEFAULT_LEVEL));
-      next.level = level;
-      // Auto-fill the proficiency label, but never clobber a description the
-      // user wrote themselves (owner decision: free text is preserved).
-      if (isAutoDescription(asText(next.description))) {
-        next.description = LEVEL_LABELS[level - 1];
-      }
+      // Clamp only — the description is never auto-written (owner decision:
+      // proficiency wording is gone; free text stays the user's own).
+      next.level = Math.min(MAX_LEVEL, Math.max(1, asLevel(next.level) || DEFAULT_LEVEL));
     }
 
     if (Array.isArray(next.customFields)) {
@@ -288,25 +276,24 @@ export function ItemDialog(props: ItemDialogProps): JSX.Element {
                 cards[next - 1]?.focus();
               }}
             >
-              <For each={[...LEVEL_LABELS]}>
-                {(label, index) => {
-                  const level = (): number => index() + 1;
-                  const isSelected = (): boolean => asLevel(value()) === level();
+              <For each={[...LEVELS]}>
+                {(level) => {
+                  const isSelected = (): boolean => asLevel(value()) === level;
                   return (
                     <button
                       type="button"
                       role="radio"
                       aria-checked={isSelected()}
-                      tabindex={isSelected() || (asLevel(value()) === 0 && level() === 1) ? 0 : -1}
+                      aria-label={`Level ${level} of 5`}
+                      tabindex={isSelected() || (asLevel(value()) === 0 && level === 1) ? 0 : -1}
                       class="flex flex-col items-center gap-0.5 rounded-lg border px-1 py-2"
                       classList={{
                         "border-accent bg-accent/10 text-ink": isSelected(),
                         "border-border text-stone hover:border-accent/50": !isSelected(),
                       }}
-                      onClick={() => setField(spec().key, level())}
+                      onClick={() => setField(spec().key, level)}
                     >
-                      <span class="font-body text-base font-semibold">{level()}</span>
-                      <span class="text-[10px] leading-tight">{label}</span>
+                      <span class="font-body text-base font-semibold">{level}</span>
                     </button>
                   );
                 }}
