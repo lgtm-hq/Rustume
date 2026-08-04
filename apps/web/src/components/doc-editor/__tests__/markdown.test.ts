@@ -98,12 +98,18 @@ describe("applyMarkdownCommand", () => {
   });
 
   it("unfences from a caret on any body line of a multi-line block", () => {
-    // Caret on "two" — not adjacent to either fence.
-    expect(run("```\none\ntwo\nthree\n```", 9, 9, "codeBlock")).toBe("one\ntwo\nthree");
+    // Caret on "two" — not adjacent to either fence. The freed body stays
+    // selected so the toggle can be re-applied or typed over.
+    const result = applyMarkdownCommand(
+      { value: "```\none\ntwo\nthree\n```", start: 9, end: 9 },
+      "codeBlock",
+    );
+    expect(result).toEqual({ value: "one\ntwo\nthree", start: 0, end: 13 });
   });
 
   it("unfences from a caret on a fence line itself", () => {
-    expect(run("```\ncode\n```", 1, 1, "codeBlock")).toBe("code");
+    const result = applyMarkdownCommand({ value: "```\ncode\n```", start: 1, end: 1 }, "codeBlock");
+    expect(result).toEqual({ value: "code", start: 0, end: 4 });
   });
 
   it("unfences an unterminated block still being typed", () => {
