@@ -155,8 +155,11 @@ export default function DocEditor() {
     () => layouts()?.[store.resume?.metadata.template ?? ""] ?? FALLBACK_TEMPLATE_LAYOUT,
   );
 
-  // Lifted so the sheet's Add-section blocks can open the panel (#794).
+  // Lifted so the sheet's Add-section blocks can open the panel (#794). Both
+  // drawers hang off the edge tabs on the resume surface, never the top bar
+  // (owner decision 2026-08-04).
   const [isSectionsOpen, setIsSectionsOpen] = createSignal(false);
+  const [isTemplatesOpen, setIsTemplatesOpen] = createSignal(false);
 
   // Edit or Done, per document. A brand-new empty resume opens ready to type;
   // an existing one opens as the clean rendered document.
@@ -199,23 +202,10 @@ export default function DocEditor() {
         reflows anything. Pagination is a section-level `metadata.layout`
         decision made elsewhere.
       */}
-      <div class="h-12 flex items-center justify-between gap-4 border-b border-border bg-paper px-4">
-        {/* Panel chrome around the sheet: the drawers overlay the surface and
-            never disturb the page frames or their drop zones. */}
-        <div class="flex items-center gap-2">
-          <Show when={store.resume}>
-            {(resume) => (
-              <>
-                <TemplatesDrawer resume={resume()} />
-                <SectionsPanel
-                  resume={resume()}
-                  open={isSectionsOpen()}
-                  onOpenChange={setIsSectionsOpen}
-                />
-              </>
-            )}
-          </Show>
-        </div>
+      <div
+        class="h-12 flex items-center justify-end gap-4 border-b border-border bg-paper px-4"
+        data-testid="doc-editor-topbar"
+      >
         <div class="flex items-center gap-2">
           <Button
             variant="ghost"
@@ -328,7 +318,7 @@ export default function DocEditor() {
         </div>
       </div>
 
-      <div class="flex-1 overflow-hidden">
+      <div class="relative flex-1 overflow-hidden">
         <Show
           when={!isLoading() && !loadError() && store.resume != null}
           fallback={
@@ -377,6 +367,42 @@ export default function DocEditor() {
               </Show>
             </div>
           </div>
+
+          {/* Drawer chrome around the sheet (owner decision 2026-08-04: not
+              top-bar items): edge tabs on the resume surface expand/collapse
+              the Templates and Sections drawers in place. The drawers overlay
+              the surface and never disturb the page frames or their drop
+              zones. */}
+          <Show when={store.resume}>
+            {(resume) => (
+              <>
+                <SurfaceEdgeTab
+                  side="left"
+                  label="Templates"
+                  testId="doc-editor-templates-tab"
+                  expanded={isTemplatesOpen()}
+                  onToggle={() => setIsTemplatesOpen(!isTemplatesOpen())}
+                />
+                <SurfaceEdgeTab
+                  side="right"
+                  label="Sections"
+                  testId="doc-editor-sections-tab"
+                  expanded={isSectionsOpen()}
+                  onToggle={() => setIsSectionsOpen(!isSectionsOpen())}
+                />
+                <TemplatesDrawer
+                  resume={resume()}
+                  open={isTemplatesOpen()}
+                  onOpenChange={setIsTemplatesOpen}
+                />
+                <SectionsPanel
+                  resume={resume()}
+                  open={isSectionsOpen()}
+                  onOpenChange={setIsSectionsOpen}
+                />
+              </>
+            )}
+          </Show>
         </Show>
       </div>
 
@@ -397,5 +423,42 @@ export default function DocEditor() {
         </Suspense>
       </Show>
     </div>
+  );
+}
+
+interface SurfaceEdgeTabProps {
+  side: "left" | "right";
+  label: string;
+  testId: string;
+  expanded: boolean;
+  onToggle: () => void;
+}
+
+/**
+ * A vertical drawer button riding one edge of the resume surface (owner
+ * decision 2026-08-04): clicking it expands its drawer in place; clicking
+ * again — or the drawer's own backdrop/Escape — collapses it. Vertical
+ * writing keeps the tab narrow, so it never crowds the sheet; the left tab
+ * is flipped so both read away from the page.
+ */
+function SurfaceEdgeTab(props: SurfaceEdgeTabProps) {
+  return (
+    <button
+      type="button"
+      data-testid={props.testId}
+      aria-haspopup="dialog"
+      aria-expanded={props.expanded}
+      onClick={() => props.onToggle()}
+      class={`focus-ring absolute top-1/2 z-10 -translate-y-1/2 border border-border bg-paper
+        px-1.5 py-4 font-mono text-xs uppercase tracking-wider text-stone shadow-sm
+        transition-colors hover:bg-surface hover:text-ink [writing-mode:vertical-rl]
+        ${
+          props.side === "left"
+            ? "left-0 rotate-180 rounded-l-lg border-r-0"
+            : "right-0 rounded-l-lg border-r-0"
+        }`}
+    >
+      {props.label}
+    </button>
   );
 }

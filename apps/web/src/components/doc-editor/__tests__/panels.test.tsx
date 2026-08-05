@@ -76,9 +76,12 @@ describe("document editor panels", () => {
   });
 
   describe("templates drawer", () => {
+    const onOpenChange = vi.fn();
+
+    // The drawer is controlled (owner decision 2026-08-04): the editor's edge
+    // tab drives `open`; the drawer itself renders no trigger.
     async function openDrawer() {
-      render(() => <TemplatesDrawer resume={resume} />);
-      fireEvent.click(screen.getByRole("button", { name: "Templates" }));
+      render(() => <TemplatesDrawer resume={resume} open onOpenChange={onOpenChange} />);
       await waitFor(() => expect(screen.getByTestId("templates-drawer-list")).toBeInTheDocument());
     }
 
@@ -108,11 +111,12 @@ describe("document editor panels", () => {
       );
     });
 
-    it("switches template and layout through one combined store action", async () => {
+    it("switches template and layout through one combined store action, then closes", async () => {
       await openDrawer();
 
       fireEvent.click(screen.getByRole("button", { name: "Use Aurora template" }));
 
+      expect(onOpenChange).toHaveBeenCalledWith(false);
       expect(store.applyTemplate).toHaveBeenCalledOnce();
       expect(writeCount()).toBe(1);
       const [templateId, layout] = store.applyTemplate.mock.calls[0] as [string, string[][][]];
@@ -156,9 +160,7 @@ describe("document editor panels", () => {
 
     it("reports a registry failure, and retries without reopening", async () => {
       api.fetchTemplates.mockRejectedValue(new Error("down"));
-      render(() => <TemplatesDrawer resume={resume} />);
-
-      fireEvent.click(screen.getByRole("button", { name: "Templates" }));
+      render(() => <TemplatesDrawer resume={resume} open onOpenChange={onOpenChange} />);
 
       await waitFor(() => {
         expect(screen.getByRole("alert")).toHaveTextContent(/failed to load templates/i);
@@ -174,9 +176,10 @@ describe("document editor panels", () => {
   });
 
   describe("sections panel", () => {
+    // Controlled just like the templates drawer: the editor's edge tab owns
+    // `open` (it is also what the sheet's Add-section blocks drive, #794).
     function openPanel() {
-      render(() => <SectionsPanel resume={resume} />);
-      fireEvent.click(screen.getByRole("button", { name: "Sections" }));
+      render(() => <SectionsPanel resume={resume} open onOpenChange={vi.fn()} />);
       return screen.getByTestId("sections-panel");
     }
 

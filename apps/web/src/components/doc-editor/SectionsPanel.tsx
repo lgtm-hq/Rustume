@@ -9,6 +9,10 @@
  * are private scratch text that never renders to the PDF, so they are a plain
  * text field — no rich editor, no markdown toolbar.
  *
+ * The panel is controlled: it renders no trigger of its own. The document
+ * editor drives it from the Sections edge tab on the resume surface (owner
+ * decision 2026-08-04: the panels are not top-bar items).
+ *
  * Every mutation routes through `docEdits` (decision 4).
  */
 
@@ -21,41 +25,20 @@ import type { ResumeData } from "../../wasm/types";
 
 export interface SectionsPanelProps {
   resume: ResumeData;
-  /**
-   * Controlled open state, so the sheet's Add-section blocks can open the
-   * panel (#794). Leave both unset for the self-contained top-bar behaviour.
-   */
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 export function SectionsPanel(props: SectionsPanelProps): JSX.Element {
-  const [internalOpen, setInternalOpen] = createSignal(false);
   const [adding, setAdding] = createSignal(false);
-
-  // Controlled iff `open` is supplied — and then `onOpenChange` must drive it,
-  // so a one-sided pairing cannot leave the panel stuck open or closed.
-  const isControlled = (): boolean => props.open !== undefined;
-  const open = (): boolean => (isControlled() ? (props.open ?? false) : internalOpen());
-  const setOpen = (next: boolean): void => {
-    if (isControlled()) {
-      props.onOpenChange?.(next);
-      return;
-    }
-    setInternalOpen(next);
-  };
 
   const customIds = (): string[] => Object.keys(props.resume.sections.custom ?? {});
 
   return (
     <>
-      <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
-        Sections
-      </Button>
-
       <Drawer
-        open={open()}
-        onOpenChange={setOpen}
+        open={props.open}
+        onOpenChange={props.onOpenChange}
         title="Sections"
         description="Show, hide and manage the document's sections."
         side="right"

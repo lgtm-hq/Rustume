@@ -10,9 +10,21 @@
  * action — a single undo entry — re-placing custom sections the new template's
  * defaults do not mention. The sheet re-renders from the new layout reactively;
  * nothing here touches the page frames or their drop zones.
+ *
+ * The drawer is controlled: it renders no trigger of its own. The document
+ * editor drives it from the Templates edge tab on the resume surface (owner
+ * decision 2026-08-04: the panels are not top-bar items).
  */
 
-import { For, Show, Suspense, createResource, createSignal, type JSX } from "solid-js";
+import {
+  For,
+  Show,
+  Suspense,
+  createEffect,
+  createResource,
+  createSignal,
+  type JSX,
+} from "solid-js";
 import { Button, Drawer, Spinner } from "../ui";
 import { fetchTemplates, getTemplateThumbnailUrl } from "../../api/render";
 import { FALLBACK_TEMPLATE_LAYOUT, type TemplateLayoutMode } from "../../lib/docLayout";
@@ -36,12 +48,16 @@ function layoutSummary(template: TemplateInfo): string {
 
 export interface TemplatesDrawerProps {
   resume: ResumeData;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 export function TemplatesDrawer(props: TemplatesDrawerProps): JSX.Element {
-  const [open, setOpen] = createSignal(false);
   // Latches true on first open so the registry is fetched once, lazily.
   const [requested, setRequested] = createSignal(false);
+  createEffect(() => {
+    if (props.open) setRequested(true);
+  });
   const [templates, { refetch }] = createResource(
     () => requested() || undefined,
     () => fetchTemplates(),
@@ -54,71 +70,58 @@ export function TemplatesDrawer(props: TemplatesDrawerProps): JSX.Element {
     if (template.id !== props.resume.metadata.template) {
       applyTemplate(template.id, template.layout ?? FALLBACK_TEMPLATE_LAYOUT);
     }
-    setOpen(false);
+    props.onOpenChange(false);
   }
 
   return (
-    <>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => {
-          setRequested(true);
-          setOpen(true);
-        }}
+    <Drawer
+      open={props.open}
+      onOpenChange={props.onOpenChange}
+      title="Templates"
+      description="Pick a design from the registry; your sections come along."
+      side="left"
+    >
+      <Suspense
+        fallback={
+          <div class="flex items-center justify-center py-12">
+            <Spinner />
+          </div>
+        }
       >
-        Templates
-      </Button>
-
-      <Drawer
-        open={open()}
-        onOpenChange={setOpen}
-        title="Templates"
-        description="Pick a design from the registry; your sections come along."
-        side="left"
-      >
-        <Suspense
+        <Show
+          when={!templates.error}
           fallback={
-            <div class="flex items-center justify-center py-12">
-              <Spinner />
+            <div class="flex flex-col items-center gap-3 py-8">
+              <p class="text-center text-sm text-red-600" role="alert">
+                Failed to load templates. Check that the server is running and try again.
+              </p>
+              <Button variant="secondary" size="sm" onClick={() => void refetch()}>
+                Retry
+              </Button>
             </div>
           }
         >
           <Show
-            when={!templates.error}
-            fallback={
-              <div class="flex flex-col items-center gap-3 py-8">
-                <p class="text-center text-sm text-red-600" role="alert">
-                  Failed to load templates. Check that the server is running and try again.
-                </p>
-                <Button variant="secondary" size="sm" onClick={() => void refetch()}>
-                  Retry
-                </Button>
-              </div>
-            }
+            when={templates()?.length}
+            fallback={<p class="py-8 text-center text-sm text-stone">No templates available.</p>}
           >
-            <Show
-              when={templates()?.length}
-              fallback={<p class="py-8 text-center text-sm text-stone">No templates available.</p>}
-            >
-              <ul class="grid grid-cols-2 gap-3" data-testid="templates-drawer-list">
-                <For each={templates()}>
-                  {(template) => (
-                    <li>
-                      <TemplateCard
-                        template={template}
-                        isCurrent={props.resume.metadata.template === template.id}
-                        onSelect={select}
-                      />
-                    </li>
-                  )}
-                </For>
-              </ul>
-            </Show>
+            <ul class="grid grid-cols-2 gap-3" data-testid="templates-drawer-list">
+              <For each={templates()}>
+                {(template) => (
+                  <li>
+                    <TemplateCard
+                      template={template}
+                      isCurrent={props.resume.metadata.template === template.id}
+                      onSelect={select}
+                    />
+                  </li>
+                )}
+              </For>
+            </ul>
           </Show>
-        </Suspense>
-      </Drawer>
-    </>
+        </Show>
+      </Suspense>
+    </Drawer>
   );
 }
 
