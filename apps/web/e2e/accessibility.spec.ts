@@ -165,4 +165,57 @@ test.describe("accessibility", () => {
     await accountPage.assertLocalMode();
     expect(await scanForViolations(page)).toEqual([]);
   });
+
+  /**
+   * The document editor (#785–#797). A brand-new resume opens in Edit mode,
+   * which is the denser tree: section chrome, entry actions, the edge drawer
+   * buttons and the whole top bar are all present.
+   */
+  test.describe("document editor", () => {
+    test.use({ formBuilderOverride: false });
+
+    test("edit surface has no WCAG 2.2 AA violations", async ({
+      page,
+      homePage,
+      docEditorPage,
+    }) => {
+      await homePage.open();
+      await homePage.createResume();
+      await docEditorPage.assertDocEditorOpen();
+      await docEditorPage.assertMode("edit");
+      await expect(page.getByText("New resume created")).toBeHidden({ timeout: 15_000 });
+      expect(await scanForViolations(page)).toEqual([]);
+    });
+
+    test("drawers and theme dialog have no WCAG 2.2 AA violations", async ({
+      page,
+      homePage,
+      docEditorPage,
+    }) => {
+      await homePage.open();
+      await homePage.createResume();
+      await docEditorPage.assertDocEditorOpen();
+      await expect(page.getByText("New resume created")).toBeHidden({ timeout: 15_000 });
+
+      // Sections drawer, from its edge button.
+      await page.getByTestId("doc-editor-sections-tab").click();
+      await expect(page.getByRole("dialog", { name: "Sections" })).toBeVisible();
+      expect(await scanForViolations(page, '[role="dialog"]')).toEqual([]);
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("dialog", { name: "Sections" })).toBeHidden();
+
+      // Templates drawer, from its edge button.
+      await page.getByTestId("doc-editor-templates-tab").click();
+      const templates = page.getByRole("dialog", { name: "Templates" });
+      await expect(templates.getByTestId("templates-drawer-list")).toBeVisible();
+      expect(await scanForViolations(page, '[role="dialog"]')).toEqual([]);
+      await page.keyboard.press("Escape");
+      await expect(templates).toBeHidden();
+
+      // Theme dialog, from the top bar.
+      await page.getByTestId("doc-editor-theme-button").click();
+      await expect(page.getByRole("dialog", { name: "Theme" })).toBeVisible();
+      expect(await scanForViolations(page, '[role="dialog"]')).toEqual([]);
+    });
+  });
 });
