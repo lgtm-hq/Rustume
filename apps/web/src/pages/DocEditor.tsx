@@ -10,8 +10,8 @@
  * Opening a legacy resume converts its TipTap HTML rich fields to markdown
  * once and stamps `metadata.contentFormat` (#786) — see `lib/htmlToMarkdown`.
  *
- * Reached by default; `?ff=form-builder` is the temporary escape hatch — see
- * `src/lib/flags.ts` and the route swap in `src/index.tsx`.
+ * The only editing surface: `/edit/:id` routes here unconditionally (#735
+ * retired the form builder and its `?ff=form-builder` escape hatch).
  */
 
 import {
@@ -435,7 +435,7 @@ export default function DocEditor() {
         </Show>
       </div>
 
-      {/* Modals — loaded on demand, exactly as Editor.tsx mounts them. */}
+      {/* Modals — loaded on demand. */}
       <Show when={ui.modal === "import"}>
         <Suspense fallback={null}>
           <ImportModal />

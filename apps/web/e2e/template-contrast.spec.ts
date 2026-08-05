@@ -25,7 +25,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Page } from "@playwright/test";
-import { test, expect, DEFAULT_TEMPLATE_ID, TEMPLATES_ROUTE } from "./support/fixtures";
+import { test, expect, TEMPLATES_ROUTE } from "./support/fixtures";
 import { ContrastRole, SURFACES, floorFor, surfaceRatio, type Surface } from "./support/contrast";
 import { pairsFor, uncoveredBindings } from "./support/templateContrastMatrix";
 import {
@@ -162,22 +162,21 @@ test.describe("template rendering surfaces", () => {
     test(`${templateId} preview and PDF export are free of WCAG 2.1 AA violations`, async ({
       page,
       homePage,
-      builderPage,
-      templatePickerModal,
+      docEditorPage,
+      templatesDrawer,
       exportModal,
     }) => {
       await homePage.open();
       await homePage.createResume();
-      await builderPage.assertEditorOpen();
-      await builderPage.assertSaved();
+      await docEditorPage.assertEditorOpen();
+      await docEditorPage.assertSaved();
 
       await test.step("select the template", async () => {
-        await builderPage.openTemplatePicker(DEFAULT_TEMPLATE_ID);
-        await templatePickerModal.assertOpen();
-        await templatePickerModal.selectTemplate(displayName(templateId));
-        await templatePickerModal.assertClosed();
-        await builderPage.assertSelectedTemplate(templateId);
-        await builderPage.assertPreviewVisible();
+        await docEditorPage.templatesButton.click();
+        await templatesDrawer.assertOpen();
+        await templatesDrawer.selectTemplate(displayName(templateId));
+        await templatesDrawer.assertClosed();
+        await docEditorPage.assertPreviewVisible();
       });
 
       await test.step("scan the editor chrome framing the preview", async () => {
@@ -190,7 +189,7 @@ test.describe("template rendering surfaces", () => {
         // Ties the print half of the matrix to the artefact a user actually
         // sends: the export asks the server for THIS template, so the colours
         // gated above are the colours the PDF is built from.
-        await builderPage.openExportModal();
+        await docEditorPage.openExportModal();
         await exportModal.assertOpen();
         const renderRequest = page.waitForRequest(
           (request) =>

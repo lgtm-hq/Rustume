@@ -191,8 +191,8 @@ export type SectionItem =
 
 /**
  * Nominal sheet geometry used to turn a template's fixed sidebar width into a
- * relative width. Mirrors `content-width` in `templates/_common.typ` and the
- * ratio math in `components/templates/ThemeEditor.tsx`; keep the three in step.
+ * relative width. Mirrors `content-width` in `templates/_common.typ`; keep the
+ * two in step.
  */
 const A4_PAPER_WIDTH_PT = 595.28;
 const DEFAULT_PAGE_MARGIN_PT = 18;

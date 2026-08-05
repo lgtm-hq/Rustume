@@ -19,52 +19,53 @@ test.describe("smoke", () => {
     await homePage.assertEmptyState();
   });
 
-  test("creating a resume opens the editor and typing updates the preview", async ({
+  test("creating a resume opens the document editor and typing updates the preview", async ({
     page,
     homePage,
-    builderPage,
+    docEditorPage,
   }) => {
     await homePage.open();
     await homePage.createResume();
-    await builderPage.assertEditorOpen();
+    await docEditorPage.assertEditorOpen();
 
-    // Typing triggers a debounced re-render request carrying the new content.
+    // Committing an inline edit triggers a debounced re-render request
+    // carrying the new content.
     const previewRequest = page.waitForRequest(
       (request) =>
         request.url().includes("/api/render/preview") &&
         (request.postData() ?? "").includes(FULL_NAME),
     );
-    await builderPage.fillFullName(FULL_NAME);
-    await builderPage.assertFullName(FULL_NAME);
+    await docEditorPage.fillName(FULL_NAME);
+    await docEditorPage.assertName(FULL_NAME);
 
     await previewRequest;
-    await builderPage.assertPreviewVisible();
+    await docEditorPage.assertPreviewVisible();
   });
 
   test("edited resume persists across a reload in local mode", async ({
     page,
     homePage,
-    builderPage,
+    docEditorPage,
   }) => {
     await homePage.open();
     await homePage.createResume();
-    await builderPage.assertEditorOpen();
+    await docEditorPage.assertEditorOpen();
 
     // Let the initial creation auto-save settle first, then anchor on the
     // Unsaved state so the final Saved assertion can only come from the
     // debounced save that persists the typed name.
-    await builderPage.assertSaved();
-    await builderPage.fillFullName(FULL_NAME);
-    await builderPage.assertUnsaved();
-    await builderPage.assertSaved();
+    await docEditorPage.assertSaved();
+    await docEditorPage.fillName(FULL_NAME);
+    await docEditorPage.assertUnsaved();
+    await docEditorPage.assertSaved();
 
     await page.reload();
-    await builderPage.assertEditorOpen();
-    await builderPage.assertFullName(FULL_NAME);
+    await docEditorPage.assertEditorOpen();
+    await docEditorPage.assertName(FULL_NAME);
 
     // The stored resume also shows up on the home page list. Navigate
     // client-side so the already-initialized WASM storage serves the list.
-    await builderPage.goHome();
+    await docEditorPage.goHome();
     await homePage.assertLoaded();
     // The list title is derived once, on the save that created the resume,
     // and is sticky afterwards so an explicit rename survives later edits —

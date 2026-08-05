@@ -6,17 +6,17 @@ const fixturePath = (name: string): string =>
   fileURLToPath(new URL(`../../../tests/fixtures/json_resume/${name}`, import.meta.url));
 
 test.describe("JSON Resume import", () => {
-  test.beforeEach(async ({ homePage, builderPage }) => {
+  test.beforeEach(async ({ homePage, docEditorPage }) => {
     await homePage.open();
     await homePage.createResume();
-    await builderPage.assertEditorOpen();
-    await builderPage.assertSaved();
-    await builderPage.openImportModal();
+    await docEditorPage.assertEditorOpen();
+    await docEditorPage.assertSaved();
+    await docEditorPage.openImportModal();
   });
 
   test("imports the full JSON Resume fixture and maps its fields", async ({
     page,
-    builderPage,
+    docEditorPage,
     importModal,
   }) => {
     await importModal.assertOpen();
@@ -25,30 +25,28 @@ test.describe("JSON Resume import", () => {
     await expect(page.getByText("Resume imported successfully")).toBeVisible();
     await importModal.assertClosed();
 
-    // Basics mapped into the form.
-    await builderPage.assertFullName("Jane Smith");
-    await expect(page.getByLabel("Email")).toHaveValue("jane@example.com");
+    // Basics mapped into the sheet header.
+    await docEditorPage.assertName("Jane Smith");
+    await expect(docEditorPage.headerField("Email")).toHaveText("jane@example.com");
 
     // Work history mapped into the experience section (2 entries in fixture).
-    await builderPage.openSection("Experience");
-    await builderPage.assertSectionOpen("Experience");
-    await builderPage.assertSectionItemCount(2);
+    await docEditorPage.assertSectionItemCount("experience", 2);
     await expect(page.getByText("Tech Corp").first()).toBeVisible();
 
     // The imported content persists like any other edit.
-    await builderPage.assertSaved();
+    await docEditorPage.assertSaved();
     await page.reload();
-    await builderPage.assertEditorOpen();
-    await builderPage.assertFullName("Jane Smith");
+    await docEditorPage.assertEditorOpen();
+    await docEditorPage.assertName("Jane Smith");
   });
 
-  test("imports the minimal JSON Resume fixture", async ({ page, builderPage, importModal }) => {
+  test("imports the minimal JSON Resume fixture", async ({ page, docEditorPage, importModal }) => {
     await importModal.assertOpen();
     await importModal.importFile(fixturePath("minimal.json"));
 
     await expect(page.getByText("Resume imported successfully")).toBeVisible();
     await importModal.assertClosed();
-    await builderPage.assertFullName("John Doe");
+    await docEditorPage.assertName("John Doe");
   });
 
   test("shows an error for an unrecognized JSON payload", async ({ importModal }) => {

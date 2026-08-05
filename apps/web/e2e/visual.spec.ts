@@ -1,4 +1,4 @@
-import { test, expect, DEFAULT_TEMPLATE_ID } from "./support/fixtures";
+import { test, expect } from "./support/fixtures";
 
 // Baselines are generated on CI (Linux) and committed from the workflow
 // artifact, so font rasterization matches exactly. Local runs skip the
@@ -16,44 +16,48 @@ test.describe("visual regression", () => {
     await expect(page).toHaveScreenshot("home-empty.png", { fullPage: true });
   });
 
-  test("editor split view with rendered preview", async ({ page, homePage, builderPage }) => {
+  test("document editor split view with rendered preview", async ({
+    page,
+    homePage,
+    docEditorPage,
+  }) => {
     await homePage.open();
     await homePage.createResume();
-    await builderPage.assertEditorOpen();
-    await builderPage.assertSaved();
-    await builderPage.assertPreviewVisible();
+    await docEditorPage.assertEditorOpen();
+    await docEditorPage.assertSaved();
+    await docEditorPage.assertPreviewVisible();
     // Wait out the transient "New resume created" toast for a steady frame.
     await expect(page.getByText("New resume created")).toBeHidden({ timeout: 15_000 });
-    await expect(page).toHaveScreenshot("editor-split.png");
+    await expect(page).toHaveScreenshot("doc-editor-split.png");
   });
 
-  test("template picker grid", async ({ homePage, builderPage, templatePickerModal }) => {
+  test("templates drawer grid", async ({ homePage, docEditorPage, templatesDrawer }) => {
     await homePage.open();
     await homePage.createResume();
-    await builderPage.assertEditorOpen();
-    await builderPage.assertSaved();
-    await builderPage.openTemplatePicker(DEFAULT_TEMPLATE_ID);
-    await templatePickerModal.assertOpen();
-    await templatePickerModal.assertTemplateListed("Onyx");
-    await expect(templatePickerModal.dialog).toHaveScreenshot("template-picker.png");
+    await docEditorPage.assertEditorOpen();
+    await docEditorPage.assertSaved();
+    await docEditorPage.templatesButton.click();
+    await templatesDrawer.assertOpen();
+    await templatesDrawer.assertTemplateListed("Onyx");
+    await expect(templatesDrawer.dialog).toHaveScreenshot("templates-drawer.png");
   });
 
-  test("export dialog", async ({ homePage, builderPage, exportModal }) => {
+  test("export dialog", async ({ homePage, docEditorPage, exportModal }) => {
     await homePage.open();
     await homePage.createResume();
-    await builderPage.assertEditorOpen();
-    await builderPage.assertSaved();
-    await builderPage.openExportModal();
+    await docEditorPage.assertEditorOpen();
+    await docEditorPage.assertSaved();
+    await docEditorPage.openExportModal();
     await exportModal.assertOpen();
     await expect(exportModal.dialog).toHaveScreenshot("export-dialog.png");
   });
 
-  test("import dialog", async ({ homePage, builderPage, importModal }) => {
+  test("import dialog", async ({ homePage, docEditorPage, importModal }) => {
     await homePage.open();
     await homePage.createResume();
-    await builderPage.assertEditorOpen();
-    await builderPage.assertSaved();
-    await builderPage.openImportModal();
+    await docEditorPage.assertEditorOpen();
+    await docEditorPage.assertSaved();
+    await docEditorPage.openImportModal();
     await importModal.assertOpen();
     await expect(importModal.dialog).toHaveScreenshot("import-dialog.png");
   });

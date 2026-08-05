@@ -1,9 +1,8 @@
 /**
  * Profile-photo ingestion: validation, resizing and colour normalisation.
  *
- * Both photo surfaces share this module — the form builder's `ImageUpload` and
- * the document editor's photo dialog — so a photo lands in `basics.picture` the
- * same way whichever one the user reached for. It owns no state and touches no
+ * The document editor's photo dialog goes through this module so a photo lands
+ * in `basics.picture` in one canonical shape. It owns no state and touches no
  * store: callers decide what to do with the encoded result.
  *
  * The encoder deliberately trades quality for size. A resume's JSON travels
