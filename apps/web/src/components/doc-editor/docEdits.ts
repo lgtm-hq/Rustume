@@ -19,7 +19,7 @@ import {
   type TemplateLayout,
 } from "../../lib/docLayout";
 import { resumeStore, type LayoutSectionKey, type SectionKey } from "../../stores/resume";
-import type { Basics, CustomItem, Picture } from "../../wasm/types";
+import type { Basics, CustomItem, Picture, Theme, ThemePresetInfo } from "../../wasm/types";
 
 /** A partial item, keyed by the field names in `itemFields.ts`. */
 export type ItemUpdates = Record<string, unknown>;
@@ -174,6 +174,24 @@ export function applyTemplate(templateId: string, templateLayout: TemplateLayout
   const resume = resumeStore.store.resume;
   if (!resume) return;
   resumeStore.applyTemplate(templateId, layoutForTemplate(resume, templateLayout));
+}
+
+/** Apply a theme preset — its id and all three colors as one store action. */
+export function applyThemePreset(preset: ThemePresetInfo): void {
+  resumeStore.updateTheme({
+    preset: preset.id,
+    background: preset.colors.background,
+    text: preset.colors.text,
+    primary: preset.colors.primary,
+  });
+}
+
+/**
+ * Set one custom theme color, detaching the theme from any preset — a palette
+ * with a hand-picked color is no longer the preset it started from.
+ */
+export function updateThemeColor(field: keyof Omit<Theme, "preset">, value: string): void {
+  resumeStore.updateTheme({ [field]: value, preset: undefined });
 }
 
 /** Replace the private notes scratch text. Plain text; never rendered to PDF. */

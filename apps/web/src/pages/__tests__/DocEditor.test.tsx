@@ -342,6 +342,17 @@ describe("DocEditor sheet", () => {
     expect(tab).toHaveAttribute("aria-expanded", "true");
   });
 
+  it("opens theme selection from the top bar", async () => {
+    await renderSheet();
+
+    // Spec §1.2 (owner addition): theme selection is a top-bar control.
+    const topBar = screen.getByTestId("doc-editor-topbar");
+    fireEvent.click(within(topBar).getByRole("button", { name: "Theme" }));
+
+    expect(await screen.findByRole("dialog", { name: /Theme/ })).toBeInTheDocument();
+    expect(screen.getByTestId("theme-dialog")).toBeInTheDocument();
+  });
+
   it("has no axe violations in Edit mode", async () => {
     const { container } = await renderSheet();
 
