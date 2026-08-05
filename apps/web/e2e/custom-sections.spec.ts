@@ -71,8 +71,17 @@ test.describe("custom sections from the panel", () => {
     await expect(row).toBeChecked();
     await expect(sheetCard(page, "Field Notes")).toHaveCount(1);
 
-    // Delete: gone from panel list and sheet immediately.
+    // Delete goes through the confirm dialog (#797): cancelling keeps the
+    // section, confirming removes it from panel list and sheet immediately.
     await panel.getByRole("button", { name: "Delete Field Notes section" }).click();
+    const confirm = page.getByRole("dialog", { name: "Delete section?" });
+    await expect(confirm).toBeVisible();
+    await confirm.getByRole("button", { name: "Cancel" }).click();
+    await expect(confirm).toBeHidden();
+    await expect(panel.getByRole("switch", { name: "Field Notes" })).toHaveCount(1);
+
+    await panel.getByRole("button", { name: "Delete Field Notes section" }).click();
+    await confirm.getByRole("button", { name: "Delete section" }).click();
     await expect(panel.getByRole("switch", { name: "Field Notes" })).toHaveCount(0);
     await expect(sheetCard(page, "Field Notes")).toHaveCount(0);
   });

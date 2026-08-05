@@ -647,15 +647,17 @@
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--doc-sheet-accent) 75%, var(--doc-sheet-text));
+  /* Muted through color, never element opacity: a semi-transparent label
+     over the paper fails WCAG 1.4.3 (#797 axe sweep). Mixing toward the
+     document text keeps the resting label readable on any theme. */
+  color: color-mix(in srgb, var(--doc-sheet-accent) 45%, var(--doc-sheet-text));
   background: transparent;
-  border: 2px dashed color-mix(in srgb, var(--doc-sheet-accent) 38%, #c7c1b8);
+  border: 2px dashed color-mix(in srgb, var(--doc-sheet-accent) 24%, #c7c1b8);
   border-radius: 10px;
   padding: 0.45rem 0.55rem;
   cursor: pointer;
-  opacity: 0.55;
   transition:
-    opacity 0.12s ease,
+    color 0.12s ease,
     background 0.12s ease,
     border-color 0.12s ease;
 }
@@ -669,7 +671,8 @@
 .doc-sheet__sec--edit:hover > .doc-sheet__add-block,
 .doc-sheet__sec--focused > .doc-sheet__add-block,
 .doc-sheet__add-block:focus-visible {
-  opacity: 1;
+  color: color-mix(in srgb, var(--doc-sheet-accent) 75%, var(--doc-sheet-text));
+  border-color: color-mix(in srgb, var(--doc-sheet-accent) 38%, #c7c1b8);
 }
 
 .doc-sheet__add-block:hover {
@@ -694,14 +697,14 @@
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #8d8578;
+  /* Same 1.4.3 rule as the add-block: muted through a theme-tracking color
+     at full opacity, never element opacity (#797 axe sweep). */
+  color: var(--doc-sheet-muted);
   background: transparent;
   border: 2px dashed #cfc9bd;
   border-radius: 12px;
   cursor: pointer;
-  opacity: 0.6;
   transition:
-    opacity 0.12s ease,
     background 0.12s ease,
     border-color 0.12s ease,
     color 0.12s ease;
@@ -710,7 +713,6 @@
 .doc-sheet__add-section-block:hover,
 .doc-sheet__add-section-block:focus-visible,
 .doc-sheet__add-section-block--drop-hint {
-  opacity: 1;
   color: var(--doc-sheet-accent);
   border-color: color-mix(in srgb, var(--doc-sheet-accent) 55%, #cfc9bd);
   background: color-mix(in srgb, var(--doc-sheet-accent) 6%, var(--doc-sheet-bg));

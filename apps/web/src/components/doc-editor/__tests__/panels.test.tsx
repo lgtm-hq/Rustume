@@ -76,9 +76,12 @@ describe("document editor panels", () => {
   });
 
   describe("templates drawer", () => {
+    const onOpenChange = vi.fn();
+
+    // The drawer is controlled (owner decision 2026-08-04): the editor's edge
+    // tab drives `open`; the drawer itself renders no trigger.
     async function openDrawer() {
-      render(() => <TemplatesDrawer resume={resume} />);
-      fireEvent.click(screen.getByRole("button", { name: "Templates" }));
+      render(() => <TemplatesDrawer resume={resume} open onOpenChange={onOpenChange} />);
       await waitFor(() => expect(screen.getByTestId("templates-drawer-list")).toBeInTheDocument());
     }
 
@@ -108,11 +111,12 @@ describe("document editor panels", () => {
       );
     });
 
-    it("switches template and layout through one combined store action", async () => {
+    it("switches template and layout through one combined store action, then closes", async () => {
       await openDrawer();
 
       fireEvent.click(screen.getByRole("button", { name: "Use Aurora template" }));
 
+      expect(onOpenChange).toHaveBeenCalledWith(false);
       expect(store.applyTemplate).toHaveBeenCalledOnce();
       expect(writeCount()).toBe(1);
       const [templateId, layout] = store.applyTemplate.mock.calls[0] as [string, string[][][]];
@@ -156,9 +160,7 @@ describe("document editor panels", () => {
 
     it("reports a registry failure, and retries without reopening", async () => {
       api.fetchTemplates.mockRejectedValue(new Error("down"));
-      render(() => <TemplatesDrawer resume={resume} />);
-
-      fireEvent.click(screen.getByRole("button", { name: "Templates" }));
+      render(() => <TemplatesDrawer resume={resume} open onOpenChange={onOpenChange} />);
 
       await waitFor(() => {
         expect(screen.getByRole("alert")).toHaveTextContent(/failed to load templates/i);
@@ -174,9 +176,10 @@ describe("document editor panels", () => {
   });
 
   describe("sections panel", () => {
+    // Controlled just like the templates drawer: the editor's edge tab owns
+    // `open` (it is also what the sheet's Add-section blocks drive, #794).
     function openPanel() {
-      render(() => <SectionsPanel resume={resume} />);
-      fireEvent.click(screen.getByRole("button", { name: "Sections" }));
+      render(() => <SectionsPanel resume={resume} open onOpenChange={vi.fn()} />);
       return screen.getByTestId("sections-panel");
     }
 
@@ -218,15 +221,39 @@ describe("document editor panels", () => {
       expect(writeCount()).toBe(1);
     });
 
-    it("removes a custom section through removeCustomSection", () => {
+    it("deletes a custom section only after the confirm step", async () => {
+      // Destructive delete (owner decision, spec §6 Q5): the trash button
+      // alone must write nothing — the confirm dialog's Delete does.
       const panel = openPanel();
 
       fireEvent.click(
         within(panel).getByRole("button", { name: "Delete Talks & Workshops section" }),
       );
 
+      const dialog = await screen.findByRole("dialog", { name: "Delete section?" });
+      expect(dialog).toHaveTextContent("Talks & Workshops");
+      expect(writeCount()).toBe(0);
+
+      fireEvent.click(within(dialog).getByRole("button", { name: "Delete section" }));
+
       expect(store.removeCustomSection).toHaveBeenCalledExactlyOnceWith("speaking");
       expect(writeCount()).toBe(1);
+    });
+
+    it("cancelling the delete confirm keeps the section", async () => {
+      const panel = openPanel();
+
+      fireEvent.click(
+        within(panel).getByRole("button", { name: "Delete Talks & Workshops section" }),
+      );
+      const dialog = await screen.findByRole("dialog", { name: "Delete section?" });
+      fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+      await waitFor(() =>
+        expect(screen.queryByRole("dialog", { name: "Delete section?" })).toBeNull(),
+      );
+      expect(store.removeCustomSection).not.toHaveBeenCalled();
+      expect(writeCount()).toBe(0);
     });
 
     it("commits notes as plain text, with no rich-text controls", () => {

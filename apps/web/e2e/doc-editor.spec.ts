@@ -163,6 +163,57 @@ test.describe("single-surface document editor", () => {
     await expect(docEditorPage.sheet.getByTestId("doc-sheet-page-count")).toContainText("1");
   });
 
+  test("edge tabs drive the panels and the top bar drives theme selection", async ({
+    page,
+    homePage,
+    docEditorPage,
+  }) => {
+    await homePage.open();
+    await homePage.createResume();
+    await docEditorPage.assertDocEditorOpen();
+
+    // The panels are not top-bar items (owner decision 2026-08-04): their
+    // buttons ride the edges of the resume surface.
+    const topBar = page.getByTestId("doc-editor-topbar");
+    await expect(topBar.getByRole("button", { name: "Templates" })).toHaveCount(0);
+    await expect(topBar.getByRole("button", { name: "Sections" })).toHaveCount(0);
+
+    const templatesTab = page.getByTestId("doc-editor-templates-tab");
+    const sectionsTab = page.getByTestId("doc-editor-sections-tab");
+    await expect(templatesTab).toBeVisible();
+    await expect(sectionsTab).toBeVisible();
+
+    // Templates: expand from the left edge, collapse with Escape.
+    await templatesTab.click();
+    const templatesDrawer = page.getByRole("dialog", { name: "Templates" });
+    await expect(templatesDrawer).toBeVisible();
+    await expect(templatesDrawer.getByTestId("templates-drawer-list")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(templatesDrawer).toBeHidden();
+
+    // Sections: expand from the right edge, collapse with Escape.
+    await sectionsTab.click();
+    const sectionsDrawer = page.getByRole("dialog", { name: "Sections" });
+    await expect(sectionsDrawer).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(sectionsDrawer).toBeHidden();
+
+    // Theme selection stays in the top bar (spec §1.2, owner addition):
+    // picking a preset recolors the sheet through the store.
+    await topBar.getByRole("button", { name: "Theme" }).click();
+    const themeDialog = page.getByRole("dialog", { name: "Theme" });
+    await expect(themeDialog).toBeVisible();
+    await themeDialog.getByRole("button", { name: "Use Emerald theme" }).click();
+
+    await expect(docEditorPage.sheet).toHaveCSS("--doc-sheet-accent", "#65a30d");
+    await expect(themeDialog.getByRole("button", { name: "Use Emerald theme" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await page.keyboard.press("Escape");
+    await expect(themeDialog).toBeHidden();
+  });
+
   test("opening a legacy HTML resume shows formatted text, not raw tags", async ({
     page,
     homePage,

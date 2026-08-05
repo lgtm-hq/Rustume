@@ -311,6 +311,48 @@ describe("DocEditor sheet", () => {
     expect(document.querySelectorAll(".doc-sheet__page-guide")).toHaveLength(0);
   });
 
+  it("drives the Templates drawer from its surface edge tab, not the top bar", async () => {
+    await renderSheet();
+
+    // Owner decision 2026-08-04: the panels are not top-bar items.
+    const topBar = screen.getByTestId("doc-editor-topbar");
+    expect(within(topBar).queryByRole("button", { name: "Templates" })).toBeNull();
+    expect(within(topBar).queryByRole("button", { name: "Sections" })).toBeNull();
+
+    const tab = screen.getByTestId("doc-editor-templates-tab");
+    expect(tab).toHaveTextContent("Templates");
+    expect(tab).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(tab);
+
+    expect(await screen.findByRole("dialog", { name: /Templates/ })).toBeInTheDocument();
+    expect(tab).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("drives the Sections panel from its surface edge tab", async () => {
+    await renderSheet();
+
+    const tab = screen.getByTestId("doc-editor-sections-tab");
+    expect(tab).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(tab);
+
+    expect(await screen.findByRole("dialog", { name: /Sections/ })).toBeInTheDocument();
+    expect(screen.getByTestId("sections-panel")).toBeInTheDocument();
+    expect(tab).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("opens theme selection from the top bar", async () => {
+    await renderSheet();
+
+    // Spec §1.2 (owner addition): theme selection is a top-bar control.
+    const topBar = screen.getByTestId("doc-editor-topbar");
+    fireEvent.click(within(topBar).getByRole("button", { name: "Theme" }));
+
+    expect(await screen.findByRole("dialog", { name: /Theme/ })).toBeInTheDocument();
+    expect(screen.getByTestId("theme-dialog")).toBeInTheDocument();
+  });
+
   it("has no axe violations in Edit mode", async () => {
     const { container } = await renderSheet();
 

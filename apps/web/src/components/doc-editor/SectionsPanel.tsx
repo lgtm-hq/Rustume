@@ -5,15 +5,21 @@
  * Visibility toggles cover every fixed and custom section — including sections
  * currently hidden and therefore absent from the sheet, which is what makes a
  * hidden section recoverable. Custom sections can be added (through the same
- * dialog the sheet uses, so placement stays one undo entry) and removed. Notes
- * are private scratch text that never renders to the PDF, so they are a plain
- * text field — no rich editor, no markdown toolbar.
+ * dialog the sheet uses, so placement stays one undo entry) and deleted —
+ * deletion is destructive (owner decision, spec §6 Q5), so it always goes
+ * through a confirm dialog. Notes are private scratch text that never renders
+ * to the PDF, so they are a plain text field — no rich editor, no markdown
+ * toolbar.
+ *
+ * The panel is controlled: it renders no trigger of its own. The document
+ * editor drives it from the Sections edge tab on the resume surface (owner
+ * decision 2026-08-04: the panels are not top-bar items).
  *
  * Every mutation routes through `docEdits` (decision 4).
  */
 
 import { For, Show, createSignal, type JSX } from "solid-js";
-import { Button, Drawer, Switch, TextArea } from "../ui";
+import { Button, Drawer, Modal, Switch, TextArea } from "../ui";
 import { FIXED_SECTION_IDS, sectionTitle, sectionVisible } from "../../lib/docLayout";
 import { CustomSectionDialog } from "./CustomSectionDialog";
 import { removeSection, toggleSection, updateNotes } from "./docEdits";
@@ -21,41 +27,26 @@ import type { ResumeData } from "../../wasm/types";
 
 export interface SectionsPanelProps {
   resume: ResumeData;
-  /**
-   * Controlled open state, so the sheet's Add-section blocks can open the
-   * panel (#794). Leave both unset for the self-contained top-bar behaviour.
-   */
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 export function SectionsPanel(props: SectionsPanelProps): JSX.Element {
-  const [internalOpen, setInternalOpen] = createSignal(false);
   const [adding, setAdding] = createSignal(false);
-
-  // Controlled iff `open` is supplied — and then `onOpenChange` must drive it,
-  // so a one-sided pairing cannot leave the panel stuck open or closed.
-  const isControlled = (): boolean => props.open !== undefined;
-  const open = (): boolean => (isControlled() ? (props.open ?? false) : internalOpen());
-  const setOpen = (next: boolean): void => {
-    if (isControlled()) {
-      props.onOpenChange?.(next);
-      return;
-    }
-    setInternalOpen(next);
-  };
+  // The custom section id awaiting delete confirmation, if any.
+  const [confirmingDelete, setConfirmingDelete] = createSignal<string | null>(null);
 
   const customIds = (): string[] => Object.keys(props.resume.sections.custom ?? {});
+  const confirmingTitle = (): string => {
+    const sectionId = confirmingDelete();
+    return sectionId === null ? "" : sectionTitle(props.resume, sectionId);
+  };
 
   return (
     <>
-      <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
-        Sections
-      </Button>
-
       <Drawer
-        open={open()}
-        onOpenChange={setOpen}
+        open={props.open}
+        onOpenChange={props.onOpenChange}
         title="Sections"
         description="Show, hide and manage the document's sections."
         side="right"
@@ -101,7 +92,7 @@ export function SectionsPanel(props: SectionsPanelProps): JSX.Element {
                         class="focus-ring rounded-lg p-1.5 text-stone transition-colors
                           hover:bg-surface hover:text-red-600"
                         aria-label={`Delete ${sectionTitle(props.resume, sectionId)} section`}
-                        onClick={() => removeSection(sectionId)}
+                        onClick={() => setConfirmingDelete(sectionId)}
                       >
                         <svg
                           class="h-4 w-4"
@@ -144,6 +135,35 @@ export function SectionsPanel(props: SectionsPanelProps): JSX.Element {
       </Drawer>
 
       <CustomSectionDialog open={adding()} onOpenChange={setAdding} />
+
+      {/* Destructive delete always confirms (owner decision, spec §6 Q5):
+          unlike hiding, deleting discards the section's content for good —
+          undo is the only way back. */}
+      <Modal
+        open={confirmingDelete() !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmingDelete(null);
+        }}
+        title="Delete section?"
+        description={`"${confirmingTitle()}" and everything in it will be deleted.`}
+        size="sm"
+      >
+        <div class="flex justify-end gap-3">
+          <Button variant="secondary" onClick={() => setConfirmingDelete(null)}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={() => {
+              const sectionId = confirmingDelete();
+              setConfirmingDelete(null);
+              if (sectionId !== null) removeSection(sectionId);
+            }}
+          >
+            Delete section
+          </Button>
+        </div>
+      </Modal>
     </>
   );
 }

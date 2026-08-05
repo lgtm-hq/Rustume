@@ -102,6 +102,12 @@ when the Sections panel is docked open, the canvas gets `padding-left:16.5rem` s
 overlaps the sheet. Production adds (per owner): version history and theme selection controls in
 this bar.
 
+> **Superseded in part (owner decision, 2026-08-04, from PR #805 verification):** the **Templates**
+> and **Sections** controls are _not_ top-bar items in production. They are vertical drawer buttons
+> riding the left/right edges of the resume surface that expand/collapse their drawers in place
+> (see §1.14–§1.15). The top bar keeps undo/redo, import/export, version history, theme selection
+> and the Edit/Done toggle.
+
 ### 1.3 `EditableSheet` — the sheet engine
 
 Props: `ctx`, `variant` (chrome flavor; production uses one), `focusedSection`, `onFocusSection`.
@@ -361,6 +367,11 @@ on `#292524`; **off** = muted with `line-through` label. Click = `toggleSection`
 _visibility + creation only_ — all editing happens on the sheet (owner: no sidebar-based section
 editing).
 
+> **Production (owner decision, 2026-08-04):** the panel is a right-edge drawer expanded and
+> collapsed in place by a vertical **Sections** edge button on the resume surface — not a docked
+> panel, and not driven from the top bar. Custom sections are additionally _deletable_ (destructive,
+> behind a confirm step — §6 Q5).
+
 ### 1.15 `TemplatesPanel` — template drawer
 
 Right-edge drawer (`min(300px, 92vw)`, dark, slides in `.22s ease` with a dimmed blurred backdrop;
@@ -371,6 +382,10 @@ template's own colors — over the template name. Active card: accent border + g
 applies the template (`setTemplate`: palette + default layout) and closes. A vertical "Templates"
 edge tab (`.tpl-tab`) exists for standalone use; the Studio top bar hides it and drives the drawer
 from its own button.
+
+> **Production (owner decision, 2026-08-04):** the prototype's edge-tab variant is the shipped one —
+> the drawer hangs on the left edge of the resume surface, expanded and collapsed in place by a
+> vertical **Templates** edge button. There is no top-bar Templates control.
 
 ### 1.16 `PageCountPill` + `SheetOverflowGuides` + `.page-break-rule`
 
