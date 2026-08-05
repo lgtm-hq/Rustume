@@ -16,27 +16,22 @@ test.describe("visual regression", () => {
     await expect(page).toHaveScreenshot("home-empty.png", { fullPage: true });
   });
 
-  test("document editor split view with rendered preview", async ({
-    page,
-    homePage,
-    docEditorPage,
-  }) => {
+  test("document editor single-surface sheet", async ({ page, homePage, docEditorPage }) => {
     await homePage.open();
     await homePage.createResume();
-    await docEditorPage.assertEditorOpen();
+    await docEditorPage.assertDocEditorOpen();
     await docEditorPage.assertSaved();
-    await docEditorPage.assertPreviewVisible();
     // Wait out the transient "New resume created" toast for a steady frame.
     await expect(page.getByText("New resume created")).toBeHidden({ timeout: 15_000 });
-    await expect(page).toHaveScreenshot("doc-editor-split.png");
+    await expect(page).toHaveScreenshot("doc-editor-sheet.png");
   });
 
   test("templates drawer grid", async ({ homePage, docEditorPage, templatesDrawer }) => {
     await homePage.open();
     await homePage.createResume();
-    await docEditorPage.assertEditorOpen();
+    await docEditorPage.assertDocEditorOpen();
     await docEditorPage.assertSaved();
-    await docEditorPage.templatesButton.click();
+    await docEditorPage.openTemplatesDrawer();
     await templatesDrawer.assertOpen();
     await templatesDrawer.assertTemplateListed("Onyx");
     await expect(templatesDrawer.dialog).toHaveScreenshot("templates-drawer.png");
@@ -45,7 +40,7 @@ test.describe("visual regression", () => {
   test("export dialog", async ({ homePage, docEditorPage, exportModal }) => {
     await homePage.open();
     await homePage.createResume();
-    await docEditorPage.assertEditorOpen();
+    await docEditorPage.assertDocEditorOpen();
     await docEditorPage.assertSaved();
     await docEditorPage.openExportModal();
     await exportModal.assertOpen();
@@ -55,7 +50,7 @@ test.describe("visual regression", () => {
   test("import dialog", async ({ homePage, docEditorPage, importModal }) => {
     await homePage.open();
     await homePage.createResume();
-    await docEditorPage.assertEditorOpen();
+    await docEditorPage.assertDocEditorOpen();
     await docEditorPage.assertSaved();
     await docEditorPage.openImportModal();
     await importModal.assertOpen();

@@ -9,30 +9,99 @@ const FULL_NAME = "Ada Lovelace";
 const LISTED_TITLE = "Untitled Resume";
 
 /**
- * Every item-bearing section: its layout id, the singular noun its add
- * affordance and dialog carry, and the dialog field that becomes the drawn
- * item's title line.
+ * Every item-bearing section: its layout id, display title, the singular noun
+ * its add affordance and dialog carry, and the dialog field that becomes the
+ * drawn item's title line. `hidden` marks the sections a new resume switches
+ * off (`crates/schema`); a hidden section never draws on the sheet (#794), so
+ * those are switched on through the Sections panel first.
  */
 const SECTIONS = [
-  { id: "experience", noun: "experience", titleField: "Company", value: "Analytical Engines" },
-  { id: "education", noun: "education", titleField: "Institution", value: "London Polytechnic" },
-  { id: "skills", noun: "skill", titleField: "Name", value: "Typst" },
-  { id: "projects", noun: "project", titleField: "Name", value: "Difference Engine" },
-  { id: "profiles", noun: "profile", titleField: "Network", value: "GitHub" },
-  { id: "awards", noun: "award", titleField: "Title", value: "Royal Medal" },
-  { id: "certifications", noun: "certification", titleField: "Name", value: "Chartered Engineer" },
-  { id: "publications", noun: "publication", titleField: "Name", value: "Sketch of the Engine" },
-  { id: "languages", noun: "language", titleField: "Name", value: "French" },
-  { id: "interests", noun: "interest", titleField: "Name", value: "Mathematics" },
-  { id: "volunteer", noun: "volunteer", titleField: "Organization", value: "Science Museum" },
-  { id: "references", noun: "reference", titleField: "Name", value: "Charles Babbage" },
+  {
+    id: "experience",
+    title: "Experience",
+    noun: "experience",
+    titleField: "Company",
+    value: "Analytical Engines",
+  },
+  {
+    id: "education",
+    title: "Education",
+    noun: "education",
+    titleField: "Institution",
+    value: "London Polytechnic",
+  },
+  { id: "skills", title: "Skills", noun: "skill", titleField: "Name", value: "Typst" },
+  {
+    id: "projects",
+    title: "Projects",
+    noun: "project",
+    titleField: "Name",
+    value: "Difference Engine",
+  },
+  { id: "profiles", title: "Profiles", noun: "profile", titleField: "Network", value: "GitHub" },
+  {
+    id: "awards",
+    title: "Awards",
+    noun: "award",
+    titleField: "Title",
+    value: "Royal Medal",
+    hidden: true,
+  },
+  {
+    id: "certifications",
+    title: "Certifications",
+    noun: "certification",
+    titleField: "Name",
+    value: "Chartered Engineer",
+    hidden: true,
+  },
+  {
+    id: "publications",
+    title: "Publications",
+    noun: "publication",
+    titleField: "Name",
+    value: "Sketch of the Engine",
+    hidden: true,
+  },
+  {
+    id: "languages",
+    title: "Languages",
+    noun: "language",
+    titleField: "Name",
+    value: "French",
+    hidden: true,
+  },
+  {
+    id: "interests",
+    title: "Interests",
+    noun: "interest",
+    titleField: "Name",
+    value: "Mathematics",
+    hidden: true,
+  },
+  {
+    id: "volunteer",
+    title: "Volunteer",
+    noun: "volunteer",
+    titleField: "Organization",
+    value: "Science Museum",
+    hidden: true,
+  },
+  {
+    id: "references",
+    title: "References",
+    noun: "reference",
+    titleField: "Name",
+    value: "Charles Babbage",
+    hidden: true,
+  },
 ] as const;
 
 test.describe("resume CRUD", () => {
   test.beforeEach(async ({ homePage, docEditorPage }) => {
     await homePage.open();
     await homePage.createResume();
-    await docEditorPage.assertEditorOpen();
+    await docEditorPage.assertDocEditorOpen();
     // Let the initial creation auto-save settle before editing.
     await docEditorPage.assertSaved();
   });
@@ -41,6 +110,23 @@ test.describe("resume CRUD", () => {
     page,
     docEditorPage,
   }) => {
+    // Switch on every section a new resume hides, in one panel visit — a
+    // hidden section never draws on the sheet, so its add affordance only
+    // exists once the section is visible.
+    await test.step("show the hidden sections", async () => {
+      await docEditorPage.openSectionsPanel();
+      const panel = page.getByRole("dialog", { name: "Sections" });
+      for (const section of SECTIONS) {
+        if ("hidden" in section && section.hidden) {
+          // The Kobalte switch input sits under its label, so click the label.
+          await panel.getByText(section.title, { exact: true }).click();
+          await expect(panel.getByRole("switch", { name: section.title })).toBeChecked();
+        }
+      }
+      await page.keyboard.press("Escape");
+      await expect(panel).toBeHidden();
+    });
+
     for (const section of SECTIONS) {
       await test.step(`add ${section.noun} item`, async () => {
         await docEditorPage.assertSectionItemCount(section.id, 0);
@@ -51,7 +137,7 @@ test.describe("resume CRUD", () => {
     await docEditorPage.assertSaved();
 
     await page.reload();
-    await docEditorPage.assertEditorOpen();
+    await docEditorPage.assertDocEditorOpen();
     for (const section of SECTIONS) {
       await test.step(`verify ${section.noun} item survived reload`, async () => {
         await docEditorPage.assertSectionItemCount(section.id, 1);
@@ -68,8 +154,10 @@ test.describe("resume CRUD", () => {
     await docEditorPage.assertSaved();
 
     await page.reload();
-    await docEditorPage.assertEditorOpen();
-    const dialog = await docEditorPage.openItemDialog("Analytical Engines Ltd");
+    await docEditorPage.assertDocEditorOpen();
+    // An entry's row controls speak its head-line label — for an experience
+    // item with a position, that is the position, not the company.
+    const dialog = await docEditorPage.openItemDialog("Chief Engineer");
     await expect(dialog.getByLabel("Company", { exact: true })).toHaveValue(
       "Analytical Engines Ltd",
     );
@@ -89,7 +177,7 @@ test.describe("resume CRUD", () => {
     await docEditorPage.assertSaved();
 
     await page.reload();
-    await docEditorPage.assertEditorOpen();
+    await docEditorPage.assertDocEditorOpen();
     await docEditorPage.assertSectionItemCount("skills", 0);
   });
 

@@ -19,27 +19,24 @@ test.describe("smoke", () => {
     await homePage.assertEmptyState();
   });
 
-  test("creating a resume opens the document editor and typing updates the preview", async ({
-    page,
+  test("creating a resume opens the document editor and edits land on the sheet", async ({
     homePage,
     docEditorPage,
   }) => {
     await homePage.open();
     await homePage.createResume();
-    await docEditorPage.assertEditorOpen();
+    await docEditorPage.assertDocEditorOpen();
 
-    // Committing an inline edit triggers a debounced re-render request
-    // carrying the new content.
-    const previewRequest = page.waitForRequest(
-      (request) =>
-        request.url().includes("/api/render/preview") &&
-        (request.postData() ?? "").includes(FULL_NAME),
-    );
+    // A brand-new empty resume opens ready to type (#785); committing the
+    // typed field dialog draws the new content straight on the sheet.
+    await docEditorPage.assertMode("edit");
     await docEditorPage.fillName(FULL_NAME);
     await docEditorPage.assertName(FULL_NAME);
 
-    await previewRequest;
-    await docEditorPage.assertPreviewVisible();
+    // Done mode shows the same content as the clean rendered document.
+    await docEditorPage.toggleMode();
+    await docEditorPage.assertMode("done");
+    await docEditorPage.assertName(FULL_NAME);
   });
 
   test("edited resume persists across a reload in local mode", async ({
@@ -49,7 +46,7 @@ test.describe("smoke", () => {
   }) => {
     await homePage.open();
     await homePage.createResume();
-    await docEditorPage.assertEditorOpen();
+    await docEditorPage.assertDocEditorOpen();
 
     // Let the initial creation auto-save settle first, then anchor on the
     // Unsaved state so the final Saved assertion can only come from the
@@ -60,7 +57,7 @@ test.describe("smoke", () => {
     await docEditorPage.assertSaved();
 
     await page.reload();
-    await docEditorPage.assertEditorOpen();
+    await docEditorPage.assertDocEditorOpen();
     await docEditorPage.assertName(FULL_NAME);
 
     // The stored resume also shows up on the home page list. Navigate

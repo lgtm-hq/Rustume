@@ -12,7 +12,7 @@ test.describe("template switching", () => {
   test.beforeEach(async ({ homePage, docEditorPage }) => {
     await homePage.open();
     await homePage.createResume();
-    await docEditorPage.assertEditorOpen();
+    await docEditorPage.assertDocEditorOpen();
     await docEditorPage.assertSaved();
   });
 
@@ -20,7 +20,7 @@ test.describe("template switching", () => {
     docEditorPage,
     templatesDrawer,
   }) => {
-    await docEditorPage.templatesButton.click();
+    await docEditorPage.openTemplatesDrawer();
     await templatesDrawer.assertOpen();
     for (const template of TEMPLATE_FIXTURES) {
       await templatesDrawer.assertTemplateListed(template.name);
@@ -29,7 +29,7 @@ test.describe("template switching", () => {
     await templatesDrawer.assertCurrentTemplate(DEFAULT_TEMPLATE_NAME);
   });
 
-  test("switching templates re-renders the preview and keeps resume data", async ({
+  test("switching templates keeps resume data and marks the new current", async ({
     page,
     docEditorPage,
     templatesDrawer,
@@ -37,30 +37,23 @@ test.describe("template switching", () => {
     await docEditorPage.fillName(FULL_NAME);
     await docEditorPage.assertSaved();
 
-    await docEditorPage.templatesButton.click();
+    await docEditorPage.openTemplatesDrawer();
     await templatesDrawer.assertOpen();
 
-    // Selecting a template triggers a re-render for it, still carrying the
-    // resume content, and the render must complete successfully.
-    const previewResponse = page.waitForResponse((response) => {
-      if (!response.url().includes("/api/render/preview")) return false;
-      const body = response.request().postData() ?? "";
-      return body.includes(`"${TARGET.id}"`) && body.includes(FULL_NAME);
-    });
+    // Selecting a template applies it as one store action and closes the
+    // drawer; the sheet re-renders from the new layout reactively (#797).
     await templatesDrawer.selectTemplate(TARGET.name);
     await templatesDrawer.assertClosed();
-    expect((await previewResponse).ok()).toBe(true);
 
-    await docEditorPage.assertPreviewVisible();
     // Resume data survived the switch.
     await docEditorPage.assertName(FULL_NAME);
 
     // The selection persists across a reload.
     await docEditorPage.assertSaved();
     await page.reload();
-    await docEditorPage.assertEditorOpen();
+    await docEditorPage.assertDocEditorOpen();
     await docEditorPage.assertName(FULL_NAME);
-    await docEditorPage.templatesButton.click();
+    await docEditorPage.openTemplatesDrawer();
     await templatesDrawer.assertOpen();
     await templatesDrawer.assertCurrentTemplate(TARGET.name);
   });
@@ -69,12 +62,12 @@ test.describe("template switching", () => {
     docEditorPage,
     templatesDrawer,
   }) => {
-    await docEditorPage.templatesButton.click();
+    await docEditorPage.openTemplatesDrawer();
     await templatesDrawer.assertOpen();
     await templatesDrawer.dismiss();
     await templatesDrawer.assertClosed();
 
-    await docEditorPage.templatesButton.click();
+    await docEditorPage.openTemplatesDrawer();
     await templatesDrawer.assertOpen();
     await templatesDrawer.assertCurrentTemplate(DEFAULT_TEMPLATE_NAME);
   });
@@ -88,7 +81,7 @@ test.describe("template switching", () => {
     const emptyCatalog = (route: import("@playwright/test").Route) =>
       route.fulfill({ status: 200, json: [] });
     await page.route("**/api/templates", emptyCatalog);
-    await docEditorPage.templatesButton.click();
+    await docEditorPage.openTemplatesDrawer();
     await templatesDrawer.assertOpen();
     await expect(
       templatesDrawer.dialog.getByText("No templates available", { exact: false }),

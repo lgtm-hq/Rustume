@@ -9,7 +9,7 @@ test.describe("JSON Resume import", () => {
   test.beforeEach(async ({ homePage, docEditorPage }) => {
     await homePage.open();
     await homePage.createResume();
-    await docEditorPage.assertEditorOpen();
+    await docEditorPage.assertDocEditorOpen();
     await docEditorPage.assertSaved();
     await docEditorPage.openImportModal();
   });
@@ -25,9 +25,9 @@ test.describe("JSON Resume import", () => {
     await expect(page.getByText("Resume imported successfully")).toBeVisible();
     await importModal.assertClosed();
 
-    // Basics mapped into the sheet header.
+    // Basics mapped into the sheet header and its contact block.
     await docEditorPage.assertName("Jane Smith");
-    await expect(docEditorPage.headerField("Email")).toHaveText("jane@example.com");
+    await expect(page.getByTestId("doc-sheet-contact")).toContainText("jane@example.com");
 
     // Work history mapped into the experience section (2 entries in fixture).
     await docEditorPage.assertSectionItemCount("experience", 2);
@@ -36,7 +36,7 @@ test.describe("JSON Resume import", () => {
     // The imported content persists like any other edit.
     await docEditorPage.assertSaved();
     await page.reload();
-    await docEditorPage.assertEditorOpen();
+    await docEditorPage.assertDocEditorOpen();
     await docEditorPage.assertName("Jane Smith");
   });
 

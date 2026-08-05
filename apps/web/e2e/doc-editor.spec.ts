@@ -6,8 +6,6 @@ import { test, expect } from "./support/fixtures";
  * legacy HTML→markdown migration on open (#786) and the deduplicated profile
  * rendering (#787).
  */
-test.use({ formBuilderOverride: false });
-
 /**
  * A Reactive Resume v3 payload whose rich fields are TipTap HTML — the legacy
  * shape every pre-doc-editor resume carries (`content_format` absent).

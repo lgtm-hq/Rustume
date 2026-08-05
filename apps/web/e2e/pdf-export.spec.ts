@@ -7,7 +7,7 @@ test.describe("PDF export", () => {
   test.beforeEach(async ({ homePage, docEditorPage }) => {
     await homePage.open();
     await homePage.createResume();
-    await docEditorPage.assertEditorOpen();
+    await docEditorPage.assertDocEditorOpen();
     await docEditorPage.assertSaved();
     await docEditorPage.fillName(FULL_NAME);
     await docEditorPage.assertSaved();
