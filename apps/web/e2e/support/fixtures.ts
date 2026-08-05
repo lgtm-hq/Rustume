@@ -1,9 +1,8 @@
 import { test as base } from "@playwright/test";
 import HomePage from "../pages/HomePage";
-import BuilderPage from "../pages/BuilderPage";
 import DocEditorPage from "../pages/DocEditorPage";
 import AccountPage from "../pages/AccountPage";
-import TemplatePickerModal from "../pages/TemplatePickerModal";
+import TemplatesDrawer from "../pages/TemplatesDrawer";
 import ExportModal from "../pages/ExportModal";
 import ImportModal from "../pages/ImportModal";
 
@@ -65,27 +64,13 @@ export const TEMPLATE_FIXTURES = [
   },
 ] as const;
 
-/** Template id every new resume starts with (`src/wasm/defaults.ts`). */
-export const DEFAULT_TEMPLATE_ID = "rhyhorn";
-
 interface Fixtures {
   homePage: HomePage;
-  builderPage: BuilderPage;
   docEditorPage: DocEditorPage;
   accountPage: AccountPage;
-  templatePickerModal: TemplatePickerModal;
+  templatesDrawer: TemplatesDrawer;
   exportModal: ExportModal;
   importModal: ImportModal;
-}
-
-interface Options {
-  /**
-   * Seed the `?ff=form-builder` escape hatch so `/edit/:id` serves the legacy
-   * form editor these suites were written against. The document editor is the
-   * default since #734; `doc-editor-default.spec.ts` opts out to prove it.
-   * TODO(#735): remove alongside the form builder and migrate the suites.
-   */
-  formBuilderOverride: boolean;
 }
 
 /**
@@ -95,14 +80,8 @@ interface Options {
  * a deterministic stub so the client-side pipeline can be asserted end to
  * end without a server.
  */
-export const test = base.extend<Fixtures & Options>({
-  formBuilderOverride: [true, { option: true }],
-  page: async ({ page, formBuilderOverride }, use) => {
-    if (formBuilderOverride) {
-      await page.addInitScript(() => {
-        localStorage.setItem("ff.form-builder", "true");
-      });
-    }
+export const test = base.extend<Fixtures>({
+  page: async ({ page }, use) => {
     await page.route(AUTH_PROBE_ROUTE, (route) => route.fulfill({ status: 404 }));
     await page.route(PREVIEW_ROUTE, (route) =>
       route.fulfill({
@@ -137,17 +116,14 @@ export const test = base.extend<Fixtures & Options>({
   homePage: async ({ page }, use) => {
     await use(new HomePage(page));
   },
-  builderPage: async ({ page }, use) => {
-    await use(new BuilderPage(page));
-  },
   docEditorPage: async ({ page }, use) => {
     await use(new DocEditorPage(page));
   },
   accountPage: async ({ page }, use) => {
     await use(new AccountPage(page));
   },
-  templatePickerModal: async ({ page }, use) => {
-    await use(new TemplatePickerModal(page));
+  templatesDrawer: async ({ page }, use) => {
+    await use(new TemplatesDrawer(page));
   },
   exportModal: async ({ page }, use) => {
     await use(new ExportModal(page));

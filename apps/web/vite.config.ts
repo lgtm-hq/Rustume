@@ -110,9 +110,6 @@ export default defineConfig({
       external: (id) => /\/wasm\/rustume_wasm/.test(id),
       output: {
         manualChunks(id) {
-          if (id.includes("@tiptap/") || id.includes("prosemirror")) {
-            return "tiptap";
-          }
           if (id.includes("@thisbeyond/solid-dnd")) {
             return "solid-dnd";
           }

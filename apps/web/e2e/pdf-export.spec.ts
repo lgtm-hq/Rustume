@@ -4,29 +4,38 @@ import { test, expect, PDF_STUB } from "./support/fixtures";
 const FULL_NAME = "Ada Lovelace";
 
 test.describe("PDF export", () => {
-  test.beforeEach(async ({ homePage, builderPage }) => {
+  test.beforeEach(async ({ homePage, docEditorPage }) => {
     await homePage.open();
     await homePage.createResume();
-    await builderPage.assertEditorOpen();
-    await builderPage.assertSaved();
-    await builderPage.fillFullName(FULL_NAME);
-    await builderPage.assertSaved();
+    await docEditorPage.assertDocEditorOpen();
+    await docEditorPage.assertSaved();
+    await docEditorPage.fillName(FULL_NAME);
+    await docEditorPage.assertSaved();
   });
 
   test("exports a PDF named after the resume with the rendered bytes", async ({
     page,
-    builderPage,
+    docEditorPage,
     exportModal,
   }) => {
-    await builderPage.openExportModal();
+    await docEditorPage.openExportModal();
     await exportModal.assertOpen();
 
-    // The render request carries the resume content; the response bytes are
-    // saved verbatim as the download.
-    const renderRequest = page.waitForRequest(
-      (request) =>
-        request.url().includes("/api/render/pdf") && (request.postData() ?? "").includes(FULL_NAME),
-    );
+    // The render request carries the resume content and the template under a
+    // `{resume, template}` envelope; the response bytes are saved verbatim as
+    // the download.
+    const renderRequest = page.waitForRequest((request) => {
+      if (!request.url().includes("/api/render/pdf")) return false;
+      try {
+        const body = JSON.parse(request.postData() ?? "") as {
+          resume?: { basics?: { name?: string } };
+          template?: unknown;
+        };
+        return body.resume?.basics?.name === FULL_NAME && typeof body.template === "string";
+      } catch {
+        return false;
+      }
+    });
     const downloadPromise = page.waitForEvent("download");
     await exportModal.exportPdf();
 
@@ -45,10 +54,10 @@ test.describe("PDF export", () => {
 
   test("exports resume JSON with the edited content", async ({
     page,
-    builderPage,
+    docEditorPage,
     exportModal,
   }) => {
-    await builderPage.openExportModal();
+    await docEditorPage.openExportModal();
     await exportModal.assertOpen();
 
     const downloadPromise = page.waitForEvent("download");
@@ -73,14 +82,14 @@ test.describe("PDF export", () => {
 
   test("shows an error and stays open when PDF rendering fails", async ({
     page,
-    builderPage,
+    docEditorPage,
     exportModal,
   }) => {
     // Shadows the fixture stub; removed handler-specifically afterwards.
     const failRender = (route: import("@playwright/test").Route) => route.fulfill({ status: 500 });
     await page.route("**/api/render/pdf", failRender);
 
-    await builderPage.openExportModal();
+    await docEditorPage.openExportModal();
     await exportModal.assertOpen();
     await exportModal.exportPdf();
 

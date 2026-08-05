@@ -14,18 +14,13 @@ import { resumeStore } from "../../stores/resume";
 import { uiStore } from "../../stores/ui";
 import DocEditor, { isBlankResume } from "../DocEditor";
 
-const { docEditorEnabled, fixture, resumeId } = vi.hoisted(() => ({
-  docEditorEnabled: { value: false },
+const { fixture, resumeId } = vi.hoisted(() => ({
   fixture: { value: null as unknown },
   // `resumeStore` is a module singleton and `useResumeRouteLoad` skips the load
   // when the route id already matches what it holds. A fresh id per test forces
   // the reload, so a test that writes through the store cannot leak into the
   // next one's fixture.
   resumeId: { value: "doc-editor-fixture-0" },
-}));
-
-vi.mock("../../lib/flags", () => ({
-  isDocEditorEnabled: () => docEditorEnabled.value,
 }));
 
 // The real modals pull heavy import/export machinery; the toolbar tests only
@@ -116,7 +111,6 @@ describe("DocEditor sheet", () => {
 
   beforeEach(() => {
     fixture.value = loadDocEditorFixture();
-    docEditorEnabled.value = true;
     resumeId.value = `doc-editor-fixture-${++renderCount}`;
   });
 
@@ -400,7 +394,6 @@ describe("Edit/Done toggle", () => {
 
   beforeEach(() => {
     fixture.value = loadDocEditorFixture();
-    docEditorEnabled.value = true;
     resumeId.value = `doc-editor-mode-${++renderCount}`;
   });
 
@@ -491,7 +484,6 @@ describe("legacy HTML migration (#786)", () => {
   let renderCount = 0;
 
   beforeEach(() => {
-    docEditorEnabled.value = true;
     resumeId.value = `doc-editor-migration-${++renderCount}`;
 
     const legacy = loadDocEditorFixture();
@@ -544,32 +536,18 @@ describe("legacy HTML migration (#786)", () => {
   });
 });
 
-describe("/edit/:id route swap", () => {
+describe("/edit/:id route", () => {
   beforeEach(() => {
     fixture.value = loadDocEditorFixture();
   });
 
-  it("renders the form editor when the form-builder override is active", async () => {
-    docEditorEnabled.value = false;
-    const { resolveEditRoute } = await import("../editRoute");
-
-    renderAt(resolveEditRoute());
-
-    await waitFor(() => expect(screen.getByText("Full Name")).toBeInTheDocument(), {
-      timeout: 10000,
-    });
-    expect(screen.queryByTestId("doc-sheet")).toBeNull();
-  }, 15000);
-
-  it("renders the document sheet by default", async () => {
-    docEditorEnabled.value = true;
-    const { resolveEditRoute } = await import("../editRoute");
-
-    renderAt(resolveEditRoute());
+  it("renders the document sheet unconditionally (#735)", async () => {
+    renderAt(DocEditor);
 
     await waitFor(() => expect(screen.getByTestId("doc-sheet")).toBeInTheDocument(), {
       timeout: 10000,
     });
+    // The form builder is gone: no basics form ever mounts on this route.
     expect(screen.queryByText("Full Name")).toBeNull();
   }, 15000);
 });

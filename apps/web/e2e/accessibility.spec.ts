@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
-import { test, expect, DEFAULT_TEMPLATE_ID } from "./support/fixtures";
+import { test, expect } from "./support/fixtures";
 
 /** WCAG 2.2 AA scan scope (also includes the 2.0 and 2.1 A/AA baselines). */
 const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa"];
@@ -71,95 +71,6 @@ test.describe("accessibility", () => {
     expect(await scanForViolations(page)).toEqual([]);
   });
 
-  test("editor has no WCAG 2.2 AA violations", async ({ page, homePage, builderPage }) => {
-    await homePage.open();
-    await homePage.createResume();
-    await builderPage.assertEditorOpen();
-    await builderPage.assertSaved();
-    await builderPage.assertPreviewVisible();
-    // Let the transient "New resume created" toast dismiss so the scan sees
-    // the editor's steady state, not notification chrome mid-animation.
-    await expect(page.getByText("New resume created")).toBeHidden({ timeout: 15_000 });
-    expect(await scanForViolations(page)).toEqual([]);
-  });
-
-  test("template picker dialog has no WCAG 2.2 AA violations", async ({
-    page,
-    homePage,
-    builderPage,
-    templatePickerModal,
-  }) => {
-    await homePage.open();
-    await homePage.createResume();
-    await builderPage.assertEditorOpen();
-    await builderPage.assertSaved();
-    await builderPage.openTemplatePicker(DEFAULT_TEMPLATE_ID);
-    await templatePickerModal.assertOpen();
-    await templatePickerModal.assertTemplateListed("Rhyhorn");
-    expect(await scanForViolations(page, '[role="dialog"]')).toEqual([]);
-  });
-
-  test("export dialog has no WCAG 2.2 AA violations", async ({
-    page,
-    homePage,
-    builderPage,
-    exportModal,
-  }) => {
-    await homePage.open();
-    await homePage.createResume();
-    await builderPage.assertEditorOpen();
-    await builderPage.assertSaved();
-    await builderPage.openExportModal();
-    await exportModal.assertOpen();
-    expect(await scanForViolations(page, '[role="dialog"]')).toEqual([]);
-  });
-
-  /**
-   * A freshly created resume has no section items, so the editor scan above
-   * never reaches the reorder controls, the visibility toggle, the remove
-   * button or the rich-text toolbar — exactly the dense, icon-only controls
-   * SC 2.5.8 exists for. Populate a section so those targets are in the tree.
-   */
-  test("populated section editor has no WCAG 2.2 AA violations", async ({
-    page,
-    homePage,
-    builderPage,
-  }) => {
-    await homePage.open();
-    await homePage.createResume();
-    await builderPage.assertEditorOpen();
-    await builderPage.openSection("Experience");
-    await builderPage.assertSectionOpen("Experience");
-    await builderPage.addSectionItem();
-    await builderPage.fillItemField("Position", "Engineer");
-    // A second item makes the reorder buttons meaningful: with one item both
-    // are disabled, and axe skips disabled controls.
-    await builderPage.addSectionItem();
-    await builderPage.fillItemField("Position", "Designer");
-    await builderPage.assertSectionItemCount(2);
-    await builderPage.assertSaved();
-    await expect(page.getByText("New resume created")).toBeHidden({ timeout: 15_000 });
-    expect(await scanForViolations(page)).toEqual([]);
-  });
-
-  /**
-   * The layout editor is the app's only drag-and-drop surface, so it carries
-   * the SC 2.5.7 move controls and the densest cluster of icon-only buttons in
-   * the product. A new resume defaults to two columns, so the lateral move
-   * controls render without any extra setup.
-   */
-  test("layout editor has no WCAG 2.2 AA violations", async ({ page, homePage, builderPage }) => {
-    await homePage.open();
-    await homePage.createResume();
-    await builderPage.assertEditorOpen();
-    await builderPage.openSection("Layout");
-    await builderPage.assertSectionOpen("Layout");
-    await expect(page.getByRole("group", { name: "Main" })).toBeVisible();
-    await expect(page.getByRole("group", { name: "Sidebar" })).toBeVisible();
-    await expect(page.getByText("New resume created")).toBeHidden({ timeout: 15_000 });
-    expect(await scanForViolations(page)).toEqual([]);
-  });
-
   test("account page has no WCAG 2.2 AA violations", async ({ page, accountPage }) => {
     await accountPage.open();
     await accountPage.assertLocalMode();
@@ -172,8 +83,6 @@ test.describe("accessibility", () => {
    * buttons and the whole top bar are all present.
    */
   test.describe("document editor", () => {
-    test.use({ formBuilderOverride: false });
-
     test("edit surface has no WCAG 2.2 AA violations", async ({
       page,
       homePage,
@@ -216,6 +125,51 @@ test.describe("accessibility", () => {
       await page.getByTestId("doc-editor-theme-button").click();
       await expect(page.getByRole("dialog", { name: "Theme" })).toBeVisible();
       expect(await scanForViolations(page, '[role="dialog"]')).toEqual([]);
+    });
+
+    test("export dialog has no WCAG 2.2 AA violations", async ({
+      page,
+      homePage,
+      docEditorPage,
+      exportModal,
+    }) => {
+      await homePage.open();
+      await homePage.createResume();
+      await docEditorPage.assertDocEditorOpen();
+      await docEditorPage.assertSaved();
+      await docEditorPage.openExportModal();
+      await exportModal.assertOpen();
+      expect(await scanForViolations(page, '[role="dialog"]')).toEqual([]);
+    });
+
+    /**
+     * A freshly created resume has no section items, so the edit-surface scan
+     * above never reaches the per-item edit / move / duplicate / hide / remove
+     * controls — exactly the dense, icon-only targets SC 2.5.8 exists for.
+     * Populate a section so those controls are in the tree; a second item
+     * makes the reorder buttons meaningful, since with one item both are
+     * disabled and axe skips disabled controls.
+     */
+    test("populated document sheet has no WCAG 2.2 AA violations", async ({
+      page,
+      homePage,
+      docEditorPage,
+    }) => {
+      await homePage.open();
+      await homePage.createResume();
+      await docEditorPage.assertDocEditorOpen();
+      await docEditorPage.addItem("experience", [
+        ["Company", "Lumen Health"],
+        ["Position", "Engineer"],
+      ]);
+      await docEditorPage.addItem("experience", [
+        ["Company", "Analytical Engines"],
+        ["Position", "Designer"],
+      ]);
+      await docEditorPage.assertSectionItemCount("experience", 2);
+      await docEditorPage.assertSaved();
+      await expect(page.getByText("New resume created")).toBeHidden({ timeout: 15_000 });
+      expect(await scanForViolations(page)).toEqual([]);
     });
   });
 });

@@ -1,92 +1,90 @@
-import { test, expect, DEFAULT_TEMPLATE_ID, TEMPLATE_FIXTURES } from "./support/fixtures";
+import { test, expect, TEMPLATE_FIXTURES } from "./support/fixtures";
 
 const FULL_NAME = "Ada Lovelace";
+/** Display name of the template every new resume starts with. */
+const DEFAULT_TEMPLATE_NAME = "Rhyhorn";
 const TARGET_ID = "azurill";
 const target = TEMPLATE_FIXTURES.find((template) => template.id === TARGET_ID);
 if (!target) throw new Error(`Template fixture ${TARGET_ID} missing`);
 const TARGET = target;
 
 test.describe("template switching", () => {
-  test.beforeEach(async ({ homePage, builderPage }) => {
+  test.beforeEach(async ({ homePage, docEditorPage }) => {
     await homePage.open();
     await homePage.createResume();
-    await builderPage.assertEditorOpen();
-    await builderPage.assertSaved();
+    await docEditorPage.assertDocEditorOpen();
+    await docEditorPage.assertSaved();
   });
 
-  test("picker lists templates and shows a lightbox preview", async ({
-    builderPage,
-    templatePickerModal,
+  test("drawer lists every template and marks the current one", async ({
+    docEditorPage,
+    templatesDrawer,
   }) => {
-    await builderPage.openTemplatePicker(DEFAULT_TEMPLATE_ID);
-    await templatePickerModal.assertOpen();
+    await docEditorPage.openTemplatesDrawer();
+    await templatesDrawer.assertOpen();
     for (const template of TEMPLATE_FIXTURES) {
-      await templatePickerModal.assertTemplateListed(template.name);
+      await templatesDrawer.assertTemplateListed(template.name);
     }
 
-    await templatePickerModal.previewTemplate(TARGET.name);
-    await templatePickerModal.assertPreviewOpen(TARGET.name);
+    await templatesDrawer.assertCurrentTemplate(DEFAULT_TEMPLATE_NAME);
   });
 
-  test("switching templates re-renders the preview and keeps resume data", async ({
+  test("switching templates keeps resume data and marks the new current", async ({
     page,
-    builderPage,
-    templatePickerModal,
+    docEditorPage,
+    templatesDrawer,
   }) => {
-    await builderPage.fillFullName(FULL_NAME);
-    await builderPage.assertSaved();
+    await docEditorPage.fillName(FULL_NAME);
+    await docEditorPage.assertSaved();
 
-    await builderPage.openTemplatePicker(DEFAULT_TEMPLATE_ID);
-    await templatePickerModal.assertOpen();
+    await docEditorPage.openTemplatesDrawer();
+    await templatesDrawer.assertOpen();
 
-    // Selecting a template triggers a re-render for it, still carrying the
-    // resume content, and the render must complete successfully.
-    const previewResponse = page.waitForResponse((response) => {
-      if (!response.url().includes("/api/render/preview")) return false;
-      const body = response.request().postData() ?? "";
-      return body.includes(`"${TARGET.id}"`) && body.includes(FULL_NAME);
-    });
-    await templatePickerModal.selectTemplate(TARGET.name);
-    await templatePickerModal.assertClosed();
-    expect((await previewResponse).ok()).toBe(true);
+    // Selecting a template applies it as one store action and closes the
+    // drawer; the sheet re-renders from the new layout reactively (#797).
+    await templatesDrawer.selectTemplate(TARGET.name);
+    await templatesDrawer.assertClosed();
 
-    await builderPage.assertSelectedTemplate(TARGET.id);
-    await builderPage.assertPreviewVisible();
     // Resume data survived the switch.
-    await builderPage.assertFullName(FULL_NAME);
+    await docEditorPage.assertName(FULL_NAME);
 
     // The selection persists across a reload.
-    await builderPage.assertSaved();
+    await docEditorPage.assertSaved();
     await page.reload();
-    await builderPage.assertEditorOpen();
-    await builderPage.assertSelectedTemplate(TARGET.id);
-    await builderPage.assertFullName(FULL_NAME);
+    await docEditorPage.assertDocEditorOpen();
+    await docEditorPage.assertName(FULL_NAME);
+    await docEditorPage.openTemplatesDrawer();
+    await templatesDrawer.assertOpen();
+    await templatesDrawer.assertCurrentTemplate(TARGET.name);
   });
 
-  test("cancelling the picker keeps the current template", async ({
-    builderPage,
-    templatePickerModal,
+  test("dismissing the drawer keeps the current template", async ({
+    docEditorPage,
+    templatesDrawer,
   }) => {
-    await builderPage.openTemplatePicker(DEFAULT_TEMPLATE_ID);
-    await templatePickerModal.assertOpen();
-    await templatePickerModal.cancel();
-    await templatePickerModal.assertClosed();
-    await builderPage.assertSelectedTemplate(DEFAULT_TEMPLATE_ID);
+    await docEditorPage.openTemplatesDrawer();
+    await templatesDrawer.assertOpen();
+    await templatesDrawer.dismiss();
+    await templatesDrawer.assertClosed();
+
+    await docEditorPage.openTemplatesDrawer();
+    await templatesDrawer.assertOpen();
+    await templatesDrawer.assertCurrentTemplate(DEFAULT_TEMPLATE_NAME);
   });
 
-  test("template picker shows an empty state when no templates load", async ({
+  test("templates drawer shows an empty state when no templates load", async ({
     page,
-    builderPage,
-    templatePickerModal,
+    docEditorPage,
+    templatesDrawer,
   }) => {
     // Shadows the fixture stub; removed handler-specifically afterwards.
     const emptyCatalog = (route: import("@playwright/test").Route) =>
       route.fulfill({ status: 200, json: [] });
     await page.route("**/api/templates", emptyCatalog);
-    await builderPage.openTemplatePicker(DEFAULT_TEMPLATE_ID);
-    await templatePickerModal.assertOpen();
+    await docEditorPage.openTemplatesDrawer();
+    await templatesDrawer.assertOpen();
     await expect(
-      templatePickerModal.dialog.getByText("No templates available", { exact: false }),
+      templatesDrawer.dialog.getByText("No templates available", { exact: false }),
     ).toBeVisible();
     await page.unroute("**/api/templates", emptyCatalog);
   });

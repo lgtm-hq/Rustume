@@ -6,8 +6,6 @@ import type { Locator, Page } from "@playwright/test";
  * hiding and deleting a custom section must reflect immediately on both the
  * panel's own list and the sheet — no close/reopen, no clicking out.
  */
-test.use({ formBuilderOverride: false });
-
 /**
  * The sheet card whose section title reads `title` (never the live region).
  * Text-filtered, not role-filtered: with the Sections drawer open the sheet

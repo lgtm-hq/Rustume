@@ -178,8 +178,7 @@ export function migrateResumeContentToMarkdown(resume: ResumeData): ResumeData {
   }
 
   // `summary` is the one rich item field — every other item field is plain
-  // text in both editors (see `itemFields.ts` and the form builder's use of
-  // `RichTextEditor`).
+  // text (see `itemFields.ts`).
   convertItems(next.sections.experience?.items);
   convertItems(next.sections.education?.items);
   convertItems(next.sections.projects?.items);

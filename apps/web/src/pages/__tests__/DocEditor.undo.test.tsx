@@ -15,16 +15,11 @@ import { Suspense, type Component } from "solid-js";
 import { enterEditMode, loadDocEditorFixture, SIDEBAR_TEMPLATE } from "../../test/docEditorFixture";
 import DocEditor from "../DocEditor";
 
-const { docEditorEnabled, fixture, resumeId } = vi.hoisted(() => ({
-  docEditorEnabled: { value: true },
+const { fixture, resumeId } = vi.hoisted(() => ({
   fixture: { value: null as unknown },
   // A fresh id per test forces `useResumeRouteLoad` to reload, which runs
   // `clearUndoHistory` — so each test starts with an empty undo stack.
   resumeId: { value: "doc-editor-undo-0" },
-}));
-
-vi.mock("../../lib/flags", () => ({
-  isDocEditorEnabled: () => docEditorEnabled.value,
 }));
 
 vi.mock("../../wasm", async (importOriginal) => {
@@ -117,7 +112,6 @@ describe("DocEditor undo, autosave, and version history", () => {
 
   beforeEach(() => {
     fixture.value = loadDocEditorFixture();
-    docEditorEnabled.value = true;
     resumeId.value = `doc-editor-undo-${++renderCount}`;
   });
 

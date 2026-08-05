@@ -1,15 +1,14 @@
 /**
  * Contrast audit of the 12 resume templates across screen and print.
  *
- * ## Why this is not an axe scan of the preview
+ * ## Why this is not an axe scan of a render
  *
  * A resume template is a Typst document, not DOM. `crates/render` compiles it
- * once and hands it to two backends — `typst-render` rasterises a PNG for the
- * on-screen preview, `typst-pdf` writes the export — so the preview the user
- * sees in the editor is an `<img>`, and every glyph inside it is opaque to axe.
- * Running the colour-contrast rule against the preview would report a clean
- * page while the resume inside it failed, which is the exact false negative
- * this audit exists to prevent.
+ * once and hands it to two backends — `typst-render` rasterises PNG pages,
+ * `typst-pdf` writes the export — so any rendered page is pixels, and every
+ * glyph inside it is opaque to axe. Running the colour-contrast rule against
+ * a render would report a clean page while the resume inside it failed, which
+ * is the exact false negative this audit exists to prevent.
  *
  * So the matrix gates the source of both renders: every ink/backdrop pair the
  * templates can paint, resolved from the Typst sources themselves
@@ -18,14 +17,14 @@
  * happened to load — and it covers the PDF path, which no browser-side check
  * can reach because `renderPdf` in `src/api/render.ts` POSTs to a server.
  *
- * axe still runs, per template, over the editor chrome that frames the preview:
+ * axe still runs, per template, over the editor chrome that frames the sheet:
  * that surface IS DOM, and it is where a template switch could regress the app.
  */
 import AxeBuilder from "@axe-core/playwright";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Page } from "@playwright/test";
-import { test, expect, DEFAULT_TEMPLATE_ID, TEMPLATES_ROUTE } from "./support/fixtures";
+import { test, expect, TEMPLATES_ROUTE } from "./support/fixtures";
 import { ContrastRole, SURFACES, floorFor, surfaceRatio, type Surface } from "./support/contrast";
 import { pairsFor, uncoveredBindings } from "./support/templateContrastMatrix";
 import {
@@ -122,7 +121,7 @@ test.describe("template contrast matrix", () => {
     // REFERENCES — a binding no pair mentions is never looked up. So a template
     // that gains a tint and paints text on it would stay unaudited while every
     // test above stayed green, which is the same false-negative class as
-    // scanning the preview `<img>` with axe, one level up. Anything genuinely
+    // axe-scanning a rasterised render, one level up. Anything genuinely
     // never painted is named in `UNPAINTED_BINDINGS`, per binding, with a
     // reason.
     const uncovered = TEMPLATE_IDS.flatMap((templateId) =>
@@ -159,28 +158,27 @@ test.describe("template rendering surfaces", () => {
   });
 
   TEMPLATE_IDS.forEach((templateId) => {
-    test(`${templateId} preview and PDF export are free of WCAG 2.1 AA violations`, async ({
+    test(`${templateId} editor chrome and PDF export are free of WCAG 2.1 AA violations`, async ({
       page,
       homePage,
-      builderPage,
-      templatePickerModal,
+      docEditorPage,
+      templatesDrawer,
       exportModal,
     }) => {
       await homePage.open();
       await homePage.createResume();
-      await builderPage.assertEditorOpen();
-      await builderPage.assertSaved();
+      await docEditorPage.assertDocEditorOpen();
+      await docEditorPage.assertSaved();
 
       await test.step("select the template", async () => {
-        await builderPage.openTemplatePicker(DEFAULT_TEMPLATE_ID);
-        await templatePickerModal.assertOpen();
-        await templatePickerModal.selectTemplate(displayName(templateId));
-        await templatePickerModal.assertClosed();
-        await builderPage.assertSelectedTemplate(templateId);
-        await builderPage.assertPreviewVisible();
+        await docEditorPage.openTemplatesDrawer();
+        await templatesDrawer.assertOpen();
+        await templatesDrawer.selectTemplate(displayName(templateId));
+        await templatesDrawer.assertClosed();
+        await docEditorPage.assertDocEditorOpen();
       });
 
-      await test.step("scan the editor chrome framing the preview", async () => {
+      await test.step("scan the editor chrome framing the sheet", async () => {
         // The transient creation toast would otherwise be scanned mid-flight.
         await expect(page.getByText("New resume created")).toBeHidden({ timeout: 15_000 });
         expect(await scanForViolations(page)).toEqual([]);
@@ -190,7 +188,7 @@ test.describe("template rendering surfaces", () => {
         // Ties the print half of the matrix to the artefact a user actually
         // sends: the export asks the server for THIS template, so the colours
         // gated above are the colours the PDF is built from.
-        await builderPage.openExportModal();
+        await docEditorPage.openExportModal();
         await exportModal.assertOpen();
         const renderRequest = page.waitForRequest(
           (request) =>
