@@ -105,10 +105,12 @@ describe("theme dialog", () => {
     expect(within(dialog).getByText("Use a full #rrggbb value.")).toBeInTheDocument();
   });
 
-  it("commits from the native color picker as one action", () => {
+  it("commits a completed native color selection as one action", () => {
     const dialog = openDialog();
 
-    fireEvent.input(within(dialog).getByLabelText("Pick text color"), {
+    // `change`, not `input`: the picker's per-drag-tick `input` events must
+    // not write — only the completed selection commits.
+    fireEvent.change(within(dialog).getByLabelText("Pick text color"), {
       target: { value: "#222222" },
     });
 

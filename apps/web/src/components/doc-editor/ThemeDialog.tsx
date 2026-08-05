@@ -157,7 +157,10 @@ function ColorField(props: {
             value={props.value}
             aria-label={`Pick ${props.label.toLowerCase()} color`}
             class="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-            onInput={(event) => {
+            // `change`, not `input`: the native picker fires `input` on every
+            // drag tick, which would burn one store write (and undo entry)
+            // per tick — `change` commits once per completed selection.
+            onChange={(event) => {
               setDraft(null);
               updateThemeColor(props.field, event.currentTarget.value);
             }}
