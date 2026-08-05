@@ -31,6 +31,19 @@ export function PencilIcon(): JSX.Element {
   );
 }
 
+/** mdi-format-page-break — the explicit "insert page break" affordances. */
+export function PageBreakIcon(): JSX.Element {
+  return (
+    <svg class="doc-sheet__break-ico" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M9,13H7V11H9V13M13,13H11V11H13V13M17,13H15V11H17V13M21,3H3V10H5V5H19V10H21V3M21,
+          21V14H19V19H5V14H3V21H21Z"
+      />
+    </svg>
+  );
+}
+
 /** The section grip: mdi-drag's 3×3 dot grid. */
 export function DragGridIcon(): JSX.Element {
   const dots = [5.5, 12, 18.5];

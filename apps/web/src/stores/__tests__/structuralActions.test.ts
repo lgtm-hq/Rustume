@@ -1,14 +1,14 @@
 /**
- * The structural item actions the document editor's cards call: duplicate,
- * and the single-action cross-section move — each one store action, so each
- * one undo entry.
+ * The structural store actions the document editor's cards call — duplicate,
+ * remove with page-break marker cleanup, template application, and combined
+ * pagination writes. Each is one store action, so each is one undo entry.
  */
 
 import { createRoot } from "solid-js";
 import { describe, expect, it, vi, type Mock } from "vitest";
 import { createDefaultResume } from "../../wasm/defaults";
 import { useResumeStore } from "../resume";
-import type { CustomItem, Skill } from "../../wasm/types";
+import type { CustomItem, Experience, Skill } from "../../wasm/types";
 
 vi.mock("../../wasm", () => ({
   createEmptyResume: () => createDefaultResume(),
@@ -17,6 +17,21 @@ vi.mock("../../wasm", () => ({
   isWasmReady: () => false,
   ensureWasmReady: async () => false,
 }));
+
+function experienceItem(id: string, company: string): Experience {
+  return {
+    id,
+    visible: true,
+    company,
+    position: "Engineer",
+    location: "",
+    date: "",
+    summary: "",
+    url: { label: "", href: "" },
+    keywords: [],
+    customFields: [],
+  };
+}
 
 function skill(id: string, name: string): Skill {
   return { id, visible: true, name, description: "", level: 3, keywords: ["k"] };
@@ -128,105 +143,6 @@ describe("duplicateCustomSectionItem", () => {
   });
 });
 
-describe("moveCustomSectionItem", () => {
-  it("moves an item between custom sections in one action", () => {
-    createRoot((dispose) => {
-      const {
-        store,
-        createNewResume,
-        addCustomSection,
-        addCustomSectionItem,
-        moveCustomSectionItem,
-      } = useResumeStore();
-      createNewResume("move-1");
-      const talks = addCustomSection("Talks");
-      const advisory = addCustomSection("Advisory");
-      addCustomSectionItem(talks, customItem("t1", "First"));
-      addCustomSectionItem(talks, customItem("t2", "Second"));
-      addCustomSectionItem(advisory, customItem("a1", "Board"));
-
-      moveCustomSectionItem(talks, 0, advisory, 1);
-
-      expect(store.resume!.sections.custom[talks].items.map((item) => item.id)).toEqual(["t2"]);
-      expect(store.resume!.sections.custom[advisory].items.map((item) => item.id)).toEqual([
-        "a1",
-        "t1",
-      ]);
-      dispose();
-    });
-  });
-
-  it("clamps an out-of-range destination index to the section's end", () => {
-    createRoot((dispose) => {
-      const {
-        store,
-        createNewResume,
-        addCustomSection,
-        addCustomSectionItem,
-        moveCustomSectionItem,
-      } = useResumeStore();
-      createNewResume("move-4");
-      const talks = addCustomSection("Talks");
-      const advisory = addCustomSection("Advisory");
-      addCustomSectionItem(talks, customItem("t1", "First"));
-      addCustomSectionItem(advisory, customItem("a1", "Board"));
-
-      moveCustomSectionItem(talks, 0, advisory, 99);
-
-      expect(store.resume!.sections.custom[advisory].items.map((item) => item.id)).toEqual([
-        "a1",
-        "t1",
-      ]);
-      dispose();
-    });
-  });
-
-  it("refuses a move onto the same section", () => {
-    createRoot((dispose) => {
-      const {
-        store,
-        createNewResume,
-        addCustomSection,
-        addCustomSectionItem,
-        moveCustomSectionItem,
-      } = useResumeStore();
-      createNewResume("move-2");
-      const talks = addCustomSection("Talks");
-      addCustomSectionItem(talks, customItem("t1", "First"));
-      addCustomSectionItem(talks, customItem("t2", "Second"));
-
-      moveCustomSectionItem(talks, 0, talks, 1);
-
-      expect(store.resume!.sections.custom[talks].items.map((item) => item.id)).toEqual([
-        "t1",
-        "t2",
-      ]);
-      dispose();
-    });
-  });
-
-  it("does nothing when either section or the item is missing", () => {
-    createRoot((dispose) => {
-      const {
-        store,
-        createNewResume,
-        addCustomSection,
-        addCustomSectionItem,
-        moveCustomSectionItem,
-      } = useResumeStore();
-      createNewResume("move-3");
-      const talks = addCustomSection("Talks");
-      addCustomSectionItem(talks, customItem("t1", "First"));
-
-      moveCustomSectionItem(talks, 5, "nope", 0);
-      moveCustomSectionItem("nope", 0, talks, 0);
-
-      expect(store.resume!.sections.custom[talks].items.map((item) => item.id)).toEqual(["t1"]);
-      dispose();
-    });
-  });
-});
-
 describe("applyTemplate", () => {
   it("lands template and layout in one write", () => {
     createRoot((dispose) => {
@@ -263,6 +179,72 @@ describe("applyTemplate", () => {
         expect(store.resume!.metadata.layout).toEqual(layoutBefore);
         // One entry, not two: a second undo has nothing of this switch left.
         expect(undo()).toBe(false);
+        dispose();
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("removeSectionItem", () => {
+  it("cleans the removed item's page-break marker in the same write (#796)", () => {
+    createRoot((dispose) => {
+      const { store, createNewResume, addSectionItem, updateMetadata, removeSectionItem } =
+        useResumeStore();
+      createNewResume("break-1");
+      addSectionItem("experience", experienceItem("exp-a", "Alpha Corp"));
+      addSectionItem("experience", experienceItem("exp-b", "Beta Corp"));
+      const base = store.resume!.sections.experience.items.length - 2;
+      updateMetadata("itemBreaks", { experience: ["exp-b"], education: ["edu-x"] });
+
+      removeSectionItem("experience", base + 1);
+
+      // Only the removed item's marker goes; other sections keep theirs.
+      expect(store.resume!.metadata.itemBreaks).toEqual({ education: ["edu-x"] });
+      dispose();
+    });
+  });
+
+  it("leaves itemBreaks untouched when the removed item carried no marker", () => {
+    createRoot((dispose) => {
+      const { store, createNewResume, addSectionItem, updateMetadata, removeSectionItem } =
+        useResumeStore();
+      createNewResume("break-2");
+      addSectionItem("skills", skill("skill-a", "Alpha"));
+      updateMetadata("itemBreaks", { experience: ["exp-x"] });
+
+      removeSectionItem("skills", store.resume!.sections.skills.items.length - 1);
+
+      expect(store.resume!.metadata.itemBreaks).toEqual({ experience: ["exp-x"] });
+      dispose();
+    });
+  });
+});
+
+describe("updatePagination", () => {
+  it("writes layout and itemBreaks together as one undo entry", () => {
+    vi.useFakeTimers();
+    try {
+      createRoot((dispose) => {
+        const { store, createNewResume, updateMetadata, updatePagination, undo } = useResumeStore();
+        createNewResume("pagination-1");
+        updateMetadata("itemBreaks", { experience: ["exp-x"] });
+        vi.advanceTimersByTime(600);
+        const layoutBefore = JSON.parse(
+          JSON.stringify(store.resume!.metadata.layout),
+        ) as string[][][];
+
+        updatePagination([[["summary"], []]], {});
+        vi.advanceTimersByTime(600);
+
+        expect(store.resume!.metadata.layout).toEqual([[["summary"], []]]);
+        expect(store.resume!.metadata.itemBreaks).toEqual({});
+
+        // One undo restores both halves at once.
+        expect(undo()).toBe(true);
+        expect(store.resume!.metadata.layout).toEqual(layoutBefore);
+        expect(store.resume!.metadata.itemBreaks).toEqual({ experience: ["exp-x"] });
         dispose();
       });
     } finally {

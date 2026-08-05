@@ -29,6 +29,7 @@ import {
   showResumeVersionConflictToast,
 } from "./cloudStorage";
 import { FIXED_LAYOUT_SECTION_KEYS, isHtmlEmpty } from "../lib/resumeSections";
+import { sanitizedItemBreaks } from "../lib/docPagination";
 import { setUndoRecorder, recordUndo } from "./editorUndo";
 import { saveSnapshot } from "./versionHistory";
 import {
@@ -248,6 +249,12 @@ function normalizeResumeForStore(resume: ResumeData): ResumeData {
   }
   if (!Array.isArray(resume.metadata.layout)) {
     resume.metadata.layout = [];
+  }
+  // Strip break markers the renderer would ignore (spec §3.4 guard): markers
+  // on chip/side sections over-fragment the sheet into empty continuations.
+  const repairedBreaks = sanitizedItemBreaks(resume.metadata.itemBreaks);
+  if (repairedBreaks !== null) {
+    resume.metadata.itemBreaks = repairedBreaks;
   }
   ensureCoverLetterSection(resume);
 
@@ -648,8 +655,24 @@ export function useResumeStore() {
     removeSectionItem<K extends SectionKey>(sectionKey: K, index: number) {
       setStore(
         produce((s) => {
-          if (s.resume) {
-            (s.resume.sections[sectionKey] as Section<unknown>).items.splice(index, 1);
+          if (!s.resume) return;
+          const items = (s.resume.sections[sectionKey] as Section<{ id: string }>).items;
+          const [removed] = items.splice(index, 1);
+          // Removing an item also cleans its page-break marker (spec §2.7),
+          // in the same write so the removal stays one undo entry.
+          const markers = s.resume.metadata.itemBreaks?.[sectionKey];
+          if (removed !== undefined && markers?.includes(removed.id) === true) {
+            const filtered = markers.filter((id) => id !== removed.id);
+            if (filtered.length > 0) {
+              s.resume.metadata.itemBreaks = {
+                ...s.resume.metadata.itemBreaks,
+                [sectionKey]: filtered,
+              };
+            } else {
+              const next = { ...s.resume.metadata.itemBreaks };
+              delete next[sectionKey];
+              s.resume.metadata.itemBreaks = next;
+            }
           }
         }),
       );
@@ -804,36 +827,6 @@ export function useResumeStore() {
       markDirty();
     },
 
-    /**
-     * Move an item between two custom sections as **one** action — removal and
-     * insertion together, so a cross-section drag is a single undo entry.
-     * Custom sections only: they are the only sections sharing an item shape.
-     */
-    moveCustomSectionItem(
-      fromSectionId: string,
-      fromIndex: number,
-      toSectionId: string,
-      toIndex: number,
-    ) {
-      if (fromSectionId === toSectionId) return;
-      const fromItems = store.resume?.sections.custom[fromSectionId]?.items;
-      const toItems = store.resume?.sections.custom[toSectionId]?.items;
-      const item = fromItems?.[fromIndex];
-      if (!fromItems || !toItems || !item) return;
-      setStore(
-        produce((s) => {
-          if (!s.resume) return;
-          const source = s.resume.sections.custom[fromSectionId];
-          const target = s.resume.sections.custom[toSectionId];
-          if (!source || !target) return;
-          const [moved] = source.items.splice(fromIndex, 1);
-          if (!moved) return;
-          target.items.splice(Math.max(0, Math.min(toIndex, target.items.length)), 0, moved);
-        }),
-      );
-      markDirty();
-    },
-
     // Metadata updates
     updateMetadata<K extends keyof Metadata>(field: K, value: Metadata[K]) {
       setStore(
@@ -892,6 +885,24 @@ export function useResumeStore() {
         produce((s) => {
           if (s.resume) {
             s.resume.metadata.layout = layout;
+          }
+        }),
+      );
+      markDirty();
+    },
+
+    /**
+     * Write `metadata.layout` and `metadata.itemBreaks` together as **one**
+     * action and one undo entry — a whole-section move both re-places the
+     * section and drops its now-meaningless mid-section breaks (spec §2.5),
+     * and undoing it must restore both halves at once.
+     */
+    updatePagination(layout: string[][][], itemBreaks: Record<string, string[]>) {
+      setStore(
+        produce((s) => {
+          if (s.resume) {
+            s.resume.metadata.layout = layout;
+            s.resume.metadata.itemBreaks = itemBreaks;
           }
         }),
       );

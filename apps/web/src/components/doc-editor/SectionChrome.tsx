@@ -10,9 +10,9 @@
  * this chrome mounts — the card is just the section content.
  *
  * The chrome is presentational: every action arrives as a callback and every
- * drag primitive (the grip's activators, the card's droppable ref) is owned by
- * the caller, so the drag mechanism can be swapped (#796) without touching the
- * card. The `basics` contact block reuses this card with no menu and no grip —
+ * drag primitive (the grip's activators, the card's whole-surface `dragProps`)
+ * is owned by the caller, so the card never knows the drag mechanism. The
+ * `basics` contact block reuses this card with no menu and no grip —
  * template-owned chrome (spec §1.4).
  */
 
@@ -34,6 +34,12 @@ export interface SectionMenuActions {
   /** Cross-column move, absent on single-column templates. */
   otherColumnLabel?: string;
   onMoveToOtherColumn?: () => void;
+  /**
+   * Explicit "insert page break before this section" (spec §3.4, owner
+   * decision Q6); disabled when the split would change nothing.
+   */
+  canInsertPageBreak?: boolean;
+  onInsertPageBreak?: () => void;
   /** Arms the inline title editor. */
   onRename: () => void;
   onHide: () => void;
@@ -41,6 +47,12 @@ export interface SectionMenuActions {
 
 export interface SectionChromeProps {
   sectionId: string;
+  /**
+   * Discriminator for this card's DOM ids when a section renders more than
+   * one instance (item-break continuation slices, spec §3.3). Defaults to
+   * `sectionId`; duplicate ids would break the pencil/menu ARIA wiring.
+   */
+  idKey?: string;
   /** Display title; inline-editable when `onRenameCommit` is provided. */
   title: string;
   /**
@@ -59,11 +71,17 @@ export interface SectionChromeProps {
   /** Drag-grip activator props from the sheet's drag system. */
   gripActivators?: Record<string, unknown>;
   gripTitle?: string;
-  /** Ref for the card element (drop target registration). */
-  ref?: (element: HTMLElement) => void;
-  /** Drag-state classes driven by the sheet's drag system. */
-  isDropTarget?: boolean;
+  /**
+   * Whole-surface drag and drop-target props (`draggable`, the drag and drop
+   * handlers), spread onto the card element. Owned by the caller so the card
+   * stays presentational (spec §2.5); absent for chrome that never drags.
+   */
+  dragProps?: JSX.HTMLAttributes<HTMLElement>;
+  /** Drag-state chrome driven by the sheet's drag signals. */
   isDragging?: boolean;
+  /** 3px accent slot indicators around the card (spec §2.5). */
+  showSlotBefore?: boolean;
+  showSlotAfter?: boolean;
   children: JSX.Element;
 }
 
@@ -105,7 +123,7 @@ export function SectionChrome(props: SectionChromeProps): JSX.Element {
     const onKey = (event: KeyboardEvent): void => {
       if (event.key !== "Escape") return;
       setIsMenuOpen(false);
-      document.getElementById(pencilId(props.sectionId))?.focus();
+      document.getElementById(pencilId(props.idKey ?? props.sectionId))?.focus();
     };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
@@ -149,20 +167,19 @@ export function SectionChrome(props: SectionChromeProps): JSX.Element {
       setIsMenuOpen(false);
       action?.();
       if (refocus) {
-        const id = pencilId(props.sectionId);
+        const id = pencilId(props.idKey ?? props.sectionId);
         queueMicrotask(() => document.getElementById(id)?.focus());
       }
     };
 
   return (
     <section
-      ref={(element) => props.ref?.(element)}
+      {...(props.dragProps ?? {})}
       class="doc-sheet__sec"
       classList={{
         "doc-sheet__sec--edit": hasChrome(),
         "doc-sheet__sec--focused": hasChrome() && props.isFocused,
         "doc-sheet__sec--menu-open": isMenuOpen(),
-        "doc-sheet__sec--drop": props.isDropTarget === true,
         "doc-sheet__sec--dragging": props.isDragging === true,
       }}
       data-section-id={props.sectionId}
@@ -170,6 +187,9 @@ export function SectionChrome(props: SectionChromeProps): JSX.Element {
         if (isEditable()) props.onFocus();
       }}
     >
+      <Show when={props.showSlotBefore === true}>
+        <span class="doc-sheet__sec-slot doc-sheet__sec-slot--before" aria-hidden="true" />
+      </Show>
       <div class="doc-sheet__sec-bar">
         <Show when={hasChrome() && props.gripActivators}>
           <button
@@ -204,13 +224,13 @@ export function SectionChrome(props: SectionChromeProps): JSX.Element {
         <Show when={hasChrome()}>
           <button
             type="button"
-            id={pencilId(props.sectionId)}
+            id={pencilId(props.idKey ?? props.sectionId)}
             class="doc-sheet__sec-pencil"
             title="Section options"
             aria-label={`${props.title} section options`}
             aria-haspopup="menu"
             aria-expanded={isMenuOpen()}
-            aria-controls={isMenuOpen() ? menuId(props.sectionId) : undefined}
+            aria-controls={isMenuOpen() ? menuId(props.idKey ?? props.sectionId) : undefined}
             onClick={(event) => {
               event.stopPropagation();
               setIsMenuOpen(!isMenuOpen());
@@ -228,7 +248,7 @@ export function SectionChrome(props: SectionChromeProps): JSX.Element {
               // Focus moves into the menu when it opens, per the menu pattern.
               queueMicrotask(() => enabledMenuItems(element)[0]?.focus());
             }}
-            id={menuId(props.sectionId)}
+            id={menuId(props.idKey ?? props.sectionId)}
             class="doc-sheet__sec-menu"
             role="menu"
             aria-label={`${props.title} section options`}
@@ -268,6 +288,19 @@ export function SectionChrome(props: SectionChromeProps): JSX.Element {
                 Move to {menu().otherColumnLabel}
               </button>
             </Show>
+            <Show when={menu().onInsertPageBreak}>
+              {(onInsertPageBreak) => (
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={menu().canInsertPageBreak !== true}
+                  aria-label={`Insert page break before ${props.title} section`}
+                  onClick={menuAct(() => onInsertPageBreak()(), true)}
+                >
+                  Insert page break before
+                </button>
+              )}
+            </Show>
             <div class="doc-sheet__sec-menu-sep" role="separator" />
             <button
               type="button"
@@ -303,6 +336,9 @@ export function SectionChrome(props: SectionChromeProps): JSX.Element {
         >
           <PlusIcon /> {props.addLabel ?? "Add"}
         </button>
+      </Show>
+      <Show when={props.showSlotAfter === true}>
+        <span class="doc-sheet__sec-slot doc-sheet__sec-slot--after" aria-hidden="true" />
       </Show>
     </section>
   );

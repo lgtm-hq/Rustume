@@ -144,23 +144,23 @@ export function reorderItem(sectionId: string, fromIndex: number, toIndex: numbe
   resumeStore.reorderSectionItem(sectionId as SectionKey, fromIndex, toIndex);
 }
 
-/**
- * Move an item between two custom sections — one store action, one undo entry.
- * The only cross-section pair with a shared item shape (see `docDnd.ts`).
- */
-export function moveItemAcrossSections(
-  fromSectionId: string,
-  fromIndex: number,
-  toSectionId: string,
-  toIndex: number,
-): void {
-  if (!isCustomId(fromSectionId) || !isCustomId(toSectionId)) return;
-  resumeStore.moveCustomSectionItem(fromSectionId, fromIndex, toSectionId, toIndex);
-}
-
 /** Replace `metadata.layout` wholesale — one drop, one layout write. */
 export function applyLayout(layout: string[][][]): void {
   resumeStore.updateLayout(layout);
+}
+
+/** Replace `metadata.itemBreaks` wholesale — one break edit, one write. */
+export function applyItemBreaks(itemBreaks: Record<string, string[]>): void {
+  resumeStore.updateMetadata("itemBreaks", itemBreaks);
+}
+
+/**
+ * Replace `metadata.layout` and `metadata.itemBreaks` in a single store
+ * action — the whole-section drop that also invalidates the section's
+ * mid-section breaks must stay one undo entry (spec §2.5).
+ */
+export function applyPagination(layout: string[][][], itemBreaks: Record<string, string[]>): void {
+  resumeStore.updatePagination(layout, itemBreaks);
 }
 
 /**

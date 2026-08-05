@@ -5,48 +5,55 @@
  * Sheets no longer clip to fixed A4 frames — each `.doc-sheet__page` sizes to
  * its content, and A4 boundaries are communicated by dashed overflow guides at
  * 1122px intervals plus the floating page-count pill (spec §3.1, §3.5).
- * Explicit `metadata.layout` pages draw as separate sheets divided by
- * page-break rules with "Page N" labels and (edit mode) a "Remove page break"
- * action that merges the page into the one before it — the simple layout
- * merge; `itemBreaks`-aware semantics arrive with #796.
+ * Explicit `metadata.layout` pages — and `metadata.itemBreaks` continuation
+ * slices (#796, spec §3.3) — draw as separate sheets divided by page-break
+ * rules with "Page N" labels and (edit mode) a "Remove page break" action
+ * that prefers clearing the item-break shared across the boundary and falls
+ * back to merging the raw pages (spec §3.4). Explicit "insert page break"
+ * affordances live in the section pencil menu and the entry action pill
+ * (owner decision, umbrella Q6).
  *
  * The page body is composed per the template's `layoutMode` (spec §1.4,
  * §3.6): `SingleColumn`, `MainColumn` + `SideColumn` grids, or the
  * header-split banner over two columns. The template layer only picks the
  * compositor and the palette; all behaviour lives in the shared components.
  *
- * Editing chrome — the drag-drop context, drop resolution, announcements, and
+ * Editing chrome — the whole-surface HTML5 drag channels (spec §2.4–§2.5,
+ * provided through `SheetDndContext`), drop resolution, announcements, and
  * the end-of-column Add-section blocks — is owned here; every mutation writes
- * through a `resumeStore` action (see `docEdits.ts`). Drags start from grips
- * only, never from the surface, so text selection and inline editing keep
- * working; #796 replaces the drag mechanism wholesale.
+ * through a `resumeStore` action (see `docEdits.ts`).
  */
 
 import { For, Show, createEffect, createMemo, createSignal, onCleanup, type JSX } from "solid-js";
-import {
-  DragDropProvider,
-  DragDropSensors,
-  DragOverlay,
-  closestCenter,
-  createDroppable,
-  type CollisionDetector,
-  type DragEvent,
-} from "@thisbeyond/solid-dnd";
 import { CustomSectionDialog } from "./CustomSectionDialog";
 import { ContactBlock, NameHeader, SheetAvatar } from "./DocHeader";
 import { DocSection } from "./DocSection";
-import { applyLayout, moveItemAcrossSections, reorderItem, updateSidebarRatio } from "./docEdits";
+import {
+  applyItemBreaks,
+  applyLayout,
+  applyPagination,
+  reorderItem,
+  updateSidebarRatio,
+} from "./docEdits";
 import { PlusIcon } from "./icons";
 import { SheetModeContext, type SheetMode } from "./sheetMode";
+import type { InsertBreakAction } from "./SortableEntry";
 import {
-  canMoveEntryAcross,
+  SECTION_DRAG_MIME,
+  SheetDndContext,
+  readDragPayload,
+  type EntryDragPayload,
+  type SectionDropTarget,
+  type SheetDndValue,
+} from "./sheetDnd";
+import {
   drawnSectionPosition,
   entryDisplayLabel,
   entryStep,
+  moveSectionInLayout,
   moveSectionStep,
-  resolveEntryDrop,
+  resolveEntryDropIndex,
   resolveSectionDropOnColumn,
-  resolveSectionDropOnSection,
   sectionItemList,
   type MoveStep,
 } from "../../lib/docDnd";
@@ -54,15 +61,25 @@ import {
   PAGE_HEIGHT_PX,
   SHEET_CONTENT_WIDTH_PX,
   SHEET_PX_PER_PT,
-  editorPages,
   findSectionPlacement,
   layoutColumns,
   layoutPages,
-  mergePageIntoPrevious,
-  renderPages,
   sectionTitle,
   type TemplateLayout,
 } from "../../lib/docLayout";
+import {
+  ITEM_BREAK_TEMPLATE_DISABLED_REASON,
+  editorSheetPages,
+  expandItemBreakPages,
+  itemBreaksWithBreakBefore,
+  itemBreaksWithoutSection,
+  renderSheetPages,
+  resolvePageBreakRemoval,
+  sectionSliceAt,
+  sectionSupportsItemBreaks,
+  splitLayoutBeforeSection,
+  templateSupportsItemBreaks,
+} from "../../lib/docPagination";
 import { reorderAnnouncement } from "../../lib/reorderAnnounce";
 import { LiveRegion, announceLive } from "../ui/LiveRegion";
 import type { ResumeData } from "../../wasm/types";
@@ -76,29 +93,7 @@ const SIDEBAR_DEFAULT_PX = 287;
 /** Keyboard resize step for the handle. */
 const SIDEBAR_KEY_STEP_PX = 8;
 
-/** What a drag carries: the thing being moved. */
-type SheetDragData =
-  | { type: "section"; sectionId: string }
-  | { type: "entry"; sectionId: string; itemId: string };
-
-/** What a droppable is: where the dragged thing may land. */
-type SheetDropData =
-  | { type: "section"; sectionId: string; itemId?: undefined }
-  | { type: "entry"; sectionId: string; itemId: string }
-  | { type: "column"; page: number; column: number };
-
-/** Whether `drop` is a meaningful target for `drag`. */
-function acceptsDrop(drag: SheetDragData, drop: SheetDropData): boolean {
-  if (drag.type === "section") {
-    return drop.type === "section" || drop.type === "column";
-  }
-  if (drop.type === "entry" || drop.type === "section") {
-    return drop.sectionId === drag.sectionId || canMoveEntryAcross(drag.sectionId, drop.sectionId);
-  }
-  return false;
-}
-
-/** A short human name for an entry, for announcements and the drag overlay. */
+/** A short human name for an entry, for announcements. */
 function entryLabel(resume: ResumeData, sectionId: string, itemId: string): string {
   const item = sectionItemList(resume, sectionId).find((entry) => entry.id === itemId);
   return entryDisplayLabel(item, "Item");
@@ -181,18 +176,24 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
   const mode = (): SheetMode => props.mode ?? "edit";
   const isEditable = (): boolean => mode() === "edit";
 
-  // The layout the drops address, and the drawn view of it. In edit mode
-  // `editorPages()` never drops a page or column, so the two are aligned
-  // index-for-index.
+  // The raw layout the drops address, and the drawn view of it: expanded so
+  // item-break continuations occupy their own sheets (spec §3.3). Drawn page
+  // indices can exceed the raw page count; drop targets therefore address a
+  // card's *raw* placement, and end-of-column drops auto-create the missing
+  // raw pages.
   const layout = createMemo(() => layoutPages(props.resume, props.templateLayout));
   const pages = createMemo<string[][][]>(() => {
     const rendered = isEditable()
-      ? editorPages(props.resume, props.templateLayout)
-      : renderPages(props.resume, props.templateLayout);
+      ? editorSheetPages(props.resume, props.templateLayout)
+      : renderSheetPages(props.resume, props.templateLayout);
     // An empty resume still gets one sheet, so the surface reads as a blank
     // page rather than as a failure to load.
     return rendered.length > 0 ? rendered : [[[]]];
   });
+  // One expansion per render for every card's slice lookup to share.
+  const expandedPages = createMemo(() =>
+    expandItemBreakPages(props.resume, props.templateLayout, isEditable()),
+  );
 
   const theme = (): ResumeData["metadata"]["theme"] => props.resume.metadata.theme;
   const layoutMode = (): TemplateLayout["layoutMode"] => props.templateLayout.layoutMode;
@@ -201,7 +202,12 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
 
   const [focusedSection, setFocusedSection] = createSignal<string | null>(null);
   const [isSectionDialogOpen, setIsSectionDialogOpen] = createSignal(false);
-  const [activeDrag, setActiveDrag] = createSignal<SheetDragData | null>(null);
+  const [entryDrag, setEntryDrag] = createSignal<EntryDragPayload | null>(null);
+  const [entryDropAt, setEntryDropAt] = createSignal<{ sectionId: string; index: number } | null>(
+    null,
+  );
+  const [sectionDrag, setSectionDrag] = createSignal<string | null>(null);
+  const [sectionDropAt, setSectionDropAt] = createSignal<SectionDropTarget | null>(null);
   const [announcement, setAnnouncement] = createSignal("");
   const [measuredPages, setMeasuredPages] = createSignal(1);
   // Live width while a resize drag is in flight; `null` between gestures.
@@ -357,94 +363,113 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
     announce(reorderAnnouncement(label, move.toIndex, items.length));
   }
 
-  // Only droppables that mean something for the active drag may catch it, and
-  // only droppables the dragged card actually overlaps count at all, so a
-  // sloppy release over dead space cancels instead of snapping to the nearest
-  // centre.
-  const detectCollisions: CollisionDetector = (draggable, droppables, context) => {
-    const dragged = draggable.transformed;
-    const touching = droppables.filter(
-      (droppable) =>
-        acceptsDrop(draggable.data as SheetDragData, droppable.data as SheetDropData) &&
-        dragged.left < droppable.layout.right &&
-        dragged.right > droppable.layout.left &&
-        dragged.top < droppable.layout.bottom &&
-        dragged.bottom > droppable.layout.top,
-    );
-    return touching.length > 0 ? closestCenter(draggable, touching, context) : null;
-  };
-
-  function onDragStart({ draggable }: DragEvent): void {
-    setActiveDrag(draggable.data as SheetDragData);
-  }
-
-  /** Resolve a finished drag to at most one store action. */
-  function onDragEnd({ draggable, droppable }: DragEvent): void {
-    setActiveDrag(null);
-    if (!droppable) return;
-    const drag = draggable.data as SheetDragData;
-    const drop = droppable.data as SheetDropData;
-    if (!acceptsDrop(drag, drop)) return;
-
-    if (drag.type === "section") {
-      let next: string[][][] | null = null;
-      if (drop.type === "section") {
-        next = resolveSectionDropOnSection(layout(), drag.sectionId, drop.sectionId);
-      } else if (drop.type === "column") {
-        next = resolveSectionDropOnColumn(layout(), drag.sectionId, drop.page, drop.column);
-      }
-      if (!next) return;
-      applyLayout(next);
-      announceSectionMove(drag.sectionId, next);
-      return;
-    }
-
-    if (drop.type !== "entry" && drop.type !== "section") return;
-    const resolved = resolveEntryDrop({
-      fromSectionId: drag.sectionId,
-      fromItems: sectionItemList(props.resume, drag.sectionId),
-      itemId: drag.itemId,
-      toSectionId: drop.sectionId,
-      toItems: sectionItemList(props.resume, drop.sectionId),
-      targetItemId: drop.type === "entry" ? drop.itemId : null,
-    });
+  /**
+   * Resolve a finished item drop (spec §2.4): a reorder within the section's
+   * own `items` array, one store action, no-op drops write nothing.
+   */
+  function onEntryDrop(payload: EntryDragPayload, dropIndex: number): void {
+    const items = sectionItemList(props.resume, payload.sectionId);
+    const resolved = resolveEntryDropIndex(items, payload.id, dropIndex);
     if (!resolved) return;
-    const label = entryLabel(props.resume, drag.sectionId, drag.itemId);
-    if (resolved.kind === "reorder") {
-      reorderItem(resolved.sectionId, resolved.fromIndex, resolved.toIndex);
-      announce(
-        reorderAnnouncement(
-          label,
-          resolved.toIndex,
-          sectionItemList(props.resume, resolved.sectionId).length,
-        ),
-      );
-      return;
-    }
-    moveItemAcrossSections(
-      resolved.fromSectionId,
-      resolved.fromIndex,
-      resolved.toSectionId,
-      resolved.toIndex,
+    reorderItem(payload.sectionId, resolved.fromIndex, resolved.toIndex);
+    announce(
+      reorderAnnouncement(
+        entryLabel(props.resume, payload.sectionId, payload.id),
+        resolved.toIndex,
+        items.length,
+      ),
     );
-    announce(`${label} moved to ${sectionTitle(props.resume, resolved.toSectionId)}`);
   }
 
-  const dragLabel = (): string => {
-    const drag = activeDrag();
-    if (!drag) return "";
-    if (drag.type === "section") {
-      return `${sectionTitle(props.resume, drag.sectionId)} section`;
+  /**
+   * Resolve a finished section drop (spec §2.5): exact insert at the target,
+   * auto-created pages/columns, and the moved section's now-meaningless
+   * mid-section breaks dropped in the same write.
+   */
+  function onSectionDrop(sectionId: string, target: SectionDropTarget): void {
+    const next = moveSectionInLayout(layout(), sectionId, target);
+    if (!next) return;
+    const nextBreaks = itemBreaksWithoutSection(props.resume.metadata.itemBreaks, sectionId);
+    if (nextBreaks === null) {
+      applyLayout(next);
+    } else {
+      applyPagination(next, nextBreaks);
     }
-    return entryLabel(props.resume, drag.sectionId, drag.itemId);
+    announceSectionMove(sectionId, next);
+  }
+
+  const dnd: SheetDndValue = {
+    entryDrag,
+    setEntryDrag,
+    entryDropAt,
+    setEntryDropAt,
+    sectionDrag,
+    setSectionDrag,
+    sectionDropAt,
+    setSectionDropAt,
+    sectionPlacement: (sectionId) => findSectionPlacement(layout(), sectionId),
+    columnLength: (page, column) => layout()[page]?.[column]?.length ?? 0,
+    onEntryDrop,
+    onSectionDrop,
   };
 
-  /** Merge a drawn page into the one before it (spec §3.4, simple variant). */
+  /**
+   * Remove the rule between two drawn sheets (spec §3.4): prefer clearing the
+   * item-break continuation shared across the boundary, else merge the raw
+   * pages — either way one store write and one undo entry.
+   */
   function removePageBreak(pageIndex: number): void {
-    const next = mergePageIntoPrevious(layout(), pageIndex);
+    const removal = resolvePageBreakRemoval(props.resume, props.templateLayout, pageIndex);
+    if (!removal) return;
+    if (removal.kind === "itemBreaks") {
+      applyItemBreaks(removal.itemBreaks);
+    } else {
+      applyLayout(removal.layout);
+    }
+    announce(`Page break removed; page ${pageIndex + 1} merged into page ${pageIndex}`);
+  }
+
+  /** Split the layout so `sectionId` starts a fresh page (spec §3.4). */
+  function insertPageBreakBeforeSection(sectionId: string): void {
+    const next = splitLayoutBeforeSection(layout(), sectionId);
     if (!next) return;
     applyLayout(next);
-    announce(`Page break removed; page ${pageIndex + 1} merged into page ${pageIndex}`);
+    announce(`Page break inserted before ${sectionTitle(props.resume, sectionId)}`);
+  }
+
+  const canInsertPageBreakBefore = (sectionId: string): boolean =>
+    splitLayoutBeforeSection(layout(), sectionId) !== null;
+
+  /**
+   * The pill's "insert page break before this item" state (owner decisions):
+   * `null` on sections that cannot carry breaks; greyed out with the
+   * explanatory tooltip on templates whose layout cannot honor them; greyed
+   * out with a short reason when the marker would be inert.
+   */
+  function itemBreakAction(sectionId: string, itemId: string): InsertBreakAction | null {
+    if (!sectionSupportsItemBreaks(sectionId)) return null;
+    if (!templateSupportsItemBreaks(props.templateLayout)) {
+      return { onInsert: () => {}, disabledReason: ITEM_BREAK_TEMPLATE_DISABLED_REASON };
+    }
+    const nextBreaks = itemBreaksWithBreakBefore(
+      props.resume,
+      props.templateLayout,
+      sectionId,
+      itemId,
+    );
+    if (nextBreaks === null) {
+      return { onInsert: () => {}, disabledReason: "This item already starts a page." };
+    }
+    return {
+      onInsert: () => {
+        applyItemBreaks(nextBreaks);
+        announce(
+          `Page break inserted before ${entryLabel(props.resume, sectionId, itemId)} ` +
+            `in ${sectionTitle(props.resume, sectionId)}`,
+        );
+      },
+      disabledReason: null,
+    };
   }
 
   function openSections(): void {
@@ -458,9 +483,36 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
   /** The sections of one column, then the end-of-column Add-section block. */
   function SectionList(listProps: {
     ids: string[];
+    pageIndex: number;
+    columnIndex: number;
     /** The cross-column move's target name, or `null` on single-column pages. */
     otherColumnLabel: string | null;
   }): JSX.Element {
+    /**
+     * The Add-section block is every column's end-of-column drop target
+     * (spec §2.5): `MAX_SAFE_INTEGER` clamps to "after everything".
+     */
+    const endOfColumn = (): SectionDropTarget => ({
+      page: listProps.pageIndex,
+      column: listProps.columnIndex,
+      index: Number.MAX_SAFE_INTEGER,
+    });
+    const isEndDropTarget = (): boolean => {
+      const target = sectionDropAt();
+      const end = endOfColumn();
+      return (
+        target !== null &&
+        target.page === end.page &&
+        target.column === end.column &&
+        target.index === end.index
+      );
+    };
+    const trackEndDrop = (event: DragEvent): void => {
+      if (sectionDrag() === null) return;
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+      setSectionDropAt(endOfColumn());
+    };
     return (
       <>
         <For each={listProps.ids}>
@@ -476,6 +528,18 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
               onMoveSectionToOtherColumn={moveSectionToOtherColumn}
               onMoveEntry={moveEntry}
               onAnnounce={announce}
+              slice={sectionSliceAt(
+                props.resume,
+                props.templateLayout,
+                sectionId,
+                listProps.pageIndex,
+                listProps.columnIndex,
+                isEditable(),
+                expandedPages(),
+              )}
+              canInsertPageBreak={canInsertPageBreakBefore(sectionId)}
+              onInsertPageBreak={insertPageBreakBeforeSection}
+              itemBreakAction={itemBreakAction}
             />
           )}
         </For>
@@ -483,8 +547,20 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
           <button
             type="button"
             class="doc-sheet__add-section-block"
+            classList={{ "doc-sheet__add-section-block--drop-hint": isEndDropTarget() }}
             data-testid="doc-sheet-add-section"
             onClick={openSections}
+            onDragEnter={trackEndDrop}
+            onDragOver={trackEndDrop}
+            onDrop={(event) => {
+              const dragging = sectionDrag();
+              if (dragging === null) return;
+              event.preventDefault();
+              const payload = readDragPayload<{ id?: string }>(event, SECTION_DRAG_MIME);
+              onSectionDrop(payload?.id ?? dragging, endOfColumn());
+              setSectionDrag(null);
+              setSectionDropAt(null);
+            }}
           >
             <PlusIcon /> Add section
           </button>
@@ -493,7 +569,11 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
     );
   }
 
-  /** A column's droppable frame. */
+  /**
+   * A column's frame. The column itself is not a drop target — the drag
+   * catalog's targets are section cards and each column's Add-section block
+   * (spec §2.5).
+   */
   function ColumnFrame(frameProps: {
     pageIndex: number;
     columnIndex: number;
@@ -503,25 +583,15 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
     isAside?: boolean;
     children: JSX.Element;
   }): JSX.Element {
-    const droppable = createDroppable(
-      `drop:column:${frameProps.pageIndex}:${frameProps.columnIndex}`,
-      {
-        type: "column",
-        page: frameProps.pageIndex,
-        column: frameProps.columnIndex,
-      },
-    );
     const classes = (): Record<string, boolean> => ({
       "doc-sheet__column": true,
       [frameProps.class]: true,
-      "doc-sheet__column--drop": droppable.isActiveDroppable,
     });
     return (
       <Show
         when={frameProps.isAside === true}
         fallback={
           <div
-            ref={droppable.ref}
             classList={classes()}
             data-testid="doc-sheet-column"
             data-column-role={frameProps.role}
@@ -533,7 +603,6 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
         }
       >
         <aside
-          ref={droppable.ref}
           classList={classes()}
           data-testid="doc-sheet-column"
           data-column-role={frameProps.role}
@@ -627,7 +696,12 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
         <Show when={isFirst() && contactIn() === "sidebar"}>
           <ContactBlock basics={props.resume.basics} withAvatar />
         </Show>
-        <SectionList ids={columnProps.page[1] ?? []} otherColumnLabel="main column" />
+        <SectionList
+          ids={columnProps.page[1] ?? []}
+          pageIndex={columnProps.pageIndex}
+          columnIndex={1}
+          otherColumnLabel="main column"
+        />
         <Show when={isEditable()}>
           <SidebarResizeHandle isRightSidebar={columnProps.isRightSidebar} />
         </Show>
@@ -658,7 +732,12 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
             <ContactBlock basics={props.resume.basics} isCompact />
           </Show>
         </Show>
-        <SectionList ids={columnProps.page[0] ?? []} otherColumnLabel="sidebar" />
+        <SectionList
+          ids={columnProps.page[0] ?? []}
+          pageIndex={columnProps.pageIndex}
+          columnIndex={0}
+          otherColumnLabel="sidebar"
+        />
       </ColumnFrame>
     );
   }
@@ -681,7 +760,12 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
             <ContactBlock basics={props.resume.basics} isCompact />
           </div>
         </Show>
-        <SectionList ids={ids()} otherColumnLabel={null} />
+        <SectionList
+          ids={ids()}
+          pageIndex={columnProps.pageIndex}
+          columnIndex={0}
+          otherColumnLabel={null}
+        />
       </ColumnFrame>
     );
   }
@@ -698,7 +782,12 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
               class="doc-sheet__multi-col"
               role={columnIndex() === 0 ? "main" : "sidebar"}
             >
-              <SectionList ids={ids} otherColumnLabel={null} />
+              <SectionList
+                ids={ids}
+                pageIndex={columnProps.pageIndex}
+                columnIndex={columnIndex()}
+                otherColumnLabel={null}
+              />
             </ColumnFrame>
           )}
         </For>
@@ -789,12 +878,7 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
 
   return (
     <SheetModeContext.Provider value={mode}>
-      <DragDropProvider
-        onDragStart={onDragStart}
-        onDragEnd={onDragEnd}
-        collisionDetector={detectCollisions}
-      >
-        <DragDropSensors />
+      <SheetDndContext.Provider value={dnd}>
         <div
           ref={(element) => {
             root = element;
@@ -853,13 +937,7 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
 
           <LiveRegion message={announcement()} politeness="polite" />
         </div>
-
-        <DragOverlay>
-          <Show when={activeDrag()}>
-            <div class="doc-sheet__drag-overlay">{dragLabel()}</div>
-          </Show>
-        </DragOverlay>
-      </DragDropProvider>
+      </SheetDndContext.Provider>
     </SheetModeContext.Provider>
   );
 }

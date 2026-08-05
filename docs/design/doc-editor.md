@@ -455,8 +455,8 @@ ghosts have no animation (instant).
 ### 2.5 Section drag & drop (blocks across columns/pages)
 
 - **Drag surfaces**: the header grip _and the whole card_ (same veto rules; presses on entry rows
-  are claimed by the entry drag first — entries carry `.edit-ready`, which the card's veto list
-  includes).
+  are claimed by the entry drag first — the card's veto list includes the entry-row class,
+  `.doc-sheet__entry-row` in production).
 - **Payload**: MIME `application/x-section`, `{id}`; mirrored in `secDragging`.
 - **Targets**: any other section card in any column of any page (drop index = that card's
   `{page, col, index}`, +1 for bottom half) and every column's **Add-section block** as the
@@ -539,25 +539,32 @@ invented voids). The sidebar is user-resizable in edit mode via an 8px edge hand
 
 `metadata.layout: string[][][]` = **pages → columns → section ids**, plus
 `metadata.itemBreaks: Record<sectionId, itemId[]>` = items that start a new page (mid-section
-splits). Derivation pipeline (all in `docModel.ts`, all pure):
+splits). Derivation pipeline (production: `apps/web/src/lib/docLayout.ts` +
+`apps/web/src/lib/docPagination.ts`, all pure):
 
 1. `layoutPages` — raw pages with cross-page dedup (first occurrence of a section id wins;
    duplicates cause re-render bugs).
 2. `expandItemBreakPages` — a section with N break markers occupies N+1 consecutive pages **in the
    same column**; missing pages/columns are created.
-3. `renderPages` — strips section ids whose slice has no content on that page/column
+3. `renderSheetPages` — strips section ids whose slice has no content on that page/column
    (`sectionHasSliceContent`: summary only on slice 0; item sections need a non-empty slice from
-   `itemSlicesForSection`), then drops trailing empty pages. Result feeds the sheet stack.
-4. Per-instance: `sectionSliceIndex(doc, id, page, col)` (counted on **pre-strip** expanded pages so
-   indices stay aligned with `itemBreaks`) selects which item slice a given rendered section shows;
-   slices > 0 render the title as **`"<Title> (cont.)"`**.
+   `itemSlices`), then drops trailing empty pages. Result feeds the sheet stack.
+4. Per-instance: `sectionSliceIndex(resume, templateLayout, id, page, col, includeHidden)` (counted
+   on **pre-strip** expanded pages so indices stay aligned with `itemBreaks`; `includeHidden`
+   selects the Edit-mode item list — Edit draws hidden items as chrome, Done drops them like the
+   PDF, so the two modes can slice differently) selects which item slice a given rendered section
+   shows; slices > 0 render the title as **`"<Title> (cont.)"`**.
 
 ### 3.4 Page breaks
 
-- **Creating**: the prototype UI never creates breaks explicitly; extra pages come from
-  `metadata.layout` having multiple pages (via drags to later pages) or from pre-existing
-  `itemBreaks` data. (Deliberate gap — see Open questions for an explicit "insert page break"
-  affordance.)
+- **Creating** (owner decision, §6 Q6 — implemented in #796): explicit "insert page break before"
+  actions. The section pencil menu splits `metadata.layout` so the section starts a fresh page
+  (disabled when the split would change nothing); the entry action pill adds an `itemBreaks`
+  marker before the item. On templates whose layout cannot honor mid-section breaks
+  (sidebar/two-column — Typst cannot page-break inside a grid) the item-level action is greyed
+  out with an explanatory tooltip reachable on hover _and_ keyboard focus (owner decision
+  2026-08-03); existing markers stay inert there. Extra pages also still come from drags to later
+  pages.
 - **Removing** (`removePageBreakAt(pageIndex)`): prefer clearing an **item-break** continuation
   shared across the boundary (find sections present in the same column of both rendered pages with
   slice > 0; delete the responsible break id); otherwise **merge** raw page `pageIndex` into

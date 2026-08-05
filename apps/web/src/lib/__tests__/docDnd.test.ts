@@ -1,18 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
-  adjacentCustomSectionId,
-  canMoveEntryAcross,
   drawnSectionPosition,
   entryStep,
   moveSectionInLayout,
   moveSectionStep,
-  resolveEntryDrop,
+  resolveEntryDropIndex,
   resolveSectionDropOnColumn,
   resolveSectionDropOnSection,
   sectionItemList,
   type EntryListItem,
 } from "../docDnd";
-import { editorPages, layoutPages } from "../docLayout";
+import { layoutPages } from "../docLayout";
+import { editorSheetPages } from "../docPagination";
 import { loadDocEditorFixture, SIDEBAR_TEMPLATE } from "../../test/docEditorFixture";
 
 /** The fixture's stored layout: two pages of two columns each. */
@@ -80,10 +79,20 @@ describe("moveSectionInLayout", () => {
     expect(moveSectionInLayout(LAYOUT, "missing", { page: 0, column: 0, index: 0 })).toBeNull();
   });
 
-  it("returns null for out-of-range targets", () => {
+  it("returns null for negative targets", () => {
     expect(moveSectionInLayout(LAYOUT, "summary", { page: -1, column: 0, index: 0 })).toBeNull();
     expect(moveSectionInLayout(LAYOUT, "summary", { page: 0, column: -1, index: 0 })).toBeNull();
-    expect(moveSectionInLayout(LAYOUT, "summary", { page: 5, column: 0, index: 0 })).toBeNull();
+  });
+
+  it("auto-creates missing pages for a target past the end, pruning empties", () => {
+    // Item-break continuations draw more sheets than the raw layout stores
+    // (spec §3.3); a drop on such a sheet targets a raw page that does not
+    // exist yet. Pages created only as scaffolding are pruned, so the section
+    // lands on the first fresh page after the existing content.
+    const next = moveSectionInLayout(LAYOUT, "summary", { page: 5, column: 0, index: 0 });
+
+    expect(next).toHaveLength(3);
+    expect(next?.[2]).toEqual([["summary"], []]);
   });
 
   it("never mutates its input", () => {
@@ -229,107 +238,29 @@ describe("drawnSectionPosition", () => {
   });
 });
 
-describe("canMoveEntryAcross", () => {
-  it("permits custom-to-custom only — the one pair with a shared item shape", () => {
-    expect(canMoveEntryAcross("speaking", "advisory")).toBe(true);
-    expect(canMoveEntryAcross("speaking", "speaking")).toBe(false);
-    expect(canMoveEntryAcross("experience", "education")).toBe(false);
-    expect(canMoveEntryAcross("speaking", "experience")).toBe(false);
-    expect(canMoveEntryAcross("experience", "speaking")).toBe(false);
-  });
-});
-
-describe("resolveEntryDrop", () => {
+describe("resolveEntryDropIndex", () => {
   const list = items("a", "b", "c");
 
-  it("reorders within a section, landing on the target's index", () => {
-    expect(
-      resolveEntryDrop({
-        fromSectionId: "experience",
-        fromItems: list,
-        itemId: "a",
-        toSectionId: "experience",
-        toItems: list,
-        targetItemId: "c",
-      }),
-    ).toEqual({ kind: "reorder", sectionId: "experience", fromIndex: 0, toIndex: 2 });
+  it("maps an insert-before drop index to the store's reorder pair", () => {
+    // Dropping "a" below "c" (pointer in the bottom half -> index 3).
+    expect(resolveEntryDropIndex(list, "a", 3)).toEqual({ fromIndex: 0, toIndex: 2 });
+    // Dropping "c" above "a" (top half -> index 0).
+    expect(resolveEntryDropIndex(list, "c", 0)).toEqual({ fromIndex: 2, toIndex: 0 });
   });
 
-  it("reorders to the end when dropped on the section itself", () => {
-    expect(
-      resolveEntryDrop({
-        fromSectionId: "experience",
-        fromItems: list,
-        itemId: "a",
-        toSectionId: "experience",
-        toItems: list,
-        targetItemId: null,
-      }),
-    ).toEqual({ kind: "reorder", sectionId: "experience", fromIndex: 0, toIndex: 2 });
-  });
-
-  it("moves across custom sections", () => {
-    expect(
-      resolveEntryDrop({
-        fromSectionId: "speaking",
-        fromItems: list,
-        itemId: "b",
-        toSectionId: "advisory",
-        toItems: items("x"),
-        targetItemId: "x",
-      }),
-    ).toEqual({
-      kind: "move",
-      fromSectionId: "speaking",
-      fromIndex: 1,
-      toSectionId: "advisory",
-      toIndex: 0,
-    });
-  });
-
-  it("appends when dropped on the target section itself", () => {
-    expect(
-      resolveEntryDrop({
-        fromSectionId: "speaking",
-        fromItems: list,
-        itemId: "b",
-        toSectionId: "advisory",
-        toItems: items("x"),
-        targetItemId: null,
-      }),
-    ).toEqual({
-      kind: "move",
-      fromSectionId: "speaking",
-      fromIndex: 1,
-      toSectionId: "advisory",
-      toIndex: 1,
-    });
+  it("accounts for the removal shifting later positions down", () => {
+    // Dropping "a" above "c" means landing at index 1 once "a" is removed.
+    expect(resolveEntryDropIndex(list, "a", 2)).toEqual({ fromIndex: 0, toIndex: 1 });
   });
 
   it("returns null for a drop that changes nothing", () => {
-    expect(
-      resolveEntryDrop({
-        fromSectionId: "experience",
-        fromItems: list,
-        itemId: "b",
-        toSectionId: "experience",
-        toItems: list,
-        targetItemId: "b",
-      }),
-    ).toBeNull();
+    expect(resolveEntryDropIndex(list, "b", 1)).toBeNull();
+    expect(resolveEntryDropIndex(list, "b", 2)).toBeNull();
   });
 
-  it("returns null for an incompatible cross-section drop", () => {
-    expect(
-      resolveEntryDrop({
-        fromSectionId: "experience",
-        fromItems: list,
-        itemId: "a",
-        toSectionId: "education",
-        toItems: items("x"),
-        targetItemId: "x",
-      }),
-    ).toBeNull();
+  it("returns null for an unknown item and clamps out-of-range indices", () => {
+    expect(resolveEntryDropIndex(list, "missing", 0)).toBeNull();
+    expect(resolveEntryDropIndex(list, "a", 99)).toEqual({ fromIndex: 0, toIndex: 2 });
   });
 });
 
@@ -348,19 +279,6 @@ describe("entryStep", () => {
   });
 });
 
-describe("adjacentCustomSectionId", () => {
-  it("walks custom sections in flattened layout order", () => {
-    expect(adjacentCustomSectionId(LAYOUT, "speaking", "next")).toBe("advisory");
-    expect(adjacentCustomSectionId(LAYOUT, "advisory", "previous")).toBe("speaking");
-  });
-
-  it("returns null at the ends and for unknown sections", () => {
-    expect(adjacentCustomSectionId(LAYOUT, "speaking", "previous")).toBeNull();
-    expect(adjacentCustomSectionId(LAYOUT, "advisory", "next")).toBeNull();
-    expect(adjacentCustomSectionId(LAYOUT, "experience", "next")).toBeNull();
-  });
-});
-
 describe("sectionItemList", () => {
   it("reads fixed and custom sections through the shared item shape", () => {
     const resume = loadDocEditorFixture();
@@ -371,12 +289,12 @@ describe("sectionItemList", () => {
   });
 });
 
-describe("editorPages", () => {
+describe("editorSheetPages", () => {
   it("stays aligned index-for-index with layoutPages", () => {
     const resume = loadDocEditorFixture();
 
     const layout = layoutPages(resume, SIDEBAR_TEMPLATE);
-    const drawn = editorPages(resume, SIDEBAR_TEMPLATE);
+    const drawn = editorSheetPages(resume, SIDEBAR_TEMPLATE);
 
     expect(drawn).toHaveLength(layout.length);
     drawn.forEach((page, pageIndex) => {
@@ -388,7 +306,7 @@ describe("editorPages", () => {
     const resume = loadDocEditorFixture();
     resume.sections.experience.visible = false;
 
-    const drawn = editorPages(resume, SIDEBAR_TEMPLATE).flat(2);
+    const drawn = editorSheetPages(resume, SIDEBAR_TEMPLATE).flat(2);
 
     expect(drawn).not.toContain("experience");
   });
@@ -399,7 +317,7 @@ describe("editorPages", () => {
       item.visible = false;
     }
 
-    const drawn = editorPages(resume, SIDEBAR_TEMPLATE).flat(2);
+    const drawn = editorSheetPages(resume, SIDEBAR_TEMPLATE).flat(2);
 
     expect(drawn).toContain("experience");
   });
@@ -408,7 +326,7 @@ describe("editorPages", () => {
     const resume = loadDocEditorFixture();
     resume.sections.experience.items = [];
 
-    const drawn = editorPages(resume, SIDEBAR_TEMPLATE).flat(2);
+    const drawn = editorSheetPages(resume, SIDEBAR_TEMPLATE).flat(2);
 
     expect(drawn).toContain("experience");
   });
@@ -418,7 +336,7 @@ describe("editorPages", () => {
     resume.sections.summary.content = "";
     resume.sections.summary.visible = true;
 
-    const drawn = editorPages(resume, SIDEBAR_TEMPLATE).flat(2);
+    const drawn = editorSheetPages(resume, SIDEBAR_TEMPLATE).flat(2);
 
     expect(drawn).toContain("summary");
   });

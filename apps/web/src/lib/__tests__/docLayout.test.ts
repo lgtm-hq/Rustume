@@ -10,12 +10,12 @@ import {
   layoutPages,
   mergePageIntoPrevious,
   nextId,
-  renderPages,
   SECTION_LABELS,
   sectionTitle,
   sectionVisible,
   type TemplateLayout,
 } from "../docLayout";
+import { renderSheetPages } from "../docPagination";
 import {
   HEADER_SPLIT_TEMPLATE,
   loadDocEditorFixture as loadFixture,
@@ -123,11 +123,11 @@ describe("layoutPages", () => {
   });
 });
 
-describe("renderPages", () => {
+describe("renderSheetPages (no item breaks)", () => {
   it("drops hidden sections", () => {
     const resume = loadFixture();
 
-    const pages = renderPages(resume, SIDEBAR_TEMPLATE);
+    const pages = renderSheetPages(resume, SIDEBAR_TEMPLATE);
 
     // `advisory` is a custom section with `visible: false`.
     expect(pages[1][1]).toEqual(["languages", "interests", "certifications"]);
@@ -138,7 +138,7 @@ describe("renderPages", () => {
     resume.sections.awards.items = [];
     resume.metadata.layout = [[["awards", "experience"]]];
 
-    expect(renderPages(resume, SIDEBAR_TEMPLATE)).toEqual([[["experience"]]]);
+    expect(renderSheetPages(resume, SIDEBAR_TEMPLATE)).toEqual([[["experience"]]]);
   });
 
   it("drops a section whose items are all hidden", () => {
@@ -149,27 +149,27 @@ describe("renderPages", () => {
     }));
     resume.metadata.layout = [[["publications", "experience"]]];
 
-    expect(renderPages(resume, SIDEBAR_TEMPLATE)).toEqual([[["experience"]]]);
+    expect(renderSheetPages(resume, SIDEBAR_TEMPLATE)).toEqual([[["experience"]]]);
   });
 
   it("keeps a column emptied by filtering so column indices stay stable", () => {
     const resume = loadFixture();
     resume.metadata.layout = [[["experience"], ["advisory"]]];
 
-    expect(renderPages(resume, SIDEBAR_TEMPLATE)).toEqual([[["experience"], []]]);
+    expect(renderSheetPages(resume, SIDEBAR_TEMPLATE)).toEqual([[["experience"], []]]);
   });
 
   it("removes a page left empty by filtering", () => {
     const resume = loadFixture();
     resume.metadata.layout = [[["experience"]], [["references", "advisory"]]];
 
-    expect(renderPages(resume, SIDEBAR_TEMPLATE)).toEqual([[["experience"]]]);
+    expect(renderSheetPages(resume, SIDEBAR_TEMPLATE)).toEqual([[["experience"]]]);
   });
 
   it("keeps a page that still has content", () => {
     const resume = loadFixture();
 
-    const pages = renderPages(resume, SIDEBAR_TEMPLATE);
+    const pages = renderSheetPages(resume, SIDEBAR_TEMPLATE);
 
     expect(pages).toHaveLength(2);
     expect(pages[0][0]).toEqual(["summary", "experience", "education", "projects"]);
