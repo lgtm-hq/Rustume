@@ -22,6 +22,24 @@ and this project adheres to
 
 ### Security
 
+## [0.64.0] - 2026-08-05
+
+### Added
+
+- **web**: whole-surface drag and drop and explicit pagination (#807) (75150ef)
+- **web**: typed modal editing and the modal system for the document editor (#805)
+  (647163b)
+
+### Changed
+
+- **deps**: update ghcr.io/lgtm-hq/py-lintro docker tag to 0.106.0 (minor) (#804)
+  (d6bb317)
+- **web**: content-sized sheet engine with section and entry chrome (#794) (#801)
+  (872f547)
+- **deps-dev**: update dependency lintro to 0.106.0 (minor) (#803) (6d76d06)
+- **deps**: update lintro to 0.105.2 (patch) (#802) (0b8ce05)
+- **deps**: update renovatebot/github-action action to v46.2.1 (patch) (#791) (5e8ebc1)
+
 ## [0.63.0] - 2026-08-03
 
 ### Added
@@ -939,7 +957,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.63.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.64.0...HEAD
+[0.64.0]: https://github.com/lgtm-hq/Rustume/compare/v0.63.0...v0.64.0
 [0.63.0]: https://github.com/lgtm-hq/Rustume/compare/v0.62.0...v0.63.0
 [0.62.0]: https://github.com/lgtm-hq/Rustume/compare/v0.61.2...v0.62.0
 [0.61.2]: https://github.com/lgtm-hq/Rustume/compare/v0.61.1...v0.61.2
