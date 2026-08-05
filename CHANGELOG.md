@@ -22,6 +22,13 @@ and this project adheres to
 
 ### Security
 
+## [0.65.0] - 2026-08-05
+
+### Added
+
+- **web**: sections, templates, and theme panels for the document editor (#808)
+  (aee58b0)
+
 ## [0.64.0] - 2026-08-05
 
 ### Added
@@ -957,7 +964,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.64.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.65.0...HEAD
+[0.65.0]: https://github.com/lgtm-hq/Rustume/compare/v0.64.0...v0.65.0
 [0.64.0]: https://github.com/lgtm-hq/Rustume/compare/v0.63.0...v0.64.0
 [0.63.0]: https://github.com/lgtm-hq/Rustume/compare/v0.62.0...v0.63.0
 [0.62.0]: https://github.com/lgtm-hq/Rustume/compare/v0.61.2...v0.62.0
