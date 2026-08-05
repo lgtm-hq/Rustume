@@ -83,13 +83,18 @@ export function moveSectionInLayout(
 
   // Auto-create missing pages (spec §2.5): item-break continuations can draw
   // more sheets than the raw layout stores, and a drop on one of those sheets
-  // targets a raw page that does not exist yet.
-  while (target.page >= next.length) {
+  // targets a raw page that does not exist yet. The target is clamped to one
+  // page past the current count — the only reachable new page, and empty
+  // scaffolding pages would be pruned anyway — so a sentinel-sized page value
+  // (the shape's `index` already uses `MAX_SAFE_INTEGER`) cannot allocate
+  // unboundedly.
+  const targetPage = Math.min(target.page, next.length);
+  while (targetPage >= next.length) {
     const columnCount = Math.max(1, next[next.length - 1]?.length ?? 1);
     next.push(Array.from({ length: columnCount }, () => []));
   }
 
-  const page = next[target.page];
+  const page = next[targetPage];
   // A template can draw more columns than the stored layout carries (a sidebar
   // page stored as one column, say); dropping on such a column materializes it.
   while (page.length <= target.column) {
@@ -99,7 +104,7 @@ export function moveSectionInLayout(
 
   let index = target.index;
   if (
-    target.page === placement.page &&
+    targetPage === placement.page &&
     target.column === placement.column &&
     placement.index < index
   ) {

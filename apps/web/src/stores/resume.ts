@@ -827,36 +827,6 @@ export function useResumeStore() {
       markDirty();
     },
 
-    /**
-     * Move an item between two custom sections as **one** action — removal and
-     * insertion together, so a cross-section drag is a single undo entry.
-     * Custom sections only: they are the only sections sharing an item shape.
-     */
-    moveCustomSectionItem(
-      fromSectionId: string,
-      fromIndex: number,
-      toSectionId: string,
-      toIndex: number,
-    ) {
-      if (fromSectionId === toSectionId) return;
-      const fromItems = store.resume?.sections.custom[fromSectionId]?.items;
-      const toItems = store.resume?.sections.custom[toSectionId]?.items;
-      const item = fromItems?.[fromIndex];
-      if (!fromItems || !toItems || !item) return;
-      setStore(
-        produce((s) => {
-          if (!s.resume) return;
-          const source = s.resume.sections.custom[fromSectionId];
-          const target = s.resume.sections.custom[toSectionId];
-          if (!source || !target) return;
-          const [moved] = source.items.splice(fromIndex, 1);
-          if (!moved) return;
-          target.items.splice(Math.max(0, Math.min(toIndex, target.items.length)), 0, moved);
-        }),
-      );
-      markDirty();
-    },
-
     // Metadata updates
     updateMetadata<K extends keyof Metadata>(field: K, value: Metadata[K]) {
       setStore(

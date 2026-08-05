@@ -1,7 +1,7 @@
 /**
- * The structural item actions the document editor's cards call: duplicate,
- * and the single-action cross-section move — each one store action, so each
- * one undo entry.
+ * The structural store actions the document editor's cards call — duplicate,
+ * remove with page-break marker cleanup, template application, and combined
+ * pagination writes. Each is one store action, so each is one undo entry.
  */
 
 import { createRoot } from "solid-js";
@@ -138,105 +138,6 @@ describe("duplicateCustomSectionItem", () => {
       duplicateCustomSectionItem(sectionId, 99);
 
       expect(store.resume!.sections.custom[sectionId].items.length).toBe(0);
-      dispose();
-    });
-  });
-});
-
-describe("moveCustomSectionItem", () => {
-  it("moves an item between custom sections in one action", () => {
-    createRoot((dispose) => {
-      const {
-        store,
-        createNewResume,
-        addCustomSection,
-        addCustomSectionItem,
-        moveCustomSectionItem,
-      } = useResumeStore();
-      createNewResume("move-1");
-      const talks = addCustomSection("Talks");
-      const advisory = addCustomSection("Advisory");
-      addCustomSectionItem(talks, customItem("t1", "First"));
-      addCustomSectionItem(talks, customItem("t2", "Second"));
-      addCustomSectionItem(advisory, customItem("a1", "Board"));
-
-      moveCustomSectionItem(talks, 0, advisory, 1);
-
-      expect(store.resume!.sections.custom[talks].items.map((item) => item.id)).toEqual(["t2"]);
-      expect(store.resume!.sections.custom[advisory].items.map((item) => item.id)).toEqual([
-        "a1",
-        "t1",
-      ]);
-      dispose();
-    });
-  });
-
-  it("clamps an out-of-range destination index to the section's end", () => {
-    createRoot((dispose) => {
-      const {
-        store,
-        createNewResume,
-        addCustomSection,
-        addCustomSectionItem,
-        moveCustomSectionItem,
-      } = useResumeStore();
-      createNewResume("move-4");
-      const talks = addCustomSection("Talks");
-      const advisory = addCustomSection("Advisory");
-      addCustomSectionItem(talks, customItem("t1", "First"));
-      addCustomSectionItem(advisory, customItem("a1", "Board"));
-
-      moveCustomSectionItem(talks, 0, advisory, 99);
-
-      expect(store.resume!.sections.custom[advisory].items.map((item) => item.id)).toEqual([
-        "a1",
-        "t1",
-      ]);
-      dispose();
-    });
-  });
-
-  it("refuses a move onto the same section", () => {
-    createRoot((dispose) => {
-      const {
-        store,
-        createNewResume,
-        addCustomSection,
-        addCustomSectionItem,
-        moveCustomSectionItem,
-      } = useResumeStore();
-      createNewResume("move-2");
-      const talks = addCustomSection("Talks");
-      addCustomSectionItem(talks, customItem("t1", "First"));
-      addCustomSectionItem(talks, customItem("t2", "Second"));
-
-      moveCustomSectionItem(talks, 0, talks, 1);
-
-      expect(store.resume!.sections.custom[talks].items.map((item) => item.id)).toEqual([
-        "t1",
-        "t2",
-      ]);
-      dispose();
-    });
-  });
-
-  it("does nothing when either section or the item is missing", () => {
-    createRoot((dispose) => {
-      const {
-        store,
-        createNewResume,
-        addCustomSection,
-        addCustomSectionItem,
-        moveCustomSectionItem,
-      } = useResumeStore();
-      createNewResume("move-3");
-      const talks = addCustomSection("Talks");
-      addCustomSectionItem(talks, customItem("t1", "First"));
-
-      moveCustomSectionItem(talks, 5, "nope", 0);
-      moveCustomSectionItem("nope", 0, talks, 0);
-
-      expect(store.resume!.sections.custom[talks].items.map((item) => item.id)).toEqual(["t1"]);
       dispose();
     });
   });

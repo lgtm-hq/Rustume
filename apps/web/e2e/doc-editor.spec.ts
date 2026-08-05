@@ -132,7 +132,14 @@ test.describe("single-surface document editor", () => {
     const source = docEditorPage.sheet.locator(`[data-section-id="${second}"]`);
     const target = docEditorPage.sheet.locator(`[data-section-id="${first}"]`);
     await source.hover();
-    await source.locator(".doc-sheet__sec-grip").dragTo(target);
+    // Pin the drop above the target's midpoint: `dropIndexFromPointer` flips
+    // to insert-after past the midpoint, and dragTo's default center drop
+    // would sit exactly on that boundary.
+    const targetBox = await target.boundingBox();
+    if (!targetBox) throw new Error("target card has no bounding box");
+    await source
+      .locator(".doc-sheet__sec-grip")
+      .dragTo(target, { targetPosition: { x: targetBox.width / 2, y: 4 } });
     await expect
       .poll(async () =>
         cards.evaluateAll((elements) =>

@@ -41,7 +41,6 @@ const store = vi.hoisted(() => ({
   removeCustomSectionItem: vi.fn(),
   reorderCustomSectionItem: vi.fn(),
   duplicateCustomSectionItem: vi.fn(),
-  moveCustomSectionItem: vi.fn(),
   updateLayout: vi.fn(),
   updatePagination: vi.fn(),
   updateMetadata: vi.fn(),
@@ -566,6 +565,35 @@ describe("document sheet structural chrome", () => {
       expect(document.querySelector(".doc-sheet__entry-slot--before")).toBeNull();
     });
 
+    it("inserts after the target when dropped in its bottom half", () => {
+      renderSheet();
+      const source = entryRow("exp-1");
+      const target = entryRow("exp-3");
+      // jsdom rects are all zero, and jsdom has no DragEvent, so fireEvent's
+      // drag events fall back to plain Event and cannot carry clientY. Give
+      // the target a real box and dispatch MouseEvent-based drag events so a
+      // pointer below the midpoint exercises the +1 branch of
+      // dropIndexFromPointer.
+      target.getBoundingClientRect = () =>
+        ({ top: 100, bottom: 140, height: 40, left: 0, right: 400, width: 400 }) as DOMRect;
+      const dataTransfer = mockDataTransfer();
+      const dragEventAt = (type: string, clientY: number): MouseEvent => {
+        const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientY });
+        Object.defineProperty(event, "dataTransfer", { value: dataTransfer });
+        return event;
+      };
+
+      fireEvent.mouseDown(source);
+      fireEvent.dragStart(source, { dataTransfer });
+      target.dispatchEvent(dragEventAt("dragover", 135));
+      // Bottom half of the last row -> the after-slot marks "insert last".
+      expect(target.querySelector(".doc-sheet__entry-slot--after")).not.toBeNull();
+      target.dispatchEvent(dragEventAt("drop", 135));
+
+      expect(store.reorderSectionItem).toHaveBeenCalledExactlyOnceWith("experience", 0, 2);
+      expect(writeCount()).toBe(1);
+    });
+
     it("rejects cross-section item drops — same-section-only by decision", () => {
       renderSheet();
       const source = entryRow("exp-1");
@@ -674,6 +702,16 @@ describe("document sheet structural chrome", () => {
       // The add affordance lives only on the last slice (spec 2.6).
       expect(cards[0].querySelector(".doc-sheet__add-block")).toBeNull();
       expect(cards[1].querySelector(".doc-sheet__add-block")).not.toBeNull();
+    });
+
+    it("offers no insert-break menu action on a continuation slice", () => {
+      resume.metadata.itemBreaks = { experience: ["exp-2"] };
+      renderSheet({ template: SINGLE_TEMPLATE });
+
+      // A continuation has no raw placement of its own — the action would
+      // split before the whole section, not the "(cont.)" card it names.
+      fireEvent.click(screen.getByRole("button", { name: "Experience (cont.) section options" }));
+      expect(screen.queryByRole("menuitem", { name: /Insert page break before/ })).toBeNull();
     });
 
     it("leaves markers inert on templates whose layout cannot honor them", () => {

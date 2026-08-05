@@ -292,4 +292,14 @@ describe("sanitizedItemBreaks", () => {
     expect(sanitizedItemBreaks(undefined)).toBeNull();
     expect(sanitizedItemBreaks({ experience: ["exp-2"] })).toBeNull();
   });
+
+  it("repairs a malformed field to no breaks", () => {
+    // Loaded documents can carry any shape here (imports, old clients).
+    expect(sanitizedItemBreaks(null)).toEqual({});
+    expect(sanitizedItemBreaks(["experience"])).toEqual({});
+    expect(sanitizedItemBreaks("experience")).toEqual({});
+    expect(sanitizedItemBreaks({ experience: "exp-2" })).toEqual({});
+    // Non-string markers drop the whole entry rather than half a list.
+    expect(sanitizedItemBreaks({ experience: [1, "exp-2"] })).toEqual({});
+  });
 });

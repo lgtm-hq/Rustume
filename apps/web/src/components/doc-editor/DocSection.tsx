@@ -417,8 +417,11 @@ export function DocSection(props: DocSectionProps): JSX.Element {
     otherColumnLabel: props.otherColumnLabel ?? undefined,
     onMoveToOtherColumn:
       props.otherColumnLabel === null ? undefined : () => props.onMoveSectionToOtherColumn(id()),
-    canInsertPageBreak: props.canInsertPageBreak,
-    onInsertPageBreak: () => props.onInsertPageBreak(id()),
+    // Continuation slices have no raw placement of their own — the action
+    // would split before the whole section, not the "(cont.)" card it names —
+    // so, like rename and the grip, it lives on the slice-0 card only.
+    canInsertPageBreak: isContinuation() ? false : props.canInsertPageBreak,
+    onInsertPageBreak: isContinuation() ? undefined : () => props.onInsertPageBreak(id()),
     onRename: () => document.getElementById(sectionTitleTriggerId(id()))?.click(),
     onHide: () => {
       toggleSection(id());

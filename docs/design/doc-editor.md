@@ -549,9 +549,11 @@ splits). Derivation pipeline (production: `apps/web/src/lib/docLayout.ts` +
 3. `renderSheetPages` — strips section ids whose slice has no content on that page/column
    (`sectionHasSliceContent`: summary only on slice 0; item sections need a non-empty slice from
    `itemSlices`), then drops trailing empty pages. Result feeds the sheet stack.
-4. Per-instance: `sectionSliceIndex(doc, id, page, col)` (counted on **pre-strip** expanded pages so
-   indices stay aligned with `itemBreaks`) selects which item slice a given rendered section shows;
-   slices > 0 render the title as **`"<Title> (cont.)"`**.
+4. Per-instance: `sectionSliceIndex(resume, templateLayout, id, page, col, includeHidden)` (counted
+   on **pre-strip** expanded pages so indices stay aligned with `itemBreaks`; `includeHidden`
+   selects the Edit-mode item list — Edit draws hidden items as chrome, Done drops them like the
+   PDF, so the two modes can slice differently) selects which item slice a given rendered section
+   shows; slices > 0 render the title as **`"<Title> (cont.)"`**.
 
 ### 3.4 Page breaks
 
