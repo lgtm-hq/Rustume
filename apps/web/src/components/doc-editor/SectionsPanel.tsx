@@ -5,9 +5,11 @@
  * Visibility toggles cover every fixed and custom section — including sections
  * currently hidden and therefore absent from the sheet, which is what makes a
  * hidden section recoverable. Custom sections can be added (through the same
- * dialog the sheet uses, so placement stays one undo entry) and removed. Notes
- * are private scratch text that never renders to the PDF, so they are a plain
- * text field — no rich editor, no markdown toolbar.
+ * dialog the sheet uses, so placement stays one undo entry) and deleted —
+ * deletion is destructive (owner decision, spec §6 Q5), so it always goes
+ * through a confirm dialog. Notes are private scratch text that never renders
+ * to the PDF, so they are a plain text field — no rich editor, no markdown
+ * toolbar.
  *
  * The panel is controlled: it renders no trigger of its own. The document
  * editor drives it from the Sections edge tab on the resume surface (owner
@@ -17,7 +19,7 @@
  */
 
 import { For, Show, createSignal, type JSX } from "solid-js";
-import { Button, Drawer, Switch, TextArea } from "../ui";
+import { Button, Drawer, Modal, Switch, TextArea } from "../ui";
 import { FIXED_SECTION_IDS, sectionTitle, sectionVisible } from "../../lib/docLayout";
 import { CustomSectionDialog } from "./CustomSectionDialog";
 import { removeSection, toggleSection, updateNotes } from "./docEdits";
@@ -31,8 +33,14 @@ export interface SectionsPanelProps {
 
 export function SectionsPanel(props: SectionsPanelProps): JSX.Element {
   const [adding, setAdding] = createSignal(false);
+  // The custom section id awaiting delete confirmation, if any.
+  const [confirmingDelete, setConfirmingDelete] = createSignal<string | null>(null);
 
   const customIds = (): string[] => Object.keys(props.resume.sections.custom ?? {});
+  const confirmingTitle = (): string => {
+    const sectionId = confirmingDelete();
+    return sectionId === null ? "" : sectionTitle(props.resume, sectionId);
+  };
 
   return (
     <>
@@ -84,7 +92,7 @@ export function SectionsPanel(props: SectionsPanelProps): JSX.Element {
                         class="focus-ring rounded-lg p-1.5 text-stone transition-colors
                           hover:bg-surface hover:text-red-600"
                         aria-label={`Delete ${sectionTitle(props.resume, sectionId)} section`}
-                        onClick={() => removeSection(sectionId)}
+                        onClick={() => setConfirmingDelete(sectionId)}
                       >
                         <svg
                           class="h-4 w-4"
@@ -127,6 +135,35 @@ export function SectionsPanel(props: SectionsPanelProps): JSX.Element {
       </Drawer>
 
       <CustomSectionDialog open={adding()} onOpenChange={setAdding} />
+
+      {/* Destructive delete always confirms (owner decision, spec §6 Q5):
+          unlike hiding, deleting discards the section's content for good —
+          undo is the only way back. */}
+      <Modal
+        open={confirmingDelete() !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmingDelete(null);
+        }}
+        title="Delete section?"
+        description={`"${confirmingTitle()}" and everything in it will be deleted.`}
+        size="sm"
+      >
+        <div class="flex justify-end gap-3">
+          <Button variant="secondary" onClick={() => setConfirmingDelete(null)}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={() => {
+              const sectionId = confirmingDelete();
+              setConfirmingDelete(null);
+              if (sectionId !== null) removeSection(sectionId);
+            }}
+          >
+            Delete section
+          </Button>
+        </div>
+      </Modal>
     </>
   );
 }

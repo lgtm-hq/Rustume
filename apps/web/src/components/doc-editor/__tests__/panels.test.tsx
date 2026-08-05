@@ -221,15 +221,39 @@ describe("document editor panels", () => {
       expect(writeCount()).toBe(1);
     });
 
-    it("removes a custom section through removeCustomSection", () => {
+    it("deletes a custom section only after the confirm step", async () => {
+      // Destructive delete (owner decision, spec §6 Q5): the trash button
+      // alone must write nothing — the confirm dialog's Delete does.
       const panel = openPanel();
 
       fireEvent.click(
         within(panel).getByRole("button", { name: "Delete Talks & Workshops section" }),
       );
 
+      const dialog = await screen.findByRole("dialog", { name: "Delete section?" });
+      expect(dialog).toHaveTextContent("Talks & Workshops");
+      expect(writeCount()).toBe(0);
+
+      fireEvent.click(within(dialog).getByRole("button", { name: "Delete section" }));
+
       expect(store.removeCustomSection).toHaveBeenCalledExactlyOnceWith("speaking");
       expect(writeCount()).toBe(1);
+    });
+
+    it("cancelling the delete confirm keeps the section", async () => {
+      const panel = openPanel();
+
+      fireEvent.click(
+        within(panel).getByRole("button", { name: "Delete Talks & Workshops section" }),
+      );
+      const dialog = await screen.findByRole("dialog", { name: "Delete section?" });
+      fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+      await waitFor(() =>
+        expect(screen.queryByRole("dialog", { name: "Delete section?" })).toBeNull(),
+      );
+      expect(store.removeCustomSection).not.toHaveBeenCalled();
+      expect(writeCount()).toBe(0);
     });
 
     it("commits notes as plain text, with no rich-text controls", () => {
