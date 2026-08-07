@@ -327,6 +327,27 @@
   )
 }
 
+/// Inline contact icon from the bundled SVG set (email/phone/location/link).
+/// Typst does not resolve SVG `currentColor` from surrounding text, so the
+/// fill is rewritten into the SVG bytes before rendering — same mechanism as
+/// `render-profile-icon`. The box baseline keeps the mark optically aligned
+/// with the adjacent text line.
+#let contact-icon(name, size: 9pt, fill: rgb("#333333")) = {
+  let svg = read("/assets/icons/" + name + ".svg")
+  let colored = svg.replace("currentColor", fill.to-hex())
+  box(height: size, baseline: 15%, image(bytes(colored), height: size))
+}
+
+/// Icon-plus-content contact fragment. Respects `metadata.typography.hideIcons`
+/// (the icon is dropped, the content stays).
+#let contact-item(data, icon-name, body, size: 9pt, fill: rgb("#333333"), gap: 4pt) = {
+  if not typography-hide-icons(data) {
+    contact-icon(icon-name, size: size, fill: fill)
+    h(gap)
+  }
+  body
+}
+
 /// Build the visible label for a profile entry.
 ///
 /// Modes:
@@ -603,49 +624,71 @@
   ("custom",),
 ))
 
-/// Return the section keys configured for a layout column, with a fallback.
-#let layout-column-sections(data, column, fallback) = {
-  if data.metadata.layout.len() > 0 and data.metadata.layout.at(0).len() > column {
-    let keys = data.metadata.layout.at(0).at(column)
-    if keys.len() > 0 {
+/// Number of explicit layout pages (0 when no layout is stored).
+#let layout-page-count(data) = {
+  data.metadata.layout.len()
+}
+
+/// Return the section keys configured for a column on one layout page.
+/// The fallback applies to page 0 only — pages after the first render exactly
+/// what they declare, so an empty column on a later page stays empty instead
+/// of repeating the default sections.
+#let layout-column-sections(data, column, fallback, page: 0) = {
+  if data.metadata.layout.len() > page and data.metadata.layout.at(page).len() > column {
+    let keys = data.metadata.layout.at(page).at(column)
+    if keys.len() > 0 or page > 0 {
       keys
     } else {
       fallback
     }
-  } else {
+  } else if page == 0 {
     fallback
+  } else {
+    ()
   }
 }
 
-/// Return all page-0 layout keys in column order for single-column templates.
-#let layout-all-sections(data, fallback: default-all-sections) = {
-  if data.metadata.layout.len() == 0 {
-    return fallback
+/// Return one layout page's keys in column order for single-column templates.
+/// The fallback applies to page 0 only (see layout-column-sections).
+#let layout-all-sections(data, fallback: default-all-sections, page: 0) = {
+  if data.metadata.layout.len() <= page {
+    return if page == 0 { fallback } else { () }
   }
 
   let keys = ()
-  for column in data.metadata.layout.at(0) {
+  for column in data.metadata.layout.at(page) {
     keys = keys + column
   }
 
-  if keys.len() > 0 {
+  if keys.len() > 0 or page > 0 {
     keys
   } else {
     fallback
   }
 }
 
-/// Return all rendered page-0 layout keys (empty when no layout).
+/// Return all rendered layout keys across every page (empty when no layout).
 #let layout-section-keys(data) = {
   let keys = ()
-  if data.metadata.layout.len() == 0 {
-    return keys
-  }
-
-  for column in data.metadata.layout.at(0) {
-    keys = keys + column
+  for page in data.metadata.layout {
+    for column in page {
+      keys = keys + column
+    }
   }
   keys
+}
+
+/// Whether a layout page declares any resume section. The cover letter does
+/// not count — it renders as a dedicated page before the resume body, so a
+/// layout page holding only "coverLetter" must not emit a blank page.
+#let layout-page-has-content(data, page) = {
+  if data.metadata.layout.len() <= page { return false }
+  for column in data.metadata.layout.at(page) {
+    for key in column {
+      if key != "coverLetter" { return true }
+    }
+  }
+  false
 }
 
 /// Whether the cover letter should render as a dedicated page.
@@ -931,15 +974,31 @@
 }
 
 /// Render one configured layout column with a fallback section order.
-#let render-sections-for-column(data, column, fallback, heading, renderers) = {
-  render-sections(data, layout-column-sections(data, column, fallback), heading, renderers)
+#let render-sections-for-column(data, column, fallback, heading, renderers, page: 0) = {
+  render-sections(
+    data,
+    layout-column-sections(data, column, fallback, page: page),
+    heading,
+    renderers,
+  )
 }
 
-/// Render all configured layout columns in order for single-column templates.
-/// Single-column content flows at page level, so metadata.itemBreaks
-/// pagination is honored here.
+/// Render every layout page in order for single-column templates, with an
+/// explicit pagebreak between layout pages. Single-column content flows at
+/// page level, so metadata.itemBreaks pagination is honored here.
 #let render-all-sections(data, heading, renderers) = {
   render-sections(data, layout-all-sections(data), heading, renderers, allow-item-breaks: true)
+  for page in range(1, calc.max(1, layout-page-count(data))) {
+    if not layout-page-has-content(data, page) { continue }
+    pagebreak(weak: true)
+    render-sections(
+      data,
+      layout-all-sections(data, page: page),
+      heading,
+      renderers,
+      allow-item-breaks: true,
+    )
+  }
 }
 
 /// Render a resume from shared semantic rules and template-provided presentation.
@@ -964,48 +1023,74 @@
   render-slot(header)
   render-slot(before-layout)
 
+  // Explicit layout pages after the first re-emit the template's grid (Typst
+  // forbids pagebreaks inside layout containers, so each page gets its own
+  // grid). Header/before slots belong to page 0 only.
+  let pages = calc.max(1, layout-page-count(data))
+
   if layout == "single" {
     render-all-sections(data, main-heading, renderers)
   } else if layout == "sidebar-left" or layout == "full-header-sidebar" {
-    sidebar-layout(
-      sidebar-width: config.at("sidebar-width", default: 170pt),
-      sidebar-bg: config.at("sidebar-bg", default: none),
-      body-bg: config.at("body-bg", default: none),
-      sidebar-inset: config.at("sidebar-inset", default: (x: 16pt, y: 24pt)),
-      main-inset: config.at("main-inset", default: (x: 24pt, y: 24pt)),
-      sidebar-content: sidebar-wrapper([
-        #render-slot(sidebar-before)
-        #render-sections-for-column(data, 1, sidebar-fallback, sidebar-heading, renderers)
-      ]),
-      main-content: main-wrapper([
-        #render-slot(main-before)
-        #render-sections-for-column(data, 0, main-fallback, main-heading, renderers)
-      ]),
-    )
+    for page in range(pages) {
+      if page > 0 {
+        if not layout-page-has-content(data, page) { continue }
+        pagebreak(weak: true)
+      }
+      sidebar-layout(
+        sidebar-width: config.at("sidebar-width", default: 170pt),
+        sidebar-bg: config.at("sidebar-bg", default: none),
+        body-bg: config.at("body-bg", default: none),
+        sidebar-inset: config.at("sidebar-inset", default: (x: 16pt, y: 24pt)),
+        main-inset: config.at("main-inset", default: (x: 24pt, y: 24pt)),
+        sidebar-content: sidebar-wrapper([
+          #if page == 0 { render-slot(sidebar-before) }
+          #render-sections-for-column(
+            data,
+            1,
+            sidebar-fallback,
+            sidebar-heading,
+            renderers,
+            page: page,
+          )
+        ]),
+        main-content: main-wrapper([
+          #if page == 0 { render-slot(main-before) }
+          #render-sections-for-column(data, 0, main-fallback, main-heading, renderers, page: page)
+        ]),
+      )
+    }
   } else if layout == "two-column" {
-    two-column-layout(
-      columns: config.at("columns", default: (1fr, 2fr)),
-      column-gutter: config.at("column-gutter", default: 20pt),
-      left-content: left-wrapper([
-        #render-slot(left-before)
-        #render-sections-for-column(
-          data,
-          config.at("left-column", default: 0),
-          config.at("left-fallback", default: main-fallback),
-          config.at("left-heading", default: main-heading),
-          renderers,
-        )
-      ]),
-      right-content: right-wrapper([
-        #render-slot(right-before)
-        #render-sections-for-column(
-          data,
-          config.at("right-column", default: 1),
-          config.at("right-fallback", default: sidebar-fallback),
-          config.at("right-heading", default: sidebar-heading),
-          renderers,
-        )
-      ]),
-    )
+    for page in range(pages) {
+      if page > 0 {
+        if not layout-page-has-content(data, page) { continue }
+        pagebreak(weak: true)
+      }
+      two-column-layout(
+        columns: config.at("columns", default: (1fr, 2fr)),
+        column-gutter: config.at("column-gutter", default: 20pt),
+        left-content: left-wrapper([
+          #if page == 0 { render-slot(left-before) }
+          #render-sections-for-column(
+            data,
+            config.at("left-column", default: 0),
+            config.at("left-fallback", default: main-fallback),
+            config.at("left-heading", default: main-heading),
+            renderers,
+            page: page,
+          )
+        ]),
+        right-content: right-wrapper([
+          #if page == 0 { render-slot(right-before) }
+          #render-sections-for-column(
+            data,
+            config.at("right-column", default: 1),
+            config.at("right-fallback", default: sidebar-fallback),
+            config.at("right-heading", default: sidebar-heading),
+            renderers,
+            page: page,
+          )
+        ]),
+      )
+    }
   }
 }

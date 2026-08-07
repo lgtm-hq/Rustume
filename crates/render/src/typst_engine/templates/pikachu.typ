@@ -61,7 +61,7 @@
 
     if item.location != "" {
       v(2pt)
-      text(size: 9pt, fill: muted-color)[📍 #item.location]
+      text(size: 9pt, fill: muted-color)[#contact-item(data, "location", item.location, fill: muted-color)]
     }
 
     if item.summary != "" {
@@ -75,20 +75,27 @@
   let render-education(item) = {
     if item.visible == false { return }
 
+    // Stacked, not a side-by-side grid: education lives in the 180pt sidebar
+    // by default, where an auto-width date column would squeeze the
+    // institution and degree into one-word lines.
     text(weight: "bold", size: 10pt)[#item.institution]
-    v(2pt)
-
     if item.studyType != "" or item.area != "" {
+      v(2pt)
       let degree = format-degree(item.studyType, item.area)
       text(size: 10pt)[#degree]
-      h(8pt)
     }
-
-    text(size: 9pt, fill: muted-color)[#item.date]
-
     if item.score != "" {
       v(2pt)
       text(size: 9pt, fill: muted-color)[#item.score]
+    }
+    if item.date != "" {
+      v(2pt)
+      text(size: 9pt, fill: muted-color)[#item.date]
+    }
+
+    if item.summary != "" {
+      v(4pt)
+      render-rich-text(item.summary, size: 10pt)
     }
 
     v(12pt)
@@ -102,6 +109,16 @@
       text(size: 9pt)[#item.name],
       skill-dots(item.level)
     )
+
+    if item.description != "" {
+      render-rich-text(item.description, size: 8pt, fill: muted-color)
+    }
+
+    if has-keywords(item) {
+      v(2pt)
+      text(size: 8pt, fill: muted-color)[#item.keywords.join(", ")]
+    }
+
     v(6pt)
   }
 
@@ -145,6 +162,11 @@
       render-rich-text(item.description, size: 10pt)
     }
 
+    if item.summary != "" {
+      v(6pt)
+      render-rich-text(item.summary, size: 10pt)
+    }
+
     if has-keywords(item) {
       v(4pt)
       text(size: 9pt, fill: muted-color)[#item.keywords.join(" · ")]
@@ -181,6 +203,12 @@
     if item.visible == false { return }
 
     text(size: 9pt)[#item.name]
+
+    if has-keywords(item) {
+      v(2pt)
+      text(size: 8pt, fill: muted-color)[#item.keywords.join(", ")]
+    }
+
     v(4pt)
   }
 
@@ -213,7 +241,7 @@
 
     if item.location != "" {
       v(2pt)
-      text(size: 9pt, fill: muted-color)[📍 #item.location]
+      text(size: 9pt, fill: muted-color)[#contact-item(data, "location", item.location, fill: muted-color)]
     }
 
     if item.summary != "" {
@@ -265,7 +293,7 @@
         h(8pt)
       }
       if item.location != "" {
-        text(size: 9pt, fill: muted-color)[📍 #item.location]
+        text(size: 9pt, fill: muted-color)[#contact-item(data, "location", item.location, fill: muted-color)]
       }
     }
 
@@ -354,22 +382,22 @@
       #sidebar-section("Contact")
 
       #if data.basics.email != "" {
-        text(size: 9pt)[✉ #data.basics.email]
+        text(size: 9pt)[#contact-item(data, "email", data.basics.email, fill: sidebar-text-color)]
         v(4pt)
       }
 
       #if data.basics.phone != "" {
-        text(size: 9pt)[☎ #data.basics.phone]
+        text(size: 9pt)[#contact-item(data, "phone", data.basics.phone, fill: sidebar-text-color)]
         v(4pt)
       }
 
       #if data.basics.location != "" {
-        text(size: 9pt)[📍 #data.basics.location]
+        text(size: 9pt)[#contact-item(data, "location", data.basics.location, fill: sidebar-text-color)]
         v(4pt)
       }
 
       #if has-url(data.basics) {
-        text(size: 9pt)[🔗 #link(data.basics.url.href)[#url-display-label(data.basics.url)]]
+        text(size: 9pt)[#contact-item(data, "link", link(data.basics.url.href)[#url-display-label(data.basics.url)], fill: sidebar-text-color)]
         v(4pt)
       }
     ]

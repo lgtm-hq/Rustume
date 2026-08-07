@@ -39,6 +39,9 @@ thiserror.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+# PDF text extraction for content-level render assertions (lopdf's stricter
+# CMap parser rejects Typst's ToUnicode streams; pdf-extract handles them)
+pdf-extract = "0.12"
 rstest.workspace = true
 rustume-parser = { path = "../parser" }
 tempfile = "=3.27.0"

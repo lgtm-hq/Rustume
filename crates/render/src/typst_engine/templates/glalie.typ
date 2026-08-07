@@ -103,6 +103,11 @@
       text(size: 9pt, fill: muted-color)[Score: #item.score]
     }
 
+    if item.summary != "" {
+      v(4pt)
+      render-rich-text(item.summary, size: 10pt)
+    }
+
     v(12pt)
   }
 

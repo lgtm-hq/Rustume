@@ -91,6 +91,11 @@
       date-badge(item.date)
     )
 
+    if item.summary != "" {
+      v(4pt)
+      render-rich-text(item.summary, size: 10pt)
+    }
+
     v(12pt)
   }
 
@@ -115,6 +120,14 @@
         } else if should-render-level(level, level-display) {
           h(4pt)
           render-level(level, level-display, accent-color, bg-color.darken(10%))
+        }
+        #if item.description != "" {
+          v(2pt)
+          render-rich-text(item.description, size: 8pt, fill: muted-color)
+        }
+        #if has-keywords(item) {
+          v(2pt)
+          text(size: 8pt, fill: muted-color)[#item.keywords.join(", ")]
         }
       ]
     )
@@ -156,6 +169,11 @@
     if item.description != "" {
       v(4pt)
       render-rich-text(item.description, size: 10pt)
+    }
+
+    if item.summary != "" {
+      v(4pt)
+      render-rich-text(item.summary, size: 10pt)
     }
 
     if has-keywords(item) {
@@ -221,7 +239,12 @@
       fill: light-gray,
       radius: 3pt,
       inset: (x: 8pt, y: 4pt),
-      text(size: 9pt)[#item.name]
+      [
+        #text(size: 9pt)[#item.name]
+        #if has-keywords(item) {
+          text(size: 8pt, fill: muted-color)[ — #item.keywords.join(", ")]
+        }
+      ]
     )
     h(6pt)
   }
@@ -397,16 +420,16 @@
         // Contact information in a row
         #let contact-parts = ()
         #if data.basics.email != "" {
-          contact-parts.push([✉ #link("mailto:" + data.basics.email)[#data.basics.email]])
+          contact-parts.push([#contact-item(data, "email", link("mailto:" + data.basics.email)[#data.basics.email], fill: text-color)])
         }
         #if data.basics.phone != "" {
-          contact-parts.push([☎ #data.basics.phone])
+          contact-parts.push([#contact-item(data, "phone", data.basics.phone, fill: text-color)])
         }
         #if data.basics.location != "" {
-          contact-parts.push([📍 #data.basics.location])
+          contact-parts.push([#contact-item(data, "location", data.basics.location, fill: text-color)])
         }
         #if has-url(data.basics) {
-          contact-parts.push([🔗 #link(data.basics.url.href)[#url-display-label(data.basics.url, fallback: "Portfolio")]])
+          contact-parts.push([#contact-item(data, "link", link(data.basics.url.href)[#url-display-label(data.basics.url, fallback: "Portfolio")], fill: text-color)])
         }
 
         #text(size: 9pt)[#contact-parts.join("    ")]
