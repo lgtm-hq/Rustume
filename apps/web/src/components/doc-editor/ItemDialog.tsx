@@ -21,6 +21,7 @@
 import { For, Match, Show, Switch, createEffect, createSignal, on, type JSX } from "solid-js";
 import { Button, Input, Modal, TextArea } from "../ui";
 import { emptyItemFor } from "../../lib/docLayout";
+import { profileHrefMatches, profileUrlFor } from "../../lib/profileUrls";
 import { addItem, updateItem, type ItemUpdates } from "./docEdits";
 import { ExtraFieldsEditor } from "./ExtraFieldsEditor";
 import { MiniRichEditor } from "./MiniRichEditor";
@@ -177,6 +178,25 @@ export function ItemDialog(props: ItemDialogProps): JSX.Element {
       );
     }
 
+    // A profile row draws its username but navigates to its href (#820).
+    // Derive the href for known networks when it is empty, and re-derive it
+    // when a rename left it pointing at the old username's derived URL — a
+    // hand-written href is never overwritten.
+    if (props.sectionId === "profiles") {
+      const url = asUrl(next.url);
+      const derived = profileUrlFor(asText(next.network), asText(next.username));
+      const seedDerived =
+        props.item === undefined
+          ? null
+          : profileUrlFor(asText(props.item.network), asText(props.item.username));
+      if (
+        derived !== null &&
+        (url.href.trim() === "" || (seedDerived !== null && url.href === seedDerived))
+      ) {
+        next.url = { ...url, href: derived };
+      }
+    }
+
     return next;
   }
 
@@ -303,19 +323,37 @@ export function ItemDialog(props: ItemDialogProps): JSX.Element {
         </Match>
 
         <Match when={spec().kind === "url"}>
-          <div class="grid grid-cols-2 gap-4">
-            <Input
-              label={`${spec().label} label`}
-              value={asUrl(value()).label}
-              onInput={(next) => setField(spec().key, { ...asUrl(value()), label: next })}
-            />
-            <Input
-              label={`${spec().label} URL`}
-              type="url"
-              placeholder="https://"
-              value={asUrl(value()).href}
-              onInput={(next) => setField(spec().key, { ...asUrl(value()), href: next })}
-            />
+          <div class="flex flex-col gap-1.5">
+            <div class="grid grid-cols-2 gap-4">
+              <Input
+                label={`${spec().label} label`}
+                value={asUrl(value()).label}
+                onInput={(next) => setField(spec().key, { ...asUrl(value()), label: next })}
+              />
+              <Input
+                label={`${spec().label} URL`}
+                type="url"
+                placeholder="https://"
+                value={asUrl(value()).href}
+                onInput={(next) => setField(spec().key, { ...asUrl(value()), href: next })}
+              />
+            </div>
+            {/* The row's text is the username but its link is the href (#820). */}
+            <Show
+              when={
+                props.sectionId === "profiles" &&
+                !profileHrefMatches(
+                  asText(draft().network),
+                  asText(draft().username),
+                  asUrl(value()).href,
+                )
+              }
+            >
+              <p class="text-xs text-stone">
+                This URL doesn't mention the username — the link may go somewhere other than where
+                the text says. Leave the URL empty to derive it from the username.
+              </p>
+            </Show>
           </div>
         </Match>
       </Switch>

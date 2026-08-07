@@ -21,6 +21,7 @@ import { ContactIcon, type ContactIconKind } from "./icons";
 import { updateBasicsField } from "./docEdits";
 import { useSheetEditable } from "./sheetMode";
 import { SHEET_PX_PER_PT } from "../../lib/docLayout";
+import { looksLikeUrl, withHttps } from "../../lib/profileUrls";
 import type { Basics, CustomField, Picture, Url } from "../../wasm/types";
 
 /** Largest avatar the sheet draws, whatever the stored size (spec §1.4). */
@@ -218,18 +219,29 @@ function contactEntries(basics: Basics): ContactEntry[] {
   const url = urlLabel(basics.url);
   if (url !== "") {
     // The sheet prints the label when there is one, so that is what an inline
-    // edit changes; with no label the href is what is on the page.
+    // edit changes; with no label the href is what is on the page. A label
+    // edit that reads as a URL updates the href too (#820): typing a new
+    // address over the old label must not leave the link pointing at the old
+    // destination.
     const hasLabel = (basics.url?.label ?? "").trim() !== "";
     entries.push({
       key: "url",
       kind: "link",
       value: url,
       fieldLabel: hasLabel ? "Website label" : "Website URL",
-      commit: (value) =>
-        updateBasicsField("url", {
-          ...(basics.url ?? { label: "", href: "" }),
-          [hasLabel ? "label" : "href"]: value,
-        }),
+      commit: (value) => {
+        const current = basics.url ?? { label: "", href: "" };
+        if (!hasLabel) {
+          updateBasicsField("url", { ...current, href: value });
+          return;
+        }
+        updateBasicsField(
+          "url",
+          looksLikeUrl(value)
+            ? { ...current, label: value, href: withHttps(value) }
+            : { ...current, label: value },
+        );
+      },
     });
   }
 
