@@ -29,6 +29,11 @@ import {
   showResumeVersionConflictToast,
 } from "./cloudStorage";
 import { FIXED_LAYOUT_SECTION_KEYS, isHtmlEmpty } from "../lib/resumeSections";
+import {
+  bundledTemplateLayout,
+  defaultColumnIndexFor,
+  seededLayoutForResume,
+} from "../lib/docLayout";
 import { sanitizedItemBreaks } from "../lib/docPagination";
 import { setUndoRecorder, recordUndo } from "./editorUndo";
 import { saveSnapshot } from "./versionHistory";
@@ -115,13 +120,13 @@ function uniqueLayoutIds(ids: string[]): string[] {
 }
 
 /**
- * Append a fixed section id to page 0's first (main) column when the id is
- * absent from a non-empty layout. An empty layout renders the template's
- * default columns, which already place every fixed section, so it needs no
- * repair. A visible-but-unplaced section would otherwise never render (the
- * sheet and the PDF draw only placed ids).
+ * Append a fixed section id to the page-0 column the template's defaults
+ * assign it (#819) when the id is absent from a non-empty layout. An empty
+ * layout renders the template's default columns, which already place every
+ * fixed section, so it needs no repair. A visible-but-unplaced section would
+ * otherwise never render (the sheet and the PDF draw only placed ids).
  */
-function placeFixedSectionId(layout: string[][][], sectionId: string): void {
+function placeFixedSectionId(layout: string[][][], sectionId: string, template: string): void {
   if (layout.length === 0) return;
   for (const page of layout) {
     for (const column of page) {
@@ -135,7 +140,28 @@ function placeFixedSectionId(layout: string[][][], sectionId: string): void {
     layout[0] = [[sectionId]];
     return;
   }
-  page0[0].push(sectionId);
+  const targetIndex = defaultColumnIndexFor(sectionId, bundledTemplateLayout(template));
+  page0[Math.min(targetIndex, page0.length - 1)].push(sectionId);
+}
+
+/**
+ * The exact layout shape the pre-#819 flat seed wrote: one page, one column,
+ * the fixed prefix in seed order, followed only by custom ids. Anything else —
+ * reordered, split, pruned — is user-arranged and must not be repaired.
+ */
+const LEGACY_FLAT_SEED_PREFIX: readonly string[] = [
+  "summary",
+  "coverLetter",
+  ...FIXED_LAYOUT_SECTION_KEYS,
+];
+
+function isLegacyFlatSeedLayout(layout: string[][][], customIds: string[]): boolean {
+  if (layout.length !== 1 || layout[0].length !== 1) return false;
+  const column = layout[0][0];
+  if (column.length < LEGACY_FLAT_SEED_PREFIX.length) return false;
+  if (LEGACY_FLAT_SEED_PREFIX.some((id, index) => column[index] !== id)) return false;
+  const customSet = new Set(customIds);
+  return column.slice(LEGACY_FLAT_SEED_PREFIX.length).every((id) => customSet.has(id));
 }
 
 function removeLayoutIdsFromLaterPages(layout: string[][][], ids: readonly string[]): void {
@@ -265,9 +291,18 @@ function normalizeResumeForStore(resume: ResumeData): ResumeData {
       (resume.sections.coverLetter != null && resume.sections.coverLetter.visible);
     if (!shouldSeedEmptyLayout) return resume;
     ensureCoverLetterSection(resume);
-    resume.metadata.layout = [
-      [["summary", "coverLetter", ...FIXED_LAYOUT_SECTION_KEYS, ...customIds]],
-    ];
+    resume.metadata.layout = seededLayoutForResume(resume);
+    return resume;
+  }
+
+  // #819 repair: the retired seed above flattened every section into the main
+  // column, pinning sidebar sections there. Only the byte-exact seed shape is
+  // rewritten — a layout the user has since rearranged never matches.
+  if (
+    isLegacyFlatSeedLayout(resume.metadata.layout, customIds) &&
+    bundledTemplateLayout(resume.metadata.template).layoutMode !== "single"
+  ) {
+    resume.metadata.layout = seededLayoutForResume(resume);
     return resume;
   }
 
@@ -289,10 +324,14 @@ function normalizeResumeForStore(resume: ResumeData): ResumeData {
   // Back-fill fixed ids missing from a non-empty layout (legacy/pruned
   // layouts saved before a fixed section existed). Hidden sections do not
   // render, so this only guarantees a visibility toggle has somewhere to
-  // land. Column 0 is always the main column.
+  // land — in the column the template's defaults assign it (#819).
   const missingFixedIds = ALL_FIXED_LAYOUT_SECTION_IDS.filter((id) => !layoutIds.has(id));
   if (missingFixedIds.length > 0) {
-    page0[0].push(...missingFixedIds);
+    const templateLayout = bundledTemplateLayout(resume.metadata.template);
+    for (const missingId of missingFixedIds) {
+      const target = Math.min(defaultColumnIndexFor(missingId, templateLayout), page0.length - 1);
+      page0[target].push(missingId);
+    }
   }
 
   if (customIds.length === 0) return resume;
@@ -595,7 +634,7 @@ export function useResumeStore() {
           // the PDF silently never draw it. Same write as the flip, so the
           // toggle stays one action and one undo entry.
           if (section.visible) {
-            placeFixedSectionId(s.resume.metadata.layout, sectionKey);
+            placeFixedSectionId(s.resume.metadata.layout, sectionKey, s.resume.metadata.template);
           }
         }),
       );
@@ -722,9 +761,7 @@ export function useResumeStore() {
           s.resume.sections.custom[section.id] = section;
           if (s.resume.metadata.layout.length === 0) {
             ensureCoverLetterSection(s.resume);
-            s.resume.metadata.layout = [
-              [["summary", "coverLetter", ...FIXED_LAYOUT_SECTION_KEYS, section.id]],
-            ];
+            s.resume.metadata.layout = seededLayoutForResume(s.resume);
             return;
           }
 
