@@ -84,6 +84,43 @@ test.describe("custom sections from the panel", () => {
     await expect(sheetCard(page, "Field Notes")).toHaveCount(0);
   });
 
+  test("item fields saved in the dialog draw on the sheet (#821)", async ({
+    page,
+    homePage,
+    docEditorPage,
+  }) => {
+    await homePage.open();
+    await homePage.createResume();
+    await docEditorPage.assertDocEditorOpen();
+    await docEditorPage.assertMode("edit");
+
+    await page.getByRole("button", { name: "Sections", exact: true }).click();
+    const panel = page.getByTestId("sections-panel");
+    await expect(panel).toBeVisible();
+    await addCustomSection(page, panel, "Talks");
+    await page.keyboard.press("Escape");
+    await expect(panel).toBeHidden();
+
+    const card = sheetCard(page, "Talks");
+    await card.getByRole("button", { name: "Add talk" }).click();
+    const dialog = page.getByRole("dialog", { name: "Add · Talks" });
+    await dialog.getByRole("textbox", { name: "Name" }).fill("Design Tokens");
+    await dialog.getByRole("textbox", { name: "Description" }).fill("Clarity Conference");
+    await dialog.getByRole("textbox", { name: "Date" }).fill("May 2025");
+    await dialog.getByRole("textbox", { name: "Location" }).fill("Amsterdam");
+    const tags = dialog.getByRole("textbox", { name: "Tags" });
+    await tags.fill("Design Systems");
+    await tags.press("Enter");
+    await dialog.getByRole("button", { name: "Add", exact: true }).click();
+
+    // Every dialog field draws on the sheet — not just the name (#821).
+    await expect(card).toContainText("Design Tokens");
+    await expect(card).toContainText("Clarity Conference");
+    await expect(card).toContainText("May 2025");
+    await expect(card).toContainText("Amsterdam");
+    await expect(card).toContainText("Design Systems");
+  });
+
   test("a custom section survives autosave, reload, and a post-reload edit", async ({
     page,
     homePage,
