@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { looksLikeUrl, profileHrefMatches, profileUrlFor, withHttps } from "../profileUrls";
+import {
+  isHttpHref,
+  looksLikeUrl,
+  profileHrefMatches,
+  profileUrlFor,
+  withHttps,
+} from "../profileUrls";
 
 describe("profileUrlFor", () => {
   it.each([
@@ -16,10 +22,14 @@ describe("profileUrlFor", () => {
     expect(profileUrlFor("Portfolio", "someone")).toBeNull();
   });
 
-  it("returns null for empty or path-carrying usernames", () => {
+  it("returns null for empty or delimiter-carrying usernames", () => {
     expect(profileUrlFor("GitHub", "")).toBeNull();
     expect(profileUrlFor("GitHub", "  ")).toBeNull();
     expect(profileUrlFor("GitHub", "org/repo")).toBeNull();
+    expect(profileUrlFor("GitHub", "user?query")).toBeNull();
+    expect(profileUrlFor("GitHub", "user#frag")).toBeNull();
+    expect(profileUrlFor("GitHub", "user%2e")).toBeNull();
+    expect(profileUrlFor("GitHub", "user\\path")).toBeNull();
   });
 });
 
@@ -58,6 +68,16 @@ describe("looksLikeUrl", () => {
     ["plainword", false],
   ])("%s -> %s", (value, expected) => {
     expect(looksLikeUrl(value)).toBe(expected);
+  });
+});
+
+describe("isHttpHref", () => {
+  it("accepts only http(s) URLs", () => {
+    expect(isHttpHref("https://github.com/TurboCoder13")).toBe(true);
+    expect(isHttpHref("http://example.com")).toBe(true);
+    expect(isHttpHref("javascript:alert(1)")).toBe(false);
+    expect(isHttpHref("data:text/html,hi")).toBe(false);
+    expect(isHttpHref("")).toBe(false);
   });
 });
 

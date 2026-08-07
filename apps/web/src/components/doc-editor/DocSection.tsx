@@ -46,6 +46,7 @@ import {
   updateSummary,
 } from "./docEdits";
 import { itemNoun } from "./itemFields";
+import { isHttpHref } from "../../lib/profileUrls";
 import { entryDisplayLabel, entryStep, type MoveStep } from "../../lib/docDnd";
 import { isCustomId, sectionTitle, type SectionPlacement } from "../../lib/docLayout";
 import type { SectionSlice } from "../../lib/docPagination";
@@ -503,7 +504,9 @@ export function DocSection(props: DocSectionProps): JSX.Element {
     const text = (): string => (hasText(item.username) ? item.username : item.network);
     const href = (): string | undefined => {
       const value = item.url?.href ?? "";
-      return value.trim() === "" ? undefined : value;
+      // Same http(s)-only rule as custom-item links: a stored javascript: or
+      // data: URL must never become a clickable destination.
+      return isHttpHref(value) ? value : undefined;
     };
     return (
       <div class="doc-sheet__icon-row">
@@ -571,18 +574,21 @@ export function DocSection(props: DocSectionProps): JSX.Element {
         <Show when={hasText(linkHref())}>
           <div class="doc-sheet__entry-loc">
             <ContactIcon kind="link" />
-            {/* Live link in view mode; inert while editing (spec §1.7). */}
-            <a
-              class="doc-sheet__side-link"
-              href={linkHref()}
-              target="_blank"
-              rel="noreferrer"
-              onClick={(event) => {
-                if (isEditable()) event.preventDefault();
-              }}
-            >
-              {linkText()}
-            </a>
+            {/* Live link in view mode; inert while editing (spec §1.7). A
+                non-http(s) href — javascript:, data: — draws as plain text. */}
+            <Show when={isHttpHref(linkHref())} fallback={<span>{linkText()}</span>}>
+              <a
+                class="doc-sheet__side-link"
+                href={linkHref()}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(event) => {
+                  if (isEditable()) event.preventDefault();
+                }}
+              >
+                {linkText()}
+              </a>
+            </Show>
           </div>
         </Show>
       </>

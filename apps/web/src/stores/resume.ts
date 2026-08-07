@@ -148,11 +148,26 @@ function placeFixedSectionId(layout: string[][][], sectionId: string, template: 
  * The exact layout shape the pre-#819 flat seed wrote: one page, one column,
  * the fixed prefix in seed order, followed only by custom ids. Anything else —
  * reordered, split, pruned — is user-arranged and must not be repaired.
+ *
+ * Deliberately a frozen literal, not derived from `FIXED_LAYOUT_SECTION_KEYS`:
+ * this matches a historical on-disk shape, and a future reorder of the live
+ * constant must not stop the repair from recognising it.
  */
 const LEGACY_FLAT_SEED_PREFIX: readonly string[] = [
   "summary",
   "coverLetter",
-  ...FIXED_LAYOUT_SECTION_KEYS,
+  "experience",
+  "education",
+  "skills",
+  "projects",
+  "profiles",
+  "awards",
+  "certifications",
+  "publications",
+  "languages",
+  "interests",
+  "volunteer",
+  "references",
 ];
 
 function isLegacyFlatSeedLayout(layout: string[][][], customIds: string[]): boolean {

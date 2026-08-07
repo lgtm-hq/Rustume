@@ -472,10 +472,15 @@ mod tests {
     }
 
     /// The font families the templates name must resolve from the embedded
-    /// set alone — deployments must not depend on system font packages.
+    /// set alone — deployments must not depend on system font packages, so
+    /// this reads `BUNDLED_FONT_DIR` directly rather than the full cache
+    /// (which also holds typst-assets and system fonts).
     #[test]
     fn bundled_fonts_include_template_named_families() {
-        let (_, fonts) = get_fonts_cache();
+        let fonts: Vec<_> = BUNDLED_FONT_DIR
+            .files()
+            .flat_map(|file| Font::iter(Bytes::new(file.contents().to_vec())))
+            .collect();
         for family in ["IBM Plex Sans", "IBM Plex Serif"] {
             assert!(
                 fonts.iter().any(|font| font.info().family == family),

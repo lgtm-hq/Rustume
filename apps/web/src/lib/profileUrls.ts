@@ -40,8 +40,16 @@ function usernameSlug(username: string): string {
 export function profileUrlFor(network: string, username: string): string | null {
   const prefix = NETWORK_URL_PREFIXES[network.trim().toLowerCase()];
   const user = username.trim();
-  if (prefix === undefined || user === "" || user.includes("/")) return null;
+  if (prefix === undefined || user === "" || /[\\/?#%]/.test(user)) return null;
   return prefix + usernameSlug(user);
+}
+
+/**
+ * Whether an href is safe to render as a live anchor: http(s) only, so a
+ * stored `javascript:` or `data:` URL can never become a clickable link.
+ */
+export function isHttpHref(href: string): boolean {
+  return /^https?:\/\//i.test(href.trim());
 }
 
 /**

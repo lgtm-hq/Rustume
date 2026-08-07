@@ -8,7 +8,7 @@
 //! ```
 //!
 //! The input is parsed as native `ResumeData` first, then as a
-//! Reactive-Resume v3 export. With a third argument of `--text`, the
+//! Reactive-Resume v3 export. When the second argument is `--text`, the
 //! extracted PDF text is printed per page instead of writing a file.
 
 use rustume_parser::{Parser, ReactiveResumeV3Parser};
