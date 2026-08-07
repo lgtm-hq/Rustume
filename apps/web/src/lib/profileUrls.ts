@@ -64,11 +64,15 @@ export function profileHrefMatches(network: string, username: string, href: stri
   return href.toLowerCase().includes(slug);
 }
 
-/** Whether inline-edited text reads as a URL or bare domain rather than a label. */
+/**
+ * Whether inline-edited text reads as a URL or bare domain rather than a
+ * label. Bare domains need an alphabetic TLD of 2+ letters, so version-like
+ * labels ("v1.2", "1.0.0") and bare IPs never rewrite a stored href.
+ */
 export function looksLikeUrl(value: string): boolean {
   const text = value.trim();
   if (text === "" || /\s/.test(text)) return false;
-  return /^https?:\/\//i.test(text) || /^[\w-]+(\.[\w-]+)+([/?#]|$)/.test(text);
+  return /^https?:\/\//i.test(text) || /^[\w-]+(\.[\w-]+)*\.[a-z]{2,}([/?#]|$)/i.test(text);
 }
 
 /** `value` as an href: untouched with a scheme, `https://`-prefixed without. */

@@ -678,14 +678,37 @@
   keys
 }
 
-/// Whether a layout page declares any resume section. The cover letter does
-/// not count — it renders as a dedicated page before the resume body, so a
-/// layout page holding only "coverLetter" must not emit a blank page.
+/// Whether one layout key resolves to a section that would actually draw.
+/// The cover letter never counts — it renders as a dedicated page before the
+/// resume body — and a hidden section draws nothing, so it must not count
+/// either (mirrors the `section.visible` guard in render-item-section).
+#let layout-key-draws(data, key) = {
+  if key == "coverLetter" { return false }
+  if key == "custom" {
+    if "custom" not in data.sections { return false }
+    for (_, section) in data.sections.custom {
+      if section.at("visible", default: false) { return true }
+    }
+    return false
+  }
+  if key in data.sections {
+    return data.sections.at(key).at("visible", default: false)
+  }
+  if "custom" in data.sections and key in data.sections.custom {
+    let section = data.sections.custom.at(key)
+    return section != none and section.at("visible", default: false)
+  }
+  false
+}
+
+/// Whether a layout page declares any section that would draw. A page whose
+/// keys are all hidden (or all "coverLetter") must not emit a styled blank
+/// page.
 #let layout-page-has-content(data, page) = {
   if data.metadata.layout.len() <= page { return false }
   for column in data.metadata.layout.at(page) {
     for key in column {
-      if key != "coverLetter" { return true }
+      if layout-key-draws(data, key) { return true }
     }
   }
   false

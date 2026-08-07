@@ -66,6 +66,9 @@ describe("looksLikeUrl", () => {
     ["My portfolio", false],
     ["", false],
     ["plainword", false],
+    ["v1.2", false],
+    ["1.0.0", false],
+    ["192.168.1.1", false],
   ])("%s -> %s", (value, expected) => {
     expect(looksLikeUrl(value)).toBe(expected);
   });

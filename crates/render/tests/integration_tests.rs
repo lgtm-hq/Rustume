@@ -1677,6 +1677,34 @@ fn test_empty_trailing_layout_page_adds_no_page() {
     assert_eq!(pages, base_pages, "empty layout page must not add a page");
 }
 
+/// A trailing layout page whose sections are all hidden draws nothing, so it
+/// must not emit a styled blank page either (visibility-aware
+/// `layout-page-has-content`).
+#[test]
+fn test_hidden_only_trailing_layout_page_adds_no_page() {
+    let renderer = TypstRenderer::new();
+    let base_layout = vec![vec![
+        vec!["summary".to_string(), "experience".to_string()],
+        vec!["education".to_string(), "skills".to_string()],
+    ]];
+
+    let mut base = sample_resume();
+    base.metadata.layout = base_layout.clone();
+    base.sections.interests.visible = false;
+    let (_, base_pages) = renderer.render_preview(&base, 0).expect("baseline preview");
+
+    let mut padded = base.clone();
+    let mut layout = base_layout;
+    layout.push(vec![vec!["interests".to_string()], vec![]]);
+    padded.metadata.layout = layout;
+    let (_, pages) = renderer.render_preview(&padded, 0).expect("padded preview");
+
+    assert_eq!(
+        pages, base_pages,
+        "a layout page holding only hidden sections must not add a page"
+    );
+}
+
 /// Contact rows render through the bundled-SVG icon mechanism now — the
 /// extracted text must carry the plain contact values with no emoji glyphs
 /// (✉ ☎ 📍 🔗 rendered as tofu boxes when the font lacks them).
@@ -1714,6 +1742,10 @@ fn test_contact_rows_render_without_emoji_glyphs(#[case] template_name: &str) {
 #[rstest]
 #[case("pikachu")]
 #[case("nosepass")]
+#[case("rhyhorn")]
+#[case("chikorita")]
+#[case("ditto")]
+#[case("glalie")]
 fn test_parity_fields_reach_pdf_text(#[case] template_name: &str) {
     let renderer = TypstRenderer::new();
     let mut resume = sample_resume();
