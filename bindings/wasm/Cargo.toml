@@ -30,4 +30,4 @@ serde-wasm-bindgen.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
-wasm-bindgen-test = "=0.3.76"
+wasm-bindgen-test = "=0.3.77"
