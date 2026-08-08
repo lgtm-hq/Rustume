@@ -22,6 +22,26 @@ and this project adheres to
 
 ### Security
 
+## [0.65.1] - 2026-08-08
+
+### Changed
+
+- **deps-dev**: update rust crate wasm-bindgen-test to 0.3.77 (patch) (#825) (8a1ba77)
+- **deps**: update lintro to 0.112.5 (patch) (#818) (069bba6)
+- **deps**: update lintro to 0.112.4 (patch) (#817) (a50e3b0)
+- **deps**: update lintro to 0.112.2 (patch) (#815) (09ec1df)
+- **deps**: update lintro to 0.112.0 (minor) (#814) (42ea36c)
+- **deps**: update lintro to 0.110.0 (minor) (#811) (c8040a5)
+- **e2e**: commit CI-generated visual baselines for the doc editor (#812) (c271900)
+- **web**: retire the form builder (#784) (1ea5e1d)
+- **deps**: update step-security/harden-runner action to v2.20.1 (patch) (#810)
+  (458e4f0)
+
+### Fixed
+
+- **app**: restore sidebar placement, link integrity, custom-section fields, and PDF
+  parity (#823) (8600da0)
+
 ## [0.65.0] - 2026-08-05
 
 ### Added
@@ -964,7 +984,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.65.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.65.1...HEAD
+[0.65.1]: https://github.com/lgtm-hq/Rustume/compare/v0.65.0...v0.65.1
 [0.65.0]: https://github.com/lgtm-hq/Rustume/compare/v0.64.0...v0.65.0
 [0.64.0]: https://github.com/lgtm-hq/Rustume/compare/v0.63.0...v0.64.0
 [0.63.0]: https://github.com/lgtm-hq/Rustume/compare/v0.62.0...v0.63.0
