@@ -338,20 +338,23 @@ export function ItemDialog(props: ItemDialogProps): JSX.Element {
                 onInput={(next) => setField(spec().key, { ...asUrl(value()), href: next })}
               />
             </div>
-            {/* The row's text is the username but its link is the href (#820). */}
-            <Show
-              when={
-                props.sectionId === "profiles" &&
-                !profileHrefMatches(
-                  asText(draft().network),
-                  asText(draft().username),
-                  asUrl(value()).href,
-                )
-              }
-            >
-              <p class="text-xs text-stone">
-                This URL doesn't mention the username — the link may go somewhere other than where
-                the text says. Leave the URL empty to derive it from the username.
+            {/* The row's text is the username but its link is the href (#820).
+                The paragraph stays mounted as a polite live region so screen
+                readers announce the warning when it appears mid-edit. */}
+            <Show when={props.sectionId === "profiles"}>
+              <p aria-live="polite" class="text-xs text-stone">
+                <Show
+                  when={
+                    !profileHrefMatches(
+                      asText(draft().network),
+                      asText(draft().username),
+                      asUrl(value()).href,
+                    )
+                  }
+                >
+                  This URL doesn't mention the username — the link may go somewhere other than where
+                  the text says. Leave the URL empty to derive it from the username.
+                </Show>
               </p>
             </Show>
           </div>

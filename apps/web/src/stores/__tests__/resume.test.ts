@@ -677,12 +677,33 @@ describe("useResumeStore", () => {
     });
   });
 
+  // The exact pre-#819 on-disk seed order, frozen as a literal to mirror
+  // LEGACY_FLAT_SEED_PREFIX in stores/resume.ts: a future reorder of the live
+  // FIXED_LAYOUT_SECTION_KEYS must not change the historical shape this
+  // repair test exercises.
+  const LEGACY_FLAT_SEED_COLUMN = [
+    "summary",
+    "coverLetter",
+    "experience",
+    "education",
+    "skills",
+    "projects",
+    "profiles",
+    "awards",
+    "certifications",
+    "publications",
+    "languages",
+    "interests",
+    "volunteer",
+    "references",
+  ];
+
   it("repairs the legacy flat seed on a two-column template (#819)", () => {
     createRoot((dispose) => {
       const { store, importResume } = useResumeStore();
       const imported = createDefaultResume();
       imported.metadata.template = "pikachu";
-      imported.metadata.layout = [[["summary", "coverLetter", ...FIXED_LAYOUT_SECTION_KEYS]]];
+      imported.metadata.layout = [[[...LEGACY_FLAT_SEED_COLUMN]]];
 
       importResume(imported);
 
@@ -713,13 +734,17 @@ describe("useResumeStore", () => {
 
   it("toggleSectionVisibility places a sidebar section in the sidebar column (#819)", () => {
     createRoot((dispose) => {
-      const { store, importResume, toggleSectionVisibility } = useResumeStore();
+      const { store, importResume, updateLayout, toggleSectionVisibility } = useResumeStore();
       const imported = createDefaultResume();
       imported.metadata.template = "pikachu";
       imported.metadata.layout = [[["summary", "experience"], ["profiles"]]];
       imported.sections.interests.visible = false;
 
       importResume(imported);
+      // Import normalization back-fills every missing fixed id, which would
+      // satisfy the assertion without the toggle running placeFixedSectionId.
+      // Strip the layout back to the pruned shape so the toggle must place.
+      updateLayout([[["summary", "experience"], ["profiles"]]]);
       toggleSectionVisibility("interests");
 
       expect(store.resume!.sections.interests.visible).toBe(true);

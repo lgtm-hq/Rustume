@@ -114,6 +114,7 @@ function isNameOnlyCustomItem(item: AnyItem): boolean {
     !hasText(item.location) &&
     !hasText(item.summary) &&
     (item.keywords ?? []).length === 0 &&
+    (item.customFields ?? []).every((field) => !hasText(field.name) && !hasText(field.value)) &&
     !hasText(item.url?.label) &&
     !hasText(item.url?.href)
   );
@@ -571,6 +572,7 @@ export function DocSection(props: DocSectionProps): JSX.Element {
         </Show>
         <EntrySummary value={item.summary ?? ""} />
         <TagChips tags={item.keywords} />
+        <ExtraFieldsView fields={item.customFields} />
         <Show when={hasText(linkHref())}>
           <div class="doc-sheet__entry-loc">
             <ContactIcon kind="link" />

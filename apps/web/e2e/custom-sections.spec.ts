@@ -108,9 +108,14 @@ test.describe("custom sections from the panel", () => {
     await dialog.getByRole("textbox", { name: "Description" }).fill("Clarity Conference");
     await dialog.getByRole("textbox", { name: "Date" }).fill("May 2025");
     await dialog.getByRole("textbox", { name: "Location" }).fill("Amsterdam");
+    await dialog.getByRole("textbox", { name: "Summary" }).fill("Spoke about token pipelines.");
     const tags = dialog.getByRole("textbox", { name: "Tags" });
     await tags.fill("Design Systems");
     await tags.press("Enter");
+    await dialog.getByRole("textbox", { name: "Link label" }).fill("Slides");
+    await dialog
+      .getByRole("textbox", { name: "Link URL" })
+      .fill("https://example.com/design-tokens");
     await dialog.getByRole("button", { name: "Add", exact: true }).click();
 
     // Every dialog field draws on the sheet — not just the name (#821).
@@ -118,7 +123,13 @@ test.describe("custom sections from the panel", () => {
     await expect(card).toContainText("Clarity Conference");
     await expect(card).toContainText("May 2025");
     await expect(card).toContainText("Amsterdam");
+    await expect(card).toContainText("Spoke about token pipelines.");
     await expect(card).toContainText("Design Systems");
+    // An http(s) link renders as a live anchor carrying its label (#821).
+    await expect(card.getByRole("link", { name: "Slides" })).toHaveAttribute(
+      "href",
+      "https://example.com/design-tokens",
+    );
   });
 
   test("a custom section survives autosave, reload, and a post-reload edit", async ({

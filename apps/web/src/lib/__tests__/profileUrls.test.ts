@@ -51,6 +51,41 @@ describe("profileHrefMatches", () => {
     ).toBe(true);
   });
 
+  it("rejects the username as a substring of a different path segment", () => {
+    expect(
+      profileHrefMatches("GitHub", "TurboCoder13", "https://github.com/not-turbocoder13"),
+    ).toBe(false);
+  });
+
+  it("rejects the username appearing only in another path or query value", () => {
+    expect(
+      profileHrefMatches("GitHub", "TurboCoder13", "https://github.com/lgtm-hq?ref=turbocoder13"),
+    ).toBe(false);
+    expect(
+      profileHrefMatches("GitHub", "TurboCoder13", "https://github.com/lgtm-hq#turbocoder13"),
+    ).toBe(false);
+  });
+
+  it("rejects a matching username on the wrong host", () => {
+    expect(profileHrefMatches("GitHub", "TurboCoder13", "https://example.com/turbocoder13")).toBe(
+      false,
+    );
+  });
+
+  it("accepts network subdomains and www variants", () => {
+    expect(
+      profileHrefMatches("GitHub", "TurboCoder13", "https://www.github.com/turbocoder13"),
+    ).toBe(true);
+    expect(
+      profileHrefMatches("LinkedIn", "Eitel Dagnin", "https://de.linkedin.com/in/eitel-dagnin"),
+    ).toBe(true);
+  });
+
+  it("treats twitter.com and x.com as the same network", () => {
+    expect(profileHrefMatches("Twitter", "someone", "https://x.com/someone")).toBe(true);
+    expect(profileHrefMatches("X", "someone", "https://twitter.com/someone")).toBe(true);
+  });
+
   it("never mismatches for unknown networks or empty inputs", () => {
     expect(profileHrefMatches("Portfolio", "Some Name", "https://example.com")).toBe(true);
     expect(profileHrefMatches("GitHub", "", "https://github.com/lgtm-hq")).toBe(true);

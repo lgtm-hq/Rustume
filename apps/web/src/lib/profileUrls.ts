@@ -57,11 +57,42 @@ export function isHttpHref(href: string): boolean {
  * Only meaningful for known networks; unknown networks never mismatch (the
  * username there is free text, not a URL fragment).
  */
+/** Hosts that serve the same profiles, so either one matches the network. */
+const EQUIVALENT_HOSTS: Readonly<Record<string, readonly string[]>> = {
+  "twitter.com": ["x.com"],
+  "x.com": ["twitter.com"],
+};
+
+/** `hostname` without a leading `www.`, lowercased. */
+function bareHost(hostname: string): string {
+  return hostname.toLowerCase().replace(/^www\./, "");
+}
+
 export function profileHrefMatches(network: string, username: string, href: string): boolean {
-  if (NETWORK_URL_PREFIXES[network.trim().toLowerCase()] === undefined) return true;
+  const prefix = NETWORK_URL_PREFIXES[network.trim().toLowerCase()];
+  if (prefix === undefined) return true;
   const slug = usernameSlug(username);
   if (slug === "" || href.trim() === "") return true;
-  return href.toLowerCase().includes(slug);
+  let parsed: URL;
+  try {
+    parsed = new URL(withHttps(href));
+  } catch {
+    // Not a parseable URL at all — it cannot point at the profile.
+    return false;
+  }
+  // The host must belong to the network (regional/mobile subdomains count).
+  const expected = bareHost(new URL(prefix).hostname);
+  const host = bareHost(parsed.hostname);
+  const hosts = [expected, ...(EQUIVALENT_HOSTS[expected] ?? [])];
+  if (!hosts.some((allowed) => host === allowed || host.endsWith(`.${allowed}`))) return false;
+  // The username must be a whole path segment, not a substring of one —
+  // `/not-turbocoder13` is a different profile than `/turbocoder13`. A
+  // `slug-`-prefixed segment stays a match for LinkedIn-style ID suffixes.
+  return parsed.pathname
+    .toLowerCase()
+    .split("/")
+    .map((segment) => (segment.startsWith("@") ? segment.slice(1) : segment))
+    .some((segment) => segment === slug || segment.startsWith(`${slug}-`));
 }
 
 /**
