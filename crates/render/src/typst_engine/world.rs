@@ -32,6 +32,13 @@ static TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/src/typst_engin
 static PROFILE_ICON_DIR: Dir<'_> =
     include_dir!("$CARGO_MANIFEST_DIR/src/typst_engine/assets/icons");
 
+/// Bundled font files (`*.ttf`), embedded at build time so the font families
+/// the templates name (IBM Plex Sans / IBM Plex Serif) resolve identically on
+/// every deployment target — native, Docker, and WASM — without relying on
+/// system font packages.
+static BUNDLED_FONT_DIR: Dir<'_> =
+    include_dir!("$CARGO_MANIFEST_DIR/src/typst_engine/assets/fonts");
+
 /// Cached embedded template contents keyed by file stem (without `.typ`).
 static EMBEDDED_TEMPLATES: OnceLock<HashMap<String, String>> = OnceLock::new();
 
@@ -228,6 +235,25 @@ impl RustumeWorld {
     fn load_fonts() -> (FontBook, Vec<Font>) {
         let mut book = FontBook::new();
         let mut fonts = Vec::new();
+
+        // Load fonts embedded in the binary first (template-named families
+        // such as IBM Plex Sans/Serif) so they win over system lookalikes.
+        for file in BUNDLED_FONT_DIR.files() {
+            let is_font = file
+                .path()
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .map(|ext| Self::FONT_EXTENSIONS.contains(&ext.to_lowercase().as_str()))
+                .unwrap_or(false);
+            if !is_font {
+                continue;
+            }
+            let buffer = Bytes::new(file.contents().to_vec());
+            for font in Font::iter(buffer) {
+                book.push(font.info().clone());
+                fonts.push(font);
+            }
+        }
 
         // Load bundled fonts from typst-assets
         for entry in typst_assets::fonts() {
@@ -443,6 +469,24 @@ mod tests {
             EXPECTED_TEMPLATES.len() + 1,
             "unexpected embedded template count"
         );
+    }
+
+    /// The font families the templates name must resolve from the embedded
+    /// set alone — deployments must not depend on system font packages, so
+    /// this reads `BUNDLED_FONT_DIR` directly rather than the full cache
+    /// (which also holds typst-assets and system fonts).
+    #[test]
+    fn bundled_fonts_include_template_named_families() {
+        let fonts: Vec<_> = BUNDLED_FONT_DIR
+            .files()
+            .flat_map(|file| Font::iter(Bytes::new(file.contents().to_vec())))
+            .collect();
+        for family in ["IBM Plex Sans", "IBM Plex Serif"] {
+            assert!(
+                fonts.iter().any(|font| font.info().family == family),
+                "embedded font set is missing family '{family}'"
+            );
+        }
     }
 
     #[test]

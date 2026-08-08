@@ -7,7 +7,7 @@ use rstest::rstest;
 use rustume_parser::{JsonResumeParser, Parser, ReactiveResumeV3Parser};
 use rustume_render::{get_page_size, get_template_theme, Renderer, TypstRenderer, TEMPLATES};
 use rustume_schema::{
-    Basics, ContentFormat, CustomField, CustomItem, Education, Experience, LevelDisplay,
+    Award, Basics, ContentFormat, CustomField, CustomItem, Education, Experience, LevelDisplay,
     PageFormat, Picture, PictureEffects, Profile, Project, ResumeData, Section, Skill,
 };
 use std::collections::HashMap;
@@ -1145,11 +1145,13 @@ fn test_cover_letter_not_placed_in_layout_is_skipped(#[case] template_name: &str
 #[rstest]
 #[case("rhyhorn")]
 #[case("azurill")]
-fn test_cover_letter_on_later_layout_page_is_skipped(#[case] template_name: &str) {
+fn test_cover_letter_on_later_layout_page_renders_dedicated_page(#[case] template_name: &str) {
     let renderer = TypstRenderer::new();
 
-    // The renderer consumes page 0 only; later layout pages must not affect
-    // cover-letter or pagebreak decisions.
+    // The renderer now consumes every layout page, so a cover letter placed on
+    // a later layout page is still hoisted into its dedicated leading page.
+    // The layout page that holds only "coverLetter" must not additionally emit
+    // a blank resume page.
     let mut resume = sample_resume();
     resume.metadata.template = template_name.to_string();
     fill_cover_letter(&mut resume, true);
@@ -1175,8 +1177,10 @@ fn test_cover_letter_on_later_layout_page_is_skipped(#[case] template_name: &str
         .unwrap_or_else(|e| panic!("Baseline preview failed for '{template_name}': {e:?}"));
 
     assert_eq!(
-        pages, base_pages,
-        "Cover letter on a later layout page must not add pages in '{template_name}'"
+        pages,
+        base_pages + 1,
+        "Cover letter on a later layout page must add exactly its dedicated page in \
+         '{template_name}'"
     );
 }
 
@@ -1494,4 +1498,304 @@ fn test_templates_render_profiles_with_links(#[case] template_name: &str) {
         pdf_str.contains("https://linkedin.com/in/john-doe"),
         "PDF for '{template_name}' should embed the LinkedIn profile URL"
     );
+}
+
+// ============================================================================
+// Content-Level PDF Assertions (multi-page layouts, doc-editor parity)
+// ============================================================================
+
+/// Extract the text of every PDF page, in page order.
+fn extract_pdf_pages_text(pdf: &[u8]) -> Vec<String> {
+    pdf_extract::extract_text_from_mem_by_pages(pdf)
+        .expect("rendered PDF should yield extractable text")
+}
+
+/// Index of the first page whose extracted text contains `needle`.
+fn page_index_containing(pages: &[String], needle: &str) -> Option<usize> {
+    pages.iter().position(|text| text.contains(needle))
+}
+
+/// The doc-editor fixture declares a two-page `metadata.layout` on a sidebar
+/// template (`ditto`). The rendered PDF must carry the content of BOTH layout
+/// pages — sidebar sections, project highlights, and the sections placed on
+/// layout page 2 — and layout page 2 must start on a later PDF page.
+#[test]
+fn test_doc_editor_fixture_renders_both_layout_pages_with_content() {
+    let data = fs::read(fixtures_path().join("v3").join("doc-editor.json"))
+        .expect("Failed to read doc-editor fixture");
+    let resume = ReactiveResumeV3Parser
+        .parse(&data)
+        .expect("Failed to parse doc-editor fixture");
+    assert!(
+        resume.metadata.layout.len() >= 2,
+        "fixture should declare a multi-page layout"
+    );
+
+    let pdf = TypstRenderer::new()
+        .render_pdf(&resume)
+        .expect("doc-editor fixture should render");
+    let pages = extract_pdf_pages_text(&pdf);
+    assert!(
+        pages.len() >= 2,
+        "a two-page layout must render at least two PDF pages, got {}",
+        pages.len()
+    );
+
+    // Layout page 0, sidebar column: profiles and skills open on the first
+    // page; the "speaking" custom section may flow onto a continuation page
+    // but must render before the sections placed on layout page 2.
+    let first = &pages[0];
+    for needle in ["Mastodon", "Design Tokens"] {
+        assert!(
+            first.contains(needle),
+            "first page should carry sidebar content '{needle}', got:\n{first}"
+        );
+    }
+    // Section headings render uppercased in ditto, so match the styled form.
+    let speaking_page = page_index_containing(&pages, "WORKSHOPS")
+        .expect("custom sidebar section 'Talks & Workshops' missing from every page");
+    let page_two_start = page_index_containing(&pages, "Igbo")
+        .expect("layout page 2 languages content missing from every page");
+    assert!(
+        speaking_page < page_two_start,
+        "layout page 1 sidebar content must render before layout page 2 sections \
+         (speaking on {speaking_page}, layout page 2 on {page_two_start})"
+    );
+
+    // The fixture's "advisory" custom section is visible: false — it must
+    // stay out of the output even though the layout references it.
+    assert!(
+        page_index_containing(&pages, "ADVISORY").is_none(),
+        "hidden custom section 'Advisory' must not render"
+    );
+
+    // Layout page 0, main column: project name and a summary highlight.
+    let project_page = page_index_containing(&pages, "Contrastly")
+        .expect("project name 'Contrastly' missing from every page");
+    let highlight_page = page_index_containing(&pages, "spreadsheet")
+        .expect("project highlight bullet missing from every page");
+    assert_eq!(
+        project_page, highlight_page,
+        "project highlights should render with the project entry"
+    );
+
+    // Layout page 1 content must exist and start after layout page 0 content.
+    for needle in ["Letterpress", "Igbo", "Scrum"] {
+        let idx = page_index_containing(&pages, needle)
+            .unwrap_or_else(|| panic!("layout page 2 content '{needle}' missing from every page"));
+        assert!(
+            idx > 0,
+            "layout page 2 content '{needle}' must not render on the first PDF page"
+        );
+        assert!(
+            idx >= project_page,
+            "layout page 2 content '{needle}' must render after layout page 1 content"
+        );
+    }
+}
+
+/// A second explicit layout page adds exactly one rendered page and its
+/// sections land on that page — across the three grid strategies (single
+/// column, fixed sidebar, proportional two-column).
+#[rstest]
+#[case("rhyhorn")]
+#[case("pikachu")]
+#[case("leafish")]
+fn test_second_layout_page_adds_a_page_with_its_sections(#[case] template_name: &str) {
+    let renderer = TypstRenderer::new();
+    let page_one_layout = vec![vec![
+        vec!["summary".to_string(), "experience".to_string()],
+        vec!["education".to_string(), "skills".to_string()],
+    ]];
+
+    let mut base = sample_resume();
+    base.metadata.template = template_name.to_string();
+    base.metadata.layout = page_one_layout.clone();
+    let (_, base_pages) = renderer
+        .render_preview(&base, 0)
+        .unwrap_or_else(|e| panic!("baseline preview failed for '{template_name}': {e:?}"));
+
+    let mut multi = sample_resume();
+    multi.metadata.template = template_name.to_string();
+    multi.sections.awards = Section::new("awards", "Awards");
+    multi.sections.awards.add_item(
+        Award::new("Golden Crab Trophy")
+            .with_awarder("Crustacean Society")
+            .with_date("2024"),
+    );
+    let mut layout = page_one_layout;
+    layout.push(vec![vec!["awards".to_string()], vec![]]);
+    multi.metadata.layout = layout;
+
+    let (_, pages) = renderer
+        .render_preview(&multi, 0)
+        .unwrap_or_else(|e| panic!("multi-page preview failed for '{template_name}': {e:?}"));
+    assert_eq!(
+        pages,
+        base_pages + 1,
+        "second layout page should add exactly one page for '{template_name}'"
+    );
+
+    let pdf = renderer
+        .render_pdf(&multi)
+        .unwrap_or_else(|e| panic!("multi-page PDF failed for '{template_name}': {e:?}"));
+    let texts = extract_pdf_pages_text(&pdf);
+    let award_page = page_index_containing(&texts, "Golden Crab Trophy").unwrap_or_else(|| {
+        panic!("award placed on layout page 2 missing from every page in '{template_name}'")
+    });
+    assert_eq!(
+        award_page,
+        texts.len() - 1,
+        "layout page 2 sections should render on the final page for '{template_name}'"
+    );
+    assert!(
+        texts[0].contains("Acme Corp"),
+        "layout page 1 sections should stay on the first page for '{template_name}'"
+    );
+}
+
+/// An empty trailing layout page (all columns empty) must not emit a blank
+/// PDF page.
+#[test]
+fn test_empty_trailing_layout_page_adds_no_page() {
+    let renderer = TypstRenderer::new();
+    let base_layout = vec![vec![
+        vec!["summary".to_string(), "experience".to_string()],
+        vec!["education".to_string(), "skills".to_string()],
+    ]];
+
+    let mut base = sample_resume();
+    base.metadata.layout = base_layout.clone();
+    let (_, base_pages) = renderer.render_preview(&base, 0).expect("baseline preview");
+
+    let mut padded = sample_resume();
+    let mut layout = base_layout;
+    layout.push(vec![vec![], vec![]]);
+    padded.metadata.layout = layout;
+    let (_, pages) = renderer.render_preview(&padded, 0).expect("padded preview");
+
+    assert_eq!(pages, base_pages, "empty layout page must not add a page");
+}
+
+/// A trailing layout page whose sections are all hidden draws nothing, so it
+/// must not emit a styled blank page either (visibility-aware
+/// `layout-page-has-content`).
+#[test]
+fn test_hidden_only_trailing_layout_page_adds_no_page() {
+    let renderer = TypstRenderer::new();
+    let base_layout = vec![vec![
+        vec!["summary".to_string(), "experience".to_string()],
+        vec!["education".to_string(), "skills".to_string()],
+    ]];
+
+    let mut base = sample_resume();
+    base.metadata.layout = base_layout.clone();
+    base.sections.interests.visible = false;
+    let (_, base_pages) = renderer.render_preview(&base, 0).expect("baseline preview");
+
+    let mut padded = base.clone();
+    let mut layout = base_layout;
+    layout.push(vec![vec!["interests".to_string()], vec![]]);
+    padded.metadata.layout = layout;
+    let (_, pages) = renderer.render_preview(&padded, 0).expect("padded preview");
+
+    assert_eq!(
+        pages, base_pages,
+        "a layout page holding only hidden sections must not add a page"
+    );
+}
+
+/// Contact rows render through the bundled-SVG icon mechanism now — the
+/// extracted text must carry the plain contact values with no emoji glyphs
+/// (✉ ☎ 📍 🔗 rendered as tofu boxes when the font lacks them).
+#[rstest]
+#[case("pikachu")]
+#[case("nosepass")]
+fn test_contact_rows_render_without_emoji_glyphs(#[case] template_name: &str) {
+    let renderer = TypstRenderer::new();
+    let mut resume = sample_resume();
+    resume.metadata.template = template_name.to_string();
+    resume.basics.url.href = "https://johndoe.dev".to_string();
+
+    let pdf = renderer
+        .render_pdf(&resume)
+        .unwrap_or_else(|e| panic!("PDF render failed for '{template_name}': {e:?}"));
+    let text = extract_pdf_pages_text(&pdf).join("\n");
+
+    for needle in ["john@example.com", "+1-555-123-4567", "San Francisco, CA"] {
+        assert!(
+            text.contains(needle),
+            "contact value '{needle}' missing for '{template_name}':\n{text}"
+        );
+    }
+    for glyph in ["✉", "☎", "📍", "🔗"] {
+        assert!(
+            !text.contains(glyph),
+            "emoji contact glyph '{glyph}' should be gone from '{template_name}'"
+        );
+    }
+}
+
+/// Field parity: skill description/keywords, education summary, project
+/// summary (#700), and interest keywords must reach the extracted PDF text on
+/// the templates that previously dropped them.
+#[rstest]
+#[case("pikachu")]
+#[case("nosepass")]
+#[case("rhyhorn")]
+#[case("chikorita")]
+#[case("ditto")]
+#[case("glalie")]
+fn test_parity_fields_reach_pdf_text(#[case] template_name: &str) {
+    let renderer = TypstRenderer::new();
+    let mut resume = sample_resume();
+    resume.metadata.template = template_name.to_string();
+
+    resume.sections.skills = Section::new("skills", "Skills");
+    let mut skill = Skill::new("Rust")
+        .with_level(5)
+        .with_keywords(vec!["Tokio".to_string(), "Typst".to_string()]);
+    skill.description = "Daily driver since 2019".to_string();
+    resume.sections.skills.add_item(skill);
+
+    resume.sections.education.items[0].summary = "Thesis on distributed consensus".to_string();
+
+    resume.sections.projects = Section::new("projects", "Projects");
+    resume
+        .sections
+        .projects
+        .add_item(Project::new("Rustume").with_summary("Shipped the multi-page layout engine"));
+
+    resume.sections.interests = Section::new("interests", "Interests");
+    resume.sections.interests.visible = true;
+    let mut interest = rustume_schema::Interest::new("Orienteering");
+    interest.keywords = vec!["Night navigation".to_string()];
+    resume.sections.interests.add_item(interest);
+    resume.metadata.layout = vec![vec![
+        vec![
+            "summary".to_string(),
+            "experience".to_string(),
+            "education".to_string(),
+            "projects".to_string(),
+        ],
+        vec!["skills".to_string(), "interests".to_string()],
+    ]];
+
+    let pdf = renderer
+        .render_pdf(&resume)
+        .unwrap_or_else(|e| panic!("PDF render failed for '{template_name}': {e:?}"));
+    let text = extract_pdf_pages_text(&pdf).join("\n");
+
+    for needle in [
+        "Daily driver since 2019",
+        "Tokio",
+        "Thesis on distributed consensus",
+        "Shipped the multi-page layout engine",
+        "Night navigation",
+    ] {
+        assert!(
+            text.contains(needle),
+            "parity field '{needle}' missing from '{template_name}' output:\n{text}"
+        );
+    }
 }

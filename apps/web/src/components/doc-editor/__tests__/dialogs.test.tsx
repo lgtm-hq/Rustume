@@ -167,6 +167,89 @@ describe("item dialog", () => {
     expect(updates.keywords).toEqual(["wasm", "axum"]);
   });
 
+  it("derives an empty profile href from network + username on save (#820)", () => {
+    render(() => (
+      <ItemDialog open sectionId="profiles" sectionTitle="Profiles" onOpenChange={() => {}} />
+    ));
+
+    fireEvent.input(screen.getByRole("textbox", { name: "Network" }), {
+      target: { value: "GitHub" },
+    });
+    fireEvent.input(screen.getByRole("textbox", { name: "Username" }), {
+      target: { value: "TurboCoder13" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    const [, item] = store.addSectionItem.mock.calls[0] as [string, Record<string, unknown>];
+    expect((item.url as { href: string }).href).toBe("https://github.com/turbocoder13");
+  });
+
+  it("re-derives the href when a rename left it on the old username's URL (#820)", () => {
+    const item = {
+      ...(emptyItemFor("profiles") as unknown as Record<string, unknown>),
+      id: "p1",
+      network: "GitHub",
+      username: "lgtm-hq",
+      url: { label: "", href: "https://github.com/lgtm-hq" },
+    };
+
+    render(() => (
+      <ItemDialog
+        open
+        sectionId="profiles"
+        sectionTitle="Profiles"
+        index={0}
+        item={item}
+        onOpenChange={() => {}}
+      />
+    ));
+
+    fireEvent.input(screen.getByRole("textbox", { name: "Username" }), {
+      target: { value: "TurboCoder13" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    const [, , updates] = store.updateSectionItem.mock.calls[0] as [
+      string,
+      number,
+      Record<string, unknown>,
+    ];
+    expect((updates.url as { href: string }).href).toBe("https://github.com/turbocoder13");
+  });
+
+  it("never overwrites a hand-written profile href (#820)", () => {
+    const item = {
+      ...(emptyItemFor("profiles") as unknown as Record<string, unknown>),
+      id: "p1",
+      network: "GitHub",
+      username: "lgtm-hq",
+      url: { label: "", href: "https://example.com/custom" },
+    };
+
+    render(() => (
+      <ItemDialog
+        open
+        sectionId="profiles"
+        sectionTitle="Profiles"
+        index={0}
+        item={item}
+        onOpenChange={() => {}}
+      />
+    ));
+
+    fireEvent.input(screen.getByRole("textbox", { name: "Username" }), {
+      target: { value: "TurboCoder13" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    const [, , updates] = store.updateSectionItem.mock.calls[0] as [
+      string,
+      number,
+      Record<string, unknown>,
+    ];
+    expect((updates.url as { href: string }).href).toBe("https://example.com/custom");
+  });
+
   it("adds a custom-section item through addCustomSectionItem", () => {
     render(() => (
       <ItemDialog open sectionId={CUSTOM_SECTION_ID} sectionTitle="Talks" onOpenChange={() => {}} />

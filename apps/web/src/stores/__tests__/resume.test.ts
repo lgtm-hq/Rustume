@@ -12,6 +12,27 @@ import {
   isNotFoundError,
 } from "../resume";
 
+/**
+ * The single column the template-aware seed writes for the default `rhyhorn`
+ * template (#819): the bundled all-sections order, `coverLetter` first.
+ */
+const SEEDED_SINGLE_COLUMN_IDS = [
+  "coverLetter",
+  "summary",
+  "experience",
+  "education",
+  "awards",
+  "certifications",
+  "publications",
+  "volunteer",
+  "projects",
+  "references",
+  "profiles",
+  "skills",
+  "interests",
+  "languages",
+];
+
 vi.mock("../../wasm", () => ({
   createEmptyResume: () => createDefaultResume(),
   saveResume: vi.fn().mockResolvedValue(undefined),
@@ -434,9 +455,7 @@ describe("useResumeStore", () => {
 
       importResume(imported);
 
-      expect(store.resume!.metadata.layout).toEqual([
-        [["summary", "coverLetter", ...FIXED_LAYOUT_SECTION_KEYS]],
-      ]);
+      expect(store.resume!.metadata.layout).toEqual([[SEEDED_SINGLE_COLUMN_IDS]]);
       dispose();
     });
   });
@@ -611,9 +630,7 @@ describe("useResumeStore", () => {
       importResume(imported);
       const sectionId = addCustomSection("Writing");
 
-      expect(store.resume!.metadata.layout).toEqual([
-        [["summary", "coverLetter", ...FIXED_LAYOUT_SECTION_KEYS, sectionId]],
-      ]);
+      expect(store.resume!.metadata.layout).toEqual([[[...SEEDED_SINGLE_COLUMN_IDS, sectionId]]]);
       dispose();
     });
   });
@@ -637,6 +654,102 @@ describe("useResumeStore", () => {
         1,
       );
       expect(store.resume!.metadata.layout.flat(2).filter((id) => id === "skills")).toHaveLength(1);
+      dispose();
+    });
+  });
+
+  it("seeds an empty layout per the template's column split (#819)", () => {
+    createRoot((dispose) => {
+      const { store, importResume } = useResumeStore();
+      const imported = createDefaultResume();
+      imported.metadata.template = "pikachu";
+      imported.metadata.layout = [];
+      imported.sections.coverLetter.visible = true;
+
+      importResume(imported);
+
+      const [main, sidebar] = store.resume!.metadata.layout[0];
+      expect(sidebar).toEqual(["profiles", "skills", "interests", "languages"]);
+      expect(main[0]).toBe("coverLetter");
+      expect(main).toContain("summary");
+      expect(main).toContain("experience");
+      dispose();
+    });
+  });
+
+  // The exact pre-#819 on-disk seed order, frozen as a literal to mirror
+  // LEGACY_FLAT_SEED_PREFIX in stores/resume.ts: a future reorder of the live
+  // FIXED_LAYOUT_SECTION_KEYS must not change the historical shape this
+  // repair test exercises.
+  const LEGACY_FLAT_SEED_COLUMN = [
+    "summary",
+    "coverLetter",
+    "experience",
+    "education",
+    "skills",
+    "projects",
+    "profiles",
+    "awards",
+    "certifications",
+    "publications",
+    "languages",
+    "interests",
+    "volunteer",
+    "references",
+  ];
+
+  it("repairs the legacy flat seed on a two-column template (#819)", () => {
+    createRoot((dispose) => {
+      const { store, importResume } = useResumeStore();
+      const imported = createDefaultResume();
+      imported.metadata.template = "pikachu";
+      imported.metadata.layout = [[[...LEGACY_FLAT_SEED_COLUMN]]];
+
+      importResume(imported);
+
+      const [, sidebar] = store.resume!.metadata.layout[0];
+      expect(sidebar).toEqual(["profiles", "skills", "interests", "languages"]);
+      dispose();
+    });
+  });
+
+  it("leaves a user-arranged layout untouched (#819)", () => {
+    createRoot((dispose) => {
+      const { store, importResume } = useResumeStore();
+      const imported = createDefaultResume();
+      imported.metadata.template = "pikachu";
+      // Not the seed shape: the user pruned and split sections themselves.
+      imported.metadata.layout = [[["summary", "experience", "skills"]]];
+
+      importResume(imported);
+
+      expect(store.resume!.metadata.layout[0][0].slice(0, 3)).toEqual([
+        "summary",
+        "experience",
+        "skills",
+      ]);
+      dispose();
+    });
+  });
+
+  it("toggleSectionVisibility places a sidebar section in the sidebar column (#819)", () => {
+    createRoot((dispose) => {
+      const { store, importResume, updateLayout, toggleSectionVisibility } = useResumeStore();
+      const imported = createDefaultResume();
+      imported.metadata.template = "pikachu";
+      imported.metadata.layout = [[["summary", "experience"], ["profiles"]]];
+      imported.sections.interests.visible = false;
+
+      importResume(imported);
+      // Import normalization back-fills every missing fixed id, which would
+      // satisfy the assertion without the toggle running placeFixedSectionId.
+      // Strip the layout back to the pruned shape so the toggle must place.
+      updateLayout([[["summary", "experience"], ["profiles"]]]);
+      toggleSectionVisibility("interests");
+
+      expect(store.resume!.sections.interests.visible).toBe(true);
+      expect(store.resume!.metadata.layout[0][1]).toContain("interests");
+      expect(store.resume!.metadata.layout[0][0]).not.toContain("interests");
       dispose();
     });
   });

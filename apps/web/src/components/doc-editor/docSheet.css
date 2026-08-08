@@ -1074,6 +1074,14 @@
   padding-right: 0.25rem;
 }
 
+/* Free-text description under a levelled row (skills, languages) (#821). */
+.doc-sheet__lang-desc {
+  flex: 1 1 100%;
+  font-size: 0.68rem;
+  color: var(--doc-sheet-muted);
+  line-height: 1.35;
+}
+
 .doc-sheet__lang-dots {
   display: inline-flex;
   gap: 3px;

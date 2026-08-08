@@ -188,7 +188,32 @@ describe("document sheet modal editing (owner decision 2026-08-04)", () => {
     expect(writeCount()).toBe(1);
   });
 
-  it("draws custom-section items as chips with no inline editor (#794)", () => {
+  it("draws rich custom-section items as full entry rows (#821)", () => {
+    renderSheet();
+
+    const section = document.querySelector('[data-section-id="speaking"]') as HTMLElement;
+    expect(section.querySelector(".doc-sheet__skill-chip")).toBeNull();
+    const row = section.querySelector(".doc-sheet__entry") as HTMLElement;
+    expect(row.textContent).toContain("Design Tokens Beyond Colour");
+    expect(row.textContent).toContain("May 2025");
+    expect(row.textContent).toContain("Amsterdam, Netherlands");
+    // The markdown summary and the tag chips draw too — the fields the old
+    // chip list silently discarded.
+    expect(row.textContent).toContain("semantic");
+    expect(row.textContent).toContain("Conference Talk");
+  });
+
+  it("keeps name-only custom-section items as chips (#794, #821)", () => {
+    for (const item of Object.values(resume.sections.custom)) {
+      for (const entry of item.items) {
+        entry.description = "";
+        entry.date = "";
+        entry.location = "";
+        entry.summary = "";
+        entry.keywords = [];
+        entry.url = { label: "", href: "" };
+      }
+    }
     renderSheet();
 
     expect(screen.queryByRole("button", { name: "Design Tokens Beyond Colour" })).toBeNull();

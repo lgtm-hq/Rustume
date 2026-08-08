@@ -46,6 +46,7 @@ import {
   updateSummary,
 } from "./docEdits";
 import { itemNoun } from "./itemFields";
+import { isHttpHref } from "../../lib/profileUrls";
 import { entryDisplayLabel, entryStep, type MoveStep } from "../../lib/docDnd";
 import { isCustomId, sectionTitle, type SectionPlacement } from "../../lib/docLayout";
 import type { SectionSlice } from "../../lib/docPagination";
@@ -97,11 +98,26 @@ interface AnyItem {
   name?: string;
   description?: string;
   date?: string;
+  location?: string;
   summary?: string;
   keywords?: string[];
   customFields?: CustomField[];
   level?: number;
   url?: Url;
+}
+
+/** Whether a custom item carries nothing beyond its name (#821). */
+function isNameOnlyCustomItem(item: AnyItem): boolean {
+  return (
+    !hasText(item.description) &&
+    !hasText(item.date) &&
+    !hasText(item.location) &&
+    !hasText(item.summary) &&
+    (item.keywords ?? []).length === 0 &&
+    (item.customFields ?? []).every((field) => !hasText(field.name) && !hasText(field.value)) &&
+    !hasText(item.url?.label) &&
+    !hasText(item.url?.href)
+  );
 }
 
 /** A drawn item, plus where it sits in the section's own `items` array. */
@@ -253,7 +269,14 @@ export function DocSection(props: DocSectionProps): JSX.Element {
   /** Continuation slices re-render the title as "<Title> (cont.)" (§3.3). */
   const title = (): string => (isContinuation() ? `${baseTitle()} (cont.)` : baseTitle());
   const isRichText = (): boolean => id() === "summary" || id() === "coverLetter";
-  const isChips = (): boolean => isCustomId(id());
+  /**
+   * Custom sections draw as chip lists only while every item is name-only
+   * (#821): the moment an item carries a description, date, location, summary,
+   * tags or a link, the whole section switches to full entry rows — the item
+   * dialog offers those fields, so the sheet must draw them.
+   */
+  const isChips = (): boolean =>
+    isCustomId(id()) && entries().every((entry) => isNameOnlyCustomItem(entry.item));
   const noun = (): string => itemNoun(baseTitle());
   const addLabel = (): string => ADD_LABELS[id()] ?? `Add ${noun()}`;
   /** Add affordances live only on the section's last slice (spec §2.6). */
@@ -482,7 +505,9 @@ export function DocSection(props: DocSectionProps): JSX.Element {
     const text = (): string => (hasText(item.username) ? item.username : item.network);
     const href = (): string | undefined => {
       const value = item.url?.href ?? "";
-      return value.trim() === "" ? undefined : value;
+      // Same http(s)-only rule as custom-item links: a stored javascript: or
+      // data: URL must never become a clickable destination.
+      return isHttpHref(value) ? value : undefined;
     };
     return (
       <div class="doc-sheet__icon-row">
@@ -511,7 +536,63 @@ export function DocSection(props: DocSectionProps): JSX.Element {
         <Show when={(item.level ?? 0) > 0}>
           <LevelDots value={item.level ?? 0} />
         </Show>
+        <Show when={hasText(item.description)}>
+          <span class="doc-sheet__lang-desc">{item.description}</span>
+        </Show>
         <TagChips tags={(item as Skill).keywords} />
+      </>
+    );
+  }
+
+  /**
+   * Full row for a custom-section item (#821): every field the item dialog
+   * offers — name, date, location, description, summary, tags, link.
+   */
+  function customBody(entry: ItemEntry): JSX.Element {
+    const item = entry.item;
+    const linkHref = (): string => item.url?.href ?? "";
+    const linkText = (): string =>
+      hasText(item.url?.label) ? (item.url?.label ?? "") : linkHref();
+    return (
+      <>
+        <div class="doc-sheet__entry-top">
+          <Slot field={bind(item.name, "Name", "name")} class="doc-sheet__entry-pos" />
+          <Slot field={bind(item.date, "Date", "date")} class="doc-sheet__entry-date" />
+        </div>
+        <Show when={hasText(item.location)}>
+          <div class="doc-sheet__entry-loc">
+            <ContactIcon kind="location" />
+            <Slot field={bind(item.location, "Location", "location")} />
+          </div>
+        </Show>
+        <Show when={hasText(item.description)}>
+          <div class="doc-sheet__entry-desc">
+            <Slot field={bind(item.description, "Description", "description")} />
+          </div>
+        </Show>
+        <EntrySummary value={item.summary ?? ""} />
+        <TagChips tags={item.keywords} />
+        <ExtraFieldsView fields={item.customFields} />
+        <Show when={hasText(linkHref())}>
+          <div class="doc-sheet__entry-loc">
+            <ContactIcon kind="link" />
+            {/* Live link in view mode; inert while editing (spec §1.7). A
+                non-http(s) href — javascript:, data: — draws as plain text. */}
+            <Show when={isHttpHref(linkHref())} fallback={<span>{linkText()}</span>}>
+              <a
+                class="doc-sheet__side-link"
+                href={linkHref()}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(event) => {
+                  if (isEditable()) event.preventDefault();
+                }}
+              >
+                {linkText()}
+              </a>
+            </Show>
+          </div>
+        </Show>
       </>
     );
   }
@@ -556,6 +637,7 @@ export function DocSection(props: DocSectionProps): JSX.Element {
     if (id() === "education") return educationBody(entry);
     if (id() === "profiles") return profileBody(entry);
     if (id() === "languages" || id() === "skills") return levelRowBody(entry);
+    if (isCustomId(id())) return customBody(entry);
     return genericBody(entry);
   }
 
@@ -629,6 +711,7 @@ export function DocSection(props: DocSectionProps): JSX.Element {
                       {entry.item.name}
                     </button>
                   </Show>
+                  <TagChips tags={entry.item.keywords} />
                 </li>
               )}
             </For>

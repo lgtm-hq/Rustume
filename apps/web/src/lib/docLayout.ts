@@ -148,6 +148,137 @@ export const FALLBACK_TEMPLATE_LAYOUT: TemplateLayout = {
   sidebarWidth: null,
 };
 
+/**
+ * Bundled mirror of `get_template_layout` in
+ * `crates/render/src/typst_engine/template_layout.rs`, for callers that must
+ * resolve a template's layout synchronously — the store seeds `metadata.layout`
+ * during normalization, before `GET /api/templates` can resolve. Keep the two
+ * in lockstep; the server-fetched layout still wins wherever it is available.
+ */
+const DEFAULT_MAIN_SECTIONS: readonly string[] = [
+  "summary",
+  "experience",
+  "education",
+  "awards",
+  "certifications",
+  "publications",
+  "volunteer",
+  "projects",
+  "references",
+];
+
+const DEFAULT_SIDEBAR_SECTIONS: readonly string[] = [
+  "profiles",
+  "skills",
+  "interests",
+  "certifications",
+  "awards",
+  "publications",
+  "languages",
+];
+
+function uniqueSections(...sources: readonly (readonly string[])[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const source of sources) {
+    for (const id of source) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+      out.push(id);
+    }
+  }
+  return out;
+}
+
+function bundledSingle(headerStyle: TemplateHeaderStyle): TemplateLayout {
+  return {
+    layoutMode: "single",
+    defaultColumns: [
+      uniqueSections(DEFAULT_MAIN_SECTIONS, DEFAULT_SIDEBAR_SECTIONS, [CUSTOM_SECTION_SENTINEL]),
+      [],
+    ],
+    headerStyle,
+    contactIn: "header",
+    sidebarWidth: null,
+  };
+}
+
+function bundledTwoColumn(
+  layoutMode: TemplateLayoutMode,
+  headerStyle: TemplateHeaderStyle,
+  contactIn: TemplateContactIn,
+  sidebarWidth: number | null,
+): TemplateLayout {
+  return {
+    layoutMode,
+    defaultColumns: [
+      uniqueSections(DEFAULT_MAIN_SECTIONS, [CUSTOM_SECTION_SENTINEL]),
+      uniqueSections(DEFAULT_SIDEBAR_SECTIONS),
+    ],
+    headerStyle,
+    contactIn,
+    sidebarWidth,
+  };
+}
+
+/**
+ * The bundled layout for a template id. Unknown ids fall back to the rhyhorn
+ * single-column shape, mirroring the Rust side.
+ */
+export function bundledTemplateLayout(template: string): TemplateLayout {
+  switch (template) {
+    case "rhyhorn":
+    case "onyx":
+    case "nosepass":
+      return bundledSingle("left");
+    case "bronzor":
+      return bundledSingle("center");
+    case "kakuna":
+      return bundledSingle("boxed");
+    case "azurill":
+      return bundledTwoColumn("sidebar-left", "center", "header", null);
+    case "chikorita":
+      return bundledTwoColumn("sidebar-right", "left", "header", null);
+    case "ditto":
+      return bundledTwoColumn("sidebar-left", "banner", "banner", 160);
+    case "gengar":
+    case "glalie":
+      return bundledTwoColumn("sidebar-left", "sidebar", "sidebar", 170);
+    case "pikachu":
+      return bundledTwoColumn("sidebar-left", "left", "sidebar", 180);
+    case "leafish":
+      return {
+        layoutMode: "header-split",
+        defaultColumns: [
+          uniqueSections(DEFAULT_MAIN_SECTIONS),
+          uniqueSections(DEFAULT_SIDEBAR_SECTIONS, [CUSTOM_SECTION_SENTINEL]),
+        ],
+        headerStyle: "banner",
+        contactIn: "banner",
+        sidebarWidth: null,
+      };
+    default:
+      return bundledSingle("left");
+  }
+}
+
+/**
+ * Column index the template's defaults assign `sectionId`, after first-seen
+ * dedup across columns — an id listed in both columns resolves to the main
+ * column, exactly where `materializeColumns` would place it.
+ */
+export function defaultColumnIndexFor(sectionId: string, templateLayout: TemplateLayout): number {
+  const seen = new Set<string>();
+  for (let column = 0; column < templateLayout.defaultColumns.length; column++) {
+    for (const id of templateLayout.defaultColumns[column]) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+      if (id === sectionId) return column;
+    }
+  }
+  return 0;
+}
+
 /** Where a section sits inside a `metadata.layout` array. */
 export interface SectionPlacement {
   /** Index of the page. */
@@ -474,6 +605,29 @@ export function layoutForTemplate(
   }
 
   return [columns];
+}
+
+/**
+ * A fresh `metadata.layout` seeded from the bundled defaults of the resume's
+ * own template — the store's synchronous replacement for the flat
+ * single-column seed that pinned sidebar sections in the main column (#819).
+ * `coverLetter` leads the main column when the defaults leave it unplaced,
+ * mirroring `default_layout()` in `crates/schema/src/metadata.rs` (its column
+ * position does not affect rendering — it draws as a dedicated page).
+ */
+export function seededLayoutForResume(resume: ResumeData): string[][][] {
+  const templateLayout = bundledTemplateLayout(resume.metadata?.template ?? "");
+  const pages = layoutForTemplate(resume, templateLayout);
+  const columns = pages[0] ?? [];
+  if (!columns.some((column) => column.includes("coverLetter"))) {
+    if (columns.length === 0) {
+      columns.push(["coverLetter"]);
+      pages[0] = columns;
+    } else {
+      columns[0].unshift("coverLetter");
+    }
+  }
+  return pages;
 }
 
 /**

@@ -44,7 +44,11 @@ FROM chef AS builder
 # Re-declare — ARGs do not cross FROM boundaries
 ARG TARGETARCH
 
-# Install fonts (data files for copying to runtime)
+# Install fallback fonts (data files for copying to runtime). The font
+# families the templates name (IBM Plex Sans / IBM Plex Serif) are embedded
+# in the server binary itself (crates/render/src/typst_engine/assets/fonts,
+# via include_dir), so they need no system package here; these packages only
+# provide broad glyph-coverage fallbacks for user-configured families.
 RUN apk add --no-cache font-liberation font-dejavu
 
 # Cook dependencies — this layer is cached as long as recipe.json is unchanged.
@@ -152,7 +156,8 @@ COPY --from=builder /app/rustume-server /app/rustume-server
 # Copy web app from web-builder
 COPY --from=web-builder /app/apps/web/dist /app/web
 
-# Copy font files from builder (needed for PDF rendering)
+# Copy fallback font files from builder (template-named IBM Plex families are
+# embedded in the binary; these cover other user-configured font families)
 COPY --from=builder /usr/share/fonts/liberation /usr/share/fonts/truetype/liberation
 COPY --from=builder /usr/share/fonts/dejavu /usr/share/fonts/truetype/dejavu
 

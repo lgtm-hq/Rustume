@@ -120,8 +120,11 @@ async fn doc_editor_edit_renders_a_real_pdf_end_to_end() {
         .expect("response body should collect");
 
     assert!(pdf.starts_with(b"%PDF-"), "response is not a PDF");
+    // The fixture declares a two-page metadata.layout; the renderer iterates
+    // every layout page, so the export must span at least two PDF pages.
     assert!(
-        count_pdf_pages(&pdf) >= 1,
-        "rendered PDF should contain at least one page"
+        count_pdf_pages(&pdf) >= 2,
+        "rendered PDF should carry both layout pages, got {} page(s)",
+        count_pdf_pages(&pdf)
     );
 }
