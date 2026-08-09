@@ -24,13 +24,28 @@ function loadFixture(): FixtureLayouts {
   return JSON.parse(readFileSync(FIXTURE_PATH, "utf8")) as FixtureLayouts;
 }
 
+/** Shipped template ids (Rust `TEMPLATES`); guards against a truncated fixture. */
+const SHIPPED_TEMPLATES = [
+  "rhyhorn",
+  "azurill",
+  "pikachu",
+  "nosepass",
+  "bronzor",
+  "chikorita",
+  "ditto",
+  "gengar",
+  "glalie",
+  "kakuna",
+  "leafish",
+  "onyx",
+] as const;
+
 describe("bundledTemplateLayout lockstep with get_template_layout", () => {
   const fixture = loadFixture();
   const ids = Object.keys(fixture);
 
-  it("fixture covers at least one template and the unknown-id fallback", () => {
-    expect(ids.length).toBeGreaterThan(1);
-    expect(fixture).toHaveProperty("not-a-template");
+  it("fixture covers every shipped template and the unknown-id fallback", () => {
+    expect(ids).toEqual(expect.arrayContaining([...SHIPPED_TEMPLATES, "not-a-template"]));
   });
 
   it.each(ids)("matches fixture for %s", (id) => {
