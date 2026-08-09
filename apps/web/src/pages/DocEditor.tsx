@@ -165,8 +165,11 @@ export default function DocEditor() {
   const [isThemeOpen, setIsThemeOpen] = createSignal(false);
 
   // Edit or Done, per document. A brand-new empty resume opens ready to type;
-  // an existing one opens as the clean rendered document.
+  // an existing one opens as the clean rendered document. Below the sheet's
+  // miniature edit floor (#813) the sheet forces Done; the toggle is disabled
+  // so the chrome matches what the surface actually draws.
   const [mode, setMode] = createSignal<SheetMode>("edit");
+  const [sheetInteractive, setSheetInteractive] = createSignal(true);
   let modeInitializedFor: string | null = null;
 
   createEffect(() => {
@@ -176,6 +179,10 @@ export default function DocEditor() {
     if (id === null || modeInitializedFor === id) return;
     modeInitializedFor = id;
     setMode(isBlankResume(resume) ? "edit" : "done");
+  });
+
+  createEffect(() => {
+    if (!sheetInteractive() && mode() === "edit") setMode("done");
   });
 
   // One-time legacy migration (#786): a resume whose rich fields are still
@@ -334,11 +341,18 @@ export default function DocEditor() {
           </Button>
           {/* The mode toggle: a push button whose label is the action it
               performs — "Edit" opens the document for editing, "Done" returns
-              to the clean rendered document. */}
+              to the clean rendered document. Disabled below the miniature
+              edit floor (#813) where interaction targets become sub-WCAG. */}
           <Button
             variant="secondary"
             size="sm"
             data-testid="doc-editor-mode-toggle"
+            disabled={!sheetInteractive()}
+            title={
+              sheetInteractive()
+                ? undefined
+                : "Editing needs a wider viewport — the sheet is shown as a read-only miniature"
+            }
             onClick={() => setMode(mode() === "edit" ? "done" : "edit")}
           >
             {mode() === "edit" ? "Done" : "Edit"}
@@ -390,6 +404,7 @@ export default function DocEditor() {
                     templateLayout={templateLayout()}
                     mode={mode()}
                     onOpenSections={() => setIsSectionsOpen(true)}
+                    onScaleChange={(info) => setSheetInteractive(info.interactive)}
                   />
                 )}
               </Show>

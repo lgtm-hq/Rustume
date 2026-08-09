@@ -96,6 +96,27 @@ test.describe("accessibility", () => {
       expect(await scanForViolations(page)).toEqual([]);
     });
 
+    test("miniature edit-floor surface has no WCAG 2.2 AA target-size violations", async ({
+      page,
+      homePage,
+      docEditorPage,
+    }) => {
+      // #813: below k = 0.45 the sheet forces Done so scaled edit targets
+      // never sit under the 24 CSS-px floor. Scan the unscaled chrome + the
+      // read-only miniature at a sub-floor viewport.
+      await page.setViewportSize({ width: 320, height: 640 });
+      await homePage.open();
+      await homePage.createResume();
+      await docEditorPage.assertDocEditorOpen();
+      await expect(page.getByTestId("doc-sheet-scale")).toHaveAttribute(
+        "data-sheet-interactive",
+        "false",
+      );
+      await docEditorPage.assertMode("done");
+      await expect(page.getByText("New resume created")).toBeHidden({ timeout: 15_000 });
+      expect(await scanForViolations(page)).toEqual([]);
+    });
+
     test("drawers and theme dialog have no WCAG 2.2 AA violations", async ({
       page,
       homePage,

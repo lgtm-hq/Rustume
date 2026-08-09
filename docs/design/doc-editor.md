@@ -533,9 +533,21 @@ printed sheet must be pixel-identical to view mode.
 ### 3.1 Page geometry
 
 CSS-pixel A4 at ~96dpi: **page height 1122px, sheet width 860px** (`PAGE_HEIGHT_PX` /
-`PAGE_WIDTH_PX`). The on-screen sheet is `width:min(860px,100%)`; sheets **size to their content**
-(no fixed-height page frames) — A4 boundaries are communicated by guides and the pill, not by
-clipping. HTML-UI PDF export prints at exactly 860×1122.
+`PAGE_WIDTH_PX`). The sheet's **internal layout is always exactly 860px wide** — never
+reflowed. Sheets **size to their content** (no fixed-height page frames) — A4 boundaries are
+communicated by guides and the pill, not by clipping. HTML-UI PDF export prints at exactly
+860×1122.
+
+**Miniature scale on narrow canvases (#813).** When the available canvas width (surface minus
+padding / drawer chrome) drops below 860px, `DocSheet` paints the whole sheet stack as a
+faithful miniature: `transform: scale(k)` with `transform-origin: top center`, where
+`k = available / 860`, and a height-compensated wrapper (`height: contentHeight * k`) so scroll
+geometry matches the visual size. Page-break guides, the page-count pill, and drop indicators
+live inside the transformed subtree and scale with the sheet; edge drawer tabs and the top bar
+stay unscaled chrome. Pointer math under the sheet (`dropIndexFromPointer`, the sidebar resize
+handle) divides client deltas by `k`. Below `k = 0.45` (`SHEET_SCALE_EDIT_FLOOR`) interaction
+targets fall under WCAG 2.5.8, so the sheet forces Done (read-only) and the mode toggle is
+disabled until the canvas widens again.
 
 ### 3.2 Columns & templates
 

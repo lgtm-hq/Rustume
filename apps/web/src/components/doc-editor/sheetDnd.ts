@@ -58,6 +58,12 @@ export interface SheetDndValue {
   /** Where the section drag would drop, for the slot indicators. */
   sectionDropAt: Accessor<SectionDropTarget | null>;
   setSectionDropAt: (target: SectionDropTarget | null) => void;
+  /**
+   * Live miniature scale `k` of the sheet (#813). Pointer math under the
+   * sheet must divide client deltas by this factor; `getBoundingClientRect`
+   * already returns the scaled box.
+   */
+  scale: Accessor<number>;
   /** Raw-layout placement of a drawn card — what its drop target addresses. */
   sectionPlacement: (sectionId: string) => SectionPlacement | null;
   /** How many sections the raw layout stores in a column (after-slot check). */
@@ -90,10 +96,24 @@ export function dragStartVetoed(pressTarget: Element | null, extraVeto = ""): bo
 /**
  * The insert-before drop index a pointer position means: the row or card's
  * own index, `+1` when the pointer is in its bottom half (spec §2.4).
+ *
+ * `scale` is the sheet's miniature factor (#813). `getBoundingClientRect`
+ * already returns the scaled visual box, so dividing both the pointer offset
+ * and the height by `k` is algebraically equivalent to the unscaled half-box
+ * test — the division is kept explicit so every sheet pointer consumer
+ * accounts for `k` the same way (and so a future switch to unscaled metrics
+ * cannot silently regress).
  */
-export function dropIndexFromPointer(event: DragEvent, index: number): number {
+export function dropIndexFromPointer(
+  event: DragEvent,
+  index: number,
+  scale: number = 1,
+): number {
   const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-  return index + (event.clientY > rect.top + rect.height / 2 ? 1 : 0);
+  const k = scale > 0 ? scale : 1;
+  const localY = (event.clientY - rect.top) / k;
+  const localHeight = rect.height / k;
+  return index + (localY > localHeight / 2 ? 1 : 0);
 }
 
 /** Parse a drag payload of `mime` from the event, or `null`. */

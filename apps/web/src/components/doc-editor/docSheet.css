@@ -1,17 +1,44 @@
 /*
- * Document-sheet styles (#794): the prototype-normative sheet engine.
+ * Document-sheet styles (#794 / #813): the prototype-normative sheet engine.
  *
- * Every rule in this file is nested under `.doc-sheet`. The sheet paints the
- * resume's own theme colours on paper-white sheets, which means its type
- * scale, colours and spacing are deliberately unlike the surrounding app
- * chrome — so nothing here may escape the root class. Add rules only as
- * descendants of `.doc-sheet`.
+ * Every rule in this file is nested under `.doc-sheet` or the scale wrapper
+ * (`.doc-sheet-scale*`). The sheet paints the resume's own theme colours on
+ * paper-white sheets, which means its type scale, colours and spacing are
+ * deliberately unlike the surrounding app chrome — so nothing here may escape
+ * those roots. Add rules only as descendants of `.doc-sheet` or the scale
+ * wrappers.
  *
- * Geometry is fixed CSS pixels (spec §3.1): sheets are `min(860px, 100%)`
- * wide, sized to their content, with A4 boundaries drawn as guides at 1122px
- * intervals rather than clipped frames. The base type is 12.5px/1.45 per the
- * spec; the resume's theme arrives as custom properties set by `DocSheet`.
+ * Geometry is fixed CSS pixels (spec §3.1, #813): the sheet's internal layout
+ * is always exactly 860px wide. When the canvas is narrower, `.doc-sheet-scale`
+ * applies a uniform `transform: scale(k)` miniature so line breaks and page
+ * guides stay print-faithful. The base type is 12.5px/1.45 per the spec; the
+ * resume's theme arrives as custom properties set by `DocSheet`.
  */
+
+/* ── Miniature scale wrapper (#813) ─────────────────────────────────────── */
+
+.doc-sheet-scale {
+  width: 100%;
+  /* Centers the height-compensated viewport when the canvas is wider than
+     the scaled miniature. */
+  display: flex;
+  justify-content: center;
+}
+
+.doc-sheet-scale__viewport {
+  /* Width/height are set inline from the live scale so scroll geometry
+     matches the visual miniature (transform does not shrink layout boxes). */
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.doc-sheet-scale__transform {
+  width: 860px;
+  transform-origin: top center;
+  /* `margin-left` centers the unscaled layout box inside the narrower
+     viewport when origin is top-center (see DocSheet). */
+}
 
 .doc-sheet {
   --doc-sheet-bg: var(--color-sheet);
@@ -28,8 +55,11 @@
   align-items: center;
   gap: 0;
   padding: 1.5rem 0.5rem 4rem;
-  width: min(860px, 100%);
-  margin-inline: auto;
+  /* Design width is fixed (#813): never reflow below 860px. Miniature
+     scaling lives on `.doc-sheet-scale__transform`. */
+  width: 860px;
+  box-sizing: border-box;
+  margin-inline: 0;
 }
 
 /* ── Sheets ─────────────────────────────────────────────────────────────── */
@@ -113,11 +143,13 @@
 
 /* ── Page-count pill ────────────────────────────────────────────────────── */
 
+/* Lives inside the scaled subtree (#813) so its size tracks the miniature.
+   `position: sticky` keeps it in view while scrolling the surface; a
+   transformed ancestor turns `fixed` into a containing-block pin that would
+   scroll away with the sheet stack. */
 .doc-sheet__page-pill {
-  position: fixed;
+  position: sticky;
   bottom: 1.25rem;
-  left: 50%;
-  transform: translateX(-50%);
   z-index: 40;
   display: inline-flex;
   align-items: baseline;
@@ -128,6 +160,7 @@
   border-radius: 999px;
   padding: 0.45rem 0.9rem;
   box-shadow: 0 10px 30px var(--color-shadow, rgb(0 0 0 / 35%));
+  margin-top: 1rem;
 }
 
 .doc-sheet__page-pill strong {
