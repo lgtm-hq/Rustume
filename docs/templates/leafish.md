@@ -2,11 +2,13 @@
 
 Two-tier rose header band above equal columns; `custom` defaults into the right column.
 
-Adapted-from context: Reactive Resume artboard `apps/web/public/templates/{jpg,pdf}/leafish.*` (not a 1:1 target).
+Adapted-from context: Reactive Resume artboard `apps/web/public/templates/{jpg,pdf}/leafish.*` (not
+a 1:1 target).
 
 ## Theme
 
-background `#ffffff`, text `#1f2937`, primary `#9f1239`. Header bg = primary lighten 90%; contact bar uses a darker rose wash.
+background `#ffffff`, text `#1f2937`, primary `#9f1239`. Header bg = primary lighten 90%; contact
+bar uses a darker rose wash.
 
 ## Typefaces
 
@@ -14,9 +16,10 @@ background `#ffffff`, text `#1f2937`, primary `#9f1239`. Header bg = primary lig
 | --- | --- | --- |
 | Body | IBM Plex Sans 10pt / 0.65em | Template-locked |
 | Display | Name 24pt bold accent on tier-1; headings 9pt uppercase + 1.5pt bottom stroke | Same family |
-| Mono | None |
+| Mono | None | |
 
-**#701:** configurable size/leading; two-tier header + equal columns stay identity. Sidebar ratio intentionally not wired (#84).
+**#701:** configurable size/leading; two-tier header + equal columns stay identity. Sidebar ratio
+intentionally not wired (#84).
 
 ## Header composition
 
@@ -31,7 +34,8 @@ background `#ffffff`, text `#1f2937`, primary `#9f1239`. Header bg = primary lig
 
 ## Column structure
 
-[`get_template_layout("leafish")`](../../crates/render/src/typst_engine/template_layout.rs) — `HeaderSplit`, equal columns; **custom in sidebar/right column**.
+[`get_template_layout("leafish")`](../../crates/render/src/typst_engine/template_layout.rs) —
+`HeaderSplit`, equal columns; **custom in sidebar/right column**.
 
 Default main / sidebar section ids are defined once in
 [`template_layout.rs`](../../crates/render/src/typst_engine/template_layout.rs)

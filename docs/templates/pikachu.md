@@ -2,11 +2,13 @@
 
 Bold yellow-tinted left sidebar holding photo/contact; main column uses filled accent heading bands.
 
-Adapted-from context: Reactive Resume artboard `apps/web/public/templates/{jpg,pdf}/pikachu.*` (not a 1:1 target).
+Adapted-from context: Reactive Resume artboard `apps/web/public/templates/{jpg,pdf}/pikachu.*` (not
+a 1:1 target).
 
 ## Theme
 
-background `#ffffff`, text `#1c1917`, primary `#ca8a04`. Sidebar bg = primary lighten 85%; sidebar text = primary darken 60%.
+background `#ffffff`, text `#1c1917`, primary `#ca8a04`. Sidebar bg = primary lighten 85%; sidebar
+text = primary darken 60%.
 
 ## Typefaces
 
@@ -14,16 +16,19 @@ background `#ffffff`, text `#1c1917`, primary `#ca8a04`. Sidebar bg = primary li
 | --- | --- | --- |
 | Body | IBM Plex Sans 10pt / 0.65em | Template-locked (also historically the only template that experimented with reading `typography`) |
 | Display | Name 26pt in main; main section titles white on accent band; sidebar titles 9pt uppercase, no rule | Same family |
-| Mono | None |
+| Mono | None | |
 
-**#701:** pikachu is the reference for honouring size/lineHeight once lifted to `_common.typ`; keep band headings + sidebar tint as identity. Full-bleed sidebar uses `margin: 0` — page.margin inert by design (surface in UI).
+**#701:** pikachu is the reference for honouring size/lineHeight once lifted to `_common.typ`; keep
+band headings + sidebar tint as identity. Full-bleed sidebar uses `margin: 0` — page.margin inert by
+design (surface in UI).
 
 ## Header composition
 
 - `headerStyle`: `left` (name/headline in **main** via `main-before`).
 - `contactIn`: `sidebar` under a "Contact" sidebar heading, with icons via `contact-item`.
 - Picture: centered in sidebar, default **80pt**.
-- **No-photo fallback: initials disc** (accent fill, white initials from `basics.name`) — unique among the twelve.
+- **No-photo fallback: initials disc** (accent fill, white initials from `basics.name`) —
+  unique among the twelve.
 
 ## Section-heading chrome
 
@@ -32,7 +37,8 @@ background `#ffffff`, text `#1c1917`, primary `#ca8a04`. Sidebar bg = primary li
 
 ## Column structure
 
-[`get_template_layout("pikachu")`](../../crates/render/src/typst_engine/template_layout.rs) — `SidebarLeft`, fixed **180pt** sidebar (ratio-aware).
+[`get_template_layout("pikachu")`](../../crates/render/src/typst_engine/template_layout.rs) —
+`SidebarLeft`, fixed **180pt** sidebar (ratio-aware).
 
 Default main / sidebar section ids are defined once in
 [`template_layout.rs`](../../crates/render/src/typst_engine/template_layout.rs)

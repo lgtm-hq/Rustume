@@ -1,8 +1,10 @@
 # glalie
 
-Traditional teal sidebar resume; title-case underlined headings; inherits engine font family (Serif by schema default).
+Traditional teal sidebar resume; title-case underlined headings; inherits engine font family (Serif
+by schema default).
 
-Adapted-from context: Reactive Resume artboard `apps/web/public/templates/{jpg,pdf}/glalie.*` (not a 1:1 target).
+Adapted-from context: Reactive Resume artboard `apps/web/public/templates/{jpg,pdf}/glalie.*` (not a
+1:1 target).
 
 ## Theme
 
@@ -14,9 +16,10 @@ background `#ffffff`, text `#0f172a`, primary `#14b8a6`.
 | --- | --- | --- |
 | Body | **Inherits engine `#set text` font/size** (schema default IBM Plex Serif 14pt), then template sets fill only; leading 0.65em, justify true | Unique: family/size not re-locked to Sans/10pt |
 | Display | Sidebar name 18pt; main headings 11pt title-case + 1pt rule; sidebar 10pt title-case + 0.75pt rule | No forced uppercase |
-| Mono | None |
+| Mono | None | |
 
-**#701:** glalie already demonstrates metadata family/size flowing through — keep that behaviour; clamp leading; do not hardcode Sans here (identity is "engine typography + traditional chrome").
+**#701:** glalie already demonstrates metadata family/size flowing through — keep that behaviour;
+clamp leading; do not hardcode Sans here (identity is "engine typography + traditional chrome").
 
 ## Header composition
 
@@ -30,7 +33,8 @@ background `#ffffff`, text `#0f172a`, primary `#14b8a6`.
 
 ## Column structure
 
-[`get_template_layout("glalie")`](../../crates/render/src/typst_engine/template_layout.rs) — same structural shape as gengar (170pt sidebar-left).
+[`get_template_layout("glalie")`](../../crates/render/src/typst_engine/template_layout.rs) — same
+structural shape as gengar (170pt sidebar-left).
 
 Default main / sidebar section ids are defined once in
 [`template_layout.rs`](../../crates/render/src/typst_engine/template_layout.rs)

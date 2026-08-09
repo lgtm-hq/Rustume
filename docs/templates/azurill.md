@@ -1,12 +1,15 @@
 # azurill
 
-Centered header over a proportional left sidebar; amber accents; main vs sidebar heading weights differ.
+Centered header over a proportional left sidebar; amber accents; main vs sidebar heading weights
+differ.
 
-Adapted-from context: Reactive Resume artboard `apps/web/public/templates/{jpg,pdf}/azurill.*` (not a 1:1 target).
+Adapted-from context: Reactive Resume artboard `apps/web/public/templates/{jpg,pdf}/azurill.*` (not
+a 1:1 target).
 
 ## Theme
 
-background `#ffffff`, text `#1f2937`, primary `#d97706` → accent darkened ~35%. Sidebar uses a light primary wash only via chips / bars, not a full-bleed column fill.
+background `#ffffff`, text `#1f2937`, primary `#d97706` → accent darkened ~35%. Sidebar uses a light
+primary wash only via chips / bars, not a full-bleed column fill.
 
 ## Typefaces
 
@@ -14,7 +17,7 @@ background `#ffffff`, text `#1f2937`, primary `#d97706` → accent darkened ~35%
 | --- | --- | --- |
 | Body | IBM Plex Sans 10pt / 0.65em | Template-locked |
 | Display | Name 26pt bold tracking 0.03em; main headings 11pt bold uppercase; sidebar headings 9pt semibold uppercase | Same family |
-| Mono | None |
+| Mono | None | |
 
 **#701:** configurable size/leading; keep Sans + dual heading scale as identity.
 
@@ -32,7 +35,9 @@ background `#ffffff`, text `#1f2937`, primary `#d97706` → accent darkened ~35%
 
 ## Column structure
 
-[`get_template_layout("azurill")`](../../crates/render/src/typst_engine/template_layout.rs) — `SidebarLeft`, `headerStyle: Center`, `contactIn: Header`, proportional width (`sidebar_width: None`).
+[`get_template_layout("azurill")`](../../crates/render/src/typst_engine/template_layout.rs) —
+`SidebarLeft`, `headerStyle: Center`, `contactIn: Header`, proportional width (`sidebar_width:
+None`).
 
 Default main / sidebar section ids are defined once in
 [`template_layout.rs`](../../crates/render/src/typst_engine/template_layout.rs)

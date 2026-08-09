@@ -2,7 +2,8 @@
 
 Left header above a main+right-sidebar split; green accents; thick bottom-stroke main headings.
 
-Adapted-from context: Reactive Resume artboard `apps/web/public/templates/{jpg,pdf}/chikorita.*` (not a 1:1 target).
+Adapted-from context: Reactive Resume artboard `apps/web/public/templates/{jpg,pdf}/chikorita.*`
+(not a 1:1 target).
 
 ## Theme
 
@@ -14,7 +15,7 @@ background `#ffffff`, text `#166534`, primary `#16a34a`.
 | --- | --- | --- |
 | Body | IBM Plex Sans 10pt / 0.65em | Template-locked |
 | Display | Name 26pt; main headings 10pt uppercase in a bottom-stroke box; sidebar 9pt uppercase + thin rule | Same family |
-| Mono | None |
+| Mono | None | |
 
 **#701:** configurable size/leading; keep green identity + dual heading chrome.
 
@@ -31,7 +32,8 @@ background `#ffffff`, text `#166534`, primary `#16a34a`.
 
 ## Column structure
 
-[`get_template_layout("chikorita")`](../../crates/render/src/typst_engine/template_layout.rs) — `SidebarRight`, left header, proportional width.
+[`get_template_layout("chikorita")`](../../crates/render/src/typst_engine/template_layout.rs) —
+`SidebarRight`, left header, proportional width.
 
 Default main / sidebar section ids are defined once in
 [`template_layout.rs`](../../crates/render/src/typst_engine/template_layout.rs)
@@ -60,6 +62,7 @@ bodies above.
 | Main bottom-stroke headings vs generic sheet titles | fix-in-sheet |
 | Cross-cutting item composition | fix-in-sheet / owner-decision-needed |
 | Typography metadata ignored | fix-in-typst (#701) |
+| **Body starts on page 2** — PDF page 1 holds only the header (sidebar grid forces a page break); verified against the doc-editor fixture 2026-08-09 | fix-in-typst |
 
 ### Audit evidence
 

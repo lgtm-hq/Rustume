@@ -2,7 +2,8 @@
 
 Centered single-column cyan resume; uppercase underlined headings; square rating glyphs.
 
-Adapted-from context: Reactive Resume artboard `apps/web/public/templates/{jpg,pdf}/bronzor.*` (not a 1:1 target).
+Adapted-from context: Reactive Resume artboard `apps/web/public/templates/{jpg,pdf}/bronzor.*` (not
+a 1:1 target).
 
 ## Theme
 
@@ -14,7 +15,7 @@ background `#ffffff`, text `#1f2937`, primary `#0891b2`.
 | --- | --- | --- |
 | Body | IBM Plex Sans 10pt / 0.65em | Template-locked |
 | Display | Name 24pt centered; headings 11pt bold uppercase + 0.5pt rule | Same family |
-| Mono | None |
+| Mono | None | |
 
 **#701:** configurable size/leading; Sans + centered header identity.
 
@@ -30,7 +31,8 @@ background `#ffffff`, text `#1f2937`, primary `#0891b2`.
 
 ## Column structure
 
-[`get_template_layout("bronzor")`](../../crates/render/src/typst_engine/template_layout.rs) — `Single`, center header.
+[`get_template_layout("bronzor")`](../../crates/render/src/typst_engine/template_layout.rs) —
+`Single`, center header.
 
 Default main / sidebar section ids are defined once in
 [`template_layout.rs`](../../crates/render/src/typst_engine/template_layout.rs)

@@ -2,7 +2,8 @@
 
 Single-column olive resume with a split name/contact header and uppercase underlined section titles.
 
-Adapted-from context: Reactive Resume artboard `apps/web/public/templates/{jpg,pdf}/rhyhorn.*` (not a 1:1 target).
+Adapted-from context: Reactive Resume artboard `apps/web/public/templates/{jpg,pdf}/rhyhorn.*` (not
+a 1:1 target).
 
 ## Theme
 
@@ -16,7 +17,8 @@ background `#ffffff`, text `#000000`, primary `#65a30d` → accent darkened ~35%
 | Display | Same family, name 24pt bold; section titles 11pt bold uppercase | No separate display family |
 | Mono | None in Typst | Sheet mono dates are sheet-only |
 
-**#701:** size + lineHeight should become configurable; **IBM Plex Sans** and the uppercase underline heading stay identity.
+**#701:** size + lineHeight should become configurable; **IBM Plex Sans** and the uppercase
+underline heading stay identity.
 
 ## Header composition
 
@@ -31,7 +33,8 @@ background `#ffffff`, text `#000000`, primary `#65a30d` → accent darkened ~35%
 
 ## Column structure
 
-See [`get_template_layout("rhyhorn")`](../../crates/render/src/typst_engine/template_layout.rs) — `LayoutMode::Single`, all sections in main, empty sidebar.
+See [`get_template_layout("rhyhorn")`](../../crates/render/src/typst_engine/template_layout.rs) —
+`LayoutMode::Single`, all sections in main, empty sidebar.
 
 Default main / sidebar section ids are defined once in
 [`template_layout.rs`](../../crates/render/src/typst_engine/template_layout.rs)

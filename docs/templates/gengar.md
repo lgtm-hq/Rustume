@@ -1,12 +1,15 @@
 # gengar
 
-Identity lives in a tinted 170pt left sidebar (name, contact, photo); main column uses heavier uppercase underlines.
+Identity lives in a tinted 170pt left sidebar (name, contact, photo); main column uses heavier
+uppercase underlines.
 
-Adapted-from context: Reactive Resume artboard `apps/web/public/templates/{jpg,pdf}/gengar.*` (not a 1:1 target).
+Adapted-from context: Reactive Resume artboard `apps/web/public/templates/{jpg,pdf}/gengar.*` (not a
+1:1 target).
 
 ## Theme
 
-background `#ffffff`, text `#1f2937`, primary `#67b8c8`. Sidebar bg lighten 90%; sidebar text darken 50%.
+background `#ffffff`, text `#1f2937`, primary `#67b8c8`. Sidebar bg lighten 90%; sidebar text darken
+50%.
 
 ## Typefaces
 
@@ -14,7 +17,7 @@ background `#ffffff`, text `#1f2937`, primary `#67b8c8`. Sidebar bg lighten 90%;
 | --- | --- | --- |
 | Body | IBM Plex Sans 10pt / 0.65em | Template-locked; sidebar wrapper recolors ink |
 | Display | Sidebar name 18pt; main headings 11pt uppercase + 1.5pt rule; sidebar headings 9pt uppercase + 1pt rule | Same family |
-| Mono | None |
+| Mono | None | |
 
 **#701:** configurable size/leading; sidebar-as-header identity stays.
 
@@ -31,7 +34,8 @@ background `#ffffff`, text `#1f2937`, primary `#67b8c8`. Sidebar bg lighten 90%;
 
 ## Column structure
 
-[`get_template_layout("gengar")`](../../crates/render/src/typst_engine/template_layout.rs) — `SidebarLeft`, sidebar header/contact, fixed **170pt**.
+[`get_template_layout("gengar")`](../../crates/render/src/typst_engine/template_layout.rs) —
+`SidebarLeft`, sidebar header/contact, fixed **170pt**.
 
 Default main / sidebar section ids are defined once in
 [`template_layout.rs`](../../crates/render/src/typst_engine/template_layout.rs)

@@ -1,8 +1,10 @@
 # nosepass
 
-Serif single-column resume with a thick accent header underline and title+trailing-rule section headings.
+Serif single-column resume with a thick accent header underline and title+trailing-rule section
+headings.
 
-Adapted-from context: Reactive Resume artboard `apps/web/public/templates/{jpg,pdf}/nosepass.*` (not a 1:1 target).
+Adapted-from context: Reactive Resume artboard `apps/web/public/templates/{jpg,pdf}/nosepass.*` (not
+a 1:1 target).
 
 ## Theme
 
@@ -14,9 +16,10 @@ background `#ffffff`, text `#1f2937`, primary `#3b82f6`.
 | --- | --- | --- |
 | Body | **IBM Plex Serif** 10pt / 0.65em | Template identity — only nosepass hardcodes Serif |
 | Display | Name 28pt bold in accent; section titles 11pt bold title-case with trailing rule | Serif |
-| Mono | None |
+| Mono | None | |
 
-**#701:** size/leading configurable; **Serif family stays identity** (do not let a global Sans default restyle nosepass).
+**#701:** size/leading configurable; **Serif family stays identity** (do not let a global Sans
+default restyle nosepass).
 
 ## Header composition
 
@@ -27,11 +30,13 @@ background `#ffffff`, text `#1f2937`, primary `#3b82f6`.
 
 ## Section-heading chrome
 
-**Rule (title + trailing line).** Title (not uppercased) beside a 1pt rule on the same row (`border-color`).
+**Rule (title + trailing line).** Title (not uppercased) beside a 1pt rule on the same row
+(`border-color`).
 
 ## Column structure
 
-[`get_template_layout("nosepass")`](../../crates/render/src/typst_engine/template_layout.rs) — `Single`, left header.
+[`get_template_layout("nosepass")`](../../crates/render/src/typst_engine/template_layout.rs) —
+`Single`, left header.
 
 Default main / sidebar section ids are defined once in
 [`template_layout.rs`](../../crates/render/src/typst_engine/template_layout.rs)
@@ -41,7 +46,8 @@ Default main / sidebar section ids are defined once in
 
 | Concern | Rule |
 | --- | --- |
-| Education order | Institution (accent bold) + degree; score inline as ` · GPA: …`; date via `date-badge` |
+| Experience order | **Position-first** (accent bold); company below, `· location` muted; date via `date-badge` — already sheet-aligned |
+| Education order | Institution (accent bold) + degree; score inline as `· GPA: …`; date via `date-badge` |
 | Profile label mode | `network-username` |
 | Skill keywords | Comma-joined inside bordered skill chips |
 | Interest keywords | ` — ` + comma list inside the interest chip row |

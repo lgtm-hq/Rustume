@@ -2,11 +2,13 @@
 
 Full-bleed accent banner header with contact; fixed tinted left sidebar; compact 9pt body.
 
-Adapted-from context: Reactive Resume artboard `apps/web/public/templates/{jpg,pdf}/ditto.*` (not a 1:1 target).
+Adapted-from context: Reactive Resume artboard `apps/web/public/templates/{jpg,pdf}/ditto.*` (not a
+1:1 target).
 
 ## Theme
 
-background `#ffffff`, text `#1f2937`, primary `#0891b2`. Banner fill uses accent; sidebar tint = primary lighten.
+background `#ffffff`, text `#1f2937`, primary `#0891b2`. Banner fill uses accent; sidebar tint =
+primary lighten.
 
 ## Typefaces
 
@@ -14,9 +16,10 @@ background `#ffffff`, text `#1f2937`, primary `#0891b2`. Banner fill uses accent
 | --- | --- | --- |
 | Body | IBM Plex Sans **9pt** / leading **0.6em** | Slightly denser than the 10pt peers |
 | Display | Name 22pt bold white on banner; main headings 9pt uppercase bottom-stroke; sidebar 8pt uppercase + rule | Same family |
-| Mono | None |
+| Mono | None | |
 
-**#701:** configurable size/leading with ditto's denser defaults as the template baseline; banner + 160pt sidebar stay identity. `margin: 0` for full-bleed banner/sidebar.
+**#701:** configurable size/leading with ditto's denser defaults as the template baseline; banner +
+160pt sidebar stay identity. `margin: 0` for full-bleed banner/sidebar.
 
 ## Header composition
 
@@ -32,7 +35,8 @@ background `#ffffff`, text `#1f2937`, primary `#0891b2`. Banner fill uses accent
 
 ## Column structure
 
-[`get_template_layout("ditto")`](../../crates/render/src/typst_engine/template_layout.rs) — `SidebarLeft`, banner, fixed **160pt** sidebar.
+[`get_template_layout("ditto")`](../../crates/render/src/typst_engine/template_layout.rs) —
+`SidebarLeft`, banner, fixed **160pt** sidebar.
 
 Default main / sidebar section ids are defined once in
 [`template_layout.rs`](../../crates/render/src/typst_engine/template_layout.rs)

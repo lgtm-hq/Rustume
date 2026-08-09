@@ -2,7 +2,8 @@
 
 Single-column stone resume whose identity is a centered name block inside a stroked rounded box.
 
-Adapted-from context: Reactive Resume artboard `apps/web/public/templates/{jpg,pdf}/kakuna.*` (not a 1:1 target).
+Adapted-from context: Reactive Resume artboard `apps/web/public/templates/{jpg,pdf}/kakuna.*` (not a
+1:1 target).
 
 ## Theme
 
@@ -14,7 +15,7 @@ background `#ffffff`, text `#422006`, primary `#78716c`.
 | --- | --- | --- |
 | Body | IBM Plex Sans 10pt / leading **0.7em** | Slightly looser leading |
 | Display | Name 24pt **light** weight inside the box; headings 10pt semibold uppercase with trailing rule on the same row | Same family |
-| Mono | None |
+| Mono | None | |
 
 **#701:** configurable size/leading; boxed header + light name weight stay identity.
 
@@ -30,7 +31,8 @@ background `#ffffff`, text `#422006`, primary `#78716c`.
 
 ## Column structure
 
-[`get_template_layout("kakuna")`](../../crates/render/src/typst_engine/template_layout.rs) — `Single`, boxed header.
+[`get_template_layout("kakuna")`](../../crates/render/src/typst_engine/template_layout.rs) —
+`Single`, boxed header.
 
 Default main / sidebar section ids are defined once in
 [`template_layout.rs`](../../crates/render/src/typst_engine/template_layout.rs)
@@ -40,6 +42,7 @@ Default main / sidebar section ids are defined once in
 
 | Concern | Rule |
 | --- | --- |
+| Experience order | **Position-first** (semibold); `— company` muted on the same line; location on its own row — already sheet-aligned |
 | Education order | Institution + degree; date right; score; summary |
 | Profile label mode | `network-username` |
 | Skill keywords | Comma-joined |
