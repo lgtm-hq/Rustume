@@ -522,7 +522,8 @@ mod tests {
         });
 
         assert_eq!(
-            actual, expected,
+            actual,
+            expected,
             "template layout fixture is out of date at {}\n\
              get_template_layout changed; review the diff, then regenerate with:\n\
              UPDATE_FIXTURES=1 cargo test -p rustume-render \
