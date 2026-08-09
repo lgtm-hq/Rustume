@@ -38,11 +38,12 @@ pub fn html_to_typst(html: &str) -> String {
 
 /// Sanitize with the resume HTML allow-list and convert to Typst in one parse.
 ///
-/// Applies the same tag allow-list as [`crate::sanitize_html`]: disallowed
-/// elements are dropped with their descendants (ammonia semantics). Link
-/// schemes are enforced during conversion. This avoids ammonia parse →
-/// serialize → scraper re-parse on the render path while keeping typst output
-/// byte-compatible with the former two-pass pipeline for allow-listed markup.
+/// Applies the same tag policy as [`crate::sanitize_html`] (ammonia
+/// `Builder::default()` semantics): `script`/`style` are dropped with their
+/// descendants; any other disallowed tag is stripped but its children are
+/// kept. Link schemes are enforced during conversion. This avoids ammonia
+/// parse → serialize → scraper re-parse on the render path while keeping
+/// typst output byte-compatible with the former two-pass pipeline.
 pub fn sanitize_html_to_typst(html: &str) -> String {
     html_to_typst_inner(html, true)
 }
@@ -125,19 +126,18 @@ fn process_node(
         }
         Node::Element(el) => {
             let tag = el.name.local.as_ref();
-            if sanitize {
-                // Fragment chrome from html5ever — not on the allow-list, but
-                // must unwrap so real content is reachable.
-                if matches!(tag, "html" | "body") {
-                    for child in node.children() {
-                        process_node(&child, output, list_depth, sanitize);
-                    }
+            if sanitize && !is_allowed_tag(tag) {
+                // Ammonia's `clean_content_tags` (script/style under
+                // `Builder::default()`) drop the element AND its descendants;
+                // every other disallowed tag is stripped but keeps its
+                // children — including html5ever's html/body fragment chrome.
+                if matches!(tag, "script" | "style") {
                     return;
                 }
-                if !is_allowed_tag(tag) {
-                    // Ammonia drops disallowed elements including descendants.
-                    return;
+                for child in node.children() {
+                    process_node(&child, output, list_depth, sanitize);
                 }
+                return;
             }
             match tag {
                 "p" => {
@@ -274,7 +274,10 @@ fn collect_text(node: &ego_tree::NodeRef<'_, Node>, out: &mut String) {
 }
 
 /// Escape `\` and `"` for a Typst double-quoted string literal (one pass).
-fn escape_typst_string_literal(text: &str) -> String {
+///
+/// Shared with the render engine's JSON/font-family embedding — keep the one
+/// definition so future Typst literal escapes cannot drift between call sites.
+pub fn escape_typst_string_literal(text: &str) -> String {
     let bytes = text.as_bytes();
     let extra = bytes.iter().filter(|&&b| b == b'\\' || b == b'"').count();
     let mut out = Vec::with_capacity(text.len() + extra);
@@ -715,11 +718,24 @@ mod tests {
             "<p>Line 1<br>Line 2</p>",
             "<pre><code>let x = 1;\n</code></pre>",
             "<p>Before <script>x</script> after</p>",
+            // Disallowed non-clean-content tags: stripped, text kept (ammonia).
+            "<p><font color=\"red\">Kept text</font></p>",
+            "<p>Watch <video>fallback text</video> here</p>",
+            "<p><button>Also kept</button></p>",
+            "<p>Styled <style>p { color: red }</style>plain</p>",
         ];
         for html in samples {
             let two_pass = html_to_typst(&crate::sanitize_html(html));
             let one_pass = sanitize_html_to_typst(html);
             assert_eq!(one_pass, two_pass, "mismatch for {html:?}");
         }
+    }
+
+    #[test]
+    fn sanitize_html_to_typst_keeps_text_of_stripped_tags() {
+        // Regression guard for the ammonia parity rule: only script/style drop
+        // their content; other disallowed tags unwrap to their children.
+        assert_eq!(sanitize_html_to_typst("<font>Imported name</font>"), "Imported name");
+        assert_eq!(sanitize_html_to_typst("<p><center>Centered</center></p>"), "Centered");
     }
 }
