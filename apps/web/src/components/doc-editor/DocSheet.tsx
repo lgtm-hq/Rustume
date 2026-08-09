@@ -947,6 +947,7 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
           data-testid="doc-sheet-scale"
           data-sheet-scale={scale().toFixed(4)}
           data-sheet-interactive={scaleInteractive() ? "true" : "false"}
+          style={{ "--doc-sheet-page-w": `${PAGE_WIDTH_PX}px` }}
         >
           <div
             class="doc-sheet-scale__viewport"
@@ -1018,8 +1019,6 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
                   )}
                 </For>
 
-                <PageCountPill count={measuredPages()} />
-
                 {/* Dialogs are editing chrome: unmounted in Done mode even when an
                     open flag was left set by a mid-dialog mode switch. */}
                 <Show when={isEditable()}>
@@ -1033,6 +1032,12 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
               </div>
             </div>
           </div>
+
+          {/* Outside the scaled subtree (#813): the viewport's overflow:hidden
+              would otherwise become the pill's scrollport and sticky could
+              never pin it to the visible bottom of the surface. Unscaled on
+              purpose — the count must stay readable at any miniature k. */}
+          <PageCountPill count={measuredPages()} />
         </div>
       </SheetDndContext.Provider>
     </SheetModeContext.Provider>

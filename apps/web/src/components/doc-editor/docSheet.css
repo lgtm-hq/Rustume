@@ -19,10 +19,11 @@
 
 .doc-sheet-scale {
   width: 100%;
-  /* Centers the height-compensated viewport when the canvas is wider than
-     the scaled miniature. */
+  /* Column: the height-compensated viewport stacks above the page-count
+     pill; align-items centers both when the canvas is wider. */
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
 }
 
 .doc-sheet-scale__viewport {
@@ -34,7 +35,9 @@
 }
 
 .doc-sheet-scale__transform {
-  width: 860px;
+  /* Design width; `--doc-sheet-page-w` is set by DocSheet from PAGE_WIDTH_PX
+     so the scale math and layout can never desync. */
+  width: var(--doc-sheet-page-w, 860px);
   transform-origin: top center;
   /* `margin-left` centers the unscaled layout box inside the narrower
      viewport when origin is top-center (see DocSheet). */
@@ -55,9 +58,9 @@
   align-items: center;
   gap: 0;
   padding: 1.5rem 0.5rem 4rem;
-  /* Design width is fixed (#813): never reflow below 860px. Miniature
+  /* Design width is fixed (#813): never reflow below it. Miniature
      scaling lives on `.doc-sheet-scale__transform`. */
-  width: 860px;
+  width: var(--doc-sheet-page-w, 860px);
   box-sizing: border-box;
   margin-inline: 0;
 }
@@ -143,10 +146,12 @@
 
 /* ── Page-count pill ────────────────────────────────────────────────────── */
 
-/* Lives inside the scaled subtree (#813) so its size tracks the miniature.
-   `position: sticky` keeps it in view while scrolling the surface; a
-   transformed ancestor turns `fixed` into a containing-block pin that would
-   scroll away with the sheet stack. */
+/* Rendered outside the scaled subtree (#813): the scale viewport's
+   overflow:hidden would become the sticky scrollport and the pill could never
+   pin. As a sibling of the viewport, `position: sticky` pins it to the
+   visible bottom of the scrolling surface, unscaled and readable at any k.
+   (`fixed` is still unusable — any transformed ancestor above would turn it
+   into a containing-block pin.) */
 .doc-sheet__page-pill {
   position: sticky;
   bottom: 1.25rem;

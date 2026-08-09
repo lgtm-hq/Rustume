@@ -11,9 +11,14 @@
 import { PAGE_WIDTH_PX } from "./docLayout";
 
 /**
- * Minimum scale at which sheet editing stays interactive. Below this floor
- * (targets shrink under the 24 CSS-px WCAG 2.5.8 minimum) the sheet renders
- * as a read-only miniature.
+ * Minimum scale at which sheet editing stays interactive; below it the sheet
+ * renders as a read-only miniature.
+ *
+ * 0.45 is a pragmatic usability floor, not a WCAG 2.5.8 guarantee: the sheet's
+ * design-space controls are 18-26 CSS px, so they sit under the 24-px target
+ * minimum at any k < 1. Meeting SC 2.5.8 while scaled would need inflated hit
+ * areas (>= 24/k) or a floor of 1.0 — tracked as an owner decision on the
+ * a11y epic (#352).
  */
 export const SHEET_SCALE_EDIT_FLOOR = 0.45;
 

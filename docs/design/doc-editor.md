@@ -389,7 +389,8 @@ from its own button.
 
 ### 1.16 `PageCountPill` + `SheetOverflowGuides` + `.page-break-rule`
 
-- **Page-count pill**: fixed bottom-center floating pill (dark, 999px radius, `aria-live="polite"`):
+- **Page-count pill**: sticky bottom-center floating pill (dark, 999px radius,
+  `aria-live="polite"`), a sibling of the scale viewport (#813) so it stays pinned and unscaled:
   bold count + uppercase "page/pages". Count = measured pages (§3.5), min 1.
 - **Overflow guides**: edit-mode-only dashed accent horizontal rules (`.page-guide`, 40%-accent 1px
   dashed, inset .35rem from sheet edges) drawn across a sheet at every `n × 1122px` of that sheet's
@@ -542,12 +543,15 @@ communicated by guides and the pill, not by clipping. HTML-UI PDF export prints 
 padding / drawer chrome) drops below 860px, `DocSheet` paints the whole sheet stack as a
 faithful miniature: `transform: scale(k)` with `transform-origin: top center`, where
 `k = available / 860`, and a height-compensated wrapper (`height: contentHeight * k`) so scroll
-geometry matches the visual size. Page-break guides, the page-count pill, and drop indicators
-live inside the transformed subtree and scale with the sheet; edge drawer tabs and the top bar
-stay unscaled chrome. Pointer math under the sheet (`dropIndexFromPointer`, the sidebar resize
-handle) divides client deltas by `k`. Below `k = 0.45` (`SHEET_SCALE_EDIT_FLOOR`) interaction
-targets fall under WCAG 2.5.8, so the sheet forces Done (read-only) and the mode toggle is
-disabled until the canvas widens again.
+geometry matches the visual size. Page-break guides and drop indicators
+live inside the transformed subtree and scale with the sheet; the page-count pill, edge drawer
+tabs, and the top bar stay unscaled chrome (the pill is a sticky sibling of the scale viewport
+so it pins to the visible bottom — §1.16). Pointer math under the sheet
+(`dropIndexFromPointer`, the sidebar resize handle) divides client deltas by `k`. Below
+`k = 0.45` (`SHEET_SCALE_EDIT_FLOOR`) the sheet forces Done (read-only) and the mode toggle is
+disabled until the canvas widens again. The floor is a usability compromise, not a WCAG 2.5.8
+guarantee — sheet controls are 18-26 design px, i.e. under the 24-px target minimum at any
+`k < 1`; the SC 2.5.8 posture while scaled is an owner decision on the a11y epic (#352).
 
 ### 3.2 Columns & templates
 
