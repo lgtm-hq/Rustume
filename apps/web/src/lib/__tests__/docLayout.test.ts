@@ -677,12 +677,12 @@ describe("templateDocFontFamily / docFontStack", () => {
     expect(templateDocFontFamily("unknown-template")).toBe(DEFAULT_DOC_FONT_FAMILY);
   });
 
-  it("quotes the family in the CSS stack so multi-word names resolve", () => {
+  it("quotes the family and matches fallback generics to the classification", () => {
     expect(docFontStack("IBM Plex Sans")).toBe(
       '"IBM Plex Sans", Inter, system-ui, sans-serif',
     );
     expect(docFontStack("IBM Plex Serif")).toBe(
-      '"IBM Plex Serif", Inter, system-ui, sans-serif',
+      '"IBM Plex Serif", Georgia, "Times New Roman", serif',
     );
   });
 });

@@ -241,10 +241,14 @@ export function templateDocFontFamily(template: string): string {
 
 /**
  * CSS `font-family` stack for the sheet's `--doc-font-body` / `--doc-font-display`.
- * Quoted family first so multi-word names (IBM Plex *) resolve correctly.
+ * Quoted family first so multi-word names (IBM Plex *) resolve correctly; the
+ * fallback generics follow the family's classification so a swap-period or
+ * failed load degrades serif→serif, not serif→sans.
  */
 export function docFontStack(family: string): string {
-  return `"${family}", Inter, system-ui, sans-serif`;
+  return family === NOSEPASS_DOC_FONT_FAMILY
+    ? `"${family}", Georgia, "Times New Roman", serif`
+    : `"${family}", Inter, system-ui, sans-serif`;
 }
 
 /**
