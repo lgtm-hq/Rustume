@@ -158,12 +158,13 @@ export function ImportModal(props: ImportModalProps = {}) {
         const json = JSON.parse(text);
 
         if (isWasmReady()) {
-          if (json.basics && json.meta) {
-            // Looks like Reactive Resume V3
-            parsed = parseReactiveResumeV3(text);
-          } else if (isNativeRustumeJson(json)) {
-            // Native Rustume must be detected before JSON Resume (both have `basics`)
+          if (isNativeRustumeJson(json)) {
+            // Native Rustume must be detected before RR v3 / JSON Resume (all
+            // three can carry `basics` + `metadata`).
             parsed = json as ResumeData;
+          } else if (json.basics && (json.meta || json.metadata)) {
+            // Reactive Resume v3 exports `metadata` (some older samples use `meta`).
+            parsed = parseReactiveResumeV3(text);
           } else if (json.basics) {
             // JSON Resume format
             parsed = parseJsonResume(text);
@@ -173,10 +174,10 @@ export function ImportModal(props: ImportModalProps = {}) {
         } else {
           // Use server API
           let serverFormat: ImportFormat = "json-resume";
-          if (json.basics && json.meta) {
-            serverFormat = "rrv3";
-          } else if (isNativeRustumeJson(json)) {
+          if (isNativeRustumeJson(json)) {
             serverFormat = "rustume";
+          } else if (json.basics && (json.meta || json.metadata)) {
+            serverFormat = "rrv3";
           }
 
           parsed = await parseResume({

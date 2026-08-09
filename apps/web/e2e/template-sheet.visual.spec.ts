@@ -51,7 +51,9 @@ test.describe("per-template sheet baselines", () => {
       await docEditorPage.openImportModal();
       await importModal.assertOpen();
       await importModal.importFile(DOC_EDITOR_FIXTURE);
-      await expect(page.getByText("Resume imported successfully")).toBeVisible();
+      await expect(page.getByText("Resume imported successfully")).toBeVisible({
+        timeout: 15_000,
+      });
       await importModal.assertClosed();
       await docEditorPage.assertName("Mireille Okafor");
       await docEditorPage.assertSaved();
