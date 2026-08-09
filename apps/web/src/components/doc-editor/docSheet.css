@@ -427,7 +427,8 @@
 /* Case / ink defaults — overridden by chrome modifiers below. */
 .doc-sheet--heading-case-upper .doc-sheet__main .doc-sheet__sec-title,
 .doc-sheet--heading-case-upper.doc-sheet--layout-single .doc-sheet__sec-title,
-.doc-sheet--heading-case-upper .doc-sheet__single .doc-sheet__sec-title {
+.doc-sheet--heading-case-upper .doc-sheet__single .doc-sheet__sec-title,
+.doc-sheet--heading-case-upper .doc-sheet__side .doc-sheet__sec-title {
   text-transform: uppercase;
 }
 

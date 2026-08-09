@@ -5,7 +5,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { render } from "@solidjs/testing-library";
 import { DocSheet } from "../DocSheet";
-import { loadDocEditorFixture, SIDEBAR_TEMPLATE, SINGLE_TEMPLATE } from "../../../test/docEditorFixture";
+import {
+  loadDocEditorFixture,
+  SIDEBAR_TEMPLATE,
+  SINGLE_TEMPLATE,
+} from "../../../test/docEditorFixture";
 import { bundledTemplateLayout } from "../../../lib/docLayout";
 
 vi.mock("../../../stores/resume", () => ({
@@ -55,11 +59,22 @@ describe("DocSheet chrome modifiers", () => {
     expect(sheet.getAttribute("data-font-body")).toBe("ibm-plex-serif");
   });
 
-  it("keeps fixture templates valid for sheet render", () => {
+  it("applies the fixture templates' declared chrome, not just any sheet node", () => {
     const resume = loadDocEditorFixture();
+
     render(() => <DocSheet resume={resume} templateLayout={SINGLE_TEMPLATE} mode="done" />);
-    expect(document.querySelector("[data-testid='doc-sheet']")).not.toBeNull();
+    const single = document.querySelector("[data-testid='doc-sheet']") as HTMLElement;
+    expect(single.className).toContain("doc-sheet--heading-underline");
+    expect(single.className).toContain("doc-sheet--heading-case-upper");
+    expect(single.classList.contains("doc-sheet--header-rule")).toBe(true);
+    expect(single.classList.contains("doc-sheet--sidebar-tint")).toBe(false);
+
     render(() => <DocSheet resume={resume} templateLayout={SIDEBAR_TEMPLATE} mode="done" />);
-    expect(document.querySelectorAll("[data-testid='doc-sheet']").length).toBeGreaterThan(0);
+    const sheets = document.querySelectorAll("[data-testid='doc-sheet']");
+    const sidebar = sheets[sheets.length - 1] as HTMLElement;
+    expect(sidebar.className).toContain("doc-sheet--heading-band");
+    expect(sidebar.className).toContain("doc-sheet--side-heading-plain");
+    expect(sidebar.classList.contains("doc-sheet--sidebar-tint")).toBe(true);
+    expect(sidebar.classList.contains("doc-sheet--header-rule")).toBe(false);
   });
 });

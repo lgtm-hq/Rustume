@@ -106,7 +106,7 @@
     "layoutMode": "sidebar-right",
     "sidebarHeadingInk": "accent",
     "sidebarHeadingStyle": "underline",
-    "sidebarTint": false,
+    "sidebarTint": true,
     "sidebarWidth": null
   },
   "ditto": {

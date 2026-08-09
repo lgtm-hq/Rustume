@@ -70,21 +70,44 @@ export const templateLayoutSchema = z.object({
     .transform((width) => width ?? null),
   // Chrome fields are optional for skew with older self-hosted servers; missing
   // values fall back to the rhyhorn-like underline / Plex Sans defaults.
-  headingStyle: headingStyleSchema.optional().catch(undefined).transform((v) => v ?? "underline"),
+  headingStyle: headingStyleSchema
+    .optional()
+    .catch(undefined)
+    .transform((v) => v ?? "underline"),
   sidebarHeadingStyle: headingStyleSchema
     .optional()
     .catch(undefined)
     .transform((v) => v ?? "underline"),
-  headingCase: headingCaseSchema.optional().catch(undefined).transform((v) => v ?? "upper"),
-  headingInk: headingInkSchema.optional().catch(undefined).transform((v) => v ?? "accent"),
+  headingCase: headingCaseSchema
+    .optional()
+    .catch(undefined)
+    .transform((v) => v ?? "upper"),
+  headingInk: headingInkSchema
+    .optional()
+    .catch(undefined)
+    .transform((v) => v ?? "accent"),
   sidebarHeadingInk: headingInkSchema
     .optional()
     .catch(undefined)
     .transform((v) => v ?? "accent"),
-  fontBody: bodyFontSchema.optional().catch(undefined).transform((v) => v ?? "ibm-plex-sans"),
-  sidebarTint: z.boolean().optional().catch(undefined).transform((v) => v ?? false),
-  keywordStyle: keywordStyleSchema.optional().catch(undefined).transform((v) => v ?? "plain"),
-  headerRule: z.boolean().optional().catch(undefined).transform((v) => v ?? false),
+  fontBody: bodyFontSchema
+    .optional()
+    .catch(undefined)
+    .transform((v) => v ?? "ibm-plex-sans"),
+  sidebarTint: z
+    .boolean()
+    .optional()
+    .catch(undefined)
+    .transform((v) => v ?? false),
+  keywordStyle: keywordStyleSchema
+    .optional()
+    .catch(undefined)
+    .transform((v) => v ?? "plain"),
+  headerRule: z
+    .boolean()
+    .optional()
+    .catch(undefined)
+    .transform((v) => v ?? true),
 });
 
 export const templateInfoSchema = z.object({

@@ -361,7 +361,6 @@ fn two_column(
     }
 }
 
-
 /// Get the structural layout of a template.
 ///
 /// Unknown template ids fall back to `rhyhorn`, mirroring
@@ -408,7 +407,8 @@ pub fn get_template_layout(template: &str) -> TemplateLayout {
             HeaderStyle::Left,
             ContactIn::Header,
             None,
-            chrome_underline_chips(true, false),
+            // Tinted: chikorita.typ wraps the right column in a light-bg box.
+            chrome_underline_chips(true, true),
         ),
         "ditto" => two_column(
             LayoutMode::SidebarLeft,
@@ -482,7 +482,6 @@ pub fn get_template_layout(template: &str) -> TemplateLayout {
         _ => single(HeaderStyle::Left, chrome_underline_plain(true)),
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -658,15 +657,38 @@ mod tests {
 
     #[test]
     fn chrome_matches_the_template_sources() {
-        assert_eq!(get_template_layout("onyx").chrome.heading_style, HeadingStyle::Underline);
-        assert_eq!(get_template_layout("onyx").chrome.keyword_style, KeywordStyle::Chips);
-        assert_eq!(get_template_layout("pikachu").chrome.heading_style, HeadingStyle::Band);
-        assert_eq!(get_template_layout("pikachu").chrome.sidebar_heading_style, HeadingStyle::Plain);
-        assert_eq!(get_template_layout("nosepass").chrome.font_body, BodyFont::IbmPlexSerif);
-        assert_eq!(get_template_layout("nosepass").chrome.heading_style, HeadingStyle::Rule);
-        assert_eq!(get_template_layout("gengar").chrome.heading_ink, HeadingInk::Text);
+        assert_eq!(
+            get_template_layout("onyx").chrome.heading_style,
+            HeadingStyle::Underline
+        );
+        assert_eq!(
+            get_template_layout("onyx").chrome.keyword_style,
+            KeywordStyle::Chips
+        );
+        assert_eq!(
+            get_template_layout("pikachu").chrome.heading_style,
+            HeadingStyle::Band
+        );
+        assert_eq!(
+            get_template_layout("pikachu").chrome.sidebar_heading_style,
+            HeadingStyle::Plain
+        );
+        assert_eq!(
+            get_template_layout("nosepass").chrome.font_body,
+            BodyFont::IbmPlexSerif
+        );
+        assert_eq!(
+            get_template_layout("nosepass").chrome.heading_style,
+            HeadingStyle::Rule
+        );
+        assert_eq!(
+            get_template_layout("gengar").chrome.heading_ink,
+            HeadingInk::Text
+        );
         assert!(get_template_layout("pikachu").chrome.sidebar_tint);
         assert!(!get_template_layout("azurill").chrome.sidebar_tint);
+        // chikorita.typ fills the right column with light-bg.
+        assert!(get_template_layout("chikorita").chrome.sidebar_tint);
     }
 
     const UNKNOWN_TEMPLATE_ID: &str = "not-a-template";
@@ -745,8 +767,16 @@ mod tests {
             return;
         }
         let expected = std::fs::read_to_string(&path).unwrap_or_else(|err| {
-            panic!("missing fixture {}: {err}; regenerate with UPDATE_FIXTURES=1", path.display())
+            panic!(
+                "missing fixture {}: {err}; regenerate with UPDATE_FIXTURES=1",
+                path.display()
+            )
         });
-        assert_eq!(actual, expected, "fixture out of date at {}", path.display());
+        assert_eq!(
+            actual,
+            expected,
+            "fixture out of date at {}",
+            path.display()
+        );
     }
 }

@@ -11,6 +11,8 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
+import { templateLayoutSchema } from "../../api/schemas";
 import { bundledTemplateLayout, type TemplateLayout } from "../docLayout";
 
 const FIXTURE_PATH = resolve(
@@ -21,7 +23,12 @@ const FIXTURE_PATH = resolve(
 type FixtureLayouts = Record<string, TemplateLayout>;
 
 function loadFixture(): FixtureLayouts {
-  return JSON.parse(readFileSync(FIXTURE_PATH, "utf8")) as FixtureLayouts;
+  const raw = JSON.parse(readFileSync(FIXTURE_PATH, "utf8")) as unknown;
+  // Shape-check via the wire schema so a corrupt or half-regenerated fixture
+  // fails with a clear validation error instead of opaque deep-equal diffs.
+  // The raw (untransformed) value is still what the lockstep asserts against.
+  z.record(z.string(), templateLayoutSchema).parse(raw);
+  return raw as FixtureLayouts;
 }
 
 describe("bundledTemplateLayout lockstep with get_template_layout", () => {

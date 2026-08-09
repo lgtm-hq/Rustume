@@ -30,6 +30,6 @@ mod typst_engine;
 pub use traits::{RenderError, Renderer};
 pub use typst_engine::{
     get_page_size, get_template_layout, get_template_theme, BodyFont, ContactIn, HeaderStyle,
-    HeadingCase, HeadingInk, HeadingStyle, KeywordStyle, LayoutMode, TemplateChrome, TemplateLayout,
-    TemplateTheme, TypstRenderer, TEMPLATES,
+    HeadingCase, HeadingInk, HeadingStyle, KeywordStyle, LayoutMode, TemplateChrome,
+    TemplateLayout, TemplateTheme, TypstRenderer, TEMPLATES,
 };

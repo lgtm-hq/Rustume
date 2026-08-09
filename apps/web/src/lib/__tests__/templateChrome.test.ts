@@ -42,6 +42,10 @@ describe("template chrome metadata", () => {
     expect(bundledTemplateLayout("azurill").sidebarTint).toBe(false);
   });
 
+  it("tints the chikorita sidebar (light-bg right-column box in chikorita.typ)", () => {
+    expect(bundledTemplateLayout("chikorita").sidebarTint).toBe(true);
+  });
+
   it("covers every gallery template with chrome fields", () => {
     const ids = [
       "rhyhorn",

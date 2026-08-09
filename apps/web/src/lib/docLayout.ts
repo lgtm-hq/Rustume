@@ -349,11 +349,30 @@ export function bundledTemplateLayout(template: string): TemplateLayout {
     case "kakuna":
       return bundledSingle("boxed", chromeUnderlineChips(false, false));
     case "azurill":
-      return bundledTwoColumn("sidebar-left", "center", "header", null, chromeUnderlineChips(true, false));
+      return bundledTwoColumn(
+        "sidebar-left",
+        "center",
+        "header",
+        null,
+        chromeUnderlineChips(true, false),
+      );
     case "chikorita":
-      return bundledTwoColumn("sidebar-right", "left", "header", null, chromeUnderlineChips(true, false));
+      // Tinted: chikorita.typ wraps the right column in a light-bg box.
+      return bundledTwoColumn(
+        "sidebar-right",
+        "left",
+        "header",
+        null,
+        chromeUnderlineChips(true, true),
+      );
     case "ditto":
-      return bundledTwoColumn("sidebar-left", "banner", "banner", 160, chromeUnderlineChips(false, true));
+      return bundledTwoColumn(
+        "sidebar-left",
+        "banner",
+        "banner",
+        160,
+        chromeUnderlineChips(false, true),
+      );
     case "gengar":
       return bundledTwoColumn("sidebar-left", "sidebar", "sidebar", 170, {
         headingStyle: "underline",
