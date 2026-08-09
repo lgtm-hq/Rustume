@@ -3,7 +3,7 @@
 use crate::traits::{RenderError, Renderer};
 use crate::typst_engine::world::RustumeWorld;
 use rustume_schema::{ContentFormat, PageFormat, ResumeData};
-use rustume_utils::{html_to_typst, markdown_to_typst, sanitize_html};
+use rustume_utils::{markdown_to_typst, sanitize_html_to_typst};
 use tracing::{debug, instrument, warn};
 
 /// Available templates.
@@ -25,6 +25,25 @@ pub const TEMPLATES: &[&str] = &[
 /// Generated Typst source plus an optional decoded picture asset
 /// (virtual path, bytes) to expose to the Typst world.
 type PreparedSource = (String, Option<(String, Vec<u8>)>);
+
+/// Escape `\` and `"` for embedding in a Typst double-quoted string literal.
+///
+/// Equivalent to `s.replace('\\', "\\\\").replace('"', "\\\"")` but performs
+/// one scan and one allocation — important when `s` is serialized resume JSON
+/// that embeds a multi-hundred-KB base64 photo.
+fn escape_typst_string_literal(s: &str) -> String {
+    let bytes = s.as_bytes();
+    let extra = bytes.iter().filter(|&&b| b == b'\\' || b == b'"').count();
+    let mut out = Vec::with_capacity(s.len() + extra);
+    for &b in bytes {
+        match b {
+            b'\\' => out.extend_from_slice(b"\\\\"),
+            b'"' => out.extend_from_slice(b"\\\""),
+            _ => out.push(b),
+        }
+    }
+    String::from_utf8(out).expect("escaping ASCII into UTF-8 preserves validity")
+}
 
 /// Decode a `data:image/<subtype>;base64,` picture URL into bytes and rewrite
 /// the picture URL to a virtual asset path so Typst's `image()` can load it.
@@ -67,7 +86,7 @@ fn convert_field(content: &str, format: ContentFormat) -> String {
         return String::new();
     }
     match format {
-        ContentFormat::Html => html_to_typst(&sanitize_html(content)),
+        ContentFormat::Html => sanitize_html_to_typst(content),
         ContentFormat::Markdown => markdown_to_typst(content),
     }
 }
@@ -218,18 +237,13 @@ impl TypstRenderer {
         let resume_json = serde_json::to_string(&resume)
             .map_err(|e| RenderError::RenderFailed(format!("JSON serialization failed: {}", e)))?;
 
-        // Escape the JSON for embedding in Typst string
-        // We need to escape backslashes first, then quotes
-        let escaped_json = resume_json.replace('\\', "\\\\").replace('"', "\\\"");
+        // Single-pass escape of \\ and \" (one scan, one allocation;
+        // photo data URLs make this string 100 KB-2 MB).
+        let escaped_json = escape_typst_string_literal(&resume_json);
 
         // Escape font family for embedding in Typst string (same escaping as JSON)
-        let escaped_font_family = resume
-            .metadata
-            .typography
-            .font
-            .family
-            .replace('\\', "\\\\")
-            .replace('"', "\\\"");
+        let escaped_font_family =
+            escape_typst_string_literal(&resume.metadata.typography.font.family);
 
         // Generate the main Typst source that imports the template and passes data
         let source = format!(

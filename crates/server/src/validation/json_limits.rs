@@ -1,5 +1,7 @@
 //! JSON complexity limits for resume payloads.
 
+use std::io::{self, Write};
+
 use serde_json::Value;
 
 use crate::config::{MAX_JSON_DEPTH, MAX_RESUME_JSON_BYTES, MAX_STRING_FIELD_LEN, MAX_TITLE_LEN};
@@ -15,13 +17,44 @@ pub fn validate_title(title: &str) -> Result<(), ApiError> {
     Ok(())
 }
 
+/// Writer that counts bytes without retaining them.
+///
+/// Used so size checks match compact `serde_json` serialization exactly
+/// (same limit semantics as the former `serde_json::to_vec(...).len()` path)
+/// without allocating a full copy of the payload.
+struct CountingWriter {
+    count: usize,
+}
+
+impl Write for CountingWriter {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.count = self.count.saturating_add(buf.len());
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+/// Byte length of `value` under compact `serde_json` serialization.
+///
+/// Exactness against serialization form matters here: callers pass an already
+/// deserialized [`Value`], and the historical limit measured `to_vec` size
+/// (not the raw HTTP body, which may include wrappers/whitespace). A counting
+/// writer preserves that measurement without the intermediate buffer.
+fn serialized_json_size(value: &Value) -> Result<usize, ApiError> {
+    let mut counter = CountingWriter { count: 0 };
+    serde_json::to_writer(&mut counter, value)
+        .map_err(|_| ApiError::new("Invalid resume JSON"))?;
+    Ok(counter.count)
+}
+
 /// Validate resume JSON depth, string lengths, and serialized size.
 pub fn validate_resume_json(value: &Value) -> Result<(), ApiError> {
     validate_json_depth(value, MAX_JSON_DEPTH, 1)?;
     validate_string_lengths(value)?;
-    let size = serde_json::to_vec(value)
-        .map_err(|_| ApiError::new("Invalid resume JSON"))?
-        .len();
+    let size = serialized_json_size(value)?;
     if size > MAX_RESUME_JSON_BYTES {
         return Err(ApiError::new(format!(
             "Resume JSON exceeds maximum size of {MAX_RESUME_JSON_BYTES} bytes"
@@ -145,5 +178,37 @@ mod tests {
         });
         let err = validate_resume_json(&value).expect_err("expected string length error");
         assert!(err.error.contains("String field"));
+    }
+
+    #[test]
+    fn counting_writer_matches_to_vec_len() {
+        let value = json!({
+            "basics": { "name": "Ada", "summary": "x".repeat(1024) },
+            "items": [1, 2, 3],
+        });
+        let expected = serde_json::to_vec(&value).unwrap().len();
+        assert_eq!(serialized_json_size(&value).unwrap(), expected);
+    }
+
+    #[test]
+    fn rejects_oversized_serialized_payload() {
+        // Use a photo data URL so the per-field string cap does not fire first;
+        // overall compact serialization still exceeds MAX_RESUME_JSON_BYTES.
+        let value = json!({
+            "basics": {
+                "picture": {
+                    "url": format!(
+                        "data:image/jpeg;base64,{}",
+                        "A".repeat(MAX_RESUME_JSON_BYTES)
+                    )
+                }
+            }
+        });
+        let err = validate_resume_json(&value).expect_err("expected size error");
+        assert!(
+            err.error.contains("maximum size"),
+            "unexpected error: {}",
+            err.error
+        );
     }
 }

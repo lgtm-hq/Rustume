@@ -6,6 +6,8 @@
 
 use scraper::{Html, Node};
 
+use crate::sanitize::is_allowed_tag;
+
 /// Convert an HTML string to Typst markup.
 ///
 /// Supported tags:
@@ -26,7 +28,26 @@ use scraper::{Html, Node};
 ///
 /// All other tags are stripped; their text content is preserved.
 /// Plain text without any HTML tags passes through unchanged.
+///
+/// Prefer [`sanitize_html_to_typst`] when the input is untrusted HTML that
+/// still needs the resume allow-list applied — that path sanitizes and
+/// converts from a single parse tree.
 pub fn html_to_typst(html: &str) -> String {
+    html_to_typst_inner(html, false)
+}
+
+/// Sanitize with the resume HTML allow-list and convert to Typst in one parse.
+///
+/// Applies the same tag allow-list as [`crate::sanitize_html`]: disallowed
+/// elements are dropped with their descendants (ammonia semantics). Link
+/// schemes are enforced during conversion. This avoids ammonia parse →
+/// serialize → scraper re-parse on the render path while keeping typst output
+/// byte-compatible with the former two-pass pipeline for allow-listed markup.
+pub fn sanitize_html_to_typst(html: &str) -> String {
+    html_to_typst_inner(html, true)
+}
+
+fn html_to_typst_inner(html: &str, sanitize: bool) -> String {
     let trimmed = html.trim();
     if trimmed.is_empty() {
         return String::new();
@@ -35,6 +56,7 @@ pub fn html_to_typst(html: &str) -> String {
     // Fast path: no HTML tags at all → escape Typst special chars and return.
     // Even plain text needs escaping because templates eval() the result.
     // Run through clean_output so newline normalization matches the HTML path.
+    // Nothing to sanitize when there are no tags.
     if !trimmed.contains('<') {
         return clean_output(&escape_typst(trimmed));
     }
@@ -43,7 +65,7 @@ pub fn html_to_typst(html: &str) -> String {
     let mut output = String::new();
 
     for child in document.root_element().children() {
-        process_node(&child, &mut output, 0);
+        process_node(&child, &mut output, 0, sanitize);
     }
 
     clean_output(&output)
@@ -79,7 +101,17 @@ fn escape_typst(text: &str) -> String {
 /// any list, `1` inside a top-level item, and so on. A list encountered at
 /// depth `d` indents its markers by `d` levels, which is how Typst expresses
 /// list nesting.
-fn process_node(node: &ego_tree::NodeRef<'_, Node>, output: &mut String, list_depth: usize) {
+///
+/// When `sanitize` is true, tags outside the resume allow-list are dropped with
+/// their descendants (matching ammonia). Scraper's fragment chrome (`html` /
+/// `body`) is always unwrapped. When `sanitize` is false, unknown tags are
+/// stripped but their text content is preserved (legacy `html_to_typst` behavior).
+fn process_node(
+    node: &ego_tree::NodeRef<'_, Node>,
+    output: &mut String,
+    list_depth: usize,
+    sanitize: bool,
+) {
     let in_list = list_depth > 0;
     match node.value() {
         Node::Text(text) => {
@@ -93,11 +125,25 @@ fn process_node(node: &ego_tree::NodeRef<'_, Node>, output: &mut String, list_de
         }
         Node::Element(el) => {
             let tag = el.name.local.as_ref();
+            if sanitize {
+                // Fragment chrome from html5ever — not on the allow-list, but
+                // must unwrap so real content is reachable.
+                if matches!(tag, "html" | "body") {
+                    for child in node.children() {
+                        process_node(&child, output, list_depth, sanitize);
+                    }
+                    return;
+                }
+                if !is_allowed_tag(tag) {
+                    // Ammonia drops disallowed elements including descendants.
+                    return;
+                }
+            }
             match tag {
                 "p" => {
                     let mut inner = String::new();
                     for child in node.children() {
-                        process_node(&child, &mut inner, 0);
+                        process_node(&child, &mut inner, 0, sanitize);
                     }
                     let trimmed = inner.trim();
                     // TipTap produces <p><br></p> for empty editors — treat as empty.
@@ -109,7 +155,7 @@ fn process_node(node: &ego_tree::NodeRef<'_, Node>, output: &mut String, list_de
                 "strong" | "b" => {
                     let mut inner = String::new();
                     for child in node.children() {
-                        process_node(&child, &mut inner, list_depth);
+                        process_node(&child, &mut inner, list_depth, sanitize);
                     }
                     if !inner.is_empty() {
                         output.push_str("#text(weight: \"bold\")[");
@@ -120,7 +166,7 @@ fn process_node(node: &ego_tree::NodeRef<'_, Node>, output: &mut String, list_de
                 "em" | "i" => {
                     let mut inner = String::new();
                     for child in node.children() {
-                        process_node(&child, &mut inner, list_depth);
+                        process_node(&child, &mut inner, list_depth, sanitize);
                     }
                     if !inner.is_empty() {
                         output.push_str("#emph[");
@@ -131,7 +177,7 @@ fn process_node(node: &ego_tree::NodeRef<'_, Node>, output: &mut String, list_de
                 "u" => {
                     let mut inner = String::new();
                     for child in node.children() {
-                        process_node(&child, &mut inner, list_depth);
+                        process_node(&child, &mut inner, list_depth, sanitize);
                     }
                     if !inner.is_empty() {
                         output.push_str("#underline[");
@@ -143,7 +189,7 @@ fn process_node(node: &ego_tree::NodeRef<'_, Node>, output: &mut String, list_de
                     let href = el.attr("href").unwrap_or("");
                     let mut inner = String::new();
                     for child in node.children() {
-                        process_node(&child, &mut inner, list_depth);
+                        process_node(&child, &mut inner, list_depth, sanitize);
                     }
                     if !inner.is_empty() {
                         // Only emit links with safe schemes.
@@ -155,7 +201,7 @@ fn process_node(node: &ego_tree::NodeRef<'_, Node>, output: &mut String, list_de
                         if safe {
                             output.push_str("#link(\"");
                             // Escape quotes in the URL for Typst string literal.
-                            output.push_str(&href.replace('\\', "\\\\").replace('"', "\\\""));
+                            output.push_str(&escape_typst_string_literal(href));
                             output.push_str("\")[");
                             output.push_str(&inner);
                             output.push(']');
@@ -167,7 +213,7 @@ fn process_node(node: &ego_tree::NodeRef<'_, Node>, output: &mut String, list_de
                 }
                 "ul" | "ol" => {
                     let marker = if tag == "ul" { '-' } else { '+' };
-                    process_list(node, output, marker, list_depth);
+                    process_list(node, output, marker, list_depth, sanitize);
                 }
                 "pre" => {
                     // A fenced code block (comrak emits `<pre><code>…</code></pre>`).
@@ -197,10 +243,10 @@ fn process_node(node: &ego_tree::NodeRef<'_, Node>, output: &mut String, list_de
                 "br" => {
                     output.push_str("#linebreak()\n");
                 }
-                // Unknown tags: process children, strip the tag itself.
+                // Allowed-but-unmapped (sanitize) or unknown (legacy): unwrap.
                 _ => {
                     for child in node.children() {
-                        process_node(&child, output, list_depth);
+                        process_node(&child, output, list_depth, sanitize);
                     }
                 }
             }
@@ -227,15 +273,43 @@ fn collect_text(node: &ego_tree::NodeRef<'_, Node>, out: &mut String) {
     }
 }
 
+/// Escape `\` and `"` for a Typst double-quoted string literal (one pass).
+fn escape_typst_string_literal(text: &str) -> String {
+    let bytes = text.as_bytes();
+    let extra = bytes.iter().filter(|&&b| b == b'\\' || b == b'"').count();
+    let mut out = Vec::with_capacity(text.len() + extra);
+    for &b in bytes {
+        match b {
+            b'\\' => out.extend_from_slice(b"\\\\"),
+            b'"' => out.extend_from_slice(b"\\\""),
+            _ => out.push(b),
+        }
+    }
+    // Only ASCII escapes were inserted into valid UTF-8 input.
+    String::from_utf8(out).expect("escaping ASCII into UTF-8 preserves validity")
+}
+
 /// Escape `text` for a Typst double-quoted string literal.
 ///
 /// Newlines become the `\n` escape so the literal stays on one output line —
 /// `clean_output` collapses runs of raw newlines and would otherwise mangle
 /// code bodies with consecutive blank lines.
 fn escape_typst_string(text: &str) -> String {
-    text.replace('\\', "\\\\")
-        .replace('"', "\\\"")
-        .replace('\n', "\\n")
+    let bytes = text.as_bytes();
+    let extra = bytes
+        .iter()
+        .filter(|&&b| matches!(b, b'\\' | b'"' | b'\n'))
+        .count();
+    let mut out = Vec::with_capacity(text.len() + extra);
+    for &b in bytes {
+        match b {
+            b'\\' => out.extend_from_slice(b"\\\\"),
+            b'"' => out.extend_from_slice(b"\\\""),
+            b'\n' => out.extend_from_slice(b"\\n"),
+            _ => out.push(b),
+        }
+    }
+    String::from_utf8(out).expect("escaping ASCII into UTF-8 preserves validity")
 }
 
 /// Render a `<ul>`/`<ol>` element as Typst list lines.
@@ -250,6 +324,7 @@ fn process_list(
     output: &mut String,
     marker: char,
     depth: usize,
+    sanitize: bool,
 ) {
     let indent = "  ".repeat(depth);
     let mut emitted_any = false;
@@ -266,7 +341,7 @@ fn process_list(
         for li_child in child.children() {
             // Children of this item sit one level deeper, so a list among
             // them renders as a sublist rather than more sibling bullets.
-            process_node(&li_child, &mut inner, depth + 1);
+            process_node(&li_child, &mut inner, depth + 1, sanitize);
         }
         let trimmed = inner.trim();
         if !trimmed.is_empty() {
@@ -620,5 +695,31 @@ mod tests {
             html_to_typst("<pre><code>a\n\n\n\nb\n</code></pre>"),
             "#raw(block: true, \"a\\n\\n\\n\\nb\")"
         );
+    }
+
+    #[test]
+    fn sanitize_html_to_typst_drops_script_with_contents() {
+        assert_eq!(
+            sanitize_html_to_typst("<p>Hello</p><script>alert('xss')</script>"),
+            "Hello"
+        );
+    }
+
+    #[test]
+    fn sanitize_html_to_typst_matches_two_pass_for_safe_markup() {
+        let samples = [
+            "<p>Hello <strong>world</strong></p>",
+            r#"<p><a href="https://example.com">Example</a></p>"#,
+            r#"<a href="javascript:alert(1)">Click</a>"#,
+            "<ul><li>A<ul><li>B</li></ul></li><li>C</li></ul>",
+            "<p>Line 1<br>Line 2</p>",
+            "<pre><code>let x = 1;\n</code></pre>",
+            "<p>Before <script>x</script> after</p>",
+        ];
+        for html in samples {
+            let two_pass = html_to_typst(&crate::sanitize_html(html));
+            let one_pass = sanitize_html_to_typst(html);
+            assert_eq!(one_pass, two_pass, "mismatch for {html:?}");
+        }
     }
 }
