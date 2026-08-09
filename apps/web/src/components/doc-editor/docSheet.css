@@ -11,7 +11,14 @@
  * wide, sized to their content, with A4 boundaries drawn as guides at 1122px
  * intervals rather than clipped frames. The base type is 12.5px/1.45 per the
  * spec; the resume's theme arrives as custom properties set by `DocSheet`.
+ *
+ * Typography (#828): `--doc-font-*` are sheet-local. Never fall back to the
+ * app chrome's `--font-body` / `--font-display` / `--font-mono` — those live
+ * on `:root` and would shadow any CSS fallback list. Faces ship via
+ * `docFonts.css` (same OFL IBM Plex files the PDF renderer vendors).
  */
+
+@import "./docFonts.css";
 
 .doc-sheet {
   --doc-sheet-bg: var(--color-sheet);
@@ -22,6 +29,11 @@
   --doc-sheet-tint: color-mix(in srgb, var(--doc-sheet-accent) 10%, transparent);
   --doc-sheet-side-w: 287px;
   --doc-sheet-page-h: 1122px;
+
+  /* Document faces — independent of app chrome (`index.css` `--font-*`). */
+  --doc-font-body: "IBM Plex Sans", Inter, system-ui, sans-serif;
+  --doc-font-display: "IBM Plex Sans", Inter, system-ui, sans-serif;
+  --doc-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   display: flex;
   flex-direction: column;
@@ -43,7 +55,7 @@
   color: var(--doc-sheet-text);
   border-radius: 4px;
   box-shadow: 0 24px 60px -20px var(--color-shadow, rgb(0 0 0 / 45%));
-  font-family: var(--font-body, "IBM Plex Sans", Inter, system-ui, sans-serif);
+  font-family: var(--doc-font-body);
   font-size: 12.5px;
   line-height: 1.45;
   overflow: visible;
@@ -75,7 +87,7 @@
 }
 
 .doc-sheet__page-break-label {
-  font-family: var(--font-mono, monospace);
+  font-family: var(--doc-font-mono);
   font-size: 0.65rem;
   font-weight: 700;
   line-height: 1;
@@ -272,7 +284,7 @@
 
 .doc-sheet__name {
   display: block;
-  font-family: var(--font-display, inherit);
+  font-family: var(--doc-font-display);
   font-size: 1.7rem;
   font-weight: 700;
   line-height: 1.15;
@@ -411,7 +423,7 @@
 
 .doc-sheet__sec-title {
   margin: 0;
-  font-family: var(--font-display, inherit);
+  font-family: var(--doc-font-display);
   font-size: 0.64rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -1057,7 +1069,7 @@
 
 .doc-sheet__edu-date {
   display: block;
-  font-family: var(--font-mono, monospace);
+  font-family: var(--doc-font-mono);
   font-size: 0.64rem;
   color: var(--doc-sheet-muted);
 }

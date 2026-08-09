@@ -222,6 +222,32 @@ function bundledTwoColumn(
 }
 
 /**
+ * Default document face shared by every Typst template except nosepass.
+ * Matches the OFL webfonts in `docFonts.css` / PDF-bundled TTFs.
+ */
+export const DEFAULT_DOC_FONT_FAMILY = "IBM Plex Sans";
+
+/** Serif face declared by the nosepass Typst template. */
+export const NOSEPASS_DOC_FONT_FAMILY = "IBM Plex Serif";
+
+/**
+ * Document face for a template id, mirroring the Typst `#set text(font: …)`
+ * each template declares. Full `metadata.typography.font.family` honoring is
+ * #701 — this only picks the template default the sheet should show.
+ */
+export function templateDocFontFamily(template: string): string {
+  return template === "nosepass" ? NOSEPASS_DOC_FONT_FAMILY : DEFAULT_DOC_FONT_FAMILY;
+}
+
+/**
+ * CSS `font-family` stack for the sheet's `--doc-font-body` / `--doc-font-display`.
+ * Quoted family first so multi-word names (IBM Plex *) resolve correctly.
+ */
+export function docFontStack(family: string): string {
+  return `"${family}", Inter, system-ui, sans-serif`;
+}
+
+/**
  * The bundled layout for a template id. Unknown ids fall back to the rhyhorn
  * single-column shape, mirroring the Rust side.
  */

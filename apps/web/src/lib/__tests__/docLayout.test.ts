@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   CUSTOM_SECTION_SENTINEL,
+  DEFAULT_DOC_FONT_FAMILY,
+  NOSEPASS_DOC_FONT_FAMILY,
+  docFontStack,
   emptyItemFor,
   FIXED_SECTION_IDS,
   findSectionPlacement,
@@ -13,6 +16,7 @@ import {
   SECTION_LABELS,
   sectionTitle,
   sectionVisible,
+  templateDocFontFamily,
   type TemplateLayout,
 } from "../docLayout";
 import { renderSheetPages } from "../docPagination";
@@ -661,5 +665,24 @@ describe("emptyItemFor", () => {
   it("returns null for sections that hold rich text rather than items", () => {
     expect(emptyItemFor("summary")).toBeNull();
     expect(emptyItemFor("coverLetter")).toBeNull();
+  });
+});
+
+
+describe("templateDocFontFamily / docFontStack", () => {
+  it("uses IBM Plex Serif for nosepass and Sans for every other template", () => {
+    expect(templateDocFontFamily("nosepass")).toBe(NOSEPASS_DOC_FONT_FAMILY);
+    expect(templateDocFontFamily("ditto")).toBe(DEFAULT_DOC_FONT_FAMILY);
+    expect(templateDocFontFamily("onyx")).toBe(DEFAULT_DOC_FONT_FAMILY);
+    expect(templateDocFontFamily("unknown-template")).toBe(DEFAULT_DOC_FONT_FAMILY);
+  });
+
+  it("quotes the family in the CSS stack so multi-word names resolve", () => {
+    expect(docFontStack("IBM Plex Sans")).toBe(
+      '"IBM Plex Sans", Inter, system-ui, sans-serif',
+    );
+    expect(docFontStack("IBM Plex Serif")).toBe(
+      '"IBM Plex Serif", Inter, system-ui, sans-serif',
+    );
   });
 });
