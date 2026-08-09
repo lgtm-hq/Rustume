@@ -61,6 +61,7 @@ import {
   PAGE_HEIGHT_PX,
   SHEET_CONTENT_WIDTH_PX,
   SHEET_PX_PER_PT,
+  docFontStack,
   findSectionPlacement,
   layoutColumns,
   layoutPages,
@@ -199,6 +200,7 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
   const layoutMode = (): TemplateLayout["layoutMode"] => props.templateLayout.layoutMode;
   const headerStyle = (): TemplateLayout["headerStyle"] => props.templateLayout.headerStyle;
   const contactIn = (): TemplateLayout["contactIn"] => props.templateLayout.contactIn;
+  const chrome = (): TemplateLayout => props.templateLayout;
 
   const [focusedSection, setFocusedSection] = createSignal<string | null>(null);
   const [isSectionDialogOpen, setIsSectionDialogOpen] = createSignal(false);
@@ -886,20 +888,34 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
           }}
           class={
             `doc-sheet doc-sheet--tpl-${props.resume.metadata.template} ` +
-            `doc-sheet--layout-${layoutMode()} doc-sheet--head-${headerStyle()}`
+            `doc-sheet--layout-${layoutMode()} doc-sheet--head-${headerStyle()} ` +
+            `doc-sheet--heading-${chrome().headingStyle} ` +
+            `doc-sheet--side-heading-${chrome().sidebarHeadingStyle} ` +
+            `doc-sheet--heading-case-${chrome().headingCase} ` +
+            `doc-sheet--heading-ink-${chrome().headingInk} ` +
+            `doc-sheet--side-heading-ink-${chrome().sidebarHeadingInk} ` +
+            `doc-sheet--keywords-${chrome().keywordStyle} ` +
+            `doc-sheet--font-${chrome().fontBody}`
           }
           classList={{
             "doc-sheet--editing": isEditable(),
             "doc-sheet--done": !isEditable(),
+            "doc-sheet--sidebar-tint": chrome().sidebarTint,
+            "doc-sheet--header-rule": chrome().headerRule,
           }}
           data-testid="doc-sheet"
           data-sheet-mode={mode()}
+          data-heading-style={chrome().headingStyle}
+          data-sidebar-heading-style={chrome().sidebarHeadingStyle}
+          data-font-body={chrome().fontBody}
           style={{
             "--doc-sheet-bg": theme().background,
             "--doc-sheet-text": theme().text,
             "--doc-sheet-accent": theme().primary,
             "--doc-sheet-side-w": `${sidebarWidth()}px`,
             "--doc-sheet-page-h": `${PAGE_HEIGHT_PX}px`,
+            "--doc-font-body": docFontStack(chrome().fontBody),
+            "--doc-font-display": docFontStack(chrome().fontBody),
           }}
         >
           <For each={pages()}>

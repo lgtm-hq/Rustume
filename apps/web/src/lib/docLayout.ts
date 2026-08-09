@@ -106,6 +106,21 @@ export type TemplateHeaderStyle = "left" | "center" | "banner" | "boxed" | "side
 /** Where a template prints the contact details. */
 export type TemplateContactIn = "sidebar" | "header" | "banner";
 
+/** Section heading chrome — maps to sheet modifier classes, not free-form CSS. */
+export type TemplateHeadingStyle = "band" | "underline" | "rule" | "plain";
+
+/** Letter-case transform for section titles. */
+export type TemplateHeadingCase = "upper" | "as-written";
+
+/** Ink colour for section heading text. */
+export type TemplateHeadingInk = "accent" | "text";
+
+/** Body typeface id hardcoded by the Typst template. */
+export type TemplateBodyFont = "ibm-plex-sans" | "ibm-plex-serif";
+
+/** Keyword list presentation. */
+export type TemplateKeywordStyle = "chips" | "plain";
+
 /**
  * Structural layout metadata for a template, as served by `GET /api/templates`
  * (`LayoutInfo` in `crates/server/src/dto.rs`).
@@ -130,6 +145,35 @@ export interface TemplateLayout {
    * proportional or the template has no sidebar.
    */
   sidebarWidth: number | null;
+  /** Main-column (and single-column) section heading chrome. */
+  headingStyle: TemplateHeadingStyle;
+  /** Sidebar section heading chrome. */
+  sidebarHeadingStyle: TemplateHeadingStyle;
+  /** Case transform for section titles. */
+  headingCase: TemplateHeadingCase;
+  /** Main-column heading ink. Band headings ignore this. */
+  headingInk: TemplateHeadingInk;
+  /** Sidebar heading ink. */
+  sidebarHeadingInk: TemplateHeadingInk;
+  /** Body typeface id (`ibm-plex-sans` | `ibm-plex-serif`). */
+  fontBody: TemplateBodyFont;
+  /** Whether the sidebar paints a tinted background. */
+  sidebarTint: boolean;
+  /** Keyword list presentation. */
+  keywordStyle: TemplateKeywordStyle;
+  /** Whether an accent rule sits under the identity header. */
+  headerRule: boolean;
+}
+
+/** CSS font stack for a template body-font id. */
+export function docFontStack(fontBody: TemplateBodyFont): string {
+  switch (fontBody) {
+    case "ibm-plex-serif":
+      return '"IBM Plex Serif", Georgia, "Times New Roman", serif';
+    case "ibm-plex-sans":
+    default:
+      return '"IBM Plex Sans", "Helvetica Neue", Arial, sans-serif';
+  }
 }
 
 /**
@@ -140,12 +184,25 @@ export interface TemplateLayout {
  * complete document when `GET /api/templates` is unavailable, or when a
  * template served by an older self-hosted server carries no layout block.
  */
+const FALLBACK_CHROME = {
+  headingStyle: "underline" as TemplateHeadingStyle,
+  sidebarHeadingStyle: "underline" as TemplateHeadingStyle,
+  headingCase: "upper" as TemplateHeadingCase,
+  headingInk: "accent" as TemplateHeadingInk,
+  sidebarHeadingInk: "accent" as TemplateHeadingInk,
+  fontBody: "ibm-plex-sans" as TemplateBodyFont,
+  sidebarTint: false,
+  keywordStyle: "plain" as TemplateKeywordStyle,
+  headerRule: true,
+};
+
 export const FALLBACK_TEMPLATE_LAYOUT: TemplateLayout = {
   layoutMode: "single",
   defaultColumns: [[...FIXED_SECTION_IDS, CUSTOM_SECTION_SENTINEL], []],
   headerStyle: "left",
   contactIn: "header",
   sidebarWidth: null,
+  ...FALLBACK_CHROME,
 };
 
 /**
@@ -190,7 +247,48 @@ function uniqueSections(...sources: readonly (readonly string[])[]): string[] {
   return out;
 }
 
-function bundledSingle(headerStyle: TemplateHeaderStyle): TemplateLayout {
+type BundledChrome = Pick<
+  TemplateLayout,
+  | "headingStyle"
+  | "sidebarHeadingStyle"
+  | "headingCase"
+  | "headingInk"
+  | "sidebarHeadingInk"
+  | "fontBody"
+  | "sidebarTint"
+  | "keywordStyle"
+  | "headerRule"
+>;
+
+function chromeUnderlinePlain(headerRule: boolean): BundledChrome {
+  return {
+    headingStyle: "underline",
+    sidebarHeadingStyle: "underline",
+    headingCase: "upper",
+    headingInk: "accent",
+    sidebarHeadingInk: "accent",
+    fontBody: "ibm-plex-sans",
+    sidebarTint: false,
+    keywordStyle: "plain",
+    headerRule,
+  };
+}
+
+function chromeUnderlineChips(headerRule: boolean, sidebarTint: boolean): BundledChrome {
+  return {
+    headingStyle: "underline",
+    sidebarHeadingStyle: "underline",
+    headingCase: "upper",
+    headingInk: "accent",
+    sidebarHeadingInk: "accent",
+    fontBody: "ibm-plex-sans",
+    sidebarTint,
+    keywordStyle: "chips",
+    headerRule,
+  };
+}
+
+function bundledSingle(headerStyle: TemplateHeaderStyle, chrome: BundledChrome): TemplateLayout {
   return {
     layoutMode: "single",
     defaultColumns: [
@@ -200,6 +298,7 @@ function bundledSingle(headerStyle: TemplateHeaderStyle): TemplateLayout {
     headerStyle,
     contactIn: "header",
     sidebarWidth: null,
+    ...chrome,
   };
 }
 
@@ -208,6 +307,7 @@ function bundledTwoColumn(
   headerStyle: TemplateHeaderStyle,
   contactIn: TemplateContactIn,
   sidebarWidth: number | null,
+  chrome: BundledChrome,
 ): TemplateLayout {
   return {
     layoutMode,
@@ -218,6 +318,7 @@ function bundledTwoColumn(
     headerStyle,
     contactIn,
     sidebarWidth,
+    ...chrome,
   };
 }
 
@@ -228,24 +329,67 @@ function bundledTwoColumn(
 export function bundledTemplateLayout(template: string): TemplateLayout {
   switch (template) {
     case "rhyhorn":
+      return bundledSingle("left", chromeUnderlinePlain(true));
     case "onyx":
+      return bundledSingle("left", chromeUnderlineChips(true, false));
     case "nosepass":
-      return bundledSingle("left");
+      return bundledSingle("left", {
+        headingStyle: "rule",
+        sidebarHeadingStyle: "rule",
+        headingCase: "as-written",
+        headingInk: "accent",
+        sidebarHeadingInk: "accent",
+        fontBody: "ibm-plex-serif",
+        sidebarTint: false,
+        keywordStyle: "plain",
+        headerRule: true,
+      });
     case "bronzor":
-      return bundledSingle("center");
+      return bundledSingle("center", chromeUnderlinePlain(true));
     case "kakuna":
-      return bundledSingle("boxed");
+      return bundledSingle("boxed", chromeUnderlineChips(false, false));
     case "azurill":
-      return bundledTwoColumn("sidebar-left", "center", "header", null);
+      return bundledTwoColumn("sidebar-left", "center", "header", null, chromeUnderlineChips(true, false));
     case "chikorita":
-      return bundledTwoColumn("sidebar-right", "left", "header", null);
+      return bundledTwoColumn("sidebar-right", "left", "header", null, chromeUnderlineChips(true, false));
     case "ditto":
-      return bundledTwoColumn("sidebar-left", "banner", "banner", 160);
+      return bundledTwoColumn("sidebar-left", "banner", "banner", 160, chromeUnderlineChips(false, true));
     case "gengar":
+      return bundledTwoColumn("sidebar-left", "sidebar", "sidebar", 170, {
+        headingStyle: "underline",
+        sidebarHeadingStyle: "underline",
+        headingCase: "upper",
+        headingInk: "text",
+        sidebarHeadingInk: "accent",
+        fontBody: "ibm-plex-sans",
+        sidebarTint: true,
+        keywordStyle: "chips",
+        headerRule: false,
+      });
     case "glalie":
-      return bundledTwoColumn("sidebar-left", "sidebar", "sidebar", 170);
+      return bundledTwoColumn("sidebar-left", "sidebar", "sidebar", 170, {
+        headingStyle: "underline",
+        sidebarHeadingStyle: "underline",
+        headingCase: "as-written",
+        headingInk: "accent",
+        sidebarHeadingInk: "accent",
+        fontBody: "ibm-plex-sans",
+        sidebarTint: true,
+        keywordStyle: "plain",
+        headerRule: false,
+      });
     case "pikachu":
-      return bundledTwoColumn("sidebar-left", "left", "sidebar", 180);
+      return bundledTwoColumn("sidebar-left", "left", "sidebar", 180, {
+        headingStyle: "band",
+        sidebarHeadingStyle: "plain",
+        headingCase: "upper",
+        headingInk: "accent",
+        sidebarHeadingInk: "accent",
+        fontBody: "ibm-plex-sans",
+        sidebarTint: true,
+        keywordStyle: "plain",
+        headerRule: false,
+      });
     case "leafish":
       return {
         layoutMode: "header-split",
@@ -256,9 +400,10 @@ export function bundledTemplateLayout(template: string): TemplateLayout {
         headerStyle: "banner",
         contactIn: "banner",
         sidebarWidth: null,
+        ...chromeUnderlineChips(false, false),
       };
     default:
-      return bundledSingle("left");
+      return bundledSingle("left", chromeUnderlinePlain(true));
   }
 }
 

@@ -43,7 +43,7 @@
   color: var(--doc-sheet-text);
   border-radius: 4px;
   box-shadow: 0 24px 60px -20px var(--color-shadow, rgb(0 0 0 / 45%));
-  font-family: var(--font-body, "IBM Plex Sans", Inter, system-ui, sans-serif);
+  font-family: var(--doc-font-body, "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif);
   font-size: 12.5px;
   line-height: 1.45;
   overflow: visible;
@@ -165,10 +165,14 @@
 
 .doc-sheet__side {
   position: relative;
-  background: color-mix(in srgb, var(--doc-sheet-accent) 15%, var(--doc-sheet-bg));
+  background: transparent;
   padding: 1.6rem 0.95rem 2rem;
   min-width: 0;
   max-width: 100%;
+}
+
+.doc-sheet--sidebar-tint .doc-sheet__side {
+  background: color-mix(in srgb, var(--doc-sheet-accent) 15%, var(--doc-sheet-bg));
 }
 
 .doc-sheet__main {
@@ -411,19 +415,157 @@
 
 .doc-sheet__sec-title {
   margin: 0;
-  font-family: var(--font-display, inherit);
+  font-family: var(--doc-font-display, inherit);
   font-size: 0.64rem;
   font-weight: 700;
   letter-spacing: 0.12em;
-  text-transform: uppercase;
   color: var(--doc-sheet-accent);
   flex: 1;
   min-width: 0;
 }
 
-.doc-sheet--layout-single .doc-sheet__sec-title {
-  border-bottom: 1.5px solid color-mix(in srgb, var(--doc-sheet-accent) 55%, transparent);
+/* Case / ink defaults — overridden by chrome modifiers below. */
+.doc-sheet--heading-case-upper .doc-sheet__main .doc-sheet__sec-title,
+.doc-sheet--heading-case-upper.doc-sheet--layout-single .doc-sheet__sec-title,
+.doc-sheet--heading-case-upper .doc-sheet__single .doc-sheet__sec-title {
+  text-transform: uppercase;
+}
+
+.doc-sheet--heading-case-as-written .doc-sheet__sec-title {
+  text-transform: none;
+  letter-spacing: 0.04em;
+}
+
+.doc-sheet--heading-ink-text .doc-sheet__main .doc-sheet__sec-title,
+.doc-sheet--heading-ink-text.doc-sheet--layout-single .doc-sheet__sec-title,
+.doc-sheet--heading-ink-text .doc-sheet__single .doc-sheet__sec-title {
+  color: var(--doc-sheet-text);
+}
+
+.doc-sheet--side-heading-ink-text .doc-sheet__side .doc-sheet__sec-title {
+  color: var(--doc-sheet-text);
+}
+
+.doc-sheet--side-heading-ink-accent .doc-sheet__side .doc-sheet__sec-title {
+  color: var(--doc-sheet-accent);
+}
+
+/* Main / single-column heading styles */
+.doc-sheet--heading-underline .doc-sheet__main .doc-sheet__sec-title,
+.doc-sheet--heading-underline.doc-sheet--layout-single .doc-sheet__sec-title,
+.doc-sheet--heading-underline .doc-sheet__single .doc-sheet__sec-title {
+  border-bottom: 1.5px solid color-mix(in srgb, var(--doc-sheet-accent) 70%, transparent);
   padding-bottom: 0.25rem;
+}
+
+.doc-sheet--heading-band .doc-sheet__main .doc-sheet__sec-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.doc-sheet--heading-band .doc-sheet__main .doc-sheet__sec-title {
+  flex: 0 1 auto;
+  display: inline-block;
+  background: var(--doc-sheet-accent);
+  color: #fff;
+  padding: 0.22rem 0.55rem;
+  border-radius: 2px;
+  letter-spacing: 0.05em;
+  border-bottom: none;
+}
+
+.doc-sheet--heading-plain .doc-sheet__main .doc-sheet__sec-title,
+.doc-sheet--heading-plain.doc-sheet--layout-single .doc-sheet__sec-title,
+.doc-sheet--heading-plain .doc-sheet__single .doc-sheet__sec-title {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.doc-sheet--heading-rule .doc-sheet__main .doc-sheet__sec-title,
+.doc-sheet--heading-rule.doc-sheet--layout-single .doc-sheet__sec-title,
+.doc-sheet--heading-rule .doc-sheet__single .doc-sheet__sec-title {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 0.75rem;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.doc-sheet--heading-rule .doc-sheet__main .doc-sheet__sec-title::after,
+.doc-sheet--heading-rule.doc-sheet--layout-single .doc-sheet__sec-title::after,
+.doc-sheet--heading-rule .doc-sheet__single .doc-sheet__sec-title::after {
+  content: "";
+  height: 0;
+  border-top: 1px solid color-mix(in srgb, var(--doc-sheet-text) 35%, transparent);
+}
+
+/* Sidebar heading styles */
+.doc-sheet--side-heading-underline .doc-sheet__side .doc-sheet__sec-title {
+  border-bottom: 1px solid color-mix(in srgb, var(--doc-sheet-accent) 55%, transparent);
+  padding-bottom: 0.2rem;
+}
+
+.doc-sheet--side-heading-plain .doc-sheet__side .doc-sheet__sec-title {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.doc-sheet--side-heading-band .doc-sheet__side .doc-sheet__sec-title {
+  display: inline-block;
+  flex: 0 1 auto;
+  background: var(--doc-sheet-accent);
+  color: #fff;
+  padding: 0.18rem 0.45rem;
+  border-radius: 2px;
+  border-bottom: none;
+}
+
+.doc-sheet--side-heading-rule .doc-sheet__side .doc-sheet__sec-title {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 0.5rem;
+  border-bottom: none;
+}
+
+.doc-sheet--side-heading-rule .doc-sheet__side .doc-sheet__sec-title::after {
+  content: "";
+  height: 0;
+  border-top: 1px solid color-mix(in srgb, var(--doc-sheet-text) 30%, transparent);
+}
+
+/* Identity header accent rule */
+.doc-sheet--header-rule .doc-sheet__head:not(.doc-sheet__head--in-side) {
+  border-bottom: 1.5px solid var(--doc-sheet-accent);
+  padding-bottom: 0.55rem;
+  margin-bottom: 0.85rem;
+}
+
+/* Keyword presentation */
+.doc-sheet--keywords-plain .doc-sheet__tag-chips {
+  display: block;
+  margin: 0.25rem 0 0;
+}
+
+.doc-sheet--keywords-plain .doc-sheet__tag-chip {
+  display: inline;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  font-weight: 500;
+  color: var(--doc-sheet-muted);
+  font-size: 0.72rem;
+}
+
+.doc-sheet--keywords-plain .doc-sheet__tag-chip:not(:last-child)::after {
+  content: ", ";
+}
+
+.doc-sheet--keywords-chips .doc-sheet__tag-chip {
+  border-radius: 999px;
 }
 
 /* The HA edit-mode card: a clearly outlined, grabbable block. */

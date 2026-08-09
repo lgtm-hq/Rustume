@@ -62,6 +62,15 @@ export const templateLayoutSchema = z.object({
     .number()
     .nullish()
     .transform((width) => width ?? null),
+  headingStyle: z.enum(["band", "underline", "rule", "plain"]),
+  sidebarHeadingStyle: z.enum(["band", "underline", "rule", "plain"]),
+  headingCase: z.enum(["upper", "as-written"]),
+  headingInk: z.enum(["accent", "text"]),
+  sidebarHeadingInk: z.enum(["accent", "text"]),
+  fontBody: z.enum(["ibm-plex-sans", "ibm-plex-serif"]),
+  sidebarTint: z.boolean(),
+  keywordStyle: z.enum(["chips", "plain"]),
+  headerRule: z.boolean(),
 });
 
 export const templateInfoSchema = z.object({

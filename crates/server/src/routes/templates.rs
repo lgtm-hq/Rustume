@@ -140,6 +140,15 @@ pub async fn list_templates() -> Json<Vec<TemplateInfo>> {
                     header_style: layout.header_style.as_str().to_string(),
                     contact_in: layout.contact_in.as_str().to_string(),
                     sidebar_width: layout.sidebar_width,
+                    heading_style: layout.chrome.heading_style.as_str().to_string(),
+                    sidebar_heading_style: layout.chrome.sidebar_heading_style.as_str().to_string(),
+                    heading_case: layout.chrome.heading_case.as_str().to_string(),
+                    heading_ink: layout.chrome.heading_ink.as_str().to_string(),
+                    sidebar_heading_ink: layout.chrome.sidebar_heading_ink.as_str().to_string(),
+                    font_body: layout.chrome.font_body.as_str().to_string(),
+                    sidebar_tint: layout.chrome.sidebar_tint,
+                    keyword_style: layout.chrome.keyword_style.as_str().to_string(),
+                    header_rule: layout.chrome.header_rule,
                 },
             }
         })

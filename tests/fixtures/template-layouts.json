@@ -1,0 +1,472 @@
+{
+  "azurill": {
+    "contactIn": "header",
+    "defaultColumns": [
+      [
+        "summary",
+        "experience",
+        "education",
+        "awards",
+        "certifications",
+        "publications",
+        "volunteer",
+        "projects",
+        "references",
+        "custom"
+      ],
+      [
+        "profiles",
+        "skills",
+        "interests",
+        "certifications",
+        "awards",
+        "publications",
+        "languages"
+      ]
+    ],
+    "fontBody": "ibm-plex-sans",
+    "headerRule": true,
+    "headerStyle": "center",
+    "headingCase": "upper",
+    "headingInk": "accent",
+    "headingStyle": "underline",
+    "keywordStyle": "chips",
+    "layoutMode": "sidebar-left",
+    "sidebarHeadingInk": "accent",
+    "sidebarHeadingStyle": "underline",
+    "sidebarTint": false,
+    "sidebarWidth": null
+  },
+  "bronzor": {
+    "contactIn": "header",
+    "defaultColumns": [
+      [
+        "summary",
+        "experience",
+        "education",
+        "awards",
+        "certifications",
+        "publications",
+        "volunteer",
+        "projects",
+        "references",
+        "profiles",
+        "skills",
+        "interests",
+        "languages",
+        "custom"
+      ],
+      []
+    ],
+    "fontBody": "ibm-plex-sans",
+    "headerRule": true,
+    "headerStyle": "center",
+    "headingCase": "upper",
+    "headingInk": "accent",
+    "headingStyle": "underline",
+    "keywordStyle": "plain",
+    "layoutMode": "single",
+    "sidebarHeadingInk": "accent",
+    "sidebarHeadingStyle": "underline",
+    "sidebarTint": false,
+    "sidebarWidth": null
+  },
+  "chikorita": {
+    "contactIn": "header",
+    "defaultColumns": [
+      [
+        "summary",
+        "experience",
+        "education",
+        "awards",
+        "certifications",
+        "publications",
+        "volunteer",
+        "projects",
+        "references",
+        "custom"
+      ],
+      [
+        "profiles",
+        "skills",
+        "interests",
+        "certifications",
+        "awards",
+        "publications",
+        "languages"
+      ]
+    ],
+    "fontBody": "ibm-plex-sans",
+    "headerRule": true,
+    "headerStyle": "left",
+    "headingCase": "upper",
+    "headingInk": "accent",
+    "headingStyle": "underline",
+    "keywordStyle": "chips",
+    "layoutMode": "sidebar-right",
+    "sidebarHeadingInk": "accent",
+    "sidebarHeadingStyle": "underline",
+    "sidebarTint": false,
+    "sidebarWidth": null
+  },
+  "ditto": {
+    "contactIn": "banner",
+    "defaultColumns": [
+      [
+        "summary",
+        "experience",
+        "education",
+        "awards",
+        "certifications",
+        "publications",
+        "volunteer",
+        "projects",
+        "references",
+        "custom"
+      ],
+      [
+        "profiles",
+        "skills",
+        "interests",
+        "certifications",
+        "awards",
+        "publications",
+        "languages"
+      ]
+    ],
+    "fontBody": "ibm-plex-sans",
+    "headerRule": false,
+    "headerStyle": "banner",
+    "headingCase": "upper",
+    "headingInk": "accent",
+    "headingStyle": "underline",
+    "keywordStyle": "chips",
+    "layoutMode": "sidebar-left",
+    "sidebarHeadingInk": "accent",
+    "sidebarHeadingStyle": "underline",
+    "sidebarTint": true,
+    "sidebarWidth": 160
+  },
+  "gengar": {
+    "contactIn": "sidebar",
+    "defaultColumns": [
+      [
+        "summary",
+        "experience",
+        "education",
+        "awards",
+        "certifications",
+        "publications",
+        "volunteer",
+        "projects",
+        "references",
+        "custom"
+      ],
+      [
+        "profiles",
+        "skills",
+        "interests",
+        "certifications",
+        "awards",
+        "publications",
+        "languages"
+      ]
+    ],
+    "fontBody": "ibm-plex-sans",
+    "headerRule": false,
+    "headerStyle": "sidebar",
+    "headingCase": "upper",
+    "headingInk": "text",
+    "headingStyle": "underline",
+    "keywordStyle": "chips",
+    "layoutMode": "sidebar-left",
+    "sidebarHeadingInk": "accent",
+    "sidebarHeadingStyle": "underline",
+    "sidebarTint": true,
+    "sidebarWidth": 170
+  },
+  "glalie": {
+    "contactIn": "sidebar",
+    "defaultColumns": [
+      [
+        "summary",
+        "experience",
+        "education",
+        "awards",
+        "certifications",
+        "publications",
+        "volunteer",
+        "projects",
+        "references",
+        "custom"
+      ],
+      [
+        "profiles",
+        "skills",
+        "interests",
+        "certifications",
+        "awards",
+        "publications",
+        "languages"
+      ]
+    ],
+    "fontBody": "ibm-plex-sans",
+    "headerRule": false,
+    "headerStyle": "sidebar",
+    "headingCase": "as-written",
+    "headingInk": "accent",
+    "headingStyle": "underline",
+    "keywordStyle": "plain",
+    "layoutMode": "sidebar-left",
+    "sidebarHeadingInk": "accent",
+    "sidebarHeadingStyle": "underline",
+    "sidebarTint": true,
+    "sidebarWidth": 170
+  },
+  "kakuna": {
+    "contactIn": "header",
+    "defaultColumns": [
+      [
+        "summary",
+        "experience",
+        "education",
+        "awards",
+        "certifications",
+        "publications",
+        "volunteer",
+        "projects",
+        "references",
+        "profiles",
+        "skills",
+        "interests",
+        "languages",
+        "custom"
+      ],
+      []
+    ],
+    "fontBody": "ibm-plex-sans",
+    "headerRule": false,
+    "headerStyle": "boxed",
+    "headingCase": "upper",
+    "headingInk": "accent",
+    "headingStyle": "underline",
+    "keywordStyle": "chips",
+    "layoutMode": "single",
+    "sidebarHeadingInk": "accent",
+    "sidebarHeadingStyle": "underline",
+    "sidebarTint": false,
+    "sidebarWidth": null
+  },
+  "leafish": {
+    "contactIn": "banner",
+    "defaultColumns": [
+      [
+        "summary",
+        "experience",
+        "education",
+        "awards",
+        "certifications",
+        "publications",
+        "volunteer",
+        "projects",
+        "references"
+      ],
+      [
+        "profiles",
+        "skills",
+        "interests",
+        "certifications",
+        "awards",
+        "publications",
+        "languages",
+        "custom"
+      ]
+    ],
+    "fontBody": "ibm-plex-sans",
+    "headerRule": false,
+    "headerStyle": "banner",
+    "headingCase": "upper",
+    "headingInk": "accent",
+    "headingStyle": "underline",
+    "keywordStyle": "chips",
+    "layoutMode": "header-split",
+    "sidebarHeadingInk": "accent",
+    "sidebarHeadingStyle": "underline",
+    "sidebarTint": false,
+    "sidebarWidth": null
+  },
+  "nosepass": {
+    "contactIn": "header",
+    "defaultColumns": [
+      [
+        "summary",
+        "experience",
+        "education",
+        "awards",
+        "certifications",
+        "publications",
+        "volunteer",
+        "projects",
+        "references",
+        "profiles",
+        "skills",
+        "interests",
+        "languages",
+        "custom"
+      ],
+      []
+    ],
+    "fontBody": "ibm-plex-serif",
+    "headerRule": true,
+    "headerStyle": "left",
+    "headingCase": "as-written",
+    "headingInk": "accent",
+    "headingStyle": "rule",
+    "keywordStyle": "plain",
+    "layoutMode": "single",
+    "sidebarHeadingInk": "accent",
+    "sidebarHeadingStyle": "rule",
+    "sidebarTint": false,
+    "sidebarWidth": null
+  },
+  "not-a-template": {
+    "contactIn": "header",
+    "defaultColumns": [
+      [
+        "summary",
+        "experience",
+        "education",
+        "awards",
+        "certifications",
+        "publications",
+        "volunteer",
+        "projects",
+        "references",
+        "profiles",
+        "skills",
+        "interests",
+        "languages",
+        "custom"
+      ],
+      []
+    ],
+    "fontBody": "ibm-plex-sans",
+    "headerRule": true,
+    "headerStyle": "left",
+    "headingCase": "upper",
+    "headingInk": "accent",
+    "headingStyle": "underline",
+    "keywordStyle": "plain",
+    "layoutMode": "single",
+    "sidebarHeadingInk": "accent",
+    "sidebarHeadingStyle": "underline",
+    "sidebarTint": false,
+    "sidebarWidth": null
+  },
+  "onyx": {
+    "contactIn": "header",
+    "defaultColumns": [
+      [
+        "summary",
+        "experience",
+        "education",
+        "awards",
+        "certifications",
+        "publications",
+        "volunteer",
+        "projects",
+        "references",
+        "profiles",
+        "skills",
+        "interests",
+        "languages",
+        "custom"
+      ],
+      []
+    ],
+    "fontBody": "ibm-plex-sans",
+    "headerRule": true,
+    "headerStyle": "left",
+    "headingCase": "upper",
+    "headingInk": "accent",
+    "headingStyle": "underline",
+    "keywordStyle": "chips",
+    "layoutMode": "single",
+    "sidebarHeadingInk": "accent",
+    "sidebarHeadingStyle": "underline",
+    "sidebarTint": false,
+    "sidebarWidth": null
+  },
+  "pikachu": {
+    "contactIn": "sidebar",
+    "defaultColumns": [
+      [
+        "summary",
+        "experience",
+        "education",
+        "awards",
+        "certifications",
+        "publications",
+        "volunteer",
+        "projects",
+        "references",
+        "custom"
+      ],
+      [
+        "profiles",
+        "skills",
+        "interests",
+        "certifications",
+        "awards",
+        "publications",
+        "languages"
+      ]
+    ],
+    "fontBody": "ibm-plex-sans",
+    "headerRule": false,
+    "headerStyle": "left",
+    "headingCase": "upper",
+    "headingInk": "accent",
+    "headingStyle": "band",
+    "keywordStyle": "plain",
+    "layoutMode": "sidebar-left",
+    "sidebarHeadingInk": "accent",
+    "sidebarHeadingStyle": "plain",
+    "sidebarTint": true,
+    "sidebarWidth": 180
+  },
+  "rhyhorn": {
+    "contactIn": "header",
+    "defaultColumns": [
+      [
+        "summary",
+        "experience",
+        "education",
+        "awards",
+        "certifications",
+        "publications",
+        "volunteer",
+        "projects",
+        "references",
+        "profiles",
+        "skills",
+        "interests",
+        "languages",
+        "custom"
+      ],
+      []
+    ],
+    "fontBody": "ibm-plex-sans",
+    "headerRule": true,
+    "headerStyle": "left",
+    "headingCase": "upper",
+    "headingInk": "accent",
+    "headingStyle": "underline",
+    "keywordStyle": "plain",
+    "layoutMode": "single",
+    "sidebarHeadingInk": "accent",
+    "sidebarHeadingStyle": "underline",
+    "sidebarTint": false,
+    "sidebarWidth": null
+  }
+}
