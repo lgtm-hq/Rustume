@@ -17,7 +17,7 @@ under `docs/templates/` when present (#827).
 | --- | --- |
 | Visible label | **Username first**, then network, then URL |
 | Modes | `username` (default / `auto`), `network`, `network-username` |
-| Sheet | `profileEntryLabel` → username-or-network as the link text |
+| Sheet | `profileEntryLabel` → username, else network, else URL as the link text |
 | Typst | `profile-entry-label` / `render-profile-entry` default `label-mode: "auto"` |
 
 `auto` means the same preference order as `username`. A template may pass `network` or
@@ -31,7 +31,7 @@ under `docs/templates/` when present (#827).
 | --- | --- |
 | When the template shows an avatar slot | Always draw it |
 | Photo set and not hidden | Render the photo (shared effects) |
-| No photo (or empty URL) | **Initials disc** from `basics.name` (up to two grapheme initials) |
+| No photo (or empty URL) | **Initials disc** from `basics.name` (first character of up to two whitespace-separated words, uppercased) |
 | Sheet Done mode | Initials disc still draws (not edit-only) |
 | Typst | `render-avatar` (photo or initials); do not gate the slot on `has-visible-picture` alone |
 
@@ -51,8 +51,8 @@ Composition is **degree-first**. Never join `studyType` and `area` with `" in "`
 | Optional | `score`, `summary`, keywords, custom fields | After the lines above |
 
 Helpers: Typst `education-degree` / `education-school`; sheet `educationDegree` /
-`educationSchool`. Legacy `format-degree` returns `studyType` only and must not reintroduce
-the `"in"` join.
+`educationSchool`. The legacy `format-degree` helper (which joined with `" in "`) is
+removed; new call sites must use the helpers above.
 
 ---
 

@@ -113,13 +113,6 @@
   }
 }
 
-/// Legacy helper: returns `studyType` only. `area` is ignored so callers cannot
-/// accidentally reintroduce the `"in"` join (#829). Prefer `education-degree`.
-#let format-degree(studyType, area) = {
-  let _ = area
-  studyType
-}
-
 /// Initials from a display name (up to `max` words). Shared with the sheet's
 /// avatar fallback (item-presentation contract).
 #let name-initials(name, max: 2) = {
@@ -153,9 +146,10 @@
 }
 
 /// Clamp a skill/language level to [0, 5] and convert to int.
-/// Shared level rule with the sheet (`clampLevel` / `MAX_LEVEL` = 5).
+/// Shared level rule with the sheet (`clampLevel` / `MAX_LEVEL` = 5):
+/// round first, then clamp, so both surfaces agree on fractional input.
 #let clamp-level(val) = {
-  int(calc.min(calc.max(val, 0), 5))
+  int(calc.min(calc.max(calc.round(val), 0), 5))
 }
 
 /// Generic rating indicator (dots, squares, or rounded bars).

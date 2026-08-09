@@ -114,15 +114,33 @@ describe("document sheet structural chrome", () => {
     store.store.resume = resume;
   });
 
-  function renderSheet(options: { onOpenSections?: () => void; template?: TemplateLayout } = {}) {
+  function renderSheet(
+    options: {
+      onOpenSections?: () => void;
+      template?: TemplateLayout;
+      mode?: "edit" | "done";
+    } = {},
+  ) {
     return render(() => (
       <DocSheet
         resume={resume}
         templateLayout={options.template ?? SIDEBAR_TEMPLATE}
         onOpenSections={options.onOpenSections}
+        mode={options.mode}
       />
     ));
   }
+
+  describe("avatar (#829)", () => {
+    it("draws the initials disc in Done mode when no photo is set", () => {
+      renderSheet({ mode: "done" });
+
+      const sheet = screen.getByTestId("doc-sheet");
+      const initials = sheet.querySelector(".doc-sheet__avatar-initials");
+      expect(initials).not.toBeNull();
+      expect(initials?.textContent).toBe("MO");
+    });
+  });
 
   describe("section cards", () => {
     it("hides a fixed section through toggleSectionVisibility, and says so", async () => {

@@ -1750,6 +1750,12 @@ fn test_contact_rows_render_without_emoji_glyphs(#[case] template_name: &str) {
 #[case("chikorita")]
 #[case("ditto")]
 #[case("glalie")]
+#[case("azurill")]
+#[case("bronzor")]
+#[case("gengar")]
+#[case("kakuna")]
+#[case("leafish")]
+#[case("onyx")]
 fn test_parity_fields_reach_pdf_text(#[case] template_name: &str) {
     let renderer = TypstRenderer::new();
     let mut resume = sample_resume();
@@ -1823,5 +1829,12 @@ fn test_parity_fields_reach_pdf_text(#[case] template_name: &str) {
     assert!(
         !text.contains("Bachelor of Science in Computer Science"),
         "education must not join studyType and area with 'in' on '{template_name}':\n{text}"
+    );
+
+    // Username-first means no network-prefixed label; "GitHub: TurboCoder13"
+    // would also satisfy the positive TurboCoder13 needle above.
+    assert!(
+        !text.contains("GitHub: TurboCoder13"),
+        "profile label must be username-first, not network-username, on '{template_name}':\n{text}"
     );
 }
