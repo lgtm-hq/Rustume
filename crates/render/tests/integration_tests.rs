@@ -1544,8 +1544,10 @@ fn test_doc_editor_fixture_renders_both_layout_pages_with_content() {
     // Layout page 0, sidebar column: profiles and skills open on the first
     // page; the "speaking" custom section may flow onto a continuation page
     // but must render before the sections placed on layout page 2.
+    // Profile labels are username-first (#829), so assert the Mastodon
+    // username rather than the network name.
     let first = &pages[0];
-    for needle in ["Mastodon", "Design Tokens"] {
+    for needle in ["mireille@front-end.social", "Design Tokens"] {
         assert!(
             first.contains(needle),
             "first page should carry sidebar content '{needle}', got:\n{first}"
