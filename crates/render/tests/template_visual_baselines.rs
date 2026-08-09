@@ -102,7 +102,10 @@ fn png_diff_ratio(actual: &[u8], baseline: &[u8]) -> Result<f64, String> {
     }
 
     let mut differing = 0usize;
-    for (a, b) in actual_rgba.chunks_exact(4).zip(baseline_rgba.chunks_exact(4)) {
+    for (a, b) in actual_rgba
+        .chunks_exact(4)
+        .zip(baseline_rgba.chunks_exact(4))
+    {
         if (0..4).any(|i| a[i].abs_diff(b[i]) > CHANNEL_TOLERANCE) {
             differing += 1;
         }
@@ -157,13 +160,20 @@ fn assert_matches_baseline(template: &str, png: &[u8]) {
 fn baseline_dir_covers_every_template() {
     // Guard against adding a template without a baseline slot — the rstest
     // cases below are hand-listed, so this catches TEMPLATES drift.
+    if update_baselines() {
+        return;
+    }
+    assert!(
+        baselines_dir().is_dir(),
+        "PDF baseline directory missing at {} — a deleted tree must not \
+         soft-pass the TEMPLATES coverage guard. Regenerate with \
+         UPDATE_VISUAL_BASELINES=1.",
+        baselines_dir().display()
+    );
     for template in TEMPLATES {
         let path = baseline_path(template);
-        if update_baselines() {
-            continue;
-        }
         assert!(
-            path.is_file() || !baselines_dir().exists(),
+            path.is_file(),
             "Template '{template}' is in TEMPLATES but has no baseline at {}.\n\
              Add a #[case(\"{template}\")] arm and regenerate baselines.",
             path.display()
