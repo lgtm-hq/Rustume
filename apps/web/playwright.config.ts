@@ -11,6 +11,7 @@ const allBrowsers = !process.env.CI && process.env.PLAYWRIGHT_ALL_BROWSERS === "
 // Visual comparisons run in their own project so they can opt out of retries:
 // a missing committed baseline must fail the run (Playwright writes the
 // baseline on the first attempt, so a retry would silently pass against it).
+// Matches `visual.spec.ts` and `*.visual.spec.ts` (per-template sheet baselines).
 const VISUAL_SPEC = /visual\.spec\.ts/;
 
 /**

@@ -141,7 +141,11 @@
       columns: (auto, 1fr, auto),
       column-gutter: 8pt,
       text(size: 10pt, weight: "medium")[#item.name],
-      line(start: (0pt, 5pt), length: 100%, stroke: (dash: "dotted") + border-color),
+      line(
+        start: (0pt, 5pt),
+        length: 100%,
+        stroke: (paint: border-color, thickness: 0.75pt, dash: "dotted"),
+      ),
       render-rich-text(item.description, size: 9pt, fill: muted-color)
     )
     v(6pt)

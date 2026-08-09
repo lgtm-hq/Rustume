@@ -3,6 +3,9 @@ import { test, expect } from "./support/fixtures";
 // Baselines are generated on CI (Linux) and committed from the workflow
 // artifact, so font rasterization matches exactly. Local runs skip the
 // comparisons by default; opt in with E2E_VISUAL=1 (expect platform diffs).
+// Per-template sheet baselines live in template-sheet.visual.spec.ts; PDF
+// baselines and the shared regen notes are in
+// crates/render/tests/baselines/README.md (#831 / #812).
 test.skip(
   !process.env.CI && process.env.E2E_VISUAL !== "1",
   "Visual baselines are CI (Linux) generated; set E2E_VISUAL=1 to compare locally",

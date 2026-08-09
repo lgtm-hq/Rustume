@@ -17,7 +17,12 @@ name: Test - Web E2E
 #
 # Visual baselines live in apps/web/e2e/__screenshots__ and are generated on
 # this runner (Linux) — on baseline changes, download the Playwright report
-# artifact and commit the updated screenshots from it.
+# artifact and commit the updated screenshots from it (same flow for the
+# chrome surfaces in visual.spec.ts and the per-template sheet set in
+# template-sheet.visual.spec.ts; see crates/render/tests/baselines/README.md).
+#
+# PDF/Typst baselines for the same fixture live under
+# crates/render/tests/baselines/pdf/ and are gated by cargo test, not this job.
 
 "on":
   push:
