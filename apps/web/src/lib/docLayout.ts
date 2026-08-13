@@ -228,7 +228,7 @@ function bundledTwoColumn(
 export const DEFAULT_DOC_FONT_FAMILY = "IBM Plex Sans";
 
 /** Serif face: nosepass sets it; glalie inherits the engine's schema default. */
-export const NOSEPASS_DOC_FONT_FAMILY = "IBM Plex Serif";
+export const SERIF_DOC_FONT_FAMILY = "IBM Plex Serif";
 
 /**
  * Templates whose Typst document face is IBM Plex Serif. nosepass sets it in
@@ -244,7 +244,7 @@ const SERIF_DOC_TEMPLATES: ReadonlySet<string> = new Set(["nosepass", "glalie"])
  * only picks the template default the sheet should show.
  */
 export function templateDocFontFamily(template: string): string {
-  return SERIF_DOC_TEMPLATES.has(template) ? NOSEPASS_DOC_FONT_FAMILY : DEFAULT_DOC_FONT_FAMILY;
+  return SERIF_DOC_TEMPLATES.has(template) ? SERIF_DOC_FONT_FAMILY : DEFAULT_DOC_FONT_FAMILY;
 }
 
 /**
@@ -254,7 +254,7 @@ export function templateDocFontFamily(template: string): string {
  * failed load degrades serif→serif, not serif→sans.
  */
 export function docFontStack(family: string): string {
-  return family === NOSEPASS_DOC_FONT_FAMILY
+  return family === SERIF_DOC_FONT_FAMILY
     ? `"${family}", Georgia, "Times New Roman", serif`
     : `"${family}", Inter, system-ui, sans-serif`;
 }

@@ -19,7 +19,7 @@ import {
 } from "../../../test/docEditorFixture";
 import {
   DEFAULT_DOC_FONT_FAMILY,
-  NOSEPASS_DOC_FONT_FAMILY,
+  SERIF_DOC_FONT_FAMILY,
   docFontStack,
   type TemplateLayout,
 } from "../../../lib/docLayout";
@@ -150,10 +150,10 @@ describe("document sheet structural chrome", () => {
 
       const sheet = screen.getByTestId("doc-sheet");
       expect(sheet.style.getPropertyValue("--doc-font-body")).toBe(
-        docFontStack(NOSEPASS_DOC_FONT_FAMILY),
+        docFontStack(SERIF_DOC_FONT_FAMILY),
       );
       expect(sheet.style.getPropertyValue("--doc-font-display")).toBe(
-        docFontStack(NOSEPASS_DOC_FONT_FAMILY),
+        docFontStack(SERIF_DOC_FONT_FAMILY),
       );
     });
 
@@ -163,10 +163,10 @@ describe("document sheet structural chrome", () => {
 
       const sheet = screen.getByTestId("doc-sheet");
       expect(sheet.style.getPropertyValue("--doc-font-body")).toBe(
-        docFontStack(NOSEPASS_DOC_FONT_FAMILY),
+        docFontStack(SERIF_DOC_FONT_FAMILY),
       );
       expect(sheet.style.getPropertyValue("--doc-font-display")).toBe(
-        docFontStack(NOSEPASS_DOC_FONT_FAMILY),
+        docFontStack(SERIF_DOC_FONT_FAMILY),
       );
     });
   });

@@ -1,10 +1,10 @@
-import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   CUSTOM_SECTION_SENTINEL,
   DEFAULT_DOC_FONT_FAMILY,
-  NOSEPASS_DOC_FONT_FAMILY,
+  SERIF_DOC_FONT_FAMILY,
   docFontStack,
   emptyItemFor,
   FIXED_SECTION_IDS,
@@ -671,13 +671,36 @@ describe("emptyItemFor", () => {
 });
 
 describe("templateDocFontFamily / docFontStack", () => {
+  const typstTemplates = resolve(
+    __dirname,
+    "../../../../../crates/render/src/typst_engine/templates",
+  );
+  const typstFonts = resolve(
+    __dirname,
+    "../../../../../crates/render/src/typst_engine/assets/fonts",
+  );
+  const webFonts = resolve(__dirname, "../../../public/fonts");
+
   it("uses IBM Plex Serif for nosepass and glalie, Sans for every other template", () => {
-    expect(templateDocFontFamily("nosepass")).toBe(NOSEPASS_DOC_FONT_FAMILY);
-    expect(templateDocFontFamily("glalie")).toBe(NOSEPASS_DOC_FONT_FAMILY);
+    expect(templateDocFontFamily("nosepass")).toBe(SERIF_DOC_FONT_FAMILY);
+    expect(templateDocFontFamily("glalie")).toBe(SERIF_DOC_FONT_FAMILY);
     expect(templateDocFontFamily("gengar")).toBe(DEFAULT_DOC_FONT_FAMILY);
     expect(templateDocFontFamily("ditto")).toBe(DEFAULT_DOC_FONT_FAMILY);
     expect(templateDocFontFamily("onyx")).toBe(DEFAULT_DOC_FONT_FAMILY);
     expect(templateDocFontFamily("unknown-template")).toBe(DEFAULT_DOC_FONT_FAMILY);
+  });
+
+  it("matches each Typst template's declared font, or the engine Serif default", () => {
+    const ids = readdirSync(typstTemplates)
+      .filter((name) => name.endsWith(".typ") && !name.startsWith("_"))
+      .map((name) => name.replace(/\.typ$/, ""));
+    expect(ids.length).toBe(12);
+    for (const id of ids) {
+      const src = readFileSync(join(typstTemplates, `${id}.typ`), "utf8");
+      const match = /font:\s*"(IBM Plex [^"]+)"/.exec(src);
+      const expected = match?.[1] ?? SERIF_DOC_FONT_FAMILY;
+      expect(templateDocFontFamily(id), id).toBe(expected);
+    }
   });
 
   it("quotes the family and matches fallback generics to the classification", () => {
@@ -694,8 +717,10 @@ describe("templateDocFontFamily / docFontStack", () => {
     );
     expect(css).toMatch(/font-family:\s*var\(--doc-font-body\)/);
     expect(css).toMatch(/font-family:\s*var\(--doc-font-display\)/);
+    expect(css).toMatch(/font-family:\s*var\(--doc-font-mono\)/);
     expect(css).not.toMatch(/var\(--font-body\)/);
     expect(css).not.toMatch(/var\(--font-display\)/);
+    expect(css).not.toMatch(/var\(--font-mono\)/);
   });
 
   it("every @font-face url in docFonts.css exists under public/fonts", () => {
@@ -705,9 +730,24 @@ describe("templateDocFontFamily / docFontStack", () => {
     );
     const files = [...css.matchAll(/url\("\/fonts\/([^"]+)"\)/g)].map((match) => match[1]);
     expect(files.length).toBeGreaterThan(0);
-    const fontsDir = resolve(__dirname, "../../../public/fonts");
     for (const file of files) {
-      expect(existsSync(resolve(fontsDir, file)), file).toBe(true);
+      expect(existsSync(resolve(webFonts, file)), file).toBe(true);
     }
+  });
+
+  it("public/fonts TTFs are byte-identical to the Typst bundle", () => {
+    const names = readdirSync(typstFonts).filter((name) => name.endsWith(".ttf"));
+    expect(names.length).toBeGreaterThan(0);
+    for (const name of names) {
+      const web = readFileSync(join(webFonts, name));
+      const typst = readFileSync(join(typstFonts, name));
+      expect(web.equals(typst), name).toBe(true);
+    }
+  });
+
+  it("PWA precache globs still include the vendored document faces", () => {
+    const vite = readFileSync(resolve(__dirname, "../../../vite.config.ts"), "utf8");
+    expect(vite).toContain('"fonts/*"');
+    expect(vite).toMatch(/globPatterns: \["\*\*\/\*\.\{[^}]*ttf/);
   });
 });
