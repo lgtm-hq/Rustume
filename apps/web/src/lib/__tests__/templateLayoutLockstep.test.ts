@@ -11,17 +11,19 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { bundledTemplateLayout, type TemplateLayout } from "../docLayout";
+import { z } from "zod";
+import { templateLayoutSchema } from "../../api/schemas";
+import { bundledTemplateLayout } from "../docLayout";
 
 const FIXTURE_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
   "../../../../../tests/fixtures/template-layouts.json",
 );
 
-type FixtureLayouts = Record<string, TemplateLayout>;
+const fixtureLayoutsSchema = z.record(z.string(), templateLayoutSchema);
 
-function loadFixture(): FixtureLayouts {
-  return JSON.parse(readFileSync(FIXTURE_PATH, "utf8")) as FixtureLayouts;
+function loadFixture(): z.infer<typeof fixtureLayoutsSchema> {
+  return fixtureLayoutsSchema.parse(JSON.parse(readFileSync(FIXTURE_PATH, "utf8")));
 }
 
 /** Shipped template ids (Rust `TEMPLATES`); guards against a truncated fixture. */
@@ -45,7 +47,7 @@ describe("bundledTemplateLayout lockstep with get_template_layout", () => {
   const ids = Object.keys(fixture);
 
   it("fixture covers every shipped template and the unknown-id fallback", () => {
-    expect(ids).toEqual(expect.arrayContaining([...SHIPPED_TEMPLATES, "not-a-template"]));
+    expect([...ids].sort()).toEqual([...SHIPPED_TEMPLATES, "not-a-template"].toSorted());
   });
 
   it.each(ids)("matches fixture for %s", (id) => {

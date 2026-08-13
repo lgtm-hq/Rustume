@@ -512,14 +512,16 @@ mod tests {
             return;
         }
 
-        let expected = std::fs::read_to_string(&path).unwrap_or_else(|err| {
-            panic!(
-                "missing template layout fixture at {}: {err}\n\
-                 regenerate with UPDATE_FIXTURES=1 cargo test -p rustume-render \
-                 template_layouts_fixture_is_up_to_date --lib",
-                path.display()
-            )
-        });
+        let expected = std::fs::read_to_string(&path)
+            .unwrap_or_else(|err| {
+                panic!(
+                    "missing template layout fixture at {}: {err}\n\
+                     regenerate with UPDATE_FIXTURES=1 cargo test -p rustume-render \
+                     template_layouts_fixture_is_up_to_date --lib",
+                    path.display()
+                )
+            })
+            .replace("\r\n", "\n");
 
         assert_eq!(
             actual,
