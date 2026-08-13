@@ -50,7 +50,8 @@ Default main / sidebar section ids are defined once in
 | Skill / interest / project keywords | Soft accent chips |
 | Level (`template-default`) | Circles |
 
-Accent ink comment in source: leafish darkens primary for WCAG on its tinted header surfaces.
+Accent ink stays the primary seed (crimson already clears WCAG AA); only
+`header-text-color` is darkened for the washed tier-1 band.
 
 Shared extras from `_common.typ` (experience/education keyword chips + custom
 fields; projects/skills custom fields) still apply on top of the native item

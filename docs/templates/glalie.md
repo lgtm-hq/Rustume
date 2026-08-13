@@ -57,7 +57,7 @@ bodies above.
 
 | Divergence | Tag |
 | --- | --- |
-| Sheet forces Sans body; glalie PDF follows metadata (often Serif) | fix-in-sheet |
+| Sheet locks IBM Plex Serif; PDF honors `metadata.typography.font.family` (schema default Serif) | owner-decision-needed |
 | Sheet uppercases section titles; Typst keeps title-case | fix-in-sheet |
 | Justify-on in Typst vs sheet left-aligned body | owner-decision-needed |
 | Cross-cutting item composition | fix-in-sheet / owner-decision-needed |

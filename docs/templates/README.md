@@ -50,7 +50,7 @@ leading (~0.65em) and most lock **IBM Plex Sans**. Issue #701 should:
   template paints a full-bleed sidebar that ignores `page.margin`.
 
 Display sizes (name ~18–28pt, section titles ~8–11pt) stay template-authored.
-There is no separate mono face in Typst; the sheet's `--font-mono` dates are a
+There is no separate mono face in Typst; the sheet's `--doc-font-mono` dates are a
 sheet-only convention until an owner decision says otherwise.
 
 ## Divergence tags
@@ -76,7 +76,7 @@ These recur on almost every template; each template page repeats only the ones t
 | Level glyphs: sheet always draws five dots; Typst `template-default` is bars / squares / dots / text bullets per template, and `metadata.levelDisplay` can override | fix-in-sheet | Sheet should follow `levelDisplay`, with `template-default` matching the template native glyph. |
 | Skill / interest keywords: sheet uses soft tag chips for skills (and experience/education extras); Typst mixes comma lists, middots, chips, and `— keywords` | fix-in-sheet | Match the Typst treatment named in each template spec. |
 | Avatar without photo: sheet shows an initials disc in edit mode and hides the avatar in Done mode; Typst usually omits the picture entirely | owner-decision-needed | Only **pikachu** draws a PDF initials fallback today. |
-| Mono dates: sheet uses `--font-mono` for education dates; Typst uses muted body face | owner-decision-needed | Mono is a sheet editing affordance; decide whether PDF should match. |
+| Mono dates: sheet uses `--doc-font-mono` for education dates; Typst uses muted body face | owner-decision-needed | Mono is a sheet editing affordance; decide whether PDF should match. |
 | `metadata.typography.font.size` / `lineHeight`: engine emits a top-level `#set text`, then nearly every template re-locks size and leading | fix-in-typst | Tracked by #701 — lift shared resolution into `_common.typ`. |
 
 ## Related code

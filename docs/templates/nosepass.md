@@ -64,7 +64,6 @@ bodies above.
 | Divergence | Tag |
 | --- | --- |
 | **Typst compile failure** on languages row: `stroke: (dash: "dotted") + border-color` is invalid Typst (`cannot add dictionary and color`) — fixture does not render | fix-in-typst |
-| Sheet uses Sans (`--font-body`); PDF is Serif | fix-in-sheet |
 | Sheet headings are uppercase-ish generic; Typst is title-case + trailing rule | fix-in-sheet |
 | Skill presentation (chip cloud vs compact rows) | fix-in-sheet |
 | Level text bullets vs sheet dots | fix-in-sheet |
