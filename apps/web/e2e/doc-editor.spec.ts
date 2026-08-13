@@ -154,11 +154,11 @@ test.describe("single-surface document editor", () => {
     await page.getByRole("menuitem", { name: /^Insert page break before .* section$/ }).click();
     await expect(sheets).toHaveCount(2);
     await expect(docEditorPage.sheet.getByTestId("doc-sheet-page-break")).toBeVisible();
-    await expect(docEditorPage.sheet.getByTestId("doc-sheet-page-count")).toContainText("2");
+    await expect(docEditorPage.pageCount).toContainText("2");
 
     await page.getByRole("button", { name: "Remove page break" }).click();
     await expect(sheets).toHaveCount(1);
-    await expect(docEditorPage.sheet.getByTestId("doc-sheet-page-count")).toContainText("1");
+    await expect(docEditorPage.pageCount).toContainText("1");
   });
 
   test("edge tabs drive the panels and the top bar drives theme selection", async ({
@@ -241,5 +241,123 @@ test.describe("single-surface document editor", () => {
     const profiles = docEditorPage.sheet.locator('[data-section-id="profiles"]');
     await expect(profiles.getByText("lgtm-hq")).toHaveCount(1);
     await expect(profiles.locator("svg.doc-sheet__row-ico").first()).toBeVisible();
+  });
+
+  test("narrow viewports paint a faithful miniature instead of reflowing", async ({
+    page,
+    homePage,
+    docEditorPage,
+  }) => {
+    // #813: layout stays at the 860px design width; only transform scale
+    // changes. Page count and a long name's wrap must match the wide render.
+    await page.setViewportSize({ width: 1100, height: 900 });
+    await homePage.open();
+    await homePage.createResume();
+    await docEditorPage.assertDocEditorOpen();
+    await docEditorPage.assertMode("edit");
+
+    await page.getByRole("button", { name: "Your name", exact: true }).dblclick();
+    const nameDialog = page.getByRole("dialog", { name: "Edit · Name" });
+    await nameDialog
+      .getByRole("textbox", { name: "Name" })
+      .fill("Ada Lovelace Countess of Lovelace Analytical Engine Pioneer");
+    await nameDialog.getByRole("button", { name: "Save" }).click();
+
+    // Insert a page break so the page-count pill has something to report.
+    const firstCard = docEditorPage.sheet
+      .locator('[data-section-id]:not([data-section-id="basics"])')
+      .first();
+    await firstCard.getByRole("button", { name: / section options$/ }).click();
+    await page.getByRole("menuitem", { name: /^Insert page break before .* section$/ }).click();
+
+    const wide = await docEditorPage.sheet.evaluate((sheet) => {
+      const name = sheet.querySelector("h1, [data-testid='doc-sheet-header']");
+      const nameBox = name?.getBoundingClientRect();
+      return {
+        layoutWidth: (sheet as HTMLElement).offsetWidth,
+        pages: sheet.ownerDocument.querySelectorAll('[data-testid="doc-sheet-page"]').length,
+        pill: sheet.ownerDocument.querySelector('[data-testid="doc-sheet-page-count"]')
+          ?.textContent,
+        nameHeight: nameBox?.height ?? 0,
+        scale: sheet.closest('[data-testid="doc-sheet-scale"]')?.getAttribute("data-sheet-scale"),
+      };
+    });
+    expect(wide.layoutWidth).toBe(860);
+    expect(wide.pages).toBe(2);
+    expect(wide.pill).toMatch(/2/);
+    expect(Number(wide.scale)).toBeCloseTo(1, 3);
+
+    // 520px stays well above the 387px edit floor even after a classic
+    // scrollbar (~15px) shrinks the scale host.
+    await page.setViewportSize({ width: 520, height: 800 });
+    const scaleHost = page.getByTestId("doc-sheet-scale");
+    await expect(scaleHost).not.toHaveAttribute("data-sheet-scale", "1.0000");
+    await expect(scaleHost).toHaveAttribute("data-sheet-interactive", "true");
+
+    const narrow = await docEditorPage.sheet.evaluate((sheet) => {
+      const name = sheet.querySelector("h1, [data-testid='doc-sheet-header']");
+      const nameBox = name?.getBoundingClientRect();
+      const scaleEl = sheet.closest('[data-testid="doc-sheet-scale"]') as HTMLElement | null;
+      const viewport = scaleEl?.querySelector(
+        '[data-testid="doc-sheet-scale-viewport"]',
+      ) as HTMLElement | null;
+      return {
+        layoutWidth: (sheet as HTMLElement).offsetWidth,
+        visualWidth: sheet.getBoundingClientRect().width,
+        pages: sheet.ownerDocument.querySelectorAll('[data-testid="doc-sheet-page"]').length,
+        pill: sheet.ownerDocument.querySelector('[data-testid="doc-sheet-page-count"]')
+          ?.textContent,
+        nameHeight: nameBox?.height ?? 0,
+        scale: scaleEl?.getAttribute("data-sheet-scale"),
+        viewportWidth: viewport?.getBoundingClientRect().width ?? 0,
+        available: scaleEl?.clientWidth ?? 0,
+      };
+    });
+
+    expect(narrow.layoutWidth).toBe(860);
+    expect(narrow.pages).toBe(wide.pages);
+    expect(narrow.pill).toBe(wide.pill);
+    // Design-space name height is unchanged; the visual height scales with k.
+    const k = Number(narrow.scale);
+    expect(k).toBeGreaterThan(0.45);
+    expect(k).toBeLessThan(1);
+    expect(narrow.visualWidth).toBeCloseTo(860 * k, 0);
+    expect(narrow.nameHeight).toBeCloseTo(wide.nameHeight * k, 0);
+    expect(narrow.viewportWidth).toBeCloseTo(860 * k, 0);
+
+    await expect(
+      scaleHost.getByTestId("doc-sheet-scale-viewport").getByTestId("doc-sheet-page-count"),
+    ).toHaveCount(0);
+    await expect(docEditorPage.pageCount).toBeVisible();
+    const pillBox = await docEditorPage.pageCount.boundingBox();
+    const surfaceBox = await docEditorPage.surface.boundingBox();
+    expect(pillBox).toBeTruthy();
+    expect(surfaceBox).toBeTruthy();
+    expect(pillBox!.y).toBeGreaterThanOrEqual(surfaceBox!.y);
+    expect(pillBox!.y + pillBox!.height).toBeLessThanOrEqual(
+      surfaceBox!.y + surfaceBox!.height + 1,
+    );
+
+    // Edge chrome stays outside the transform.
+    await expect(page.getByTestId("doc-editor-templates-tab")).toBeVisible();
+    await expect(page.getByTestId("doc-editor-topbar")).toBeVisible();
+  });
+
+  test("below the edit floor the sheet becomes a read-only miniature", async ({
+    page,
+    homePage,
+    docEditorPage,
+  }) => {
+    // 860 * 0.45 = 387; a 320px canvas is under the floor.
+    await page.setViewportSize({ width: 320, height: 640 });
+    await homePage.open();
+    await homePage.createResume();
+    await docEditorPage.assertDocEditorOpen();
+
+    const scaleHost = page.getByTestId("doc-sheet-scale");
+    await expect(scaleHost).toHaveAttribute("data-sheet-interactive", "false");
+    await docEditorPage.assertMode("done");
+    await expect(docEditorPage.modeToggle).toBeDisabled();
+    await expect(docEditorPage.sheet.getByRole("button")).toHaveCount(0);
   });
 });

@@ -47,6 +47,12 @@ import {
 } from "./docEdits";
 import { itemNoun } from "./itemFields";
 import { isHttpHref } from "../../lib/profileUrls";
+import {
+  MAX_LEVEL,
+  clampLevel,
+  educationSchool,
+  profileEntryLabel,
+} from "../../lib/itemPresentation";
 import { entryDisplayLabel, entryStep, type MoveStep } from "../../lib/docDnd";
 import { isCustomId, sectionTitle, type SectionPlacement } from "../../lib/docLayout";
 import type { SectionSlice } from "../../lib/docPagination";
@@ -61,9 +67,6 @@ import type {
   Skill,
   Url,
 } from "../../wasm/types";
-
-/** Highest level a skill or language can carry. Mirrors `clamp-level`. */
-const MAX_LEVEL = 5;
 
 /** Add-block labels per fixed section (spec §1.7); customs fall back to noun. */
 const ADD_LABELS: Readonly<Record<string, string>> = {
@@ -198,7 +201,7 @@ function ExtraFieldsView(props: { fields?: CustomField[] }): JSX.Element {
 
 /** Five proficiency dots, filled to `value` (compact rows, spec §1.7). */
 function LevelDots(props: { value: number }): JSX.Element {
-  const level = (): number => Math.min(MAX_LEVEL, Math.max(0, Math.round(props.value)));
+  const level = (): number => clampLevel(props.value);
   return (
     <span class="doc-sheet__lang-dots" role="img" aria-label={`Level ${level()} of ${MAX_LEVEL}`}>
       <For each={Array.from({ length: MAX_LEVEL }, (_, index) => index)}>
@@ -334,7 +337,7 @@ export function DocSection(props: DocSectionProps): JSX.Element {
     dnd?.setSectionDropAt({
       page: place.page,
       column: place.column,
-      index: dropIndexFromPointer(event, place.index),
+      index: dropIndexFromPointer(event, place.index, dnd?.scale() ?? 1),
     });
   }
 
@@ -478,8 +481,8 @@ export function DocSection(props: DocSectionProps): JSX.Element {
 
   function educationBody(entry: ItemEntry): JSX.Element {
     const item = entry.item as Education;
-    const school = (): string =>
-      [item.institution, item.area].filter((part) => hasText(part)).join(" · ");
+    // Contract (#829): degree-first; secondary is institution · area.
+    const school = (): string => educationSchool(item);
     return (
       <>
         <div class="doc-sheet__edu-degree">
@@ -502,7 +505,8 @@ export function DocSection(props: DocSectionProps): JSX.Element {
 
   function profileBody(entry: ItemEntry): JSX.Element {
     const item = entry.item as Profile;
-    const text = (): string => (hasText(item.username) ? item.username : item.network);
+    // Contract (#829): username first, network fallback (matches Typst auto).
+    const text = (): string => profileEntryLabel(item);
     const href = (): string | undefined => {
       const value = item.url?.href ?? "";
       // Same http(s)-only rule as custom-item links: a stored javascript: or
@@ -533,7 +537,7 @@ export function DocSection(props: DocSectionProps): JSX.Element {
     return (
       <>
         <span class="doc-sheet__lang-name">{item.name}</span>
-        <Show when={(item.level ?? 0) > 0}>
+        <Show when={clampLevel(item.level ?? 0) > 0}>
           <LevelDots value={item.level ?? 0} />
         </Show>
         <Show when={hasText(item.description)}>

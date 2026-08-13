@@ -17,7 +17,12 @@ import {
   SIDEBAR_TEMPLATE,
   SINGLE_TEMPLATE,
 } from "../../../test/docEditorFixture";
-import type { TemplateLayout } from "../../../lib/docLayout";
+import {
+  DEFAULT_DOC_FONT_FAMILY,
+  bundledTemplateLayout,
+  docFontStack,
+  type TemplateLayout,
+} from "../../../lib/docLayout";
 import { DocSheet } from "../DocSheet";
 import type { ResumeData } from "../../../wasm/types";
 
@@ -114,15 +119,92 @@ describe("document sheet structural chrome", () => {
     store.store.resume = resume;
   });
 
-  function renderSheet(options: { onOpenSections?: () => void; template?: TemplateLayout } = {}) {
+  function renderSheet(
+    options: {
+      onOpenSections?: () => void;
+      template?: TemplateLayout;
+      mode?: "edit" | "done";
+    } = {},
+  ) {
     return render(() => (
       <DocSheet
         resume={resume}
         templateLayout={options.template ?? SIDEBAR_TEMPLATE}
         onOpenSections={options.onOpenSections}
+        mode={options.mode}
       />
     ));
   }
+
+  describe("avatar (#829)", () => {
+    it("draws the initials disc in Done mode when no photo is set", () => {
+      renderSheet({ mode: "done" });
+
+      const sheet = screen.getByTestId("doc-sheet");
+      const initials = sheet.querySelector(".doc-sheet__avatar-initials");
+      expect(initials).not.toBeNull();
+      expect(initials?.textContent).toBe("MO");
+      expect(within(sheet).queryByRole("button")).toBeNull();
+    });
+
+    it("keeps the initials disc empty when the name is empty", () => {
+      resume.basics.name = "";
+      renderSheet({ mode: "done" });
+
+      const initials = screen.getByTestId("doc-sheet").querySelector(".doc-sheet__avatar-initials");
+      expect(initials).not.toBeNull();
+      expect(initials?.textContent).toBe("");
+    });
+  });
+
+  describe("level indicator (#829)", () => {
+    it("hides dots when a fractional level clamps to 0", () => {
+      resume.sections.languages.items[0].level = 0.4;
+      renderSheet();
+
+      expect(entryRow("lang-1").querySelector(".doc-sheet__lang-dots")).toBeNull();
+    });
+  });
+
+  describe("sheet typography (#828)", () => {
+    it("scopes document faces on the sheet root, not app chrome --font-*", () => {
+      renderSheet();
+
+      const sheet = screen.getByTestId("doc-sheet");
+      const body = sheet.style.getPropertyValue("--doc-font-body");
+      const display = sheet.style.getPropertyValue("--doc-font-display");
+      expect(body).toBe(docFontStack(DEFAULT_DOC_FONT_FAMILY));
+      expect(display).toBe(docFontStack(DEFAULT_DOC_FONT_FAMILY));
+      // Must not inherit / re-expose the app chrome tokens.
+      expect(sheet.style.getPropertyValue("--font-body")).toBe("");
+      expect(body).not.toContain("Source Serif");
+      expect(body).not.toContain("Fraunces");
+    });
+
+    it("follows nosepass chrome with IBM Plex Serif", () => {
+      resume.metadata.template = "nosepass";
+      const layout = bundledTemplateLayout("nosepass");
+      renderSheet({ template: layout });
+
+      const sheet = screen.getByTestId("doc-sheet");
+      const expected = docFontStack(layout.fontBody);
+      expect(sheet.style.getPropertyValue("--doc-font-body")).toBe(expected);
+      expect(sheet.style.getPropertyValue("--doc-font-display")).toBe(expected);
+      expect(expected).toContain("IBM Plex Serif");
+    });
+
+    it("follows glalie chrome with IBM Plex Sans (Typst still inherits engine serif)", () => {
+      resume.metadata.template = "glalie";
+      const layout = bundledTemplateLayout("glalie");
+      renderSheet({ template: layout });
+
+      const sheet = screen.getByTestId("doc-sheet");
+      const expected = docFontStack(layout.fontBody);
+      expect(sheet.style.getPropertyValue("--doc-font-body")).toBe(expected);
+      expect(sheet.style.getPropertyValue("--doc-font-display")).toBe(expected);
+      expect(expected).toContain("IBM Plex Sans");
+    });
+  });
 
   describe("section cards", () => {
     it("hides a fixed section through toggleSectionVisibility, and says so", async () => {
@@ -867,6 +949,24 @@ describe("document sheet structural chrome", () => {
       expect(layout[0][0]).toEqual(["summary", "education", "experience", "projects"]);
       expect(breaks).toEqual({});
       expect(writeCount()).toBe(1);
+    });
+  });
+
+  describe("miniature scale CSS contract", () => {
+    it("publishes --sheet-k on the scaled subtree", () => {
+      renderSheet();
+
+      const transform = screen.getByTestId("doc-sheet-scale-transform");
+      expect(transform.style.getPropertyValue("--sheet-k")).toBe("1");
+    });
+
+    it("keeps the page-count pill outside the scale viewport", () => {
+      renderSheet();
+
+      const viewport = screen.getByTestId("doc-sheet-scale-viewport");
+      const pill = screen.getByTestId("doc-sheet-page-count");
+      expect(viewport.contains(pill)).toBe(false);
+      expect(screen.getByTestId("doc-sheet-scale").contains(pill)).toBe(true);
     });
   });
 

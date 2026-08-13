@@ -1,17 +1,59 @@
 /*
- * Document-sheet styles (#794): the prototype-normative sheet engine.
+ * Document-sheet styles (#794 / #813): the prototype-normative sheet engine.
  *
- * Every rule in this file is nested under `.doc-sheet`. The sheet paints the
- * resume's own theme colours on paper-white sheets, which means its type
- * scale, colours and spacing are deliberately unlike the surrounding app
- * chrome — so nothing here may escape the root class. Add rules only as
- * descendants of `.doc-sheet`.
+ * Every rule in this file is nested under `.doc-sheet` or the scale wrapper
+ * (`.doc-sheet-scale*`). The sheet paints the resume's own theme colours on
+ * paper-white sheets, which means its type scale, colours and spacing are
+ * deliberately unlike the surrounding app chrome — so nothing here may escape
+ * those roots. Add rules only as descendants of `.doc-sheet` or the scale
+ * wrappers.
  *
- * Geometry is fixed CSS pixels (spec §3.1): sheets are `min(860px, 100%)`
- * wide, sized to their content, with A4 boundaries drawn as guides at 1122px
- * intervals rather than clipped frames. The base type is 12.5px/1.45 per the
- * spec; the resume's theme arrives as custom properties set by `DocSheet`.
+ * Geometry is fixed CSS pixels (spec §3.1, #813): the sheet's internal layout
+ * is always exactly 860px wide. When the canvas is narrower, `.doc-sheet-scale`
+ * applies a uniform `transform: scale(k)` miniature so line breaks and page
+ * guides stay print-faithful. The base type is 12.5px/1.45 per the spec; the
+ * resume's theme arrives as custom properties set by `DocSheet`.
+ *
+ * Typography (#828): `--doc-font-*` are sheet-local. Never fall back to the
+ * app chrome's `--font-body` / `--font-display` / `--font-mono` — those live
+ * on `:root` and would shadow any CSS fallback list. Faces ship via
+ * `docFonts.css` (same OFL IBM Plex files the PDF renderer vendors).
  */
+
+@import "./docFonts.css";
+
+/* ── Miniature scale wrapper (#813) ─────────────────────────────────────── */
+
+.doc-sheet-scale {
+  width: 100%;
+  /* One grid cell: the height-compensated viewport and the pill overlay
+     stack so the pill can sticky-pin to the visible surface without
+     sitting in the transformed subtree. */
+  display: grid;
+  justify-items: center;
+}
+
+.doc-sheet-scale__viewport {
+  /* Width/height are set inline from the live scale so scroll geometry
+     matches the visual miniature (transform does not shrink layout boxes). */
+  grid-area: 1 / 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.doc-sheet-scale__transform {
+  /* Design width; `--doc-sheet-page-w` is set by DocSheet from PAGE_WIDTH_PX
+     so the scale math and layout can never desync. */
+  width: var(--doc-sheet-page-w, 860px);
+  transform-origin: top center;
+  /* `margin-left` centers the unscaled layout box inside the narrower
+     viewport when origin is top-center (see DocSheet). */
+  /* Unitless k from DocSheet. Hit boxes use
+     `max(designSize, 24px / var(--sheet-k))` so they stay ≥24 CSS px after
+     `transform: scale(k)` (WCAG 2.5.8, #813). Visual glyphs may stay small. */
+  --sheet-k: 1;
+  --sheet-hit-min: calc(24px / var(--sheet-k, 1));
+}
 
 .doc-sheet {
   --doc-sheet-bg: var(--color-sheet);
@@ -23,13 +65,21 @@
   --doc-sheet-side-w: 287px;
   --doc-sheet-page-h: 1122px;
 
+  /* Document faces — independent of app chrome (`index.css` `--font-*`). */
+  --doc-font-body: "IBM Plex Sans", Inter, system-ui, sans-serif;
+  --doc-font-display: "IBM Plex Sans", Inter, system-ui, sans-serif;
+  --doc-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0;
   padding: 1.5rem 0.5rem 4rem;
-  width: min(860px, 100%);
-  margin-inline: auto;
+  /* Design width is fixed (#813): never reflow below it. Miniature
+     scaling lives on `.doc-sheet-scale__transform`. */
+  width: var(--doc-sheet-page-w, 860px);
+  box-sizing: border-box;
+  margin-inline: 0;
 }
 
 /* ── Sheets ─────────────────────────────────────────────────────────────── */
@@ -43,7 +93,7 @@
   color: var(--doc-sheet-text);
   border-radius: 4px;
   box-shadow: 0 24px 60px -20px var(--color-shadow, rgb(0 0 0 / 45%));
-  font-family: var(--doc-font-body, "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif);
+  font-family: var(--doc-font-body);
   font-size: 12.5px;
   line-height: 1.45;
   overflow: visible;
@@ -75,7 +125,7 @@
 }
 
 .doc-sheet__page-break-label {
-  font-family: var(--font-mono, monospace);
+  font-family: var(--doc-font-mono);
   font-size: 0.65rem;
   font-weight: 700;
   line-height: 1;
@@ -98,6 +148,8 @@
   font-size: 0.68rem;
   font-weight: 600;
   padding: 0.28rem 0.7rem;
+  min-width: max(24px, var(--sheet-hit-min, 24px));
+  min-height: max(24px, var(--sheet-hit-min, 24px));
   cursor: pointer;
   margin-top: 0.35rem;
 }
@@ -113,12 +165,32 @@
 
 /* ── Page-count pill ────────────────────────────────────────────────────── */
 
-.doc-sheet__page-pill {
-  position: fixed;
-  bottom: 1.25rem;
-  left: 50%;
-  transform: translateX(-50%);
+/* Size container for the pill overlay's `100cqh` — the scrolling surface,
+   not the sheet. Drawers overlay this box and do not shrink it (#813). */
+.doc-editor-surface {
+  container-type: size;
+}
+
+/* Stacked on the viewport (same grid cell). Sticky `top: 0` plus a
+   surface-tall box keeps the pill at the visible bottom while the sheet
+   scrolls; it stays a sibling of the viewport so overflow:hidden and
+   transform:scale cannot clip or shrink it (#813, spec §1.16). */
+.doc-sheet-scale__pill-layer {
+  grid-area: 1 / 1;
+  position: sticky;
+  top: 0;
   z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  height: 100cqh;
+  padding-bottom: 1.25rem;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.doc-sheet__page-pill {
   display: inline-flex;
   align-items: baseline;
   gap: 0.35rem;
@@ -128,6 +200,7 @@
   border-radius: 999px;
   padding: 0.45rem 0.9rem;
   box-shadow: 0 10px 30px var(--color-shadow, rgb(0 0 0 / 35%));
+  pointer-events: auto;
 }
 
 .doc-sheet__page-pill strong {
@@ -234,8 +307,10 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  right: -4px;
-  width: 8px;
+  /* Visual gutter stays a 2px ::after line; the tap box is ≥24 CSS px
+     after scale(k) (WCAG 2.5.8). Centered on the column edge. */
+  width: max(24px, var(--sheet-hit-min, 24px));
+  right: calc(max(24px, var(--sheet-hit-min, 24px)) / -2);
   cursor: col-resize;
   z-index: 10;
   touch-action: none;
@@ -243,13 +318,17 @@
 
 .doc-sheet__side-resize--right {
   right: auto;
-  left: -4px;
+  left: calc(max(24px, var(--sheet-hit-min, 24px)) / -2);
 }
 
 .doc-sheet__side-resize::after {
   content: "";
   position: absolute;
-  inset: 0 3px;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
   background: transparent;
   transition: background 0.12s ease;
 }
@@ -276,7 +355,7 @@
 
 .doc-sheet__name {
   display: block;
-  font-family: var(--font-display, inherit);
+  font-family: var(--doc-font-display);
   font-size: 1.7rem;
   font-weight: 700;
   line-height: 1.15;
@@ -309,11 +388,11 @@
   line-height: 0;
 }
 
-.doc-sheet__avatar-btn:not(:disabled) {
+button.doc-sheet__avatar-btn {
   cursor: pointer;
 }
 
-.doc-sheet__avatar-btn:focus-visible {
+button.doc-sheet__avatar-btn:focus-visible {
   outline: 2px solid var(--doc-sheet-accent);
   outline-offset: 2px;
 }
@@ -415,7 +494,7 @@
 
 .doc-sheet__sec-title {
   margin: 0;
-  font-family: var(--doc-font-display, inherit);
+  font-family: var(--doc-font-display);
   font-size: 0.64rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -629,8 +708,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: max(24px, var(--sheet-hit-min, 24px));
+  height: max(24px, var(--sheet-hit-min, 24px));
   flex-shrink: 0;
   margin-left: -3px;
   border: none;
@@ -672,8 +751,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: max(24px, var(--sheet-hit-min, 24px));
+  height: max(24px, var(--sheet-hit-min, 24px));
   flex-shrink: 0;
   border: 1px solid transparent;
   border-radius: 7px;
@@ -740,6 +819,7 @@
   border: none;
   border-radius: 7px;
   padding: 0.42rem 0.55rem;
+  min-height: max(24px, var(--sheet-hit-min, 24px));
   font-size: 0.76rem;
   font-weight: 500;
   line-height: 1.2;
@@ -784,7 +864,7 @@
   justify-content: center;
   gap: 0.4rem;
   width: 100%;
-  min-height: 2.9rem;
+  min-height: max(2.9rem, var(--sheet-hit-min, 24px));
   margin-top: 0.45rem;
   font-size: 0.66rem;
   font-weight: 700;
@@ -834,7 +914,7 @@
   justify-content: center;
   gap: 0.4rem;
   width: 100%;
-  min-height: 3.2rem;
+  min-height: max(3.2rem, var(--sheet-hit-min, 24px));
   margin: 0.2rem 0 1rem;
   font-size: 0.64rem;
   font-weight: 700;
@@ -939,6 +1019,7 @@
 
 .doc-sheet__entry-row--edit.doc-sheet__entry-row--compact {
   cursor: pointer;
+  min-height: max(24px, var(--sheet-hit-min, 24px));
 }
 
 /* 3px accent slot bars marking the item drop position (spec §2.4); absolute
@@ -973,7 +1054,7 @@
   left: 0;
   top: 0;
   bottom: 0;
-  width: 1rem;
+  width: max(24px, var(--sheet-hit-min, 24px));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1048,8 +1129,8 @@
 }
 
 .doc-sheet__entry-act {
-  width: 26px;
-  height: 26px;
+  width: max(26px, var(--sheet-hit-min, 24px));
+  height: max(26px, var(--sheet-hit-min, 24px));
   border-radius: 50%;
   border: none;
   background: transparent;
@@ -1083,8 +1164,8 @@
 }
 
 .doc-sheet__entry-actions--compact .doc-sheet__entry-act {
-  width: 18px;
-  height: 18px;
+  width: max(24px, var(--sheet-hit-min, 24px));
+  height: max(24px, var(--sheet-hit-min, 24px));
   border-radius: 5px;
   font-size: 0.8rem;
   color: #b3ada3;
@@ -1105,14 +1186,26 @@
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+  pointer-events: none;
+}
+
+.doc-sheet__entry-actions--compact .doc-sheet__entry-act--kb-only {
+  width: 1px;
+  height: 1px;
 }
 
 .doc-sheet__entry-act--kb-only:focus-visible {
   position: static;
-  width: 18px;
-  height: 18px;
+  width: max(24px, var(--sheet-hit-min, 24px));
+  height: max(24px, var(--sheet-hit-min, 24px));
   overflow: visible;
   clip-path: none;
+  pointer-events: auto;
+}
+
+.doc-sheet__entry-actions--compact .doc-sheet__entry-act--kb-only:focus-visible {
+  width: max(24px, var(--sheet-hit-min, 24px));
+  height: max(24px, var(--sheet-hit-min, 24px));
 }
 
 /* ── Section body layouts (spec §1.7) ───────────────────────────────────── */
@@ -1200,7 +1293,7 @@
 
 .doc-sheet__edu-date {
   display: block;
-  font-family: var(--font-mono, monospace);
+  font-family: var(--doc-font-mono);
   font-size: 0.64rem;
   color: var(--doc-sheet-muted);
 }
@@ -1279,7 +1372,12 @@
 }
 
 .doc-sheet__chip-x {
-  width: 1em;
+  width: max(24px, var(--sheet-hit-min, 24px));
+  height: max(24px, var(--sheet-hit-min, 24px));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
   border: none;
   background: transparent;
   color: var(--doc-sheet-muted);
@@ -1380,7 +1478,7 @@
   padding: 0.5em 0.75em;
   border-radius: 4px;
   background: color-mix(in srgb, currentColor 7%, transparent);
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-family: var(--doc-font-mono);
   font-size: 0.85em;
   line-height: 1.45;
   white-space: pre-wrap;

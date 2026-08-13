@@ -11,6 +11,7 @@ name: Coverage Reports
       - "**.tsx"
       - "Cargo.toml"
       - "Cargo.lock"
+      - "tests/fixtures/**"
       - "apps/web/**"
       - ".github/workflows/coverage.yml"
       - "scripts/ci/testing/**"

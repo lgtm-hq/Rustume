@@ -72,11 +72,13 @@ export const SECTION_LABELS: Readonly<Record<FixedSectionId, string>> = {
 const UNTITLED_CUSTOM_SECTION = "Untitled";
 
 /**
- * CSS-pixel A4 geometry of the sheet (#794, spec §3.1).
+ * CSS-pixel A4 geometry of the sheet (#794 / #813, spec §3.1).
  *
- * The on-screen sheet is `min(860px, 100%)` wide and sizes to its content;
- * these constants are what the overflow guides, the measured page count and
- * the PDF export agree on. 860×1122 is A4 at ~96 dpi.
+ * The sheet's internal layout is always this design width — never reflowed.
+ * On narrower canvases `DocSheet` paints a faithful miniature via
+ * `transform: scale(k)` (`sheetScale.ts`); these constants are what the
+ * overflow guides, the measured page count and the PDF export agree on.
+ * These values are the editor's design canvas, not physical A4 at 96 dpi.
  */
 export const PAGE_WIDTH_PX = 860;
 export const PAGE_HEIGHT_PX = 1122;
@@ -163,17 +165,6 @@ export interface TemplateLayout {
   keywordStyle: TemplateKeywordStyle;
   /** Whether an accent rule sits under the identity header. */
   headerRule: boolean;
-}
-
-/** CSS font stack for a template body-font id. */
-export function docFontStack(fontBody: TemplateBodyFont): string {
-  switch (fontBody) {
-    case "ibm-plex-serif":
-      return '"IBM Plex Serif", Georgia, "Times New Roman", serif';
-    case "ibm-plex-sans":
-    default:
-      return '"IBM Plex Sans", "Helvetica Neue", Arial, sans-serif';
-  }
 }
 
 /**
@@ -320,6 +311,49 @@ function bundledTwoColumn(
     sidebarWidth,
     ...chrome,
   };
+}
+
+/**
+ * Default document face shared by Typst templates that set `font: "IBM Plex Sans"`.
+ * Matches the OFL webfonts in `docFonts.css` / PDF-bundled TTFs.
+ */
+export const DEFAULT_DOC_FONT_FAMILY = "IBM Plex Sans";
+
+/** Serif face: nosepass sets it; glalie inherits the engine's schema default. */
+export const SERIF_DOC_FONT_FAMILY = "IBM Plex Serif";
+
+/**
+ * Templates whose Typst document face is IBM Plex Serif. nosepass sets it in
+ * `template()`; glalie.typ leaves family to the engine's top-level
+ * `#set text(font: metadata.typography.font.family)` (schema default Serif).
+ */
+const SERIF_DOC_TEMPLATES: ReadonlySet<string> = new Set(["nosepass", "glalie"]);
+
+/**
+ * Document face for a template id, mirroring the Typst `#set text(font: …)`
+ * each template declares — including glalie's inheritance of the engine
+ * default. Full `metadata.typography.font.family` honoring is #701 — this
+ * only picks the template default the sheet should show.
+ */
+export function templateDocFontFamily(template: string): string {
+  return SERIF_DOC_TEMPLATES.has(template) ? SERIF_DOC_FONT_FAMILY : DEFAULT_DOC_FONT_FAMILY;
+}
+
+/**
+ * CSS `font-family` stack for the sheet's `--doc-font-body` / `--doc-font-display`.
+ * Accepts a chrome `fontBody` id or a Typst family name. Quoted family first so
+ * multi-word names (IBM Plex *) resolve correctly; document fallbacks (Helvetica
+ * Neue / Georgia) follow the family's classification so a failed load degrades
+ * serif→serif, not serif→sans — not the app chrome Inter stack.
+ */
+export function docFontStack(fontBody: TemplateBodyFont | string): string {
+  if (fontBody === "ibm-plex-serif" || fontBody === SERIF_DOC_FONT_FAMILY) {
+    return '"IBM Plex Serif", Georgia, "Times New Roman", serif';
+  }
+  if (fontBody === "ibm-plex-sans" || fontBody === DEFAULT_DOC_FONT_FAMILY) {
+    return '"IBM Plex Sans", "Helvetica Neue", Arial, sans-serif';
+  }
+  return `"${fontBody}", Inter, system-ui, sans-serif`;
 }
 
 /**

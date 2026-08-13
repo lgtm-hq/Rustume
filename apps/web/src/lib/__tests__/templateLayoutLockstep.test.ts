@@ -13,31 +13,41 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { templateLayoutSchema } from "../../api/schemas";
-import { bundledTemplateLayout, type TemplateLayout } from "../docLayout";
+import { bundledTemplateLayout } from "../docLayout";
 
 const FIXTURE_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
   "../../../../../tests/fixtures/template-layouts.json",
 );
 
-type FixtureLayouts = Record<string, TemplateLayout>;
+const fixtureLayoutsSchema = z.record(z.string(), templateLayoutSchema);
 
-function loadFixture(): FixtureLayouts {
-  const raw = JSON.parse(readFileSync(FIXTURE_PATH, "utf8")) as unknown;
-  // Shape-check via the wire schema so a corrupt or half-regenerated fixture
-  // fails with a clear validation error instead of opaque deep-equal diffs.
-  // The raw (untransformed) value is still what the lockstep asserts against.
-  z.record(z.string(), templateLayoutSchema).parse(raw);
-  return raw as FixtureLayouts;
+function loadFixture(): z.infer<typeof fixtureLayoutsSchema> {
+  return fixtureLayoutsSchema.parse(JSON.parse(readFileSync(FIXTURE_PATH, "utf8")));
 }
+
+/** Shipped template ids (Rust `TEMPLATES`); guards against a truncated fixture. */
+const SHIPPED_TEMPLATES = [
+  "rhyhorn",
+  "azurill",
+  "pikachu",
+  "nosepass",
+  "bronzor",
+  "chikorita",
+  "ditto",
+  "gengar",
+  "glalie",
+  "kakuna",
+  "leafish",
+  "onyx",
+] as const;
 
 describe("bundledTemplateLayout lockstep with get_template_layout", () => {
   const fixture = loadFixture();
   const ids = Object.keys(fixture);
 
-  it("fixture covers at least one template and the unknown-id fallback", () => {
-    expect(ids.length).toBeGreaterThan(1);
-    expect(fixture).toHaveProperty("not-a-template");
+  it("fixture covers every shipped template and the unknown-id fallback", () => {
+    expect([...ids].sort()).toEqual([...SHIPPED_TEMPLATES, "not-a-template"].toSorted());
   });
 
   it.each(ids)("matches fixture for %s", (id) => {
