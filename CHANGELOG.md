@@ -22,6 +22,18 @@ and this project adheres to
 
 ### Security
 
+## [0.65.3] - 2026-08-13
+
+### Changed
+
+- **templates**: audit the 12 templates and freeze each design spec (#838) (b91d885)
+- **web,render**: enforce lockstep between bundledTemplateLayout and get_template_layout
+  (#837) (79c7a2e)
+
+### Fixed
+
+- **app**: one item-presentation contract shared by sheet and Typst (#840) (4b961ab)
+
 ## [0.65.2] - 2026-08-13
 
 ### Changed
@@ -1001,7 +1013,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.65.2...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.65.3...HEAD
+[0.65.3]: https://github.com/lgtm-hq/Rustume/compare/v0.65.2...v0.65.3
 [0.65.2]: https://github.com/lgtm-hq/Rustume/compare/v0.65.1...v0.65.2
 [0.65.1]: https://github.com/lgtm-hq/Rustume/compare/v0.65.0...v0.65.1
 [0.65.0]: https://github.com/lgtm-hq/Rustume/compare/v0.64.0...v0.65.0
