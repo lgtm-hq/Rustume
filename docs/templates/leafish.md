@@ -45,6 +45,7 @@ Default main / sidebar section ids are defined once in
 
 | Concern | Rule |
 | --- | --- |
+| Experience order | **Company-first** (accent bold, linked); position under; date/location right muted |
 | Education order | Institution + degree; date right; score; summary |
 | Profile label mode | `network-username` |
 | Skill / interest / project keywords | Soft accent chips |

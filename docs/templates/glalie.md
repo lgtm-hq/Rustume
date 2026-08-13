@@ -25,7 +25,8 @@ clamp leading; do not hardcode Sans here (identity is "engine typography + tradi
 
 - `headerStyle`: `sidebar`; `contactIn`: `sidebar`.
 - Photo 80pt when present; no initials fallback.
-- Full-bleed sidebar (`margin: 0`).
+- Full-bleed sidebar (`margin: 0`): the page box ignores `page.margin`;
+  `content-width()` still subtracts metadata margin for sidebar-ratio math.
 
 ## Section-heading chrome
 
@@ -44,6 +45,7 @@ Default main / sidebar section ids are defined once in
 
 | Concern | Rule |
 | --- | --- |
+| Experience order | **Company-first** (bold); position under; date/location right muted |
 | Education order | Institution + degree; date right; score; summary |
 | Profile label mode | `network-username` |
 | Skill / interest / project keywords | Comma-joined muted |
@@ -61,7 +63,7 @@ bodies above.
 | Sheet uppercases section titles; Typst keeps title-case | fix-in-sheet |
 | Justify-on in Typst vs sheet left-aligned body | owner-decision-needed |
 | Cross-cutting item composition | fix-in-sheet / owner-decision-needed |
-| `page.margin` inert | owner-decision-needed (surface in UI) |
+| `page.margin` does not inset the page box (full-bleed); `content-width()` still uses it for ratio math | owner-decision-needed (surface in UI) |
 
 ### Audit evidence
 

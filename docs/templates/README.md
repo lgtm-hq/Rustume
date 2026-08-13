@@ -63,6 +63,10 @@ Each template lists concrete deltas with one of:
 - `owner-decision-needed` — sheet and Typst disagree on purpose or the intended
   behaviour is ambiguous; do not "fix" either side without a call.
 
+Slash-separated tags (`fix-in-sheet / owner-decision-needed`) are valid: the
+owner call decides the contract, then the remaining side implements it. Do not
+treat them as two simultaneous patches.
+
 ### Cross-cutting sheet vs PDF notes
 
 These recur on almost every template; each template page repeats only the ones that matter locally.

@@ -26,7 +26,8 @@ background `#ffffff`, text `#1f2937`, primary `#67b8c8`. Sidebar bg lighten 90%;
 - `headerStyle`: `sidebar`; `contactIn`: `sidebar`.
 - Photo centered at 80pt when present; **no initials fallback**.
 - Contact plain stacked lines (8pt); URL in accent.
-- Full-bleed sidebar (`margin: 0`); `page.margin` is inert.
+- Full-bleed sidebar (`margin: 0`): the page box ignores `page.margin`;
+  `content-width()` still subtracts metadata margin for sidebar-ratio math.
 
 ## Section-heading chrome
 
@@ -46,6 +47,7 @@ Default main / sidebar section ids are defined once in
 
 | Concern | Rule |
 | --- | --- |
+| Experience order | **Company-first** (bold, linked); position under; date/location right |
 | Education order | Institution + degree; date right; score; summary |
 | Profile label mode | `network-username` |
 | Skill keywords | Comma-joined 8pt |
@@ -65,7 +67,7 @@ bodies above.
 | Level boxes vs sheet dots | fix-in-sheet |
 | No PDF initials fallback while sheet edit mode shows initials | owner-decision-needed |
 | Cross-cutting experience/education order | fix-in-sheet / owner-decision-needed |
-| `page.margin` inert — document as intentional; surface in editor | owner-decision-needed / fix-in-sheet (UI only) |
+| `page.margin` does not inset the page box (full-bleed); `content-width()` still uses it for ratio math | owner-decision-needed / fix-in-sheet (UI only) |
 | Typography metadata ignored | fix-in-typst (#701) |
 
 ### Audit evidence
