@@ -39,8 +39,9 @@
 
   let picture = basics.picture
   let effects = picture.at("effects", default: (:))
+  let url = if "url" in picture and picture.url != none { picture.url.trim() } else { "" }
 
-  "url" in picture and picture.url != "" and not effects.at("hidden", default: false)
+  url != "" and not effects.at("hidden", default: false)
 }
 
 /// Render a profile picture with shared schema-driven effects.
@@ -125,26 +126,35 @@
 }
 
 /// Accent initials disc used when an avatar slot has no photo.
-#let render-initials-avatar(name, size, fill) = {
+#let render-initials-avatar(name, size, fill, text-fill: white) = {
   box(
     width: size,
     height: size,
     fill: fill,
     radius: 50%,
     align(center + horizon)[
-      #text(size: size * 0.35, weight: "bold", fill: white)[#name-initials(name)]
+      #text(size: size * 0.35, weight: "bold", fill: text-fill)[#name-initials(name)]
     ],
   )
 }
 
 /// Avatar slot: photo when set, otherwise initials disc (#829).
-#let render-avatar(basics, primary-color, default-size: 64pt) = {
+/// `primary-color` is the photo-border fallback. Initials disc colors may
+/// differ (e.g. a banner that already uses that accent as its fill).
+#let render-avatar(
+  basics,
+  primary-color,
+  default-size: 64pt,
+  initials-fill: auto,
+  initials-text-fill: white,
+) = {
   if has-visible-picture(basics) {
     render-picture(basics, primary-color, default-size: default-size)
   } else {
     let picture = if "picture" in basics and basics.picture != none { basics.picture } else { (:) }
     let size = picture.at("size", default: int(default-size / 1pt)) * 1pt
-    render-initials-avatar(basics.name, size, primary-color)
+    let fill = if initials-fill == auto { primary-color } else { initials-fill }
+    render-initials-avatar(basics.name, size, fill, text-fill: initials-text-fill)
   }
 }
 
