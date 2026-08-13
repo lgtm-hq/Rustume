@@ -39,8 +39,9 @@
 
   let picture = basics.picture
   let effects = picture.at("effects", default: (:))
+  let url = if "url" in picture and picture.url != none { picture.url.trim() } else { "" }
 
-  "url" in picture and picture.url != "" and not effects.at("hidden", default: false)
+  url != "" and not effects.at("hidden", default: false)
 }
 
 /// Render a profile picture with shared schema-driven effects.
@@ -94,20 +95,74 @@
   rotate(rotation, reflow: true, content)
 }
 
-/// Format a degree line from studyType and area.
-#let format-degree(studyType, area) = {
-  if studyType != "" and area != "" {
-    [#studyType in #area]
-  } else if area != "" {
-    area
+/// Education primary line: degree / study type only (item-presentation contract).
+/// Never joins `area` with `" in "` — area belongs in `education-school`.
+#let education-degree(item) = {
+  let value = if "studyType" in item and item.studyType != none { item.studyType } else { "" }
+  value.trim()
+}
+
+/// Education secondary line: `institution · area` (omit empty parts).
+#let education-school(item) = {
+  let institution = if "institution" in item and item.institution != none {
+    item.institution.trim()
+  } else { "" }
+  let area = if "area" in item and item.area != none { item.area.trim() } else { "" }
+  if institution != "" and area != "" {
+    institution + " · " + area
+  } else if institution != "" {
+    institution
   } else {
-    studyType
+    area
+  }
+}
+
+/// Initials from a display name (up to `max` words). Shared with the sheet's
+/// avatar fallback (item-presentation contract).
+#let name-initials(name, max: 2) = {
+  let parts = name.trim().split(regex("\\s+")).filter(w => w.len() > 0)
+  if parts.len() == 0 { return "" }
+  parts.slice(0, calc.min(max, parts.len())).map(w => upper(w.at(0, default: ""))).join("")
+}
+
+/// Accent initials disc used when an avatar slot has no photo.
+#let render-initials-avatar(name, size, fill, text-fill: white) = {
+  box(
+    width: size,
+    height: size,
+    fill: fill,
+    radius: 50%,
+    align(center + horizon)[
+      #text(size: size * 0.35, weight: "bold", fill: text-fill)[#name-initials(name)]
+    ],
+  )
+}
+
+/// Avatar slot: photo when set, otherwise initials disc (#829).
+/// `primary-color` is the photo-border fallback. Initials disc colors may
+/// differ (e.g. a banner that already uses that accent as its fill).
+#let render-avatar(
+  basics,
+  primary-color,
+  default-size: 64pt,
+  initials-fill: auto,
+  initials-text-fill: white,
+) = {
+  if has-visible-picture(basics) {
+    render-picture(basics, primary-color, default-size: default-size)
+  } else {
+    let picture = if "picture" in basics and basics.picture != none { basics.picture } else { (:) }
+    let size = picture.at("size", default: int(default-size / 1pt)) * 1pt
+    let fill = if initials-fill == auto { primary-color } else { initials-fill }
+    render-initials-avatar(basics.name, size, fill, text-fill: initials-text-fill)
   }
 }
 
 /// Clamp a skill/language level to [0, 5] and convert to int.
+/// Shared level rule with the sheet (`clampLevel` / `MAX_LEVEL` = 5):
+/// round first, then clamp, so both surfaces agree on fractional input.
 #let clamp-level(val) = {
-  int(calc.min(calc.max(val, 0), 5))
+  int(calc.min(calc.max(calc.round(val), 0), 5))
 }
 
 /// Generic rating indicator (dots, squares, or rounded bars).
@@ -348,21 +403,20 @@
   body
 }
 
-/// Build the visible label for a profile entry.
+/// Build the visible label for a profile entry (item-presentation contract).
 ///
 /// Modes:
+/// - `"username"` / `"auto"` — username (fallback network / URL) — **default**
 /// - `"network"` — network name (fallback username / URL)
-/// - `"username"` — username (fallback network / URL)
 /// - `"network-username"` — `Network: username` when both exist
-/// - `"auto"` — network if set, else username, else URL
 #let profile-entry-label(item, mode: "auto") = {
-  let network = if "network" in item and item.network != none { item.network } else { "" }
-  let username = if "username" in item and item.username != none { item.username } else { "" }
-  let href = if has-url(item) { item.url.href } else { "" }
+  let network = if "network" in item and item.network != none { item.network.trim() } else { "" }
+  let username = if "username" in item and item.username != none { item.username.trim() } else { "" }
+  let href = if has-url(item) { item.url.href.trim() } else { "" }
 
-  if mode == "username" {
-    if username != "" { username }
-    else if network != "" { network }
+  if mode == "network" {
+    if network != "" { network }
+    else if username != "" { username }
     else { href }
   } else if mode == "network-username" {
     if network != "" and username != "" { network + ": " + username }
@@ -370,9 +424,9 @@
     else if username != "" { username }
     else { href }
   } else {
-    // "network" and "auto" share the same preference order.
-    if network != "" { network }
-    else if username != "" { username }
+    // "username" and "auto" share the same preference order (#829 / #820).
+    if username != "" { username }
+    else if network != "" { network }
     else { href }
   }
 }
@@ -889,9 +943,11 @@
   }
 }
 
-/// Per-item trailer for a section key: keyword chips for experience and
-/// education (new fields no template renders natively) plus custom-field rows
-/// for experience, education, projects, and skills (doc-editor spec §4.3).
+/// Per-item trailer for a section key (doc-editor spec §4.3 + item-presentation
+/// contract): keyword chips for experience/education (fields no template renders
+/// natively) plus custom-field rows for experience, education, projects, and
+/// skills. Skills/projects/interests already print keywords in each template's
+/// native style — extras must not double-render those.
 #let section-item-extras(key) = {
   if key == "experience" or key == "education" {
     item => {

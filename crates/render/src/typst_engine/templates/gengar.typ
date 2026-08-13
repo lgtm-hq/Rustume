@@ -93,13 +93,16 @@
   let render-education(item) = {
     if item.visible == false { return }
 
+    let degree = education-degree(item)
+    let school = education-school(item)
     entry-header(
       [
-        #text(weight: "bold", size: 10pt)[#item.institution]
-        #if item.area != "" or item.studyType != "" {
-          v(2pt)
-          let degree = format-degree(item.studyType, item.area)
-          text(size: 9.5pt)[#degree]
+        #if degree != "" {
+          text(weight: "bold", size: 10pt)[#degree]
+        }
+        #if school != "" {
+          if degree != "" { v(2pt) }
+          text(size: 9.5pt)[#school]
         }
       ],
       [
@@ -171,7 +174,7 @@
       size: 9pt,
       fill: sidebar-text,
       link-fill: accent-color,
-      label-mode: "network-username",
+      label-mode: "auto",
       weight: "medium",
     )
     v(6pt)
@@ -413,12 +416,10 @@
     }
 
     let sidebar-before = () => [
-      #if has-visible-picture(data.basics) {
-        align(center)[
-          #render-picture(data.basics, accent-color, default-size: 80pt)
-        ]
-        v(12pt)
-      }
+      #align(center)[
+        #render-avatar(data.basics, accent-color, default-size: 80pt)
+      ]
+      #v(12pt)
 
       // Header: Name, headline, contact info
       #text(size: 18pt, weight: "bold", fill: sidebar-text)[#data.basics.name]
