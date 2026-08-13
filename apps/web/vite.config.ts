@@ -9,7 +9,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.svg", "icons/*.png"],
+      includeAssets: ["favicon.svg", "icons/*.png", "fonts/*"],
       manifest: {
         name: "Rustume",
         short_name: "Rustume",
@@ -37,7 +37,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,svg,png,woff2,wasm}"],
+        globPatterns: ["**/*.{js,css,html,svg,png,woff2,ttf,wasm}"],
         // Auth/API routes are server-handled; do not serve index.html for them.
         navigateFallbackDenylist: [
           /^\/auth(?:\/|$)/,
