@@ -72,7 +72,6 @@ import {
   layoutColumns,
   layoutPages,
   sectionTitle,
-  templateDocFontFamily,
   type TemplateLayout,
 } from "../../lib/docLayout";
 import { SHEET_SCALE_CSS_VAR, sheetScaleForWidth } from "../../lib/sheetScale";
@@ -256,9 +255,9 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
   const layoutMode = (): TemplateLayout["layoutMode"] => props.templateLayout.layoutMode;
   const headerStyle = (): TemplateLayout["headerStyle"] => props.templateLayout.headerStyle;
   const contactIn = (): TemplateLayout["contactIn"] => props.templateLayout.contactIn;
-  /** Template document face (#828); independent of app chrome `--font-*`. */
-  const docFontFamily = createMemo(() => templateDocFontFamily(props.resume.metadata.template));
-  const docFont = createMemo(() => docFontStack(docFontFamily()));
+  const chrome = (): TemplateLayout => props.templateLayout;
+  /** Sheet face follows template chrome (`fontBody`), not the Typst inheritance map. */
+  const docFont = createMemo(() => docFontStack(chrome().fontBody));
 
   const [focusedSection, setFocusedSection] = createSignal<string | null>(null);
   const [isSectionDialogOpen, setIsSectionDialogOpen] = createSignal(false);
@@ -988,14 +987,26 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
                 }}
                 class={
                   `doc-sheet doc-sheet--tpl-${props.resume.metadata.template} ` +
-                  `doc-sheet--layout-${layoutMode()} doc-sheet--head-${headerStyle()}`
+                  `doc-sheet--layout-${layoutMode()} doc-sheet--head-${headerStyle()} ` +
+                  `doc-sheet--heading-${chrome().headingStyle} ` +
+                  `doc-sheet--side-heading-${chrome().sidebarHeadingStyle} ` +
+                  `doc-sheet--heading-case-${chrome().headingCase} ` +
+                  `doc-sheet--heading-ink-${chrome().headingInk} ` +
+                  `doc-sheet--side-heading-ink-${chrome().sidebarHeadingInk} ` +
+                  `doc-sheet--keywords-${chrome().keywordStyle} ` +
+                  `doc-sheet--font-${chrome().fontBody}`
                 }
                 classList={{
                   "doc-sheet--editing": isEditable(),
                   "doc-sheet--done": !isEditable(),
+                  "doc-sheet--sidebar-tint": chrome().sidebarTint,
+                  "doc-sheet--header-rule": chrome().headerRule,
                 }}
                 data-testid="doc-sheet"
                 data-sheet-mode={mode()}
+                data-heading-style={chrome().headingStyle}
+                data-sidebar-heading-style={chrome().sidebarHeadingStyle}
+                data-font-body={chrome().fontBody}
                 style={{
                   "--doc-sheet-bg": theme().background,
                   "--doc-sheet-text": theme().text,

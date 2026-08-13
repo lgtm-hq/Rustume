@@ -88,6 +88,144 @@ impl ContactIn {
     }
 }
 
+/// How a template draws section headings (main or sidebar).
+///
+/// Data, not CSS — the sheet maps each variant to a shared modifier class.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HeadingStyle {
+    /// Filled accent chip with contrasting title text (pikachu main).
+    Band,
+    /// Title above a full-width rule (most templates).
+    Underline,
+    /// Title with a trailing rule on the same row (nosepass).
+    Rule,
+    /// Title only — no rule or fill (pikachu sidebar).
+    Plain,
+}
+
+impl HeadingStyle {
+    /// Wire representation used by the HTTP API.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Band => "band",
+            Self::Underline => "underline",
+            Self::Rule => "rule",
+            Self::Plain => "plain",
+        }
+    }
+}
+
+/// Letter-case transform applied to section titles in Typst.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HeadingCase {
+    /// `upper(title)` — the common template treatment.
+    Upper,
+    /// Title as written, no forced case (nosepass, glalie).
+    AsWritten,
+}
+
+impl HeadingCase {
+    /// Wire representation used by the HTTP API.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Upper => "upper",
+            Self::AsWritten => "as-written",
+        }
+    }
+}
+
+/// Ink colour for section heading text.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HeadingInk {
+    /// Accent / primary-derived colour (most headings).
+    Accent,
+    /// Body text colour (gengar main column).
+    Text,
+}
+
+impl HeadingInk {
+    /// Wire representation used by the HTTP API.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Accent => "accent",
+            Self::Text => "text",
+        }
+    }
+}
+
+/// Body typeface the template hardcodes in Typst (`#set text(font: ...)`).
+///
+/// Wire values are stable ids; the sheet maps them to a font stack. Not
+/// free-form CSS family strings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BodyFont {
+    /// `IBM Plex Sans` — every template except nosepass.
+    IbmPlexSans,
+    /// `IBM Plex Serif` — nosepass.
+    IbmPlexSerif,
+}
+
+impl BodyFont {
+    /// Wire representation used by the HTTP API.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::IbmPlexSans => "ibm-plex-sans",
+            Self::IbmPlexSerif => "ibm-plex-serif",
+        }
+    }
+}
+
+/// How keyword lists render on the sheet / PDF.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KeywordStyle {
+    /// Accent-tinted pill chips (onyx, azurill, ditto, …).
+    Chips,
+    /// Comma / middot-joined plain text (rhyhorn, pikachu, …).
+    Plain,
+}
+
+impl KeywordStyle {
+    /// Wire representation used by the HTTP API.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Chips => "chips",
+            Self::Plain => "plain",
+        }
+    }
+}
+
+/// Presentation chrome for a template — enough for the document sheet to
+/// mirror Typst section headings, typeface, and accent usage without
+/// free-form CSS.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TemplateChrome {
+    /// Main-column (and single-column) section heading treatment.
+    pub heading_style: HeadingStyle,
+    /// Sidebar section heading treatment; equals [`Self::heading_style`]
+    /// when the template does not differentiate columns.
+    pub sidebar_heading_style: HeadingStyle,
+    /// Case transform for section titles.
+    pub heading_case: HeadingCase,
+    /// Ink for main-column section titles. Band headings ignore this (they
+    /// always use contrasting fill text).
+    pub heading_ink: HeadingInk,
+    /// Ink for sidebar section titles.
+    pub sidebar_heading_ink: HeadingInk,
+    /// Body typeface id.
+    pub font_body: BodyFont,
+    /// Whether the sidebar column paints a tinted background.
+    pub sidebar_tint: bool,
+    /// Keyword list presentation.
+    pub keyword_style: KeywordStyle,
+    /// Whether an accent rule sits under the identity header block.
+    pub header_rule: bool,
+}
+
 /// Structural description of a template, enough for a client to draw the
 /// sheet chrome without re-deriving it from the Typst source.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -106,6 +244,8 @@ pub struct TemplateLayout {
     /// sidebar is a fixed width. `None` when the split is proportional
     /// (`fr` units) or when the template has no sidebar at all.
     pub sidebar_width: Option<u32>,
+    /// Per-template presentation chrome (headings, fonts, accent usage).
+    pub chrome: TemplateChrome,
 }
 
 /// `default-main-sections` in `templates/_common.typ`.
@@ -161,14 +301,45 @@ fn all_sections() -> Vec<String> {
     unique_sections(&[MAIN_SECTIONS, SIDEBAR_SECTIONS, &["custom"]])
 }
 
+/// Shared chrome: uppercase accent underline headings, Plex Sans, plain keywords.
+const fn chrome_underline_plain(header_rule: bool) -> TemplateChrome {
+    TemplateChrome {
+        heading_style: HeadingStyle::Underline,
+        sidebar_heading_style: HeadingStyle::Underline,
+        heading_case: HeadingCase::Upper,
+        heading_ink: HeadingInk::Accent,
+        sidebar_heading_ink: HeadingInk::Accent,
+        font_body: BodyFont::IbmPlexSans,
+        sidebar_tint: false,
+        keyword_style: KeywordStyle::Plain,
+        header_rule,
+    }
+}
+
+/// Shared chrome: uppercase accent underline headings, Plex Sans, chip keywords.
+const fn chrome_underline_chips(header_rule: bool, sidebar_tint: bool) -> TemplateChrome {
+    TemplateChrome {
+        heading_style: HeadingStyle::Underline,
+        sidebar_heading_style: HeadingStyle::Underline,
+        heading_case: HeadingCase::Upper,
+        heading_ink: HeadingInk::Accent,
+        sidebar_heading_ink: HeadingInk::Accent,
+        font_body: BodyFont::IbmPlexSans,
+        sidebar_tint,
+        keyword_style: KeywordStyle::Chips,
+        header_rule,
+    }
+}
+
 /// Layout for a single-column template: everything in the main slot.
-fn single(header_style: HeaderStyle) -> TemplateLayout {
+fn single(header_style: HeaderStyle, chrome: TemplateChrome) -> TemplateLayout {
     TemplateLayout {
         layout_mode: LayoutMode::Single,
         default_columns: [all_sections(), Vec::new()],
         header_style,
         contact_in: ContactIn::Header,
         sidebar_width: None,
+        chrome,
     }
 }
 
@@ -178,6 +349,7 @@ fn two_column(
     header_style: HeaderStyle,
     contact_in: ContactIn,
     sidebar_width: Option<u32>,
+    chrome: TemplateChrome,
 ) -> TemplateLayout {
     TemplateLayout {
         layout_mode,
@@ -185,6 +357,7 @@ fn two_column(
         header_style,
         contact_in,
         sidebar_width,
+        chrome,
     }
 }
 
@@ -204,54 +377,97 @@ fn two_column(
 #[must_use]
 pub fn get_template_layout(template: &str) -> TemplateLayout {
     match template {
-        // Single-column, name left with contact stacked right, accent rule.
-        "rhyhorn" | "onyx" => single(HeaderStyle::Left),
-        // Single-column, name over a thick accent underline.
-        "nosepass" => single(HeaderStyle::Left),
-        // Single-column, centered name and inline contact row.
-        "bronzor" => single(HeaderStyle::Center),
-        // Single-column, centered name inside a stroked box.
-        "kakuna" => single(HeaderStyle::Boxed),
-        // Centered header above proportional (1fr, 2fr) columns; the sidebar
-        // column is painted on the visual left.
+        "rhyhorn" => single(HeaderStyle::Left, chrome_underline_plain(true)),
+        "onyx" => single(HeaderStyle::Left, chrome_underline_chips(true, false)),
+        "nosepass" => single(
+            HeaderStyle::Left,
+            TemplateChrome {
+                heading_style: HeadingStyle::Rule,
+                sidebar_heading_style: HeadingStyle::Rule,
+                heading_case: HeadingCase::AsWritten,
+                heading_ink: HeadingInk::Accent,
+                sidebar_heading_ink: HeadingInk::Accent,
+                font_body: BodyFont::IbmPlexSerif,
+                sidebar_tint: false,
+                keyword_style: KeywordStyle::Plain,
+                header_rule: true,
+            },
+        ),
+        "bronzor" => single(HeaderStyle::Center, chrome_underline_plain(true)),
+        "kakuna" => single(HeaderStyle::Boxed, chrome_underline_chips(false, false)),
         "azurill" => two_column(
             LayoutMode::SidebarLeft,
             HeaderStyle::Center,
             ContactIn::Header,
             None,
+            chrome_underline_chips(true, false),
         ),
-        // Left-aligned header above proportional (2fr, 1fr) columns; the
-        // sidebar column is painted on the visual right.
         "chikorita" => two_column(
             LayoutMode::SidebarRight,
             HeaderStyle::Left,
             ContactIn::Header,
             None,
+            // Tinted: chikorita.typ wraps the right column in a light-bg box.
+            chrome_underline_chips(true, true),
         ),
-        // Full-width accent banner above a fixed 160pt left sidebar.
         "ditto" => two_column(
             LayoutMode::SidebarLeft,
             HeaderStyle::Banner,
             ContactIn::Banner,
             Some(160),
+            chrome_underline_chips(false, true),
         ),
-        // Name, headline and contact all live inside a fixed 170pt sidebar.
-        "gengar" | "glalie" => two_column(
+        "gengar" => two_column(
             LayoutMode::SidebarLeft,
             HeaderStyle::Sidebar,
             ContactIn::Sidebar,
             Some(170),
+            TemplateChrome {
+                heading_style: HeadingStyle::Underline,
+                sidebar_heading_style: HeadingStyle::Underline,
+                heading_case: HeadingCase::Upper,
+                heading_ink: HeadingInk::Text,
+                sidebar_heading_ink: HeadingInk::Accent,
+                font_body: BodyFont::IbmPlexSans,
+                sidebar_tint: true,
+                keyword_style: KeywordStyle::Chips,
+                header_rule: false,
+            },
         ),
-        // Name and headline head the main column; contact lives in the fixed
-        // 180pt sidebar.
+        "glalie" => two_column(
+            LayoutMode::SidebarLeft,
+            HeaderStyle::Sidebar,
+            ContactIn::Sidebar,
+            Some(170),
+            TemplateChrome {
+                heading_style: HeadingStyle::Underline,
+                sidebar_heading_style: HeadingStyle::Underline,
+                heading_case: HeadingCase::AsWritten,
+                heading_ink: HeadingInk::Accent,
+                sidebar_heading_ink: HeadingInk::Accent,
+                font_body: BodyFont::IbmPlexSans,
+                sidebar_tint: true,
+                keyword_style: KeywordStyle::Plain,
+                header_rule: false,
+            },
+        ),
         "pikachu" => two_column(
             LayoutMode::SidebarLeft,
             HeaderStyle::Left,
             ContactIn::Sidebar,
             Some(180),
+            TemplateChrome {
+                heading_style: HeadingStyle::Band,
+                sidebar_heading_style: HeadingStyle::Plain,
+                heading_case: HeadingCase::Upper,
+                heading_ink: HeadingInk::Accent,
+                sidebar_heading_ink: HeadingInk::Accent,
+                font_body: BodyFont::IbmPlexSans,
+                sidebar_tint: true,
+                keyword_style: KeywordStyle::Plain,
+                header_rule: false,
+            },
         ),
-        // Two-tier full-width header band above equal (1fr, 1fr) columns.
-        // `custom` sits in the right column here, not the left one.
         "leafish" => TemplateLayout {
             layout_mode: LayoutMode::HeaderSplit,
             default_columns: [
@@ -261,9 +477,9 @@ pub fn get_template_layout(template: &str) -> TemplateLayout {
             header_style: HeaderStyle::Banner,
             contact_in: ContactIn::Banner,
             sidebar_width: None,
+            chrome: chrome_underline_chips(false, false),
         },
-        // Unknown templates mirror the rhyhorn fallback.
-        _ => single(HeaderStyle::Left),
+        _ => single(HeaderStyle::Left, chrome_underline_plain(true)),
     }
 }
 
@@ -431,17 +647,52 @@ mod tests {
         assert_eq!(LayoutMode::HeaderSplit.as_str(), "header-split");
         assert_eq!(HeaderStyle::Boxed.as_str(), "boxed");
         assert_eq!(ContactIn::Banner.as_str(), "banner");
+        assert_eq!(HeadingStyle::Band.as_str(), "band");
+        assert_eq!(HeadingStyle::Rule.as_str(), "rule");
+        assert_eq!(HeadingCase::AsWritten.as_str(), "as-written");
+        assert_eq!(HeadingInk::Text.as_str(), "text");
+        assert_eq!(BodyFont::IbmPlexSerif.as_str(), "ibm-plex-serif");
+        assert_eq!(KeywordStyle::Chips.as_str(), "chips");
     }
 
-    /// Unknown id included in the lockstep fixture so both suites assert the
-    /// rhyhorn fallback, not only the known `TEMPLATES` entries.
+    #[test]
+    fn chrome_matches_the_template_sources() {
+        assert_eq!(
+            get_template_layout("onyx").chrome.heading_style,
+            HeadingStyle::Underline
+        );
+        assert_eq!(
+            get_template_layout("onyx").chrome.keyword_style,
+            KeywordStyle::Chips
+        );
+        assert_eq!(
+            get_template_layout("pikachu").chrome.heading_style,
+            HeadingStyle::Band
+        );
+        assert_eq!(
+            get_template_layout("pikachu").chrome.sidebar_heading_style,
+            HeadingStyle::Plain
+        );
+        assert_eq!(
+            get_template_layout("nosepass").chrome.font_body,
+            BodyFont::IbmPlexSerif
+        );
+        assert_eq!(
+            get_template_layout("nosepass").chrome.heading_style,
+            HeadingStyle::Rule
+        );
+        assert_eq!(
+            get_template_layout("gengar").chrome.heading_ink,
+            HeadingInk::Text
+        );
+        assert!(get_template_layout("pikachu").chrome.sidebar_tint);
+        assert!(!get_template_layout("azurill").chrome.sidebar_tint);
+        // chikorita.typ fills the right column with light-bg.
+        assert!(get_template_layout("chikorita").chrome.sidebar_tint);
+    }
+
     const UNKNOWN_TEMPLATE_ID: &str = "not-a-template";
 
-    /// Wire shape for `tests/fixtures/template-layouts.json`.
-    ///
-    /// Field names match `LayoutInfo` in `crates/server/src/dto.rs`
-    /// (`#[serde(rename_all = "camelCase")]`) and the web `TemplateLayout`
-    /// interface — no mapping layer on either side of the lockstep test.
     #[derive(serde::Serialize)]
     #[serde(rename_all = "camelCase")]
     struct LayoutWire<'a> {
@@ -450,6 +701,15 @@ mod tests {
         header_style: &'a str,
         contact_in: &'a str,
         sidebar_width: Option<u32>,
+        heading_style: &'a str,
+        sidebar_heading_style: &'a str,
+        heading_case: &'a str,
+        heading_ink: &'a str,
+        sidebar_heading_ink: &'a str,
+        font_body: &'a str,
+        sidebar_tint: bool,
+        keyword_style: &'a str,
+        header_rule: bool,
     }
 
     fn layout_wire(layout: &TemplateLayout) -> LayoutWire<'_> {
@@ -459,77 +719,63 @@ mod tests {
             header_style: layout.header_style.as_str(),
             contact_in: layout.contact_in.as_str(),
             sidebar_width: layout.sidebar_width,
+            heading_style: layout.chrome.heading_style.as_str(),
+            sidebar_heading_style: layout.chrome.sidebar_heading_style.as_str(),
+            heading_case: layout.chrome.heading_case.as_str(),
+            heading_ink: layout.chrome.heading_ink.as_str(),
+            sidebar_heading_ink: layout.chrome.sidebar_heading_ink.as_str(),
+            font_body: layout.chrome.font_body.as_str(),
+            sidebar_tint: layout.chrome.sidebar_tint,
+            keyword_style: layout.chrome.keyword_style.as_str(),
+            header_rule: layout.chrome.header_rule,
         }
     }
 
     fn fixture_path() -> std::path::PathBuf {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
-            .expect("CARGO_MANIFEST_DIR should have a parent (crates/)")
+            .expect("crates parent")
             .parent()
-            .expect("crates/ should have a parent (workspace root)")
-            .join("tests")
-            .join("fixtures")
-            .join("template-layouts.json")
+            .expect("workspace root")
+            .join("tests/fixtures/template-layouts.json")
     }
 
     fn expected_fixture_json() -> String {
         let mut map = serde_json::Map::new();
         for id in TEMPLATES {
-            let layout = get_template_layout(id);
             map.insert(
                 (*id).to_string(),
-                serde_json::to_value(layout_wire(&layout)).expect("layout serializes"),
+                serde_json::to_value(layout_wire(&get_template_layout(id))).unwrap(),
             );
         }
-        let unknown = get_template_layout(UNKNOWN_TEMPLATE_ID);
         map.insert(
             UNKNOWN_TEMPLATE_ID.to_string(),
-            serde_json::to_value(layout_wire(&unknown)).expect("layout serializes"),
+            serde_json::to_value(layout_wire(&get_template_layout(UNKNOWN_TEMPLATE_ID))).unwrap(),
         );
-        let mut json = serde_json::to_string_pretty(&serde_json::Value::Object(map))
-            .expect("fixture serializes");
+        let mut json = serde_json::to_string_pretty(&serde_json::Value::Object(map)).unwrap();
         json.push('\n');
         json
     }
 
-    /// Keep `tests/fixtures/template-layouts.json` in lockstep with
-    /// [`get_template_layout`]. The web suite reads the same fixture and
-    /// asserts `bundledTemplateLayout` matches every entry.
-    ///
-    /// Regenerate with:
-    /// `UPDATE_FIXTURES=1 cargo test -p rustume-render template_layouts_fixture_is_up_to_date --lib`
     #[test]
     fn template_layouts_fixture_is_up_to_date() {
         let actual = expected_fixture_json();
         let path = fixture_path();
-
         if std::env::var_os("UPDATE_FIXTURES").is_some() {
-            if let Some(parent) = path.parent() {
-                std::fs::create_dir_all(parent).expect("create fixtures directory");
-            }
-            std::fs::write(&path, &actual).expect("write template-layouts.json");
+            std::fs::create_dir_all(path.parent().unwrap()).ok();
+            std::fs::write(&path, &actual).unwrap();
             return;
         }
-
-        let expected = std::fs::read_to_string(&path)
-            .unwrap_or_else(|err| {
-                panic!(
-                    "missing template layout fixture at {}: {err}\n\
-                     regenerate with UPDATE_FIXTURES=1 cargo test -p rustume-render \
-                     template_layouts_fixture_is_up_to_date --lib",
-                    path.display()
-                )
-            })
-            .replace("\r\n", "\n");
-
+        let expected = std::fs::read_to_string(&path).unwrap_or_else(|err| {
+            panic!(
+                "missing fixture {}: {err}; regenerate with UPDATE_FIXTURES=1",
+                path.display()
+            )
+        });
         assert_eq!(
             actual,
             expected,
-            "template layout fixture is out of date at {}\n\
-             get_template_layout changed; review the diff, then regenerate with:\n\
-             UPDATE_FIXTURES=1 cargo test -p rustume-render \
-             template_layouts_fixture_is_up_to_date --lib",
+            "fixture out of date at {}",
             path.display()
         );
     }

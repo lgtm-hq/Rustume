@@ -105,6 +105,31 @@ pub struct LayoutInfo {
     /// proportional or the template has no sidebar
     #[schema(example = 180)]
     pub sidebar_width: Option<u32>,
+    /// Main-column section heading chrome: `band`, `underline`, `rule` or `plain`
+    #[schema(example = "underline")]
+    pub heading_style: String,
+    /// Sidebar section heading chrome; same vocabulary as `heading_style`
+    #[schema(example = "plain")]
+    pub sidebar_heading_style: String,
+    /// Section title case: `upper` or `as-written`
+    #[schema(example = "upper")]
+    pub heading_case: String,
+    /// Main-column heading ink: `accent` or `text`
+    #[schema(example = "accent")]
+    pub heading_ink: String,
+    /// Sidebar heading ink: `accent` or `text`
+    #[schema(example = "accent")]
+    pub sidebar_heading_ink: String,
+    /// Body typeface id: `ibm-plex-sans` or `ibm-plex-serif`
+    #[schema(example = "ibm-plex-sans")]
+    pub font_body: String,
+    /// Whether the sidebar paints a tinted background
+    pub sidebar_tint: bool,
+    /// Keyword presentation: `chips` or `plain`
+    #[schema(example = "chips")]
+    pub keyword_style: String,
+    /// Whether an accent rule sits under the identity header
+    pub header_rule: bool,
 }
 
 /// Theme colors for a template
