@@ -104,11 +104,7 @@ export function dragStartVetoed(pressTarget: Element | null, extraVeto = ""): bo
  * accounts for `k` the same way (and so a future switch to unscaled metrics
  * cannot silently regress).
  */
-export function dropIndexFromPointer(
-  event: DragEvent,
-  index: number,
-  scale: number = 1,
-): number {
+export function dropIndexFromPointer(event: DragEvent, index: number, scale: number = 1): number {
   const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
   const k = scale > 0 ? scale : 1;
   const localY = (event.clientY - rect.top) / k;

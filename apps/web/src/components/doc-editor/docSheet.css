@@ -41,6 +41,11 @@
   transform-origin: top center;
   /* `margin-left` centers the unscaled layout box inside the narrower
      viewport when origin is top-center (see DocSheet). */
+  /* Unitless k from DocSheet. Hit boxes use
+     `max(designSize, 24px / var(--sheet-k))` so they stay ≥24 CSS px after
+     `transform: scale(k)` (WCAG 2.5.8, #813). Visual glyphs may stay small. */
+  --sheet-k: 1;
+  --sheet-hit-min: calc(24px / var(--sheet-k, 1));
 }
 
 .doc-sheet {
@@ -131,6 +136,8 @@
   font-size: 0.68rem;
   font-weight: 600;
   padding: 0.28rem 0.7rem;
+  min-width: max(24px, var(--sheet-hit-min, 24px));
+  min-height: max(24px, var(--sheet-hit-min, 24px));
   cursor: pointer;
   margin-top: 0.35rem;
 }
@@ -268,8 +275,10 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  right: -4px;
-  width: 8px;
+  /* Visual gutter stays a 2px ::after line; the tap box is ≥24 CSS px
+     after scale(k) (WCAG 2.5.8). Centered on the column edge. */
+  width: max(24px, var(--sheet-hit-min, 24px));
+  right: calc(max(24px, var(--sheet-hit-min, 24px)) / -2);
   cursor: col-resize;
   z-index: 10;
   touch-action: none;
@@ -277,13 +286,17 @@
 
 .doc-sheet__side-resize--right {
   right: auto;
-  left: -4px;
+  left: calc(max(24px, var(--sheet-hit-min, 24px)) / -2);
 }
 
 .doc-sheet__side-resize::after {
   content: "";
   position: absolute;
-  inset: 0 3px;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
   background: transparent;
   transition: background 0.12s ease;
 }
@@ -524,8 +537,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: max(24px, var(--sheet-hit-min, 24px));
+  height: max(24px, var(--sheet-hit-min, 24px));
   flex-shrink: 0;
   margin-left: -3px;
   border: none;
@@ -567,8 +580,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: max(24px, var(--sheet-hit-min, 24px));
+  height: max(24px, var(--sheet-hit-min, 24px));
   flex-shrink: 0;
   border: 1px solid transparent;
   border-radius: 7px;
@@ -635,6 +648,7 @@
   border: none;
   border-radius: 7px;
   padding: 0.42rem 0.55rem;
+  min-height: max(24px, var(--sheet-hit-min, 24px));
   font-size: 0.76rem;
   font-weight: 500;
   line-height: 1.2;
@@ -679,7 +693,7 @@
   justify-content: center;
   gap: 0.4rem;
   width: 100%;
-  min-height: 2.9rem;
+  min-height: max(2.9rem, var(--sheet-hit-min, 24px));
   margin-top: 0.45rem;
   font-size: 0.66rem;
   font-weight: 700;
@@ -729,7 +743,7 @@
   justify-content: center;
   gap: 0.4rem;
   width: 100%;
-  min-height: 3.2rem;
+  min-height: max(3.2rem, var(--sheet-hit-min, 24px));
   margin: 0.2rem 0 1rem;
   font-size: 0.64rem;
   font-weight: 700;
@@ -834,6 +848,7 @@
 
 .doc-sheet__entry-row--edit.doc-sheet__entry-row--compact {
   cursor: pointer;
+  min-height: max(24px, var(--sheet-hit-min, 24px));
 }
 
 /* 3px accent slot bars marking the item drop position (spec §2.4); absolute
@@ -868,7 +883,7 @@
   left: 0;
   top: 0;
   bottom: 0;
-  width: 1rem;
+  width: max(24px, var(--sheet-hit-min, 24px));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -943,8 +958,8 @@
 }
 
 .doc-sheet__entry-act {
-  width: 26px;
-  height: 26px;
+  width: max(26px, var(--sheet-hit-min, 24px));
+  height: max(26px, var(--sheet-hit-min, 24px));
   border-radius: 50%;
   border: none;
   background: transparent;
@@ -978,8 +993,8 @@
 }
 
 .doc-sheet__entry-actions--compact .doc-sheet__entry-act {
-  width: 18px;
-  height: 18px;
+  width: max(24px, var(--sheet-hit-min, 24px));
+  height: max(24px, var(--sheet-hit-min, 24px));
   border-radius: 5px;
   font-size: 0.8rem;
   color: #b3ada3;
@@ -1000,14 +1015,26 @@
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+  pointer-events: none;
+}
+
+.doc-sheet__entry-actions--compact .doc-sheet__entry-act--kb-only {
+  width: 1px;
+  height: 1px;
 }
 
 .doc-sheet__entry-act--kb-only:focus-visible {
   position: static;
-  width: 18px;
-  height: 18px;
+  width: max(24px, var(--sheet-hit-min, 24px));
+  height: max(24px, var(--sheet-hit-min, 24px));
   overflow: visible;
   clip-path: none;
+  pointer-events: auto;
+}
+
+.doc-sheet__entry-actions--compact .doc-sheet__entry-act--kb-only:focus-visible {
+  width: max(24px, var(--sheet-hit-min, 24px));
+  height: max(24px, var(--sheet-hit-min, 24px));
 }
 
 /* ── Section body layouts (spec §1.7) ───────────────────────────────────── */
@@ -1174,7 +1201,12 @@
 }
 
 .doc-sheet__chip-x {
-  width: 1em;
+  width: max(24px, var(--sheet-hit-min, 24px));
+  height: max(24px, var(--sheet-hit-min, 24px));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
   border: none;
   background: transparent;
   color: var(--doc-sheet-muted);

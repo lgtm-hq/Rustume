@@ -166,8 +166,8 @@ export default function DocEditor() {
 
   // Edit or Done, per document. A brand-new empty resume opens ready to type;
   // an existing one opens as the clean rendered document. Below the sheet's
-  // miniature edit floor (#813) the sheet forces Done; the toggle is disabled
-  // so the chrome matches what the surface actually draws.
+  // miniature usability floor (#813) the sheet forces Done; the toggle is
+  // disabled so the chrome matches what the surface actually draws.
   const [mode, setMode] = createSignal<SheetMode>("edit");
   const [sheetInteractive, setSheetInteractive] = createSignal(true);
   let modeInitializedFor: string | null = null;
@@ -342,7 +342,7 @@ export default function DocEditor() {
           {/* The mode toggle: a push button whose label is the action it
               performs — "Edit" opens the document for editing, "Done" returns
               to the clean rendered document. Disabled below the miniature
-              edit floor (#813) where interaction targets become sub-WCAG. */}
+              usability floor (#813); SC 2.5.8 while editing is inverse-scale. */}
           <Button
             variant="secondary"
             size="sm"

@@ -62,7 +62,7 @@ export interface EntryActionsProps {
   insertBreak?: InsertBreakAction;
 }
 
-/** One 26px circular ghost button of the pill. */
+/** One circular ghost button of the pill (≥26 design px, inverse-scaled). */
 function ActionButton(props: {
   class?: string;
   label: string;

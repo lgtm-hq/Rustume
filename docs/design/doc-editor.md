@@ -547,11 +547,16 @@ geometry matches the visual size. Page-break guides and drop indicators
 live inside the transformed subtree and scale with the sheet; the page-count pill, edge drawer
 tabs, and the top bar stay unscaled chrome (the pill is a sticky sibling of the scale viewport
 so it pins to the visible bottom — §1.16). Pointer math under the sheet
-(`dropIndexFromPointer`, the sidebar resize handle) divides client deltas by `k`. Below
-`k = 0.45` (`SHEET_SCALE_EDIT_FLOOR`) the sheet forces Done (read-only) and the mode toggle is
-disabled until the canvas widens again. The floor is a usability compromise, not a WCAG 2.5.8
-guarantee — sheet controls are 18-26 design px, i.e. under the 24-px target minimum at any
-`k < 1`; the SC 2.5.8 posture while scaled is an owner decision on the a11y epic (#352).
+(`dropIndexFromPointer`, the sidebar resize handle) divides client deltas by `k`.
+
+**WCAG 2.5.8 on the sheet (#813).** While editing, every sheet pointer target is at least
+24 CSS px after scale: the scaled subtree sets `--sheet-k` and hit boxes use
+`max(designSize, 24px / var(--sheet-k))`. Visual glyphs may stay at design size; adjacent
+pill buttons grow the flex row rather than overlapping. This holds for every interactive k
+in `[0.45, 1]`. Below `k = 0.45` (`SHEET_SCALE_EDIT_FLOOR`) the sheet forces Done (read-only)
+and the mode toggle is disabled until the canvas widens — a usability floor (hit boxes at
+`24/k` become large relative to the miniature), not an excuse for failing 2.5.8. Other WCAG
+2.2 AA criteria stay on epic #352.
 
 ### 3.2 Columns & templates
 
@@ -562,9 +567,10 @@ A template (`shared.ts Template`) declares: `layoutMode`
 `sidebarWidth` (px; 0 ⇒ equal split for header-split). Grid:
 `grid-template-columns: var(--side-w) 1fr` (mirrored for sidebar-right; `1fr 1fr` when equal),
 `align-items:start` (columns must NOT stretch to the taller sibling — pinned bug: stretching
-invented voids). The sidebar is user-resizable in edit mode via an 8px edge handle
-(`role="separator"`, aria-value 160–360, clamped, persisted in localStorage
-`rustume.studio.sidebarWidth`); pointer-capture drag, direction-aware for right sidebars.
+invented voids). The sidebar is user-resizable in edit mode via an edge handle
+(`role="separator"`, aria-value 160–360, clamped, persisted as `metadata.page.sidebarRatio`);
+the painted gutter stays a thin line, the tap box is ≥24 CSS px after scale(k) (WCAG 2.5.8).
+Pointer-capture drag, direction-aware for right sidebars.
 
 ### 3.3 The layout data structure
 

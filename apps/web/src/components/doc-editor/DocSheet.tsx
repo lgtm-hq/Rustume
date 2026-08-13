@@ -15,8 +15,8 @@
  *
  * On canvases narrower than the 860px design width the whole sheet stack is
  * painted as a faithful miniature via `transform: scale(k)` (#813) — layout
- * never reflows. Below the edit floor the sheet forces Done (read-only) so
- * interaction targets cannot shrink under WCAG 2.5.8.
+ * never reflows. Hit areas inverse-scale (`--sheet-k`) so SC 2.5.8 holds for
+ * every interactive k; below the usability floor the sheet forces Done.
  *
  * The page body is composed per the template's `layoutMode` (spec §1.4,
  * §3.6): `SingleColumn`, `MainColumn` + `SideColumn` grids, or the
@@ -73,7 +73,7 @@ import {
   sectionTitle,
   type TemplateLayout,
 } from "../../lib/docLayout";
-import { sheetScaleForWidth } from "../../lib/sheetScale";
+import { SHEET_SCALE_CSS_VAR, sheetScaleForWidth } from "../../lib/sheetScale";
 import {
   ITEM_BREAK_TEMPLATE_DISABLED_REASON,
   editorSheetPages,
@@ -170,9 +170,9 @@ export interface DocSheetProps {
    * document — no chrome, no placeholders, hidden and empty sections dropped
    * exactly as the PDF drops them. Defaults to Edit.
    *
-   * When the miniature scale falls below the edit floor (#813), the sheet
-   * forces Done regardless of this prop so targets cannot shrink under WCAG
-   * 2.5.8.
+   * When the miniature scale falls below the usability floor (#813), the
+   * sheet forces Done regardless of this prop. SC 2.5.8 on this surface is
+   * met by inverse-scaled hit areas, not by the floor.
    */
   mode?: SheetMode;
   /**
@@ -190,7 +190,7 @@ export interface DocSheetProps {
 
 export function DocSheet(props: DocSheetProps): JSX.Element {
   // Miniature scale (#813): measure the canvas, keep layout at 860px, paint
-  // with transform: scale(k). Below the edit floor the sheet is read-only.
+  // with transform: scale(k). Below the usability floor the sheet is read-only.
   const [availableWidth, setAvailableWidth] = createSignal(PAGE_WIDTH_PX);
   const [contentHeight, setContentHeight] = createSignal(0);
 
@@ -966,7 +966,9 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
                 setContentHeight(element.offsetHeight);
               }}
               class="doc-sheet-scale__transform"
+              data-testid="doc-sheet-scale-transform"
               style={{
+                [SHEET_SCALE_CSS_VAR]: String(scale()),
                 transform: scale() === 1 ? undefined : `scale(${scale()})`,
                 // Center the unscaled 860px layout box inside the narrower
                 // viewport when origin is top center.
