@@ -22,6 +22,7 @@ import { For, Match, Show, Switch, createEffect, createSignal, on, type JSX } fr
 import { Button, Input, Modal, TextArea } from "../ui";
 import { emptyItemFor } from "../../lib/docLayout";
 import { profileHrefMatches, profileUrlFor } from "../../lib/profileUrls";
+import { MAX_LEVEL } from "../../lib/itemPresentation";
 import { addItem, updateItem, type ItemUpdates } from "./docEdits";
 import { ExtraFieldsEditor } from "./ExtraFieldsEditor";
 import { MiniRichEditor } from "./MiniRichEditor";
@@ -30,8 +31,6 @@ import { itemFieldsFor, type ItemFieldSpec } from "./itemFields";
 import { generateId } from "../../wasm/types";
 import type { CustomField, Url } from "../../wasm/types";
 
-/** Highest level a skill or language can carry. Mirrors `clamp-level`. */
-const MAX_LEVEL = 5;
 /** What an untouched proficiency saves as (spec §4.2: UI default 3). */
 const DEFAULT_LEVEL = 3;
 

@@ -14,6 +14,7 @@
  */
 
 import { For, Show, createSignal, type JSX } from "solid-js";
+import { Dynamic } from "solid-js/web";
 import { EditableField } from "./EditableField";
 import { PhotoDialog } from "./PhotoDialog";
 import { SectionChrome } from "./SectionChrome";
@@ -22,6 +23,7 @@ import { updateBasicsField } from "./docEdits";
 import { useSheetEditable } from "./sheetMode";
 import { SHEET_PX_PER_PT } from "../../lib/docLayout";
 import { looksLikeUrl, withHttps } from "../../lib/profileUrls";
+import { nameInitials } from "../../lib/itemPresentation";
 import type { Basics, CustomField, Picture, Url } from "../../wasm/types";
 
 /** Largest avatar the sheet draws, whatever the stored size (spec §1.4). */
@@ -116,9 +118,10 @@ function avatarStyle(picture: Picture): JSX.CSSProperties {
 }
 
 /**
- * The avatar: photo when set, an initials disc otherwise. In edit mode the
- * whole avatar is a button that opens the photo dialog; in Done mode it is
- * inert (and absent entirely while it holds no photo).
+ * The avatar: photo when set, an initials disc otherwise. When the template
+ * places this slot, Done mode still draws the initials fallback (#829) — the
+ * disc is not edit-only. In edit mode the whole avatar is a button that opens
+ * the photo dialog; in Done mode it is inert.
  */
 export function SheetAvatar(props: { basics: Basics }): JSX.Element {
   const isEditable = useSheetEditable();
@@ -126,22 +129,18 @@ export function SheetAvatar(props: { basics: Basics }): JSX.Element {
 
   const picture = (): Picture => props.basics.picture;
   const hasPhoto = (): boolean => pictureVisible(picture());
-  const initials = (): string =>
-    props.basics.name
-      .split(/\s+/)
-      .filter((word) => word !== "")
-      .slice(0, 2)
-      .map((word) => (word[0] ?? "").toUpperCase())
-      .join("") || "·";
+  const initials = (): string => nameInitials(props.basics.name);
+  const photoAlt = (): string =>
+    props.basics.name.trim() === "" ? "Profile picture" : `Profile picture of ${props.basics.name}`;
 
   return (
-    <Show when={hasPhoto() || isEditable()}>
-      <button
-        type="button"
+    <>
+      <Dynamic
+        component={isEditable() ? "button" : "div"}
+        type={isEditable() ? "button" : undefined}
         class="doc-sheet__avatar-btn"
         title={isEditable() ? "Edit profile photo" : undefined}
-        disabled={!isEditable()}
-        onClick={() => setIsPhotoOpen(true)}
+        onClick={isEditable() ? () => setIsPhotoOpen(true) : undefined}
       >
         <Show
           when={hasPhoto()}
@@ -154,20 +153,16 @@ export function SheetAvatar(props: { basics: Basics }): JSX.Element {
           <img
             class="doc-sheet__avatar-img"
             src={picture().url}
-            alt={
-              props.basics.name.trim() === ""
-                ? "Profile picture"
-                : `Profile picture of ${props.basics.name}`
-            }
+            alt={photoAlt()}
             style={avatarStyle(picture())}
           />
         </Show>
-      </button>
+      </Dynamic>
 
       <Show when={isEditable()}>
         <PhotoDialog open={isPhotoOpen()} picture={picture()} onOpenChange={setIsPhotoOpen} />
       </Show>
-    </Show>
+    </>
   );
 }
 

@@ -84,15 +84,18 @@
   let render-education(item) = {
     if item.visible == false { return }
 
+    let degree = education-degree(item)
+    let school = education-school(item)
     grid(
       columns: (1fr, auto),
       column-gutter: 8pt,
       [
-        #text(weight: "bold", size: 10pt)[#item.institution]
-        #if item.studyType != "" or item.area != "" {
-          v(1pt)
-          let degree = format-degree(item.studyType, item.area)
-          text(size: 9pt, fill: muted-color)[#degree]
+        #if degree != "" {
+          text(weight: "bold", size: 10pt)[#degree]
+        }
+        #if school != "" {
+          if degree != "" { v(1pt) }
+          text(size: 9pt, fill: muted-color)[#school]
         }
       ],
       align(right)[
@@ -171,7 +174,7 @@
       size: 9pt,
       fill: text-color,
       link-fill: accent-color,
-      label-mode: "username",
+      label-mode: "auto",
     )
     v(6pt)
   }
@@ -426,10 +429,8 @@
   if has-resume-body(data) {
     // ── Header - centered, above columns ──
     align(center)[
-      #if has-visible-picture(data.basics) {
-        render-picture(data.basics, accent-color)
-        v(8pt)
-      }
+      #render-avatar(data.basics, accent-color)
+      #v(8pt)
 
       #text(size: 26pt, weight: "bold", fill: text-color, tracking: 0.03em)[#data.basics.name]
 

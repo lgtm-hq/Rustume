@@ -87,13 +87,16 @@
   let render-education(item) = {
     if item.visible == false { return }
 
+    let degree = education-degree(item)
+    let school = education-school(item)
     entry-header(
       [
-        #text(weight: "semibold", size: 10pt)[#item.institution]
-        #if item.studyType != "" or item.area != "" {
-          v(2pt)
-          let degree = format-degree(item.studyType, item.area)
-          text(size: 10pt)[#degree]
+        #if degree != "" {
+          text(weight: "semibold", size: 10pt)[#degree]
+        }
+        #if school != "" {
+          if degree != "" { v(2pt) }
+          text(size: 10pt)[#school]
         }
       ],
       item.date
@@ -162,7 +165,7 @@
       size: 10pt,
       fill: text-color,
       link-fill: accent-color,
-      label-mode: "network-username",
+      label-mode: "auto",
     )
     h(14pt)
   }
@@ -397,10 +400,8 @@
         radius: 4pt,
         inset: (x: 24pt, y: 20pt),
         [
-          #if has-visible-picture(data.basics) {
-            render-picture(data.basics, accent-color)
-            v(8pt)
-          }
+          #render-avatar(data.basics, accent-color)
+          #v(8pt)
 
           #text(size: 24pt, weight: "light", fill: text-color, tracking: 0.03em)[#data.basics.name]
 

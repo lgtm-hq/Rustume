@@ -84,15 +84,18 @@
   let render-education(item) = {
     if item.visible == false { return }
 
+    let degree = education-degree(item)
+    let school = education-school(item)
     grid(
       columns: (1fr, auto),
       column-gutter: 8pt,
       [
-        #text(weight: "bold", size: 10pt)[#item.institution]
-        #if item.area != "" or item.studyType != "" {
-          v(2pt)
-          let degree = format-degree(item.studyType, item.area)
-          text(size: 9.5pt)[#degree]
+        #if degree != "" {
+          text(weight: "bold", size: 10pt)[#degree]
+        }
+        #if school != "" {
+          if degree != "" { v(2pt) }
+          text(size: 9.5pt)[#school]
         }
       ],
       align(right)[
@@ -173,7 +176,7 @@
       size: 9pt,
       fill: text-color,
       link-fill: accent-color,
-      label-mode: "network-username",
+      label-mode: "auto",
       weight: "medium",
     )
     v(5pt)
@@ -449,10 +452,8 @@
           }
         ],
         align(right + horizon)[
-          #if has-visible-picture(data.basics) {
-            render-picture(data.basics, accent-color)
-            if has-url(data.basics) { v(6pt) }
-          }
+          #render-avatar(data.basics, accent-color)
+          #if has-url(data.basics) { v(6pt) }
           #if has-url(data.basics) {
             link(data.basics.url.href)[#text(size: 9pt, fill: accent-color)[#url-display-label(data.basics.url)]]
           }

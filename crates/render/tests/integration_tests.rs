@@ -1544,8 +1544,10 @@ fn test_doc_editor_fixture_renders_both_layout_pages_with_content() {
     // Layout page 0, sidebar column: profiles and skills open on the first
     // page; the "speaking" custom section may flow onto a continuation page
     // but must render before the sections placed on layout page 2.
+    // Profile labels are username-first (#829), so assert the Mastodon
+    // username rather than the network name.
     let first = &pages[0];
-    for needle in ["Mastodon", "Design Tokens"] {
+    for needle in ["mireille@front-end.social", "Design Tokens"] {
         assert!(
             first.contains(needle),
             "first page should carry sidebar content '{needle}', got:\n{first}"
@@ -1738,7 +1740,9 @@ fn test_contact_rows_render_without_emoji_glyphs(#[case] template_name: &str) {
 
 /// Field parity: skill description/keywords, education summary, project
 /// summary (#700), and interest keywords must reach the extracted PDF text on
-/// the templates that previously dropped them.
+/// the templates that previously dropped them. Also asserts item-presentation
+/// composition (#829): education degree-first with `institution · area`, no
+/// `" in "` join, and profile labels username-first.
 #[rstest]
 #[case("pikachu")]
 #[case("nosepass")]
@@ -1746,6 +1750,12 @@ fn test_contact_rows_render_without_emoji_glyphs(#[case] template_name: &str) {
 #[case("chikorita")]
 #[case("ditto")]
 #[case("glalie")]
+#[case("azurill")]
+#[case("bronzor")]
+#[case("gengar")]
+#[case("kakuna")]
+#[case("leafish")]
+#[case("onyx")]
 fn test_parity_fields_reach_pdf_text(#[case] template_name: &str) {
     let renderer = TypstRenderer::new();
     let mut resume = sample_resume();
@@ -1771,6 +1781,14 @@ fn test_parity_fields_reach_pdf_text(#[case] template_name: &str) {
     let mut interest = rustume_schema::Interest::new("Orienteering");
     interest.keywords = vec!["Night navigation".to_string()];
     resume.sections.interests.add_item(interest);
+
+    resume.sections.profiles = Section::new("profiles", "Profiles");
+    resume.sections.profiles.visible = true;
+    resume.sections.profiles.add_item(
+        rustume_schema::Profile::new("GitHub", "TurboCoder13")
+            .with_url("https://github.com/TurboCoder13"),
+    );
+
     resume.metadata.layout = vec![vec![
         vec![
             "summary".to_string(),
@@ -1778,7 +1796,11 @@ fn test_parity_fields_reach_pdf_text(#[case] template_name: &str) {
             "education".to_string(),
             "projects".to_string(),
         ],
-        vec!["skills".to_string(), "interests".to_string()],
+        vec![
+            "profiles".to_string(),
+            "skills".to_string(),
+            "interests".to_string(),
+        ],
     ]];
 
     let pdf = renderer
@@ -1792,10 +1814,27 @@ fn test_parity_fields_reach_pdf_text(#[case] template_name: &str) {
         "Thesis on distributed consensus",
         "Shipped the multi-page layout engine",
         "Night navigation",
+        // Education composition (#829): degree, then institution · area.
+        "Bachelor of Science",
+        "MIT · Computer Science",
+        // Profile label (#829): username, not network name alone.
+        "TurboCoder13",
     ] {
         assert!(
             text.contains(needle),
             "parity field '{needle}' missing from '{template_name}' output:\n{text}"
         );
     }
+
+    assert!(
+        !text.contains("Bachelor of Science in Computer Science"),
+        "education must not join studyType and area with 'in' on '{template_name}':\n{text}"
+    );
+
+    // Username-first means no network-prefixed label; "GitHub: TurboCoder13"
+    // would also satisfy the positive TurboCoder13 needle above.
+    assert!(
+        !text.contains("GitHub: TurboCoder13"),
+        "profile label must be username-first, not network-username, on '{template_name}':\n{text}"
+    );
 }

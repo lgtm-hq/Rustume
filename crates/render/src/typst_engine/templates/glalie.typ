@@ -82,15 +82,18 @@
   let render-education(item) = {
     if item.visible == false { return }
 
+    let degree = education-degree(item)
+    let school = education-school(item)
     grid(
       columns: (1fr, auto),
       column-gutter: 8pt,
       [
-        #text(weight: "bold", size: 10pt)[#item.institution]
-        #if item.studyType != "" or item.area != "" {
-          v(1pt)
-          let degree = format-degree(item.studyType, item.area)
-          text(size: 10pt)[#degree]
+        #if degree != "" {
+          text(weight: "bold", size: 10pt)[#degree]
+        }
+        #if school != "" {
+          if degree != "" { v(1pt) }
+          text(size: 10pt)[#school]
         }
       ],
       align(right)[
@@ -169,7 +172,7 @@
       size: 9pt,
       fill: text-color,
       link-fill: accent-color,
-      label-mode: "network-username",
+      label-mode: "auto",
       weight: "bold",
     )
     v(6pt)
@@ -408,12 +411,10 @@
 
   if has-resume-body(data) {
     let sidebar-before = () => [
-      #if has-visible-picture(data.basics) {
-        align(center)[
-          #render-picture(data.basics, accent-color, default-size: 80pt)
-        ]
-        v(12pt)
-      }
+      #align(center)[
+        #render-avatar(data.basics, accent-color, default-size: 80pt)
+      ]
+      #v(12pt)
 
       // Header: Name, headline, contact info
       #text(size: 18pt, weight: "bold", fill: text-color)[#data.basics.name]
