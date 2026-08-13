@@ -9,6 +9,11 @@ documents — not against memory of Reactive Resume (RR) artboards.
 1. **Typst** — `crates/render/src/typst_engine/templates/<id>.typ` (+ helpers in
    `_common.typ`). When the sheet and PDF disagree, the Typst source is the
    default target unless a divergence is tagged `owner-decision-needed`.
+   **Item composition** (profile labels, education field order, avatar initials,
+   keyword presence, level clamp) is owned by
+   [`item-presentation.md`](../design/item-presentation.md) (#829) and wins over
+   per-template Item composition tables that still describe the pre-unification
+   audit.
 2. **Layout registry** — column mode, default section columns, `headerStyle`,
    `contactIn`, and sidebar width live in
    [`template_layout.rs`](../../crates/render/src/typst_engine/template_layout.rs).
@@ -74,12 +79,12 @@ These recur on almost every template; each template page repeats only the ones t
 | Divergence | Tag | Notes |
 | --- | --- | --- |
 | Experience lead field: sheet draws **position** over `company · date`; eight Typst templates lead with **company** (rhyhorn, bronzor, azurill, chikorita, ditto, gengar, glalie, leafish) while **pikachu, nosepass, onyx, kakuna are already position-first** (sheet-aligned) | fix-in-sheet | Sheet follows `docs/design/doc-editor.md` §1.7; company-first Typst still mirrors the adapted-from RR artboard. Pick one contract for the fidelity epic; do not "fix" the four position-first templates toward company. |
-| Education lead field: sheet draws **studyType** then `institution · area`; Typst leads with **institution** then `format-degree(studyType, area)` | fix-in-sheet / owner-decision-needed | Same split as experience. Score is often omitted on the sheet. |
+| Education lead field | — | Closed by #829 / `item-presentation.md`: degree-first, never `" in "`. Per-template tables that still say institution-first are stale. |
 | Section-heading chrome is template-specific in Typst; the sheet uses one `.doc-sheet__sec-title` treatment for all `tpl-*` ids | fix-in-sheet | Per-template heading chrome is the sheet-chrome epic's job; this audit freezes the Typst target. |
-| Profile label: sheet prefers **username** else network; Typst `label-mode` varies per template | fix-in-sheet | Honour each template's `label-mode` once sheet chrome is per-template. |
+| Profile label | — | Closed by #829: username-first (`auto`). Templates may pass `network` / `network-username` only when a later spec change re-declares that mode. |
 | Level glyphs: sheet always draws five dots; Typst `template-default` is bars / squares / dots / text bullets per template, and `metadata.levelDisplay` can override | fix-in-sheet | Sheet should follow `levelDisplay`, with `template-default` matching the template native glyph. |
 | Skill / interest keywords: sheet uses soft tag chips for skills (and experience/education extras); Typst mixes comma lists, middots, chips, and `— keywords` | fix-in-sheet | Match the Typst treatment named in each template spec. |
-| Avatar without photo: sheet shows an initials disc in edit mode and hides the avatar in Done mode; Typst usually omits the picture entirely | owner-decision-needed | Only **pikachu** draws a PDF initials fallback today. |
+| Avatar without photo | — | Closed by #829: initials disc whenever the template shows an avatar slot (sheet Done mode and Typst). |
 | Mono dates: sheet uses `--doc-font-mono` for education dates; Typst uses muted body face | owner-decision-needed | Mono is a sheet editing affordance; decide whether PDF should match. |
 | `metadata.typography.font.size` / `lineHeight`: engine emits a top-level `#set text`, then nearly every template re-locks size and leading | fix-in-typst | Tracked by #701 — lift shared resolution into `_common.typ`. |
 

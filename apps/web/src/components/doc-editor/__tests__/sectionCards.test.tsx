@@ -119,15 +119,52 @@ describe("document sheet structural chrome", () => {
     store.store.resume = resume;
   });
 
-  function renderSheet(options: { onOpenSections?: () => void; template?: TemplateLayout } = {}) {
+  function renderSheet(
+    options: {
+      onOpenSections?: () => void;
+      template?: TemplateLayout;
+      mode?: "edit" | "done";
+    } = {},
+  ) {
     return render(() => (
       <DocSheet
         resume={resume}
         templateLayout={options.template ?? SIDEBAR_TEMPLATE}
         onOpenSections={options.onOpenSections}
+        mode={options.mode}
       />
     ));
   }
+
+  describe("avatar (#829)", () => {
+    it("draws the initials disc in Done mode when no photo is set", () => {
+      renderSheet({ mode: "done" });
+
+      const sheet = screen.getByTestId("doc-sheet");
+      const initials = sheet.querySelector(".doc-sheet__avatar-initials");
+      expect(initials).not.toBeNull();
+      expect(initials?.textContent).toBe("MO");
+      expect(within(sheet).queryByRole("button")).toBeNull();
+    });
+
+    it("keeps the initials disc empty when the name is empty", () => {
+      resume.basics.name = "";
+      renderSheet({ mode: "done" });
+
+      const initials = screen.getByTestId("doc-sheet").querySelector(".doc-sheet__avatar-initials");
+      expect(initials).not.toBeNull();
+      expect(initials?.textContent).toBe("");
+    });
+  });
+
+  describe("level indicator (#829)", () => {
+    it("hides dots when a fractional level clamps to 0", () => {
+      resume.sections.languages.items[0].level = 0.4;
+      renderSheet();
+
+      expect(entryRow("lang-1").querySelector(".doc-sheet__lang-dots")).toBeNull();
+    });
+  });
 
   describe("sheet typography (#828)", () => {
     it("scopes document faces on the sheet root, not app chrome --font-*", () => {
