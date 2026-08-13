@@ -66,8 +66,8 @@
   --doc-sheet-page-h: 1122px;
 
   /* Document faces — independent of app chrome (`index.css` `--font-*`). */
-  --doc-font-body: "IBM Plex Sans", Inter, system-ui, sans-serif;
-  --doc-font-display: "IBM Plex Sans", Inter, system-ui, sans-serif;
+  --doc-font-body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --doc-font-display: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
   --doc-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   display: flex;

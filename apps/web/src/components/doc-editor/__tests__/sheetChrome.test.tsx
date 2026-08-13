@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { render } from "@solidjs/testing-library";
+import { render, screen } from "@solidjs/testing-library";
 import { DocSheet } from "../DocSheet";
 import {
   loadDocEditorFixture,
@@ -28,7 +28,7 @@ describe("DocSheet chrome modifiers", () => {
     resume.metadata.template = "onyx";
     const layout = bundledTemplateLayout("onyx");
     render(() => <DocSheet resume={resume} templateLayout={layout} mode="done" />);
-    const sheet = document.querySelector("[data-testid='doc-sheet']") as HTMLElement;
+    const sheet = screen.getByTestId("doc-sheet");
     expect(sheet.className).toContain("doc-sheet--heading-underline");
     expect(sheet.className).toContain("doc-sheet--keywords-chips");
     expect(sheet.classList.contains("doc-sheet--header-rule")).toBe(true);
@@ -40,7 +40,7 @@ describe("DocSheet chrome modifiers", () => {
     resume.metadata.template = "pikachu";
     const layout = bundledTemplateLayout("pikachu");
     render(() => <DocSheet resume={resume} templateLayout={layout} mode="done" />);
-    const sheet = document.querySelector("[data-testid='doc-sheet']") as HTMLElement;
+    const sheet = screen.getByTestId("doc-sheet");
     expect(sheet.className).toContain("doc-sheet--heading-band");
     expect(sheet.className).toContain("doc-sheet--side-heading-plain");
     expect(sheet.classList.contains("doc-sheet--sidebar-tint")).toBe(true);
@@ -52,7 +52,7 @@ describe("DocSheet chrome modifiers", () => {
     resume.metadata.template = "nosepass";
     const layout = bundledTemplateLayout("nosepass");
     render(() => <DocSheet resume={resume} templateLayout={layout} mode="done" />);
-    const sheet = document.querySelector("[data-testid='doc-sheet']") as HTMLElement;
+    const sheet = screen.getByTestId("doc-sheet");
     expect(sheet.className).toContain("doc-sheet--heading-rule");
     expect(sheet.className).toContain("doc-sheet--heading-case-as-written");
     expect(sheet.className).toContain("doc-sheet--font-ibm-plex-serif");
@@ -63,15 +63,15 @@ describe("DocSheet chrome modifiers", () => {
     const resume = loadDocEditorFixture();
 
     render(() => <DocSheet resume={resume} templateLayout={SINGLE_TEMPLATE} mode="done" />);
-    const single = document.querySelector("[data-testid='doc-sheet']") as HTMLElement;
+    const single = screen.getByTestId("doc-sheet");
     expect(single.className).toContain("doc-sheet--heading-underline");
     expect(single.className).toContain("doc-sheet--heading-case-upper");
     expect(single.classList.contains("doc-sheet--header-rule")).toBe(true);
     expect(single.classList.contains("doc-sheet--sidebar-tint")).toBe(false);
 
     render(() => <DocSheet resume={resume} templateLayout={SIDEBAR_TEMPLATE} mode="done" />);
-    const sheets = document.querySelectorAll("[data-testid='doc-sheet']");
-    const sidebar = sheets[sheets.length - 1] as HTMLElement;
+    const sheets = screen.getAllByTestId("doc-sheet");
+    const sidebar = sheets[sheets.length - 1];
     expect(sidebar.className).toContain("doc-sheet--heading-band");
     expect(sidebar.className).toContain("doc-sheet--side-heading-plain");
     expect(sidebar.classList.contains("doc-sheet--sidebar-tint")).toBe(true);
