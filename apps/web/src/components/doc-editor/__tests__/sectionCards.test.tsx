@@ -954,6 +954,24 @@ describe("document sheet structural chrome", () => {
     });
   });
 
+  describe("miniature scale CSS contract", () => {
+    it("publishes --sheet-k on the scaled subtree", () => {
+      renderSheet();
+
+      const transform = screen.getByTestId("doc-sheet-scale-transform");
+      expect(transform.style.getPropertyValue("--sheet-k")).toBe("1");
+    });
+
+    it("keeps the page-count pill outside the scale viewport", () => {
+      renderSheet();
+
+      const viewport = screen.getByTestId("doc-sheet-scale-viewport");
+      const pill = screen.getByTestId("doc-sheet-page-count");
+      expect(viewport.contains(pill)).toBe(false);
+      expect(screen.getByTestId("doc-sheet-scale").contains(pill)).toBe(true);
+    });
+  });
+
   describe("sidebar resize handle", () => {
     it("exposes the handle as a separator with clamped bounds", () => {
       renderSheet();

@@ -72,11 +72,13 @@ export const SECTION_LABELS: Readonly<Record<FixedSectionId, string>> = {
 const UNTITLED_CUSTOM_SECTION = "Untitled";
 
 /**
- * CSS-pixel A4 geometry of the sheet (#794, spec §3.1).
+ * CSS-pixel A4 geometry of the sheet (#794 / #813, spec §3.1).
  *
- * The on-screen sheet is `min(860px, 100%)` wide and sizes to its content;
- * these constants are what the overflow guides, the measured page count and
- * the PDF export agree on. 860×1122 is A4 at ~96 dpi.
+ * The sheet's internal layout is always this design width — never reflowed.
+ * On narrower canvases `DocSheet` paints a faithful miniature via
+ * `transform: scale(k)` (`sheetScale.ts`); these constants are what the
+ * overflow guides, the measured page count and the PDF export agree on.
+ * These values are the editor's design canvas, not physical A4 at 96 dpi.
  */
 export const PAGE_WIDTH_PX = 860;
 export const PAGE_HEIGHT_PX = 1122;

@@ -1,6 +1,6 @@
 /**
- * The document sheet engine (#794): content-sized sheets composed from the
- * template's layout metadata.
+ * The document sheet engine (#794 / #813): content-sized sheets composed from
+ * the template's layout metadata.
  *
  * Sheets no longer clip to fixed A4 frames — each `.doc-sheet__page` sizes to
  * its content, and A4 boundaries are communicated by dashed overflow guides at
@@ -12,6 +12,11 @@
  * back to merging the raw pages (spec §3.4). Explicit "insert page break"
  * affordances live in the section pencil menu and the entry action pill
  * (owner decision, umbrella Q6).
+ *
+ * On canvases narrower than the 860px design width the whole sheet stack is
+ * painted as a faithful miniature via `transform: scale(k)` (#813) — layout
+ * never reflows. Hit areas inverse-scale (`--sheet-k`) so SC 2.5.8 holds for
+ * every interactive k; below the usability floor the sheet forces Done.
  *
  * The page body is composed per the template's `layoutMode` (spec §1.4,
  * §3.6): `SingleColumn`, `MainColumn` + `SideColumn` grids, or the
@@ -59,6 +64,7 @@ import {
 } from "../../lib/docDnd";
 import {
   PAGE_HEIGHT_PX,
+  PAGE_WIDTH_PX,
   SHEET_CONTENT_WIDTH_PX,
   SHEET_PX_PER_PT,
   docFontStack,
@@ -69,6 +75,7 @@ import {
   templateDocFontFamily,
   type TemplateLayout,
 } from "../../lib/docLayout";
+import { SHEET_SCALE_CSS_VAR, sheetScaleForWidth } from "../../lib/sheetScale";
 import {
   ITEM_BREAK_TEMPLATE_DISABLED_REASON,
   editorSheetPages,
@@ -164,6 +171,10 @@ export interface DocSheetProps {
    * Edit draws the in-place editable document; Done draws the clean rendered
    * document — no chrome, no placeholders, hidden and empty sections dropped
    * exactly as the PDF drops them. Defaults to Edit.
+   *
+   * When the miniature scale falls below the usability floor (#813), the
+   * sheet forces Done regardless of this prop. SC 2.5.8 on this surface is
+   * met by inverse-scaled hit areas, not by the floor.
    */
   mode?: SheetMode;
   /**
@@ -172,11 +183,55 @@ export interface DocSheetProps {
    * the editor page keeps a working affordance.
    */
   onOpenSections?: () => void;
+  /**
+   * Fires whenever the live miniature scale changes, so the surrounding
+   * chrome (mode toggle) can disable Edit below the interaction floor.
+   */
+  onScaleChange?: (info: { scale: number; interactive: boolean }) => void;
 }
 
 export function DocSheet(props: DocSheetProps): JSX.Element {
-  const mode = (): SheetMode => props.mode ?? "edit";
+  // Miniature scale (#813): measure the canvas, keep layout at 860px, paint
+  // with transform: scale(k). Below the usability floor the sheet is read-only.
+  const [availableWidth, setAvailableWidth] = createSignal(PAGE_WIDTH_PX);
+  const [contentHeight, setContentHeight] = createSignal(0);
+
+  const scaleInfo = createMemo(() => sheetScaleForWidth(availableWidth()));
+  const scale = (): number => scaleInfo().scale;
+  const scaleInteractive = (): boolean => scaleInfo().interactive;
+
+  const mode = (): SheetMode => {
+    const requested = props.mode ?? "edit";
+    return scaleInteractive() ? requested : "done";
+  };
   const isEditable = (): boolean => mode() === "edit";
+
+  createEffect(() => {
+    props.onScaleChange?.({ scale: scale(), interactive: scaleInteractive() });
+  });
+
+  const widthObserver =
+    typeof ResizeObserver === "undefined"
+      ? null
+      : new ResizeObserver((entries) => {
+          const entry = entries[0];
+          if (!entry) return;
+          setAvailableWidth(entry.contentRect.width);
+        });
+  const heightObserver =
+    typeof ResizeObserver === "undefined"
+      ? null
+      : new ResizeObserver((entries) => {
+          const entry = entries[0];
+          if (!entry) return;
+          // offsetHeight of the transform child (= design-space height).
+          const target = entry.target as HTMLElement;
+          setContentHeight(target.offsetHeight);
+        });
+  onCleanup(() => {
+    widthObserver?.disconnect();
+    heightObserver?.disconnect();
+  });
 
   // The raw layout the drops address, and the drawn view of it: expanded so
   // item-break continuations occupy their own sheets (spec §3.3). Drawn page
@@ -412,6 +467,7 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
     setSectionDrag,
     sectionDropAt,
     setSectionDropAt,
+    scale,
     sectionPlacement: (sectionId) => findSectionPlacement(layout(), sectionId),
     columnLength: (page, column) => layout()[page]?.[column]?.length ?? 0,
     onEntryDrop,
@@ -626,7 +682,9 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
 
     const widthFromPointer = (clientX: number): number => {
       if (!dragOrigin) return sidebarWidth();
-      const delta = clientX - dragOrigin.x;
+      // Client deltas are in screen px; divide by the miniature scale so the
+      // sidebar width stays in sheet design pixels (#813).
+      const delta = (clientX - dragOrigin.x) / scale();
       // A right sidebar grows leftwards: dragging left widens it.
       return dragOrigin.width + (handleProps.isRightSidebar ? -delta : delta);
     };
@@ -886,63 +944,110 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
       <SheetDndContext.Provider value={dnd}>
         <div
           ref={(element) => {
-            root = element;
-            observer?.observe(element);
+            widthObserver?.observe(element);
+            // First paint before the observer fires.
+            setAvailableWidth(element.clientWidth || PAGE_WIDTH_PX);
           }}
-          class={
-            `doc-sheet doc-sheet--tpl-${props.resume.metadata.template} ` +
-            `doc-sheet--layout-${layoutMode()} doc-sheet--head-${headerStyle()}`
-          }
-          classList={{
-            "doc-sheet--editing": isEditable(),
-            "doc-sheet--done": !isEditable(),
-          }}
-          data-testid="doc-sheet"
-          data-sheet-mode={mode()}
-          style={{
-            "--doc-sheet-bg": theme().background,
-            "--doc-sheet-text": theme().text,
-            "--doc-sheet-accent": theme().primary,
-            "--doc-sheet-side-w": `${sidebarWidth()}px`,
-            "--doc-sheet-page-h": `${PAGE_HEIGHT_PX}px`,
-            "--doc-font-body": docFont(),
-            "--doc-font-display": docFont(),
-          }}
+          class="doc-sheet-scale"
+          data-testid="doc-sheet-scale"
+          data-sheet-scale={scale().toFixed(4)}
+          data-sheet-interactive={scaleInteractive() ? "true" : "false"}
+          style={{ "--doc-sheet-page-w": `${PAGE_WIDTH_PX}px` }}
         >
-          <For each={pages()}>
-            {(page, pageIndex) => (
-              <>
-                <Show when={pageIndex() > 0}>
-                  <div class="doc-sheet__page-break" data-testid="doc-sheet-page-break">
-                    <span class="doc-sheet__page-break-label">Page {pageIndex() + 1}</span>
-                    <Show when={isEditable()}>
-                      <button
-                        type="button"
-                        class="doc-sheet__page-break-remove"
-                        onClick={() => removePageBreak(pageIndex())}
-                      >
-                        Remove page break
-                      </button>
-                    </Show>
-                  </div>
+          <div
+            class="doc-sheet-scale__viewport"
+            data-testid="doc-sheet-scale-viewport"
+            style={{
+              width: `${PAGE_WIDTH_PX * scale()}px`,
+              // Before the first height measurement, let content define height
+              // so we do not collapse to zero; afterwards compensate so scroll
+              // geometry matches the visual miniature.
+              height: contentHeight() > 0 ? `${contentHeight() * scale()}px` : "auto",
+            }}
+          >
+            <div
+              ref={(element) => {
+                heightObserver?.observe(element);
+                setContentHeight(element.offsetHeight);
+              }}
+              class="doc-sheet-scale__transform"
+              data-testid="doc-sheet-scale-transform"
+              style={{
+                [SHEET_SCALE_CSS_VAR]: String(scale()),
+                transform: scale() === 1 ? undefined : `scale(${scale()})`,
+                // Center the unscaled 860px layout box inside the narrower
+                // viewport when origin is top center.
+                "margin-left":
+                  scale() === 1 ? undefined : `${(PAGE_WIDTH_PX * (scale() - 1)) / 2}px`,
+              }}
+            >
+              <div
+                ref={(element) => {
+                  root = element;
+                  observer?.observe(element);
+                }}
+                class={
+                  `doc-sheet doc-sheet--tpl-${props.resume.metadata.template} ` +
+                  `doc-sheet--layout-${layoutMode()} doc-sheet--head-${headerStyle()}`
+                }
+                classList={{
+                  "doc-sheet--editing": isEditable(),
+                  "doc-sheet--done": !isEditable(),
+                }}
+                data-testid="doc-sheet"
+                data-sheet-mode={mode()}
+                style={{
+                  "--doc-sheet-bg": theme().background,
+                  "--doc-sheet-text": theme().text,
+                  "--doc-sheet-accent": theme().primary,
+                  "--doc-sheet-side-w": `${sidebarWidth()}px`,
+                  "--doc-sheet-page-h": `${PAGE_HEIGHT_PX}px`,
+                  "--doc-font-body": docFont(),
+                  "--doc-font-display": docFont(),
+                }}
+              >
+                <For each={pages()}>
+                  {(page, pageIndex) => (
+                    <>
+                      <Show when={pageIndex() > 0}>
+                        <div class="doc-sheet__page-break" data-testid="doc-sheet-page-break">
+                          <span class="doc-sheet__page-break-label">Page {pageIndex() + 1}</span>
+                          <Show when={isEditable()}>
+                            <button
+                              type="button"
+                              class="doc-sheet__page-break-remove"
+                              onClick={() => removePageBreak(pageIndex())}
+                            >
+                              Remove page break
+                            </button>
+                          </Show>
+                        </div>
+                      </Show>
+                      <SheetPage pageIndex={pageIndex()} page={page} />
+                    </>
+                  )}
+                </For>
+
+                {/* Dialogs are editing chrome: unmounted in Done mode even when an
+                    open flag was left set by a mid-dialog mode switch. */}
+                <Show when={isEditable()}>
+                  <CustomSectionDialog
+                    open={isSectionDialogOpen()}
+                    onOpenChange={setIsSectionDialogOpen}
+                  />
                 </Show>
-                <SheetPage pageIndex={pageIndex()} page={page} />
-              </>
-            )}
-          </For>
 
-          <PageCountPill count={measuredPages()} />
+                <LiveRegion message={announcement()} politeness="polite" />
+              </div>
+            </div>
+          </div>
 
-          {/* Dialogs are editing chrome: unmounted in Done mode even when an
-              open flag was left set by a mid-dialog mode switch. */}
-          <Show when={isEditable()}>
-            <CustomSectionDialog
-              open={isSectionDialogOpen()}
-              onOpenChange={setIsSectionDialogOpen}
-            />
-          </Show>
-
-          <LiveRegion message={announcement()} politeness="polite" />
+          {/* Outside the scaled subtree (#813): stacked on the viewport so
+              sticky can pin it to the visible bottom of the surface. Unscaled
+              on purpose — the count must stay readable at any miniature k. */}
+          <div class="doc-sheet-scale__pill-layer">
+            <PageCountPill count={measuredPages()} />
+          </div>
         </div>
       </SheetDndContext.Provider>
     </SheetModeContext.Provider>
