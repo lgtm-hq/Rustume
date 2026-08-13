@@ -117,8 +117,9 @@ then a `.sheet-stack` (centered flex column, `width:min(860px,100%)`) of one `.p
 `.page-break-rule`. Each sheet carries classes
 `sheet page-sheet sheet-<variant> tpl-<templateId> layout-<mode> head-<headerStyle>` + `is-editing`,
 `data-page`, and CSS custom props `--acc` (primary), `--ink` (text), `--mut` (muted), `--side-w`,
-`--page-h:1122px`. Sheet look: white, `border-radius:4px`, heavy drop shadow, base font
-`"IBM Plex Sans", Inter, system-ui` at **12.5px / 1.45**. Sheets size to content (no fixed height);
+`--page-h:1122px`. Sheet look: white, `border-radius:4px`, heavy drop shadow, base type **12.5px / 1.45**
+in IBM Plex Sans (IBM Plex Serif for nosepass and glalie), independent of app-chrome
+`--font-*`. Sheets size to content (no fixed height);
 A4 overflow is signaled by guides (§3.3). Global effects owned here: Escape closes any modal;
 ⌘/Ctrl+Z and ⌘/Ctrl+Shift+Z (or Ctrl+Y) undo/redo hotkeys that **pass through when focus is in
 `input, textarea, [contenteditable="true"]`** (never steal native field undo); page-count
