@@ -668,7 +668,6 @@ describe("emptyItemFor", () => {
   });
 });
 
-
 describe("templateDocFontFamily / docFontStack", () => {
   it("uses IBM Plex Serif for nosepass and Sans for every other template", () => {
     expect(templateDocFontFamily("nosepass")).toBe(NOSEPASS_DOC_FONT_FAMILY);
@@ -678,9 +677,7 @@ describe("templateDocFontFamily / docFontStack", () => {
   });
 
   it("quotes the family and matches fallback generics to the classification", () => {
-    expect(docFontStack("IBM Plex Sans")).toBe(
-      '"IBM Plex Sans", Inter, system-ui, sans-serif',
-    );
+    expect(docFontStack("IBM Plex Sans")).toBe('"IBM Plex Sans", Inter, system-ui, sans-serif');
     expect(docFontStack("IBM Plex Serif")).toBe(
       '"IBM Plex Serif", Georgia, "Times New Roman", serif',
     );
