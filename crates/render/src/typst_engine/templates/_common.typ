@@ -97,13 +97,16 @@
 /// Education primary line: degree / study type only (item-presentation contract).
 /// Never joins `area` with `" in "` — area belongs in `education-school`.
 #let education-degree(item) = {
-  if "studyType" in item and item.studyType != none { item.studyType } else { "" }
+  let value = if "studyType" in item and item.studyType != none { item.studyType } else { "" }
+  value.trim()
 }
 
 /// Education secondary line: `institution · area` (omit empty parts).
 #let education-school(item) = {
-  let institution = if "institution" in item and item.institution != none { item.institution } else { "" }
-  let area = if "area" in item and item.area != none { item.area } else { "" }
+  let institution = if "institution" in item and item.institution != none {
+    item.institution.trim()
+  } else { "" }
+  let area = if "area" in item and item.area != none { item.area.trim() } else { "" }
   if institution != "" and area != "" {
     institution + " · " + area
   } else if institution != "" {
@@ -116,7 +119,7 @@
 /// Initials from a display name (up to `max` words). Shared with the sheet's
 /// avatar fallback (item-presentation contract).
 #let name-initials(name, max: 2) = {
-  let parts = name.split(" ").filter(w => w.len() > 0)
+  let parts = name.trim().split(regex("\\s+")).filter(w => w.len() > 0)
   if parts.len() == 0 { return "" }
   parts.slice(0, calc.min(max, parts.len())).map(w => upper(w.at(0, default: ""))).join("")
 }
@@ -397,9 +400,9 @@
 /// - `"network"` — network name (fallback username / URL)
 /// - `"network-username"` — `Network: username` when both exist
 #let profile-entry-label(item, mode: "auto") = {
-  let network = if "network" in item and item.network != none { item.network } else { "" }
-  let username = if "username" in item and item.username != none { item.username } else { "" }
-  let href = if has-url(item) { item.url.href } else { "" }
+  let network = if "network" in item and item.network != none { item.network.trim() } else { "" }
+  let username = if "username" in item and item.username != none { item.username.trim() } else { "" }
+  let href = if has-url(item) { item.url.href.trim() } else { "" }
 
   if mode == "network" {
     if network != "" { network }
