@@ -181,10 +181,6 @@ export default function DocEditor() {
     setMode(isBlankResume(resume) ? "edit" : "done");
   });
 
-  createEffect(() => {
-    if (!sheetInteractive() && mode() === "edit") setMode("done");
-  });
-
   // One-time legacy migration (#786): a resume whose rich fields are still
   // TipTap HTML is converted to markdown on open, through a store action so
   // autosave persists the migrated form. The stamp `applyContentMigration`
@@ -404,7 +400,14 @@ export default function DocEditor() {
                     templateLayout={templateLayout()}
                     mode={mode()}
                     onOpenSections={() => setIsSectionsOpen(true)}
-                    onScaleChange={(info) => setSheetInteractive(info.interactive)}
+                    onScaleChange={(info) => {
+                      setSheetInteractive(info.interactive);
+                      // Force Done from this callback, not a separate effect:
+                      // a stale `sheetInteractive === false` from the previous
+                      // sheet must not clobber a blank resume's initialized
+                      // Edit before the new sheet reports its own scale.
+                      if (!info.interactive) setMode("done");
+                    }}
                   />
                 )}
               </Show>

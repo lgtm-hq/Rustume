@@ -322,6 +322,11 @@ test.describe("single-surface document editor", () => {
     expect(narrow.nameHeight).toBeCloseTo(wide.nameHeight * k, 0);
     expect(narrow.viewportWidth).toBeCloseTo(860 * k, 0);
 
+    await expect(
+      scaleHost.getByTestId("doc-sheet-scale-viewport").getByTestId("doc-sheet-page-count"),
+    ).toHaveCount(0);
+    await expect(page.getByTestId("doc-sheet-page-count")).toBeVisible();
+
     // Edge chrome stays outside the transform.
     await expect(page.getByTestId("doc-editor-templates-tab")).toBeVisible();
     await expect(page.getByTestId("doc-editor-topbar")).toBeVisible();
