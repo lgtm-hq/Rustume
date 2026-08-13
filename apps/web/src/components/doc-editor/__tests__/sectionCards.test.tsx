@@ -17,7 +17,12 @@ import {
   SIDEBAR_TEMPLATE,
   SINGLE_TEMPLATE,
 } from "../../../test/docEditorFixture";
-import type { TemplateLayout } from "../../../lib/docLayout";
+import {
+  DEFAULT_DOC_FONT_FAMILY,
+  SERIF_DOC_FONT_FAMILY,
+  docFontStack,
+  type TemplateLayout,
+} from "../../../lib/docLayout";
 import { DocSheet } from "../DocSheet";
 import type { ResumeData } from "../../../wasm/types";
 
@@ -123,6 +128,48 @@ describe("document sheet structural chrome", () => {
       />
     ));
   }
+
+  describe("sheet typography (#828)", () => {
+    it("scopes document faces on the sheet root, not app chrome --font-*", () => {
+      renderSheet();
+
+      const sheet = screen.getByTestId("doc-sheet");
+      const body = sheet.style.getPropertyValue("--doc-font-body");
+      const display = sheet.style.getPropertyValue("--doc-font-display");
+      expect(body).toBe(docFontStack(DEFAULT_DOC_FONT_FAMILY));
+      expect(display).toBe(docFontStack(DEFAULT_DOC_FONT_FAMILY));
+      // Must not inherit / re-expose the app chrome tokens.
+      expect(sheet.style.getPropertyValue("--font-body")).toBe("");
+      expect(body).not.toContain("Source Serif");
+      expect(body).not.toContain("Fraunces");
+    });
+
+    it("follows nosepass with IBM Plex Serif", () => {
+      resume.metadata.template = "nosepass";
+      renderSheet({ template: SINGLE_TEMPLATE });
+
+      const sheet = screen.getByTestId("doc-sheet");
+      expect(sheet.style.getPropertyValue("--doc-font-body")).toBe(
+        docFontStack(SERIF_DOC_FONT_FAMILY),
+      );
+      expect(sheet.style.getPropertyValue("--doc-font-display")).toBe(
+        docFontStack(SERIF_DOC_FONT_FAMILY),
+      );
+    });
+
+    it("follows glalie with IBM Plex Serif (Typst inherits the engine default)", () => {
+      resume.metadata.template = "glalie";
+      renderSheet();
+
+      const sheet = screen.getByTestId("doc-sheet");
+      expect(sheet.style.getPropertyValue("--doc-font-body")).toBe(
+        docFontStack(SERIF_DOC_FONT_FAMILY),
+      );
+      expect(sheet.style.getPropertyValue("--doc-font-display")).toBe(
+        docFontStack(SERIF_DOC_FONT_FAMILY),
+      );
+    });
+  });
 
   describe("section cards", () => {
     it("hides a fixed section through toggleSectionVisibility, and says so", async () => {
