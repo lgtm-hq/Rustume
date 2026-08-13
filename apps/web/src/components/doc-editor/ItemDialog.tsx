@@ -31,7 +31,6 @@ import { itemFieldsFor, type ItemFieldSpec } from "./itemFields";
 import { generateId } from "../../wasm/types";
 import type { CustomField, Url } from "../../wasm/types";
 
-/** Highest level a skill or language can carry. Mirrors `clamp-level`. */
 /** What an untouched proficiency saves as (spec §4.2: UI default 3). */
 const DEFAULT_LEVEL = 3;
 

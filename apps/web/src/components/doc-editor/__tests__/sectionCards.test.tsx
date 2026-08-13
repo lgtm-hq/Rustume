@@ -144,6 +144,7 @@ describe("document sheet structural chrome", () => {
       const initials = sheet.querySelector(".doc-sheet__avatar-initials");
       expect(initials).not.toBeNull();
       expect(initials?.textContent).toBe("MO");
+      expect(within(sheet).queryByRole("button")).toBeNull();
     });
   });
 

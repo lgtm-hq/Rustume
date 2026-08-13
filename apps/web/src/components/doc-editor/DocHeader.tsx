@@ -14,6 +14,7 @@
  */
 
 import { For, Show, createSignal, type JSX } from "solid-js";
+import { Dynamic } from "solid-js/web";
 import { EditableField } from "./EditableField";
 import { PhotoDialog } from "./PhotoDialog";
 import { SectionChrome } from "./SectionChrome";
@@ -129,15 +130,17 @@ export function SheetAvatar(props: { basics: Basics }): JSX.Element {
   const picture = (): Picture => props.basics.picture;
   const hasPhoto = (): boolean => pictureVisible(picture());
   const initials = (): string => nameInitials(props.basics.name) || "·";
+  const photoAlt = (): string =>
+    props.basics.name.trim() === "" ? "Profile picture" : `Profile picture of ${props.basics.name}`;
 
   return (
     <>
-      <button
-        type="button"
+      <Dynamic
+        component={isEditable() ? "button" : "div"}
+        type={isEditable() ? "button" : undefined}
         class="doc-sheet__avatar-btn"
         title={isEditable() ? "Edit profile photo" : undefined}
-        disabled={!isEditable()}
-        onClick={() => setIsPhotoOpen(true)}
+        onClick={isEditable() ? () => setIsPhotoOpen(true) : undefined}
       >
         <Show
           when={hasPhoto()}
@@ -150,15 +153,11 @@ export function SheetAvatar(props: { basics: Basics }): JSX.Element {
           <img
             class="doc-sheet__avatar-img"
             src={picture().url}
-            alt={
-              props.basics.name.trim() === ""
-                ? "Profile picture"
-                : `Profile picture of ${props.basics.name}`
-            }
+            alt={photoAlt()}
             style={avatarStyle(picture())}
           />
         </Show>
-      </button>
+      </Dynamic>
 
       <Show when={isEditable()}>
         <PhotoDialog open={isPhotoOpen()} picture={picture()} onOpenChange={setIsPhotoOpen} />
