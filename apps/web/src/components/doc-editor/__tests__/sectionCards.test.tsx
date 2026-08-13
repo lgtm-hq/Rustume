@@ -146,6 +146,24 @@ describe("document sheet structural chrome", () => {
       expect(initials?.textContent).toBe("MO");
       expect(within(sheet).queryByRole("button")).toBeNull();
     });
+
+    it("keeps the initials disc empty when the name is empty", () => {
+      resume.basics.name = "";
+      renderSheet({ mode: "done" });
+
+      const initials = screen.getByTestId("doc-sheet").querySelector(".doc-sheet__avatar-initials");
+      expect(initials).not.toBeNull();
+      expect(initials?.textContent).toBe("");
+    });
+  });
+
+  describe("level indicator (#829)", () => {
+    it("hides dots when a fractional level clamps to 0", () => {
+      resume.sections.languages.items[0].level = 0.4;
+      renderSheet();
+
+      expect(entryRow("lang-1").querySelector(".doc-sheet__lang-dots")).toBeNull();
+    });
   });
 
   describe("sheet typography (#828)", () => {

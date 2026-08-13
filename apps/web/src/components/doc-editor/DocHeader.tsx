@@ -129,7 +129,7 @@ export function SheetAvatar(props: { basics: Basics }): JSX.Element {
 
   const picture = (): Picture => props.basics.picture;
   const hasPhoto = (): boolean => pictureVisible(picture());
-  const initials = (): string => nameInitials(props.basics.name) || "·";
+  const initials = (): string => nameInitials(props.basics.name);
   const photoAlt = (): string =>
     props.basics.name.trim() === "" ? "Profile picture" : `Profile picture of ${props.basics.name}`;
 

@@ -46,6 +46,8 @@ describe("itemPresentation contract (#829)", () => {
   it("clamps levels to 0–5", () => {
     expect(MAX_LEVEL).toBe(5);
     expect(clampLevel(-1)).toBe(0);
+    expect(clampLevel(0.4)).toBe(0);
+    expect(clampLevel(Number.POSITIVE_INFINITY)).toBe(0);
     expect(clampLevel(3.6)).toBe(4);
     expect(clampLevel(99)).toBe(5);
   });

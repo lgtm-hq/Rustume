@@ -537,7 +537,7 @@ export function DocSection(props: DocSectionProps): JSX.Element {
     return (
       <>
         <span class="doc-sheet__lang-name">{item.name}</span>
-        <Show when={(item.level ?? 0) > 0}>
+        <Show when={clampLevel(item.level ?? 0) > 0}>
           <LevelDots value={item.level ?? 0} />
         </Show>
         <Show when={hasText(item.description)}>
