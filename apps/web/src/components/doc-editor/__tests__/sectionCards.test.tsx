@@ -156,6 +156,19 @@ describe("document sheet structural chrome", () => {
         docFontStack(NOSEPASS_DOC_FONT_FAMILY),
       );
     });
+
+    it("follows glalie with IBM Plex Serif (Typst inherits the engine default)", () => {
+      resume.metadata.template = "glalie";
+      renderSheet();
+
+      const sheet = screen.getByTestId("doc-sheet");
+      expect(sheet.style.getPropertyValue("--doc-font-body")).toBe(
+        docFontStack(NOSEPASS_DOC_FONT_FAMILY),
+      );
+      expect(sheet.style.getPropertyValue("--doc-font-display")).toBe(
+        docFontStack(NOSEPASS_DOC_FONT_FAMILY),
+      );
+    });
   });
 
   describe("section cards", () => {
