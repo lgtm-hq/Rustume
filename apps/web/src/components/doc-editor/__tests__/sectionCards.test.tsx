@@ -870,6 +870,15 @@ describe("document sheet structural chrome", () => {
     });
   });
 
+  describe("miniature scale CSS contract", () => {
+    it("publishes --sheet-k on the scaled subtree", () => {
+      renderSheet();
+
+      const transform = screen.getByTestId("doc-sheet-scale-transform");
+      expect(transform.style.getPropertyValue("--sheet-k")).toBe("1");
+    });
+  });
+
   describe("sidebar resize handle", () => {
     it("exposes the handle as a separator with clamped bounds", () => {
       renderSheet();

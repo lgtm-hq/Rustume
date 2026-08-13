@@ -64,6 +64,16 @@ async function scanForViolations(page: Page, include?: string): Promise<Violatio
   }));
 }
 
+/**
+ * Mid-scale `transform: scale(k)` interpolates painted pixels, so axe's
+ * `color-contrast` samples can fail on muted sheet chrome that is clean at
+ * k = 1 (covered by the populated-sheet scan). Other WCAG 2.2 AA rules,
+ * including SC 2.5.8 `target-size`, still run.
+ */
+function midScaleViolations(violations: ViolationSummary[]): ViolationSummary[] {
+  return violations.filter((violation) => violation.rule !== "color-contrast");
+}
+
 test.describe("accessibility", () => {
   test("home page has no WCAG 2.2 AA violations", async ({ page, homePage }) => {
     await homePage.open();
@@ -101,9 +111,9 @@ test.describe("accessibility", () => {
       homePage,
       docEditorPage,
     }) => {
-      // #813: below k = 0.45 the sheet forces Done so scaled edit targets
-      // never sit under the 24 CSS-px floor. Scan the unscaled chrome + the
-      // read-only miniature at a sub-floor viewport.
+      // #813: below k = 0.45 the sheet forces Done as a usability floor.
+      // Scan the unscaled chrome + the read-only miniature at a sub-floor
+      // viewport; edit targets are unmounted, so they cannot fail 2.5.8.
       await page.setViewportSize({ width: 320, height: 640 });
       await homePage.open();
       await homePage.createResume();
@@ -115,6 +125,52 @@ test.describe("accessibility", () => {
       await docEditorPage.assertMode("done");
       await expect(page.getByText("New resume created")).toBeHidden({ timeout: 15_000 });
       expect(await scanForViolations(page)).toEqual([]);
+    });
+
+    test("mid-scale populated edit surface has no WCAG 2.2 AA target-size violations", async ({
+      page,
+      homePage,
+      docEditorPage,
+    }) => {
+      // #813: at k ≈ 0.81 editing stays on; inverse-scale hit areas must
+      // keep every sheet pointer target ≥24 CSS px after transform: scale(k).
+      await page.setViewportSize({ width: 700, height: 800 });
+      await homePage.open();
+      await homePage.createResume();
+      await docEditorPage.assertDocEditorOpen();
+      await docEditorPage.assertMode("edit");
+      const scaleHost = page.getByTestId("doc-sheet-scale");
+      await expect(scaleHost).toHaveAttribute("data-sheet-interactive", "true");
+      const scale = Number(await scaleHost.getAttribute("data-sheet-scale"));
+      expect(scale).toBeGreaterThanOrEqual(0.45);
+      expect(scale).toBeLessThan(1);
+
+      await docEditorPage.addItem("experience", [
+        ["Company", "Lumen Health"],
+        ["Position", "Engineer"],
+      ]);
+      await docEditorPage.addItem("experience", [
+        ["Company", "Analytical Engines"],
+        ["Position", "Designer"],
+      ]);
+      await docEditorPage.addItem("skill", [["Name", "Typst"]]);
+      await docEditorPage.addItem("skill", [["Name", "Rust"]]);
+      await docEditorPage.assertSectionItemCount("experience", 2);
+      await docEditorPage.assertSectionItemCount("skills", 2);
+      await docEditorPage.assertSaved();
+      await expect(page.getByText("New resume created")).toBeHidden({ timeout: 15_000 });
+
+      // Pill actions and the compact ✕ stay pointer-events:none until
+      // hover/focus-within; axe's target-size rule only scores live pointer
+      // targets. Reveal via focus (not row hover) so the row's hover tint
+      // cannot trip color-contrast on the same scan.
+      await page.getByRole("button", { name: "Edit Engineer" }).focus();
+      await expect(page.getByRole("button", { name: "Edit Engineer" })).toBeFocused();
+      expect(midScaleViolations(await scanForViolations(page))).toEqual([]);
+
+      await page.getByRole("button", { name: "Remove Typst" }).focus();
+      await expect(page.getByRole("button", { name: "Remove Typst" })).toBeFocused();
+      expect(midScaleViolations(await scanForViolations(page))).toEqual([]);
     });
 
     test("drawers and theme dialog have no WCAG 2.2 AA violations", async ({
