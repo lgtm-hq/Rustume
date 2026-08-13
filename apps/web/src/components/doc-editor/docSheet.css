@@ -26,19 +26,19 @@
 
 .doc-sheet-scale {
   width: 100%;
-  /* Column: the height-compensated viewport stacks above the page-count
-     pill; align-items centers both when the canvas is wider. */
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  /* One grid cell: the height-compensated viewport and the pill overlay
+     stack so the pill can sticky-pin to the visible surface without
+     sitting in the transformed subtree. */
+  display: grid;
+  justify-items: center;
 }
 
 .doc-sheet-scale__viewport {
   /* Width/height are set inline from the live scale so scroll geometry
      matches the visual miniature (transform does not shrink layout boxes). */
+  grid-area: 1 / 1;
   position: relative;
   overflow: hidden;
-  flex-shrink: 0;
 }
 
 .doc-sheet-scale__transform {
@@ -165,16 +165,32 @@
 
 /* ── Page-count pill ────────────────────────────────────────────────────── */
 
-/* Rendered outside the scaled subtree (#813): the scale viewport's
-   overflow:hidden would become the sticky scrollport and the pill could never
-   pin. As a sibling of the viewport, `position: sticky` pins it to the
-   visible bottom of the scrolling surface, unscaled and readable at any k.
-   (`fixed` is still unusable — any transformed ancestor above would turn it
-   into a containing-block pin.) */
-.doc-sheet__page-pill {
+/* Size container for the pill overlay's `100cqh` — the scrolling surface,
+   not the sheet. Drawers overlay this box and do not shrink it (#813). */
+.doc-editor-surface {
+  container-type: size;
+}
+
+/* Stacked on the viewport (same grid cell). Sticky `top: 0` plus a
+   surface-tall box keeps the pill at the visible bottom while the sheet
+   scrolls; it stays a sibling of the viewport so overflow:hidden and
+   transform:scale cannot clip or shrink it (#813, spec §1.16). */
+.doc-sheet-scale__pill-layer {
+  grid-area: 1 / 1;
   position: sticky;
-  bottom: 1.25rem;
+  top: 0;
   z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  height: 100cqh;
+  padding-bottom: 1.25rem;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.doc-sheet__page-pill {
   display: inline-flex;
   align-items: baseline;
   gap: 0.35rem;
@@ -184,7 +200,7 @@
   border-radius: 999px;
   padding: 0.45rem 0.9rem;
   box-shadow: 0 10px 30px var(--color-shadow, rgb(0 0 0 / 35%));
-  margin-top: 1rem;
+  pointer-events: auto;
 }
 
 .doc-sheet__page-pill strong {

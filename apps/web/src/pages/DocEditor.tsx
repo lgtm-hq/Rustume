@@ -391,7 +391,10 @@ export default function DocEditor() {
           }
         >
           {/* The one document surface: the sheet, centered. */}
-          <div class="h-full overflow-auto bg-surface/30" data-testid="doc-editor-surface">
+          <div
+            class="doc-editor-surface h-full overflow-auto bg-surface/30"
+            data-testid="doc-editor-surface"
+          >
             <div class="mx-auto w-full max-w-4xl">
               <Show when={store.resume}>
                 {(resume) => (

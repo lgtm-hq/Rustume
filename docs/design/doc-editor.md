@@ -114,7 +114,14 @@ Props: `ctx`, `variant` (chrome flavor; production uses one), `focusedSection`, 
 Renders, in order: `Modals`, `SectionsPanel`, `TemplatesPanel`, `PageCountPill`,
 then a `.sheet-stack` (centered flex column, `width:min(860px,100%)`) of one `.page-sheet`
 `<article>` per rendered page (`renderPages(doc)`, §3), each preceded (pages ≥ 2) by a
-`.page-break-rule`. Each sheet carries classes
+`.page-break-rule`.
+
+> **Superseded in part (#813):** production does not reflow the stack to
+> `min(860px, 100%)`. Internal layout stays 860px; narrower canvases paint a
+> `transform: scale(k)` miniature (§3.1). Drawers overlay the surface and do
+> not shrink the scale host.
+
+Each sheet carries classes
 `sheet page-sheet sheet-<variant> tpl-<templateId> layout-<mode> head-<headerStyle>` + `is-editing`,
 `data-page`, and CSS custom props `--acc` (primary), `--ink` (text), `--mut` (muted), `--side-w`,
 `--page-h:1122px`. Sheet look: white, `border-radius:4px`, heavy drop shadow, base type **12.5px / 1.45**
@@ -391,8 +398,9 @@ from its own button.
 ### 1.16 `PageCountPill` + `SheetOverflowGuides` + `.page-break-rule`
 
 - **Page-count pill**: sticky bottom-center floating pill (dark, 999px radius,
-  `aria-live="polite"`), a sibling of the scale viewport (#813) so it stays pinned and unscaled:
-  bold count + uppercase "page/pages". Count = measured pages (§3.5), min 1.
+  `aria-live="polite"`), overlaid on the scale viewport in a surface-tall sticky
+  layer (#813) so it stays pinned and unscaled: bold count + uppercase
+  "page/pages". Count = measured pages (§3.5), min 1.
 - **Overflow guides**: edit-mode-only dashed accent horizontal rules (`.page-guide`, 40%-accent 1px
   dashed, inset .35rem from sheet edges) drawn across a sheet at every `n × 1122px` of that sheet's
   content height — the "your content crosses an A4 boundary here" indicator. Measured from child
@@ -540,14 +548,14 @@ reflowed. Sheets **size to their content** (no fixed-height page frames) — A4 
 communicated by guides and the pill, not by clipping. HTML-UI PDF export prints at exactly
 860×1122.
 
-**Miniature scale on narrow canvases (#813).** When the available canvas width (surface minus
-padding / drawer chrome) drops below 860px, `DocSheet` paints the whole sheet stack as a
-faithful miniature: `transform: scale(k)` with `transform-origin: top center`, where
-`k = available / 860`, and a height-compensated wrapper (`height: contentHeight * k`) so scroll
-geometry matches the visual size. Page-break guides and drop indicators
-live inside the transformed subtree and scale with the sheet; the page-count pill, edge drawer
-tabs, and the top bar stay unscaled chrome (the pill is a sticky sibling of the scale viewport
-so it pins to the visible bottom — §1.16). Pointer math under the sheet
+**Miniature scale on narrow canvases (#813).** When the available canvas width (the scale
+host content box; drawers overlay and do not shrink it) drops below 860px, `DocSheet` paints
+the whole sheet stack as a faithful miniature: `transform: scale(k)` with
+`transform-origin: top center`, where `k = available / 860`, and a height-compensated wrapper
+(`height: contentHeight * k`) so scroll geometry matches the visual size. Page-break guides
+and drop indicators live inside the transformed subtree and scale with the sheet; the
+page-count pill, edge drawer tabs, and the top bar stay unscaled chrome (the pill overlays
+the viewport in a sticky surface-tall layer — §1.16). Pointer math under the sheet
 (`dropIndexFromPointer`, the sidebar resize handle) divides client deltas by `k`.
 
 **WCAG 2.5.8 on the sheet (#813).** While editing, every sheet pointer target is at least

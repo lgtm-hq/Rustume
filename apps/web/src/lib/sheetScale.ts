@@ -65,9 +65,10 @@ export interface SheetScale {
 /**
  * Compute the miniature scale for a measured available width.
  *
- * `availablePx` is the canvas width the sheet may occupy (parent content box,
- * after drawer chrome). Non-positive widths fall back to full scale so a
- * first-paint race before measurement does not collapse the sheet.
+ * `availablePx` is the canvas width the sheet may occupy (scale host content
+ * box). Drawers overlay and do not shrink it. Non-positive widths fall back
+ * to full scale so a first-paint race before measurement does not collapse
+ * the sheet.
  */
 export function sheetScaleForWidth(
   availablePx: number,

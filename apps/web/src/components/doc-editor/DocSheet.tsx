@@ -1042,11 +1042,12 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
             </div>
           </div>
 
-          {/* Outside the scaled subtree (#813): the viewport's overflow:hidden
-              would otherwise become the pill's scrollport and sticky could
-              never pin it to the visible bottom of the surface. Unscaled on
-              purpose — the count must stay readable at any miniature k. */}
-          <PageCountPill count={measuredPages()} />
+          {/* Outside the scaled subtree (#813): stacked on the viewport so
+              sticky can pin it to the visible bottom of the surface. Unscaled
+              on purpose — the count must stay readable at any miniature k. */}
+          <div class="doc-sheet-scale__pill-layer">
+            <PageCountPill count={measuredPages()} />
+          </div>
         </div>
       </SheetDndContext.Provider>
     </SheetModeContext.Provider>

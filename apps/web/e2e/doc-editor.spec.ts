@@ -154,11 +154,11 @@ test.describe("single-surface document editor", () => {
     await page.getByRole("menuitem", { name: /^Insert page break before .* section$/ }).click();
     await expect(sheets).toHaveCount(2);
     await expect(docEditorPage.sheet.getByTestId("doc-sheet-page-break")).toBeVisible();
-    await expect(docEditorPage.sheet.getByTestId("doc-sheet-page-count")).toContainText("2");
+    await expect(docEditorPage.pageCount).toContainText("2");
 
     await page.getByRole("button", { name: "Remove page break" }).click();
     await expect(sheets).toHaveCount(1);
-    await expect(docEditorPage.sheet.getByTestId("doc-sheet-page-count")).toContainText("1");
+    await expect(docEditorPage.pageCount).toContainText("1");
   });
 
   test("edge tabs drive the panels and the top bar drives theme selection", async ({
@@ -287,8 +287,11 @@ test.describe("single-surface document editor", () => {
     expect(wide.pill).toMatch(/2/);
     expect(Number(wide.scale)).toBeCloseTo(1, 3);
 
-    await page.setViewportSize({ width: 400, height: 800 });
+    // 520px stays well above the 387px edit floor even after a classic
+    // scrollbar (~15px) shrinks the scale host.
+    await page.setViewportSize({ width: 520, height: 800 });
     const scaleHost = page.getByTestId("doc-sheet-scale");
+    await expect(scaleHost).not.toHaveAttribute("data-sheet-scale", "1.0000");
     await expect(scaleHost).toHaveAttribute("data-sheet-interactive", "true");
 
     const narrow = await docEditorPage.sheet.evaluate((sheet) => {
@@ -325,7 +328,15 @@ test.describe("single-surface document editor", () => {
     await expect(
       scaleHost.getByTestId("doc-sheet-scale-viewport").getByTestId("doc-sheet-page-count"),
     ).toHaveCount(0);
-    await expect(page.getByTestId("doc-sheet-page-count")).toBeVisible();
+    await expect(docEditorPage.pageCount).toBeVisible();
+    const pillBox = await docEditorPage.pageCount.boundingBox();
+    const surfaceBox = await docEditorPage.surface.boundingBox();
+    expect(pillBox).toBeTruthy();
+    expect(surfaceBox).toBeTruthy();
+    expect(pillBox!.y).toBeGreaterThanOrEqual(surfaceBox!.y);
+    expect(pillBox!.y + pillBox!.height).toBeLessThanOrEqual(
+      surfaceBox!.y + surfaceBox!.height + 1,
+    );
 
     // Edge chrome stays outside the transform.
     await expect(page.getByTestId("doc-editor-templates-tab")).toBeVisible();
