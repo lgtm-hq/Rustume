@@ -22,6 +22,13 @@ and this project adheres to
 
 ### Security
 
+## [0.66.0] - 2026-08-13
+
+### Added
+
+- **web**: scale the document sheet as a faithful miniature on narrow viewports (#841)
+  (f1e22ed)
+
 ## [0.65.3] - 2026-08-13
 
 ### Changed
@@ -1013,7 +1020,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.65.3...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.66.0...HEAD
+[0.66.0]: https://github.com/lgtm-hq/Rustume/compare/v0.65.3...v0.66.0
 [0.65.3]: https://github.com/lgtm-hq/Rustume/compare/v0.65.2...v0.65.3
 [0.65.2]: https://github.com/lgtm-hq/Rustume/compare/v0.65.1...v0.65.2
 [0.65.1]: https://github.com/lgtm-hq/Rustume/compare/v0.65.0...v0.65.1
