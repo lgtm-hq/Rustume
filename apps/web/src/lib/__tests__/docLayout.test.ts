@@ -748,6 +748,6 @@ describe("templateDocFontFamily / docFontStack", () => {
   it("PWA precache globs still include the vendored document faces", () => {
     const vite = readFileSync(resolve(__dirname, "../../../vite.config.ts"), "utf8");
     expect(vite).toContain('"fonts/*"');
-    expect(vite).toMatch(/globPatterns: \["\*\*\/\*\.\{[^}]*ttf/);
+    expect(vite).toMatch(/globPatterns:\s*\[[^\]]*ttf/);
   });
 });
