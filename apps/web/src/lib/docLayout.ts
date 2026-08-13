@@ -224,6 +224,44 @@ function bundledTwoColumn(
 }
 
 /**
+ * Default document face shared by Typst templates that set `font: "IBM Plex Sans"`.
+ * Matches the OFL webfonts in `docFonts.css` / PDF-bundled TTFs.
+ */
+export const DEFAULT_DOC_FONT_FAMILY = "IBM Plex Sans";
+
+/** Serif face: nosepass sets it; glalie inherits the engine's schema default. */
+export const SERIF_DOC_FONT_FAMILY = "IBM Plex Serif";
+
+/**
+ * Templates whose Typst document face is IBM Plex Serif. nosepass sets it in
+ * `template()`; glalie.typ leaves family to the engine's top-level
+ * `#set text(font: metadata.typography.font.family)` (schema default Serif).
+ */
+const SERIF_DOC_TEMPLATES: ReadonlySet<string> = new Set(["nosepass", "glalie"]);
+
+/**
+ * Document face for a template id, mirroring the Typst `#set text(font: …)`
+ * each template declares — including glalie's inheritance of the engine
+ * default. Full `metadata.typography.font.family` honoring is #701 — this
+ * only picks the template default the sheet should show.
+ */
+export function templateDocFontFamily(template: string): string {
+  return SERIF_DOC_TEMPLATES.has(template) ? SERIF_DOC_FONT_FAMILY : DEFAULT_DOC_FONT_FAMILY;
+}
+
+/**
+ * CSS `font-family` stack for the sheet's `--doc-font-body` / `--doc-font-display`.
+ * Quoted family first so multi-word names (IBM Plex *) resolve correctly; the
+ * fallback generics follow the family's classification so a swap-period or
+ * failed load degrades serif→serif, not serif→sans.
+ */
+export function docFontStack(family: string): string {
+  return family === SERIF_DOC_FONT_FAMILY
+    ? `"${family}", Georgia, "Times New Roman", serif`
+    : `"${family}", Inter, system-ui, sans-serif`;
+}
+
+/**
  * The bundled layout for a template id. Unknown ids fall back to the rhyhorn
  * single-column shape, mirroring the Rust side.
  */

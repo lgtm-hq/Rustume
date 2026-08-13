@@ -22,6 +22,35 @@ and this project adheres to
 
 ### Security
 
+## [0.65.3] - 2026-08-13
+
+### Changed
+
+- **templates**: audit the 12 templates and freeze each design spec (#838) (b91d885)
+- **web,render**: enforce lockstep between bundledTemplateLayout and get_template_layout
+  (#837) (79c7a2e)
+
+### Fixed
+
+- **app**: one item-presentation contract shared by sheet and Typst (#840) (4b961ab)
+
+## [0.65.2] - 2026-08-13
+
+### Changed
+
+- **deps**: update lintro to 0.113.2 (patch) (#848) (d7b1f51)
+- **deps**: update lintro to 0.113.1 (minor) (#847) (487db8a)
+- **deps**: update renovatebot/github-action action to v46.2.2 (patch) (#846) (1f0745e)
+- **deps**: lock file maintenance (#845) (e0b9072)
+- **deps**: update lintro to 0.112.7 (patch) (#839) (cde16b4)
+- **deps**: update lintro to 0.112.6 (patch) (#835) (e45989b)
+- **deps-dev**: pin rust crate pdf-extract to =0.12.0 (#833) (1684f7f)
+
+### Fixed
+
+- **web**: scope sheet typography so it stops inheriting app chrome fonts (#836)
+  (71eeafb)
+
 ## [0.65.1] - 2026-08-08
 
 ### Changed
@@ -984,7 +1013,9 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.65.1...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.65.3...HEAD
+[0.65.3]: https://github.com/lgtm-hq/Rustume/compare/v0.65.2...v0.65.3
+[0.65.2]: https://github.com/lgtm-hq/Rustume/compare/v0.65.1...v0.65.2
 [0.65.1]: https://github.com/lgtm-hq/Rustume/compare/v0.65.0...v0.65.1
 [0.65.0]: https://github.com/lgtm-hq/Rustume/compare/v0.64.0...v0.65.0
 [0.64.0]: https://github.com/lgtm-hq/Rustume/compare/v0.63.0...v0.64.0

@@ -67,10 +67,12 @@ import {
   PAGE_WIDTH_PX,
   SHEET_CONTENT_WIDTH_PX,
   SHEET_PX_PER_PT,
+  docFontStack,
   findSectionPlacement,
   layoutColumns,
   layoutPages,
   sectionTitle,
+  templateDocFontFamily,
   type TemplateLayout,
 } from "../../lib/docLayout";
 import { SHEET_SCALE_CSS_VAR, sheetScaleForWidth } from "../../lib/sheetScale";
@@ -254,6 +256,9 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
   const layoutMode = (): TemplateLayout["layoutMode"] => props.templateLayout.layoutMode;
   const headerStyle = (): TemplateLayout["headerStyle"] => props.templateLayout.headerStyle;
   const contactIn = (): TemplateLayout["contactIn"] => props.templateLayout.contactIn;
+  /** Template document face (#828); independent of app chrome `--font-*`. */
+  const docFontFamily = createMemo(() => templateDocFontFamily(props.resume.metadata.template));
+  const docFont = createMemo(() => docFontStack(docFontFamily()));
 
   const [focusedSection, setFocusedSection] = createSignal<string | null>(null);
   const [isSectionDialogOpen, setIsSectionDialogOpen] = createSignal(false);
@@ -997,6 +1002,8 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
                   "--doc-sheet-accent": theme().primary,
                   "--doc-sheet-side-w": `${sidebarWidth()}px`,
                   "--doc-sheet-page-h": `${PAGE_HEIGHT_PX}px`,
+                  "--doc-font-body": docFont(),
+                  "--doc-font-display": docFont(),
                 }}
               >
                 <For each={pages()}>

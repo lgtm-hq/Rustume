@@ -1,0 +1,355 @@
+{
+  "azurill": {
+    "contactIn": "header",
+    "defaultColumns": [
+      [
+        "summary",
+        "experience",
+        "education",
+        "awards",
+        "certifications",
+        "publications",
+        "volunteer",
+        "projects",
+        "references",
+        "custom"
+      ],
+      [
+        "profiles",
+        "skills",
+        "interests",
+        "certifications",
+        "awards",
+        "publications",
+        "languages"
+      ]
+    ],
+    "headerStyle": "center",
+    "layoutMode": "sidebar-left",
+    "sidebarWidth": null
+  },
+  "bronzor": {
+    "contactIn": "header",
+    "defaultColumns": [
+      [
+        "summary",
+        "experience",
+        "education",
+        "awards",
+        "certifications",
+        "publications",
+        "volunteer",
+        "projects",
+        "references",
+        "profiles",
+        "skills",
+        "interests",
+        "languages",
+        "custom"
+      ],
+      []
+    ],
+    "headerStyle": "center",
+    "layoutMode": "single",
+    "sidebarWidth": null
+  },
+  "chikorita": {
+    "contactIn": "header",
+    "defaultColumns": [
+      [
+        "summary",
+        "experience",
+        "education",
+        "awards",
+        "certifications",
+        "publications",
+        "volunteer",
+        "projects",
+        "references",
+        "custom"
+      ],
+      [
+        "profiles",
+        "skills",
+        "interests",
+        "certifications",
+        "awards",
+        "publications",
+        "languages"
+      ]
+    ],
+    "headerStyle": "left",
+    "layoutMode": "sidebar-right",
+    "sidebarWidth": null
+  },
+  "ditto": {
+    "contactIn": "banner",
+    "defaultColumns": [
+      [
+        "summary",
+        "experience",
+        "education",
+        "awards",
+        "certifications",
+        "publications",
+        "volunteer",
+        "projects",
+        "references",
+        "custom"
+      ],
+      [
+        "profiles",
+        "skills",
+        "interests",
+        "certifications",
+        "awards",
+        "publications",
+        "languages"
+      ]
+    ],
+    "headerStyle": "banner",
+    "layoutMode": "sidebar-left",
+    "sidebarWidth": 160
+  },
+  "gengar": {
+    "contactIn": "sidebar",
+    "defaultColumns": [
+      [
+        "summary",
+        "experience",
+        "education",
+        "awards",
+        "certifications",
+        "publications",
+        "volunteer",
+        "projects",
+        "references",
+        "custom"
+      ],
+      [
+        "profiles",
+        "skills",
+        "interests",
+        "certifications",
+        "awards",
+        "publications",
+        "languages"
+      ]
+    ],
+    "headerStyle": "sidebar",
+    "layoutMode": "sidebar-left",
+    "sidebarWidth": 170
+  },
+  "glalie": {
+    "contactIn": "sidebar",
+    "defaultColumns": [
+      [
+        "summary",
+        "experience",
+        "education",
+        "awards",
+        "certifications",
+        "publications",
+        "volunteer",
+        "projects",
+        "references",
+        "custom"
+      ],
+      [
+        "profiles",
+        "skills",
+        "interests",
+        "certifications",
+        "awards",
+        "publications",
+        "languages"
+      ]
+    ],
+    "headerStyle": "sidebar",
+    "layoutMode": "sidebar-left",
+    "sidebarWidth": 170
+  },
+  "kakuna": {
+    "contactIn": "header",
+    "defaultColumns": [
+      [
+        "summary",
+        "experience",
+        "education",
+        "awards",
+        "certifications",
+        "publications",
+        "volunteer",
+        "projects",
+        "references",
+        "profiles",
+        "skills",
+        "interests",
+        "languages",
+        "custom"
+      ],
+      []
+    ],
+    "headerStyle": "boxed",
+    "layoutMode": "single",
+    "sidebarWidth": null
+  },
+  "leafish": {
+    "contactIn": "banner",
+    "defaultColumns": [
+      [
+        "summary",
+        "experience",
+        "education",
+        "awards",
+        "certifications",
+        "publications",
+        "volunteer",
+        "projects",
+        "references"
+      ],
+      [
+        "profiles",
+        "skills",
+        "interests",
+        "certifications",
+        "awards",
+        "publications",
+        "languages",
+        "custom"
+      ]
+    ],
+    "headerStyle": "banner",
+    "layoutMode": "header-split",
+    "sidebarWidth": null
+  },
+  "nosepass": {
+    "contactIn": "header",
+    "defaultColumns": [
+      [
+        "summary",
+        "experience",
+        "education",
+        "awards",
+        "certifications",
+        "publications",
+        "volunteer",
+        "projects",
+        "references",
+        "profiles",
+        "skills",
+        "interests",
+        "languages",
+        "custom"
+      ],
+      []
+    ],
+    "headerStyle": "left",
+    "layoutMode": "single",
+    "sidebarWidth": null
+  },
+  "not-a-template": {
+    "contactIn": "header",
+    "defaultColumns": [
+      [
+        "summary",
+        "experience",
+        "education",
+        "awards",
+        "certifications",
+        "publications",
+        "volunteer",
+        "projects",
+        "references",
+        "profiles",
+        "skills",
+        "interests",
+        "languages",
+        "custom"
+      ],
+      []
+    ],
+    "headerStyle": "left",
+    "layoutMode": "single",
+    "sidebarWidth": null
+  },
+  "onyx": {
+    "contactIn": "header",
+    "defaultColumns": [
+      [
+        "summary",
+        "experience",
+        "education",
+        "awards",
+        "certifications",
+        "publications",
+        "volunteer",
+        "projects",
+        "references",
+        "profiles",
+        "skills",
+        "interests",
+        "languages",
+        "custom"
+      ],
+      []
+    ],
+    "headerStyle": "left",
+    "layoutMode": "single",
+    "sidebarWidth": null
+  },
+  "pikachu": {
+    "contactIn": "sidebar",
+    "defaultColumns": [
+      [
+        "summary",
+        "experience",
+        "education",
+        "awards",
+        "certifications",
+        "publications",
+        "volunteer",
+        "projects",
+        "references",
+        "custom"
+      ],
+      [
+        "profiles",
+        "skills",
+        "interests",
+        "certifications",
+        "awards",
+        "publications",
+        "languages"
+      ]
+    ],
+    "headerStyle": "left",
+    "layoutMode": "sidebar-left",
+    "sidebarWidth": 180
+  },
+  "rhyhorn": {
+    "contactIn": "header",
+    "defaultColumns": [
+      [
+        "summary",
+        "experience",
+        "education",
+        "awards",
+        "certifications",
+        "publications",
+        "volunteer",
+        "projects",
+        "references",
+        "profiles",
+        "skills",
+        "interests",
+        "languages",
+        "custom"
+      ],
+      []
+    ],
+    "headerStyle": "left",
+    "layoutMode": "single",
+    "sidebarWidth": null
+  }
+}

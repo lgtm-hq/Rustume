@@ -432,4 +432,105 @@ mod tests {
         assert_eq!(HeaderStyle::Boxed.as_str(), "boxed");
         assert_eq!(ContactIn::Banner.as_str(), "banner");
     }
+
+    /// Unknown id included in the lockstep fixture so both suites assert the
+    /// rhyhorn fallback, not only the known `TEMPLATES` entries.
+    const UNKNOWN_TEMPLATE_ID: &str = "not-a-template";
+
+    /// Wire shape for `tests/fixtures/template-layouts.json`.
+    ///
+    /// Field names match `LayoutInfo` in `crates/server/src/dto.rs`
+    /// (`#[serde(rename_all = "camelCase")]`) and the web `TemplateLayout`
+    /// interface — no mapping layer on either side of the lockstep test.
+    #[derive(serde::Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct LayoutWire<'a> {
+        layout_mode: &'a str,
+        default_columns: &'a [Vec<String>; 2],
+        header_style: &'a str,
+        contact_in: &'a str,
+        sidebar_width: Option<u32>,
+    }
+
+    fn layout_wire(layout: &TemplateLayout) -> LayoutWire<'_> {
+        LayoutWire {
+            layout_mode: layout.layout_mode.as_str(),
+            default_columns: &layout.default_columns,
+            header_style: layout.header_style.as_str(),
+            contact_in: layout.contact_in.as_str(),
+            sidebar_width: layout.sidebar_width,
+        }
+    }
+
+    fn fixture_path() -> std::path::PathBuf {
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("CARGO_MANIFEST_DIR should have a parent (crates/)")
+            .parent()
+            .expect("crates/ should have a parent (workspace root)")
+            .join("tests")
+            .join("fixtures")
+            .join("template-layouts.json")
+    }
+
+    fn expected_fixture_json() -> String {
+        let mut map = serde_json::Map::new();
+        for id in TEMPLATES {
+            let layout = get_template_layout(id);
+            map.insert(
+                (*id).to_string(),
+                serde_json::to_value(layout_wire(&layout)).expect("layout serializes"),
+            );
+        }
+        let unknown = get_template_layout(UNKNOWN_TEMPLATE_ID);
+        map.insert(
+            UNKNOWN_TEMPLATE_ID.to_string(),
+            serde_json::to_value(layout_wire(&unknown)).expect("layout serializes"),
+        );
+        let mut json = serde_json::to_string_pretty(&serde_json::Value::Object(map))
+            .expect("fixture serializes");
+        json.push('\n');
+        json
+    }
+
+    /// Keep `tests/fixtures/template-layouts.json` in lockstep with
+    /// [`get_template_layout`]. The web suite reads the same fixture and
+    /// asserts `bundledTemplateLayout` matches every entry.
+    ///
+    /// Regenerate with:
+    /// `UPDATE_FIXTURES=1 cargo test -p rustume-render template_layouts_fixture_is_up_to_date --lib`
+    #[test]
+    fn template_layouts_fixture_is_up_to_date() {
+        let actual = expected_fixture_json();
+        let path = fixture_path();
+
+        if std::env::var_os("UPDATE_FIXTURES").is_some() {
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent).expect("create fixtures directory");
+            }
+            std::fs::write(&path, &actual).expect("write template-layouts.json");
+            return;
+        }
+
+        let expected = std::fs::read_to_string(&path)
+            .unwrap_or_else(|err| {
+                panic!(
+                    "missing template layout fixture at {}: {err}\n\
+                     regenerate with UPDATE_FIXTURES=1 cargo test -p rustume-render \
+                     template_layouts_fixture_is_up_to_date --lib",
+                    path.display()
+                )
+            })
+            .replace("\r\n", "\n");
+
+        assert_eq!(
+            actual,
+            expected,
+            "template layout fixture is out of date at {}\n\
+             get_template_layout changed; review the diff, then regenerate with:\n\
+             UPDATE_FIXTURES=1 cargo test -p rustume-render \
+             template_layouts_fixture_is_up_to_date --lib",
+            path.display()
+        );
+    }
 }

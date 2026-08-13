@@ -13,7 +13,14 @@
  * applies a uniform `transform: scale(k)` miniature so line breaks and page
  * guides stay print-faithful. The base type is 12.5px/1.45 per the spec; the
  * resume's theme arrives as custom properties set by `DocSheet`.
+ *
+ * Typography (#828): `--doc-font-*` are sheet-local. Never fall back to the
+ * app chrome's `--font-body` / `--font-display` / `--font-mono` — those live
+ * on `:root` and would shadow any CSS fallback list. Faces ship via
+ * `docFonts.css` (same OFL IBM Plex files the PDF renderer vendors).
  */
+
+@import "./docFonts.css";
 
 /* ── Miniature scale wrapper (#813) ─────────────────────────────────────── */
 
@@ -58,6 +65,11 @@
   --doc-sheet-side-w: 287px;
   --doc-sheet-page-h: 1122px;
 
+  /* Document faces — independent of app chrome (`index.css` `--font-*`). */
+  --doc-font-body: "IBM Plex Sans", Inter, system-ui, sans-serif;
+  --doc-font-display: "IBM Plex Sans", Inter, system-ui, sans-serif;
+  --doc-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -81,7 +93,7 @@
   color: var(--doc-sheet-text);
   border-radius: 4px;
   box-shadow: 0 24px 60px -20px var(--color-shadow, rgb(0 0 0 / 45%));
-  font-family: var(--font-body, "IBM Plex Sans", Inter, system-ui, sans-serif);
+  font-family: var(--doc-font-body);
   font-size: 12.5px;
   line-height: 1.45;
   overflow: visible;
@@ -113,7 +125,7 @@
 }
 
 .doc-sheet__page-break-label {
-  font-family: var(--font-mono, monospace);
+  font-family: var(--doc-font-mono);
   font-size: 0.65rem;
   font-weight: 700;
   line-height: 1;
@@ -323,7 +335,7 @@
 
 .doc-sheet__name {
   display: block;
-  font-family: var(--font-display, inherit);
+  font-family: var(--doc-font-display);
   font-size: 1.7rem;
   font-weight: 700;
   line-height: 1.15;
@@ -356,11 +368,11 @@
   line-height: 0;
 }
 
-.doc-sheet__avatar-btn:not(:disabled) {
+button.doc-sheet__avatar-btn {
   cursor: pointer;
 }
 
-.doc-sheet__avatar-btn:focus-visible {
+button.doc-sheet__avatar-btn:focus-visible {
   outline: 2px solid var(--doc-sheet-accent);
   outline-offset: 2px;
 }
@@ -462,7 +474,7 @@
 
 .doc-sheet__sec-title {
   margin: 0;
-  font-family: var(--font-display, inherit);
+  font-family: var(--doc-font-display);
   font-size: 0.64rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -1122,7 +1134,7 @@
 
 .doc-sheet__edu-date {
   display: block;
-  font-family: var(--font-mono, monospace);
+  font-family: var(--doc-font-mono);
   font-size: 0.64rem;
   color: var(--doc-sheet-muted);
 }
@@ -1307,7 +1319,7 @@
   padding: 0.5em 0.75em;
   border-radius: 4px;
   background: color-mix(in srgb, currentColor 7%, transparent);
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-family: var(--doc-font-mono);
   font-size: 0.85em;
   line-height: 1.45;
   white-space: pre-wrap;

@@ -75,14 +75,15 @@
   let render-education(item) = {
     if item.visible == false { return }
 
-    // Stacked, not a side-by-side grid: education lives in the 180pt sidebar
-    // by default, where an auto-width date column would squeeze the
-    // institution and degree into one-word lines.
-    text(weight: "bold", size: 10pt)[#item.institution]
-    if item.studyType != "" or item.area != "" {
-      v(2pt)
-      let degree = format-degree(item.studyType, item.area)
-      text(size: 10pt)[#degree]
+    // Degree-first, institution · area secondary, date separate (#829).
+    let degree = education-degree(item)
+    let school = education-school(item)
+    if degree != "" {
+      text(weight: "bold", size: 10pt)[#degree]
+    }
+    if school != "" {
+      if degree != "" { v(2pt) }
+      text(size: 10pt)[#school]
     }
     if item.score != "" {
       v(2pt)
@@ -147,7 +148,7 @@
       size: 9pt,
       fill: sidebar-text-color,
       link-fill: sidebar-text-color,
-      label-mode: "network",
+      label-mode: "auto",
     )
     v(4pt)
   }
@@ -353,27 +354,9 @@
     }
 
     let sidebar-before = () => [
-      // Photo when set; otherwise initials avatar.
+      // Avatar slot: photo or initials disc (#829).
       #align(center)[
-        #if has-visible-picture(data.basics) {
-          render-picture(data.basics, accent-color, default-size: 80pt)
-        } else {
-          box(
-            width: 80pt,
-            height: 80pt,
-            fill: accent-color,
-            radius: 50%,
-            [
-              #align(center + horizon)[
-                #text(size: 28pt, weight: "bold", fill: white)[
-                  #let parts = data.basics.name.split(" ").filter(w => w.len() > 0)
-                  #let initials = if parts.len() > 0 { parts.map(w => w.at(0, default: "")).join("") } else { "" }
-                  #initials
-                ]
-              ]
-            ]
-          )
-        }
+        #render-avatar(data.basics, accent-color, default-size: 80pt)
       ]
 
       #v(16pt)

@@ -77,13 +77,16 @@
   let render-education(item) = {
     if item.visible == false { return }
 
+    let degree = education-degree(item)
+    let school = education-school(item)
     entry-header(
       [
-        #text(weight: "bold", size: 11pt, fill: text-color)[#item.institution]
-        #if item.studyType != "" or item.area != "" {
-          v(2pt)
-          let degree = format-degree(item.studyType, item.area)
-          text(size: 10pt, fill: text-color)[#degree]
+        #if degree != "" {
+          text(weight: "bold", size: 11pt, fill: text-color)[#degree]
+        }
+        #if school != "" {
+          if degree != "" { v(2pt) }
+          text(size: 10pt, fill: text-color)[#school]
         }
       ],
       item.date
@@ -162,7 +165,7 @@
       size: 10pt,
       fill: text-color,
       link-fill: accent-color,
-      label-mode: if has-url(item) { "network" } else { "network-username" },
+      label-mode: "auto",
     )
     h(14pt)
   }
@@ -402,30 +405,21 @@
       columns: (1fr, auto),
       column-gutter: 16pt,
       [
-        #if has-visible-picture(data.basics) {
-          grid(
-            columns: (auto, 1fr),
-            column-gutter: 12pt,
-            align(horizon)[
-              #render-picture(data.basics, accent-color)
-            ],
-            [
-              #text(size: 26pt, weight: "bold", fill: text-color)[#data.basics.name]
+        #grid(
+          columns: (auto, 1fr),
+          column-gutter: 12pt,
+          align(horizon)[
+            #render-avatar(data.basics, accent-color)
+          ],
+          [
+            #text(size: 26pt, weight: "bold", fill: text-color)[#data.basics.name]
 
-              #if data.basics.headline != "" {
-                v(4pt)
-                text(size: 12pt, fill: accent-color)[#data.basics.headline]
-              }
-            ]
-          )
-        } else {
-          text(size: 26pt, weight: "bold", fill: text-color)[#data.basics.name]
-
-          if data.basics.headline != "" {
-            v(4pt)
-            text(size: 12pt, fill: accent-color)[#data.basics.headline]
-          }
-        }
+            #if data.basics.headline != "" {
+              v(4pt)
+              text(size: 12pt, fill: accent-color)[#data.basics.headline]
+            }
+          ]
+        )
       ],
       align(right)[
         #let contact-items = build-contact-items(data.basics)
