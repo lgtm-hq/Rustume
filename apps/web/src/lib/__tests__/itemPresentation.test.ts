@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   MAX_LEVEL,
+  avatarShowsInitials,
   clampLevel,
   educationDegree,
   educationSchool,
   nameInitials,
+  pictureVisible,
   profileEntryLabel,
 } from "../itemPresentation";
 
@@ -56,5 +58,41 @@ describe("itemPresentation contract (#829)", () => {
     expect(nameInitials("John Doe")).toBe("JD");
     expect(nameInitials("Alice Bob Charlie")).toBe("AB");
     expect(nameInitials("")).toBe("");
+  });
+
+  it("shows initials only when opted in and no photo is visible", () => {
+    const empty = {
+      url: "",
+      size: 64,
+      aspectRatio: 1,
+      borderRadius: 0,
+      effects: {
+        hidden: false,
+        showInitials: false,
+        border: false,
+        grayscale: false,
+        rotation: 0,
+        borderColor: "",
+        borderWidth: 2,
+        shadowColor: "#00000040",
+        shadowSize: 0,
+      },
+    };
+    expect(pictureVisible(empty)).toBe(false);
+    expect(avatarShowsInitials(empty)).toBe(false);
+    expect(
+      avatarShowsInitials({ ...empty, effects: { ...empty.effects, showInitials: true } }),
+    ).toBe(true);
+    const photo = { ...empty, url: "data:image/png;base64,AAA" };
+    expect(pictureVisible(photo)).toBe(true);
+    expect(
+      avatarShowsInitials({ ...photo, effects: { ...photo.effects, showInitials: true } }),
+    ).toBe(false);
+    expect(
+      avatarShowsInitials({
+        ...photo,
+        effects: { ...photo.effects, hidden: true, showInitials: true },
+      }),
+    ).toBe(false);
   });
 });

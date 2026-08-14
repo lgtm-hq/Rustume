@@ -1352,6 +1352,13 @@ fn test_templates_use_shared_render_contract() {
             "{} must render profiles through _common.typ::render-profile-entry",
             path.display()
         );
+        assert!(
+            contents.contains("avatar-above(")
+                || contents.contains("avatar-beside(")
+                || contents.contains("render-avatar("),
+            "{} must place the avatar through _common.typ helpers so the slot can collapse (#857)",
+            path.display()
+        );
     }
 }
 
@@ -1936,4 +1943,74 @@ fn test_experience_items_are_position_first(#[case] template_name: &str) {
              '{position}' at {pos} must precede '{company}' at {co}:\n{text}"
         );
     }
+}
+
+const PHOTOLESS_INITIALS_NAME: &str = "Zelda Quince";
+const PHOTOLESS_INITIALS: &str = "ZQ";
+
+fn photoless_resume(template_name: &str, show_initials: bool) -> ResumeData {
+    let mut resume = sample_resume();
+    resume.metadata.template = template_name.to_string();
+    resume.basics.name = PHOTOLESS_INITIALS_NAME.to_string();
+    resume.basics.picture = Picture::default();
+    resume.basics.picture.effects.show_initials = show_initials;
+    resume.metadata.layout = vec![vec![
+        vec!["summary".to_string(), "experience".to_string()],
+        vec![],
+    ]];
+    resume
+}
+
+/// Photo-less default (#857): initials must not appear in extracted PDF text.
+#[rstest]
+#[case("rhyhorn")]
+#[case("azurill")]
+#[case("pikachu")]
+#[case("nosepass")]
+#[case("bronzor")]
+#[case("chikorita")]
+#[case("ditto")]
+#[case("gengar")]
+#[case("glalie")]
+#[case("kakuna")]
+#[case("leafish")]
+#[case("onyx")]
+fn test_photoless_default_omits_initials_from_pdf(#[case] template_name: &str) {
+    let pdf = TypstRenderer::new()
+        .render_pdf(&photoless_resume(template_name, false))
+        .unwrap_or_else(|e| panic!("PDF render failed for '{template_name}': {e:?}"));
+    let text = extract_pdf_pages_text(&pdf).join("\n");
+    assert!(
+        text.contains(PHOTOLESS_INITIALS_NAME),
+        "name should still render on '{template_name}':\n{text}"
+    );
+    assert!(
+        !text.contains(PHOTOLESS_INITIALS),
+        "photo-less default must not print initials '{PHOTOLESS_INITIALS}' on '{template_name}':\n{text}"
+    );
+}
+
+/// Photo-less opt-in (#857): initials disc must reach extracted PDF text.
+#[rstest]
+#[case("rhyhorn")]
+#[case("azurill")]
+#[case("pikachu")]
+#[case("nosepass")]
+#[case("bronzor")]
+#[case("chikorita")]
+#[case("ditto")]
+#[case("gengar")]
+#[case("glalie")]
+#[case("kakuna")]
+#[case("leafish")]
+#[case("onyx")]
+fn test_photoless_opt_in_prints_initials_on_pdf(#[case] template_name: &str) {
+    let pdf = TypstRenderer::new()
+        .render_pdf(&photoless_resume(template_name, true))
+        .unwrap_or_else(|e| panic!("PDF render failed for '{template_name}': {e:?}"));
+    let text = extract_pdf_pages_text(&pdf).join("\n");
+    assert!(
+        text.contains(PHOTOLESS_INITIALS),
+        "opt-in initials '{PHOTOLESS_INITIALS}' missing from '{template_name}':\n{text}"
+    );
 }

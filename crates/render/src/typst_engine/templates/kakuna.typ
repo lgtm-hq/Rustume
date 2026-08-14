@@ -400,8 +400,7 @@
         radius: 4pt,
         inset: (x: 24pt, y: 20pt),
         [
-          #render-avatar(data.basics, accent-color)
-          #v(8pt)
+          #avatar-above(data.basics, accent-color)
 
           #text(size: 24pt, weight: "light", fill: text-color, tracking: 0.03em)[#data.basics.name]
 

@@ -417,9 +417,8 @@
 
     let sidebar-before = () => [
       #align(center)[
-        #render-avatar(data.basics, accent-color, default-size: 80pt)
+        #avatar-above(data.basics, accent-color, below: 12pt, default-size: 80pt)
       ]
-      #v(12pt)
 
       // Header: Name, headline, contact info
       #text(size: 18pt, weight: "bold", fill: sidebar-text)[#data.basics.name]

@@ -272,6 +272,7 @@ function normalizeResumeForStore(resume: ResumeData): ResumeData {
   const effects: Partial<Picture["effects"]> = resume.basics.picture.effects ?? {};
   resume.basics.picture.effects = {
     hidden: effects.hidden ?? false,
+    showInitials: effects.showInitials ?? false,
     border: effects.border ?? false,
     grayscale: effects.grayscale ?? false,
     rotation: effects.rotation ?? 0,

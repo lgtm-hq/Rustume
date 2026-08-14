@@ -24,7 +24,8 @@ background `#ffffff`, text `#111827`, primary `#dc2626`.
 
 - `headerStyle`: `left`; `contactIn`: `header` — name/headline left (picture beside name),
   contact stacked right.
-- No-photo: omit picture.
+- No-photo default: **collapse** the slot (name/contact reflow). Initials disc only when
+  `picture.effects.showInitials` is true and the URL is empty (#857).
 
 ## Section-heading chrome
 

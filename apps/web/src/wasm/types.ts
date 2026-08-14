@@ -22,6 +22,7 @@ export interface Picture {
   borderRadius: number;
   effects: {
     hidden: boolean;
+    showInitials: boolean;
     border: boolean;
     grayscale: boolean;
     rotation: number;
@@ -361,6 +362,7 @@ export function createEmptyPicture(): Picture {
     borderRadius: 0,
     effects: {
       hidden: true,
+      showInitials: false,
       border: false,
       grayscale: false,
       rotation: 0,

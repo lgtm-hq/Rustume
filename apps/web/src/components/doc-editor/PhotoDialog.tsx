@@ -224,6 +224,12 @@ export function PhotoDialog(props: PhotoDialogProps): JSX.Element {
             onChange={(value) => patchEffect("hidden", value)}
           />
           <Switch
+            label="Initials disc"
+            description="Show name initials when there is no photo"
+            checked={draft().effects.showInitials}
+            onChange={(value) => patchEffect("showInitials", value)}
+          />
+          <Switch
             label="Grayscale"
             checked={draft().effects.grayscale}
             onChange={(value) => patchEffect("grayscale", value)}

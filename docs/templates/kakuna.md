@@ -22,7 +22,8 @@ background `#ffffff`, text `#422006`, primary `#78716c`.
 ## Header composition
 
 - `headerStyle`: `boxed`; `contactIn`: `header` (contact inside the box, middot-joined).
-- Picture optional inside the box; no initials fallback.
+- Picture optional inside the box. No-photo default: **collapse**. Initials disc only when
+  `picture.effects.showInitials` is true and the URL is empty (#857).
 - Box: 1pt `border-color` stroke, 4pt radius, padded.
 
 ## Section-heading chrome

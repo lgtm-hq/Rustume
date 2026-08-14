@@ -7,6 +7,8 @@
  * must not. See `docs/design/item-presentation.md`.
  */
 
+import type { Picture } from "../wasm/types";
+
 /** Highest skill/language level (Typst `clamp-level` ceiling). */
 export const MAX_LEVEL = 5;
 
@@ -63,4 +65,17 @@ export function nameInitials(name: string, max = 2): string {
     .slice(0, max)
     .map((word) => (word[0] ?? "").toUpperCase())
     .join("");
+}
+
+/** Photo is set and not hidden. Matches Typst `has-visible-picture`. */
+export function pictureVisible(picture: Picture | undefined): boolean {
+  return picture !== undefined && picture.url.trim() !== "" && !picture.effects.hidden;
+}
+
+/** Initials disc when there is no photo URL and the user opted in (#857).
+ * A hidden photo is still "photo set" and stays collapsed.
+ */
+export function avatarShowsInitials(picture: Picture | undefined): boolean {
+  if (picture === undefined) return false;
+  return picture.url.trim() === "" && picture.effects.showInitials;
 }

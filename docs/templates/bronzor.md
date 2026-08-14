@@ -22,7 +22,8 @@ background `#ffffff`, text `#1f2937`, primary `#0891b2`.
 ## Header composition
 
 - `headerStyle`: `center`; `contactIn`: `header`.
-- Picture centered above name when present; no initials fallback.
+- Picture centered above name when present. No-photo default: **collapse**. Initials disc only when
+  `picture.effects.showInitials` is true and the URL is empty (#857).
 - Contact wrapped horizontally under the headline.
 
 ## Section-heading chrome

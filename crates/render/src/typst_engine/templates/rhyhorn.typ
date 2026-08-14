@@ -373,12 +373,9 @@
       columns: (1fr, auto),
       column-gutter: 16pt,
       [
-        #grid(
-          columns: (auto, 1fr),
-          column-gutter: 12pt,
-          align(horizon)[
-            #render-avatar(data.basics, accent-color)
-          ],
+        #avatar-beside(
+          data.basics,
+          accent-color,
           [
             #text(size: 24pt, weight: "bold")[#data.basics.name]
 

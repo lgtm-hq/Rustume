@@ -131,8 +131,41 @@ describe("document sheet structural chrome", () => {
     ));
   }
 
-  describe("avatar (#829)", () => {
-    it("draws the initials disc in Done mode when no photo is set", () => {
+  describe("avatar (#857)", () => {
+    const photoUrl = "data:image/png;base64,AAA";
+
+    it("shows the photo in Done mode when a photo is set and shown", () => {
+      resume.basics.picture.url = photoUrl;
+      resume.basics.picture.effects.hidden = false;
+      renderSheet({ mode: "done" });
+
+      const sheet = screen.getByTestId("doc-sheet");
+      expect(within(sheet).getByAltText("Profile picture of Mireille Okafor")).toBeInTheDocument();
+      expect(sheet.querySelector(".doc-sheet__avatar-initials")).toBeNull();
+    });
+
+    it("collapses the slot in Done mode when a set photo is hidden", () => {
+      resume.basics.picture.url = photoUrl;
+      resume.basics.picture.effects.hidden = true;
+      resume.basics.picture.effects.showInitials = true;
+      renderSheet({ mode: "done" });
+
+      const sheet = screen.getByTestId("doc-sheet");
+      expect(sheet.querySelector(".doc-sheet__avatar-btn")).toBeNull();
+      expect(sheet.querySelector(".doc-sheet__avatar-initials")).toBeNull();
+      expect(within(sheet).queryByAltText(/Profile picture/)).toBeNull();
+    });
+
+    it("collapses the slot in Done mode when no photo is set", () => {
+      renderSheet({ mode: "done" });
+
+      const sheet = screen.getByTestId("doc-sheet");
+      expect(sheet.querySelector(".doc-sheet__avatar-btn")).toBeNull();
+      expect(sheet.querySelector(".doc-sheet__avatar-initials")).toBeNull();
+    });
+
+    it("draws the initials disc in Done mode when opted in without a photo", () => {
+      resume.basics.picture.effects.showInitials = true;
       renderSheet({ mode: "done" });
 
       const sheet = screen.getByTestId("doc-sheet");
@@ -142,13 +175,12 @@ describe("document sheet structural chrome", () => {
       expect(within(sheet).queryByRole("button")).toBeNull();
     });
 
-    it("keeps the initials disc empty when the name is empty", () => {
-      resume.basics.name = "";
-      renderSheet({ mode: "done" });
+    it("keeps a photo-dialog affordance in edit mode when the slot is collapsed", () => {
+      renderSheet({ mode: "edit" });
 
-      const initials = screen.getByTestId("doc-sheet").querySelector(".doc-sheet__avatar-initials");
-      expect(initials).not.toBeNull();
-      expect(initials?.textContent).toBe("");
+      const button = screen.getByRole("button", { name: "Add profile photo" });
+      expect(button.querySelector(".doc-sheet__avatar-placeholder")).not.toBeNull();
+      expect(button.querySelector(".doc-sheet__avatar-initials")).toBeNull();
     });
   });
 

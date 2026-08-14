@@ -8,9 +8,9 @@
  * menu, and is never draggable. Its core fields (email, phone, location) draw
  * even when empty in edit mode, as placeholders, so a blank resume still
  * offers somewhere to type; the personal URL and custom fields appear once
- * they carry a value. `SheetAvatar` falls back to an initials disc and opens
- * the photo dialog — #788's `PhotoDialog` with `lib/imageUpload` processing,
- * kept as the superset of the prototype's modal.
+ * they carry a value. `SheetAvatar` draws a photo, an opt-in initials disc, or
+ * (edit mode only) a placeholder that opens the photo dialog. Done mode
+ * collapses the slot when there is no photo and no opt-in (#857).
  */
 
 import { For, Show, createSignal, type JSX } from "solid-js";
@@ -23,7 +23,7 @@ import { updateBasicsField } from "./docEdits";
 import { useSheetEditable } from "./sheetMode";
 import { SHEET_PX_PER_PT } from "../../lib/docLayout";
 import { looksLikeUrl, withHttps } from "../../lib/profileUrls";
-import { nameInitials } from "../../lib/itemPresentation";
+import { nameInitials, pictureVisible, avatarShowsInitials } from "../../lib/itemPresentation";
 import type { Basics, CustomField, Picture, Url } from "../../wasm/types";
 
 /** Largest avatar the sheet draws, whatever the stored size (spec §1.4). */
@@ -42,11 +42,6 @@ function urlLabel(url: Url | undefined): string {
 /** `customFields` with one field's value replaced — committed as one action. */
 function replaceField(basics: Basics, id: string, value: string): CustomField[] {
   return basics.customFields.map((field) => (field.id === id ? { ...field, value } : field));
-}
-
-/** Whether a picture is set and not switched off. Mirrors `has-visible-picture`. */
-function pictureVisible(picture: Picture | undefined): boolean {
-  return picture !== undefined && picture.url.trim() !== "" && !picture.effects.hidden;
 }
 
 /** The name block: display name over the accent headline (spec §1.4). */
@@ -118,10 +113,10 @@ function avatarStyle(picture: Picture): JSX.CSSProperties {
 }
 
 /**
- * The avatar: photo when set, an initials disc otherwise. When the template
- * places this slot, Done mode still draws the initials fallback (#829) — the
- * disc is not edit-only. In edit mode the whole avatar is a button that opens
- * the photo dialog; in Done mode it is inert.
+ * The avatar slot (#857): photo when set and shown; initials disc only when
+ * `showInitials` is on and there is no visible photo; otherwise collapsed in
+ * Done mode. Edit mode keeps a placeholder button so the photo dialog stays
+ * discoverable.
  */
 export function SheetAvatar(props: { basics: Basics }): JSX.Element {
   const isEditable = useSheetEditable();
@@ -129,27 +124,32 @@ export function SheetAvatar(props: { basics: Basics }): JSX.Element {
 
   const picture = (): Picture => props.basics.picture;
   const hasPhoto = (): boolean => pictureVisible(picture());
+  const showInitials = (): boolean => avatarShowsInitials(picture());
+  const showSlot = (): boolean => isEditable() || hasPhoto() || showInitials();
   const initials = (): string => nameInitials(props.basics.name);
   const photoAlt = (): string =>
     props.basics.name.trim() === "" ? "Profile picture" : `Profile picture of ${props.basics.name}`;
+  const editTitle = (): string => {
+    if (hasPhoto()) return "Edit profile photo";
+    if (showInitials()) return "Edit photo or initials";
+    return "Add profile photo";
+  };
 
   return (
-    <>
+    <Show when={showSlot()}>
       <Dynamic
         component={isEditable() ? "button" : "div"}
         type={isEditable() ? "button" : undefined}
-        class="doc-sheet__avatar-btn"
-        title={isEditable() ? "Edit profile photo" : undefined}
+        class={
+          isEditable() && !hasPhoto() && !showInitials()
+            ? "doc-sheet__avatar-btn doc-sheet__avatar-btn--placeholder"
+            : "doc-sheet__avatar-btn"
+        }
+        title={isEditable() ? editTitle() : undefined}
+        aria-label={isEditable() ? editTitle() : undefined}
         onClick={isEditable() ? () => setIsPhotoOpen(true) : undefined}
       >
-        <Show
-          when={hasPhoto()}
-          fallback={
-            <span class="doc-sheet__avatar-initials" aria-hidden="true">
-              {initials()}
-            </span>
-          }
-        >
+        <Show when={hasPhoto()}>
           <img
             class="doc-sheet__avatar-img"
             src={picture().url}
@@ -157,12 +157,22 @@ export function SheetAvatar(props: { basics: Basics }): JSX.Element {
             style={avatarStyle(picture())}
           />
         </Show>
+        <Show when={!hasPhoto() && showInitials()}>
+          <span class="doc-sheet__avatar-initials" aria-hidden="true">
+            {initials()}
+          </span>
+        </Show>
+        <Show when={!hasPhoto() && !showInitials()}>
+          <span class="doc-sheet__avatar-placeholder" aria-hidden="true">
+            Photo
+          </span>
+        </Show>
       </Dynamic>
 
       <Show when={isEditable()}>
         <PhotoDialog open={isPhotoOpen()} picture={picture()} onOpenChange={setIsPhotoOpen} />
       </Show>
-    </>
+    </Show>
   );
 }
 

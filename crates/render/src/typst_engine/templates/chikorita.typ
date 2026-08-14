@@ -426,8 +426,7 @@
 
   if has-resume-body(data) {
     // Header - above columns, left-aligned
-    render-avatar(data.basics, accent-color)
-    v(8pt)
+    avatar-above(data.basics, accent-color)
 
     text(size: 26pt, weight: "bold", fill: text-color)[#data.basics.name]
 

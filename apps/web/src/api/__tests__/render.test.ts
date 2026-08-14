@@ -45,6 +45,7 @@ const mockResume: ResumeData = {
       borderRadius: 0,
       effects: {
         hidden: true,
+        showInitials: false,
         border: false,
         grayscale: false,
         rotation: 0,

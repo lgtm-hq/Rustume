@@ -23,8 +23,9 @@ underline heading stay identity.
 ## Header composition
 
 - `headerStyle`: `left` — name/headline left; contact stacked right (`contactIn`: `header`).
-- Picture: optional, left of the name when visible (`render-picture`, default 64pt).
-- No-photo fallback: omit picture (no initials disc).
+- Picture: optional, left of the name when visible (`avatar-beside`, default 64pt).
+- No-photo default: **collapse** the slot (name/contact reflow). Initials disc only when
+  `picture.effects.showInitials` is true and the URL is empty (#857).
 - Accent: thin horizontal rule under the header block.
 
 ## Section-heading chrome
@@ -64,7 +65,7 @@ bodies above.
 | Sheet heading chrome lacks uppercase underline | fix-in-sheet |
 | Sheet always draws level dots; native glyph is rounded squares | fix-in-sheet |
 | Interest keywords as sheet chips vs Typst `— list` | fix-in-sheet |
-| No-photo initials on sheet (edit) vs omitted in PDF | owner-decision-needed |
+| No-photo initials on sheet (edit) vs omitted in PDF | fixed (#857): Done/PDF collapse; edit keeps a placeholder; initials are `showInitials` opt-in |
 | Hardcoded 10pt / 0.65em ignores metadata typography | fix-in-typst (#701) |
 
 ### Audit evidence

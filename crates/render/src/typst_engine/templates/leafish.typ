@@ -441,24 +441,33 @@
       fill: header-bg,
       radius: (top: 6pt),
       inset: (x: 20pt, y: 14pt),
-      grid(
-        columns: (1fr, auto),
-        column-gutter: 16pt,
-        [
+      {
+        let name-block = [
           #text(size: 24pt, weight: "bold", fill: accent-color)[#data.basics.name]
           #if data.basics.headline != "" {
             v(4pt)
             text(size: 11pt, fill: header-text-color)[#data.basics.headline]
           }
-        ],
-        align(right + horizon)[
-          #render-avatar(data.basics, accent-color)
-          #if has-url(data.basics) { v(6pt) }
-          #if has-url(data.basics) {
-            link(data.basics.url.href)[#text(size: 9pt, fill: accent-color)[#url-display-label(data.basics.url)]]
-          }
         ]
-      )
+        if has-avatar-slot(data.basics) or has-url(data.basics) {
+          grid(
+            columns: (1fr, auto),
+            column-gutter: 16pt,
+            name-block,
+            align(right + horizon)[
+              #if has-avatar-slot(data.basics) {
+                render-avatar(data.basics, accent-color)
+                if has-url(data.basics) { v(6pt) }
+              }
+              #if has-url(data.basics) {
+                link(data.basics.url.href)[#text(size: 9pt, fill: accent-color)[#url-display-label(data.basics.url)]]
+              }
+            ]
+          )
+        } else {
+          name-block
+        }
+      }
     )
 
     // Tier 2: Darker contact bar

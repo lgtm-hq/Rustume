@@ -410,6 +410,20 @@ button.doc-sheet__avatar-btn:focus-visible {
   line-height: 1;
 }
 
+.doc-sheet__avatar-placeholder {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 2px dashed color-mix(in srgb, var(--doc-sheet-accent) 45%, #c7c1b8);
+  color: var(--doc-sheet-muted, #78716c);
+  display: grid;
+  place-items: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .doc-sheet__avatar-img {
   display: block;
   margin: 0 auto;

@@ -22,7 +22,8 @@ background `#ffffff`, text `#166534`, primary `#16a34a`.
 ## Header composition
 
 - `headerStyle`: `left`; `contactIn`: `header` (inline contact under headline).
-- Picture above name when visible; no initials fallback.
+- Picture above name when visible. No-photo default: **collapse**. Initials disc only when
+  `picture.effects.showInitials` is true and the URL is empty (#857).
 - Columns: main left / sidebar right via `two-column` defaults `(2fr, 1fr)`.
 
 ## Section-heading chrome

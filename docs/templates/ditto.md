@@ -25,7 +25,8 @@ primary lighten.
 
 - `headerStyle`: `banner`; `contactIn`: `banner`.
 - Full-width accent bar: optional picture, white name, lightened headline, contact joined with ` | `.
-- No-photo: omit picture.
+- No-photo default: **collapse**. Initials disc only when `picture.effects.showInitials` is true
+  and the URL is empty (#857).
 - Sidebar continues below the banner (layout `full-header-sidebar`).
 
 ## Section-heading chrome

@@ -27,13 +27,23 @@ under `docs/templates/` when present (#827).
 
 ## Avatar
 
-| Rule | Value |
+| State | Slot |
 | --- | --- |
-| When the template shows an avatar slot | Always draw it |
 | Photo set and not hidden | Render the photo (shared effects) |
-| No photo (or empty URL) | **Initials disc** from `basics.name` (first character of up to two whitespace-separated words, uppercased) |
-| Sheet Done mode | Initials disc still draws (not edit-only) |
-| Typst | `render-avatar` (photo or initials); do not gate the slot on `has-visible-picture` alone |
+| Photo set and hidden | **Collapsed** — no empty space |
+| No photo (default) | **Collapsed** |
+| No photo + `showInitials` | Initials disc from `basics.name` (first char of up to two words, uppercased) |
+
+`showInitials` defaults to **false** (`#[serde(default)]`). Do not change the serde default of
+`effects.hidden`. RR v3 imports carry no flag and therefore collapse, which is correct. No pikachu
+exception — all 12 templates follow this table.
+
+| Surface | Behaviour |
+| --- | --- |
+| PDF / Done-mode sheet | The table above. Collapsed means adjacent content occupies the space. |
+| Edit-mode sheet | A placeholder button remains so the photo dialog stays discoverable. Documented divergence. |
+| Typst | `render-avatar` / `has-avatar-slot` / `avatar-above` / `avatar-beside` in `_common.typ` |
+| Sheet | `SheetAvatar`; helpers `pictureVisible` / `avatarShowsInitials` |
 
 Templates that omit an avatar slot entirely (no call site) stay avatar-free.
 
@@ -104,7 +114,8 @@ Company URLs stay on the company text. Volunteer (`organization` / `position`) i
 ## Checklist for new templates
 
 1. Profiles use `label-mode: "auto"` (or a mode declared in the template spec).
-2. Avatar call sites use `render-avatar` when the design includes a slot.
+2. Avatar call sites use `render-avatar` / `avatar-above` / `avatar-beside` and collapse when the
+   contract says so.
 3. Education uses `education-degree` + `education-school` (never `"… in …"`).
 4. Every keyword-bearing section prints keywords.
 5. Levels go through `clamp-level` / `should-render-level` / `render-level`.
