@@ -4392,6 +4392,7 @@ version = "0.67.0"
 dependencies = [
  "base64 0.23.1",
  "chrono",
+ "image",
  "include_dir",
  "pdf-extract",
  "rstest",

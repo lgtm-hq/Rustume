@@ -22,9 +22,14 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
   `coverage: true` and `publish-test-summary: true`; uploads Pages coverage
   HTML artifacts and distinct PR coverage comments (suite name in heading)
 - **test-e2e-web.yml** — Web app Playwright suites (smoke, per-flow E2E, visual
-  regression, accessibility) via `reusable-test-e2e-playwright` (`test-command:
+  regression including per-template sheet baselines, accessibility) via
+  `reusable-test-e2e-playwright` (`test-command:
   scripts/ci/testing/web/e2e.sh` supplies the Rust/wasm-pack stage the reusable
-  has no input for); one call runs every suite because they share that build
+  has no input for); one call runs every suite because they share that build.
+  Sheet baselines are CI (Linux) generated — download the report artifact and
+  commit `test-results/__screenshots__` (see
+  `crates/render/tests/baselines/README.md`). Sibling PDF baselines gate via
+  `cargo test -p rustume-render --test template_visual_baselines`.
 - **test-e2e-site.yml** — Documentation site Playwright accessibility suites (axe
   scans across surfaces and themes, keyboard/ARIA chrome) via
   `reusable-test-e2e-playwright` (`test-command: scripts/ci/site/e2e.sh` builds

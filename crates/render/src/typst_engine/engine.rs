@@ -309,6 +309,44 @@ impl TypstRenderer {
             ))
         })
     }
+
+    /// Render a preview page at a custom scale (`pixel_per_pt`).
+    ///
+    /// Visual baseline tests use a moderate DPI (1.0) to keep committed PNGs
+    /// small; [`Renderer::render_preview`] keeps the 2.0 production default.
+    #[instrument(skip(self, resume), fields(page, pixel_per_pt))]
+    pub fn render_preview_at(
+        &self,
+        resume: &ResumeData,
+        page: usize,
+        pixel_per_pt: f64,
+    ) -> Result<(Vec<u8>, usize), RenderError> {
+        debug!(
+            "Rendering preview for page {} at {} px/pt",
+            page, pixel_per_pt
+        );
+        let document = self.compile(resume)?;
+        let total_pages = document.pages().len();
+
+        let page_content = document
+            .pages()
+            .get(page)
+            .ok_or_else(|| RenderError::RenderFailed(format!("Page {} not found", page)))?;
+
+        debug!("Rendering page to PNG");
+        let opts = typst_render::RenderOptions {
+            pixel_per_pt: typst::utils::Scalar::new(pixel_per_pt),
+            render_bleed: false,
+        };
+        let pixmap = typst_render::render(page_content, &opts);
+
+        debug!("Encoding PNG");
+        let png_bytes = pixmap
+            .encode_png()
+            .map_err(|e| RenderError::RenderFailed(format!("PNG encoding failed: {}", e)))?;
+
+        Ok((png_bytes, total_pages))
+    }
 }
 
 impl Default for TypstRenderer {
@@ -351,27 +389,9 @@ impl Renderer for TypstRenderer {
         resume: &ResumeData,
         page: usize,
     ) -> Result<(Vec<u8>, usize), RenderError> {
-        debug!("Rendering preview for page {}", page);
-        let document = self.compile(resume)?;
-        let total_pages = document.pages().len();
-
-        // Get the requested page
-        let page_content = document
-            .pages()
-            .get(page)
-            .ok_or_else(|| RenderError::RenderFailed(format!("Page {} not found", page)))?;
-
-        debug!("Rendering page to PNG");
-        // Render to PNG at 2x scale for high quality (RenderOptions default is 2.0 px/pt)
-        let pixmap = typst_render::render(page_content, &typst_render::RenderOptions::default());
-
-        debug!("Encoding PNG");
-        // Encode as PNG
-        let png_bytes = pixmap
-            .encode_png()
-            .map_err(|e| RenderError::RenderFailed(format!("PNG encoding failed: {}", e)))?;
-
-        Ok((png_bytes, total_pages))
+        // Production previews use 2× scale for crisp UI thumbnails
+        // (RenderOptions::default is also 2.0 px/pt).
+        self.render_preview_at(resume, page, 2.0)
     }
 }
 
