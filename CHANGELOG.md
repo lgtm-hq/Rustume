@@ -22,6 +22,12 @@ and this project adheres to
 
 ### Security
 
+## [0.67.2] - 2026-08-14
+
+### Fixed
+
+- **render**: lead experience items with position on eight templates (#864) (284acba)
+
 ## [0.67.1] - 2026-08-14
 
 ### Changed
@@ -1040,7 +1046,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.67.1...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.67.2...HEAD
+[0.67.2]: https://github.com/lgtm-hq/Rustume/compare/v0.67.1...v0.67.2
 [0.67.1]: https://github.com/lgtm-hq/Rustume/compare/v0.67.0...v0.67.1
 [0.67.0]: https://github.com/lgtm-hq/Rustume/compare/v0.66.0...v0.67.0
 [0.66.0]: https://github.com/lgtm-hq/Rustume/compare/v0.65.3...v0.66.0
