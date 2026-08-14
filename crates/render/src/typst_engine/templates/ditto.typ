@@ -50,13 +50,13 @@
       columns: (1fr, auto),
       column-gutter: 8pt,
       [
-        #if has-url(item) {
-          link(item.url.href)[#text(weight: "bold", size: 9pt, fill: accent-color)[#item.company]]
-        } else {
-          text(weight: "bold", size: 9pt)[#item.company]
-        }
+        #text(weight: "bold", size: 9pt)[#item.position]
         #v(1pt)
-        #text(size: 9pt)[#item.position]
+        #if has-url(item) {
+          link(item.url.href)[#text(size: 9pt, fill: accent-color)[#item.company]]
+        } else {
+          text(size: 9pt)[#item.company]
+        }
       ],
       align(right)[
         #text(size: 8pt, fill: muted-color)[#item.date]

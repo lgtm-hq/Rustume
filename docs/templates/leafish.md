@@ -45,7 +45,7 @@ Default main / sidebar section ids are defined once in
 
 | Concern | Rule |
 | --- | --- |
-| Experience order | **Company-first** (accent bold, linked); position under; date/location right muted |
+| Experience order | **Position-first** (bold); company under (accent, linked when a URL is set); date/location right muted (#858) |
 | Education order | Institution + degree; date right; score; summary |
 | Profile label mode | `network-username` |
 | Skill / interest / project keywords | Soft accent chips |
@@ -64,7 +64,7 @@ bodies above.
 | --- | --- |
 | Sheet banner is one band; Typst is explicitly two-tier (wash + contact bar) | fix-in-sheet |
 | Keyword chips broadly used in Typst; sheet chips only on some sections | fix-in-sheet |
-| Cross-cutting experience/education order | fix-in-sheet / owner-decision-needed |
+| Experience lead field was company-first in Typst | fixed (#858) |
 | Typography metadata ignored | fix-in-typst (#701) |
 
 ### Audit evidence

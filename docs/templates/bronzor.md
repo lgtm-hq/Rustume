@@ -42,6 +42,7 @@ Default main / sidebar section ids are defined once in
 
 | Concern | Rule |
 | --- | --- |
+| Experience order | **Position-first** (bold) `— company`; date right; location on its own muted line (#858) |
 | Education order | Institution + date; then degree; score; summary (rhyhorn-like) |
 | Profile label mode | URL → `username`; else `network-username` |
 | Skill / project keywords | Comma-joined muted |
@@ -59,7 +60,7 @@ bodies above.
 | Sheet header is not distinctly centered/contact-wrapped per bronzor | fix-in-sheet |
 | Heading underline + uppercase missing on sheet | fix-in-sheet |
 | Level squares vs sheet dots | fix-in-sheet |
-| Cross-cutting experience/education order | fix-in-sheet / owner-decision-needed |
+| Experience lead field was company-first in Typst | fixed (#858) |
 | Typography metadata ignored | fix-in-typst (#701) |
 
 ### Audit evidence

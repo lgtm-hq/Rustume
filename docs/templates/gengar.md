@@ -47,7 +47,7 @@ Default main / sidebar section ids are defined once in
 
 | Concern | Rule |
 | --- | --- |
-| Experience order | **Company-first** (bold, linked); position under; date/location right |
+| Experience order | **Position-first** (bold); company under (linked when a URL is set); date/location right (#858) |
 | Education order | Institution + degree; date right; score; summary |
 | Profile label mode | `network-username` |
 | Skill keywords | Comma-joined 8pt |
@@ -66,7 +66,7 @@ bodies above.
 | Sheet sidebar header/contact placement exists, but heading/level chrome still generic | fix-in-sheet |
 | Level boxes vs sheet dots | fix-in-sheet |
 | No PDF initials fallback while sheet edit mode shows initials | owner-decision-needed |
-| Cross-cutting experience/education order | fix-in-sheet / owner-decision-needed |
+| Experience lead field was company-first in Typst | fixed (#858) |
 | `page.margin` does not inset the page box (full-bleed); `content-width()` still uses it for ratio math | owner-decision-needed / fix-in-sheet (UI only) |
 | Typography metadata ignored | fix-in-typst (#701) |
 

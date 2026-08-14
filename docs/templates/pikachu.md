@@ -55,7 +55,7 @@ Default main / sidebar section ids are defined once in
 | Project / custom keywords | Middot ` · ` joined |
 | Level (`template-default`) | Circles 6pt |
 
-Experience in main: **position** bold over company + date (closer to the sheet than most templates).
+Experience in main: **position** bold over company + date (the #858 contract).
 
 Shared extras from `_common.typ` (experience/education keyword chips + custom
 fields; projects/skills custom fields) still apply on top of the native item

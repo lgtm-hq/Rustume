@@ -86,6 +86,21 @@ The numeric meaning of each step is identical on both surfaces; only the glyph m
 
 ---
 
+## Experience
+
+Composition is **position-first** on all 12 templates, sheet and PDF (#858).
+
+| Line | Fields | Notes |
+| --- | --- | --- |
+| Primary | `position` | Lead field; template-owned weight/size/color |
+| Secondary | `company` | Follows on the next line, or after ` — ` on the same line when that is the frozen spec |
+| Date | `date` | Separate (header column, badge, or muted sibling) — never folded ahead of position |
+| Optional | `location`, `summary`, keywords, custom fields | After the lines above |
+
+Company URLs stay on the company text. Volunteer (`organization` / `position`) is out of scope.
+
+---
+
 ## Checklist for new templates
 
 1. Profiles use `label-mode: "auto"` (or a mode declared in the template spec).
@@ -93,3 +108,4 @@ The numeric meaning of each step is identical on both surfaces; only the glyph m
 3. Education uses `education-degree` + `education-school` (never `"… in …"`).
 4. Every keyword-bearing section prints keywords.
 5. Levels go through `clamp-level` / `should-render-level` / `render-level`.
+6. Experience leads with `position`, then company and dates.

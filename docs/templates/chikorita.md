@@ -47,6 +47,7 @@ Default main / sidebar section ids are defined once in
 | Profile label mode | `network-username` |
 | Skill keywords | Comma-joined 8pt |
 | Interest keywords | Comma-joined 8pt under bold name |
+| Experience order | **Position-first** (bold) over company (accent); date/location right (#858) |
 | Project keywords | Soft chips |
 | Level (`template-default`) | Circles 6pt |
 
@@ -60,7 +61,7 @@ bodies above.
 | --- | --- |
 | Sheet does not swap visual sidebar to the right from `layoutMode` chrome alone without matching heading styles | fix-in-sheet |
 | Main bottom-stroke headings vs generic sheet titles | fix-in-sheet |
-| Cross-cutting item composition | fix-in-sheet / owner-decision-needed |
+| Experience lead field was company-first in Typst | fixed (#858) |
 | Typography metadata ignored | fix-in-typst (#701) |
 | **Body starts on page 2** — PDF page 1 held only the header because the tinted sidebar wrapped in an unbreakable Typst `box`, forcing the two-column grid onto the next page. Fixed in #855 by using a breakable `block` for the sidebar fill. | fixed (#855) |
 

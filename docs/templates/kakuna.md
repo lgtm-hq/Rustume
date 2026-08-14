@@ -61,7 +61,7 @@ bodies above.
 | Sheet `headerStyle: boxed` draws a stroked banner approximation; Typst centers a full-width padded box including contact | fix-in-sheet |
 | Heading trailing-rule chrome missing | fix-in-sheet |
 | Light name weight not mirrored | fix-in-sheet |
-| Cross-cutting item composition | fix-in-sheet / owner-decision-needed |
+| Experience lead field | fixed (#858) |
 | Typography metadata ignored | fix-in-typst (#701) |
 
 ### Audit evidence

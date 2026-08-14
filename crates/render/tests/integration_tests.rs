@@ -1875,3 +1875,65 @@ fn test_parity_fields_reach_pdf_text(#[case] template_name: &str) {
         "profile label must be username-first, not network-username, on '{template_name}':\n{text}"
     );
 }
+
+/// Experience composition (#858): every template leads with position, then
+/// company. Unique strings so volunteer/education cannot satisfy the needles.
+#[rstest]
+#[case("rhyhorn")]
+#[case("azurill")]
+#[case("pikachu")]
+#[case("nosepass")]
+#[case("bronzor")]
+#[case("chikorita")]
+#[case("ditto")]
+#[case("gengar")]
+#[case("glalie")]
+#[case("kakuna")]
+#[case("leafish")]
+#[case("onyx")]
+fn test_experience_items_are_position_first(#[case] template_name: &str) {
+    const POSITION_1: &str = "Lead Reliability Architect";
+    const COMPANY_1: &str = "Helios Gridworks Ltd";
+    const POSITION_2: &str = "Staff Compiler Engineer";
+    const COMPANY_2: &str = "Umber Foundry Co";
+
+    let renderer = TypstRenderer::new();
+    let mut resume = sample_resume();
+    resume.metadata.template = template_name.to_string();
+    resume.sections.experience = Section::new("experience", "Experience");
+    resume.sections.experience.add_item(
+        Experience::new(COMPANY_1, POSITION_1)
+            .with_location("Lisbon, PT")
+            .with_date("2021 - Present")
+            .with_summary("Ran the on-call rotation."),
+    );
+    resume.sections.experience.add_item(
+        Experience::new(COMPANY_2, POSITION_2)
+            .with_location("Austin, TX")
+            .with_date("2017 - 2021")
+            .with_summary("Shipped the frontend compiler."),
+    );
+    resume.metadata.layout = vec![vec![
+        vec!["summary".to_string(), "experience".to_string()],
+        vec![],
+    ]];
+
+    let pdf = renderer
+        .render_pdf(&resume)
+        .unwrap_or_else(|e| panic!("PDF render failed for '{template_name}': {e:?}"));
+    let text = extract_pdf_pages_text(&pdf).join("\n");
+
+    for (position, company) in [(POSITION_1, COMPANY_1), (POSITION_2, COMPANY_2)] {
+        let pos = text.find(position).unwrap_or_else(|| {
+            panic!("position '{position}' missing from '{template_name}' PDF text:\n{text}")
+        });
+        let co = text.find(company).unwrap_or_else(|| {
+            panic!("company '{company}' missing from '{template_name}' PDF text:\n{text}")
+        });
+        assert!(
+            pos < co,
+            "experience must be position-first on '{template_name}': \
+             '{position}' at {pos} must precede '{company}' at {co}:\n{text}"
+        );
+    }
+}
