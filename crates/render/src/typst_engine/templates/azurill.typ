@@ -429,8 +429,7 @@
   if has-resume-body(data) {
     // ── Header - centered, above columns ──
     align(center)[
-      #render-avatar(data.basics, accent-color)
-      #v(8pt)
+      #avatar-above(data.basics, accent-color)
 
       #text(size: 26pt, weight: "bold", fill: text-color, tracking: 0.03em)[#data.basics.name]
 

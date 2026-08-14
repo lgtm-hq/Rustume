@@ -25,7 +25,8 @@ primary wash only via chips / bars, not a full-bleed column fill.
 
 - `headerStyle`: `center`; `contactIn`: `header` (horizontal contact row under the headline).
 - Picture: centered above the name when visible.
-- No-photo: omit picture.
+- No-photo default: **collapse**. Initials disc only when `picture.effects.showInitials` is true
+  and the URL is empty (#857).
 - Columns below use `two-column` with default `(1fr, 2fr)` sidebar-left via `sidebar-ratio-columns`.
 
 ## Section-heading chrome

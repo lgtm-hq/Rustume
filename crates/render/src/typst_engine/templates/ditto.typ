@@ -430,13 +430,12 @@
       fill: accent-color,
       inset: (x: 24pt, y: 18pt),
       [
-        #render-avatar(
+        #avatar-above(
           data.basics,
           accent-color,
           initials-fill: white,
           initials-text-fill: text-color,
         )
-        #v(8pt)
 
         #text(size: 22pt, weight: "bold", fill: white)[#data.basics.name]
 

@@ -115,6 +115,8 @@ pub struct V3Picture {
 #[allow(dead_code)]
 pub struct V3PictureEffects {
     pub hidden: Option<bool>,
+    /// Opt-in initials disc when no photo URL is set (#857). Absent on RR v3 files.
+    pub show_initials: Option<bool>,
     pub grayscale: Option<bool>,
     pub border: Option<bool>,
     pub rotation: Option<f32>,
@@ -586,6 +588,7 @@ fn convert_basics(v3: &V3Basics) -> Basics {
         }
         if let Some(effects) = &pic.effects {
             basics.picture.effects.hidden = effects.hidden.unwrap_or(basics.picture.effects.hidden);
+            basics.picture.effects.show_initials = effects.show_initials.unwrap_or(false);
             basics.picture.effects.grayscale = effects.grayscale.unwrap_or(false);
             basics.picture.effects.border = effects.border.unwrap_or(false);
             // Sanitize effect values to the schema's validation bounds so
@@ -1370,9 +1373,43 @@ mod tests {
         // Invalid colors fall back to the field defaults.
         assert_eq!(picture.effects.border_color, "");
         assert_eq!(picture.effects.shadow_color, "#00000040");
+        // RR v3 files omit showInitials; the opt-in defaults off (#857).
+        assert!(!picture.effects.show_initials);
         // The converted resume passes schema validation.
         use validator::Validate;
         assert!(picture.validate().is_ok());
+    }
+
+    #[test]
+    fn test_v3_picture_show_initials_round_trip() {
+        let json = r##"{
+            "basics": {
+                "name": "Zelda Quince",
+                "picture": {
+                    "effects": { "showInitials": true }
+                }
+            },
+            "sections": {
+                "profiles": { "items": [] },
+                "experience": { "items": [] },
+                "education": { "items": [] },
+                "skills": { "items": [] },
+                "languages": { "items": [] },
+                "awards": { "items": [] },
+                "certifications": { "items": [] },
+                "interests": { "items": [] },
+                "projects": { "items": [] },
+                "publications": { "items": [] },
+                "volunteer": { "items": [] },
+                "references": { "items": [] },
+                "custom": {}
+            },
+            "metadata": {}
+        }"##;
+
+        let resume = ReactiveResumeV3Parser.parse(json.as_bytes()).unwrap();
+        assert!(resume.basics.picture.effects.show_initials);
+        assert!(resume.basics.picture.url.is_empty());
     }
 
     #[test]

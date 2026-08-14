@@ -24,7 +24,8 @@ clamp leading; do not hardcode Sans here (identity is "engine typography + tradi
 ## Header composition
 
 - `headerStyle`: `sidebar`; `contactIn`: `sidebar`.
-- Photo 80pt when present; no initials fallback.
+- Photo 80pt when present. No-photo default: **collapse**. Initials disc only when
+  `picture.effects.showInitials` is true and the URL is empty (#857).
 - Full-bleed sidebar (`margin: 0`): the page box ignores `page.margin`;
   `content-width()` still subtracts metadata margin for sidebar-ratio math.
 

@@ -699,4 +699,18 @@ describe("photo dialog", () => {
 
     expect(store.updateBasics).not.toHaveBeenCalled();
   });
+
+  it("commits the initials-disc opt-in from the photo options", () => {
+    render(() => <PhotoDialog open picture={createEmptyPicture()} onOpenChange={() => {}} />);
+
+    fireEvent.click(screen.getByRole("switch", { name: "Initials disc" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save photo" }));
+
+    const [, saved] = store.updateBasics.mock.calls[0] as [
+      string,
+      { effects: { showInitials: boolean; hidden: boolean } },
+    ];
+    expect(saved.effects.showInitials).toBe(true);
+    expect(saved.effects.hidden).toBe(true);
+  });
 });

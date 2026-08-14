@@ -25,7 +25,8 @@ default restyle nosepass).
 
 - `headerStyle`: `left`; `contactIn`: `header`.
 - Header sits in a box with a **3pt accent bottom stroke**.
-- Picture optional above the name; no initials fallback.
+- Picture optional above the name. No-photo default: **collapse**. Initials disc only when
+  `picture.effects.showInitials` is true and the URL is empty (#857).
 - Contact as an inline row.
 
 ## Section-heading chrome

@@ -26,7 +26,8 @@ intentionally not wired (#84).
 - `headerStyle`: `banner`; `contactIn`: `banner` (tier-2 bar).
 - Tier 1: name/headline left, optional picture + personal URL right, light rose fill, top radius 6pt.
 - Tier 2: darker bar with email/phone/location joined by `|`, bottom radius 6pt.
-- No-photo: omit picture; URL may still show on the right.
+- No-photo default: **collapse** the picture cell; URL may still show on the right. Initials disc
+  only when `picture.effects.showInitials` is true and the URL is empty (#857).
 
 ## Section-heading chrome
 

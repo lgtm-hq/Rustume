@@ -22,6 +22,7 @@ export function createSampleResume(): ResumeData {
         borderRadius: 0,
         effects: {
           hidden: true,
+          showInitials: false,
           border: false,
           grayscale: false,
           rotation: 0,
@@ -284,6 +285,7 @@ export function createDefaultResume(): ResumeData {
         borderRadius: 0,
         effects: {
           hidden: true,
+          showInitials: false,
           border: false,
           grayscale: false,
           rotation: 0,

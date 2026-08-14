@@ -371,8 +371,7 @@
     // Header - centered with picture area
     align(center)[
       // Picture area
-      #render-avatar(data.basics, accent-color)
-      #v(8pt)
+      #avatar-above(data.basics, accent-color)
 
       // Name
       #text(size: 24pt, weight: "bold", fill: text-color)[#data.basics.name]

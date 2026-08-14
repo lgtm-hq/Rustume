@@ -354,12 +354,10 @@
     }
 
     let sidebar-before = () => [
-      // Avatar slot: photo or initials disc (#829).
+      // Avatar slot: photo, opt-in initials, or collapsed (#857).
       #align(center)[
-        #render-avatar(data.basics, accent-color, default-size: 80pt)
+        #avatar-above(data.basics, accent-color, below: 16pt, default-size: 80pt)
       ]
-
-      #v(16pt)
 
       // Contact
       #sidebar-section("Contact")

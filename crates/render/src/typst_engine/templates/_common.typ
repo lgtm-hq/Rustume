@@ -138,7 +138,28 @@
   )
 }
 
-/// Avatar slot: photo when set, otherwise initials disc (#829).
+/// Opt-in initials disc when no photo URL is set (#857).
+/// A hidden photo still counts as "photo set" and stays collapsed.
+#let show-initials-disc(basics) = {
+  if not ("picture" in basics) or basics.picture == none {
+    return false
+  }
+  let picture = basics.picture
+  let url = if "url" in picture and picture.url != none { picture.url.trim() } else { "" }
+  if url != "" {
+    return false
+  }
+  let effects = picture.at("effects", default: (:))
+  effects.at("showInitials", default: false)
+}
+
+/// True when the avatar slot should occupy layout space (photo or opt-in disc).
+#let has-avatar-slot(basics) = {
+  has-visible-picture(basics) or show-initials-disc(basics)
+}
+
+/// Avatar slot (#857): photo when set+shown; initials disc only when opted in;
+/// otherwise nothing so surrounding layout can reflow.
 /// `primary-color` is the photo-border fallback. Initials disc colors may
 /// differ (e.g. a banner that already uses that accent as its fill).
 #let render-avatar(
@@ -150,11 +171,63 @@
 ) = {
   if has-visible-picture(basics) {
     render-picture(basics, primary-color, default-size: default-size)
-  } else {
+  } else if show-initials-disc(basics) {
     let picture = if "picture" in basics and basics.picture != none { basics.picture } else { (:) }
     let size = picture.at("size", default: int(default-size / 1pt)) * 1pt
     let fill = if initials-fill == auto { primary-color } else { initials-fill }
     render-initials-avatar(basics.name, size, fill, text-fill: initials-text-fill)
+  }
+}
+
+/// Render the avatar and a following gap, or nothing when the slot is collapsed.
+#let avatar-above(
+  basics,
+  primary-color,
+  below: 8pt,
+  default-size: 64pt,
+  initials-fill: auto,
+  initials-text-fill: white,
+) = {
+  if has-avatar-slot(basics) {
+    render-avatar(
+      basics,
+      primary-color,
+      default-size: default-size,
+      initials-fill: initials-fill,
+      initials-text-fill: initials-text-fill,
+    )
+    v(below)
+  }
+}
+
+/// Avatar in an auto column beside `body`. Collapsed = `body` takes the width.
+#let avatar-beside(
+  basics,
+  primary-color,
+  body,
+  default-size: 64pt,
+  gutter: 12pt,
+  initials-fill: auto,
+  initials-text-fill: white,
+) = {
+  if has-avatar-slot(basics) {
+    grid(
+      columns: (auto, 1fr),
+      column-gutter: gutter,
+      align(
+        horizon,
+        render-avatar(
+          basics,
+          primary-color,
+          default-size: default-size,
+          initials-fill: initials-fill,
+          initials-text-fill: initials-text-fill,
+        ),
+      ),
+      body,
+    )
+  } else {
+    body
   }
 }
 

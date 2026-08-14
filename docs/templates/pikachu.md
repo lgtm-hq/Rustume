@@ -27,8 +27,9 @@ design (surface in UI).
 - `headerStyle`: `left` (name/headline in **main** via `main-before`).
 - `contactIn`: `sidebar` under a "Contact" sidebar heading, with icons via `contact-item`.
 - Picture: centered in sidebar, default **80pt**.
-- **No-photo fallback: initials disc** (accent fill, white initials from `basics.name`) —
-  unique among the twelve.
+- No-photo default: **collapse** the sidebar slot (reflow). Initials disc only when
+  `picture.effects.showInitials` is true and the URL is empty (#857). Same contract as the other
+  eleven templates — no pikachu exception.
 
 ## Section-heading chrome
 
@@ -67,7 +68,7 @@ bodies above.
 | --- | --- |
 | Sheet lacks filled heading bands / plain sidebar titles | fix-in-sheet |
 | Sheet profile prefers username; Typst uses `network` | fix-in-sheet |
-| Sheet Done-mode hides empty avatar; PDF always shows initials fallback | owner-decision-needed |
+| Photo-less avatar: PDF/Done-mode collapse; edit keeps a placeholder; initials are `showInitials` opt-in | fixed (#857) |
 | Education on sheet uses degree-first row layout even when education sits in the sidebar | fix-in-sheet |
 | `page.margin` inert — document as intentional; surface in editor | owner-decision-needed / fix-in-sheet (UI only) |
 | Typography honouring incomplete across templates | fix-in-typst (#701) |

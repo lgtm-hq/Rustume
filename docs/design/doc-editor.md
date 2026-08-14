@@ -146,8 +146,9 @@ These are the **template-layout layer** — the part each template owns (§3.6):
   `compact` prop switches column list (`.contact-list`) to wrapping inline row (`.contact-inline`)
   for header/banner placements. **`basics` is template-owned chrome: no grip, no pencil, no menu,
   not draggable** (`isLayoutSection()` false).
-- `SheetAvatar` — button wrapping either the photo `<img>` or an initials disc (accent bg, two
-  initials from `basics.name`, fallback "·"). Applies picture size (clamped ≤120 on-sheet),
+- `SheetAvatar` — photo `<img>` when set and shown; opt-in initials disc when `showInitials` is on
+  and there is no photo; otherwise **collapsed in Done mode**. Edit mode keeps a placeholder that
+  opens the photo dialog (#857 / #788). Applies picture size (clamped ≤120 on-sheet),
   border-radius (≤ size/2), grayscale filter, rotation transform, border, offset box-shadow
   (`shadowSize/2 px` x/y offset, 0 blur). Click (edit mode only; disabled otherwise) opens the Photo
   modal; title "Edit profile photo".

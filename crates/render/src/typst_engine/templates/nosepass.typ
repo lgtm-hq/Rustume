@@ -410,8 +410,7 @@
       stroke: (bottom: 3pt + accent-color),
       inset: (bottom: 12pt),
       [
-        #render-avatar(data.basics, accent-color)
-        #v(8pt)
+        #avatar-above(data.basics, accent-color)
 
         #text(size: 28pt, weight: "bold", fill: accent-color)[#data.basics.name]
 

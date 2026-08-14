@@ -158,6 +158,10 @@ pub struct PictureEffects {
     #[serde(default)]
     pub hidden: bool,
 
+    /// Draw the initials disc when no photo is visible. Default off (#857).
+    #[serde(default)]
+    pub show_initials: bool,
+
     /// Show a border around the picture.
     #[serde(default)]
     pub border: bool,
@@ -196,6 +200,7 @@ impl Default for PictureEffects {
     fn default() -> Self {
         Self {
             hidden: false,
+            show_initials: false,
             border: false,
             grayscale: false,
             rotation: 0.0,
@@ -275,6 +280,7 @@ mod tests {
         let effects = PictureEffects::default();
 
         assert!(!effects.hidden);
+        assert!(!effects.show_initials);
         assert!(!effects.border);
         assert!(!effects.grayscale);
         assert_eq!(effects.rotation, 0.0);
@@ -290,6 +296,8 @@ mod tests {
         let effects: PictureEffects = serde_json::from_str(r#"{"border":true}"#).unwrap();
 
         assert!(effects.border);
+        assert!(!effects.hidden);
+        assert!(!effects.show_initials);
         assert_eq!(effects.rotation, 0.0);
         assert_eq!(effects.border_color, "");
         assert_eq!(effects.border_width, 2);
@@ -326,6 +334,22 @@ mod tests {
         assert_eq!(serialized["borderWidth"], 4);
         assert_eq!(serialized["shadowColor"], "#00000040");
         assert_eq!(serialized["shadowSize"], 8);
+        assert_eq!(serialized["showInitials"], false);
+    }
+
+    #[test]
+    fn test_picture_effects_show_initials_round_trip() {
+        let effects: PictureEffects = serde_json::from_str(r#"{"showInitials":true}"#).unwrap();
+        assert!(effects.show_initials);
+        assert!(!effects.hidden);
+
+        let serialized = serde_json::to_value(&effects).unwrap();
+        assert_eq!(serialized["showInitials"], true);
+        assert_eq!(serialized["hidden"], false);
+
+        let omitted: PictureEffects = serde_json::from_str("{}").unwrap();
+        assert!(!omitted.show_initials);
+        assert!(!omitted.hidden);
     }
 
     #[test]
