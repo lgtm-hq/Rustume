@@ -22,6 +22,20 @@ and this project adheres to
 
 ### Security
 
+## [0.67.1] - 2026-08-14
+
+### Changed
+
+- **app**: close the parity-harness drift gaps found in the fidelity-wave review (#861)
+  (98698b8)
+- **render**: eliminate redundant full-payload passes on the render request path (#844)
+  (1fee6ea)
+- **app**: per-template sheet and PDF visual baselines in CI (#843) (faad370)
+
+### Fixed
+
+- **render**: keep chikorita body on PDF page 1 (#862) (c8e5dc5)
+
 ## [0.67.0] - 2026-08-13
 
 ### Added
@@ -1026,7 +1040,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.67.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.67.1...HEAD
+[0.67.1]: https://github.com/lgtm-hq/Rustume/compare/v0.67.0...v0.67.1
 [0.67.0]: https://github.com/lgtm-hq/Rustume/compare/v0.66.0...v0.67.0
 [0.66.0]: https://github.com/lgtm-hq/Rustume/compare/v0.65.3...v0.66.0
 [0.65.3]: https://github.com/lgtm-hq/Rustume/compare/v0.65.2...v0.65.3
