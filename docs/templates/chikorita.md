@@ -62,7 +62,7 @@ bodies above.
 | Main bottom-stroke headings vs generic sheet titles | fix-in-sheet |
 | Cross-cutting item composition | fix-in-sheet / owner-decision-needed |
 | Typography metadata ignored | fix-in-typst (#701) |
-| **Body starts on page 2** — PDF page 1 holds only the header (sidebar grid forces a page break); verified against the doc-editor fixture 2026-08-09 | fix-in-typst |
+| **Body starts on page 2** — PDF page 1 held only the header because the tinted sidebar wrapped in an unbreakable Typst `box`, forcing the two-column grid onto the next page. Fixed in #855 by using a breakable `block` for the sidebar fill. | fixed (#855) |
 
 ### Audit evidence
 
