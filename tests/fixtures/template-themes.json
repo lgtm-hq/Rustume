@@ -1,0 +1,67 @@
+{
+  "azurill": {
+    "background": "#ffffff",
+    "primary": "#d97706",
+    "text": "#1f2937"
+  },
+  "bronzor": {
+    "background": "#ffffff",
+    "primary": "#0891b2",
+    "text": "#1f2937"
+  },
+  "chikorita": {
+    "background": "#ffffff",
+    "primary": "#16a34a",
+    "text": "#166534"
+  },
+  "ditto": {
+    "background": "#ffffff",
+    "primary": "#0891b2",
+    "text": "#1f2937"
+  },
+  "gengar": {
+    "background": "#ffffff",
+    "primary": "#67b8c8",
+    "text": "#1f2937"
+  },
+  "glalie": {
+    "background": "#ffffff",
+    "primary": "#14b8a6",
+    "text": "#0f172a"
+  },
+  "kakuna": {
+    "background": "#ffffff",
+    "primary": "#78716c",
+    "text": "#422006"
+  },
+  "leafish": {
+    "background": "#ffffff",
+    "primary": "#9f1239",
+    "text": "#1f2937"
+  },
+  "nosepass": {
+    "background": "#ffffff",
+    "primary": "#3b82f6",
+    "text": "#1f2937"
+  },
+  "not-a-template": {
+    "background": "#ffffff",
+    "primary": "#65a30d",
+    "text": "#000000"
+  },
+  "onyx": {
+    "background": "#ffffff",
+    "primary": "#dc2626",
+    "text": "#111827"
+  },
+  "pikachu": {
+    "background": "#ffffff",
+    "primary": "#ca8a04",
+    "text": "#1c1917"
+  },
+  "rhyhorn": {
+    "background": "#ffffff",
+    "primary": "#65a30d",
+    "text": "#000000"
+  }
+}

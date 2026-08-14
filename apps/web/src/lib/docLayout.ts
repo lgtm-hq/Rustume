@@ -341,19 +341,16 @@ export function templateDocFontFamily(template: string): string {
 
 /**
  * CSS `font-family` stack for the sheet's `--doc-font-body` / `--doc-font-display`.
- * Accepts a chrome `fontBody` id or a Typst family name. Quoted family first so
- * multi-word names (IBM Plex *) resolve correctly; document fallbacks (Helvetica
- * Neue / Georgia) follow the family's classification so a failed load degrades
- * serif→serif, not serif→sans — not the app chrome Inter stack.
+ * Accepts a chrome `fontBody` id only. Quoted family first so multi-word names
+ * (IBM Plex *) resolve correctly; document fallbacks (Helvetica Neue / Georgia)
+ * follow the family's classification so a failed load degrades serif→serif, not
+ * serif→sans — not the app chrome Inter stack.
  */
-export function docFontStack(fontBody: TemplateBodyFont | string): string {
-  if (fontBody === "ibm-plex-serif" || fontBody === SERIF_DOC_FONT_FAMILY) {
+export function docFontStack(fontBody: TemplateBodyFont): string {
+  if (fontBody === "ibm-plex-serif") {
     return '"IBM Plex Serif", Georgia, "Times New Roman", serif';
   }
-  if (fontBody === "ibm-plex-sans" || fontBody === DEFAULT_DOC_FONT_FAMILY) {
-    return '"IBM Plex Sans", "Helvetica Neue", Arial, sans-serif';
-  }
-  return `"${fontBody}", Inter, system-ui, sans-serif`;
+  return '"IBM Plex Sans", "Helvetica Neue", Arial, sans-serif';
 }
 
 /**

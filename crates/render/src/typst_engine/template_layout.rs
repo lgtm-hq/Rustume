@@ -693,6 +693,10 @@ mod tests {
 
     const UNKNOWN_TEMPLATE_ID: &str = "not-a-template";
 
+    /// Wire shape of the lockstep fixture. Paired with `LayoutInfo` in
+    /// `crates/server/src/dto.rs` — if `LayoutInfo` gains a field this struct
+    /// lacks, the fixture strips it and the #824/#837 lockstep cannot catch
+    /// the drift. Keep `LAYOUT_WIRE_FIELD_COUNT` and the dto test in lockstep.
     #[derive(serde::Serialize)]
     #[serde(rename_all = "camelCase")]
     struct LayoutWire<'a> {
@@ -711,6 +715,37 @@ mod tests {
         keyword_style: &'a str,
         header_rule: bool,
     }
+
+    /// Owned twin of [`LayoutWire`] used to `deny_unknown_fields` round-trip
+    /// the fixture. Field list must stay identical to `LayoutWire` / `LayoutInfo`.
+    #[derive(serde::Deserialize)]
+    #[serde(rename_all = "camelCase", deny_unknown_fields)]
+    #[allow(dead_code)]
+    struct LayoutWireOwned {
+        layout_mode: String,
+        default_columns: [Vec<String>; 2],
+        header_style: String,
+        contact_in: String,
+        sidebar_width: Option<u32>,
+        heading_style: String,
+        sidebar_heading_style: String,
+        heading_case: String,
+        heading_ink: String,
+        sidebar_heading_ink: String,
+        font_body: String,
+        sidebar_tint: bool,
+        keyword_style: String,
+        header_rule: bool,
+    }
+
+    /// Must match the number of serde fields on `LayoutInfo` (`dto.rs`) and
+    /// `LayoutWire` above. Bump this in the same change that adds a field.
+    const LAYOUT_WIRE_FIELD_COUNT: usize = 14;
+
+    const UPDATE_LAYOUTS_FIXTURE_HINT: &str = concat!(
+        "UPDATE_FIXTURES=1 cargo test -p rustume-render ",
+        "template_layouts_fixture_is_up_to_date --lib"
+    );
 
     fn layout_wire(layout: &TemplateLayout) -> LayoutWire<'_> {
         LayoutWire {
@@ -731,13 +766,17 @@ mod tests {
         }
     }
 
-    fn fixture_path() -> std::path::PathBuf {
+    fn workspace_root() -> std::path::PathBuf {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .expect("crates parent")
             .parent()
             .expect("workspace root")
-            .join("tests/fixtures/template-layouts.json")
+            .to_path_buf()
+    }
+
+    fn fixture_path() -> std::path::PathBuf {
+        workspace_root().join("tests/fixtures/template-layouts.json")
     }
 
     fn expected_fixture_json() -> String {
@@ -745,16 +784,48 @@ mod tests {
         for id in TEMPLATES {
             map.insert(
                 (*id).to_string(),
-                serde_json::to_value(layout_wire(&get_template_layout(id))).unwrap(),
+                serde_json::to_value(layout_wire(&get_template_layout(id)))
+                    .expect("LayoutWire serializes"),
             );
         }
         map.insert(
             UNKNOWN_TEMPLATE_ID.to_string(),
-            serde_json::to_value(layout_wire(&get_template_layout(UNKNOWN_TEMPLATE_ID))).unwrap(),
+            serde_json::to_value(layout_wire(&get_template_layout(UNKNOWN_TEMPLATE_ID)))
+                .expect("fallback LayoutWire serializes"),
         );
-        let mut json = serde_json::to_string_pretty(&serde_json::Value::Object(map)).unwrap();
+        let mut json = serde_json::to_string_pretty(&serde_json::Value::Object(map))
+            .expect("fixture JSON pretty-prints");
         json.push('\n');
         json
+    }
+
+    #[test]
+    fn layout_wire_field_count_pairs_layout_info() {
+        // LayoutWire (this module) ↔ LayoutInfo (`crates/server/src/dto.rs`).
+        let value = serde_json::to_value(layout_wire(&get_template_layout("rhyhorn")))
+            .expect("LayoutWire serializes");
+        let keys = value
+            .as_object()
+            .expect("LayoutWire serializes as an object")
+            .len();
+        assert_eq!(
+            keys, LAYOUT_WIRE_FIELD_COUNT,
+            "LayoutWire field count changed; add the same field to LayoutInfo in \
+             crates/server/src/dto.rs and bump LAYOUT_WIRE_FIELD_COUNT"
+        );
+    }
+
+    #[test]
+    fn template_layouts_fixture_rejects_unknown_fields() {
+        let expected = expected_fixture_json();
+        let parsed: serde_json::Value =
+            serde_json::from_str(&expected).expect("fixture JSON parses");
+        let rhyhorn = parsed
+            .get("rhyhorn")
+            .expect("fixture includes rhyhorn")
+            .clone();
+        let _: LayoutWireOwned = serde_json::from_value(rhyhorn)
+            .expect("fixture entry deserializes as deny_unknown_fields LayoutWireOwned");
     }
 
     #[test]
@@ -762,20 +833,22 @@ mod tests {
         let actual = expected_fixture_json();
         let path = fixture_path();
         if std::env::var_os("UPDATE_FIXTURES").is_some() {
-            std::fs::create_dir_all(path.parent().unwrap()).ok();
-            std::fs::write(&path, &actual).unwrap();
+            std::fs::create_dir_all(path.parent().expect("fixture has a parent"))
+                .expect("create tests/fixtures");
+            std::fs::write(&path, &actual)
+                .unwrap_or_else(|err| panic!("write {}: {err}", path.display()));
             return;
         }
         let expected = std::fs::read_to_string(&path).unwrap_or_else(|err| {
             panic!(
-                "missing fixture {}: {err}; regenerate with UPDATE_FIXTURES=1",
+                "missing fixture {}: {err}; regenerate with {UPDATE_LAYOUTS_FIXTURE_HINT}",
                 path.display()
             )
         });
         assert_eq!(
             actual,
             expected,
-            "fixture out of date at {}",
+            "fixture out of date at {}\nregenerate with: {UPDATE_LAYOUTS_FIXTURE_HINT}",
             path.display()
         );
     }

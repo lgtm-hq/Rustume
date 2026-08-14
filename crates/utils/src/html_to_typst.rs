@@ -757,3 +757,87 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod sanitizer_proptest {
+    use super::{html_to_typst, sanitize_html_to_typst};
+    use crate::sanitize_html;
+    use proptest::prelude::*;
+
+    fn arb_text() -> impl Strategy<Value = String> {
+        prop_oneof![
+            "[A-Za-z0-9 ]{0,12}",
+            Just("&amp;".into()),
+            Just("&lt;".into()),
+            Just("&gt;".into()),
+            Just("&#39;".into()),
+            Just("&quot;".into()),
+            Just("&nbsp;".into()),
+            Just("hello &amp; world".into()),
+        ]
+    }
+
+    fn arb_wrap_tag() -> impl Strategy<Value = &'static str> {
+        prop::sample::select(vec![
+            "p", "strong", "em", "b", "i", "u", "span", "div", "code", "center", "font", "article",
+        ])
+    }
+
+    fn arb_html() -> impl Strategy<Value = String> {
+        // Wrap in an allowed tag so ammonia's serialize still contains markup.
+        // Tag-free ammonia output takes html_to_typst's no-`<` fast path, which
+        // does not decode entities — a serialization artifact, not a sanitizer
+        // policy split.
+        arb_text()
+            .prop_recursive(4, 48, 4, |inner| {
+                let wrap = (arb_wrap_tag(), inner.clone())
+                    .prop_map(|(tag, body)| format!("<{tag}>{body}</{tag}>"));
+                let link = inner.clone().prop_map(|body| {
+                    format!(r#"<a href="https://example.com" title="x">{body}</a>"#)
+                });
+                let js_link = inner
+                    .clone()
+                    .prop_map(|body| format!(r#"<a href="javascript:alert(1)">{body}</a>"#));
+                let onclick = inner
+                    .clone()
+                    .prop_map(|body| format!(r#"<span onclick="alert(1)">{body}</span>"#));
+                let script = arb_text().prop_map(|text| format!("<script>{text}</script>"));
+                let style = arb_text().prop_map(|text| format!("<style>{text}</style>"));
+                let font = inner
+                    .clone()
+                    .prop_map(|body| format!(r#"<font color="red">{body}</font>"#));
+                let list = inner
+                    .clone()
+                    .prop_map(|body| format!("<ul><li>{body}</li></ul>"));
+                let ordered = inner
+                    .clone()
+                    .prop_map(|body| format!("<ol><li>{body}</li></ol>"));
+                let concat =
+                    proptest::collection::vec(inner, 1..3).prop_map(|parts| parts.concat());
+                prop_oneof![
+                    wrap,
+                    link,
+                    js_link,
+                    onclick,
+                    script,
+                    style,
+                    font,
+                    list,
+                    ordered,
+                    Just("<br>".to_string()),
+                    concat
+                ]
+            })
+            .prop_map(|body| format!("<p>{body}</p>"))
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(128))]
+        #[test]
+        fn sanitize_html_to_typst_matches_two_pass(html in arb_html()) {
+            let one_pass = sanitize_html_to_typst(&html);
+            let two_pass = html_to_typst(&sanitize_html(&html));
+            prop_assert_eq!(one_pass, two_pass, "mismatch for {:?}", html);
+        }
+    }
+}

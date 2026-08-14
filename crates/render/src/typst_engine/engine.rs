@@ -704,4 +704,96 @@ mod tests {
             "Source should not contain raw HTML: {source}"
         );
     }
+
+    const UNKNOWN_TEMPLATE_ID: &str = "not-a-template";
+
+    const UPDATE_THEMES_FIXTURE_HINT: &str = concat!(
+        "UPDATE_FIXTURES=1 cargo test -p rustume-render ",
+        "template_themes_fixture_is_up_to_date --lib"
+    );
+
+    #[derive(serde::Serialize)]
+    struct ThemeWire<'a> {
+        background: &'a str,
+        text: &'a str,
+        primary: &'a str,
+    }
+
+    fn theme_wire(theme: &TemplateTheme) -> ThemeWire<'_> {
+        ThemeWire {
+            background: &theme.background,
+            text: &theme.text,
+            primary: &theme.primary,
+        }
+    }
+
+    fn themes_fixture_path() -> std::path::PathBuf {
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("crates parent")
+            .parent()
+            .expect("workspace root")
+            .join("tests/fixtures/template-themes.json")
+    }
+
+    fn expected_themes_fixture_json() -> String {
+        let mut map = serde_json::Map::new();
+        for id in TEMPLATES {
+            map.insert(
+                (*id).to_string(),
+                serde_json::to_value(theme_wire(&get_template_theme(id)))
+                    .expect("ThemeWire serializes"),
+            );
+        }
+        map.insert(
+            UNKNOWN_TEMPLATE_ID.to_string(),
+            serde_json::to_value(theme_wire(&get_template_theme(UNKNOWN_TEMPLATE_ID)))
+                .expect("fallback ThemeWire serializes"),
+        );
+        let mut json = serde_json::to_string_pretty(&serde_json::Value::Object(map))
+            .expect("themes fixture JSON pretty-prints");
+        json.push('\n');
+        json
+    }
+
+    #[test]
+    fn template_themes_fixture_is_up_to_date() {
+        let actual = expected_themes_fixture_json();
+        let path = themes_fixture_path();
+        if std::env::var_os("UPDATE_FIXTURES").is_some() {
+            std::fs::create_dir_all(path.parent().expect("fixture has a parent"))
+                .expect("create tests/fixtures");
+            std::fs::write(&path, &actual)
+                .unwrap_or_else(|err| panic!("write {}: {err}", path.display()));
+            return;
+        }
+        let expected = std::fs::read_to_string(&path).unwrap_or_else(|err| {
+            panic!(
+                "missing fixture {}: {err}; regenerate with {UPDATE_THEMES_FIXTURE_HINT}",
+                path.display()
+            )
+        });
+        assert_eq!(
+            actual,
+            expected,
+            "fixture out of date at {}\nregenerate with: {UPDATE_THEMES_FIXTURE_HINT}",
+            path.display()
+        );
+    }
+
+    #[test]
+    fn unknown_template_theme_matches_rhyhorn() {
+        assert_eq!(
+            get_template_theme(UNKNOWN_TEMPLATE_ID).primary,
+            get_template_theme("rhyhorn").primary
+        );
+        assert_eq!(
+            get_template_theme(UNKNOWN_TEMPLATE_ID).text,
+            get_template_theme("rhyhorn").text
+        );
+        assert_eq!(
+            get_template_theme(UNKNOWN_TEMPLATE_ID).background,
+            get_template_theme("rhyhorn").background
+        );
+    }
 }
