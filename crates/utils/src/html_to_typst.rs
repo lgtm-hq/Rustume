@@ -220,7 +220,7 @@ fn process_node(
                     // A fenced code block (comrak emits `<pre><code>…</code></pre>`).
                     // Verbatim text goes into a Typst string literal, so it needs
                     // string escaping, not content-mode escaping.
-                    let text = raw_text(node);
+                    let text = raw_text(node, sanitize);
                     // Comrak terminates the code content with exactly one
                     // newline; strip only that one so intentional trailing
                     // blank lines survive.
@@ -234,7 +234,7 @@ fn process_node(
                 "code" => {
                     // Inline code (a `<code>` outside `<pre>`; the `pre` arm
                     // consumes its own children without recursing here).
-                    let text = raw_text(node);
+                    let text = raw_text(node, sanitize);
                     if !text.is_empty() {
                         output.push_str("#raw(\"");
                         output.push_str(&escape_typst_string(&text));
@@ -258,17 +258,26 @@ fn process_node(
 }
 
 /// Concatenated text of every descendant text node, tags stripped.
-fn raw_text(node: &ego_tree::NodeRef<'_, Node>) -> String {
+///
+/// When `sanitize` is true, `script`/`style` subtrees are skipped so fenced
+/// and inline code match ammonia `Builder::default()` (`clean_content_tags`).
+fn raw_text(node: &ego_tree::NodeRef<'_, Node>, sanitize: bool) -> String {
     let mut out = String::new();
-    collect_text(node, &mut out);
+    collect_text(node, &mut out, sanitize);
     out
 }
 
-fn collect_text(node: &ego_tree::NodeRef<'_, Node>, out: &mut String) {
+fn collect_text(node: &ego_tree::NodeRef<'_, Node>, out: &mut String, sanitize: bool) {
     for child in node.children() {
         match child.value() {
             Node::Text(text) => out.push_str(text.text.as_ref()),
-            Node::Element(_) => collect_text(&child, out),
+            Node::Element(el) => {
+                let tag = el.name.local.as_ref();
+                if sanitize && matches!(tag, "script" | "style") {
+                    continue;
+                }
+                collect_text(&child, out, sanitize);
+            }
             _ => {}
         }
     }
@@ -718,6 +727,8 @@ mod tests {
             "<ul><li>A<ul><li>B</li></ul></li><li>C</li></ul>",
             "<p>Line 1<br>Line 2</p>",
             "<pre><code>let x = 1;\n</code></pre>",
+            "<pre><code>keep<script>drop</script>me</code></pre>",
+            "<pre><code>keep<style>p{}</style>me</code></pre>",
             "<p>Before <script>x</script> after</p>",
             // Disallowed non-clean-content tags: stripped, text kept (ammonia).
             "<p><font color=\"red\">Kept text</font></p>",
