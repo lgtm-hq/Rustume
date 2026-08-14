@@ -56,10 +56,10 @@
       columns: (1fr, auto),
       column-gutter: 8pt,
       [
-        #text(weight: "bold", size: 10pt)[#item.company]
-        #if item.position != "" {
+        #text(weight: "bold", size: 10pt)[#item.position]
+        #if item.company != "" {
           v(1pt)
-          text(size: 10pt)[#item.position]
+          text(size: 10pt)[#item.company]
         }
       ],
       align(right)[

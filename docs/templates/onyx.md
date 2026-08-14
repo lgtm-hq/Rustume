@@ -58,10 +58,10 @@ bodies above.
 
 | Divergence | Tag |
 | --- | --- |
-| Visually close to rhyhorn on the sheet today; Typst headings/levels/keyword chips differ — and item composition does too (onyx is position-first, rhyhorn company-first) | fix-in-sheet |
+| Visually close to rhyhorn on the sheet today; Typst headings/levels/keyword chips still differ (experience is position-first on both as of #858) | fix-in-sheet |
 | Profile `network` when linked vs sheet username-first | fix-in-sheet |
 | Level squares vs sheet dots | fix-in-sheet |
-| Cross-cutting experience/education order | fix-in-sheet / owner-decision-needed |
+| Experience lead field | fixed (#858) |
 | Typography metadata ignored | fix-in-typst (#701) |
 
 ### Audit evidence

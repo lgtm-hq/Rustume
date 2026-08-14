@@ -53,7 +53,7 @@ Default main / sidebar section ids are defined once in
 | Interest keywords | Soft accent chips (`light-bg` fill, 3pt radius) |
 | Level (`template-default`) | Horizontal **bars** 14×4pt (radius 2pt) |
 
-Experience: company bold over position; date/location right column.
+Experience: **position** bold over company; date/location right column (#858).
 
 Shared extras from `_common.typ` (experience/education keyword chips + custom
 fields; projects/skills custom fields) still apply on top of the native item
@@ -67,7 +67,7 @@ bodies above.
 | Native level bars vs sheet dots | fix-in-sheet |
 | Profile sheet label (username-first) matches Typst `username` — OK; still diverges when only network is set | fix-in-sheet |
 | Interest chips in PDF vs plain/generic sheet list | fix-in-sheet |
-| Cross-cutting experience/education order | fix-in-sheet / owner-decision-needed |
+| Experience lead field was company-first in Typst | fixed (#858) |
 | Typography metadata ignored | fix-in-typst (#701) |
 
 ### Audit evidence

@@ -50,7 +50,7 @@ Default main / sidebar section ids are defined once in
 | Interest keywords | ` — ` + comma-joined muted string after the name |
 | Level (`template-default`) | Rounded squares (8×8pt, radius 2pt) inline after the name |
 
-Experience leads with **company — position** and date right; location on its own muted line.
+Experience leads with **position — company** and date right; location on its own muted line (#858).
 
 Shared extras from `_common.typ` (experience/education keyword chips + custom
 fields; projects/skills custom fields) still apply on top of the native item
@@ -60,7 +60,7 @@ bodies above.
 
 | Divergence | Tag |
 | --- | --- |
-| Sheet experience / education field order vs Typst (see README cross-cutting) | fix-in-sheet / owner-decision-needed |
+| Sheet experience field order vs Typst | fixed (#858) |
 | Sheet heading chrome lacks uppercase underline | fix-in-sheet |
 | Sheet always draws level dots; native glyph is rounded squares | fix-in-sheet |
 | Interest keywords as sheet chips vs Typst `— list` | fix-in-sheet |

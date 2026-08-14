@@ -67,7 +67,7 @@ bodies above.
 | Sheet headings are uppercase-ish generic; Typst is title-case + trailing rule | fix-in-sheet |
 | Skill presentation (chip cloud vs compact rows) | fix-in-sheet |
 | Level text bullets vs sheet dots | fix-in-sheet |
-| Cross-cutting experience/education order | fix-in-sheet / owner-decision-needed |
+| Experience lead field | fixed (#858) |
 
 ### Audit evidence
 

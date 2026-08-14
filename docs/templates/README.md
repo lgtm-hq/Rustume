@@ -78,7 +78,7 @@ These recur on almost every template; each template page repeats only the ones t
 
 | Divergence | Tag | Notes |
 | --- | --- | --- |
-| Experience lead field: sheet draws **position** over `company · date`; eight Typst templates lead with **company** (rhyhorn, bronzor, azurill, chikorita, ditto, gengar, glalie, leafish) while **pikachu, nosepass, onyx, kakuna are already position-first** (sheet-aligned) | fix-in-sheet | Sheet follows `docs/design/doc-editor.md` §1.7; company-first Typst still mirrors the adapted-from RR artboard. Pick one contract for the fidelity epic; do not "fix" the four position-first templates toward company. |
+| Experience lead field | — | Closed by #858: **position-first on all 12 templates**, sheet and PDF. Position leads; company and dates follow, styled per each frozen spec. Do not revert the eight previously company-first Typst templates (rhyhorn, bronzor, azurill, chikorita, ditto, gengar, glalie, leafish). |
 | Education lead field | — | Closed by #829 / `item-presentation.md`: degree-first, never `" in "`. Per-template tables that still say institution-first are stale. |
 | Section-heading chrome is template-specific in Typst; the sheet uses one `.doc-sheet__sec-title` treatment for all `tpl-*` ids | fix-in-sheet | Per-template heading chrome is the sheet-chrome epic's job; this audit freezes the Typst target. |
 | Profile label | — | Closed by #829: username-first (`auto`). Templates may pass `network` / `network-username` only when a later spec change re-declares that mode. |

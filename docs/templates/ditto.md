@@ -46,6 +46,7 @@ Default main / sidebar section ids are defined once in
 
 | Concern | Rule |
 | --- | --- |
+| Experience order | **Position-first** (bold); company under (accent, linked when a URL is set); date/location right (#858) |
 | Education order | Institution + degree; date right; score; summary |
 | Profile label mode | `network-username` |
 | Skill keywords | Comma-joined 7pt |
@@ -62,7 +63,7 @@ bodies above.
 | --- | --- |
 | Sheet banner tint/boxing approximates banner but not ditto's solid accent fill + white type | fix-in-sheet |
 | Body 9pt denser leading not mirrored on sheet | fix-in-sheet |
-| Cross-cutting item composition | fix-in-sheet / owner-decision-needed |
+| Experience lead field was company-first in Typst | fixed (#858) |
 | `page.margin` inert (full-bleed) | owner-decision-needed (surface in UI) |
 | Typography metadata ignored | fix-in-typst (#701) |
 

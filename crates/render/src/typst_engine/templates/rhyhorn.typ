@@ -56,8 +56,8 @@
 
     entry-header(
       [
-        #text(weight: "bold")[#item.company]
-        #if item.position != "" [ — #item.position]
+        #text(weight: "bold")[#item.position]
+        #if item.company != "" [ — #item.company]
       ],
       item.date
     )

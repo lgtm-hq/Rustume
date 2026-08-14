@@ -65,13 +65,13 @@
 
     entry-header(
       [
-        #if has-url(item) {
-          link(item.url.href)[#text(weight: "bold", size: 10pt)[#item.company]]
-        } else {
-          text(weight: "bold", size: 10pt)[#item.company]
-        }
+        #text(weight: "bold", size: 10pt)[#item.position]
         #v(2pt)
-        #text(size: 10pt, fill: text-color)[#item.position]
+        #if has-url(item) {
+          link(item.url.href)[#text(size: 10pt, fill: text-color)[#item.company]]
+        } else {
+          text(size: 10pt, fill: text-color)[#item.company]
+        }
       ],
       [
         #item.date

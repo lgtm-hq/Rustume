@@ -45,7 +45,7 @@ Default main / sidebar section ids are defined once in
 
 | Concern | Rule |
 | --- | --- |
-| Experience order | **Company-first** (bold); position under; date/location right muted |
+| Experience order | **Position-first** (bold); company under; date/location right muted (#858) |
 | Education order | Institution + degree; date right; score; summary |
 | Profile label mode | `network-username` |
 | Skill / interest / project keywords | Comma-joined muted |
@@ -62,7 +62,7 @@ bodies above.
 | Sheet locks IBM Plex Serif; PDF honors `metadata.typography.font.family` (schema default Serif) | owner-decision-needed |
 | Sheet uppercases section titles; Typst keeps title-case | fix-in-sheet |
 | Justify-on in Typst vs sheet left-aligned body | owner-decision-needed |
-| Cross-cutting item composition | fix-in-sheet / owner-decision-needed |
+| Experience lead field was company-first in Typst | fixed (#858) |
 | `page.margin` does not inset the page box (full-bleed); `content-width()` still uses it for ratio math | owner-decision-needed (surface in UI) |
 
 ### Audit evidence

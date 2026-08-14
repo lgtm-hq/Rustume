@@ -60,9 +60,9 @@
       columns: (1fr, auto),
       column-gutter: 8pt,
       [
-        #text(weight: "bold", size: 10pt)[#item.company]
+        #text(weight: "bold", size: 10pt)[#item.position]
         #v(1pt)
-        #text(size: 9pt, fill: muted-color)[#item.position]
+        #text(size: 9pt, fill: muted-color)[#item.company]
       ],
       align(right)[
         #text(size: 9pt, fill: muted-color)[#item.date]
