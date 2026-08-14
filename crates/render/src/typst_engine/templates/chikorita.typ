@@ -450,8 +450,12 @@
     line(length: 100%, stroke: 1pt + accent-color)
     v(12pt)
 
+    // `block`, not `box`: a box is an unbreakable inline atom, so a tall
+    // tinted sidebar forced the whole two-column grid onto page 2 and left
+    // page 1 with only the header (#855). A block keeps the fill/radius and
+    // can split with the grid.
     let right-wrapper(body) = {
-      box(
+      block(
         fill: light-bg,
         radius: 6pt,
         inset: 12pt,

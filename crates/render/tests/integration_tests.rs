@@ -1515,6 +1515,43 @@ fn page_index_containing(pages: &[String], needle: &str) -> Option<usize> {
     pages.iter().position(|text| text.contains(needle))
 }
 
+/// Chikorita's tinted sidebar used to wrap in an unbreakable `box`, which
+/// shoved the entire two-column grid onto page 2 and left page 1 as header
+/// only (#855). Body content must start on page 1 for the doc-editor fixture.
+#[test]
+fn test_chikorita_doc_editor_body_starts_on_page_1() {
+    let data = fs::read(fixtures_path().join("v3").join("doc-editor.json"))
+        .expect("Failed to read doc-editor fixture");
+    let mut resume = ReactiveResumeV3Parser
+        .parse(&data)
+        .expect("Failed to parse doc-editor fixture");
+    resume.metadata.template = "chikorita".to_string();
+    let theme = get_template_theme("chikorita");
+    resume.metadata.theme.primary = theme.primary;
+    resume.metadata.theme.text = theme.text;
+    resume.metadata.theme.background = theme.background;
+
+    let pdf = TypstRenderer::new()
+        .render_pdf(&resume)
+        .expect("chikorita doc-editor fixture should render");
+    let pages = extract_pdf_pages_text(&pdf);
+    assert!(
+        !pages.is_empty(),
+        "chikorita must render at least one PDF page"
+    );
+    let first = &pages[0];
+    assert!(
+        first.contains("Mireille Okafor"),
+        "page 1 should carry the header, got:\n{first}"
+    );
+    for needle in ["Lumen Health", "Design Tokens", "EXPERIENCE"] {
+        assert!(
+            first.contains(needle),
+            "chikorita page 1 must contain body content '{needle}' (not header-only), got:\n{first}"
+        );
+    }
+}
+
 /// The doc-editor fixture declares a two-page `metadata.layout` on a sidebar
 /// template (`ditto`). The rendered PDF must carry the content of BOTH layout
 /// pages — sidebar sections, project highlights, and the sections placed on
