@@ -8,46 +8,35 @@
  * for the duration of the test only.
  *
  * Themes mirror `get_template_theme` in
- * `crates/render/src/typst_engine/engine.rs`. Layout blocks mirror
- * `bundledTemplateLayout` in `apps/web/src/lib/docLayout.ts` so
- * `applyTemplate` rebuilds columns the same way production does.
+ * `crates/render/src/typst_engine/engine.rs` (asserted by the Rust suite).
+ * Layout blocks come from `tests/fixtures/template-layouts.json` — the same
+ * fixture `bundledTemplateLayout` locksteps against — so `applyTemplate`
+ * rebuilds columns and chrome the same way production `GET /api/templates`
+ * does.
  */
 
-/** Sentinel id the layout editor uses for "custom sections go here". */
-const CUSTOM = "custom";
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import type { TemplateLayout } from "../../src/lib/docLayout";
 
-const MAIN = [
-  "summary",
-  "experience",
-  "education",
-  "awards",
-  "certifications",
-  "publications",
-  "volunteer",
-  "projects",
-  "references",
-] as const;
+const FIXTURE_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  "../../../../tests/fixtures/template-layouts.json",
+);
 
-const SIDEBAR = [
-  "profiles",
-  "skills",
-  "interests",
-  "certifications",
-  "awards",
-  "publications",
-  "languages",
-] as const;
+const FIXTURE_LAYOUTS = JSON.parse(readFileSync(FIXTURE_PATH, "utf8")) as Record<
+  string,
+  TemplateLayout
+>;
 
-type LayoutMode = "single" | "sidebar-left" | "sidebar-right" | "header-split";
-type HeaderStyle = "left" | "center" | "banner" | "boxed" | "sidebar";
-type ContactIn = "sidebar" | "header" | "banner";
-
-interface CatalogLayout {
-  layoutMode: LayoutMode;
-  defaultColumns: string[][];
-  headerStyle: HeaderStyle;
-  contactIn: ContactIn;
-  sidebarWidth: number | null;
+/** Layout for a shipped template id, including per-template chrome. */
+function layoutFor(id: string): TemplateLayout {
+  const layout = FIXTURE_LAYOUTS[id];
+  if (layout === undefined) {
+    throw new Error(`template-layouts.json is missing ${id}`);
+  }
+  return layout;
 }
 
 interface CatalogTheme {
@@ -60,51 +49,7 @@ export interface CatalogTemplate {
   id: string;
   name: string;
   theme: CatalogTheme;
-  layout: CatalogLayout;
-}
-
-/** First-seen dedup across sources, matching `uniqueSections` in docLayout.ts. */
-function uniqueSections(...sources: readonly (readonly string[])[]): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const source of sources) {
-    for (const id of source) {
-      if (seen.has(id)) continue;
-      seen.add(id);
-      out.push(id);
-    }
-  }
-  return out;
-}
-
-function single(headerStyle: HeaderStyle): CatalogLayout {
-  return {
-    layoutMode: "single",
-    defaultColumns: [uniqueSections(MAIN, SIDEBAR, [CUSTOM]), []],
-    headerStyle,
-    contactIn: "header",
-    sidebarWidth: null,
-  };
-}
-
-function twoColumn(
-  layoutMode: Exclude<LayoutMode, "single" | "header-split">,
-  headerStyle: HeaderStyle,
-  contactIn: ContactIn,
-  sidebarWidth: number | null,
-): CatalogLayout {
-  return {
-    layoutMode,
-    defaultColumns: [uniqueSections(MAIN, [CUSTOM]), uniqueSections(SIDEBAR)],
-    headerStyle,
-    contactIn,
-    sidebarWidth,
-  };
-}
-
-/** Display name the template catalog exposes for a template id. */
-export function templateDisplayName(templateId: string): string {
-  return templateId.charAt(0).toUpperCase() + templateId.slice(1);
+  layout: TemplateLayout;
 }
 
 /**
@@ -116,78 +61,72 @@ export const FULL_TEMPLATE_CATALOG: readonly CatalogTemplate[] = [
     id: "azurill",
     name: "Azurill",
     theme: { background: "#ffffff", text: "#1f2937", primary: "#d97706" },
-    layout: twoColumn("sidebar-left", "center", "header", null),
+    layout: layoutFor("azurill"),
   },
   {
     id: "bronzor",
     name: "Bronzor",
     theme: { background: "#ffffff", text: "#1f2937", primary: "#0891b2" },
-    layout: single("center"),
+    layout: layoutFor("bronzor"),
   },
   {
     id: "chikorita",
     name: "Chikorita",
     theme: { background: "#ffffff", text: "#166534", primary: "#16a34a" },
-    layout: twoColumn("sidebar-right", "left", "header", null),
+    layout: layoutFor("chikorita"),
   },
   {
     id: "ditto",
     name: "Ditto",
     theme: { background: "#ffffff", text: "#1f2937", primary: "#0891b2" },
-    layout: twoColumn("sidebar-left", "banner", "banner", 160),
+    layout: layoutFor("ditto"),
   },
   {
     id: "gengar",
     name: "Gengar",
     theme: { background: "#ffffff", text: "#1f2937", primary: "#67b8c8" },
-    layout: twoColumn("sidebar-left", "sidebar", "sidebar", 170),
+    layout: layoutFor("gengar"),
   },
   {
     id: "glalie",
     name: "Glalie",
     theme: { background: "#ffffff", text: "#0f172a", primary: "#14b8a6" },
-    layout: twoColumn("sidebar-left", "sidebar", "sidebar", 170),
+    layout: layoutFor("glalie"),
   },
   {
     id: "kakuna",
     name: "Kakuna",
     theme: { background: "#ffffff", text: "#422006", primary: "#78716c" },
-    layout: single("boxed"),
+    layout: layoutFor("kakuna"),
   },
   {
     id: "leafish",
     name: "Leafish",
     theme: { background: "#ffffff", text: "#1f2937", primary: "#9f1239" },
-    layout: {
-      layoutMode: "header-split",
-      defaultColumns: [uniqueSections(MAIN), uniqueSections(SIDEBAR, [CUSTOM])],
-      headerStyle: "banner",
-      contactIn: "banner",
-      sidebarWidth: null,
-    },
+    layout: layoutFor("leafish"),
   },
   {
     id: "nosepass",
     name: "Nosepass",
     theme: { background: "#ffffff", text: "#1f2937", primary: "#3b82f6" },
-    layout: single("left"),
+    layout: layoutFor("nosepass"),
   },
   {
     id: "onyx",
     name: "Onyx",
     theme: { background: "#ffffff", text: "#111827", primary: "#dc2626" },
-    layout: single("left"),
+    layout: layoutFor("onyx"),
   },
   {
     id: "pikachu",
     name: "Pikachu",
     theme: { background: "#ffffff", text: "#1c1917", primary: "#ca8a04" },
-    layout: twoColumn("sidebar-left", "left", "sidebar", 180),
+    layout: layoutFor("pikachu"),
   },
   {
     id: "rhyhorn",
     name: "Rhyhorn",
     theme: { background: "#ffffff", text: "#000000", primary: "#65a30d" },
-    layout: single("left"),
+    layout: layoutFor("rhyhorn"),
   },
-] as const;
+];

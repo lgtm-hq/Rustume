@@ -1,10 +1,11 @@
 /**
  * Lockstep guard for the Playwright full-template catalog stub (#831).
  *
- * `apps/web/e2e/support/fullTemplateCatalog.ts` hand-mirrors the production
- * layout registry so visual suites can drive all twelve templates. Themes
- * mirror Rust `get_template_theme` and are asserted by the Rust suite; the
- * layout half is asserted here against `bundledTemplateLayout`.
+ * `apps/web/e2e/support/fullTemplateCatalog.ts` serves every shipped template
+ * so visual suites can drive the real set. Themes mirror Rust
+ * `get_template_theme` and are asserted by the Rust suite; layouts are loaded
+ * from `tests/fixtures/template-layouts.json` and asserted here against
+ * `bundledTemplateLayout`.
  */
 
 import { describe, expect, it } from "vitest";
