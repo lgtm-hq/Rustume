@@ -22,10 +22,14 @@ describe("detectResumeJsonFormat", () => {
     expect(detectResumeJsonFormat(rrv3)).toBe("rrv3");
   });
 
-  it("classifies older RR v3 exports that use `meta`", () => {
-    expect(detectResumeJsonFormat({ basics: { name: "Ada" }, meta: { version: "v3" } })).toBe(
-      "rrv3",
-    );
+  it("classifies JSON Resume with root-level `meta` as json-resume, not rrv3", () => {
+    expect(
+      detectResumeJsonFormat({
+        basics: { name: "Ada", label: "Engineer" },
+        meta: { version: "1.0.0" },
+        work: [{ name: "Example", position: "Engineer" }],
+      }),
+    ).toBe("json-resume");
   });
 
   it("classifies plain `basics` as JSON Resume", () => {
@@ -35,6 +39,9 @@ describe("detectResumeJsonFormat", () => {
   it("returns null for unrecognized payloads", () => {
     expect(detectResumeJsonFormat({ foo: 1 })).toBeNull();
     expect(detectResumeJsonFormat({})).toBeNull();
+    expect(detectResumeJsonFormat(null)).toBeNull();
+    expect(detectResumeJsonFormat([])).toBeNull();
+    expect(detectResumeJsonFormat("resume")).toBeNull();
   });
 
   it("does not treat sections without summary as native", () => {

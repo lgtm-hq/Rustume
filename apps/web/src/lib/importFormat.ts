@@ -22,15 +22,23 @@ export function isNativeRustumeJson(json: Record<string, unknown>): boolean {
   );
 }
 
+/** True when `value` is a non-null, non-array object. */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 /**
  * Classify a parsed resume JSON payload, or `null` when it matches nothing.
  *
- * RR v3 exports carry `metadata` (older samples use `meta`) beside `basics`;
- * plain `basics` without either wrapper reads as JSON Resume.
+ * `JSON.parse` can return null, arrays, or primitives — those are unrecognized.
+ * RR v3 exports carry `metadata` beside `basics`. JSON Resume may also have a
+ * root-level `meta` object (canonical/version/lastModified); that is not RR v3.
+ * Plain `basics` without `metadata` reads as JSON Resume.
  */
-export function detectResumeJsonFormat(json: Record<string, unknown>): ResumeJsonFormat | null {
+export function detectResumeJsonFormat(json: unknown): ResumeJsonFormat | null {
+  if (!isRecord(json)) return null;
   if (isNativeRustumeJson(json)) return "rustume";
-  if (json.basics && (json.meta || json.metadata)) return "rrv3";
+  if (json.basics && json.metadata) return "rrv3";
   if (json.basics) return "json-resume";
   return null;
 }
