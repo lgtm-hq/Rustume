@@ -103,9 +103,10 @@ fn escape_typst(text: &str) -> String {
 /// depth `d` indents its markers by `d` levels, which is how Typst expresses
 /// list nesting.
 ///
-/// When `sanitize` is true, tags outside the resume allow-list are dropped with
-/// their descendants (matching ammonia). Scraper's fragment chrome (`html` /
-/// `body`) is always unwrapped. When `sanitize` is false, unknown tags are
+/// When `sanitize` is true, ammonia `Builder::default()` semantics apply:
+/// `script`/`style` drop the element and its descendants; every other
+/// disallowed tag is stripped but keeps its children (including scraper's
+/// `html`/`body` fragment chrome). When `sanitize` is false, unknown tags are
 /// stripped but their text content is preserved (legacy `html_to_typst` behavior).
 fn process_node(
     node: &ego_tree::NodeRef<'_, Node>,
@@ -735,7 +736,13 @@ mod tests {
     fn sanitize_html_to_typst_keeps_text_of_stripped_tags() {
         // Regression guard for the ammonia parity rule: only script/style drop
         // their content; other disallowed tags unwrap to their children.
-        assert_eq!(sanitize_html_to_typst("<font>Imported name</font>"), "Imported name");
-        assert_eq!(sanitize_html_to_typst("<p><center>Centered</center></p>"), "Centered");
+        assert_eq!(
+            sanitize_html_to_typst("<font>Imported name</font>"),
+            "Imported name"
+        );
+        assert_eq!(
+            sanitize_html_to_typst("<p><center>Centered</center></p>"),
+            "Centered"
+        );
     }
 }

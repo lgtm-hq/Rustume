@@ -45,8 +45,7 @@ impl Write for CountingWriter {
 /// writer preserves that measurement without the intermediate buffer.
 fn serialized_json_size(value: &Value) -> Result<usize, ApiError> {
     let mut counter = CountingWriter { count: 0 };
-    serde_json::to_writer(&mut counter, value)
-        .map_err(|_| ApiError::new("Invalid resume JSON"))?;
+    serde_json::to_writer(&mut counter, value).map_err(|_| ApiError::new("Invalid resume JSON"))?;
     Ok(counter.count)
 }
 

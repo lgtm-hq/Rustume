@@ -91,9 +91,7 @@ fn bench_render_pdf(c: &mut Criterion) {
 
     c.bench_function("render_pdf_doc_editor", |b| {
         b.iter(|| {
-            let pdf = renderer
-                .render_pdf(black_box(&resume))
-                .expect("render_pdf");
+            let pdf = renderer.render_pdf(black_box(&resume)).expect("render_pdf");
             black_box(pdf);
         });
     });
