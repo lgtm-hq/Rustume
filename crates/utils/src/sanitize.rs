@@ -131,6 +131,15 @@ pub fn sanitize_html(html: &str) -> String {
     SANITIZER.clean(html).to_string()
 }
 
+/// Whether `tag` is on the resume HTML allow-list (same set ammonia uses).
+///
+/// Used by the single-parse HTML→Typst path so sanitizer tag policy is applied
+/// while walking the tree, without a separate ammonia parse/serialize pass.
+#[inline]
+pub(crate) fn is_allowed_tag(tag: &str) -> bool {
+    ALLOWED_TAGS.contains(tag)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
