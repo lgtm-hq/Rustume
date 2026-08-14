@@ -718,7 +718,7 @@ mod tests {
 
     /// Owned twin of [`LayoutWire`] used to `deny_unknown_fields` round-trip
     /// the fixture. Field list must stay identical to `LayoutWire` / `LayoutInfo`.
-    #[derive(serde::Deserialize)]
+    #[derive(Debug, serde::Deserialize)]
     #[serde(rename_all = "camelCase", deny_unknown_fields)]
     #[allow(dead_code)]
     struct LayoutWireOwned {
@@ -818,7 +818,7 @@ mod tests {
     #[test]
     fn template_layouts_fixture_rejects_unknown_fields() {
         let expected = expected_fixture_json();
-        let parsed: serde_json::Value =
+        let mut parsed: serde_json::Value =
             serde_json::from_str(&expected).expect("fixture JSON parses");
         let rhyhorn = parsed
             .get("rhyhorn")
@@ -826,6 +826,28 @@ mod tests {
             .clone();
         let _: LayoutWireOwned = serde_json::from_value(rhyhorn)
             .expect("fixture entry deserializes as deny_unknown_fields LayoutWireOwned");
+
+        parsed
+            .get_mut("rhyhorn")
+            .expect("fixture includes rhyhorn")
+            .as_object_mut()
+            .expect("fixture entry is an object")
+            .insert("notARealField".into(), serde_json::Value::Bool(true));
+        let result = serde_json::from_value::<LayoutWireOwned>(
+            parsed
+                .get("rhyhorn")
+                .expect("fixture includes rhyhorn")
+                .clone(),
+        );
+        assert!(
+            result.is_err(),
+            "deny_unknown_fields must reject extra keys; got {result:?}"
+        );
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("notARealField") || err.contains("unknown field"),
+            "error should mention the unknown field, got {err}"
+        );
     }
 
     #[test]

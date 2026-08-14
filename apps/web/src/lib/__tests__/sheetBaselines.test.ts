@@ -9,18 +9,21 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { FULL_TEMPLATE_CATALOG } from "../../../e2e/support/fullTemplateCatalog";
 
 const SCREENSHOT_DIR = resolve(
   dirname(fileURLToPath(import.meta.url)),
   "../../../e2e/__screenshots__/template-sheet.visual.spec.ts",
 );
 
+const EXPECTED_SHEET_BASELINES = FULL_TEMPLATE_CATALOG.map((t) => `sheet-${t.id}.png`).toSorted();
+
 describe("sheet visual baselines", () => {
   it("are pairwise distinct by digest", () => {
     const files = readdirSync(SCREENSHOT_DIR).filter(
       (name) => name.startsWith("sheet-") && name.endsWith(".png"),
     );
-    expect(files.length).toBe(12);
+    expect([...files].toSorted()).toEqual(EXPECTED_SHEET_BASELINES);
     const byDigest = new Map<string, string>();
     for (const file of files) {
       const digest = createHash("sha256")
