@@ -62,7 +62,7 @@ export interface EntryActionsProps {
   insertBreak?: InsertBreakAction;
 }
 
-/** One 26px circular ghost button of the pill. */
+/** One circular ghost button of the pill (≥26 design px, inverse-scaled). */
 function ActionButton(props: {
   class?: string;
   label: string;
@@ -257,7 +257,7 @@ export function SortableEntry(props: SortableEntryProps): JSX.Element {
     if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
     dnd?.setEntryDropAt({
       sectionId: props.sectionId,
-      index: dropIndexFromPointer(event, props.index),
+      index: dropIndexFromPointer(event, props.index, dnd?.scale() ?? 1),
     });
   }
 
@@ -323,7 +323,7 @@ export function SortableEntry(props: SortableEntryProps): JSX.Element {
         event.stopPropagation();
         const payload = readDragPayload<EntryDragPayload>(event, ENTRY_DRAG_MIME) ?? drag;
         if (payload.sectionId === props.sectionId) {
-          dnd?.onEntryDrop(payload, dropIndexFromPointer(event, props.index));
+          dnd?.onEntryDrop(payload, dropIndexFromPointer(event, props.index, dnd?.scale() ?? 1));
         }
         endDrag();
       }}

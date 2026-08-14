@@ -165,8 +165,11 @@ export default function DocEditor() {
   const [isThemeOpen, setIsThemeOpen] = createSignal(false);
 
   // Edit or Done, per document. A brand-new empty resume opens ready to type;
-  // an existing one opens as the clean rendered document.
+  // an existing one opens as the clean rendered document. Below the sheet's
+  // miniature usability floor (#813) the sheet forces Done; the toggle is
+  // disabled so the chrome matches what the surface actually draws.
   const [mode, setMode] = createSignal<SheetMode>("edit");
+  const [sheetInteractive, setSheetInteractive] = createSignal(true);
   let modeInitializedFor: string | null = null;
 
   createEffect(() => {
@@ -334,11 +337,18 @@ export default function DocEditor() {
           </Button>
           {/* The mode toggle: a push button whose label is the action it
               performs — "Edit" opens the document for editing, "Done" returns
-              to the clean rendered document. */}
+              to the clean rendered document. Disabled below the miniature
+              usability floor (#813); SC 2.5.8 while editing is inverse-scale. */}
           <Button
             variant="secondary"
             size="sm"
             data-testid="doc-editor-mode-toggle"
+            disabled={!sheetInteractive()}
+            title={
+              sheetInteractive()
+                ? undefined
+                : "Editing needs a wider viewport — the sheet is shown as a read-only miniature"
+            }
             onClick={() => setMode(mode() === "edit" ? "done" : "edit")}
           >
             {mode() === "edit" ? "Done" : "Edit"}
@@ -381,7 +391,10 @@ export default function DocEditor() {
           }
         >
           {/* The one document surface: the sheet, centered. */}
-          <div class="h-full overflow-auto bg-surface/30" data-testid="doc-editor-surface">
+          <div
+            class="doc-editor-surface h-full overflow-auto bg-surface/30"
+            data-testid="doc-editor-surface"
+          >
             <div class="mx-auto w-full max-w-4xl">
               <Show when={store.resume}>
                 {(resume) => (
@@ -390,6 +403,14 @@ export default function DocEditor() {
                     templateLayout={templateLayout()}
                     mode={mode()}
                     onOpenSections={() => setIsSectionsOpen(true)}
+                    onScaleChange={(info) => {
+                      setSheetInteractive(info.interactive);
+                      // Force Done from this callback, not a separate effect:
+                      // a stale `sheetInteractive === false` from the previous
+                      // sheet must not clobber a blank resume's initialized
+                      // Edit before the new sheet reports its own scale.
+                      if (!info.interactive) setMode("done");
+                    }}
                   />
                 )}
               </Show>

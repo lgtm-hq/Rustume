@@ -53,6 +53,12 @@ export const themeSchema = z.object({
  * Optional on the way in: a self-hosted server older than this field still
  * serves a usable template list, and callers fall back to a default layout.
  */
+const headingStyleSchema = z.enum(["band", "underline", "rule", "plain"]);
+const headingCaseSchema = z.enum(["upper", "as-written"]);
+const headingInkSchema = z.enum(["accent", "text"]);
+const bodyFontSchema = z.enum(["ibm-plex-sans", "ibm-plex-serif"]);
+const keywordStyleSchema = z.enum(["chips", "plain"]);
+
 export const templateLayoutSchema = z.object({
   layoutMode: z.enum(["single", "sidebar-left", "sidebar-right", "header-split"]),
   defaultColumns: z.array(z.array(z.string())),
@@ -62,6 +68,46 @@ export const templateLayoutSchema = z.object({
     .number()
     .nullish()
     .transform((width) => width ?? null),
+  // Chrome fields are optional for skew with older self-hosted servers; missing
+  // values fall back to the rhyhorn-like underline / Plex Sans defaults.
+  headingStyle: headingStyleSchema
+    .optional()
+    .catch(undefined)
+    .transform((v) => v ?? "underline"),
+  sidebarHeadingStyle: headingStyleSchema
+    .optional()
+    .catch(undefined)
+    .transform((v) => v ?? "underline"),
+  headingCase: headingCaseSchema
+    .optional()
+    .catch(undefined)
+    .transform((v) => v ?? "upper"),
+  headingInk: headingInkSchema
+    .optional()
+    .catch(undefined)
+    .transform((v) => v ?? "accent"),
+  sidebarHeadingInk: headingInkSchema
+    .optional()
+    .catch(undefined)
+    .transform((v) => v ?? "accent"),
+  fontBody: bodyFontSchema
+    .optional()
+    .catch(undefined)
+    .transform((v) => v ?? "ibm-plex-sans"),
+  sidebarTint: z
+    .boolean()
+    .optional()
+    .catch(undefined)
+    .transform((v) => v ?? false),
+  keywordStyle: keywordStyleSchema
+    .optional()
+    .catch(undefined)
+    .transform((v) => v ?? "plain"),
+  headerRule: z
+    .boolean()
+    .optional()
+    .catch(undefined)
+    .transform((v) => v ?? true),
 });
 
 export const templateInfoSchema = z.object({

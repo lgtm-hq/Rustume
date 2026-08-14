@@ -337,7 +337,7 @@ export function DocSection(props: DocSectionProps): JSX.Element {
     dnd?.setSectionDropAt({
       page: place.page,
       column: place.column,
-      index: dropIndexFromPointer(event, place.index),
+      index: dropIndexFromPointer(event, place.index, dnd?.scale() ?? 1),
     });
   }
 

@@ -114,7 +114,14 @@ Props: `ctx`, `variant` (chrome flavor; production uses one), `focusedSection`, 
 Renders, in order: `Modals`, `SectionsPanel`, `TemplatesPanel`, `PageCountPill`,
 then a `.sheet-stack` (centered flex column, `width:min(860px,100%)`) of one `.page-sheet`
 `<article>` per rendered page (`renderPages(doc)`, §3), each preceded (pages ≥ 2) by a
-`.page-break-rule`. Each sheet carries classes
+`.page-break-rule`.
+
+> **Superseded in part (#813):** production does not reflow the stack to
+> `min(860px, 100%)`. Internal layout stays 860px; narrower canvases paint a
+> `transform: scale(k)` miniature (§3.1). Drawers overlay the surface and do
+> not shrink the scale host.
+
+Each sheet carries classes
 `sheet page-sheet sheet-<variant> tpl-<templateId> layout-<mode> head-<headerStyle>` + `is-editing`,
 `data-page`, and CSS custom props `--acc` (primary), `--ink` (text), `--mut` (muted), `--side-w`,
 `--page-h:1122px`. Sheet look: white, `border-radius:4px`, heavy drop shadow, base type **12.5px / 1.45**
@@ -390,8 +397,10 @@ from its own button.
 
 ### 1.16 `PageCountPill` + `SheetOverflowGuides` + `.page-break-rule`
 
-- **Page-count pill**: fixed bottom-center floating pill (dark, 999px radius, `aria-live="polite"`):
-  bold count + uppercase "page/pages". Count = measured pages (§3.5), min 1.
+- **Page-count pill**: sticky bottom-center floating pill (dark, 999px radius,
+  `aria-live="polite"`), overlaid on the scale viewport in a surface-tall sticky
+  layer (#813) so it stays pinned and unscaled: bold count + uppercase
+  "page/pages". Count = measured pages (§3.5), min 1.
 - **Overflow guides**: edit-mode-only dashed accent horizontal rules (`.page-guide`, 40%-accent 1px
   dashed, inset .35rem from sheet edges) drawn across a sheet at every `n × 1122px` of that sheet's
   content height — the "your content crosses an A4 boundary here" indicator. Measured from child
@@ -534,9 +543,29 @@ printed sheet must be pixel-identical to view mode.
 ### 3.1 Page geometry
 
 CSS-pixel A4 at ~96dpi: **page height 1122px, sheet width 860px** (`PAGE_HEIGHT_PX` /
-`PAGE_WIDTH_PX`). The on-screen sheet is `width:min(860px,100%)`; sheets **size to their content**
-(no fixed-height page frames) — A4 boundaries are communicated by guides and the pill, not by
-clipping. HTML-UI PDF export prints at exactly 860×1122.
+`PAGE_WIDTH_PX`). The sheet's **internal layout is always exactly 860px wide** — never
+reflowed. Sheets **size to their content** (no fixed-height page frames) — A4 boundaries are
+communicated by guides and the pill, not by clipping. HTML-UI PDF export prints at exactly
+860×1122.
+
+**Miniature scale on narrow canvases (#813).** When the available canvas width (the scale
+host content box; drawers overlay and do not shrink it) drops below 860px, `DocSheet` paints
+the whole sheet stack as a faithful miniature: `transform: scale(k)` with
+`transform-origin: top center`, where `k = available / 860`, and a height-compensated wrapper
+(`height: contentHeight * k`) so scroll geometry matches the visual size. Page-break guides
+and drop indicators live inside the transformed subtree and scale with the sheet; the
+page-count pill, edge drawer tabs, and the top bar stay unscaled chrome (the pill overlays
+the viewport in a sticky surface-tall layer — §1.16). Pointer math under the sheet
+(`dropIndexFromPointer`, the sidebar resize handle) divides client deltas by `k`.
+
+**WCAG 2.5.8 on the sheet (#813).** While editing, every sheet pointer target is at least
+24 CSS px after scale: the scaled subtree sets `--sheet-k` and hit boxes use
+`max(designSize, 24px / var(--sheet-k))`. Visual glyphs may stay at design size; adjacent
+pill buttons grow the flex row rather than overlapping. This holds for every interactive k
+in `[0.45, 1]`. Below `k = 0.45` (`SHEET_SCALE_EDIT_FLOOR`) the sheet forces Done (read-only)
+and the mode toggle is disabled until the canvas widens — a usability floor (hit boxes at
+`24/k` become large relative to the miniature), not an excuse for failing 2.5.8. Other WCAG
+2.2 AA criteria stay on epic #352.
 
 ### 3.2 Columns & templates
 
@@ -547,9 +576,10 @@ A template (`shared.ts Template`) declares: `layoutMode`
 `sidebarWidth` (px; 0 ⇒ equal split for header-split). Grid:
 `grid-template-columns: var(--side-w) 1fr` (mirrored for sidebar-right; `1fr 1fr` when equal),
 `align-items:start` (columns must NOT stretch to the taller sibling — pinned bug: stretching
-invented voids). The sidebar is user-resizable in edit mode via an 8px edge handle
-(`role="separator"`, aria-value 160–360, clamped, persisted in localStorage
-`rustume.studio.sidebarWidth`); pointer-capture drag, direction-aware for right sidebars.
+invented voids). The sidebar is user-resizable in edit mode via an edge handle
+(`role="separator"`, aria-value 160–360, clamped, persisted as `metadata.page.sidebarRatio`);
+the painted gutter stays a thin line, the tap box is ≥24 CSS px after scale(k) (WCAG 2.5.8).
+Pointer-capture drag, direction-aware for right sidebars.
 
 ### 3.3 The layout data structure
 

@@ -253,6 +253,15 @@ export const SINGLE_TEMPLATE: TemplateLayout = {
   headerStyle: "center",
   contactIn: "header",
   sidebarWidth: null,
+  headingStyle: "underline",
+  sidebarHeadingStyle: "underline",
+  headingCase: "upper",
+  headingInk: "accent",
+  sidebarHeadingInk: "accent",
+  fontBody: "ibm-plex-sans",
+  sidebarTint: false,
+  keywordStyle: "plain",
+  headerRule: true,
 };
 
 /** Mirrors `pikachu`: fixed 180pt sidebar painted on the left. */
@@ -276,6 +285,15 @@ export const SIDEBAR_TEMPLATE: TemplateLayout = {
   headerStyle: "sidebar",
   contactIn: "sidebar",
   sidebarWidth: 180,
+  headingStyle: "band",
+  sidebarHeadingStyle: "plain",
+  headingCase: "upper",
+  headingInk: "accent",
+  sidebarHeadingInk: "accent",
+  fontBody: "ibm-plex-sans",
+  sidebarTint: true,
+  keywordStyle: "plain",
+  headerRule: false,
 };
 
 /** Mirrors a proportional two-column template with no fixed sidebar width. */
