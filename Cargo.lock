@@ -546,9 +546,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.4.2"
+version = "1.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d262e149917187838d5b42777c8253bcb64500067342904e7d429499a6f277e"
+checksum = "509591b7bcd67f4ef775afad7662703b4935daaa6ec0e5605cfb1090b32a2b6d"
 dependencies = [
  "find-msvc-tools",
  "jobserver",
@@ -1424,9 +1424,9 @@ checksum = "b97b65636e5b9ef369943878ac74335ba1c55c1cb6adbf1e2c293c624248d693"
 
 [[package]]
 name = "find-msvc-tools"
-version = "0.1.10"
+version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26b73573e6edcd2af0cdf47bd6cb58f0b3839491263c314eaad1ccf24430e1de"
+checksum = "d45db016d36b838f563236e9193d0ee6ce38f3f68b6c94e914b4929c96bbb890"
 
 [[package]]
 name = "finl_unicode"
@@ -4439,7 +4439,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-cli"
-version = "0.67.2"
+version = "0.67.3"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -4460,7 +4460,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-parser"
-version = "0.67.2"
+version = "0.67.3"
 dependencies = [
  "csv",
  "cuid2",
@@ -4476,7 +4476,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-render"
-version = "0.67.2"
+version = "0.67.3"
 dependencies = [
  "base64 0.23.1",
  "chrono",
@@ -4502,7 +4502,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-schema"
-version = "0.67.2"
+version = "0.67.3"
 dependencies = [
  "cuid2",
  "once_cell",
@@ -4519,7 +4519,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-schema-macros"
-version = "0.67.2"
+version = "0.67.3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4528,7 +4528,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-server"
-version = "0.67.2"
+version = "0.67.3"
 dependencies = [
  "anyhow",
  "axum",
@@ -4574,7 +4574,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-storage"
-version = "0.67.2"
+version = "0.67.3"
 dependencies = [
  "async-trait",
  "js-sys",
@@ -4591,7 +4591,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-utils"
-version = "0.67.2"
+version = "0.67.3"
 dependencies = [
  "ammonia",
  "chrono",
@@ -4608,7 +4608,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-wasm"
-version = "0.67.2"
+version = "0.67.3"
 dependencies = [
  "js-sys",
  "rustume-parser",

@@ -22,6 +22,12 @@ and this project adheres to
 
 ### Security
 
+## [0.67.3] - 2026-08-14
+
+### Fixed
+
+- **app**: collapse the avatar slot when no photo is set (#866) (9c3c960)
+
 ## [0.67.2] - 2026-08-14
 
 ### Fixed
@@ -1046,7 +1052,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.67.2...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.67.3...HEAD
+[0.67.3]: https://github.com/lgtm-hq/Rustume/compare/v0.67.2...v0.67.3
 [0.67.2]: https://github.com/lgtm-hq/Rustume/compare/v0.67.1...v0.67.2
 [0.67.1]: https://github.com/lgtm-hq/Rustume/compare/v0.67.0...v0.67.1
 [0.67.0]: https://github.com/lgtm-hq/Rustume/compare/v0.66.0...v0.67.0
