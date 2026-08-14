@@ -10,6 +10,8 @@ import BasePage from "./BasePage";
 export default class DocEditorPage extends BasePage {
   readonly sheet: Locator;
   readonly surface: Locator;
+  /** Page-count pill: outside the scaled `.doc-sheet` subtree (#813). */
+  readonly pageCount: Locator;
   readonly modeToggle: Locator;
   readonly header: Locator;
   readonly savedIndicator: Locator;
@@ -24,6 +26,7 @@ export default class DocEditorPage extends BasePage {
     super(page);
     this.sheet = page.getByTestId("doc-sheet");
     this.surface = page.getByTestId("doc-editor-surface");
+    this.pageCount = page.getByTestId("doc-sheet-page-count");
     this.modeToggle = page.getByTestId("doc-editor-mode-toggle");
     this.header = page.getByTestId("doc-sheet-header");
     this.savedIndicator = page.getByText("Saved", { exact: true });

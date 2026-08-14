@@ -24,8 +24,17 @@
         "languages"
       ]
     ],
+    "fontBody": "ibm-plex-sans",
+    "headerRule": true,
     "headerStyle": "center",
+    "headingCase": "upper",
+    "headingInk": "accent",
+    "headingStyle": "underline",
+    "keywordStyle": "chips",
     "layoutMode": "sidebar-left",
+    "sidebarHeadingInk": "accent",
+    "sidebarHeadingStyle": "underline",
+    "sidebarTint": false,
     "sidebarWidth": null
   },
   "bronzor": {
@@ -49,8 +58,17 @@
       ],
       []
     ],
+    "fontBody": "ibm-plex-sans",
+    "headerRule": true,
     "headerStyle": "center",
+    "headingCase": "upper",
+    "headingInk": "accent",
+    "headingStyle": "underline",
+    "keywordStyle": "plain",
     "layoutMode": "single",
+    "sidebarHeadingInk": "accent",
+    "sidebarHeadingStyle": "underline",
+    "sidebarTint": false,
     "sidebarWidth": null
   },
   "chikorita": {
@@ -78,8 +96,17 @@
         "languages"
       ]
     ],
+    "fontBody": "ibm-plex-sans",
+    "headerRule": true,
     "headerStyle": "left",
+    "headingCase": "upper",
+    "headingInk": "accent",
+    "headingStyle": "underline",
+    "keywordStyle": "chips",
     "layoutMode": "sidebar-right",
+    "sidebarHeadingInk": "accent",
+    "sidebarHeadingStyle": "underline",
+    "sidebarTint": true,
     "sidebarWidth": null
   },
   "ditto": {
@@ -107,8 +134,17 @@
         "languages"
       ]
     ],
+    "fontBody": "ibm-plex-sans",
+    "headerRule": false,
     "headerStyle": "banner",
+    "headingCase": "upper",
+    "headingInk": "accent",
+    "headingStyle": "underline",
+    "keywordStyle": "chips",
     "layoutMode": "sidebar-left",
+    "sidebarHeadingInk": "accent",
+    "sidebarHeadingStyle": "underline",
+    "sidebarTint": true,
     "sidebarWidth": 160
   },
   "gengar": {
@@ -136,8 +172,17 @@
         "languages"
       ]
     ],
+    "fontBody": "ibm-plex-sans",
+    "headerRule": false,
     "headerStyle": "sidebar",
+    "headingCase": "upper",
+    "headingInk": "text",
+    "headingStyle": "underline",
+    "keywordStyle": "chips",
     "layoutMode": "sidebar-left",
+    "sidebarHeadingInk": "accent",
+    "sidebarHeadingStyle": "underline",
+    "sidebarTint": true,
     "sidebarWidth": 170
   },
   "glalie": {
@@ -165,8 +210,17 @@
         "languages"
       ]
     ],
+    "fontBody": "ibm-plex-sans",
+    "headerRule": false,
     "headerStyle": "sidebar",
+    "headingCase": "as-written",
+    "headingInk": "accent",
+    "headingStyle": "underline",
+    "keywordStyle": "plain",
     "layoutMode": "sidebar-left",
+    "sidebarHeadingInk": "accent",
+    "sidebarHeadingStyle": "underline",
+    "sidebarTint": true,
     "sidebarWidth": 170
   },
   "kakuna": {
@@ -190,8 +244,17 @@
       ],
       []
     ],
+    "fontBody": "ibm-plex-sans",
+    "headerRule": false,
     "headerStyle": "boxed",
+    "headingCase": "upper",
+    "headingInk": "accent",
+    "headingStyle": "underline",
+    "keywordStyle": "chips",
     "layoutMode": "single",
+    "sidebarHeadingInk": "accent",
+    "sidebarHeadingStyle": "underline",
+    "sidebarTint": false,
     "sidebarWidth": null
   },
   "leafish": {
@@ -219,8 +282,17 @@
         "custom"
       ]
     ],
+    "fontBody": "ibm-plex-sans",
+    "headerRule": false,
     "headerStyle": "banner",
+    "headingCase": "upper",
+    "headingInk": "accent",
+    "headingStyle": "underline",
+    "keywordStyle": "chips",
     "layoutMode": "header-split",
+    "sidebarHeadingInk": "accent",
+    "sidebarHeadingStyle": "underline",
+    "sidebarTint": false,
     "sidebarWidth": null
   },
   "nosepass": {
@@ -244,8 +316,17 @@
       ],
       []
     ],
+    "fontBody": "ibm-plex-serif",
+    "headerRule": true,
     "headerStyle": "left",
+    "headingCase": "as-written",
+    "headingInk": "accent",
+    "headingStyle": "rule",
+    "keywordStyle": "plain",
     "layoutMode": "single",
+    "sidebarHeadingInk": "accent",
+    "sidebarHeadingStyle": "rule",
+    "sidebarTint": false,
     "sidebarWidth": null
   },
   "not-a-template": {
@@ -269,8 +350,17 @@
       ],
       []
     ],
+    "fontBody": "ibm-plex-sans",
+    "headerRule": true,
     "headerStyle": "left",
+    "headingCase": "upper",
+    "headingInk": "accent",
+    "headingStyle": "underline",
+    "keywordStyle": "plain",
     "layoutMode": "single",
+    "sidebarHeadingInk": "accent",
+    "sidebarHeadingStyle": "underline",
+    "sidebarTint": false,
     "sidebarWidth": null
   },
   "onyx": {
@@ -294,8 +384,17 @@
       ],
       []
     ],
+    "fontBody": "ibm-plex-sans",
+    "headerRule": true,
     "headerStyle": "left",
+    "headingCase": "upper",
+    "headingInk": "accent",
+    "headingStyle": "underline",
+    "keywordStyle": "chips",
     "layoutMode": "single",
+    "sidebarHeadingInk": "accent",
+    "sidebarHeadingStyle": "underline",
+    "sidebarTint": false,
     "sidebarWidth": null
   },
   "pikachu": {
@@ -323,8 +422,17 @@
         "languages"
       ]
     ],
+    "fontBody": "ibm-plex-sans",
+    "headerRule": false,
     "headerStyle": "left",
+    "headingCase": "upper",
+    "headingInk": "accent",
+    "headingStyle": "band",
+    "keywordStyle": "plain",
     "layoutMode": "sidebar-left",
+    "sidebarHeadingInk": "accent",
+    "sidebarHeadingStyle": "plain",
+    "sidebarTint": true,
     "sidebarWidth": 180
   },
   "rhyhorn": {
@@ -348,8 +456,17 @@
       ],
       []
     ],
+    "fontBody": "ibm-plex-sans",
+    "headerRule": true,
     "headerStyle": "left",
+    "headingCase": "upper",
+    "headingInk": "accent",
+    "headingStyle": "underline",
+    "keywordStyle": "plain",
     "layoutMode": "single",
+    "sidebarHeadingInk": "accent",
+    "sidebarHeadingStyle": "underline",
+    "sidebarTint": false,
     "sidebarWidth": null
   }
 }

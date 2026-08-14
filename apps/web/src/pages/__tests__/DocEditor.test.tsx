@@ -140,6 +140,11 @@ describe("DocEditor sheet", () => {
     // The measured page count lives in the sheet's floating pill now (#794);
     // it can never report fewer pages than there are drawn sheets.
     expect(screen.getByTestId("doc-sheet-page-count")).toHaveTextContent(/2\s*pages/);
+    expect(
+      screen
+        .getByTestId("doc-sheet-scale-viewport")
+        .querySelector('[data-testid="doc-sheet-page-count"]'),
+    ).toBeNull();
   });
 
   it("renders a single document surface with no preview pane", async () => {

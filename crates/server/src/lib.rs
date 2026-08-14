@@ -773,6 +773,18 @@ mod tests {
                 "{id} is missing contactIn"
             );
             assert!(layout.get("sidebarWidth").is_some(), "{id} sidebarWidth");
+            assert!(
+                layout["headingStyle"]
+                    .as_str()
+                    .is_some_and(|h| !h.is_empty()),
+                "{id} is missing headingStyle"
+            );
+            assert!(
+                layout["fontBody"].as_str().is_some_and(|f| !f.is_empty()),
+                "{id} is missing fontBody"
+            );
+            assert!(layout.get("sidebarTint").is_some(), "{id} sidebarTint");
+            assert!(layout.get("headerRule").is_some(), "{id} headerRule");
 
             let columns = layout["defaultColumns"].as_array().unwrap();
             assert_eq!(columns.len(), 2, "{id} should expose two columns");
@@ -786,6 +798,9 @@ mod tests {
         assert_eq!(pikachu["layout"]["layoutMode"], "sidebar-left");
         assert_eq!(pikachu["layout"]["contactIn"], "sidebar");
         assert_eq!(pikachu["layout"]["sidebarWidth"], 180);
+        assert_eq!(pikachu["layout"]["headingStyle"], "band");
+        assert_eq!(pikachu["layout"]["sidebarHeadingStyle"], "plain");
+        assert_eq!(pikachu["layout"]["sidebarTint"], true);
 
         let onyx = templates.iter().find(|t| t["id"] == "onyx").unwrap();
         assert_eq!(onyx["layout"]["layoutMode"], "single");
@@ -794,6 +809,9 @@ mod tests {
             .unwrap()
             .is_empty());
         assert!(onyx["layout"]["sidebarWidth"].is_null());
+        assert_eq!(onyx["layout"]["headingStyle"], "underline");
+        assert_eq!(onyx["layout"]["keywordStyle"], "chips");
+        assert_eq!(onyx["layout"]["fontBody"], "ibm-plex-sans");
     }
 
     #[tokio::test]

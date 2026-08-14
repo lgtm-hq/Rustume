@@ -19,7 +19,7 @@ import {
 } from "../../../test/docEditorFixture";
 import {
   DEFAULT_DOC_FONT_FAMILY,
-  SERIF_DOC_FONT_FAMILY,
+  bundledTemplateLayout,
   docFontStack,
   type TemplateLayout,
 } from "../../../lib/docLayout";
@@ -181,30 +181,28 @@ describe("document sheet structural chrome", () => {
       expect(body).not.toContain("Fraunces");
     });
 
-    it("follows nosepass with IBM Plex Serif", () => {
+    it("follows nosepass chrome with IBM Plex Serif", () => {
       resume.metadata.template = "nosepass";
-      renderSheet({ template: SINGLE_TEMPLATE });
+      const layout = bundledTemplateLayout("nosepass");
+      renderSheet({ template: layout });
 
       const sheet = screen.getByTestId("doc-sheet");
-      expect(sheet.style.getPropertyValue("--doc-font-body")).toBe(
-        docFontStack(SERIF_DOC_FONT_FAMILY),
-      );
-      expect(sheet.style.getPropertyValue("--doc-font-display")).toBe(
-        docFontStack(SERIF_DOC_FONT_FAMILY),
-      );
+      const expected = docFontStack(layout.fontBody);
+      expect(sheet.style.getPropertyValue("--doc-font-body")).toBe(expected);
+      expect(sheet.style.getPropertyValue("--doc-font-display")).toBe(expected);
+      expect(expected).toContain("IBM Plex Serif");
     });
 
-    it("follows glalie with IBM Plex Serif (Typst inherits the engine default)", () => {
+    it("follows glalie chrome with IBM Plex Sans (Typst still inherits engine serif)", () => {
       resume.metadata.template = "glalie";
-      renderSheet();
+      const layout = bundledTemplateLayout("glalie");
+      renderSheet({ template: layout });
 
       const sheet = screen.getByTestId("doc-sheet");
-      expect(sheet.style.getPropertyValue("--doc-font-body")).toBe(
-        docFontStack(SERIF_DOC_FONT_FAMILY),
-      );
-      expect(sheet.style.getPropertyValue("--doc-font-display")).toBe(
-        docFontStack(SERIF_DOC_FONT_FAMILY),
-      );
+      const expected = docFontStack(layout.fontBody);
+      expect(sheet.style.getPropertyValue("--doc-font-body")).toBe(expected);
+      expect(sheet.style.getPropertyValue("--doc-font-display")).toBe(expected);
+      expect(expected).toContain("IBM Plex Sans");
     });
   });
 
@@ -951,6 +949,24 @@ describe("document sheet structural chrome", () => {
       expect(layout[0][0]).toEqual(["summary", "education", "experience", "projects"]);
       expect(breaks).toEqual({});
       expect(writeCount()).toBe(1);
+    });
+  });
+
+  describe("miniature scale CSS contract", () => {
+    it("publishes --sheet-k on the scaled subtree", () => {
+      renderSheet();
+
+      const transform = screen.getByTestId("doc-sheet-scale-transform");
+      expect(transform.style.getPropertyValue("--sheet-k")).toBe("1");
+    });
+
+    it("keeps the page-count pill outside the scale viewport", () => {
+      renderSheet();
+
+      const viewport = screen.getByTestId("doc-sheet-scale-viewport");
+      const pill = screen.getByTestId("doc-sheet-page-count");
+      expect(viewport.contains(pill)).toBe(false);
+      expect(screen.getByTestId("doc-sheet-scale").contains(pill)).toBe(true);
     });
   });
 
