@@ -1353,10 +1353,9 @@ fn test_templates_use_shared_render_contract() {
             path.display()
         );
         assert!(
-            contents.contains("avatar-above(")
-                || contents.contains("avatar-beside(")
-                || contents.contains("render-avatar("),
-            "{} must place the avatar through _common.typ helpers so the slot can collapse (#857)",
+            contents.contains("avatar-above(") || contents.contains("avatar-beside("),
+            "{} must place the avatar through avatar-above/avatar-beside so a \
+             direct render-avatar call cannot hide an empty reserved slot (#857)",
             path.display()
         );
     }

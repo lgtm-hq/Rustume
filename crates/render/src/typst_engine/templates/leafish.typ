@@ -455,10 +455,11 @@
             column-gutter: 16pt,
             name-block,
             align(right + horizon)[
-              #if has-avatar-slot(data.basics) {
-                render-avatar(data.basics, accent-color)
-                if has-url(data.basics) { v(6pt) }
-              }
+              #avatar-above(
+                data.basics,
+                accent-color,
+                below: if has-url(data.basics) { 6pt } else { 0pt },
+              )
               #if has-url(data.basics) {
                 link(data.basics.url.href)[#text(size: 9pt, fill: accent-color)[#url-display-label(data.basics.url)]]
               }

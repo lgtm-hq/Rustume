@@ -88,11 +88,11 @@ describe("itemPresentation contract (#829)", () => {
     expect(
       avatarShowsInitials({ ...photo, effects: { ...photo.effects, showInitials: true } }),
     ).toBe(false);
-    expect(
-      avatarShowsInitials({
-        ...photo,
-        effects: { ...photo.effects, hidden: true, showInitials: true },
-      }),
-    ).toBe(false);
+    const hiddenPhoto = {
+      ...photo,
+      effects: { ...photo.effects, hidden: true, showInitials: true },
+    };
+    expect(pictureVisible(hiddenPhoto)).toBe(false);
+    expect(avatarShowsInitials(hiddenPhoto)).toBe(false);
   });
 });
