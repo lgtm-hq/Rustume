@@ -7,10 +7,10 @@
  * need the real set override `TEMPLATES_ROUTE` with {@link FULL_TEMPLATE_CATALOG}
  * for the duration of the test only.
  *
- * Themes mirror `get_template_theme` in
- * `crates/render/src/typst_engine/engine.rs` (asserted by the Rust suite).
- * Layout blocks come from `tests/fixtures/template-layouts.json` — the same
- * fixture `bundledTemplateLayout` locksteps against — so `applyTemplate`
+ * Themes are asserted against `tests/fixtures/template-themes.json`, authored
+ * by `get_template_theme`. Layout blocks come from
+ * `tests/fixtures/template-layouts.json` — the same fixture
+ * `bundledTemplateLayout` locksteps against — so `applyTemplate`
  * rebuilds columns and chrome the same way production `GET /api/templates`
  * does.
  */

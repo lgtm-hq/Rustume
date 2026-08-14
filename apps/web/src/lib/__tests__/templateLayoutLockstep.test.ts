@@ -5,6 +5,9 @@
  * (`template_layouts_fixture_is_up_to_date` in
  * `crates/render/src/typst_engine/template_layout.rs`). Regenerate with:
  * `UPDATE_FIXTURES=1 cargo test -p rustume-render template_layouts_fixture_is_up_to_date --lib`
+ *
+ * Parsed `.strict()` so a new Rust wire field is rejected rather than stripped
+ * before comparison — the drift class #824/#837 cannot catch otherwise.
  */
 
 import { readFileSync } from "node:fs";
@@ -20,7 +23,7 @@ const FIXTURE_PATH = resolve(
   "../../../../../tests/fixtures/template-layouts.json",
 );
 
-const fixtureLayoutsSchema = z.record(z.string(), templateLayoutSchema);
+const fixtureLayoutsSchema = z.record(z.string(), templateLayoutSchema.strict());
 
 function loadFixture(): z.infer<typeof fixtureLayoutsSchema> {
   return fixtureLayoutsSchema.parse(JSON.parse(readFileSync(FIXTURE_PATH, "utf8")));
@@ -52,5 +55,14 @@ describe("bundledTemplateLayout lockstep with get_template_layout", () => {
 
   it.each(ids)("matches fixture for %s", (id) => {
     expect(bundledTemplateLayout(id)).toEqual(fixture[id]);
+  });
+
+  it("rejects unknown fixture fields (strict parse)", () => {
+    const raw = JSON.parse(readFileSync(FIXTURE_PATH, "utf8")) as Record<
+      string,
+      Record<string, unknown>
+    >;
+    raw.rhyhorn = { ...raw.rhyhorn, notARealField: true };
+    expect(() => fixtureLayoutsSchema.parse(raw)).toThrow(/unrecognized_keys|notARealField/);
   });
 });

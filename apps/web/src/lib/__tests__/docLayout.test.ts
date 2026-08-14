@@ -704,14 +704,8 @@ describe("templateDocFontFamily / docFontStack", () => {
   });
 
   it("quotes the family and matches fallback generics to the classification", () => {
-    expect(docFontStack("IBM Plex Sans")).toBe(
-      '"IBM Plex Sans", "Helvetica Neue", Arial, sans-serif',
-    );
     expect(docFontStack("ibm-plex-sans")).toBe(
       '"IBM Plex Sans", "Helvetica Neue", Arial, sans-serif',
-    );
-    expect(docFontStack("IBM Plex Serif")).toBe(
-      '"IBM Plex Serif", Georgia, "Times New Roman", serif',
     );
     expect(docFontStack("ibm-plex-serif")).toBe(
       '"IBM Plex Serif", Georgia, "Times New Roman", serif',

@@ -4577,6 +4577,7 @@ dependencies = [
  "cuid2",
  "ego-tree",
  "once_cell",
+ "proptest",
  "regex",
  "rstest",
  "scraper",

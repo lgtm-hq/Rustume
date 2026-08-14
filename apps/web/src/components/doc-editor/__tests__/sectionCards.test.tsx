@@ -17,12 +17,7 @@ import {
   SIDEBAR_TEMPLATE,
   SINGLE_TEMPLATE,
 } from "../../../test/docEditorFixture";
-import {
-  DEFAULT_DOC_FONT_FAMILY,
-  bundledTemplateLayout,
-  docFontStack,
-  type TemplateLayout,
-} from "../../../lib/docLayout";
+import { bundledTemplateLayout, docFontStack, type TemplateLayout } from "../../../lib/docLayout";
 import { DocSheet } from "../DocSheet";
 import type { ResumeData } from "../../../wasm/types";
 
@@ -173,8 +168,8 @@ describe("document sheet structural chrome", () => {
       const sheet = screen.getByTestId("doc-sheet");
       const body = sheet.style.getPropertyValue("--doc-font-body");
       const display = sheet.style.getPropertyValue("--doc-font-display");
-      expect(body).toBe(docFontStack(DEFAULT_DOC_FONT_FAMILY));
-      expect(display).toBe(docFontStack(DEFAULT_DOC_FONT_FAMILY));
+      expect(body).toBe(docFontStack("ibm-plex-sans"));
+      expect(display).toBe(docFontStack("ibm-plex-sans"));
       // Must not inherit / re-expose the app chrome tokens.
       expect(sheet.style.getPropertyValue("--font-body")).toBe("");
       expect(body).not.toContain("Source Serif");

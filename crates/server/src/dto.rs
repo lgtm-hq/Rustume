@@ -157,3 +157,56 @@ pub struct ValidationResponse {
     #[schema(example = json!(["basics.email: invalid email format"]))]
     pub errors: Option<Vec<String>>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::BTreeSet;
+
+    /// `LayoutInfo` ↔ `LayoutWire` pairing (`template_layout.rs` fixture).
+    /// A new `LayoutInfo` field that `LayoutWire` lacks is the silent-drift
+    /// class #824/#837 cannot catch.
+    #[test]
+    fn layout_info_keys_match_layout_wire_fixture() {
+        let info = LayoutInfo {
+            layout_mode: "single".into(),
+            default_columns: vec![vec!["summary".into()], vec![]],
+            header_style: "left".into(),
+            contact_in: "header".into(),
+            sidebar_width: None,
+            heading_style: "underline".into(),
+            sidebar_heading_style: "underline".into(),
+            heading_case: "upper".into(),
+            heading_ink: "accent".into(),
+            sidebar_heading_ink: "accent".into(),
+            font_body: "ibm-plex-sans".into(),
+            sidebar_tint: false,
+            keyword_style: "plain".into(),
+            header_rule: true,
+        };
+        let info_keys: BTreeSet<String> = serde_json::to_value(&info)
+            .expect("LayoutInfo serializes")
+            .as_object()
+            .expect("object")
+            .keys()
+            .cloned()
+            .collect();
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/template-layouts.json"
+        ))
+        .expect("layout fixture parses");
+        let wire_keys: BTreeSet<String> = fixture
+            .get("rhyhorn")
+            .expect("fixture includes rhyhorn")
+            .as_object()
+            .expect("object")
+            .keys()
+            .cloned()
+            .collect();
+        assert_eq!(
+            info_keys, wire_keys,
+            "LayoutInfo (dto.rs) and LayoutWire (template_layout.rs fixture) must \
+             stay field-paired"
+        );
+    }
+}
