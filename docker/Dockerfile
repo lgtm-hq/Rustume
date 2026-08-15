@@ -11,6 +11,15 @@ FROM rust:1.97-alpine@sha256:3c38f3f82c2f3d73da3b38e18d279393a04cb43ddded0e35088
 # BuildKit auto-populates TARGETARCH per --platform (amd64 | arm64)
 ARG TARGETARCH
 
+# Cap rustc parallelism. GitHub-hosted runners are 4 vCPU / 16 GB; cargo's
+# default ncpu job count drives peak rustc memory past the VM ceiling and
+# the runner is killed ~20 min into a cold `cargo chef cook` (#868). A
+# slower build that survives beats a fast one that is killed. Overridable
+# via `--build-arg CARGO_BUILD_JOBS=N`. Inherited by planner/builder
+# (both FROM chef).
+ARG CARGO_BUILD_JOBS=2
+ENV CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS}
+
 WORKDIR /app
 # musl-dev + make: required for tikv-jemalloc-sys to compile jemalloc from C source
 # Map TARGETARCH → Rust triple and persist for downstream stages
@@ -103,18 +112,33 @@ FROM rust:1.97-alpine@sha256:3c38f3f82c2f3d73da3b38e18d279393a04cb43ddded0e35088
 # Re-declare — ARGs do not cross FROM boundaries
 ARG TARGETARCH
 ARG BUN_VERSION=1.3.14
+# Same cap as chef: this stage used to compile wasm-pack and
+# wasm-bindgen-cli from source concurrently with the cook, which is
+# what pushed the 4 vCPU / 16 GB runner over the kill threshold (#868).
+ARG CARGO_BUILD_JOBS=2
+ENV CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS}
 
 WORKDIR /app
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 
 COPY Cargo.lock /tmp/Cargo.lock
 
+# Install wasm-pack / wasm-bindgen-cli as prebuilt binaries via cargo-binstall
+# (official installer, not `cargo install cargo-binstall` — compiling
+# binstall from source would recreate the rustc peak this stage is meant
+# to avoid). Both linux/amd64 and linux/arm64 publish musl artifacts
+# (wasm-pack v0.15+, wasm-bindgen-cli since 0.2.104; lock is 0.2.127),
+# so binstall is used on both arches. wasm-bindgen CLI version is grepped
+# from Cargo.lock so it matches the crate the WASM bindings compile against.
 RUN apk add --no-cache musl-dev bash unzip ca-certificates curl && \
     update-ca-certificates && \
     rustup target add wasm32-unknown-unknown && \
-    cargo install wasm-pack --locked && \
+    curl -L --proto '=https' --tlsv1.2 -sSf \
+      https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh \
+      | bash && \
+    cargo binstall --no-confirm --locked wasm-pack && \
     WASM_BINDGEN_VERSION=$(grep 'name = "wasm-bindgen"' /tmp/Cargo.lock -A 1 | grep version | head -1 | cut -d '"' -f 2) && \
-    cargo install "wasm-bindgen-cli@${WASM_BINDGEN_VERSION}" --locked && \
+    cargo binstall --no-confirm --locked "wasm-bindgen-cli@${WASM_BINDGEN_VERSION}" && \
     rm /tmp/Cargo.lock && \
     case "${TARGETARCH}" in \
       amd64) BUN_ARCH=x64-musl ;; \
