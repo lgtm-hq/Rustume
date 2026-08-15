@@ -30,7 +30,7 @@ jobs:
     uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-security-audit.yml@23c79b65490a3307fb08cdefafa22db12f75b9b2 # v0.63.1
     permissions:
       contents: read
-      packages: read
+      packages: read # pull the pinned lintro audit image from GHCR
     with:
       tooling-ref: '23c79b65490a3307fb08cdefafa22db12f75b9b2' # v0.63.1
       job-name: "Scan dependencies"
@@ -92,7 +92,7 @@ jobs:
     uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-publish-security-audit-comment.yml@23c79b65490a3307fb08cdefafa22db12f75b9b2 # v0.63.1
     permissions:
       contents: read
-      pull-requests: write
+      pull-requests: write # publish the audit summary on this PR
     with:
       tooling-ref: '23c79b65490a3307fb08cdefafa22db12f75b9b2' # v0.63.1
       job-name: "💬 Post PR Comment"
