@@ -3,7 +3,7 @@
 This repository uses GitHub Actions for quality gates, coverage, release automation,
 and publishing. Most workflows are thin callers to
 [lgtm-ci](https://github.com/lgtm-hq/lgtm-ci) reusable workflows pinned at
-`240daf3ed1f7475b3f322502035b15994be210a8` (**v0.59.16** release commit; not the annotated
+`23c79b65490a3307fb08cdefafa22db12f75b9b2` (**v0.63.1** release commit; not the annotated
 tag object SHA). All workflow SHA pins include
 trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enforced by
 [lgtm-ci validate-action-pinning](https://github.com/lgtm-hq/lgtm-ci/pull/221) (via
@@ -105,9 +105,9 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
 Use the **release commit SHA**, not the annotated tag object SHA:
 
 ```yaml
-uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@240daf3ed1f7475b3f322502035b15994be210a8 # v0.59.16
+uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@23c79b65490a3307fb08cdefafa22db12f75b9b2 # v0.63.1
 with:
-  tooling-ref: '240daf3ed1f7475b3f322502035b15994be210a8' # v0.59.16 release commit
+  tooling-ref: '23c79b65490a3307fb08cdefafa22db12f75b9b2' # v0.63.1 release commit
 ```
 
 Sparse `lgtm-hq` tooling checkouts may use `actions/checkout` when `ref:` is quoted and
@@ -137,7 +137,9 @@ Renovate config lives in `renovate.json`; the shared preset is
 | `.github/workflows/README.md` | `## Pin format` example | Illustrative lgtm-ci pin | **Manual — no manager**; `pin-sync-guard.yml` does not read Markdown |
 | `docker/Dockerfile` | `FROM <image>@sha256:<digest>` | `rust`, `gcr.io/distroless/static` | Renovate `dockerfile` (digest updates automerged) |
 | `docker/Dockerfile` | `ARG BUN_VERSION=` | bun release tarball | Renovate custom manager (`oven-sh/bun`, `github-releases`) |
+| `docker/Dockerfile` | `ARG BINSTALL_VERSION=` plus per-arch `BINSTALL_SHA256` | cargo-binstall release tarballs | **Manual — version and both SHA-256 values move together** |
 | `docker/Dockerfile` | `cargo install cargo-chef@<version>` | cargo-chef | Renovate custom manager (`cargo-chef`, `crate`) |
+| `scripts/ci/testing/web/install-wasm-pack.sh` | `DEFAULT_WASM_PACK_VERSION` plus per-arch checksums | wasm-pack release tarballs used by CI and Docker | **Manual — canonical version/checksum source** |
 | `docker/Dockerfile` | `wasm-bindgen-cli@${WASM_BINDGEN_VERSION}` | Derived from `Cargo.lock` at build time | n/a — no literal pin to update |
 | `docker-compose.yml` | `image: postgres:<tag>@sha256:<digest>` | Local dev Postgres | Renovate `docker-compose` |
 | `docker-compose.yml` | `image: ghcr.io/lgtm-hq/rustume:latest` | This repo's own image | n/a — deliberately floating |

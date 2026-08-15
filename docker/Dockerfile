@@ -114,6 +114,7 @@ FROM rust:1.97-alpine@sha256:3c38f3f82c2f3d73da3b38e18d279393a04cb43ddded0e35088
 # Re-declare — ARGs do not cross FROM boundaries
 ARG TARGETARCH
 ARG BUN_VERSION=1.3.14
+ARG BINSTALL_VERSION=1.21.1
 # Same cap as chef. This stage no longer compiles wasm tooling from
 # source (cargo-binstall below); the cap still covers rustup/cargo
 # work and any future cargo install in this stage.
@@ -124,33 +125,44 @@ WORKDIR /app
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 
 COPY Cargo.lock /tmp/Cargo.lock
+COPY scripts/ci/testing/web/install-wasm-pack.sh /tmp/install-wasm-pack.sh
 
-# Install wasm-pack / wasm-bindgen-cli as prebuilt binaries via cargo-binstall
-# (official installer, not `cargo install cargo-binstall` — compiling
-# binstall from source would recreate the rustc peak this stage is meant
-# to avoid). Both linux/amd64 and linux/arm64 publish musl artifacts
-# (wasm-pack v0.15+, wasm-bindgen-cli since 0.2.104; lock is 0.2.127),
-# so binstall is used on both arches. --disable-strategies compile fails
-# the RUN if a musl prebuilt disappears instead of compiling from source
-# and recreating the rustc peak. wasm-bindgen CLI version is grepped from
-# Cargo.lock so it matches the crate the WASM bindings compile against.
+# Install wasm-pack through the repo's canonical checksum-pinned installer,
+# then install a checksum-verified cargo-binstall release for the lockfile-
+# pinned wasm-bindgen-cli binary. Compiling either tool from source would
+# recreate the rustc peak this stage is meant to avoid. Both architectures
+# publish musl artifacts; --disable-strategies compile fails closed if the
+# wasm-bindgen prebuilt disappears.
 RUN apk add --no-cache musl-dev bash unzip ca-certificates curl && \
     update-ca-certificates && \
     rustup target add wasm32-unknown-unknown && \
-    curl -L --proto '=https' --tlsv1.2 -sSf \
-      https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh \
-      | bash && \
-    cargo binstall --no-confirm --locked --disable-strategies compile \
-      wasm-pack && \
+    bash /tmp/install-wasm-pack.sh && \
+    case "${TARGETARCH}" in \
+      amd64) \
+        BINSTALL_TARGET=x86_64-unknown-linux-musl; \
+        BINSTALL_SHA256=630c8f8803a686aa6779497f0f0fb51d49822fb5fc3c514d8ced33b34e338e6e; \
+        BUN_ARCH=x64-musl \
+        ;; \
+      arm64) \
+        BINSTALL_TARGET=aarch64-unknown-linux-musl; \
+        BINSTALL_SHA256=1dc2979f3c83aade9a1b4344589d14fafa63459b759222528d11419f5cca9cc2; \
+        BUN_ARCH=aarch64-musl \
+        ;; \
+      *) echo "unsupported TARGETARCH: ${TARGETARCH}" >&2 && exit 1 ;; \
+    esac && \
+    BINSTALL_ARCHIVE="cargo-binstall-${BINSTALL_TARGET}.tgz" && \
+    curl -fsSL \
+      "https://github.com/cargo-bins/cargo-binstall/releases/download/v${BINSTALL_VERSION}/${BINSTALL_ARCHIVE}" \
+      -o "/tmp/${BINSTALL_ARCHIVE}" && \
+    echo "${BINSTALL_SHA256}  /tmp/${BINSTALL_ARCHIVE}" | sha256sum -c - && \
+    mkdir /tmp/cargo-binstall && \
+    tar -xzf "/tmp/${BINSTALL_ARCHIVE}" -C /tmp/cargo-binstall && \
+    install -m 755 /tmp/cargo-binstall/cargo-binstall /usr/local/bin/cargo-binstall && \
     WASM_BINDGEN_VERSION=$(grep 'name = "wasm-bindgen"' /tmp/Cargo.lock -A 1 | grep version | head -1 | cut -d '"' -f 2) && \
     cargo binstall --no-confirm --locked --disable-strategies compile \
       "wasm-bindgen-cli@${WASM_BINDGEN_VERSION}" && \
-    rm /tmp/Cargo.lock && \
-    case "${TARGETARCH}" in \
-      amd64) BUN_ARCH=x64-musl ;; \
-      arm64) BUN_ARCH=aarch64-musl ;; \
-      *) echo "unsupported TARGETARCH for bun: ${TARGETARCH}" >&2 && exit 1 ;; \
-    esac && \
+    rm -rf /tmp/cargo-binstall "/tmp/${BINSTALL_ARCHIVE}" \
+      /tmp/install-wasm-pack.sh /tmp/Cargo.lock && \
     BUN_ZIP="bun-linux-${BUN_ARCH}.zip" && \
     curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/${BUN_ZIP}" -o "/tmp/${BUN_ZIP}" && \
     curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/SHASUMS256.txt" -o /tmp/SHASUMS256.txt && \

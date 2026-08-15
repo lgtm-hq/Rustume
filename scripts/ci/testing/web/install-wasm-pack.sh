@@ -31,6 +31,7 @@ aarch64 | arm64)
 	;;
 esac
 WASM_PACK_SHA256="${WASM_PACK_SHA256:-${default_sha256}}"
+install_dir="${CARGO_HOME:-${HOME}/.cargo}/bin"
 
 # Only trust a preinstalled binary when it matches the pinned version;
 # anything else is replaced by the checksum-verified release below.
@@ -55,8 +56,9 @@ curl --fail --silent --show-error --location --output "${tmp_dir}/${archive}" "$
 echo "${WASM_PACK_SHA256}  ${tmp_dir}/${archive}" | sha256sum --check --quiet
 
 tar -xzf "${tmp_dir}/${archive}" -C "${tmp_dir}"
+mkdir -p "${install_dir}"
 install -m 0755 \
 	"${tmp_dir}/wasm-pack-v${WASM_PACK_VERSION}-${target_triple}/wasm-pack" \
-	"${HOME}/.cargo/bin/wasm-pack"
+	"${install_dir}/wasm-pack"
 
 echo "Installed $(wasm-pack --version)"
