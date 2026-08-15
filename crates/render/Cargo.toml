@@ -43,11 +43,11 @@ tracing.workspace = true
 # CMap parser rejects Typst's ToUnicode streams; pdf-extract handles them)
 pdf-extract = "=0.12.0"
 # PNG decode for per-template visual baseline comparison (#831)
-image = { version = "0.25", default-features = false, features = ["png"] }
+image = { version = "=0.25.10", default-features = false, features = ["png"] }
 rstest.workspace = true
 rustume-parser = { path = "../parser" }
 tempfile = "=3.27.0"
-criterion = { version = "0.5", default-features = false, features = [
+criterion = { version = "=0.5.1", default-features = false, features = [
   "cargo_bench_support",
 ] }
 
