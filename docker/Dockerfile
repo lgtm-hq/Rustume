@@ -13,11 +13,13 @@ ARG TARGETARCH
 
 # Cap rustc parallelism. GitHub-hosted runners are 4 vCPU / 16 GB; cargo's
 # default ncpu job count drives peak rustc memory past the VM ceiling and
-# the runner is killed ~20 min into a cold `cargo chef cook` (#868). A
-# slower build that survives beats a fast one that is killed. Overridable
-# via `--build-arg CARGO_BUILD_JOBS=N`. Inherited by planner/builder
+# the runner is killed ~20 min into a cold `cargo chef cook` (#868).
+# jobs=2 still died mid-cook on PR #869 (web-builder already finished;
+# the last ~15 min were cook-only). jobs=1 is the right setting for a
+# 16 GB box compiling typst release. Overridable via
+# `--build-arg CARGO_BUILD_JOBS=N`. Inherited by planner/builder
 # (both FROM chef).
-ARG CARGO_BUILD_JOBS=2
+ARG CARGO_BUILD_JOBS=1
 ENV CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS}
 
 WORKDIR /app
@@ -112,10 +114,10 @@ FROM rust:1.97-alpine@sha256:3c38f3f82c2f3d73da3b38e18d279393a04cb43ddded0e35088
 # Re-declare — ARGs do not cross FROM boundaries
 ARG TARGETARCH
 ARG BUN_VERSION=1.3.14
-# Same cap as chef: this stage used to compile wasm-pack and
-# wasm-bindgen-cli from source concurrently with the cook, which is
-# what pushed the 4 vCPU / 16 GB runner over the kill threshold (#868).
-ARG CARGO_BUILD_JOBS=2
+# Same cap as chef. This stage no longer compiles wasm tooling from
+# source (cargo-binstall below); the cap still covers rustup/cargo
+# work and any future cargo install in this stage.
+ARG CARGO_BUILD_JOBS=1
 ENV CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS}
 
 WORKDIR /app
