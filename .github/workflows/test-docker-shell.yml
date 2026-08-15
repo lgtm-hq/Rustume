@@ -7,12 +7,14 @@ name: Test - Docker Shell Scripts
     branches: [main]
     paths:
       - 'scripts/ci/docker/**'
+      - 'scripts/ci/testing/web/install-wasm-pack.sh'
       - 'tests/bats/**'
       - '.github/workflows/test-docker-shell.yml'
   push:
     branches: [main]
     paths:
       - 'scripts/ci/docker/**'
+      - 'scripts/ci/testing/web/install-wasm-pack.sh'
       - 'tests/bats/**'
       - '.github/workflows/test-docker-shell.yml'
 
