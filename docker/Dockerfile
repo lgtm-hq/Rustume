@@ -128,17 +128,21 @@ COPY Cargo.lock /tmp/Cargo.lock
 # binstall from source would recreate the rustc peak this stage is meant
 # to avoid). Both linux/amd64 and linux/arm64 publish musl artifacts
 # (wasm-pack v0.15+, wasm-bindgen-cli since 0.2.104; lock is 0.2.127),
-# so binstall is used on both arches. wasm-bindgen CLI version is grepped
-# from Cargo.lock so it matches the crate the WASM bindings compile against.
+# so binstall is used on both arches. --disable-strategies compile fails
+# the RUN if a musl prebuilt disappears instead of compiling from source
+# and recreating the rustc peak. wasm-bindgen CLI version is grepped from
+# Cargo.lock so it matches the crate the WASM bindings compile against.
 RUN apk add --no-cache musl-dev bash unzip ca-certificates curl && \
     update-ca-certificates && \
     rustup target add wasm32-unknown-unknown && \
     curl -L --proto '=https' --tlsv1.2 -sSf \
       https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh \
       | bash && \
-    cargo binstall --no-confirm --locked wasm-pack && \
+    cargo binstall --no-confirm --locked --disable-strategies compile \
+      wasm-pack && \
     WASM_BINDGEN_VERSION=$(grep 'name = "wasm-bindgen"' /tmp/Cargo.lock -A 1 | grep version | head -1 | cut -d '"' -f 2) && \
-    cargo binstall --no-confirm --locked "wasm-bindgen-cli@${WASM_BINDGEN_VERSION}" && \
+    cargo binstall --no-confirm --locked --disable-strategies compile \
+      "wasm-bindgen-cli@${WASM_BINDGEN_VERSION}" && \
     rm /tmp/Cargo.lock && \
     case "${TARGETARCH}" in \
       amd64) BUN_ARCH=x64-musl ;; \
