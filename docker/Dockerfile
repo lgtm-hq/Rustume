@@ -11,27 +11,14 @@ FROM rust:1.97-alpine@sha256:3c38f3f82c2f3d73da3b38e18d279393a04cb43ddded0e35088
 # BuildKit auto-populates TARGETARCH per --platform (amd64 | arm64)
 ARG TARGETARCH
 
-# Cap rustc parallelism. GitHub-hosted runners are 4 vCPU / 16 GB; cargo's
-# default ncpu job count drives peak rustc memory past the VM ceiling and
-# the runner is killed ~20 min into a cold `cargo chef cook` (#868).
-# jobs=2 still died mid-cook on PR #869 (web-builder already finished;
-# the last ~15 min were cook-only). jobs=1 alone was still killed at ~20 min
-# on PR #869 — with one job rustc collapses the release profile to a single
-# codegen unit, which multiplies per-process memory for typst-scale crates.
-# codegen-units=16 splits each crate into smaller units so single-job rustc
-# peaks fit 16 GB. Both overridable via build args. Inherited by
-# planner/builder (both FROM chef).
-ARG CARGO_BUILD_JOBS=1
-ENV CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS}
-ARG CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16
-ENV CARGO_PROFILE_RELEASE_CODEGEN_UNITS=${CARGO_PROFILE_RELEASE_CODEGEN_UNITS}
-
 WORKDIR /app
 # musl-dev + make: required for tikv-jemalloc-sys to compile jemalloc from C source
 # Map TARGETARCH → Rust triple and persist for downstream stages.
 # cargo-chef is a checksum-verified prebuilt (via cargo-binstall), not a
-# from-source compile — compiling it would recreate the rustc peak #868
-# is trying to leave.
+# from-source compile. Do not cap CARGO_BUILD_JOBS here: jobs=1 and jobs=2
+# still died at ~20 min on linux/amd64 (same band as default ncpu), and
+# jobs=1 stretched linux/arm64 from ~15 min to 47 min. A jobs cap, if
+# ever restored, must be TARGETARCH=amd64 only.
 ARG CARGO_CHEF_VERSION=0.1.77
 COPY scripts/ci/docker/install-cargo-binstall.sh /tmp/install-cargo-binstall.sh
 RUN apk add --no-cache musl-dev make curl bash && \
@@ -122,11 +109,6 @@ FROM rust:1.97-alpine@sha256:3c38f3f82c2f3d73da3b38e18d279393a04cb43ddded0e35088
 # Re-declare — ARGs do not cross FROM boundaries
 ARG TARGETARCH
 ARG BUN_VERSION=1.3.14
-# Same cap as chef. This stage no longer compiles wasm tooling from
-# source (cargo-binstall below); the cap still covers rustup/cargo
-# work and any future cargo install in this stage.
-ARG CARGO_BUILD_JOBS=1
-ENV CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS}
 
 WORKDIR /app
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
