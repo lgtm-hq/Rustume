@@ -15,12 +15,16 @@ ARG TARGETARCH
 # default ncpu job count drives peak rustc memory past the VM ceiling and
 # the runner is killed ~20 min into a cold `cargo chef cook` (#868).
 # jobs=2 still died mid-cook on PR #869 (web-builder already finished;
-# the last ~15 min were cook-only). jobs=1 is the right setting for a
-# 16 GB box compiling typst release. Overridable via
-# `--build-arg CARGO_BUILD_JOBS=N`. Inherited by planner/builder
-# (both FROM chef).
+# the last ~15 min were cook-only). jobs=1 alone was still killed at ~20 min
+# on PR #869 — with one job rustc collapses the release profile to a single
+# codegen unit, which multiplies per-process memory for typst-scale crates.
+# codegen-units=16 splits each crate into smaller units so single-job rustc
+# peaks fit 16 GB. Both overridable via build args. Inherited by
+# planner/builder (both FROM chef).
 ARG CARGO_BUILD_JOBS=1
 ENV CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS}
+ARG CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16
+ENV CARGO_PROFILE_RELEASE_CODEGEN_UNITS=${CARGO_PROFILE_RELEASE_CODEGEN_UNITS}
 
 WORKDIR /app
 # musl-dev + make: required for tikv-jemalloc-sys to compile jemalloc from C source

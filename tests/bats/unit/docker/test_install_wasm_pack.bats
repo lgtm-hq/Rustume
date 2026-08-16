@@ -78,14 +78,20 @@ exit 0
 }
 
 @test "checksum mismatch fails before extracting or installing" {
+	export TAR_CALLED_FILE="${BATS_TEST_TMPDIR}/tar-called"
 	mock_command_script "sha256sum" '
 cat >/dev/null
 exit 1
 '
-	mock_command "tar" "" 99
+	mock_command_script "tar" '
+: >"${TAR_CALLED_FILE}"
+exit 99
+'
 
-	run env CARGO_HOME="${CARGO_HOME}" HOME="${HOME}" bash "${SCRIPT}"
+	run env CARGO_HOME="${CARGO_HOME}" HOME="${HOME}" \
+		TAR_CALLED_FILE="${TAR_CALLED_FILE}" bash "${SCRIPT}"
 
 	assert_failure
+	[[ ! -e "${TAR_CALLED_FILE}" ]]
 	[[ ! -e "${CARGO_HOME}/bin/wasm-pack" ]]
 }
