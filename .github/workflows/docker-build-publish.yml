@@ -152,9 +152,9 @@ jobs:
       # dl-cdn.alpinelinux.org (apk package installs in docker/Dockerfile
       # build stages run through the host egress proxy under harden-runner) +
       # rust hosts (rustup target add wasm32 pulls from static.rust-lang.org;
-      # cargo install cargo-chef fetches the crates index / .crate files;
-      # pinned wasm-pack/cargo-binstall assets and wasm-bindgen-cli come from
-      # GitHub releases) +
+      # cargo chef cook fetches the crates index / .crate files;
+      # pinned cargo-binstall, cargo-chef, wasm-pack, and wasm-bindgen-cli
+      # assets come from GitHub releases) +
       # registry.npmjs.org (bun install in the web-builder stage downloads
       # packages from the npm registry on cache-cold builds).
       allowed-endpoints-mode: replace

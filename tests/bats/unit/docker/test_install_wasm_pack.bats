@@ -13,6 +13,7 @@ setup() {
 	export CARGO_HOME="${BATS_TEST_TMPDIR}/cargo"
 	export HOME="${BATS_TEST_TMPDIR}/home"
 	export SHA_ARGS_FILE="${BATS_TEST_TMPDIR}/sha-args"
+	unset WASM_PACK_VERSION WASM_PACK_SHA256 || true
 
 	mock_command "uname" "x86_64"
 	mock_command "wasm-pack" "wasm-pack 0.0.0"
