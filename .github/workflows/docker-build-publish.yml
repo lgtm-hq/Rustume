@@ -119,10 +119,17 @@ jobs:
         || startsWith(github.ref, 'refs/tags/v')) }}
       validate-on-pr: ${{ github.event_name == 'pull_request' }}
       platforms: linux/amd64,linux/arm64
-      runner-map: '{"linux/arm64":"ubuntu-24.04-arm"}'
-      # The amd64 hosted image carries large SDK/toolcache trees that this
-      # Docker-only job does not use. Reclaim them before BuildKit starts and
-      # sample memory/disk usage so any remaining runner loss is attributable.
+      # GitHub-hosted ubuntu-24.04 amd64 VMs are reclaimed at ~19m45s
+      # regardless of cargo parallelism (#868). No Dockerfile diet can beat
+      # that timer. Route amd64 onto the org Blacksmith pool (already
+      # enabled for public repos); arm64 stays on GitHub-hosted
+      # ubuntu-24.04-arm, which is not affected.
+      # yamllint disable-line rule:line-length
+      runner-map: '{"linux/amd64":"blacksmith-8vcpu-ubuntu-2404","linux/arm64":"ubuntu-24.04-arm"}'
+      # Reclaim unused SDK/toolcache before BuildKit starts. Sample
+      # memory/disk so a later runner loss is attributable (lgtm-ci #856
+      # still needs the monitor to tee to stdout — file-only dumps die
+      # with the VM).
       free-disk-space: true
       resource-monitor: true
       smoke-test-script: scripts/ci/docker/smoke-test.sh

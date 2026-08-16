@@ -117,6 +117,9 @@ Pass `runner-image: ubuntu-24.04` on reusables that expose the input (lgtm-ci #3
 Action-only wrappers (`reusable-codeql`, `reusable-dependency-review`, etc.) and
 multi-arch Docker (`runner-map`) follow the exceptions in
 [lgtm-ci workflow-contract](https://github.com/lgtm-hq/lgtm-ci/blob/main/docs/workflow-contract.md#runner-pinning-exceptions).
+The Docker amd64 leg is pinned to `blacksmith-8vcpu-ubuntu-2404` because
+GitHub-hosted `ubuntu-24.04` amd64 VMs are reclaimed at ~19m45s (#868);
+arm64 stays on `ubuntu-24.04-arm`.
 
 ## Version pin inventory
 
