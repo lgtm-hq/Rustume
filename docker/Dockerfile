@@ -28,9 +28,17 @@ ENV CARGO_PROFILE_RELEASE_CODEGEN_UNITS=${CARGO_PROFILE_RELEASE_CODEGEN_UNITS}
 
 WORKDIR /app
 # musl-dev + make: required for tikv-jemalloc-sys to compile jemalloc from C source
-# Map TARGETARCH → Rust triple and persist for downstream stages
-RUN apk add --no-cache musl-dev make curl && \
-    cargo install cargo-chef@0.1.77 --locked && \
+# Map TARGETARCH → Rust triple and persist for downstream stages.
+# cargo-chef is a checksum-verified prebuilt (via cargo-binstall), not a
+# from-source compile — compiling it would recreate the rustc peak #868
+# is trying to leave.
+ARG CARGO_CHEF_VERSION=0.1.77
+COPY scripts/ci/docker/install-cargo-binstall.sh /tmp/install-cargo-binstall.sh
+RUN apk add --no-cache musl-dev make curl bash && \
+    bash /tmp/install-cargo-binstall.sh && \
+    cargo binstall --no-confirm --locked --disable-strategies compile \
+      "cargo-chef@${CARGO_CHEF_VERSION}" && \
+    rm /tmp/install-cargo-binstall.sh && \
     case "${TARGETARCH}" in \
       amd64) echo "x86_64-unknown-linux-musl" > /tmp/rust_target ;; \
       arm64) echo "aarch64-unknown-linux-musl" > /tmp/rust_target ;; \
@@ -66,19 +74,16 @@ ARG TARGETARCH
 # provide broad glyph-coverage fallbacks for user-configured families.
 RUN apk add --no-cache font-liberation font-dejavu
 
-# Cook dependencies — this layer is cached as long as recipe.json is unchanged.
-# Cache mounts persist compiled artifacts and crate sources across builds,
-# speeding up cold rebuilds when recipe.json changes (dep bumps, toolchain upgrades).
-#
-# NOTE: the /app/target cache mount is LOAD-BEARING across the cook and build
-# RUNs below — cook writes compiled deps there, build reads them. Cache mounts
-# are ephemeral (not captured in layers), so BOTH RUNs must mount the same id
-# (rustume-target-<arch>). Removing the mount on cook breaks the hand-off and
-# forces build to recompile all deps from scratch even on warm cache.
-# Cache ids are scoped per-arch so concurrent amd64/arm64 builds don't collide.
+# Cook dependencies into the layer filesystem. recipe.json is the cache key.
+# Do NOT mount /app/target: BuildKit cache mounts are not exported by
+# cache-to type=gha / type=registry (the only backends lgtm-ci uses). A
+# mount would make the cook layer look cached on the next runner while
+# leaving /app/target empty, so cargo build would recompile the whole
+# tree and the #868 warm-path payoff would never happen. The same-stage
+# layer carries target/ from cook to build — that is the cargo-chef
+# contract. Registry mounts stay: crate tarballs are cheap vs rustc.
 COPY --from=planner /app/recipe.json recipe.json
 RUN --mount=type=cache,target=/usr/local/cargo/registry,id=rustume-registry-${TARGETARCH} \
-    --mount=type=cache,target=/app/target,id=rustume-target-${TARGETARCH} \
     RUST_TARGET="$(cat /tmp/rust_target)" && \
     cargo chef cook --release --target "${RUST_TARGET}" \
       --recipe-path recipe.json -p rustume-server
@@ -89,7 +94,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,id=rustume-registry-${TA
 # not know, so local `docker build` needs no build args.
 ARG GIT_COMMIT=""
 
-# Copy workspace source and build (reuses cooked deps via shared target cache mount)
+# Copy workspace source and build (reuses cooked deps from the previous layer)
 COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
 COPY bindings ./bindings
@@ -99,7 +104,6 @@ COPY bindings ./bindings
 # BUILD_TIME is stamped here rather than passed in: it is the time this layer
 # actually compiled the binary, which stays truthful on a cache hit.
 RUN --mount=type=cache,target=/usr/local/cargo/registry,id=rustume-registry-${TARGETARCH} \
-    --mount=type=cache,target=/app/target,id=rustume-target-${TARGETARCH} \
     RUST_TARGET="$(cat /tmp/rust_target)" && \
     GIT_COMMIT="$(printf '%.7s' "${GIT_COMMIT}")" && \
     BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" && \
@@ -118,7 +122,6 @@ FROM rust:1.97-alpine@sha256:3c38f3f82c2f3d73da3b38e18d279393a04cb43ddded0e35088
 # Re-declare — ARGs do not cross FROM boundaries
 ARG TARGETARCH
 ARG BUN_VERSION=1.3.14
-ARG BINSTALL_VERSION=1.21.1
 # Same cap as chef. This stage no longer compiles wasm tooling from
 # source (cargo-binstall below); the cap still covers rustup/cargo
 # work and any future cargo install in this stage.
@@ -130,6 +133,7 @@ SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 
 COPY Cargo.lock /tmp/Cargo.lock
 COPY scripts/ci/testing/web/install-wasm-pack.sh /tmp/install-wasm-pack.sh
+COPY scripts/ci/docker/install-cargo-binstall.sh /tmp/install-cargo-binstall.sh
 
 # Install wasm-pack through the repo's canonical checksum-pinned installer,
 # then install a checksum-verified cargo-binstall release for the lockfile-
@@ -141,32 +145,17 @@ RUN apk add --no-cache musl-dev bash unzip ca-certificates curl && \
     update-ca-certificates && \
     rustup target add wasm32-unknown-unknown && \
     bash /tmp/install-wasm-pack.sh && \
+    bash /tmp/install-cargo-binstall.sh && \
     case "${TARGETARCH}" in \
-      amd64) \
-        BINSTALL_TARGET=x86_64-unknown-linux-musl; \
-        BINSTALL_SHA256=630c8f8803a686aa6779497f0f0fb51d49822fb5fc3c514d8ced33b34e338e6e; \
-        BUN_ARCH=x64-musl \
-        ;; \
-      arm64) \
-        BINSTALL_TARGET=aarch64-unknown-linux-musl; \
-        BINSTALL_SHA256=1dc2979f3c83aade9a1b4344589d14fafa63459b759222528d11419f5cca9cc2; \
-        BUN_ARCH=aarch64-musl \
-        ;; \
+      amd64) BUN_ARCH=x64-musl ;; \
+      arm64) BUN_ARCH=aarch64-musl ;; \
       *) echo "unsupported TARGETARCH: ${TARGETARCH}" >&2 && exit 1 ;; \
     esac && \
-    BINSTALL_ARCHIVE="cargo-binstall-${BINSTALL_TARGET}.tgz" && \
-    curl -fsSL \
-      "https://github.com/cargo-bins/cargo-binstall/releases/download/v${BINSTALL_VERSION}/${BINSTALL_ARCHIVE}" \
-      -o "/tmp/${BINSTALL_ARCHIVE}" && \
-    echo "${BINSTALL_SHA256}  /tmp/${BINSTALL_ARCHIVE}" | sha256sum -c - && \
-    mkdir /tmp/cargo-binstall && \
-    tar -xzf "/tmp/${BINSTALL_ARCHIVE}" -C /tmp/cargo-binstall && \
-    install -m 755 /tmp/cargo-binstall/cargo-binstall /usr/local/bin/cargo-binstall && \
     WASM_BINDGEN_VERSION=$(grep 'name = "wasm-bindgen"' /tmp/Cargo.lock -A 1 | grep version | head -1 | cut -d '"' -f 2) && \
     cargo binstall --no-confirm --locked --disable-strategies compile \
       "wasm-bindgen-cli@${WASM_BINDGEN_VERSION}" && \
-    rm -rf /tmp/cargo-binstall "/tmp/${BINSTALL_ARCHIVE}" \
-      /tmp/install-wasm-pack.sh /tmp/Cargo.lock && \
+    rm -rf /tmp/install-cargo-binstall.sh /tmp/install-wasm-pack.sh \
+      /tmp/Cargo.lock && \
     BUN_ZIP="bun-linux-${BUN_ARCH}.zip" && \
     curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/${BUN_ZIP}" -o "/tmp/${BUN_ZIP}" && \
     curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/SHASUMS256.txt" -o /tmp/SHASUMS256.txt && \

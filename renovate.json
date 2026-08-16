@@ -17,7 +17,7 @@
       "customType": "regex",
       "managerFilePatterns": ["/^docker/Dockerfile$/"],
       "matchStrings": [
-        "cargo install cargo-chef@(?<currentValue>\\S+) --locked"
+        "ARG CARGO_CHEF_VERSION=(?<currentValue>\\S+)"
       ],
       "depNameTemplate": "cargo-chef",
       "datasourceTemplate": "crate"

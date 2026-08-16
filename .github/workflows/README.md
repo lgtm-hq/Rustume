@@ -137,8 +137,8 @@ Renovate config lives in `renovate.json`; the shared preset is
 | `.github/workflows/README.md` | `## Pin format` example | Illustrative lgtm-ci pin | **Manual — no manager**; `pin-sync-guard.yml` does not read Markdown |
 | `docker/Dockerfile` | `FROM <image>@sha256:<digest>` | `rust`, `gcr.io/distroless/static` | Renovate `dockerfile` (digest updates automerged) |
 | `docker/Dockerfile` | `ARG BUN_VERSION=` | bun release tarball | Renovate custom manager (`oven-sh/bun`, `github-releases`) |
-| `docker/Dockerfile` | `ARG BINSTALL_VERSION=` plus per-arch `BINSTALL_SHA256` | cargo-binstall release tarballs | **Manual — version and both SHA-256 values move together** |
-| `docker/Dockerfile` | `cargo install cargo-chef@<version>` | cargo-chef | Renovate custom manager (`cargo-chef`, `crate`) |
+| `scripts/ci/docker/install-cargo-binstall.sh` | `DEFAULT_BINSTALL_VERSION` plus per-arch checksums | cargo-binstall release tarballs used by Docker chef and web-builder | **Manual — version and both SHA-256 values move together** |
+| `docker/Dockerfile` | `ARG CARGO_CHEF_VERSION=` | cargo-chef prebuilt via cargo-binstall | Renovate custom manager (`cargo-chef`, `crate`) |
 | `scripts/ci/testing/web/install-wasm-pack.sh` | `DEFAULT_WASM_PACK_VERSION` plus per-arch checksums | wasm-pack release tarballs used by CI and Docker | **Manual — canonical version/checksum source** |
 | `docker/Dockerfile` | `wasm-bindgen-cli@${WASM_BINDGEN_VERSION}` | Derived from `Cargo.lock` at build time | n/a — no literal pin to update |
 | `docker-compose.yml` | `image: postgres:<tag>@sha256:<digest>` | Local dev Postgres | Renovate `docker-compose` |
