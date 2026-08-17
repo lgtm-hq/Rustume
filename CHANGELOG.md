@@ -22,6 +22,21 @@ and this project adheres to
 
 ### Security
 
+## [0.67.4] - 2026-08-17
+
+### Changed
+
+- **deps**: lock file maintenance (#877) (73ec3ff)
+- **deps**: update lintro to 0.117.1 (minor) (#875) (8e5114a)
+- **deps-dev**: pin dependencies (#870) (0eeddb5)
+- **deps**: update dependency @testing-library/jest-dom to 7.0.1 (patch) (#872)
+  (e2b5344)
+- **deps-dev**: update rust crate http-body-util to 0.1.5 (patch) (#871) (138e1c0)
+
+### Fixed
+
+- **docker**: export cooked deps and drop the amd64 footprint diet (#869) (1290a58)
+
 ## [0.67.3] - 2026-08-14
 
 ### Fixed
@@ -1052,7 +1067,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.67.3...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.67.4...HEAD
+[0.67.4]: https://github.com/lgtm-hq/Rustume/compare/v0.67.3...v0.67.4
 [0.67.3]: https://github.com/lgtm-hq/Rustume/compare/v0.67.2...v0.67.3
 [0.67.2]: https://github.com/lgtm-hq/Rustume/compare/v0.67.1...v0.67.2
 [0.67.1]: https://github.com/lgtm-hq/Rustume/compare/v0.67.0...v0.67.1
