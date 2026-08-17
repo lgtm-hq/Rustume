@@ -35,7 +35,7 @@ jobs:
       actions: write
     # Pin commit SHA (not annotated tag object SHA) for reusable workflow resolution.
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-deploy-site-with-reports.yml@23c79b65490a3307fb08cdefafa22db12f75b9b2 # v0.63.1
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-deploy-site-with-reports.yml@9cfddc566c014117e9fcce6e93ef78580c09c7a3 # v0.63.6
     with:
       # Explicit space-separated (folded scalar) allowlists: the reusable
       # workflow's newline block-scalar defaults are mis-parsed by the
@@ -74,7 +74,7 @@ jobs:
       bundle-manifest: .github/pages-bundle-manifest.json
       commit-sha: ${{ github.event.workflow_run.head_sha || github.sha }}
       fallback-ref: main
-      tooling-ref: '23c79b65490a3307fb08cdefafa22db12f75b9b2' # v0.63.1
+      tooling-ref: '9cfddc566c014117e9fcce6e93ef78580c09c7a3' # v0.63.6
       build-job-name: Build site and bundle reports
       deploy-job-name: Deploy to GitHub Pages
       runner-image: ubuntu-24.04

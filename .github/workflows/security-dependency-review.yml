@@ -27,12 +27,12 @@ concurrency:
 jobs:
   security-audit:
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-security-audit.yml@23c79b65490a3307fb08cdefafa22db12f75b9b2 # v0.63.1
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-security-audit.yml@9cfddc566c014117e9fcce6e93ef78580c09c7a3 # v0.63.6
     permissions:
       contents: read
       packages: read # pull the pinned lintro audit image from GHCR
     with:
-      tooling-ref: '23c79b65490a3307fb08cdefafa22db12f75b9b2' # v0.63.1
+      tooling-ref: '9cfddc566c014117e9fcce6e93ef78580c09c7a3' # v0.63.6
       job-name: "Scan dependencies"
       runner-image: ubuntu-24.04
       # yamllint disable-line rule:line-length
@@ -71,7 +71,7 @@ jobs:
         with:
           repository: lgtm-hq/lgtm-ci
           path: .lgtm-ci-tooling
-          ref: '23c79b65490a3307fb08cdefafa22db12f75b9b2' # v0.63.1
+          ref: '9cfddc566c014117e9fcce6e93ef78580c09c7a3' # v0.63.6
           sparse-checkout: |
             scripts/ci/
           sparse-checkout-cone-mode: true
@@ -89,12 +89,12 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository
     needs: security-audit
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-publish-security-audit-comment.yml@23c79b65490a3307fb08cdefafa22db12f75b9b2 # v0.63.1
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-publish-security-audit-comment.yml@9cfddc566c014117e9fcce6e93ef78580c09c7a3 # v0.63.6
     permissions:
       contents: read
       pull-requests: write # publish the audit summary on this PR
     with:
-      tooling-ref: '23c79b65490a3307fb08cdefafa22db12f75b9b2' # v0.63.1
+      tooling-ref: '9cfddc566c014117e9fcce6e93ef78580c09c7a3' # v0.63.6
       job-name: "💬 Post PR Comment"
       runner-image: ubuntu-24.04
       egress-policy: block
