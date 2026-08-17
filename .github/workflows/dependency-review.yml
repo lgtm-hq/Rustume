@@ -15,11 +15,11 @@ concurrency:
 jobs:
   review:
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-dependency-review.yml@240daf3ed1f7475b3f322502035b15994be210a8 # v0.59.16
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-dependency-review.yml@396e1e28f14d371761558178e75be9c56cc994cf # v0.63.6
     with:
       job-name: "🔍 Dependency Review"
       fail-on-severity: high
-      tooling-ref: '240daf3ed1f7475b3f322502035b15994be210a8' # v0.59.16
+      tooling-ref: '396e1e28f14d371761558178e75be9c56cc994cf' # v0.63.6
       egress-policy: block
       egress-preset: github-tooling
       # github-tooling preset + api.deps.dev: dependency-review-action

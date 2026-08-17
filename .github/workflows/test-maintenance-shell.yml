@@ -29,9 +29,9 @@ jobs:
       contents: read
       pull-requests: write # publish-test-summary posts shell coverage on PRs
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-shell.yml@240daf3ed1f7475b3f322502035b15994be210a8 # v0.59.16
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-shell.yml@396e1e28f14d371761558178e75be9c56cc994cf # v0.63.6
     with:
-      tooling-ref: '240daf3ed1f7475b3f322502035b15994be210a8' # v0.59.16
+      tooling-ref: '396e1e28f14d371761558178e75be9c56cc994cf' # v0.63.6
       job-name: Maintenance Shell Tests
       test-path: tests/bats/unit/maintenance
       coverage: true

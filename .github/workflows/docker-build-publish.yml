@@ -100,7 +100,7 @@ jobs:
       && needs.classify.outputs.pipeline != 'false'
       && needs.classify.outputs.bump-only != 'true'
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@240daf3ed1f7475b3f322502035b15994be210a8 # v0.59.16
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@396e1e28f14d371761558178e75be9c56cc994cf # v0.63.6
     permissions:
       contents: read
       packages: write
@@ -108,7 +108,7 @@ jobs:
       attestations: write
       security-events: write
     with:
-      tooling-ref: '240daf3ed1f7475b3f322502035b15994be210a8' # v0.59.16
+      tooling-ref: '396e1e28f14d371761558178e75be9c56cc994cf' # v0.63.6
       file: docker/Dockerfile
       image-name: lgtm-hq/rustume
       version: >-
@@ -120,6 +120,11 @@ jobs:
       validate-on-pr: ${{ github.event_name == 'pull_request' }}
       platforms: linux/amd64,linux/arm64
       runner-map: '{"linux/arm64":"ubuntu-24.04-arm"}'
+      # The amd64 hosted image carries large SDK/toolcache trees that this
+      # Docker-only job does not use. Reclaim them before BuildKit starts and
+      # sample memory/disk usage so any remaining runner loss is attributable.
+      free-disk-space: true
+      resource-monitor: true
       smoke-test-script: scripts/ci/docker/smoke-test.sh
       # Stamps the running build's commit into `GET /version` (#584) so a deploy
       # can be verified against the `sha-<commit>` tag rustume-ops pins in
@@ -147,8 +152,9 @@ jobs:
       # dl-cdn.alpinelinux.org (apk package installs in docker/Dockerfile
       # build stages run through the host egress proxy under harden-runner) +
       # rust hosts (rustup target add wasm32 pulls from static.rust-lang.org;
-      # cargo install cargo-chef/wasm-pack/wasm-bindgen-cli fetch the crates
-      # index and .crate files from index.crates.io / static.crates.io) +
+      # cargo chef cook fetches the crates index / .crate files;
+      # pinned cargo-binstall, cargo-chef, wasm-pack, and wasm-bindgen-cli
+      # assets come from GitHub releases) +
       # registry.npmjs.org (bun install in the web-builder stage downloads
       # packages from the npm registry on cache-cold builds).
       allowed-endpoints-mode: replace
@@ -223,7 +229,7 @@ jobs:
 
       - name: Checkout
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@240daf3ed1f7475b3f322502035b15994be210a8 # v0.59.16
+        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@396e1e28f14d371761558178e75be9c56cc994cf # v0.63.6
 
       - name: Verify published tags resolve
         env:
