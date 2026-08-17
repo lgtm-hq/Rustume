@@ -3,7 +3,7 @@
 This repository uses GitHub Actions for quality gates, coverage, release automation,
 and publishing. Most workflows are thin callers to
 [lgtm-ci](https://github.com/lgtm-hq/lgtm-ci) reusable workflows pinned at
-`9cfddc566c014117e9fcce6e93ef78580c09c7a3` (**v0.63.6** release commit; not the annotated
+`396e1e28f14d371761558178e75be9c56cc994cf` (**v0.63.6** release commit; not the annotated
 tag object SHA). All workflow SHA pins include
 trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enforced by
 [lgtm-ci validate-action-pinning](https://github.com/lgtm-hq/lgtm-ci/pull/221) (via
@@ -105,9 +105,9 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
 Use the **release commit SHA**, not the annotated tag object SHA:
 
 ```yaml
-uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@9cfddc566c014117e9fcce6e93ef78580c09c7a3 # v0.63.6
+uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@396e1e28f14d371761558178e75be9c56cc994cf # v0.63.6
 with:
-  tooling-ref: '9cfddc566c014117e9fcce6e93ef78580c09c7a3' # v0.63.6 release commit
+  tooling-ref: '396e1e28f14d371761558178e75be9c56cc994cf' # v0.63.6 release commit
 ```
 
 Sparse `lgtm-hq` tooling checkouts may use `actions/checkout` when `ref:` is quoted and
