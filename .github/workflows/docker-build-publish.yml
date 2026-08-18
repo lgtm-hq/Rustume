@@ -157,6 +157,13 @@ jobs:
       # assets come from GitHub releases) +
       # registry.npmjs.org (bun install in the web-builder stage downloads
       # packages from the npm registry on cache-cold builds).
+      # TEMPORARY (#879): audit instead of block. Harden-runner's block-mode
+      # agent kills ubuntu-24.04 amd64 VMs ~14-65 min into the job (proven by
+      # the 4-arm wall probe in #879; history in #868), and tag builds are
+      # always cold (no-cache above), so releases cannot survive block mode.
+      # Egress is still logged. Revert to block once StepSecurity ships a fix
+      # verified by a 30-minute block-mode spin surviving on ubuntu-24.04.
+      egress-policy: audit
       allowed-endpoints-mode: replace
       allowed-endpoints: >
         github.com:443
