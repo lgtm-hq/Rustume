@@ -34,7 +34,7 @@
   },
   "devDependencies": {
     "@astrojs/check": "0.9.10",
-    "@axe-core/playwright": "4.12.1",
+    "@axe-core/playwright": "4.13.0",
     "@pagefind/default-ui": "1.5.2",
     "@playwright/test": "1.62.0",
     "@types/hast": "3.0.5",

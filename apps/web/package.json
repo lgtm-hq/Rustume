@@ -36,7 +36,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@axe-core/playwright": "4.12.1",
+    "@axe-core/playwright": "4.13.0",
     "@playwright/test": "1.62.0",
     "@solidjs/testing-library": "0.8.10",
     "@testing-library/jest-dom": "7.0.1",
