@@ -88,7 +88,12 @@ jobs:
         # composite in v0.50.0 (the action pre hook must install the agent).
         uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
         with:
-          egress-policy: block
+          # TEMPORARY (#882): audit instead of block. This job waits ~60 min
+          # for the cold tag Docker build, which outlives the block-mode
+          # VM-kill window (#868/#879) — every release's verify was killed
+          # mid-wait. Egress is still logged. Revert to block together with
+          # the #879 flip once StepSecurity ships a verified fix.
+          egress-policy: audit
           allowed-endpoints: >
             github.com:443
             api.github.com:443
