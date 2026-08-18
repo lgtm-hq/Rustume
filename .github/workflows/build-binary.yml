@@ -78,7 +78,7 @@ jobs:
 
       - name: Install cross (for cross-compilation)
         if: matrix.cross
-        run: cargo install cross --locked
+        run: bash scripts/ci/release/install-cross.sh
 
       - name: Build release binaries
         env:
