@@ -22,6 +22,13 @@ and this project adheres to
 
 ### Security
 
+## [0.67.5] - 2026-08-18
+
+### Fixed
+
+- **ci**: switch docker build jobs to audit-mode egress until block mode is fixed (#880)
+  (48bec9e)
+
 ## [0.67.4] - 2026-08-17
 
 ### Changed
@@ -1067,7 +1074,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.67.4...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.67.5...HEAD
+[0.67.5]: https://github.com/lgtm-hq/Rustume/compare/v0.67.4...v0.67.5
 [0.67.4]: https://github.com/lgtm-hq/Rustume/compare/v0.67.3...v0.67.4
 [0.67.3]: https://github.com/lgtm-hq/Rustume/compare/v0.67.2...v0.67.3
 [0.67.2]: https://github.com/lgtm-hq/Rustume/compare/v0.67.1...v0.67.2
