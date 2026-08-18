@@ -47,6 +47,7 @@
     "yaml": "2.9.0"
   },
   "overrides": {
+    "playwright-core": "1.62.1",
     "astro": "^7.1.0",
     "esbuild": "^0.28.1",
     "h3": "2.0.1-rc.26",
