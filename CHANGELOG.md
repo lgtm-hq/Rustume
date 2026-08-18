@@ -22,6 +22,19 @@ and this project adheres to
 
 ### Security
 
+## [0.67.7] - 2026-08-18
+
+### Fixed
+
+- **ci**: make the cross install step idempotent for binary-build reruns (#886)
+  (4fb3a5d)
+
+## [0.67.6] - 2026-08-18
+
+### Fixed
+
+- **ci**: audit-mode egress for the release image verify job (#883) (d2511b2)
+
 ## [0.67.5] - 2026-08-18
 
 ### Fixed
@@ -1074,7 +1087,9 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.67.5...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.67.7...HEAD
+[0.67.7]: https://github.com/lgtm-hq/Rustume/compare/v0.67.6...v0.67.7
+[0.67.6]: https://github.com/lgtm-hq/Rustume/compare/v0.67.5...v0.67.6
 [0.67.5]: https://github.com/lgtm-hq/Rustume/compare/v0.67.4...v0.67.5
 [0.67.4]: https://github.com/lgtm-hq/Rustume/compare/v0.67.3...v0.67.4
 [0.67.3]: https://github.com/lgtm-hq/Rustume/compare/v0.67.2...v0.67.3
