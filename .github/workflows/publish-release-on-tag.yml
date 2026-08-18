@@ -31,7 +31,7 @@ jobs:
       - name: Harden Runner
         # Direct step-security invocation: lgtm-ci removed its harden-runner
         # composite in v0.50.0 (the action pre hook must install the agent).
-        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -86,7 +86,7 @@ jobs:
       - name: Harden Runner
         # Direct step-security invocation: lgtm-ci removed its harden-runner
         # composite in v0.50.0 (the action pre hook must install the agent).
-        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           # TEMPORARY (#882): audit instead of block. This job waits ~60 min
           # for the cold tag Docker build, which outlives the block-mode
@@ -129,7 +129,7 @@ jobs:
       - name: Harden Runner
         # Direct step-security invocation: lgtm-ci removed its harden-runner
         # composite in v0.50.0 (the action pre hook must install the agent).
-        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: block
           allowed-endpoints: >
