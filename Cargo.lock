@@ -4439,7 +4439,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-cli"
-version = "0.67.4"
+version = "0.67.5"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -4460,7 +4460,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-parser"
-version = "0.67.4"
+version = "0.67.5"
 dependencies = [
  "csv",
  "cuid2",
@@ -4476,7 +4476,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-render"
-version = "0.67.4"
+version = "0.67.5"
 dependencies = [
  "base64 0.23.1",
  "chrono",
@@ -4502,7 +4502,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-schema"
-version = "0.67.4"
+version = "0.67.5"
 dependencies = [
  "cuid2",
  "once_cell",
@@ -4519,7 +4519,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-schema-macros"
-version = "0.67.4"
+version = "0.67.5"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4528,7 +4528,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-server"
-version = "0.67.4"
+version = "0.67.5"
 dependencies = [
  "anyhow",
  "axum",
@@ -4574,7 +4574,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-storage"
-version = "0.67.4"
+version = "0.67.5"
 dependencies = [
  "async-trait",
  "js-sys",
@@ -4591,7 +4591,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-utils"
-version = "0.67.4"
+version = "0.67.5"
 dependencies = [
  "ammonia",
  "chrono",
@@ -4608,7 +4608,7 @@ dependencies = [
 
 [[package]]
 name = "rustume-wasm"
-version = "0.67.4"
+version = "0.67.5"
 dependencies = [
  "js-sys",
  "rustume-parser",
@@ -7329,9 +7329,9 @@ dependencies = [
 
 [[package]]
 name = "zerovec-derive"
-version = "0.11.4"
+version = "0.11.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47402523226a02bfe5230160dc3ccc089aa6f6f19e7fcbb4e6f824bbb1b4aa62"
+checksum = "9f212a141d820099d57ffafb9569be9617a6f27d3dc881fbee8fb56642f917a9"
 dependencies = [
  "proc-macro2",
  "quote",
