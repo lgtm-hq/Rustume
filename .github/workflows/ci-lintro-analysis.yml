@@ -59,7 +59,7 @@ jobs:
       timeout-minutes: 30
       runner-image: ubuntu-24.04
       # yamllint disable-line rule:line-length
-      lintro-image: ghcr.io/lgtm-hq/py-lintro:0.122.0@sha256:a7210b798094c95f2da60a6777342f868fd1f911ea3c5355e566d357bf43c429
+      lintro-image: ghcr.io/lgtm-hq/py-lintro:0.123.1@sha256:70a526a90838b8a35f6bf3c226030e788141e986fb1dd18fb7541b1620cd8d91
       egress-policy: block
       egress-preset: quality
 
