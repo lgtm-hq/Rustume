@@ -108,7 +108,7 @@ FROM rust:1.97-alpine@sha256:3c38f3f82c2f3d73da3b38e18d279393a04cb43ddded0e35088
 
 # Re-declare — ARGs do not cross FROM boundaries
 ARG TARGETARCH
-ARG BUN_VERSION=1.3.14
+ARG BUN_VERSION=1.4.0
 
 WORKDIR /app
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
