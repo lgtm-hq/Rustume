@@ -37,9 +37,7 @@ describe("sheet visual baselines", () => {
       (name) => name.startsWith("sheet-") && name.endsWith(".png"),
     );
     expect([...files].toSorted()).toEqual(EXPECTED_SHEET_BASELINES);
-    expect(FULL_TEMPLATE_CATALOG.find((t) => t.id === "rhyhorn")?.layout.headerStyle).toBe(
-      "left",
-    );
+    expect(FULL_TEMPLATE_CATALOG.find((t) => t.id === "rhyhorn")?.layout.headerStyle).toBe("left");
     expect(FULL_TEMPLATE_CATALOG.find((t) => t.id === "bronzor")?.layout.headerStyle).toBe(
       "center",
     );
