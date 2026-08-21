@@ -257,6 +257,15 @@ describe("document sheet structural chrome", () => {
       expect(layout.fontBody).toBe("ibm-plex-sans");
     });
 
+    it("falls back when font family is not a string", () => {
+      // Persisted / raw JSON can violate the TS shape.
+      (resume.metadata.typography.font as { family: unknown }).family = 14;
+      renderSheet();
+
+      const sheet = screen.getByTestId("doc-sheet");
+      expect(sheet.style.getPropertyValue("--doc-font-body")).toContain("IBM Plex Serif");
+    });
+
     it("falls back to schema defaults when typography is missing", () => {
       // Legacy persisted / raw imports can omit the block entirely.
       Reflect.deleteProperty(resume.metadata, "typography");

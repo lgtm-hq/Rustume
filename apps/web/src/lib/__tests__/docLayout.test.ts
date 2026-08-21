@@ -726,6 +726,9 @@ describe("templateDocFontFamily / docFontStack", () => {
     expect(docFontStackFromFamily("Georgia")).toContain("Times New Roman");
     expect(docFontStackFromFamily("Georgia")).not.toMatch(/Helvetica Neue|Arial|sans-serif/);
     expect(docFontStackFromFamily("  ")).toContain(DEFAULT_DOC_FONT_FAMILY);
+    expect(docFontStackFromFamily(12)).toContain(DEFAULT_DOC_FONT_FAMILY);
+    expect(docFontStackFromFamily({ name: "Georgia" })).toContain(DEFAULT_DOC_FONT_FAMILY);
+    expect(docFontStackFromFamily(undefined)).toContain(DEFAULT_DOC_FONT_FAMILY);
   });
 
   it("clamps lineHeight at or above 1.0", () => {

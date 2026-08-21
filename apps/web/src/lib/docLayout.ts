@@ -367,8 +367,9 @@ const SANS_DOC_FALLBACK = '"Helvetica Neue", Arial, sans-serif';
  * document fallbacks follow the family's classification so a failed load
  * degrades serif→serif, not serif→sans — not the app chrome Inter stack.
  */
-export function docFontStackFromFamily(family: string): string {
-  const name = family.trim() || DEFAULT_DOC_FONT_FAMILY;
+export function docFontStackFromFamily(family: unknown): string {
+  const raw = typeof family === "string" ? family : "";
+  const name = raw.trim() || DEFAULT_DOC_FONT_FAMILY;
   const quoted = name.includes(" ") ? `"${name}"` : name;
   // "Georgia" does not contain the word serif; named serif faces still
   // degrade serif→serif. `sans-serif` must not count as serif.

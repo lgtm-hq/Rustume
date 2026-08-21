@@ -268,9 +268,10 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
    */
   const typography = (): ResumeData["metadata"]["typography"] | undefined =>
     props.resume.metadata.typography;
-  const docFont = createMemo(() =>
-    docFontStackFromFamily(typography()?.font?.family ?? SERIF_DOC_FONT_FAMILY),
-  );
+  const docFont = createMemo(() => {
+    const family = typography()?.font?.family;
+    return docFontStackFromFamily(typeof family === "string" ? family : SERIF_DOC_FONT_FAMILY);
+  });
   const docFontSize = createMemo(() => typography()?.font?.size ?? DEFAULT_DOC_FONT_SIZE);
   const docLineHeight = createMemo(() =>
     clampLineHeight(typography()?.lineHeight ?? DEFAULT_LINE_HEIGHT),
