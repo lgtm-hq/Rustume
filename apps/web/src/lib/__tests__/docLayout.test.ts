@@ -731,15 +731,15 @@ describe("templateDocFontFamily / docFontStack", () => {
       "utf8",
     );
     expect(css).toMatch(
-      /\.doc-sheet--justify-body[\s\S]*\.doc-sheet__lang-desc[\s\S]*text-align:\s*justify/,
+      /\.doc-sheet--justify-body[^}]*\.doc-sheet__lang-desc[^}]*text-align:\s*justify/,
     );
     expect(css).toMatch(
-      /\.doc-sheet--tpl-glalie[\s\S]*\.doc-sheet__lang-desc[\s\S]*text-align:\s*justify/,
+      /\.doc-sheet--tpl-glalie[^}]*\.doc-sheet__lang-desc[^}]*text-align:\s*justify/,
     );
-    expect(css).toMatch(/\.doc-sheet--justify-body[\s\S]*text-align:\s*justify/);
-    expect(css).toMatch(/\.doc-sheet--tpl-glalie[\s\S]*text-align:\s*justify/);
-    expect(css).toMatch(/\.doc-sheet__edu-date--body[\s\S]*font-family:\s*var\(--doc-font-body\)/);
-    expect(css).toMatch(/\.doc-sheet__edu-date\s*\{[\s\S]*font-family:\s*var\(--doc-font-mono\)/);
+    expect(css).toMatch(/\.doc-sheet--justify-body[^}]*text-align:\s*justify/);
+    expect(css).toMatch(/\.doc-sheet--tpl-glalie[^}]*text-align:\s*justify/);
+    expect(css).toMatch(/\.doc-sheet__edu-date--body[^}]*font-family:\s*var\(--doc-font-body\)/);
+    expect(css).toMatch(/\.doc-sheet__edu-date\s*\{[^}]*font-family:\s*var\(--doc-font-mono\)/);
   });
 
   it("every @font-face url in docFonts.css exists under public/fonts", () => {
