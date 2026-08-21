@@ -725,6 +725,17 @@ describe("templateDocFontFamily / docFontStack", () => {
     expect(css).not.toMatch(/var\(--font-mono\)/);
   });
 
+  it("justifies glalie body and drops mono education dates in Done mode (#860)", () => {
+    const css = readFileSync(
+      resolve(__dirname, "../../components/doc-editor/docSheet.css"),
+      "utf8",
+    );
+    expect(css).toMatch(/\.doc-sheet--justify-body[\s\S]*text-align:\s*justify/);
+    expect(css).toMatch(/\.doc-sheet--tpl-glalie[\s\S]*text-align:\s*justify/);
+    expect(css).toMatch(/\.doc-sheet__edu-date--body[\s\S]*font-family:\s*var\(--doc-font-body\)/);
+    expect(css).toMatch(/\.doc-sheet__edu-date\s*\{[\s\S]*font-family:\s*var\(--doc-font-mono\)/);
+  });
+
   it("every @font-face url in docFonts.css exists under public/fonts", () => {
     const css = readFileSync(
       resolve(__dirname, "../../components/doc-editor/docFonts.css"),

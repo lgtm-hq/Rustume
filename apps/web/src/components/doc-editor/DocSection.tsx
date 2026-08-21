@@ -7,7 +7,8 @@
  *
  * - `experience`: position over a company · date meta row, a location row with
  *   a pin glyph, then the rich summary, tag chips and extra fields.
- * - `education`: degree over `institution · area`, a mono date, summary.
+ * - `education`: degree over `institution · area`, a date (mono in Edit,
+ *   muted body face in Done — #860), summary.
  * - `profiles` / `languages` / `skills`: compact rows — brand or name plus
  *   proficiency dots; the whole row is the edit affordance (spec §1.9).
  * - `interests`: a plain list, managed through the add-block and dialog.
@@ -492,7 +493,10 @@ export function DocSection(props: DocSectionProps): JSX.Element {
           <div class="doc-sheet__edu-school">{school()}</div>
         </Show>
         <Show when={hasText(item.date)}>
-          <div class="doc-sheet__edu-date">
+          <div
+            class="doc-sheet__edu-date"
+            classList={{ "doc-sheet__edu-date--body": !isEditable() }}
+          >
             <Slot field={bind(item.date, "Date", "date")} />
           </div>
         </Show>

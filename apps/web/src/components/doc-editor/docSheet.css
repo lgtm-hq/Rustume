@@ -1307,6 +1307,8 @@ button.doc-sheet__avatar-btn:focus-visible {
 
 .doc-sheet__edu-date {
   display: block;
+  /* Edit mode: mono is a sanctioned editing affordance (#860). Done mode
+     drops it below so the date matches the PDF's muted body face. */
   font-family: var(--doc-font-mono);
   font-size: 0.64rem;
   color: var(--doc-sheet-muted);
@@ -1589,11 +1591,33 @@ button.doc-sheet__avatar-btn:focus-visible {
  *
  * The rendered document: no card affordances on hover. The editing controls
  * themselves are not mounted in this mode (see `sheetMode`); this only
- * silences the pure-CSS hover cues.
+ * silences the pure-CSS hover cues. Mode-scoped fidelity rules (#860) live
+ * here so Edit can keep its affordances while Done matches the PDF.
  */
 .doc-sheet--done .doc-sheet__entry-row:hover {
   background: transparent;
   border-color: transparent;
+}
+
+/* Education dates: PDF uses the muted body face; Edit keeps mono (#860).
+   `.doc-sheet__edu-date--body` is the Done-mode hook; the `--done` ancestor
+   rule covers the same state if a date is rendered without the hook class. */
+.doc-sheet--done .doc-sheet__edu-date,
+.doc-sheet__edu-date--body {
+  font-family: var(--doc-font-body);
+}
+
+/* glalie Typst `set par(justify: true)` — body prose on the sheet, both
+   modes (justification does not fight the dialog editors). Other templates
+   stay start-aligned. `--tpl-glalie` and `--justify-body` are equivalent;
+   the latter is the testable hook set on the sheet root. */
+.doc-sheet--tpl-glalie .doc-sheet__summary,
+.doc-sheet--tpl-glalie .doc-sheet__entry-sum,
+.doc-sheet--tpl-glalie .doc-sheet__entry-desc,
+.doc-sheet--justify-body .doc-sheet__summary,
+.doc-sheet--justify-body .doc-sheet__entry-sum,
+.doc-sheet--justify-body .doc-sheet__entry-desc {
+  text-align: justify;
 }
 
 /* ── Insert-page-break pill control (#796) ─────────────────────────────── */

@@ -1001,8 +1001,14 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
                   "doc-sheet--done": !isEditable(),
                   "doc-sheet--sidebar-tint": chrome().sidebarTint,
                   "doc-sheet--header-rule": chrome().headerRule,
+                  /* glalie Typst `set par(justify: true)` — scoped class so
+                     tests can pin it without a chrome-field fork (#860). */
+                  "doc-sheet--justify-body": props.resume.metadata.template === "glalie",
                 }}
                 data-testid="doc-sheet"
+                /* `data-sheet-mode` + `doc-sheet--done`/`--editing` let CSS
+                   scope Done-mode PDF fidelity (education date face) without
+                   a JS branch in every field (#860). */
                 data-sheet-mode={mode()}
                 data-heading-style={chrome().headingStyle}
                 data-sidebar-heading-style={chrome().sidebarHeadingStyle}
