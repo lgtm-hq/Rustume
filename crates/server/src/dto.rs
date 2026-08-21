@@ -130,6 +130,9 @@ pub struct LayoutInfo {
     pub keyword_style: String,
     /// Whether an accent rule sits under the identity header
     pub header_rule: bool,
+    /// Whether the template honours `page.margin` on the page box.
+    /// Full-bleed templates set Typst `margin: 0pt` and ignore the stored value.
+    pub supports_margins: bool,
 }
 
 /// Theme colors for a template
@@ -183,6 +186,7 @@ mod tests {
             sidebar_tint: false,
             keyword_style: "plain".into(),
             header_rule: true,
+            supports_margins: true,
         };
         let info_keys: BTreeSet<String> = serde_json::to_value(&info)
             .expect("LayoutInfo serializes")

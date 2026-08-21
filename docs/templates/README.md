@@ -87,6 +87,7 @@ These recur on almost every template; each template page repeats only the ones t
 | Avatar without photo | — | Closed by #857: photo-less default is **collapsed**; initials disc is `showInitials` opt-in. Hidden photos collapse. No pikachu exception. |
 | Mono dates: sheet uses `--doc-font-mono` for education dates; Typst uses muted body face | owner-decision-needed | Mono is a sheet editing affordance; decide whether PDF should match. |
 | `metadata.typography.font.size` / `lineHeight`: engine emits a top-level `#set text`, then nearly every template re-locks size and leading | fix-in-typst | Tracked by #701 — lift shared resolution into `_common.typ`. |
+| `page.margin` on full-bleed templates (pikachu, ditto, gengar, glalie) | decided (#859) | Owner: PDFs keep ignoring it. Template metadata declares `supportsMargins: false`; the editor disables the margin control with an accessible explanation. |
 
 ## Related code
 

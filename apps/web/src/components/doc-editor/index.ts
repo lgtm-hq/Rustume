@@ -11,5 +11,6 @@ export { PhotoDialog, type PhotoDialogProps } from "./PhotoDialog";
 export { TemplatesDrawer, type TemplatesDrawerProps } from "./TemplatesDrawer";
 export { SectionsPanel, type SectionsPanelProps } from "./SectionsPanel";
 export { ThemeDialog, type ThemeDialogProps } from "./ThemeDialog";
+export { PageDialog, type PageDialogProps } from "./PageDialog";
 export { MarkdownView } from "./MarkdownView";
 export { SheetModeContext, useSheetEditable, type SheetMode } from "./sheetMode";

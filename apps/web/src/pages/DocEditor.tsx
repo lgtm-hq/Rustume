@@ -25,7 +25,13 @@ import {
 } from "solid-js";
 import { useNavigate, useParams } from "@solidjs/router";
 import { Button, Spinner, toast } from "../components/ui";
-import { DocSheet, SectionsPanel, TemplatesDrawer, ThemeDialog } from "../components/doc-editor";
+import {
+  DocSheet,
+  PageDialog,
+  SectionsPanel,
+  TemplatesDrawer,
+  ThemeDialog,
+} from "../components/doc-editor";
 import type { SheetMode } from "../components/doc-editor/sheetMode";
 import { CustomCssInjector } from "../components/templates/CustomCssInjector";
 import { useHotkeys, type Shortcut } from "../hooks/useHotkeys";
@@ -163,6 +169,9 @@ export default function DocEditor() {
 
   // Theme selection lives in the top bar (spec §1.2, owner addition).
   const [isThemeOpen, setIsThemeOpen] = createSignal(false);
+  // Page settings (margin) sit next to Theme — document settings, not a form
+  // builder control (#859 / #735).
+  const [isPageOpen, setIsPageOpen] = createSignal(false);
 
   // Edit or Done, per document. A brand-new empty resume opens ready to type;
   // an existing one opens as the clean rendered document. Below the sheet's
@@ -318,6 +327,34 @@ export default function DocEditor() {
             </svg>
             Theme
           </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            data-testid="doc-editor-page-button"
+            onClick={() => setIsPageOpen(true)}
+          >
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M7 3h8l4 4v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z"
+              />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 3v4h4M8 12h8M8 16h8"
+              />
+            </svg>
+            Page
+          </Button>
           <Button variant="ghost" size="sm" onClick={() => openModal("versionHistory")}>
             <svg
               class="w-4 h-4"
@@ -450,6 +487,12 @@ export default function DocEditor() {
                   onOpenChange={setIsSectionsOpen}
                 />
                 <ThemeDialog resume={resume()} open={isThemeOpen()} onOpenChange={setIsThemeOpen} />
+                <PageDialog
+                  resume={resume()}
+                  templateLayout={templateLayout()}
+                  open={isPageOpen()}
+                  onOpenChange={setIsPageOpen}
+                />
               </>
             )}
           </Show>

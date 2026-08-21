@@ -108,6 +108,13 @@ export const templateLayoutSchema = z.object({
     .optional()
     .catch(undefined)
     .transform((v) => v ?? true),
+  // Missing on older self-hosted servers: assume the template uses margins
+  // rather than hiding a working control (#859 / #842 skew).
+  supportsMargins: z
+    .boolean()
+    .optional()
+    .catch(undefined)
+    .transform((v) => v ?? true),
 });
 
 export const templateInfoSchema = z.object({

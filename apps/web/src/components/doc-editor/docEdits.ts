@@ -214,3 +214,24 @@ export function updateSidebarRatio(ratio: number): void {
     sidebarRatio: clampSidebarRatio(ratio),
   });
 }
+
+/** Inclusive range for `metadata.page.margin`, in typographic points. */
+const MIN_PAGE_MARGIN_PT = 0;
+const MAX_PAGE_MARGIN_PT = 200;
+
+/**
+ * Persist the page inset as `metadata.page.margin`. Full-bleed templates
+ * ignore this on the PDF (#859); the editor disables the control rather
+ * than writing a value the sheet cannot use. Clamped to 0–200 pt; one
+ * committed change is one store action and one undo entry.
+ */
+export function updatePageMargin(margin: number): void {
+  const resume = resumeStore.store.resume;
+  if (!resume) return;
+  const next = Math.min(MAX_PAGE_MARGIN_PT, Math.max(MIN_PAGE_MARGIN_PT, Math.round(margin)));
+  if (next === resume.metadata.page.margin) return;
+  resumeStore.updateMetadata("page", {
+    ...resume.metadata.page,
+    margin: next,
+  });
+}

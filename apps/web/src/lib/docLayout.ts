@@ -165,6 +165,11 @@ export interface TemplateLayout {
   keywordStyle: TemplateKeywordStyle;
   /** Whether an accent rule sits under the identity header. */
   headerRule: boolean;
+  /**
+   * Whether the template honours `metadata.page.margin` on the page box.
+   * Full-bleed templates (`margin: 0pt` in Typst) are `false` — see #859.
+   */
+  supportsMargins: boolean;
 }
 
 /**
@@ -185,6 +190,7 @@ const FALLBACK_CHROME = {
   sidebarTint: false,
   keywordStyle: "plain" as TemplateKeywordStyle,
   headerRule: true,
+  supportsMargins: true,
 };
 
 export const FALLBACK_TEMPLATE_LAYOUT: TemplateLayout = {
@@ -289,6 +295,7 @@ function bundledSingle(headerStyle: TemplateHeaderStyle, chrome: BundledChrome):
     headerStyle,
     contactIn: "header",
     sidebarWidth: null,
+    supportsMargins: true,
     ...chrome,
   };
 }
@@ -309,8 +316,14 @@ function bundledTwoColumn(
     headerStyle,
     contactIn,
     sidebarWidth,
+    supportsMargins: true,
     ...chrome,
   };
+}
+
+/** Full-bleed templates set Typst `margin: 0pt` and ignore `page.margin` (#859). */
+function fullBleed(layout: TemplateLayout): TemplateLayout {
+  return { ...layout, supportsMargins: false };
 }
 
 /**
@@ -397,49 +410,51 @@ export function bundledTemplateLayout(template: string): TemplateLayout {
         chromeUnderlineChips(true, true),
       );
     case "ditto":
-      return bundledTwoColumn(
-        "sidebar-left",
-        "banner",
-        "banner",
-        160,
-        chromeUnderlineChips(false, true),
+      return fullBleed(
+        bundledTwoColumn("sidebar-left", "banner", "banner", 160, chromeUnderlineChips(false, true)),
       );
     case "gengar":
-      return bundledTwoColumn("sidebar-left", "sidebar", "sidebar", 170, {
-        headingStyle: "underline",
-        sidebarHeadingStyle: "underline",
-        headingCase: "upper",
-        headingInk: "text",
-        sidebarHeadingInk: "accent",
-        fontBody: "ibm-plex-sans",
-        sidebarTint: true,
-        keywordStyle: "chips",
-        headerRule: false,
-      });
+      return fullBleed(
+        bundledTwoColumn("sidebar-left", "sidebar", "sidebar", 170, {
+          headingStyle: "underline",
+          sidebarHeadingStyle: "underline",
+          headingCase: "upper",
+          headingInk: "text",
+          sidebarHeadingInk: "accent",
+          fontBody: "ibm-plex-sans",
+          sidebarTint: true,
+          keywordStyle: "chips",
+          headerRule: false,
+        }),
+      );
     case "glalie":
-      return bundledTwoColumn("sidebar-left", "sidebar", "sidebar", 170, {
-        headingStyle: "underline",
-        sidebarHeadingStyle: "underline",
-        headingCase: "as-written",
-        headingInk: "accent",
-        sidebarHeadingInk: "accent",
-        fontBody: "ibm-plex-sans",
-        sidebarTint: true,
-        keywordStyle: "plain",
-        headerRule: false,
-      });
+      return fullBleed(
+        bundledTwoColumn("sidebar-left", "sidebar", "sidebar", 170, {
+          headingStyle: "underline",
+          sidebarHeadingStyle: "underline",
+          headingCase: "as-written",
+          headingInk: "accent",
+          sidebarHeadingInk: "accent",
+          fontBody: "ibm-plex-sans",
+          sidebarTint: true,
+          keywordStyle: "plain",
+          headerRule: false,
+        }),
+      );
     case "pikachu":
-      return bundledTwoColumn("sidebar-left", "left", "sidebar", 180, {
-        headingStyle: "band",
-        sidebarHeadingStyle: "plain",
-        headingCase: "upper",
-        headingInk: "accent",
-        sidebarHeadingInk: "accent",
-        fontBody: "ibm-plex-sans",
-        sidebarTint: true,
-        keywordStyle: "plain",
-        headerRule: false,
-      });
+      return fullBleed(
+        bundledTwoColumn("sidebar-left", "left", "sidebar", 180, {
+          headingStyle: "band",
+          sidebarHeadingStyle: "plain",
+          headingCase: "upper",
+          headingInk: "accent",
+          sidebarHeadingInk: "accent",
+          fontBody: "ibm-plex-sans",
+          sidebarTint: true,
+          keywordStyle: "plain",
+          headerRule: false,
+        }),
+      );
     case "leafish":
       return {
         layoutMode: "header-split",
@@ -450,6 +465,7 @@ export function bundledTemplateLayout(template: string): TemplateLayout {
         headerStyle: "banner",
         contactIn: "banner",
         sidebarWidth: null,
+        supportsMargins: true,
         ...chromeUnderlineChips(false, false),
       };
     default:

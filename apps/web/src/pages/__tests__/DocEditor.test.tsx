@@ -352,6 +352,16 @@ describe("DocEditor sheet", () => {
     expect(screen.getByTestId("theme-dialog")).toBeInTheDocument();
   });
 
+  it("opens page settings from the top bar", async () => {
+    await renderSheet();
+
+    const topBar = screen.getByTestId("doc-editor-topbar");
+    fireEvent.click(within(topBar).getByRole("button", { name: "Page" }));
+
+    expect(await screen.findByRole("dialog", { name: /Page/ })).toBeInTheDocument();
+    expect(screen.getByTestId("page-dialog")).toBeInTheDocument();
+  });
+
   it("has no axe violations in Edit mode", async () => {
     const { container } = await renderSheet();
 

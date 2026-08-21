@@ -149,6 +149,7 @@ pub async fn list_templates() -> Json<Vec<TemplateInfo>> {
                     sidebar_tint: layout.chrome.sidebar_tint,
                     keyword_style: layout.chrome.keyword_style.as_str().to_string(),
                     header_rule: layout.chrome.header_rule,
+                    supports_margins: layout.supports_margins,
                 },
             }
         })
