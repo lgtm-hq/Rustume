@@ -58,18 +58,19 @@ fn is_embeddable_picture_url(url: &str) -> bool {
     url.trim().starts_with("/assets/picture.")
 }
 
-/// Preview a picture URL for logs without dumping a multi-megabyte data URL.
-fn picture_url_for_log(url: &str) -> String {
-    const MAX_CHARS: usize = 128;
-    let mut preview = String::new();
-    for (index, ch) in url.chars().enumerate() {
-        if index == MAX_CHARS {
-            preview.push('…');
-            break;
-        }
-        preview.push(ch);
+/// Classify a picture URL for logs. Never echo the URL — signed query
+/// tokens, userinfo, and data-URL payloads must not land in log storage.
+fn picture_url_kind(url: &str) -> &'static str {
+    let url = url.trim();
+    if url.starts_with("https://") {
+        "https"
+    } else if url.starts_with("http://") {
+        "http"
+    } else if url.starts_with("data:") {
+        "data"
+    } else {
+        "other"
     }
-    preview
 }
 
 /// Clear a non-embeddable picture URL so Typst never looks it up on the
@@ -83,7 +84,7 @@ fn skip_non_embeddable_picture_url(resume: &mut ResumeData) {
     }
 
     warn!(
-        url = %picture_url_for_log(&resume.basics.picture.url),
+        url_kind = picture_url_kind(&resume.basics.picture.url),
         "Skipping non-embeddable profile picture URL; rendering without a photo"
     );
     resume.basics.picture.url.clear();
@@ -592,6 +593,21 @@ mod tests {
         assert_eq!(resume.basics.picture.size, 96);
         assert_eq!(resume.basics.picture.border_radius, 8);
         assert!(resume.basics.picture.effects.border);
+    }
+
+    #[test]
+    fn test_picture_url_kind_does_not_echo_credentials() {
+        let token_url = "https://cdn.example.com/photo.jpg?token=super-secret";
+        assert_eq!(picture_url_kind(token_url), "https");
+        assert!(!picture_url_kind(token_url).contains("secret"));
+        assert!(!picture_url_kind(token_url).contains("token"));
+        assert_eq!(
+            picture_url_kind("https://user:hunter2@cdn.example.com/photo.jpg"),
+            "https"
+        );
+        assert_eq!(picture_url_kind("http://insecure.example/pic.png"), "http");
+        assert_eq!(picture_url_kind("data:image/png;base64,AAAA"), "data");
+        assert_eq!(picture_url_kind("ftp://files.example/pic"), "other");
     }
 
     #[test]
