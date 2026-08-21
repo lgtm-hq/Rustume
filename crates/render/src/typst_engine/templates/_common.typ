@@ -31,7 +31,13 @@
   }
 }
 
-/// Check whether basics includes a visible profile picture URL.
+/// True when Typst `image()` can load this URL from the virtual world.
+/// Remote `http(s):` URLs are never fetched and must not reach `image()`.
+#let is-embeddable-picture-url(url) = {
+  url.starts-with("/assets/picture.") or url.starts-with("data:image/")
+}
+
+/// Check whether basics includes a visible, embeddable profile picture URL.
 #let has-visible-picture(basics) = {
   if not ("picture" in basics) or basics.picture == none {
     return false
@@ -41,7 +47,7 @@
   let effects = picture.at("effects", default: (:))
   let url = if "url" in picture and picture.url != none { picture.url.trim() } else { "" }
 
-  url != "" and not effects.at("hidden", default: false)
+  url != "" and not effects.at("hidden", default: false) and is-embeddable-picture-url(url)
 }
 
 /// Render a profile picture with shared schema-driven effects.
@@ -51,6 +57,13 @@
   }
 
   let picture = basics.picture
+  let url = if "url" in picture and picture.url != none { picture.url.trim() } else { "" }
+  // Defense in depth: never call `image()` with a remote or other
+  // non-embeddable path (Typst would look it up on the virtual FS).
+  if not is-embeddable-picture-url(url) {
+    return
+  }
+
   let effects = picture.at("effects", default: (:))
   let picture-size = picture.at("size", default: int(default-size / 1pt)) * 1pt
   let border-radius = calc.min(picture.at("borderRadius", default: 0) * 1pt, picture-size / 2)
@@ -70,7 +83,7 @@
     radius: border-radius,
     clip: true,
     stroke: stroke,
-    image(picture.url, width: picture-size, height: picture-size, fit: "cover")
+    image(url, width: picture-size, height: picture-size, fit: "cover")
   )
 
   let shadow-offset = shadow-size / 2

@@ -1303,6 +1303,22 @@ fn test_render_picture_effects_smoke() {
     assert!(result.unwrap().starts_with(b"%PDF-"));
 }
 
+/// Remote picture URLs must not fail the entire PDF render (#738).
+#[test]
+fn test_remote_picture_url_still_renders_pdf() {
+    let renderer = TypstRenderer::new();
+    let mut resume = sample_resume();
+    resume.basics.picture = Picture::new("https://example.com/photo.jpg");
+
+    let result = renderer.render_pdf(&resume);
+    assert!(
+        result.is_ok(),
+        "PDF rendering failed with a remote picture URL: {:?}",
+        result.err()
+    );
+    assert!(result.unwrap().starts_with(b"%PDF-"));
+}
+
 #[test]
 fn test_templates_use_shared_render_contract() {
     let template_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
