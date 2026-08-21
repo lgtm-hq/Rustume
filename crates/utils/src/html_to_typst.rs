@@ -568,13 +568,21 @@ fn can_close_emphasis(chars: &[char], close: usize, delim_len: usize) -> bool {
     after >= chars.len() || !is_word_char(chars[after])
 }
 
+fn delimiter_run_len(chars: &[char], j: usize, marker: char) -> usize {
+    chars[j..].iter().take_while(|&&c| c == marker).count()
+}
+
 fn find_closing_emphasis(chars: &[char], content_start: usize, delim: &[char]) -> Option<usize> {
     let dlen = delim.len();
+    let marker = delim[0];
     let mut j = content_start;
     while j + dlen <= chars.len() {
+        // Require an exact run so `**a *b***` closes on the last two stars
+        // (inner italic keeps the first) instead of leaving a stray `*`.
         if &chars[j..j + dlen] == delim
             && j > content_start
             && !chars[j - 1].is_whitespace()
+            && delimiter_run_len(chars, j, marker) == dlen
             && can_close_emphasis(chars, j, dlen)
         {
             return Some(j);
@@ -974,6 +982,23 @@ mod tests {
     fn markdown_italic_asterisks_and_underscores() {
         assert_eq!(html_to_typst("*italic*"), "#emph[italic]");
         assert_eq!(html_to_typst("_italic_"), "#emph[italic]");
+    }
+
+    #[test]
+    fn nested_emphasis_overlapping_closers_does_not_leave_a_star() {
+        assert_eq!(
+            html_to_typst("**a *b***"),
+            "#text(weight: \"bold\")[a #emph[b]]"
+        );
+        assert_eq!(
+            html_to_typst("<p>**a *b***</p>"),
+            "#text(weight: \"bold\")[a #emph[b]]"
+        );
+        let result = html_to_typst("**a *b***");
+        assert!(
+            !result.contains('*'),
+            "overlapping closers must not print leftover markers: {result}"
+        );
     }
 
     #[test]
