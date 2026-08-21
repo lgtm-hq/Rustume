@@ -306,6 +306,38 @@
   margin-bottom: 0.4rem;
 }
 
+/* `headerStyle` left vs center is the chrome that keeps rhyhorn and bronzor
+   distinct once body type comes from metadata.typography (#701 / #856). */
+.doc-sheet--head-left .doc-sheet__single .doc-sheet__banner,
+.doc-sheet--head-left .doc-sheet__main {
+  text-align: left;
+}
+
+.doc-sheet--head-left .doc-sheet__single .doc-sheet__avatar-btn,
+.doc-sheet--head-left .doc-sheet__main .doc-sheet__avatar-btn,
+.doc-sheet--head-left .doc-sheet__single .doc-sheet__avatar-img,
+.doc-sheet--head-left .doc-sheet__main .doc-sheet__avatar-img {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+.doc-sheet--head-center .doc-sheet__single .doc-sheet__banner,
+.doc-sheet--head-center .doc-sheet__main {
+  text-align: center;
+}
+
+.doc-sheet--head-center .doc-sheet__single .doc-sheet__avatar-btn,
+.doc-sheet--head-center .doc-sheet__main .doc-sheet__avatar-btn,
+.doc-sheet--head-center .doc-sheet__single .doc-sheet__avatar-img,
+.doc-sheet--head-center .doc-sheet__main .doc-sheet__avatar-img {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.doc-sheet--head-center .doc-sheet__single .doc-sheet__contact--inline {
+  justify-content: center;
+}
+
 
 /* ── Sidebar resize handle (spec §3.2) ──────────────────────────────────── */
 

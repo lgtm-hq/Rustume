@@ -16,9 +16,22 @@ const SCREENSHOT_DIR = resolve(
   "../../../e2e/__screenshots__/template-sheet.visual.spec.ts",
 );
 
+const SHEET_CSS = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  "../../components/doc-editor/docSheet.css",
+);
+
 const EXPECTED_SHEET_BASELINES = FULL_TEMPLATE_CATALOG.map((t) => `sheet-${t.id}.png`).toSorted();
 
 describe("sheet visual baselines", () => {
+  it("implements left vs center header chrome for rhyhorn and bronzor (#701)", () => {
+    const css = readFileSync(SHEET_CSS, "utf8");
+    expect(css).toContain(".doc-sheet--head-left .doc-sheet__single .doc-sheet__banner");
+    expect(css).toContain(".doc-sheet--head-center .doc-sheet__single .doc-sheet__banner");
+    expect(css).toContain("margin-left: 0");
+    expect(css).toContain("justify-content: center");
+  });
+
   it("are pairwise distinct by digest", () => {
     const files = readdirSync(SCREENSHOT_DIR).filter(
       (name) => name.startsWith("sheet-") && name.endsWith(".png"),
