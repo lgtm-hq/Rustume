@@ -148,7 +148,14 @@ fn process_node(
                 return;
             }
             if markdown_subset {
-                output.push_str(&apply_markdown_subset(t));
+                // HTML <li> already emitted the Typst list marker. Line-based
+                // markdown list parsing here would turn `* item` into a
+                // second dash (`- - item`). Keep emphasis, skip list prefixes.
+                if in_list {
+                    output.push_str(&apply_inline_markdown(t, 0));
+                } else {
+                    output.push_str(&apply_markdown_subset(t));
+                }
             } else {
                 output.push_str(&escape_typst(t));
             }
@@ -172,7 +179,7 @@ fn process_node(
                 "p" => {
                     let mut inner = String::new();
                     for child in node.children() {
-                        process_node(&child, &mut inner, 0, sanitize, markdown_subset);
+                        process_node(&child, &mut inner, list_depth, sanitize, markdown_subset);
                     }
                     let trimmed = inner.trim();
                     // TipTap produces <p><br></p> for empty editors — treat as empty.
@@ -515,7 +522,7 @@ fn match_emphasis(chars: &[char], i: usize, depth: u8) -> Option<(usize, String)
 
     for (delim, is_bold, is_italic) in CANDIDATES {
         let d: Vec<char> = delim.chars().collect();
-        if !starts_with_delim(chars, i, &d) || !can_open_emphasis(chars, i) {
+        if !starts_with_delim(chars, i, &d) || !can_open_emphasis(chars, i, d[0]) {
             continue;
         }
         let content_start = i + d.len();
@@ -550,8 +557,10 @@ fn is_word_char(c: char) -> bool {
     c.is_alphanumeric()
 }
 
-fn can_open_emphasis(chars: &[char], i: usize) -> bool {
-    i == 0 || !is_word_char(chars[i - 1])
+fn can_open_emphasis(chars: &[char], i: usize, marker: char) -> bool {
+    // Mid-run retries (`foo**bar**` at the second star) must not open
+    // italic and leave a stray marker. Underscores stay intra-word-safe.
+    i == 0 || (!is_word_char(chars[i - 1]) && chars[i - 1] != marker)
 }
 
 fn can_close_emphasis(chars: &[char], close: usize, delim_len: usize) -> bool {
@@ -1046,6 +1055,30 @@ mod tests {
     fn intra_word_asterisks_stay_literal() {
         assert_eq!(html_to_typst("4*5*6"), "4\\*5\\*6");
         assert_eq!(html_to_typst("Rated 4*5 stars"), "Rated 4\\*5 stars");
+        assert_eq!(html_to_typst("foo**bar**"), "foo\\*\\*bar\\*\\*");
+        assert_eq!(html_to_typst("foo__bar__"), "foo\\_\\_bar\\_\\_");
+        assert_eq!(html_to_typst("foo***bar***"), "foo\\*\\*\\*bar\\*\\*\\*");
+        assert_eq!(html_to_typst("foo___bar___"), "foo\\_\\_\\_bar\\_\\_\\_");
+        for input in ["foo**bar**", "foo__bar__", "foo***bar***", "foo___bar___"] {
+            let result = html_to_typst(input);
+            assert!(
+                !result.contains("#emph") && !result.contains("weight: \"bold\""),
+                "intra-word delimiter run must stay literal: {result}"
+            );
+        }
+    }
+
+    #[test]
+    fn html_list_item_does_not_reparse_markdown_list_prefix() {
+        assert_eq!(html_to_typst("<ul><li>* item</li></ul>"), "- \\* item");
+        assert_eq!(
+            html_to_typst("<ul><li><p>* item</p></li></ul>"),
+            "- \\* item"
+        );
+        assert_eq!(
+            html_to_typst("<ul><li>**Bold** item</li></ul>"),
+            "- #text(weight: \"bold\")[Bold] item"
+        );
     }
 
     #[test]
