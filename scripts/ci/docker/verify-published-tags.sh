@@ -230,6 +230,29 @@ watched_build_succeeded() {
 	[[ "$conclusion" == "success" ]]
 }
 
+# Prints success | failed | pending | unknown. Lookup errors are unknown
+# (not a confirmed miss) so TIMEOUT_SECONDS cannot clip the GHCR budget.
+watched_build_status() {
+	local conclusion
+	if [[ -z "${WATCH_WORKFLOW:-}" || -z "${GITHUB_REPOSITORY:-}" ]]; then
+		printf 'unknown'
+		return 0
+	fi
+	if ! conclusion="$(watched_build_conclusion)"; then
+		printf 'unknown'
+		return 0
+	fi
+	if [[ -z "$conclusion" ]]; then
+		printf 'pending'
+		return 0
+	fi
+	if [[ "$conclusion" == "success" ]]; then
+		printf 'success'
+		return 0
+	fi
+	printf 'failed'
+}
+
 write_summary() {
 	[[ -n "${GITHUB_STEP_SUMMARY:-}" ]] || return 0
 	printf '%s\n' "$*" >>"$GITHUB_STEP_SUMMARY"
@@ -289,12 +312,13 @@ while :; do
 	fi
 	missing=("${remaining[@]}")
 
-	if watched_build_failed; then
+	watch_status="$(watched_build_status)"
+	if [[ "$watch_status" == "failed" ]]; then
 		fail_fast="${WATCH_WORKFLOW} already concluded without success"
 		break
 	fi
 
-	if [[ -z "$success_deadline" ]] && watched_build_succeeded; then
+	if [[ "$watch_status" == "success" && -z "$success_deadline" ]]; then
 		success_deadline=$((SECONDS + POST_SUCCESS_TIMEOUT_SECONDS))
 		effective_timeout="$POST_SUCCESS_TIMEOUT_SECONDS"
 		printf 'Watched build succeeded; remaining poll budget %ss\n' \
@@ -307,8 +331,17 @@ while :; do
 	fi
 	# Once docker succeeds, only `success_deadline` bounds the wait —
 	# the original TIMEOUT_SECONDS must not clip the post-success budget.
+	# A transient status lookup at the timeout must not do that either:
+	# grant the GHCR window instead of failing the release (#698).
 	if [[ -z "$success_deadline" && "$elapsed" -ge "$TIMEOUT_SECONDS" ]]; then
-		break
+		if [[ -n "${WATCH_WORKFLOW:-}" && "$watch_status" == "unknown" ]]; then
+			success_deadline=$((SECONDS + POST_SUCCESS_TIMEOUT_SECONDS))
+			effective_timeout="$POST_SUCCESS_TIMEOUT_SECONDS"
+			printf 'Watch lookup inconclusive at timeout; granting %ss GHCR budget\n' \
+				"$POST_SUCCESS_TIMEOUT_SECONDS"
+		else
+			break
+		fi
 	fi
 
 	printf 'Waiting %ss for %s missing tag(s) (%ss/%ss elapsed)\n' \

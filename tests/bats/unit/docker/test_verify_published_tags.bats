@@ -363,6 +363,33 @@ if [[ $count -le 1 ]]; then printf "404"; else printf "200"; fi
 	assert_output --partial "All expected tags resolve"
 }
 
+@test "inconclusive watch lookup at timeout still grants the GHCR budget" {
+	# gh api fails (transient), TIMEOUT_SECONDS is already 0, and the tag
+	# appears on the next probe. The original timeout must not fail the
+	# release before POST_SUCCESS_TIMEOUT_SECONDS elapses.
+	local counter="${BATS_TEST_TMPDIR}/calls"
+	printf '0\n' >"${counter}"
+	mock_command_script "curl" '
+url="${@: -1}"
+if [[ "$url" == *"/token?"* ]]; then printf "{\"token\":\"tok\"}\n"; exit 0; fi
+count=$(cat "'"${counter}"'")
+count=$((count + 1))
+printf "%s\n" "$count" > "'"${counter}"'"
+if [[ $count -le 1 ]]; then printf "404"; else printf "200"; fi
+'
+	mock_command_script "gh" 'exit 1'
+	export TAGS=latest TIMEOUT_SECONDS=0 POLL_INTERVAL_SECONDS=0
+	export POST_SUCCESS_TIMEOUT_SECONDS=1
+	export WATCH_WORKFLOW=docker-build-publish.yml
+	export GITHUB_REPOSITORY=lgtm-hq/Rustume
+	export GITHUB_REF_NAME=v0.46.0 GITHUB_SHA=abc1234567890
+
+	run bash "${SCRIPT}"
+	assert_success
+	assert_output --partial "Watch lookup inconclusive at timeout; granting 1s GHCR budget"
+	assert_output --partial "All expected tags resolve"
+}
+
 # =============================================================================
 # Input handling
 # =============================================================================
