@@ -59,4 +59,3 @@ jobs:
         failed to download vulnerability DB
         mirror.gcr.io/aquasec/trivy-db
         failed to fetch the layer: GET https://mirror.gcr.io/artifacts-downloads
-

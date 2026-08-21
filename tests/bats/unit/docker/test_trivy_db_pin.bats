@@ -22,6 +22,11 @@ RERUN="${PROJECT_ROOT}/.github/workflows/auto-rerun-on-infra-failure.yml"
 	assert_success
 }
 
+@test "Trivy SARIF upload is skipped when the scanner produced no file" {
+	run grep -F "hashFiles('trivy-results.sarif')" "${WORKFLOW}"
+	assert_success
+}
+
 @test "Auto Rerun knows the Trivy GCR-mirror 404 signature" {
 	run grep -F "mirror.gcr.io/aquasec/trivy-db" "${RERUN}"
 	assert_success
