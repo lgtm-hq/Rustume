@@ -5,11 +5,11 @@
 //! paragraphs, line breaks, and inline/block code.
 //!
 //! Legacy resume fields are marked HTML (or have no `contentFormat`) but often
-//! contain a markdown subset — `**bold**`, `__bold__`, `*italic*`, `_italic_`,
-//! and `- `/`* ` unordered lists, including mixed `<p>**heading**</p>` plus
-//! markdown list lines. That subset is interpreted **before** remaining text is
-//! Typst-escaped, so stars do not print. Ordered markers (`1.`, `1988.`) are
-//! never inferred as lists.
+//! contain a markdown subset — `**bold**`, `__bold__`, `***bold italic***`,
+//! `*italic*`, `_italic_`, and `- `/`* ` unordered lists, including mixed
+//! `<p>**heading**</p>` plus markdown list lines. That subset is interpreted
+//! **before** remaining text is Typst-escaped, so stars do not print. Ordered
+//! markers (`1.`, `1988.`) are never inferred as lists.
 
 use scraper::{Html, Node};
 
@@ -36,7 +36,8 @@ use crate::sanitize::is_allowed_tag;
 /// All other tags are stripped; their text content is preserved.
 ///
 /// Plain text and text nodes are scanned for a markdown subset (`**`/`__`
-/// bold, `*`/`_` italic, `- `/`* ` lists) and then escaped. Prefer
+/// bold, `***`/`___` bold+italic, `*`/`_` italic, `- `/`* ` lists) and then
+/// escaped. Prefer
 /// [`sanitize_html_to_typst`] when the input is untrusted HTML that still
 /// needs the resume allow-list applied — that path sanitizes and converts
 /// from a single parse tree.
@@ -418,7 +419,8 @@ fn process_list(
 
 /// Interpret a markdown subset, then Typst-escape remaining text.
 ///
-/// Honours `**`/`__` bold, `*`/`_` italic, and `- `/`* ` unordered list
+/// Honours `**`/`__` bold, `***`/`___` bold+italic, `*`/`_` italic, and
+/// `- `/`* ` unordered list
 /// lines. Does **not** treat `1.` / `1988.` as ordered lists. Intra-word
 /// markers (`4*5*6`, `foo_bar`) stay literal so arithmetic and identifiers
 /// are not rewritten.
@@ -455,7 +457,7 @@ fn apply_markdown_subset(text: &str) -> String {
 /// (optional indent). `*italic*` (no space after `*`) is not a list.
 fn parse_unordered_list_line(line: &str) -> Option<(usize, &str)> {
     let leading_spaces = line.chars().take_while(|&c| c == ' ').count();
-    let stripped = line.trim_start_matches(|c: char| c == ' ' || c == '\t');
+    let stripped = line.trim_start_matches([' ', '\t']);
     let rest = stripped
         .strip_prefix("- ")
         .or_else(|| stripped.strip_prefix("* "))?;
@@ -500,10 +502,18 @@ fn apply_inline_markdown(text: &str, depth: u8) -> String {
 }
 
 fn match_emphasis(chars: &[char], i: usize, depth: u8) -> Option<(usize, String)> {
-    // Longer delimiters first so `**` is not consumed as italic.
-    const CANDIDATES: [(&str, bool); 4] = [("**", true), ("__", true), ("*", false), ("_", false)];
+    // Longer delimiters first so `***both***` is bold+italic (not leftover
+    // stars) and `**` is not consumed as italic.
+    const CANDIDATES: [(&str, bool, bool); 6] = [
+        ("***", true, true),
+        ("___", true, true),
+        ("**", true, false),
+        ("__", true, false),
+        ("*", false, true),
+        ("_", false, true),
+    ];
 
-    for (delim, is_bold) in CANDIDATES {
+    for (delim, is_bold, is_italic) in CANDIDATES {
         let d: Vec<char> = delim.chars().collect();
         if !starts_with_delim(chars, i, &d) || !can_open_emphasis(chars, i) {
             continue;
@@ -520,10 +530,11 @@ fn match_emphasis(chars: &[char], i: usize, depth: u8) -> Option<(usize, String)
         if inner.is_empty() {
             continue;
         }
-        let markup = if is_bold {
-            format!("#text(weight: \"bold\")[{inner}]")
-        } else {
-            format!("#emph[{inner}]")
+        let markup = match (is_bold, is_italic) {
+            (true, true) => format!("#text(weight: \"bold\")[#emph[{inner}]]"),
+            (true, false) => format!("#text(weight: \"bold\")[{inner}]"),
+            (false, true) => format!("#emph[{inner}]"),
+            (false, false) => inner,
         };
         return Some((close + d.len() - i, markup));
     }
@@ -954,6 +965,29 @@ mod tests {
     fn markdown_italic_asterisks_and_underscores() {
         assert_eq!(html_to_typst("*italic*"), "#emph[italic]");
         assert_eq!(html_to_typst("_italic_"), "#emph[italic]");
+    }
+
+    #[test]
+    fn markdown_triple_emphasis_is_bold_and_italic() {
+        assert_eq!(
+            html_to_typst("***both***"),
+            "#text(weight: \"bold\")[#emph[both]]"
+        );
+        assert_eq!(
+            html_to_typst("___both___"),
+            "#text(weight: \"bold\")[#emph[both]]"
+        );
+        assert_eq!(
+            html_to_typst("<p>***both***</p>"),
+            "#text(weight: \"bold\")[#emph[both]]"
+        );
+        for input in ["***both***", "___both___", "<p>***both***</p>"] {
+            let result = html_to_typst(input);
+            assert!(
+                !result.contains('*') && !result.contains('_'),
+                "triple emphasis must not print leftover markers: {result}"
+            );
+        }
     }
 
     #[test]
