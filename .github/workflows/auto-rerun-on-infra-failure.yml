@@ -52,3 +52,11 @@ jobs:
       run-attempt: ${{ format('{0}', github.event.workflow_run.run_attempt) }}
       egress-policy: block
       egress-preset: github-minimal
+      # Trivy GCR-mirror 404s are infra, not CVEs (#851). The durable pin is
+      # the local scan job; this signature recovers leftover reusable scans
+      # (PR validate still uses lgtm-ci Trivy).
+      signatures: |
+        failed to download vulnerability DB
+        mirror.gcr.io/aquasec/trivy-db
+        failed to fetch the layer: GET https://mirror.gcr.io/artifacts-downloads
+

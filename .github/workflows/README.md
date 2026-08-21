@@ -51,7 +51,10 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
   rustume-ops repo — this repo ends at the GHCR publish). A trailing
   `🔍 Verify Published Tags` job asserts the contracted tags actually resolve
   (`scripts/ci/docker/verify-published-tags.sh`), so a skipped manifest merge
-  fails the run instead of passing as "mostly green with skips" (#597)
+  fails the run instead of passing as "mostly green with skips" (#597).
+  Post-merge Vulnerability Scan is a local Trivy job with
+  `TRIVY_DB_REPOSITORY=ghcr.io/aquasecurity/trivy-db` (#851); reusable
+  Trivy stays PR-only.
 
 ## Release
 
