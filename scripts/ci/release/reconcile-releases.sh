@@ -22,8 +22,11 @@ set -euo pipefail
 #                          listed from the local repo (`git tag`).
 #   MAX_TAGS               How many newest v*.*.* tags to check (default 50)
 #   MIN_TAG_AGE_SECONDS    Skip tags younger than this when listing from git
-#                          (default 7200). Avoids racing an in-flight publish
-#                          on the daily schedule. Explicit TAGS default to 0.
+#                          (default 7200). Age is the annotated-tag creator
+#                          date (`%(creatordate:unix)`), not the pointed-to
+#                          commit time — `auto-tag.sh` uses `git tag -a`, and
+#                          release commits are often older than the tag.
+#                          Explicit TAGS default to 0.
 #   REGISTRY_USERNAME      Basic-auth user for the registry token endpoint
 #   REGISTRY_PASSWORD      Basic-auth password/token (anonymous when unset)
 #   CURL_MAX_TIME          curl timeout (default 30)
@@ -97,6 +100,22 @@ list_version_tags() {
 	git tag -l 'v*.*.*' --sort=-v:refname | head -n "$MAX_TAGS"
 }
 
+# When the tag was created. Annotated tags (this repo's release tags) use
+# the tagger timestamp so a brand-new tag on an old commit still gets the
+# scheduled grace period. Lightweight tags fall back to the target commit.
+tag_created_unix() {
+	local git_tag="$1"
+	local created=""
+	created="$(
+		git for-each-ref --format='%(creatordate:unix)' "refs/tags/${git_tag}" \
+			2>/dev/null || true
+	)"
+	if [[ -z "$created" ]]; then
+		created="$(git log -1 --format=%ct "$git_tag" 2>/dev/null || true)"
+	fi
+	printf '%s' "$created"
+}
+
 expected_tags=()
 if [[ -n "${TAGS:-}" ]]; then
 	# shellcheck disable=SC2206 # deliberate word splitting of the tag list
@@ -118,7 +137,7 @@ if [[ "$MIN_TAG_AGE_SECONDS" -gt 0 ]]; then
 	now="$(date +%s)"
 	aged_tags=()
 	for git_tag in "${expected_tags[@]}"; do
-		created="$(git log -1 --format=%ct "$git_tag" 2>/dev/null || true)"
+		created="$(tag_created_unix "$git_tag")"
 		if [[ -n "$created" && $((now - created)) -lt "$MIN_TAG_AGE_SECONDS" ]]; then
 			printf '  skip young tag: %s (age %ss < %ss)\n' \
 				"$git_tag" "$((now - created))" "$MIN_TAG_AGE_SECONDS"

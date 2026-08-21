@@ -126,6 +126,34 @@ seed_version_tag_repo() {
 	assert_output --partial "nothing to reconcile"
 }
 
+@test "scheduled listing uses tagger date not the pointed-to commit date" {
+	mock_registry "0.1.0"
+	mock_releases "v0.1.0"
+	unset TAGS
+	export MIN_TAG_AGE_SECONDS=7200
+	export MAX_TAGS=5
+
+	local repo="${BATS_TEST_TMPDIR}/tag-repo"
+	mkdir -p "${repo}"
+	git -C "${repo}" init -q
+	git -C "${repo}" config user.email "test@example.com"
+	git -C "${repo}" config user.name "test"
+	printf 'x\n' >"${repo}/file"
+	git -C "${repo}" add file
+	GIT_AUTHOR_DATE="2000-01-01T00:00:00Z" \
+		GIT_COMMITTER_DATE="2000-01-01T00:00:00Z" \
+		git -C "${repo}" -c commit.gpgsign=false commit -qm init
+	# Tag created now, pointing at a 26-year-old commit.
+	git -C "${repo}" -c commit.gpgsign=false tag -a v0.1.0 -m "Release v0.1.0"
+	export GIT_DIR="${repo}/.git"
+	export GIT_WORK_TREE="${repo}"
+
+	run bash "${SCRIPT}"
+	assert_success
+	assert_output --partial "skip young tag:"
+	assert_output --partial "nothing to reconcile"
+}
+
 @test "explicit TAGS are not age-filtered by default" {
 	mock_registry "0.52.1"
 	mock_releases "v0.52.1"
