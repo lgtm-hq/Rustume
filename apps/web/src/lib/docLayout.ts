@@ -411,7 +411,13 @@ export function bundledTemplateLayout(template: string): TemplateLayout {
       );
     case "ditto":
       return fullBleed(
-        bundledTwoColumn("sidebar-left", "banner", "banner", 160, chromeUnderlineChips(false, true)),
+        bundledTwoColumn(
+          "sidebar-left",
+          "banner",
+          "banner",
+          160,
+          chromeUnderlineChips(false, true),
+        ),
       );
     case "gengar":
       return fullBleed(
