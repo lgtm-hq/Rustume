@@ -1614,9 +1614,11 @@ button.doc-sheet__avatar-btn:focus-visible {
 .doc-sheet--tpl-glalie .doc-sheet__summary,
 .doc-sheet--tpl-glalie .doc-sheet__entry-sum,
 .doc-sheet--tpl-glalie .doc-sheet__entry-desc,
+.doc-sheet--tpl-glalie .doc-sheet__lang-desc,
 .doc-sheet--justify-body .doc-sheet__summary,
 .doc-sheet--justify-body .doc-sheet__entry-sum,
-.doc-sheet--justify-body .doc-sheet__entry-desc {
+.doc-sheet--justify-body .doc-sheet__entry-desc,
+.doc-sheet--justify-body .doc-sheet__lang-desc {
   text-align: justify;
 }
 

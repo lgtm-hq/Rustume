@@ -730,6 +730,12 @@ describe("templateDocFontFamily / docFontStack", () => {
       resolve(__dirname, "../../components/doc-editor/docSheet.css"),
       "utf8",
     );
+    expect(css).toMatch(
+      /\.doc-sheet--justify-body[\s\S]*\.doc-sheet__lang-desc[\s\S]*text-align:\s*justify/,
+    );
+    expect(css).toMatch(
+      /\.doc-sheet--tpl-glalie[\s\S]*\.doc-sheet__lang-desc[\s\S]*text-align:\s*justify/,
+    );
     expect(css).toMatch(/\.doc-sheet--justify-body[\s\S]*text-align:\s*justify/);
     expect(css).toMatch(/\.doc-sheet--tpl-glalie[\s\S]*text-align:\s*justify/);
     expect(css).toMatch(/\.doc-sheet__edu-date--body[\s\S]*font-family:\s*var\(--doc-font-body\)/);

@@ -249,6 +249,7 @@ describe("document sheet structural chrome", () => {
       expect(sheet.classList.contains("doc-sheet--justify-body")).toBe(true);
       expect(sheet).toHaveAttribute("data-sheet-mode", "done");
       expect(sheet.querySelector(".doc-sheet__summary")).not.toBeNull();
+      expect(sheet.querySelector(".doc-sheet__lang-desc")).not.toBeNull();
     });
 
     it("leaves other templates' Done-mode body start-aligned", () => {
