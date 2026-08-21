@@ -614,14 +614,17 @@ mod tests {
         resume.basics.picture = Picture::new(REMOTE_PICTURE_URL);
 
         let (source, asset) = renderer.prepare_source(&resume).unwrap();
-        assert!(asset.is_none(), "remote URLs must not be fetched or embedded");
+        assert!(
+            asset.is_none(),
+            "remote URLs must not be fetched or embedded"
+        );
         assert!(
             !source.contains(REMOTE_PICTURE_URL),
             "remote picture URL must not be passed to Typst: {source}"
         );
         assert!(
-            !source.contains("example.com"),
-            "remote host must not reach Typst source: {source}"
+            !source.contains("photo.jpg"),
+            "remote picture path must not reach Typst source: {source}"
         );
     }
 
