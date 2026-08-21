@@ -96,6 +96,13 @@ exit 1
 	assert_failure
 }
 
+@test "release shell workflow documents pull-requests write" {
+	local workflow="${PROJECT_ROOT}/.github/workflows/test-release-shell.yml"
+	run grep -E 'pull-requests: write # publish-test-summary posts shell coverage on PRs' \
+		"${workflow}"
+	assert_success
+}
+
 @test "refuses to run without GITHUB_REPOSITORY" {
 	unset GITHUB_REPOSITORY
 	export TAGS=v0.1.0
