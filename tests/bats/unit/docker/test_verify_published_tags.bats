@@ -18,6 +18,7 @@ setup() {
 	# Never wait for real time in unit tests.
 	mock_command_script "sleep" 'exit 0'
 	unset TAGS EXPECT_PLATFORMS TIMEOUT_SECONDS WATCH_WORKFLOW || true
+	unset POST_SUCCESS_TIMEOUT_SECONDS || true
 	unset REGISTRY_USERNAME REGISTRY_PASSWORD || true
 	export TIMEOUT_SECONDS=0
 	export POLL_INTERVAL_SECONDS=0
@@ -317,6 +318,22 @@ if [[ $count -le 1 ]]; then printf "404"; else printf "200"; fi
 	assert_failure
 	[[ "${output}" != *"Stopped waiting"* ]] ||
 		fail "a successful watched build must not short-circuit"
+}
+
+@test "a successful watched build shrinks the remaining poll budget" {
+	mock_registry ""
+	mock_command "gh" '{"workflow_runs":[{"run_number":1,"head_branch":"v0.46.0","status":"completed","conclusion":"success"}]}'
+	export TAGS=latest TIMEOUT_SECONDS=9000 POLL_INTERVAL_SECONDS=0
+	export POST_SUCCESS_TIMEOUT_SECONDS=0
+	export WATCH_WORKFLOW=docker-build-publish.yml
+	export GITHUB_REPOSITORY=lgtm-hq/Rustume
+	export GITHUB_REF_NAME=v0.46.0 GITHUB_SHA=abc1234567890
+
+	run bash "${SCRIPT}"
+	assert_failure
+	assert_output --partial "Watched build succeeded; remaining poll budget 0s"
+	[[ "${output}" != *"Stopped waiting"* ]] ||
+		fail "success must shrink the budget, not fail-fast as a failed build"
 }
 
 # =============================================================================

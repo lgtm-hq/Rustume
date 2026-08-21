@@ -31,8 +31,13 @@ set -euo pipefail
 #                            main                 -> main sha-<short>
 #   EXPECT_PLATFORMS       Comma/space separated os/arch list that every tag's
 #                          manifest must contain (default: none)
-#   TIMEOUT_SECONDS        Total time to keep polling for missing tags
-#                          (default 0 = single pass, fail immediately)
+#   TIMEOUT_SECONDS        Total time to keep polling for missing tags while
+#                          the watched build is still running (default 0 =
+#                          single pass, fail immediately)
+#   POST_SUCCESS_TIMEOUT_SECONDS
+#                          Remaining poll budget once WATCH_WORKFLOW has
+#                          succeeded (default 600). GHCR read-after-write
+#                          lag only — not another 2h wait (#698)
 #   POLL_INTERVAL_SECONDS  Delay between polls (default 20)
 #   REGISTRY_USERNAME      Basic-auth user for the registry token endpoint
 #   REGISTRY_PASSWORD      Basic-auth password/token (anonymous pull if unset)
@@ -40,7 +45,9 @@ set -euo pipefail
 #                          docker-build-publish.yml). While polling, if that
 #                          workflow's run for GITHUB_SHA has already concluded
 #                          without success, stop waiting and fail immediately.
-#                          Best effort: lookup errors keep polling.
+#                          After it succeeds, the poll budget shrinks to
+#                          POST_SUCCESS_TIMEOUT_SECONDS. Best effort: lookup
+#                          errors keep polling.
 #   GITHUB_REPOSITORY      owner/repo, required by WATCH_WORKFLOW
 #   GH_TOKEN               Token for the WATCH_WORKFLOW `gh api` lookup
 #   GITHUB_STEP_SUMMARY    When set, a short verdict is appended
@@ -56,7 +63,10 @@ Environment:
   IMAGE_REF              Image without tag (default ghcr.io/lgtm-hq/rustume)
   TAGS                   Explicit tag list (default: derived from the ref)
   EXPECT_PLATFORMS       Platforms every tag's manifest must contain
-  TIMEOUT_SECONDS        Poll budget for missing tags (default 0)
+  TIMEOUT_SECONDS        Poll budget while the watched build is running
+  POST_SUCCESS_TIMEOUT_SECONDS
+                         Remaining budget after a successful watched build
+                         (default 600)
   POLL_INTERVAL_SECONDS  Delay between polls (default 20)
   REGISTRY_USERNAME      Basic-auth user for the registry token endpoint
   REGISTRY_PASSWORD      Basic-auth password/token (anonymous when unset)
@@ -72,6 +82,7 @@ fi
 IMAGE_REF="${IMAGE_REF:-ghcr.io/lgtm-hq/rustume}"
 EXPECT_PLATFORMS="${EXPECT_PLATFORMS:-}"
 TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-0}"
+POST_SUCCESS_TIMEOUT_SECONDS="${POST_SUCCESS_TIMEOUT_SECONDS:-600}"
 POLL_INTERVAL_SECONDS="${POLL_INTERVAL_SECONDS:-20}"
 CURL_MAX_TIME="${CURL_MAX_TIME:-30}"
 
@@ -173,8 +184,8 @@ manifest_platforms() {
 	# not as a set -e abort that loses the attributable message.
 }
 
-# Best effort: has the watched build already concluded without success?
-watched_build_failed() {
+# Best effort: conclusion of the watched workflow run for this ref, or empty.
+watched_build_conclusion() {
 	[[ -n "${WATCH_WORKFLOW:-}" && -n "${GITHUB_REPOSITORY:-}" ]] || return 1
 	command -v gh >/dev/null 2>&1 || return 1
 
@@ -202,7 +213,21 @@ watched_build_failed() {
 		' 2>/dev/null
 	)" || return 1
 
+	printf '%s' "$conclusion"
+}
+
+# Best effort: has the watched build already concluded without success?
+watched_build_failed() {
+	local conclusion
+	conclusion="$(watched_build_conclusion)" || return 1
 	[[ -n "$conclusion" && "$conclusion" != "success" ]]
+}
+
+# Best effort: has the watched build already concluded successfully?
+watched_build_succeeded() {
+	local conclusion
+	conclusion="$(watched_build_conclusion)" || return 1
+	[[ "$conclusion" == "success" ]]
 }
 
 write_summary() {
@@ -239,6 +264,8 @@ printf 'Verifying %s tag(s) on %s: %s\n' \
 missing=("${expected_tags[@]}")
 started_at="$SECONDS"
 fail_fast=""
+success_deadline=""
+effective_timeout="$TIMEOUT_SECONDS"
 
 while :; do
 	token="$(fetch_token || true)"
@@ -267,13 +294,23 @@ while :; do
 		break
 	fi
 
+	if [[ -z "$success_deadline" ]] && watched_build_succeeded; then
+		success_deadline=$((SECONDS + POST_SUCCESS_TIMEOUT_SECONDS))
+		effective_timeout="$POST_SUCCESS_TIMEOUT_SECONDS"
+		printf 'Watched build succeeded; remaining poll budget %ss\n' \
+			"$POST_SUCCESS_TIMEOUT_SECONDS"
+	fi
+
 	elapsed=$((SECONDS - started_at))
+	if [[ -n "$success_deadline" && "$SECONDS" -ge "$success_deadline" ]]; then
+		break
+	fi
 	if [[ "$elapsed" -ge "$TIMEOUT_SECONDS" ]]; then
 		break
 	fi
 
 	printf 'Waiting %ss for %s missing tag(s) (%ss/%ss elapsed)\n' \
-		"$POLL_INTERVAL_SECONDS" "${#missing[@]}" "$elapsed" "$TIMEOUT_SECONDS"
+		"$POLL_INTERVAL_SECONDS" "${#missing[@]}" "$elapsed" "$effective_timeout"
 	sleep "$POLL_INTERVAL_SECONDS"
 done
 
