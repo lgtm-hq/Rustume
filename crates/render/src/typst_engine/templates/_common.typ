@@ -713,8 +713,9 @@
 
 /// Fixed-width sidebar plus flowing main content.
 ///
-/// The page-height rail (via `set page(background: …)`) owns the tint; the
-/// grid fill is a same-color fallback for the content cell. Each column
+/// The page-height rail is applied in `render-resume` *before* header slots
+/// (`set page` after content has started pushes the body onto the next page).
+/// Grid fill is a same-color fallback for the content cell. Each column
 /// receives breakable padding so long content can continue onto later pages.
 #let sidebar-layout(
   sidebar-width: 170pt,
@@ -725,7 +726,6 @@
   sidebar-content: none,
   main-content: none,
 ) = {
-  set page(background: sidebar-page-rail(sidebar-width, sidebar-bg))
   grid(
     columns: (sidebar-width, 1fr),
     column-gutter: 0pt,
