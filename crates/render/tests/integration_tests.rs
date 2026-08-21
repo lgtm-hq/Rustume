@@ -1361,6 +1361,29 @@ fn test_templates_use_shared_render_contract() {
     }
 }
 
+/// Sidebar templates must keep section titles on one line via the shared
+/// heading helper (#826). Contact / Interests otherwise wrap mid-word.
+#[rstest]
+#[case("pikachu")]
+#[case("azurill")]
+#[case("ditto")]
+#[case("chikorita")]
+#[case("gengar")]
+#[case("glalie")]
+fn test_sidebar_templates_use_heading_label(#[case] template_name: &str) {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("typst_engine")
+        .join("templates")
+        .join(format!("{template_name}.typ"));
+    let contents = fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("Failed to read {}: {e}", path.display()));
+    assert!(
+        contents.contains("heading-label("),
+        "{template_name} must keep sidebar titles on one line via heading-label"
+    );
+}
+
 /// Extract the argument list of the first `set page(...)` call in a template,
 /// balancing nested parentheses so multi-line and nested calls survive.
 fn set_page_arguments(contents: &str) -> Option<&str> {
@@ -1458,6 +1481,8 @@ fn test_common_defines_profile_icon_helpers() {
         "typography-hide-icons",
         "typography-underline-links",
         "/assets/icons/",
+        "sidebar-page-rail",
+        "heading-label",
     ] {
         assert!(
             contents.contains(needle),
@@ -2012,4 +2037,179 @@ fn test_photoless_opt_in_prints_initials_on_pdf(#[case] template_name: &str) {
         text.contains(PHOTOLESS_INITIALS),
         "opt-in initials '{PHOTOLESS_INITIALS}' missing from '{template_name}':\n{text}"
     );
+}
+
+// ============================================================================
+// #826 sidebar rail + title nowrap (parity-harness item 6 does not yet
+// sample colours; these focused render tests document the contract)
+// ============================================================================
+
+/// Long main column, short sidebar — the grid-cell fill used to die after
+/// Interests while the main column continued on white.
+fn long_main_short_sidebar(template_name: &str) -> ResumeData {
+    let mut resume = sample_resume();
+    resume.metadata.template = template_name.to_string();
+    let theme = get_template_theme(template_name);
+    resume.metadata.theme.primary = theme.primary;
+    resume.metadata.theme.text = theme.text;
+    resume.metadata.theme.background = theme.background;
+
+    resume.sections.experience = Section::new("experience", "Experience");
+    for i in 0..28 {
+        resume.sections.experience.add_item(
+            Experience::new(format!("Company {i}"), format!("Position {i}")).with_summary(
+                "Owned planning, implementation, testing, and rollout for complex \
+                 template rendering work across multiple resume sections.",
+            ),
+        );
+    }
+
+    resume.sections.interests = Section::new("interests", "Interests");
+    resume.sections.interests.visible = true;
+    resume
+        .sections
+        .interests
+        .add_item(rustume_schema::Interest::new("Orienteering"));
+
+    resume.sections.skills.visible = false;
+    resume.sections.profiles.visible = false;
+    resume.metadata.layout = vec![vec![
+        vec![
+            "summary".to_string(),
+            "experience".to_string(),
+            "education".to_string(),
+        ],
+        vec!["interests".to_string()],
+    ]];
+    resume
+}
+
+fn png_rgba(png: &[u8]) -> image::RgbaImage {
+    image::load_from_memory(png)
+        .expect("preview PNG should decode")
+        .to_rgba8()
+}
+
+fn pixel_at(img: &image::RgbaImage, x: u32, y: u32) -> [u8; 4] {
+    img.get_pixel(x, y).0
+}
+
+fn is_near_white(px: [u8; 4]) -> bool {
+    px[0] > 248 && px[1] > 248 && px[2] > 248
+}
+
+fn max_channel_delta(a: [u8; 4], b: [u8; 4]) -> u8 {
+    (0..3).map(|i| a[i].abs_diff(b[i])).max().unwrap_or(0)
+}
+
+/// #826: the sidebar tint must reach the bottom of page 1 *and* of a
+/// continuation page whose sidebar content ended earlier. Sampled at 1 px/pt
+/// so x/y map 1:1 onto the template's point widths.
+#[rstest]
+#[case("pikachu", 180)]
+#[case("gengar", 170)]
+#[case("glalie", 170)]
+#[case("ditto", 160)]
+fn test_sidebar_tint_reaches_page_bottom_on_continuation(
+    #[case] template_name: &str,
+    #[case] sidebar_width_pt: u32,
+) {
+    let resume = long_main_short_sidebar(template_name);
+    let renderer = TypstRenderer::new();
+    let (page0, pages) = renderer
+        .render_preview_at(&resume, 0, 1.0)
+        .unwrap_or_else(|e| panic!("page 0 preview failed for '{template_name}': {e:?}"));
+    assert!(
+        pages >= 2,
+        "'{template_name}' must overflow onto a continuation page, got {pages}"
+    );
+    let (page1, _) = renderer
+        .render_preview_at(&resume, 1, 1.0)
+        .unwrap_or_else(|e| panic!("page 1 preview failed for '{template_name}': {e:?}"));
+
+    let img0 = png_rgba(&page0);
+    let img1 = png_rgba(&page1);
+    let (width, height) = (img0.width(), img0.height());
+    assert_eq!(
+        (img1.width(), img1.height()),
+        (width, height),
+        "preview pages should share dimensions"
+    );
+
+    let sidebar_x = sidebar_width_pt / 2;
+    let main_x = sidebar_width_pt + 80;
+    let bottom_y = height.saturating_sub(24);
+    // Below a full-width header (ditto banner) / photo, still in the rail.
+    let mid_y = height * 2 / 3;
+
+    assert!(
+        sidebar_x < width && main_x < width,
+        "sample x out of range on '{template_name}' ({width}×{height})"
+    );
+
+    for (label, img) in [("page 0", &img0), ("page 1", &img1)] {
+        let rail_mid = pixel_at(img, sidebar_x, mid_y);
+        let rail_bottom = pixel_at(img, sidebar_x, bottom_y);
+        let main_bottom = pixel_at(img, main_x, bottom_y);
+
+        assert!(
+            !is_near_white(rail_mid),
+            "{label} mid-sidebar should be tinted on '{template_name}', got {rail_mid:?}"
+        );
+        assert!(
+            !is_near_white(rail_bottom),
+            "{label} bottom-of-page sidebar should be tinted on '{template_name}' \
+             (content-height fill dies after Interests), got {rail_bottom:?}"
+        );
+        assert!(
+            max_channel_delta(rail_mid, rail_bottom) <= 24,
+            "{label} sidebar bottom should match the mid-rail tint on '{template_name}': \
+             mid {rail_mid:?} vs bottom {rail_bottom:?}"
+        );
+        assert!(
+            is_near_white(main_bottom),
+            "{label} main column bottom should stay the page background on \
+             '{template_name}', got {main_bottom:?}"
+        );
+    }
+}
+
+/// #826: CONTACT / INTERESTS must stay intact in extracted PDF text.
+/// Hyphenation + tracking otherwise yields CON TACT / IN TERESTS.
+#[rstest]
+#[case("pikachu")]
+#[case("azurill")]
+#[case("ditto")]
+#[case("chikorita")]
+#[case("gengar")]
+fn test_sidebar_titles_stay_on_one_line(#[case] template_name: &str) {
+    let renderer = TypstRenderer::new();
+    let mut resume = sample_resume();
+    resume.metadata.template = template_name.to_string();
+    resume.sections.interests = Section::new("interests", "Interests");
+    resume.sections.interests.visible = true;
+    resume
+        .sections
+        .interests
+        .add_item(rustume_schema::Interest::new("Orienteering"));
+    resume.metadata.layout = vec![vec![
+        vec!["summary".to_string(), "experience".to_string()],
+        vec!["interests".to_string()],
+    ]];
+
+    let pdf = renderer
+        .render_pdf(&resume)
+        .unwrap_or_else(|e| panic!("PDF render failed for '{template_name}': {e:?}"));
+    let text = extract_pdf_pages_text(&pdf).join("\n");
+
+    assert!(
+        text.contains("INTERESTS"),
+        "uppercase Interests heading missing from '{template_name}':\n{text}"
+    );
+    for broken in ["IN TERESTS", "IN-TERESTS", "CON TACT", "CON-TACT"] {
+        assert!(
+            !text.contains(broken),
+            "sidebar title wrapped mid-word as '{broken}' on '{template_name}':\n{text}"
+        );
+    }
 }

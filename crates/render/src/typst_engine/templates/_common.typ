@@ -673,10 +673,49 @@
   }
 }
 
+/// Page-height sidebar rail painted in the page background.
+///
+/// Grid-cell `fill` is only as tall as the sidebar content (and a content-sized
+/// row stays a content-sized strip even with per-page grids). A page
+/// `background` `place` + `rect` runs the tint to the bottom of every page,
+/// including continuation pages whose sidebar content ended earlier (#826).
+#let sidebar-page-rail(width, fill, side: "left") = {
+  if fill == none {
+    none
+  } else {
+    let alignment = if side == "right" { top + right } else { top + left }
+    place(alignment, rect(width: width, height: 100%, fill: fill, stroke: none))
+  }
+}
+
+/// Keep a heading label on one line in a narrow column.
+///
+/// Uppercase + tracking otherwise hyphenates CONTACT / INTERESTS as
+/// CON-TACT / IN-TERESTS in a ~180pt sidebar (#826). `hyphenate: false` plus
+/// an unbreakable `box` keep the label intact; overflow is preferred to a
+/// mid-word wrap.
+#let heading-label(
+  body,
+  size: 9pt,
+  weight: "bold",
+  fill: none,
+  tracking: 0pt,
+) = {
+  set text(hyphenate: false)
+  box(
+    if fill != none {
+      text(size: size, weight: weight, fill: fill, tracking: tracking, body)
+    } else {
+      text(size: size, weight: weight, tracking: tracking, body)
+    },
+  )
+}
+
 /// Fixed-width sidebar plus flowing main content.
 ///
-/// The grid owns the sidebar background while each column receives breakable
-/// padding, so long content can continue onto later pages.
+/// The page-height rail (via `set page(background: …)`) owns the tint; the
+/// grid fill is a same-color fallback for the content cell. Each column
+/// receives breakable padding so long content can continue onto later pages.
 #let sidebar-layout(
   sidebar-width: 170pt,
   sidebar-bg: none,
@@ -686,6 +725,7 @@
   sidebar-content: none,
   main-content: none,
 ) = {
+  set page(background: sidebar-page-rail(sidebar-width, sidebar-bg))
   grid(
     columns: (sidebar-width, 1fr),
     column-gutter: 0pt,
@@ -1172,17 +1212,28 @@
   let left-wrapper = config.at("left-wrapper", default: identity)
   let right-wrapper = config.at("right-wrapper", default: identity)
 
-  render-slot(header)
-  render-slot(before-layout)
+  // Header/before slots belong to page 0 only. For sidebar layouts the
+  // page-height rail must be set *before* those slots so a full-width
+  // header (ditto) does not start the page without a background.
+  let emit-header() = {
+    render-slot(header)
+    render-slot(before-layout)
+  }
 
   // Explicit layout pages after the first re-emit the template's grid (Typst
   // forbids pagebreaks inside layout containers, so each page gets its own
-  // grid). Header/before slots belong to page 0 only.
+  // grid).
   let pages = calc.max(1, layout-page-count(data))
 
   if layout == "single" {
+    emit-header()
     render-all-sections(data, main-heading, renderers)
   } else if layout == "sidebar-left" or layout == "full-header-sidebar" {
+    set page(background: sidebar-page-rail(
+      config.at("sidebar-width", default: 170pt),
+      config.at("sidebar-bg", default: none),
+    ))
+    emit-header()
     for page in range(pages) {
       if page > 0 {
         if not layout-page-has-content(data, page) { continue }
@@ -1212,6 +1263,7 @@
       )
     }
   } else if layout == "two-column" {
+    emit-header()
     for page in range(pages) {
       if page > 0 {
         if not layout-page-has-content(data, page) { continue }
