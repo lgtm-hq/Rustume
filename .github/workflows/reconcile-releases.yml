@@ -8,9 +8,9 @@ name: Reconcile - GitHub Releases
   schedule:
     - cron: "0 5 * * *"
   workflow_dispatch: {}
-  push:
-    tags:
-      - "v*.*.*"
+  # Tag push is deliberately omitted: reconcile is after-the-fact. Firing
+  # on `v*.*.*` races the publish workflows and fails while artifacts are
+  # still being written.
 
 permissions: {}
 

@@ -336,6 +336,33 @@ if [[ $count -le 1 ]]; then printf "404"; else printf "200"; fi
 		fail "success must shrink the budget, not fail-fast as a failed build"
 }
 
+@test "post-success budget is not clipped by the original timeout" {
+	# TIMEOUT_SECONDS is already exhausted (0) when docker succeeds; the
+	# remaining wait must still be POST_SUCCESS_TIMEOUT_SECONDS so a tag
+	# that appears on the next probe is accepted.
+	local counter="${BATS_TEST_TMPDIR}/calls"
+	printf '0\n' >"${counter}"
+	mock_command_script "curl" '
+url="${@: -1}"
+if [[ "$url" == *"/token?"* ]]; then printf "{\"token\":\"tok\"}\n"; exit 0; fi
+count=$(cat "'"${counter}"'")
+count=$((count + 1))
+printf "%s\n" "$count" > "'"${counter}"'"
+if [[ $count -le 1 ]]; then printf "404"; else printf "200"; fi
+'
+	mock_command "gh" '{"workflow_runs":[{"run_number":1,"head_branch":"v0.46.0","status":"completed","conclusion":"success"}]}'
+	export TAGS=latest TIMEOUT_SECONDS=0 POLL_INTERVAL_SECONDS=0
+	export POST_SUCCESS_TIMEOUT_SECONDS=1
+	export WATCH_WORKFLOW=docker-build-publish.yml
+	export GITHUB_REPOSITORY=lgtm-hq/Rustume
+	export GITHUB_REF_NAME=v0.46.0 GITHUB_SHA=abc1234567890
+
+	run bash "${SCRIPT}"
+	assert_success
+	assert_output --partial "Watched build succeeded; remaining poll budget 1s"
+	assert_output --partial "All expected tags resolve"
+}
+
 # =============================================================================
 # Input handling
 # =============================================================================

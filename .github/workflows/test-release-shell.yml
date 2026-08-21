@@ -9,12 +9,14 @@ name: Test - Release Shell Scripts
       - 'scripts/ci/release/**'
       - 'tests/bats/**'
       - '.github/workflows/test-release-shell.yml'
+      - '.github/workflows/reconcile-releases.yml'
   push:
     branches: [main]
     paths:
       - 'scripts/ci/release/**'
       - 'tests/bats/**'
       - '.github/workflows/test-release-shell.yml'
+      - '.github/workflows/reconcile-releases.yml'
 
 permissions:
   contents: read

@@ -305,7 +305,9 @@ while :; do
 	if [[ -n "$success_deadline" && "$SECONDS" -ge "$success_deadline" ]]; then
 		break
 	fi
-	if [[ "$elapsed" -ge "$TIMEOUT_SECONDS" ]]; then
+	# Once docker succeeds, only `success_deadline` bounds the wait —
+	# the original TIMEOUT_SECONDS must not clip the post-success budget.
+	if [[ -z "$success_deadline" && "$elapsed" -ge "$TIMEOUT_SECONDS" ]]; then
 		break
 	fi
 

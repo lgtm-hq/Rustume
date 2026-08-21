@@ -90,6 +90,12 @@ exit 1
 	assert_output --partial "Missing GHCR image"
 }
 
+@test "reconcile workflow does not fire on tag push" {
+	local workflow="${PROJECT_ROOT}/.github/workflows/reconcile-releases.yml"
+	run grep -n "tags:" "${workflow}"
+	assert_failure
+}
+
 @test "refuses to run without GITHUB_REPOSITORY" {
 	unset GITHUB_REPOSITORY
 	export TAGS=v0.1.0
