@@ -430,6 +430,51 @@
   data.metadata.typography.at("underlineLinks", default: true)
 }
 
+/// Floor for `metadata.typography.lineHeight`. Values below 1.0 produce zero
+/// or negative Typst `par.leading` and overlapping lines. Matches
+/// `rustume_schema::MIN_LINE_HEIGHT`.
+#let MIN-LINE-HEIGHT = 1.0
+
+/// Schema / editor default for `metadata.typography.lineHeight`.
+#let DEFAULT-LINE-HEIGHT = 1.5
+
+/// Schema default for `metadata.typography.font.size` (points).
+#let DEFAULT-FONT-SIZE = 14
+
+/// Clamp a stored or imported line-height so leading cannot go negative.
+/// Floor 1.0: CSS line-height 1.0 is "solid" (no gap). Defense-in-depth for
+/// hand-edited JSON that skips schema validation.
+#let clamp-line-height(value) = {
+  calc.max(MIN-LINE-HEIGHT, value)
+}
+
+/// Body font size from `metadata.typography.font.size`.
+/// The engine already `#set text(size: …)` from the same field; templates
+/// must inherit that rather than hardcoding `10pt` on body text. Heading
+/// sizes may stay explicit.
+#let typography-font-size(data) = {
+  let font = data.metadata.typography.at("font", default: (:))
+  font.at("size", default: DEFAULT-FONT-SIZE) * 1pt
+}
+
+/// Map CSS `line-height` to Typst `par.leading`.
+///
+/// CSS `line-height` is the full line box — a multiple of font-size that
+/// includes the glyph plus the gap. Typst `par.leading` is only the gap
+/// *between* lines. They are not the same quantity:
+///
+///   leading = (clamped_line_height - 1.0) * 1em
+///
+/// Default `lineHeight` 1.5 → `0.5em`. There is no extra multiplier (the
+/// old `1.3` constant was an unexplained fudge that also made `1.0` map
+/// to `0em` and values below 1.0 to negative leading).
+#let typography-leading(data) = {
+  let line-height = clamp-line-height(
+    data.metadata.typography.at("lineHeight", default: DEFAULT-LINE-HEIGHT),
+  )
+  (line-height - 1.0) * 1em
+}
+
 /// Compact local icon badge for a profile entry (bundled SVG, text fallback).
 #let render-profile-icon(item, size: 9pt, fill: rgb("#333333")) = {
   let key = profile-icon-key(item)

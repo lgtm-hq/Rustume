@@ -12,10 +12,11 @@
 
 use crate::traits::{ParseError, Parser};
 use rustume_schema::{
-    validate_hex_color_with_optional_alpha, Award, Basics, Certification, ContentFormat, CustomCss,
-    CustomField, CustomItem, Education, Experience, FontConfig, Interest, Language, LevelDisplay,
-    Metadata, PageConfig, PageFormat, PageOptions, Profile, Project, Publication, Reference,
-    ResumeData, Section, Skill, SummarySection, Theme, Typography, Url, Volunteer,
+    clamp_line_height, validate_hex_color_with_optional_alpha, Award, Basics, Certification,
+    ContentFormat, CustomCss, CustomField, CustomItem, Education, Experience, FontConfig, Interest,
+    Language, LevelDisplay, Metadata, PageConfig, PageFormat, PageOptions, Profile, Project,
+    Publication, Reference, ResumeData, Section, Skill, SummarySection, Theme, Typography, Url,
+    Volunteer,
 };
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -1113,7 +1114,7 @@ fn convert_metadata(v3: &V3Metadata) -> Metadata {
                     .and_then(|f| f.size)
                     .unwrap_or(14),
             },
-            line_height: v3.typography.line_height.unwrap_or(1.5),
+            line_height: clamp_line_height(v3.typography.line_height.unwrap_or(1.5)),
             hide_icons: v3.typography.hide_icons.unwrap_or(false),
             underline_links: v3.typography.underline_links.unwrap_or(true),
         },
@@ -1410,6 +1411,34 @@ mod tests {
         let resume = ReactiveResumeV3Parser.parse(json.as_bytes()).unwrap();
         assert!(resume.basics.picture.effects.show_initials);
         assert!(resume.basics.picture.url.is_empty());
+    }
+
+    #[test]
+    fn test_v3_clamps_line_height_below_floor() {
+        let json = r#"{
+            "basics": { "name": "Jane Doe" },
+            "sections": {
+                "profiles": { "items": [] },
+                "experience": { "items": [] },
+                "education": { "items": [] },
+                "skills": { "items": [] },
+                "languages": { "items": [] },
+                "awards": { "items": [] },
+                "certifications": { "items": [] },
+                "interests": { "items": [] },
+                "projects": { "items": [] },
+                "publications": { "items": [] },
+                "volunteer": { "items": [] },
+                "references": { "items": [] },
+                "custom": {}
+            },
+            "metadata": {
+                "typography": { "lineHeight": 0.5 }
+            }
+        }"#;
+
+        let resume = ReactiveResumeV3Parser.parse(json.as_bytes()).unwrap();
+        assert_eq!(resume.metadata.typography.line_height, 1.0);
     }
 
     #[test]

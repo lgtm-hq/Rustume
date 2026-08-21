@@ -195,6 +195,45 @@ fn test_generate_source_page_settings() {
     assert!(source.contains("margin: 24pt"));
 }
 
+#[test]
+#[allow(clippy::field_reassign_with_default)]
+fn test_generate_source_embeds_metadata_font_size() {
+    let mut resume = ResumeData::default();
+    resume.metadata.typography.font.size = 18;
+    let source = TypstRenderer::new().generate_source(&resume).unwrap();
+    assert!(source.contains("size: 18pt"));
+}
+
+#[test]
+fn test_render_honours_metadata_font_size() {
+    let mut small = sample_resume();
+    small.metadata.typography.font.size = 10;
+    let mut large = sample_resume();
+    large.metadata.typography.font.size = 18;
+
+    let renderer = TypstRenderer::new();
+    let small_pdf = renderer
+        .render_pdf(&small)
+        .expect("10pt resume should render");
+    let large_pdf = renderer
+        .render_pdf(&large)
+        .expect("18pt resume should render");
+    assert_ne!(
+        small_pdf, large_pdf,
+        "metadata.typography.font.size must change the rendered PDF"
+    );
+}
+
+#[test]
+fn test_render_clamps_sub_one_line_height() {
+    let mut resume = sample_resume();
+    resume.metadata.typography.line_height = 0.5;
+
+    TypstRenderer::new()
+        .render_pdf(&resume)
+        .expect("lineHeight < 1.0 must clamp at the Typst boundary and still render");
+}
+
 // ============================================================================
 // PDF Rendering Tests
 // ============================================================================

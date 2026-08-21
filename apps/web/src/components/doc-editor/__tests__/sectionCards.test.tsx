@@ -17,7 +17,12 @@ import {
   SIDEBAR_TEMPLATE,
   SINGLE_TEMPLATE,
 } from "../../../test/docEditorFixture";
-import { bundledTemplateLayout, docFontStack, type TemplateLayout } from "../../../lib/docLayout";
+import {
+  bundledTemplateLayout,
+  clampLineHeight,
+  docFontStackFromFamily,
+  type TemplateLayout,
+} from "../../../lib/docLayout";
 import { DocSheet } from "../DocSheet";
 import type { ResumeData } from "../../../wasm/types";
 
@@ -193,43 +198,72 @@ describe("document sheet structural chrome", () => {
     });
   });
 
-  describe("sheet typography (#828)", () => {
+  describe("sheet typography (#828 / #701)", () => {
     it("scopes document faces on the sheet root, not app chrome --font-*", () => {
       renderSheet();
 
       const sheet = screen.getByTestId("doc-sheet");
       const body = sheet.style.getPropertyValue("--doc-font-body");
       const display = sheet.style.getPropertyValue("--doc-font-display");
-      expect(body).toBe(docFontStack("ibm-plex-sans"));
-      expect(display).toBe(docFontStack("ibm-plex-sans"));
+      const expected = docFontStackFromFamily(resume.metadata.typography.font.family);
+      expect(body).toBe(expected);
+      expect(display).toBe(expected);
       // Must not inherit / re-expose the app chrome tokens.
       expect(sheet.style.getPropertyValue("--font-body")).toBe("");
       expect(body).not.toContain("Source Serif");
       expect(body).not.toContain("Fraunces");
     });
 
-    it("follows nosepass chrome with IBM Plex Serif", () => {
+    it("honours metadata.typography family, size, and clamped lineHeight", () => {
+      resume.metadata.typography.font.family = "IBM Plex Serif";
+      resume.metadata.typography.font.size = 16;
+      resume.metadata.typography.lineHeight = 1.8;
+      renderSheet();
+
+      const sheet = screen.getByTestId("doc-sheet");
+      const expected = docFontStackFromFamily("IBM Plex Serif");
+      expect(sheet.style.getPropertyValue("--doc-font-body")).toBe(expected);
+      expect(sheet.style.getPropertyValue("--doc-font-display")).toBe(expected);
+      expect(sheet.style.getPropertyValue("--doc-font-size")).toBe("16pt");
+      expect(sheet.style.getPropertyValue("--doc-line-height")).toBe("1.8");
+      expect(expected).toContain("IBM Plex Serif");
+    });
+
+    it("follows metadata family on nosepass instead of the chrome serif lock", () => {
       resume.metadata.template = "nosepass";
+      resume.metadata.typography.font.family = "IBM Plex Sans";
       const layout = bundledTemplateLayout("nosepass");
       renderSheet({ template: layout });
 
       const sheet = screen.getByTestId("doc-sheet");
-      const expected = docFontStack(layout.fontBody);
+      const expected = docFontStackFromFamily(resume.metadata.typography.font.family);
       expect(sheet.style.getPropertyValue("--doc-font-body")).toBe(expected);
       expect(sheet.style.getPropertyValue("--doc-font-display")).toBe(expected);
-      expect(expected).toContain("IBM Plex Serif");
+      expect(expected).toContain("IBM Plex Sans");
+      expect(layout.fontBody).toBe("ibm-plex-serif");
     });
 
-    it("follows glalie chrome with IBM Plex Sans (Typst still inherits engine serif)", () => {
+    it("follows metadata family on glalie instead of the chrome sans lock", () => {
       resume.metadata.template = "glalie";
+      resume.metadata.typography.font.family = "IBM Plex Serif";
       const layout = bundledTemplateLayout("glalie");
       renderSheet({ template: layout });
 
       const sheet = screen.getByTestId("doc-sheet");
-      const expected = docFontStack(layout.fontBody);
+      const expected = docFontStackFromFamily(resume.metadata.typography.font.family);
       expect(sheet.style.getPropertyValue("--doc-font-body")).toBe(expected);
       expect(sheet.style.getPropertyValue("--doc-font-display")).toBe(expected);
-      expect(expected).toContain("IBM Plex Sans");
+      expect(expected).toContain("IBM Plex Serif");
+      expect(layout.fontBody).toBe("ibm-plex-sans");
+    });
+
+    it("clamps sub-1.0 lineHeight at the sheet boundary", () => {
+      resume.metadata.typography.lineHeight = 0.5;
+      renderSheet();
+
+      const sheet = screen.getByTestId("doc-sheet");
+      expect(sheet.style.getPropertyValue("--doc-line-height")).toBe(String(clampLineHeight(0.5)));
+      expect(sheet.style.getPropertyValue("--doc-line-height")).toBe("1");
     });
   });
 
