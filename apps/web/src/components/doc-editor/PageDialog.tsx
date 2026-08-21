@@ -50,7 +50,11 @@ function PageMarginField(props: { margin: number; enabled: boolean }): JSX.Eleme
 
   function commit(raw: string): void {
     if (!props.enabled) return;
-    const parsed = Number(raw);
+    const trimmed = raw.trim();
+    // Empty is an in-progress edit (`Number("") === 0` would persist a
+    // zero margin and mark the resume dirty while the user is still typing).
+    if (trimmed === "") return;
+    const parsed = Number(trimmed);
     if (!Number.isFinite(parsed)) return;
     updatePageMargin(parsed);
   }

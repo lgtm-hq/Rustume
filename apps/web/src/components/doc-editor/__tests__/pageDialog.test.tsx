@@ -71,4 +71,18 @@ describe("page dialog margin control", () => {
       margin: 32,
     });
   });
+
+  it("does not persist zero while the enabled margin field is cleared", () => {
+    const dialog = openDialog("rhyhorn");
+    const input = within(dialog).getByRole("spinbutton", { name: "Page margin" });
+
+    fireEvent.input(input, { target: { value: "" } });
+    expect(store.updateMetadata).not.toHaveBeenCalled();
+
+    fireEvent.input(input, { target: { value: "24" } });
+    expect(store.updateMetadata).toHaveBeenCalledExactlyOnceWith("page", {
+      ...resume.metadata.page,
+      margin: 24,
+    });
+  });
 });
