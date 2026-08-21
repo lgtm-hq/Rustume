@@ -21,6 +21,9 @@ set -euo pipefail
 #                          When unset, the newest MAX_TAGS version tags are
 #                          listed from the local repo (`git tag`).
 #   MAX_TAGS               How many newest v*.*.* tags to check (default 50)
+#   MIN_TAG_AGE_SECONDS    Skip tags younger than this when listing from git
+#                          (default 7200). Avoids racing an in-flight publish
+#                          on the daily schedule. Explicit TAGS default to 0.
 #   REGISTRY_USERNAME      Basic-auth user for the registry token endpoint
 #   REGISTRY_PASSWORD      Basic-auth password/token (anonymous when unset)
 #   CURL_MAX_TIME          curl timeout (default 30)
@@ -38,6 +41,7 @@ Environment:
   IMAGE_REF              Image without tag (default ghcr.io/lgtm-hq/rustume)
   TAGS                   Explicit vX.Y.Z tag list (default: newest git tags)
   MAX_TAGS               Newest tags to check when TAGS is unset (default 50)
+  MIN_TAG_AGE_SECONDS    Skip younger git tags (default 7200 when listing)
   REGISTRY_USERNAME      Basic-auth user for the registry
   REGISTRY_PASSWORD      Basic-auth password/token
   GITHUB_STEP_SUMMARY    Appends a short verdict when set
@@ -50,6 +54,14 @@ fi
 IMAGE_REF="${IMAGE_REF:-ghcr.io/lgtm-hq/rustume}"
 MAX_TAGS="${MAX_TAGS:-50}"
 CURL_MAX_TIME="${CURL_MAX_TIME:-30}"
+# Explicit TAGS is a targeted check (tests / manual). The scheduled listing
+# path skips tags younger than two hours so 05:00 UTC cannot fail a tag
+# that is still publishing.
+if [[ -n "${TAGS:-}" ]]; then
+	MIN_TAG_AGE_SECONDS="${MIN_TAG_AGE_SECONDS:-0}"
+else
+	MIN_TAG_AGE_SECONDS="${MIN_TAG_AGE_SECONDS:-7200}"
+fi
 
 MANIFEST_ACCEPT='application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json,application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json'
 
@@ -100,6 +112,27 @@ fi
 if [[ ${#expected_tags[@]} -eq 0 ]]; then
 	err "No version tags to reconcile (set TAGS or fetch v*.*.* tags)"
 	exit 2
+fi
+
+if [[ "$MIN_TAG_AGE_SECONDS" -gt 0 ]]; then
+	now="$(date +%s)"
+	aged_tags=()
+	for git_tag in "${expected_tags[@]}"; do
+		created="$(git log -1 --format=%ct "$git_tag" 2>/dev/null || true)"
+		if [[ -n "$created" && $((now - created)) -lt "$MIN_TAG_AGE_SECONDS" ]]; then
+			printf '  skip young tag: %s (age %ss < %ss)\n' \
+				"$git_tag" "$((now - created))" "$MIN_TAG_AGE_SECONDS"
+			continue
+		fi
+		aged_tags+=("$git_tag")
+	done
+	expected_tags=("${aged_tags[@]}")
+	if [[ ${#expected_tags[@]} -eq 0 ]]; then
+		printf 'No tags older than %ss; nothing to reconcile\n' \
+			"$MIN_TAG_AGE_SECONDS"
+		write_summary "✅ Release reconciliation skipped: no tags older than ${MIN_TAG_AGE_SECONDS}s"
+		exit 0
+	fi
 fi
 
 fetch_token() {

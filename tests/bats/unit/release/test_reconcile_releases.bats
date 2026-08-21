@@ -96,6 +96,32 @@ exit 1
 	assert_failure
 }
 
+@test "scheduled listing skips tags younger than MIN_TAG_AGE_SECONDS" {
+	mock_registry "0.1.0"
+	mock_releases "v0.1.0"
+	unset TAGS
+	export MIN_TAG_AGE_SECONDS=999999999
+	export MAX_TAGS=5
+
+	run bash "${SCRIPT}"
+	assert_success
+	assert_output --partial "skip young tag:"
+	assert_output --partial "nothing to reconcile"
+}
+
+@test "explicit TAGS are not age-filtered by default" {
+	mock_registry "0.52.1"
+	mock_releases "v0.52.1"
+	export TAGS=v0.52.1
+	unset MIN_TAG_AGE_SECONDS
+
+	run bash "${SCRIPT}"
+	assert_success
+	assert_output --partial "release present: v0.52.1"
+	[[ "${output}" != *"skip young tag"* ]] ||
+		fail "explicit TAGS must not apply the scheduled grace period"
+}
+
 @test "release shell workflow documents pull-requests write" {
 	local workflow="${PROJECT_ROOT}/.github/workflows/test-release-shell.yml"
 	run grep -E 'pull-requests: write # publish-test-summary posts shell coverage on PRs' \
