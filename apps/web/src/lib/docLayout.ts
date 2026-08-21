@@ -346,6 +346,9 @@ export const MIN_LINE_HEIGHT = 1.0;
 /** Schema / editor default for `metadata.typography.lineHeight`. */
 export const DEFAULT_LINE_HEIGHT = 1.5;
 
+/** Schema default for `metadata.typography.font.size` (points). */
+export const DEFAULT_DOC_FONT_SIZE = 14;
+
 /**
  * Clamp a stored or imported line-height so leading cannot go negative.
  * Non-finite values fall back to the schema default.
@@ -367,7 +370,11 @@ const SANS_DOC_FALLBACK = '"Helvetica Neue", Arial, sans-serif';
 export function docFontStackFromFamily(family: string): string {
   const name = family.trim() || DEFAULT_DOC_FONT_FAMILY;
   const quoted = name.includes(" ") ? `"${name}"` : name;
-  const isSerif = /serif/i.test(name) && !/sans/i.test(name);
+  // "Georgia" does not contain the word serif; named serif faces still
+  // degrade serif→serif. `sans-serif` must not count as serif.
+  const namedSerif =
+    /^(georgia|times(?: new roman)?|garamond|palatino|baskerville|ibm plex serif)$/i;
+  const isSerif = namedSerif.test(name) || (/serif/i.test(name) && !/sans/i.test(name));
   return `${quoted}, ${isSerif ? SERIF_DOC_FALLBACK : SANS_DOC_FALLBACK}`;
 }
 

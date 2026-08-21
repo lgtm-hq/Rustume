@@ -723,7 +723,8 @@ describe("templateDocFontFamily / docFontStack", () => {
     expect(docFontStackFromFamily("IBM Plex Sans")).toBe(
       '"IBM Plex Sans", "Helvetica Neue", Arial, sans-serif',
     );
-    expect(docFontStackFromFamily("Georgia")).toContain("serif");
+    expect(docFontStackFromFamily("Georgia")).toContain("Times New Roman");
+    expect(docFontStackFromFamily("Georgia")).not.toMatch(/Helvetica Neue|Arial|sans-serif/);
     expect(docFontStackFromFamily("  ")).toContain(DEFAULT_DOC_FONT_FAMILY);
   });
 

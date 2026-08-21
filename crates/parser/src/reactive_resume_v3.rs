@@ -16,7 +16,7 @@ use rustume_schema::{
     ContentFormat, CustomCss, CustomField, CustomItem, Education, Experience, FontConfig, Interest,
     Language, LevelDisplay, Metadata, PageConfig, PageFormat, PageOptions, Profile, Project,
     Publication, Reference, ResumeData, Section, Skill, SummarySection, Theme, Typography, Url,
-    Volunteer,
+    Volunteer, DEFAULT_LINE_HEIGHT,
 };
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -1114,7 +1114,9 @@ fn convert_metadata(v3: &V3Metadata) -> Metadata {
                     .and_then(|f| f.size)
                     .unwrap_or(14),
             },
-            line_height: clamp_line_height(v3.typography.line_height.unwrap_or(1.5)),
+            line_height: clamp_line_height(
+                v3.typography.line_height.unwrap_or(DEFAULT_LINE_HEIGHT),
+            ),
             hide_icons: v3.typography.hide_icons.unwrap_or(false),
             underline_links: v3.typography.underline_links.unwrap_or(true),
         },

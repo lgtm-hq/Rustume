@@ -257,6 +257,17 @@ describe("document sheet structural chrome", () => {
       expect(layout.fontBody).toBe("ibm-plex-sans");
     });
 
+    it("falls back to schema defaults when typography is missing", () => {
+      // Legacy persisted / raw imports can omit the block entirely.
+      Reflect.deleteProperty(resume.metadata, "typography");
+      renderSheet();
+
+      const sheet = screen.getByTestId("doc-sheet");
+      expect(sheet.style.getPropertyValue("--doc-font-body")).toContain("IBM Plex Serif");
+      expect(sheet.style.getPropertyValue("--doc-font-size")).toBe("14pt");
+      expect(sheet.style.getPropertyValue("--doc-line-height")).toBe("1.5");
+    });
+
     it("clamps sub-1.0 lineHeight at the sheet boundary", () => {
       resume.metadata.typography.lineHeight = 0.5;
       renderSheet();

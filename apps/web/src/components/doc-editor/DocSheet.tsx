@@ -68,6 +68,9 @@ import {
   SHEET_CONTENT_WIDTH_PX,
   SHEET_PX_PER_PT,
   clampLineHeight,
+  DEFAULT_DOC_FONT_SIZE,
+  DEFAULT_LINE_HEIGHT,
+  SERIF_DOC_FONT_FAMILY,
   docFontStackFromFamily,
   findSectionPlacement,
   layoutColumns,
@@ -263,10 +266,15 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
    * treatment; the document type is the user's setting, matching the PDF
    * engine's `#set text(font, size)` (#701).
    */
-  const typography = (): ResumeData["metadata"]["typography"] => props.resume.metadata.typography;
-  const docFont = createMemo(() => docFontStackFromFamily(typography().font.family));
-  const docFontSize = createMemo(() => typography().font.size);
-  const docLineHeight = createMemo(() => clampLineHeight(typography().lineHeight));
+  const typography = (): ResumeData["metadata"]["typography"] | undefined =>
+    props.resume.metadata.typography;
+  const docFont = createMemo(() =>
+    docFontStackFromFamily(typography()?.font?.family ?? SERIF_DOC_FONT_FAMILY),
+  );
+  const docFontSize = createMemo(() => typography()?.font?.size ?? DEFAULT_DOC_FONT_SIZE);
+  const docLineHeight = createMemo(() =>
+    clampLineHeight(typography()?.lineHeight ?? DEFAULT_LINE_HEIGHT),
+  );
 
   const [focusedSection, setFocusedSection] = createSignal<string | null>(null);
   const [isSectionDialogOpen, setIsSectionDialogOpen] = createSignal(false);
