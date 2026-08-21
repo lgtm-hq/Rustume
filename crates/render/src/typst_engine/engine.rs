@@ -60,8 +60,8 @@ fn extract_picture_asset(resume: &mut ResumeData) -> Option<(String, Vec<u8>)> {
 /// the resume's `contentFormat` marker and never inferred from the content —
 /// the two are not distinguishable by inspection, since plain prose like
 /// `1988. A good year` is a valid markdown ordered list. An absent marker means
-/// HTML, so every pre-existing resume takes the original sanitize → convert
-/// path byte for byte.
+/// HTML. That path sanitizes and converts, and honours a markdown subset so
+/// `**bold**` / `- ` lists in existing JSON render instead of printing stars.
 fn convert_field(content: &str, format: ContentFormat) -> String {
     if content.is_empty() {
         return String::new();
@@ -640,8 +640,9 @@ mod tests {
 
     #[test]
     fn test_preprocess_rich_text_markdown_marker_does_not_change_html_resumes() {
-        // Asterisks inside HTML content are literal text, not markdown. The
-        // default (absent) marker keeps them on the HTML path.
+        // A lone asterisk inside HTML is literal text, not emphasis. The
+        // default (absent) marker keeps the field on the HTML path, which
+        // honours a markdown subset but does not sniff contentFormat.
         let mut resume = ResumeData::default();
         resume.sections.summary.content = "<p>Rated 4*5 stars</p>".to_string();
 
@@ -651,26 +652,24 @@ mod tests {
     }
 
     #[test]
-    fn test_preprocess_without_marker_never_parses_markdown() {
-        // Regression guard for the format-sniffing design this replaced.
-        // Legacy resumes hold plain text alongside HTML, and several plain
-        // strings are also valid markdown. Sniffing parsed them as markdown
-        // and silently rewrote the author's words — most destructively
-        // "1988. A good year", where the ordered-list marker swallowed the
-        // year entirely. With no marker, the content is HTML and stays literal.
+    fn test_preprocess_without_marker_does_not_infer_ordered_lists() {
+        // Absent marker still means HTML — format is never sniffed from
+        // content. The HTML converter understands a markdown subset so
+        // `**bold**` and `- ` lists render, but `1988. A good year` must
+        // stay prose (the reason contentFormat is never inferred).
         let cases = [
-            // Ordered-list marker: the number must survive.
             ("1988. A good year", "1988. A good year"),
-            // Emphasis markers inside identifiers and arithmetic.
             (
                 "Maintainer of __init__ and 4*5*6",
-                "Maintainer of \\_\\_init\\_\\_ and 4\\*5\\*6",
+                "Maintainer of #text(weight: \"bold\")[init] and 4\\*5\\*6",
             ),
-            // A leading hyphen is a bullet in markdown, plain prose here.
+            // Dash-space is the HTML-path bullet subset; Typst form matches.
             ("- not a list", "- not a list"),
-            // A leading hash is a heading in markdown; Typst escapes it either
-            // way, but the text must not lose the marker character.
             ("#1 pick", "\\#1 pick"),
+            (
+                "**PwC Tax Technology**",
+                "#text(weight: \"bold\")[PwC Tax Technology]",
+            ),
         ];
 
         for (content, expected) in cases {
@@ -685,7 +684,7 @@ mod tests {
 
             assert_eq!(
                 processed.sections.summary.content, expected,
-                "unmarked content must render literally: {content}"
+                "unmarked HTML-path content: {content}"
             );
         }
     }
