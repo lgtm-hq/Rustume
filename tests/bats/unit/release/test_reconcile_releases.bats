@@ -14,7 +14,7 @@ setup() {
 	export SCRIPT
 	export GITHUB_STEP_SUMMARY="${BATS_TEST_TMPDIR}/step_summary"
 	: >"${GITHUB_STEP_SUMMARY}"
-	unset TAGS MAX_TAGS || true
+	unset TAGS MAX_TAGS MIN_TAG_AGE_SECONDS GIT_DIR GIT_WORK_TREE || true
 	export GITHUB_REPOSITORY=lgtm-hq/Rustume
 	export IMAGE_REF=ghcr.io/lgtm-hq/rustume
 }
@@ -96,12 +96,29 @@ exit 1
 	assert_failure
 }
 
+seed_version_tag_repo() {
+	# CI PR checkouts are often tagless; the listing path must not depend on
+	# whatever tags happen to exist in the runner clone.
+	local repo="${BATS_TEST_TMPDIR}/tag-repo"
+	mkdir -p "${repo}"
+	git -C "${repo}" init -q
+	git -C "${repo}" config user.email "test@example.com"
+	git -C "${repo}" config user.name "test"
+	printf 'x\n' >"${repo}/file"
+	git -C "${repo}" add file
+	git -C "${repo}" -c commit.gpgsign=false commit -qm init
+	git -C "${repo}" tag v0.1.0
+	export GIT_DIR="${repo}/.git"
+	export GIT_WORK_TREE="${repo}"
+}
+
 @test "scheduled listing skips tags younger than MIN_TAG_AGE_SECONDS" {
 	mock_registry "0.1.0"
 	mock_releases "v0.1.0"
 	unset TAGS
 	export MIN_TAG_AGE_SECONDS=999999999
 	export MAX_TAGS=5
+	seed_version_tag_repo
 
 	run bash "${SCRIPT}"
 	assert_success
