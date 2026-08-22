@@ -22,6 +22,13 @@ and this project adheres to
 
 ### Security
 
+## [0.68.1] - 2026-08-22
+
+### Fixed
+
+- **render**: paint sidebar tint full page height and keep titles on one line (#906)
+  (f12a185)
+
 ## [0.68.0] - 2026-08-22
 
 ### Added
@@ -1125,7 +1132,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.68.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.68.1...HEAD
+[0.68.1]: https://github.com/lgtm-hq/Rustume/compare/v0.68.0...v0.68.1
 [0.68.0]: https://github.com/lgtm-hq/Rustume/compare/v0.67.7...v0.68.0
 [0.67.7]: https://github.com/lgtm-hq/Rustume/compare/v0.67.6...v0.67.7
 [0.67.6]: https://github.com/lgtm-hq/Rustume/compare/v0.67.5...v0.67.6
