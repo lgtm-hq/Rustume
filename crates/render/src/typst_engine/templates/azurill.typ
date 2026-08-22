@@ -35,7 +35,7 @@
   // Section heading for sidebar (left column) - smaller, different style
   let sidebar-section-heading(title) = {
     v(12pt)
-    text(weight: "semibold", size: 9pt, fill: accent-color, tracking: 0.1em)[#upper(title)]
+    heading-label(upper(title), size: 9pt, weight: "semibold", fill: accent-color, tracking: 0.05em)
     v(2pt)
     line(length: 100%, stroke: 0.75pt + accent-color)
     v(6pt)

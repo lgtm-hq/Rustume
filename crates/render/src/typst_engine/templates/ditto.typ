@@ -26,7 +26,7 @@
 
   let sidebar-heading(title) = {
     v(10pt)
-    text(weight: "bold", size: 8pt, fill: accent-color, tracking: 0.08em)[#upper(title)]
+    heading-label(upper(title), size: 8pt, fill: accent-color, tracking: 0.08em)
     v(2pt)
     line(length: 100%, stroke: 0.5pt + accent-color)
     v(6pt)
@@ -424,34 +424,37 @@
   render-cover-letter-page(data, section-heading, muted: muted-color, inset: (x: 20pt, y: 12pt))
 
   if has-resume-body(data) {
-    // Header - full width teal background bar
-    box(
-      width: 100%,
-      fill: accent-color,
-      inset: (x: 24pt, y: 18pt),
-      [
-        #avatar-above(
-          data.basics,
-          accent-color,
-          initials-fill: white,
-          initials-text-fill: text-color,
-        )
+    // Header lives in render-resume's header slot so the page-height
+    // sidebar rail is applied before this box starts the page (#826).
+    let header = () => [
+      #box(
+        width: 100%,
+        fill: accent-color,
+        inset: (x: 24pt, y: 18pt),
+        [
+          #avatar-above(
+            data.basics,
+            accent-color,
+            initials-fill: white,
+            initials-text-fill: text-color,
+          )
 
-        #text(size: 22pt, weight: "bold", fill: white)[#data.basics.name]
+          #text(size: 22pt, weight: "bold", fill: white)[#data.basics.name]
 
-        #if data.basics.headline != "" {
-          v(4pt)
-          text(size: 11pt, fill: accent-color.lighten(80%))[#data.basics.headline]
-        }
+          #if data.basics.headline != "" {
+            v(4pt)
+            text(size: 11pt, fill: accent-color.lighten(80%))[#data.basics.headline]
+          }
 
-        #v(8pt)
+          #v(8pt)
 
-        #let contact-items = build-contact-items(data.basics)
-        #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#text(fill: white)[#url-display-label(data.basics.url)]],) }
+          #let contact-items = build-contact-items(data.basics)
+          #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#text(fill: white)[#url-display-label(data.basics.url)]],) }
 
-        #text(size: 8pt, fill: accent-color.lighten(85%))[#contact-items.join("  |  ")]
-      ]
-    )
+          #text(size: 8pt, fill: accent-color.lighten(85%))[#contact-items.join("  |  ")]
+        ]
+      )
+    ]
 
     render-resume(data, (
       layout: "full-header-sidebar",
@@ -464,6 +467,7 @@
       main-inset: (x: 20pt, y: 12pt),
       sidebar-heading: sidebar-heading,
       main-heading: section-heading,
+      header: header,
     ))
   }
 }

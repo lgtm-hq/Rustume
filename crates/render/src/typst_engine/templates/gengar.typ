@@ -26,7 +26,7 @@
 
   let sidebar-section-heading(title) = {
     v(12pt)
-    text(weight: "bold", size: 9pt, fill: accent-color, tracking: 0.05em)[#upper(title)]
+    heading-label(upper(title), size: 9pt, fill: accent-color, tracking: 0.05em)
     v(2pt)
     line(length: 100%, stroke: 1pt + accent-color)
     v(8pt)
