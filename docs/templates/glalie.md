@@ -64,7 +64,7 @@ bodies above.
 | Sheet uppercases section titles; Typst keeps title-case | fix-in-sheet |
 | Justify-on in Typst vs sheet left-aligned body | owner-decision-needed |
 | Experience lead field was company-first in Typst | fixed (#858) |
-| `page.margin` does not inset the page box (full-bleed); `content-width()` still uses it for ratio math | owner-decision-needed (surface in UI) |
+| `page.margin` does not inset the page box (full-bleed); `content-width()` still uses it for ratio math | decided (#859) |
 
 ### Audit evidence
 

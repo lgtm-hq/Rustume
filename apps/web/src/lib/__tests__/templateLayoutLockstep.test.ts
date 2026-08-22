@@ -57,6 +57,17 @@ describe("bundledTemplateLayout lockstep with get_template_layout", () => {
     expect(bundledTemplateLayout(id)).toEqual(fixture[id]);
   });
 
+  it("defaults missing supportsMargins to true (skew with older servers)", () => {
+    const parsed = templateLayoutSchema.parse({
+      layoutMode: "single",
+      defaultColumns: [["summary"], []],
+      headerStyle: "left",
+      contactIn: "header",
+      sidebarWidth: null,
+    });
+    expect(parsed.supportsMargins).toBe(true);
+  });
+
   it("rejects unknown fixture fields (strict parse)", () => {
     const raw = JSON.parse(readFileSync(FIXTURE_PATH, "utf8")) as Record<
       string,

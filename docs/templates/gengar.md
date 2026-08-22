@@ -68,7 +68,7 @@ bodies above.
 | Level boxes vs sheet dots | fix-in-sheet |
 | No PDF initials fallback while sheet edit mode shows initials | fixed (#857): Done/PDF collapse; edit keeps a placeholder; initials are `showInitials` opt-in |
 | Experience lead field was company-first in Typst | fixed (#858) |
-| `page.margin` does not inset the page box (full-bleed); `content-width()` still uses it for ratio math | owner-decision-needed / fix-in-sheet (UI only) |
+| `page.margin` does not inset the page box (full-bleed); `content-width()` still uses it for ratio math | decided (#859) |
 | Typography metadata ignored | fix-in-typst (#701) |
 
 ### Audit evidence

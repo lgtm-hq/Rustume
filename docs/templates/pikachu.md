@@ -70,7 +70,7 @@ bodies above.
 | Sheet profile prefers username; Typst uses `network` | fix-in-sheet |
 | Photo-less avatar: PDF/Done-mode collapse; edit keeps a placeholder; initials are `showInitials` opt-in | fixed (#857) |
 | Education on sheet uses degree-first row layout even when education sits in the sidebar | fix-in-sheet |
-| `page.margin` inert — document as intentional; surface in editor | owner-decision-needed / fix-in-sheet (UI only) |
+| `page.margin` inert — document as intentional; editor disables the control | decided (#859) |
 | Typography honouring incomplete across templates | fix-in-typst (#701) |
 
 ### Audit evidence

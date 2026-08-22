@@ -262,6 +262,7 @@ export const SINGLE_TEMPLATE: TemplateLayout = {
   sidebarTint: false,
   keywordStyle: "plain",
   headerRule: true,
+  supportsMargins: true,
 };
 
 /** Mirrors `pikachu`: fixed 180pt sidebar painted on the left. */
@@ -294,6 +295,7 @@ export const SIDEBAR_TEMPLATE: TemplateLayout = {
   sidebarTint: true,
   keywordStyle: "plain",
   headerRule: false,
+  supportsMargins: false,
 };
 
 /** Mirrors a proportional two-column template with no fixed sidebar width. */

@@ -35,7 +35,8 @@
     "sidebarHeadingInk": "accent",
     "sidebarHeadingStyle": "underline",
     "sidebarTint": false,
-    "sidebarWidth": null
+    "sidebarWidth": null,
+    "supportsMargins": true
   },
   "bronzor": {
     "contactIn": "header",
@@ -69,7 +70,8 @@
     "sidebarHeadingInk": "accent",
     "sidebarHeadingStyle": "underline",
     "sidebarTint": false,
-    "sidebarWidth": null
+    "sidebarWidth": null,
+    "supportsMargins": true
   },
   "chikorita": {
     "contactIn": "header",
@@ -107,7 +109,8 @@
     "sidebarHeadingInk": "accent",
     "sidebarHeadingStyle": "underline",
     "sidebarTint": true,
-    "sidebarWidth": null
+    "sidebarWidth": null,
+    "supportsMargins": true
   },
   "ditto": {
     "contactIn": "banner",
@@ -145,7 +148,8 @@
     "sidebarHeadingInk": "accent",
     "sidebarHeadingStyle": "underline",
     "sidebarTint": true,
-    "sidebarWidth": 160
+    "sidebarWidth": 160,
+    "supportsMargins": false
   },
   "gengar": {
     "contactIn": "sidebar",
@@ -183,7 +187,8 @@
     "sidebarHeadingInk": "accent",
     "sidebarHeadingStyle": "underline",
     "sidebarTint": true,
-    "sidebarWidth": 170
+    "sidebarWidth": 170,
+    "supportsMargins": false
   },
   "glalie": {
     "contactIn": "sidebar",
@@ -221,7 +226,8 @@
     "sidebarHeadingInk": "accent",
     "sidebarHeadingStyle": "underline",
     "sidebarTint": true,
-    "sidebarWidth": 170
+    "sidebarWidth": 170,
+    "supportsMargins": false
   },
   "kakuna": {
     "contactIn": "header",
@@ -255,7 +261,8 @@
     "sidebarHeadingInk": "accent",
     "sidebarHeadingStyle": "underline",
     "sidebarTint": false,
-    "sidebarWidth": null
+    "sidebarWidth": null,
+    "supportsMargins": true
   },
   "leafish": {
     "contactIn": "banner",
@@ -293,7 +300,8 @@
     "sidebarHeadingInk": "accent",
     "sidebarHeadingStyle": "underline",
     "sidebarTint": false,
-    "sidebarWidth": null
+    "sidebarWidth": null,
+    "supportsMargins": true
   },
   "nosepass": {
     "contactIn": "header",
@@ -327,7 +335,8 @@
     "sidebarHeadingInk": "accent",
     "sidebarHeadingStyle": "rule",
     "sidebarTint": false,
-    "sidebarWidth": null
+    "sidebarWidth": null,
+    "supportsMargins": true
   },
   "not-a-template": {
     "contactIn": "header",
@@ -361,7 +370,8 @@
     "sidebarHeadingInk": "accent",
     "sidebarHeadingStyle": "underline",
     "sidebarTint": false,
-    "sidebarWidth": null
+    "sidebarWidth": null,
+    "supportsMargins": true
   },
   "onyx": {
     "contactIn": "header",
@@ -395,7 +405,8 @@
     "sidebarHeadingInk": "accent",
     "sidebarHeadingStyle": "underline",
     "sidebarTint": false,
-    "sidebarWidth": null
+    "sidebarWidth": null,
+    "supportsMargins": true
   },
   "pikachu": {
     "contactIn": "sidebar",
@@ -433,7 +444,8 @@
     "sidebarHeadingInk": "accent",
     "sidebarHeadingStyle": "plain",
     "sidebarTint": true,
-    "sidebarWidth": 180
+    "sidebarWidth": 180,
+    "supportsMargins": false
   },
   "rhyhorn": {
     "contactIn": "header",
@@ -467,6 +479,7 @@
     "sidebarHeadingInk": "accent",
     "sidebarHeadingStyle": "underline",
     "sidebarTint": false,
-    "sidebarWidth": null
+    "sidebarWidth": null,
+    "supportsMargins": true
   }
 }

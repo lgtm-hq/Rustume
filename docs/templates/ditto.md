@@ -65,7 +65,7 @@ bodies above.
 | Sheet banner tint/boxing approximates banner but not ditto's solid accent fill + white type | fix-in-sheet |
 | Body 9pt denser leading not mirrored on sheet | fix-in-sheet |
 | Experience lead field was company-first in Typst | fixed (#858) |
-| `page.margin` inert (full-bleed) | owner-decision-needed (surface in UI) |
+| `page.margin` inert (full-bleed) | decided (#859) |
 | Typography metadata ignored | fix-in-typst (#701) |
 
 ### Audit evidence

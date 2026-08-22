@@ -50,6 +50,7 @@ const TEMPLATES: TemplateInfo[] = [
       sidebarTint: true,
       keywordStyle: "chips",
       headerRule: false,
+      supportsMargins: true,
     },
   },
   {
