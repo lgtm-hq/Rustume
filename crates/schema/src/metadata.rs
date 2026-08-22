@@ -236,6 +236,39 @@ impl Default for Theme {
     }
 }
 
+/// Floor for [`Typography::line_height`]. Values below 1.0 produce zero or
+/// negative Typst `par.leading` and overlapping lines.
+pub const MIN_LINE_HEIGHT: f32 = 1.0;
+
+/// Schema / editor default for [`Typography::line_height`].
+pub const DEFAULT_LINE_HEIGHT: f32 = 1.5;
+
+/// Clamp a stored or imported line-height so leading cannot go negative.
+///
+/// Non-finite values fall back to [`DEFAULT_LINE_HEIGHT`]. The Typst helper
+/// `clamp-line-height` in `_common.typ` mirrors this floor for hand-edited
+/// JSON that skips schema validation.
+#[must_use]
+pub fn clamp_line_height(value: f32) -> f32 {
+    if !value.is_finite() {
+        return DEFAULT_LINE_HEIGHT;
+    }
+    value.max(MIN_LINE_HEIGHT)
+}
+
+/// Map CSS `line-height` to Typst `par.leading`, in em.
+///
+/// CSS `line-height` is the full line box (a multiple of font-size). Typst
+/// `par.leading` is the gap *between* lines. They are not the same quantity:
+///
+/// `leading_em = clamp_line_height(line_height) - 1.0`
+///
+/// Default `1.5` → `0.5em`. There is no extra multiplier.
+#[must_use]
+pub fn line_height_to_leading_em(line_height: f32) -> f32 {
+    clamp_line_height(line_height) - 1.0
+}
+
 /// Typography configuration.
 #[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -244,6 +277,7 @@ pub struct Typography {
     #[serde(default)]
     pub font: FontConfig,
 
+    #[validate(range(min = 1.0))]
     #[serde(default = "default_line_height")]
     pub line_height: f32,
 
@@ -258,7 +292,7 @@ impl Default for Typography {
     fn default() -> Self {
         Self {
             font: FontConfig::default(),
-            line_height: 1.5,
+            line_height: DEFAULT_LINE_HEIGHT,
             hide_icons: false,
             underline_links: true,
         }
@@ -313,7 +347,7 @@ fn default_primary() -> String {
 }
 
 fn default_line_height() -> f32 {
-    1.5
+    DEFAULT_LINE_HEIGHT
 }
 
 fn default_font_family() -> String {
@@ -540,5 +574,49 @@ mod tests {
 
         let json = serde_json::to_value(&metadata).unwrap();
         assert_eq!(json["folder"], json!("Applications"));
+    }
+
+    #[test]
+    fn typography_default_line_height_is_valid() {
+        let typography = Typography::default();
+        assert_eq!(typography.line_height, DEFAULT_LINE_HEIGHT);
+        assert!(typography.validate().is_ok());
+    }
+
+    #[test]
+    fn typography_accepts_line_height_floor() {
+        let typography = Typography {
+            line_height: MIN_LINE_HEIGHT,
+            ..Default::default()
+        };
+        assert!(typography.validate().is_ok());
+    }
+
+    #[test]
+    fn typography_rejects_line_height_below_floor() {
+        let typography = Typography {
+            line_height: 0.9,
+            ..Default::default()
+        };
+        assert!(typography.validate().is_err());
+    }
+
+    #[test]
+    fn clamp_line_height_floors_below_one_and_non_finite() {
+        assert_eq!(clamp_line_height(0.5), MIN_LINE_HEIGHT);
+        assert_eq!(clamp_line_height(1.0), MIN_LINE_HEIGHT);
+        assert_eq!(clamp_line_height(1.5), 1.5);
+        assert_eq!(clamp_line_height(f32::NAN), DEFAULT_LINE_HEIGHT);
+        assert_eq!(clamp_line_height(f32::NEG_INFINITY), DEFAULT_LINE_HEIGHT);
+    }
+
+    #[test]
+    fn line_height_to_leading_em_matches_documented_mapping() {
+        // CSS line-height is the full line box; Typst leading is the gap.
+        // leading = (clamped_line_height - 1.0) * 1em
+        assert!((line_height_to_leading_em(1.5) - 0.5).abs() < f32::EPSILON);
+        assert_eq!(line_height_to_leading_em(1.0), 0.0);
+        assert_eq!(line_height_to_leading_em(0.5), 0.0);
+        assert!((line_height_to_leading_em(1.8) - 0.8).abs() < f32::EPSILON);
     }
 }

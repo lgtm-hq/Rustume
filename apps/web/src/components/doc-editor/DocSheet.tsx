@@ -67,7 +67,11 @@ import {
   PAGE_WIDTH_PX,
   SHEET_CONTENT_WIDTH_PX,
   SHEET_PX_PER_PT,
-  docFontStack,
+  clampLineHeight,
+  DEFAULT_DOC_FONT_SIZE,
+  DEFAULT_LINE_HEIGHT,
+  SERIF_DOC_FONT_FAMILY,
+  docFontStackFromFamily,
   findSectionPlacement,
   layoutColumns,
   layoutPages,
@@ -256,8 +260,22 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
   const headerStyle = (): TemplateLayout["headerStyle"] => props.templateLayout.headerStyle;
   const contactIn = (): TemplateLayout["contactIn"] => props.templateLayout.contactIn;
   const chrome = (): TemplateLayout => props.templateLayout;
-  /** Sheet face follows template chrome (`fontBody`), not the Typst inheritance map. */
-  const docFont = createMemo(() => docFontStack(chrome().fontBody));
+  /**
+   * Sheet face follows `metadata.typography` (family + clamped size/lineHeight),
+   * not the per-template chrome `fontBody` lock. Chrome still paints heading
+   * treatment; the document type is the user's setting, matching the PDF
+   * engine's `#set text(font, size)` (#701).
+   */
+  const typography = (): ResumeData["metadata"]["typography"] | undefined =>
+    props.resume.metadata.typography;
+  const docFont = createMemo(() => {
+    const family = typography()?.font?.family;
+    return docFontStackFromFamily(typeof family === "string" ? family : SERIF_DOC_FONT_FAMILY);
+  });
+  const docFontSize = createMemo(() => typography()?.font?.size ?? DEFAULT_DOC_FONT_SIZE);
+  const docLineHeight = createMemo(() =>
+    clampLineHeight(typography()?.lineHeight ?? DEFAULT_LINE_HEIGHT),
+  );
 
   const [focusedSection, setFocusedSection] = createSignal<string | null>(null);
   const [isSectionDialogOpen, setIsSectionDialogOpen] = createSignal(false);
@@ -1015,6 +1033,8 @@ export function DocSheet(props: DocSheetProps): JSX.Element {
                   "--doc-sheet-page-h": `${PAGE_HEIGHT_PX}px`,
                   "--doc-font-body": docFont(),
                   "--doc-font-display": docFont(),
+                  "--doc-font-size": `${docFontSize()}pt`,
+                  "--doc-line-height": String(docLineHeight()),
                 }}
               >
                 <For each={pages()}>

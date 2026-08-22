@@ -419,14 +419,14 @@
     margin: (x: 48pt, y: 40pt),
   )
 
+  // Body size is inherited from the engine's `#set text(size: metadata.typography.font.size)`.
   set text(
     font: "IBM Plex Sans",
-    size: 10pt,
     fill: text-color,
   )
 
   set par(
-    leading: 0.65em,
+    leading: typography-leading(data),
     justify: false,
   )
 

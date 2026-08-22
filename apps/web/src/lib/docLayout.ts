@@ -345,25 +345,62 @@ const SERIF_DOC_TEMPLATES: ReadonlySet<string> = new Set(["nosepass", "glalie"])
 /**
  * Document face for a template id, mirroring the Typst `#set text(font: …)`
  * each template declares — including glalie's inheritance of the engine
- * default. Full `metadata.typography.font.family` honoring is #701 — this
- * only picks the template default the sheet should show.
+ * default. The sheet itself honours `metadata.typography.font.family` via
+ * [`docFontStackFromFamily`]; this helper is the Typst identity-face map
+ * used by lockstep tests.
  */
 export function templateDocFontFamily(template: string): string {
   return SERIF_DOC_TEMPLATES.has(template) ? SERIF_DOC_FONT_FAMILY : DEFAULT_DOC_FONT_FAMILY;
 }
 
+/** Floor for `metadata.typography.lineHeight`. Matches `rustume_schema::MIN_LINE_HEIGHT`. */
+export const MIN_LINE_HEIGHT = 1.0;
+
+/** Schema / editor default for `metadata.typography.lineHeight`. */
+export const DEFAULT_LINE_HEIGHT = 1.5;
+
+/** Schema default for `metadata.typography.font.size` (points). */
+export const DEFAULT_DOC_FONT_SIZE = 14;
+
 /**
- * CSS `font-family` stack for the sheet's `--doc-font-body` / `--doc-font-display`.
- * Accepts a chrome `fontBody` id only. Quoted family first so multi-word names
- * (IBM Plex *) resolve correctly; document fallbacks (Helvetica Neue / Georgia)
- * follow the family's classification so a failed load degrades serif→serif, not
- * serif→sans — not the app chrome Inter stack.
+ * Clamp a stored or imported line-height so leading cannot go negative.
+ * Non-finite values fall back to the schema default.
+ */
+export function clampLineHeight(value: number): number {
+  if (!Number.isFinite(value)) return DEFAULT_LINE_HEIGHT;
+  return Math.max(MIN_LINE_HEIGHT, value);
+}
+
+const SERIF_DOC_FALLBACK = 'Georgia, "Times New Roman", serif';
+const SANS_DOC_FALLBACK = '"Helvetica Neue", Arial, sans-serif';
+
+/**
+ * CSS `font-family` stack for a free-form `metadata.typography.font.family`.
+ * Quoted family first so multi-word names (IBM Plex *) resolve correctly;
+ * document fallbacks follow the family's classification so a failed load
+ * degrades serif→serif, not serif→sans — not the app chrome Inter stack.
+ */
+export function docFontStackFromFamily(family: unknown): string {
+  const raw = typeof family === "string" ? family : "";
+  const name = raw.trim() || DEFAULT_DOC_FONT_FAMILY;
+  const quoted = name.includes(" ") ? `"${name}"` : name;
+  // "Georgia" does not contain the word serif; named serif faces still
+  // degrade serif→serif. `sans-serif` must not count as serif.
+  const namedSerif =
+    /^(georgia|times(?: new roman)?|garamond|palatino|baskerville|ibm plex serif)$/i;
+  const isSerif = namedSerif.test(name) || (/serif/i.test(name) && !/sans/i.test(name));
+  return `${quoted}, ${isSerif ? SERIF_DOC_FALLBACK : SANS_DOC_FALLBACK}`;
+}
+
+/**
+ * CSS `font-family` stack for the sheet's chrome `fontBody` id.
+ * Accepts a chrome `fontBody` id only. Prefer [`docFontStackFromFamily`]
+ * for the live document face.
  */
 export function docFontStack(fontBody: TemplateBodyFont): string {
-  if (fontBody === "ibm-plex-serif") {
-    return '"IBM Plex Serif", Georgia, "Times New Roman", serif';
-  }
-  return '"IBM Plex Sans", "Helvetica Neue", Arial, sans-serif';
+  return docFontStackFromFamily(
+    fontBody === "ibm-plex-serif" ? SERIF_DOC_FONT_FAMILY : DEFAULT_DOC_FONT_FAMILY,
+  );
 }
 
 /**

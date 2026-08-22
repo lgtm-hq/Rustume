@@ -556,6 +556,64 @@ mod tests {
     }
 
     #[test]
+    fn generate_source_embeds_metadata_font_size() {
+        let mut resume = sample_resume();
+        resume.metadata.typography.font.size = 18;
+        let source = TypstRenderer::new().generate_source(&resume).unwrap();
+        assert!(
+            source.contains("size: 18pt"),
+            "engine must #set text(size) from metadata.typography.font.size, got:\n{source}"
+        );
+    }
+
+    #[test]
+    fn templates_use_shared_typography_leading() {
+        let dir =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/typst_engine/templates");
+        let common = std::fs::read_to_string(dir.join("_common.typ")).unwrap();
+        assert!(
+            common.contains("#let typography-leading"),
+            "_common.typ must export typography-leading"
+        );
+        assert!(
+            common.contains("#let clamp-line-height"),
+            "_common.typ must clamp lineHeight at the template boundary"
+        );
+        assert!(
+            common.contains("(line-height - 1.0) * 1em"),
+            "_common.typ must document leading = (clamped_line_height - 1.0) * 1em"
+        );
+        assert!(
+            !common.contains("1.3em"),
+            "magic 1.3 multiplier must not return"
+        );
+
+        for name in TEMPLATES {
+            let src = std::fs::read_to_string(dir.join(format!("{name}.typ"))).unwrap();
+            assert!(
+                src.contains("typography-leading(data)"),
+                "{name} must use typography-leading, not a hardcoded leading"
+            );
+            assert!(
+                !src.contains("leading: 0.65em")
+                    && !src.contains("leading: 0.7em")
+                    && !src.contains("leading: 0.6em"),
+                "{name} still hardcodes par.leading"
+            );
+
+            let page_set_text = src
+                .split("set par(")
+                .next()
+                .and_then(|before| before.rsplit("set text(").next())
+                .unwrap_or("");
+            assert!(
+                !page_set_text.contains("size:"),
+                "{name} page-level set text still overrides body size:\n{page_set_text}"
+            );
+        }
+    }
+
+    #[test]
     fn test_preprocess_rich_text_converts_html() {
         let mut resume = ResumeData::default();
         resume.sections.summary.content = "<p>Built <strong>great</strong> things</p>".to_string();

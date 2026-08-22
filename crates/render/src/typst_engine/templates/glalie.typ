@@ -373,7 +373,8 @@
 
   // ── Page & typography setup ──
   // Page margin is zero because the sidebar uses its own padding.
-  // Font family and size are inherited from the engine's top-level #set text().
+  // Font family and size are inherited from the engine's top-level #set text()
+  // (`metadata.typography.font.family` / `.size`). Do not re-lock the face.
 
   let renderers = (
     profiles: render-profile,
@@ -403,7 +404,7 @@
   )
 
   set par(
-    leading: 0.65em,
+    leading: typography-leading(data),
     justify: true,
   )
 

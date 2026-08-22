@@ -5,7 +5,11 @@ import {
   CUSTOM_SECTION_SENTINEL,
   DEFAULT_DOC_FONT_FAMILY,
   SERIF_DOC_FONT_FAMILY,
+  clampLineHeight,
+  DEFAULT_LINE_HEIGHT,
   docFontStack,
+  docFontStackFromFamily,
+  MIN_LINE_HEIGHT,
   emptyItemFor,
   FIXED_SECTION_IDS,
   findSectionPlacement,
@@ -712,6 +716,28 @@ describe("templateDocFontFamily / docFontStack", () => {
     );
   });
 
+  it("builds a stack from metadata.typography.font.family", () => {
+    expect(docFontStackFromFamily("IBM Plex Serif")).toBe(
+      '"IBM Plex Serif", Georgia, "Times New Roman", serif',
+    );
+    expect(docFontStackFromFamily("IBM Plex Sans")).toBe(
+      '"IBM Plex Sans", "Helvetica Neue", Arial, sans-serif',
+    );
+    expect(docFontStackFromFamily("Georgia")).toContain("Times New Roman");
+    expect(docFontStackFromFamily("Georgia")).not.toMatch(/Helvetica Neue|Arial|sans-serif/);
+    expect(docFontStackFromFamily("  ")).toContain(DEFAULT_DOC_FONT_FAMILY);
+    expect(docFontStackFromFamily(12)).toContain(DEFAULT_DOC_FONT_FAMILY);
+    expect(docFontStackFromFamily({ name: "Georgia" })).toContain(DEFAULT_DOC_FONT_FAMILY);
+    expect(docFontStackFromFamily(undefined)).toContain(DEFAULT_DOC_FONT_FAMILY);
+  });
+
+  it("clamps lineHeight at or above 1.0", () => {
+    expect(clampLineHeight(0.5)).toBe(MIN_LINE_HEIGHT);
+    expect(clampLineHeight(1.0)).toBe(MIN_LINE_HEIGHT);
+    expect(clampLineHeight(1.55)).toBe(1.55);
+    expect(clampLineHeight(Number.NaN)).toBe(DEFAULT_LINE_HEIGHT);
+  });
+
   it("sheet CSS consumes --doc-font-* rather than chrome --font-*", () => {
     const css = readFileSync(
       resolve(__dirname, "../../components/doc-editor/docSheet.css"),
@@ -720,6 +746,8 @@ describe("templateDocFontFamily / docFontStack", () => {
     expect(css).toMatch(/font-family:\s*var\(--doc-font-body\)/);
     expect(css).toMatch(/font-family:\s*var\(--doc-font-display\)/);
     expect(css).toMatch(/font-family:\s*var\(--doc-font-mono\)/);
+    expect(css).toMatch(/font-size:\s*var\(--doc-font-size/);
+    expect(css).toMatch(/line-height:\s*var\(--doc-line-height/);
     expect(css).not.toMatch(/var\(--font-body\)/);
     expect(css).not.toMatch(/var\(--font-display\)/);
     expect(css).not.toMatch(/var\(--font-mono\)/);
