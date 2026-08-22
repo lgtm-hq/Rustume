@@ -62,7 +62,7 @@ bodies above.
 | --- | --- |
 | Sheet locks IBM Plex Serif; PDF honors `metadata.typography.font.family` (schema default Serif) | owner-decision-needed |
 | Sheet uppercases section titles; Typst keeps title-case | fix-in-sheet |
-| Justify-on in Typst vs sheet left-aligned body | owner-decision-needed |
+| Justify-on in Typst vs sheet left-aligned body | fixed (#860): sheet body (`summary` / entry sum / desc) is justified, both modes |
 | Experience lead field was company-first in Typst | fixed (#858) |
 | `page.margin` does not inset the page box (full-bleed); `content-width()` still uses it for ratio math | decided (#859) |
 

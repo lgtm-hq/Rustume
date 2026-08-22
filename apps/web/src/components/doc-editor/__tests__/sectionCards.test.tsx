@@ -287,6 +287,61 @@ describe("document sheet structural chrome", () => {
     });
   });
 
+  describe("Done-mode PDF fidelity (#860)", () => {
+    function eduDate(sheet: HTMLElement): HTMLElement {
+      const date = sheet.querySelector<HTMLElement>(".doc-sheet__edu-date");
+      expect(date, "expected an education date").not.toBeNull();
+      return date!;
+    }
+
+    it("justifies glalie body text in Done mode", () => {
+      resume.metadata.template = "glalie";
+      renderSheet({ template: bundledTemplateLayout("glalie"), mode: "done" });
+
+      const sheet = screen.getByTestId("doc-sheet");
+      expect(sheet.className).toContain("doc-sheet--tpl-glalie");
+      expect(sheet.classList.contains("doc-sheet--justify-body")).toBe(true);
+      expect(sheet).toHaveAttribute("data-sheet-mode", "done");
+      expect(sheet.querySelector(".doc-sheet__summary")).not.toBeNull();
+      expect(sheet.querySelector(".doc-sheet__lang-desc")).not.toBeNull();
+    });
+
+    it("leaves other templates' Done-mode body start-aligned", () => {
+      for (const id of ["onyx", "gengar", "rhyhorn"] as const) {
+        resume.metadata.template = id;
+        const { unmount } = renderSheet({
+          template: bundledTemplateLayout(id),
+          mode: "done",
+        });
+        const sheets = screen.getAllByTestId("doc-sheet");
+        const sheet = sheets[sheets.length - 1];
+        expect(sheet.className).toContain(`doc-sheet--tpl-${id}`);
+        expect(sheet.classList.contains("doc-sheet--justify-body")).toBe(false);
+        unmount();
+      }
+    });
+
+    it("uses the muted body face for education dates in Done mode", () => {
+      resume.metadata.template = "glalie";
+      renderSheet({ template: bundledTemplateLayout("glalie"), mode: "done" });
+
+      const sheet = screen.getByTestId("doc-sheet");
+      const date = eduDate(sheet);
+      expect(date.classList.contains("doc-sheet__edu-date--body")).toBe(true);
+    });
+
+    it("keeps education dates mono in edit mode", () => {
+      resume.metadata.template = "glalie";
+      renderSheet({ template: bundledTemplateLayout("glalie"), mode: "edit" });
+
+      const sheet = screen.getByTestId("doc-sheet");
+      expect(sheet).toHaveAttribute("data-sheet-mode", "edit");
+      const date = eduDate(sheet);
+      expect(date.classList.contains("doc-sheet__edu-date--body")).toBe(false);
+      expect(date.className).toContain("doc-sheet__edu-date");
+    });
+  });
+
   describe("section cards", () => {
     it("hides a fixed section through toggleSectionVisibility, and says so", async () => {
       renderSheet();

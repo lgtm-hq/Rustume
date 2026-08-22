@@ -60,9 +60,14 @@ Composition is **degree-first**. Never join `studyType` and `area` with `" in "`
 | Date | `date` | Separate (header column, badge, or own row) — never folded into the degree line |
 | Optional | `score`, `summary`, keywords, custom fields | After the lines above |
 
+| Surface | Date face |
+| --- | --- |
+| PDF / Done-mode sheet | Muted **body** face — Typst has no mono, and Done follows the PDF (#860) |
+| Edit-mode sheet | `--doc-font-mono` — sanctioned editing affordance, same class of edit↔done divergence as the avatar placeholder (#857) |
+
 Helpers: Typst `education-degree` / `education-school`; sheet `educationDegree` /
 `educationSchool`. The legacy `format-degree` helper (which joined with `" in "`) is
-removed; new call sites must use the helpers above.
+removed; new call sites must use the helpers above. Sheet class: `.doc-sheet__edu-date`.
 
 ---
 
@@ -117,6 +122,8 @@ Company URLs stay on the company text. Volunteer (`organization` / `position`) i
 2. Avatar call sites use `render-avatar` / `avatar-above` / `avatar-beside` and collapse when the
    contract says so.
 3. Education uses `education-degree` + `education-school` (never `"… in …"`).
-4. Every keyword-bearing section prints keywords.
-5. Levels go through `clamp-level` / `should-render-level` / `render-level`.
-6. Experience leads with `position`, then company and dates.
+4. Education dates use the muted body face on PDF and Done-mode sheet; Edit may
+   keep `--doc-font-mono` as the documented affordance (#860).
+5. Every keyword-bearing section prints keywords.
+6. Levels go through `clamp-level` / `should-render-level` / `render-level`.
+7. Experience leads with `position`, then company and dates.
