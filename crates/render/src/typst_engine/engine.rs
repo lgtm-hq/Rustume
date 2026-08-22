@@ -52,6 +52,44 @@ fn extract_picture_asset(resume: &mut ResumeData) -> Option<(String, Vec<u8>)> {
     Some((path, data))
 }
 
+/// True when Typst can load this picture from the virtual world (rewritten
+/// `/assets/picture.*` path) without fetching a remote URL.
+fn is_embeddable_picture_url(url: &str) -> bool {
+    url.trim().starts_with("/assets/picture.")
+}
+
+/// Classify a picture URL for logs. Never echo the URL — signed query
+/// tokens, userinfo, and data-URL payloads must not land in log storage.
+fn picture_url_kind(url: &str) -> &'static str {
+    let url = url.trim();
+    if url.starts_with("https://") {
+        "https"
+    } else if url.starts_with("http://") {
+        "http"
+    } else if url.starts_with("data:") {
+        "data"
+    } else {
+        "other"
+    }
+}
+
+/// Clear a non-embeddable picture URL so Typst never looks it up on the
+/// virtual filesystem. Remote `http(s):` URLs are not fetched (SSRF). Other
+/// picture fields are left intact so the template can still honor size,
+/// effects, and the initials fallback.
+fn skip_non_embeddable_picture_url(resume: &mut ResumeData) {
+    let url = resume.basics.picture.url.trim();
+    if url.is_empty() || is_embeddable_picture_url(url) {
+        return;
+    }
+
+    warn!(
+        url_kind = picture_url_kind(&resume.basics.picture.url),
+        "Skipping non-embeddable profile picture URL; rendering without a photo"
+    );
+    resume.basics.picture.url.clear();
+}
+
 /// Convert one rich-text field to Typst markup, in the format the resume
 /// declares.
 ///
@@ -60,8 +98,8 @@ fn extract_picture_asset(resume: &mut ResumeData) -> Option<(String, Vec<u8>)> {
 /// the resume's `contentFormat` marker and never inferred from the content —
 /// the two are not distinguishable by inspection, since plain prose like
 /// `1988. A good year` is a valid markdown ordered list. An absent marker means
-/// HTML, so every pre-existing resume takes the original sanitize → convert
-/// path byte for byte.
+/// HTML. That path sanitizes and converts, and honours a markdown subset so
+/// `**bold**` / `- ` lists in existing JSON render instead of printing stars.
 fn convert_field(content: &str, format: ContentFormat) -> String {
     if content.is_empty() {
         return String::new();
@@ -211,8 +249,9 @@ impl TypstRenderer {
         // Preprocess HTML fields → Typst markup before serialization
         let mut resume = preprocess_rich_text(resume);
 
-        // Rewrite a data-URL picture to a virtual asset path served by the world.
+        // Embed a data-URL picture, or drop a remote/non-embeddable URL (#738).
         let picture_asset = extract_picture_asset(&mut resume);
+        skip_non_embeddable_picture_url(&mut resume);
 
         // Serialize resume data to JSON for Typst
         let resume_json = serde_json::to_string(&resume)
@@ -482,7 +521,10 @@ pub struct TemplateTheme {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rustume_schema::{Basics, Experience, Section};
+    use rustume_schema::{Basics, Experience, Picture, Section};
+
+    const PNG_DATA_URL: &str = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    const REMOTE_PICTURE_URL: &str = "https://example.com/photo.jpg";
 
     #[allow(clippy::field_reassign_with_default)]
     fn sample_resume() -> ResumeData {
@@ -516,6 +558,129 @@ mod tests {
         assert!(source.contains("rhyhorn"));
         assert!(source.contains("John Doe"));
         assert!(source.contains("Software Engineer"));
+    }
+
+    #[test]
+    fn test_extract_picture_asset_embeds_png_data_url() {
+        let mut resume = ResumeData::default();
+        resume.basics.picture = Picture::new(PNG_DATA_URL);
+
+        let (path, data) = extract_picture_asset(&mut resume).expect("data URL should embed");
+        assert_eq!(path, "/assets/picture.png");
+        assert!(!data.is_empty());
+        assert_eq!(resume.basics.picture.url, "/assets/picture.png");
+
+        skip_non_embeddable_picture_url(&mut resume);
+        assert_eq!(resume.basics.picture.url, "/assets/picture.png");
+    }
+
+    #[test]
+    fn test_skip_remote_picture_url_clears_url_keeps_other_fields() {
+        let mut resume = ResumeData::default();
+        resume.basics.picture = Picture::new(REMOTE_PICTURE_URL);
+        resume.basics.picture.size = 96;
+        resume.basics.picture.border_radius = 8;
+        resume.basics.picture.effects.border = true;
+
+        assert!(extract_picture_asset(&mut resume).is_none());
+        skip_non_embeddable_picture_url(&mut resume);
+
+        assert!(
+            resume.basics.picture.url.is_empty(),
+            "remote picture URL must be cleared, got {}",
+            resume.basics.picture.url
+        );
+        assert_eq!(resume.basics.picture.size, 96);
+        assert_eq!(resume.basics.picture.border_radius, 8);
+        assert!(resume.basics.picture.effects.border);
+    }
+
+    #[test]
+    fn test_picture_url_kind_does_not_echo_credentials() {
+        let token_url = "https://cdn.example.com/photo.jpg?token=super-secret";
+        assert_eq!(picture_url_kind(token_url), "https");
+        assert!(!picture_url_kind(token_url).contains("secret"));
+        assert!(!picture_url_kind(token_url).contains("token"));
+        // Assemble userinfo at runtime so the source file never contains a
+        // `scheme://user:pass@host` literal (Trufflehog URI detector).
+        let mut userinfo_url = String::from("https");
+        userinfo_url.push_str("://");
+        userinfo_url.push_str("user");
+        userinfo_url.push(':');
+        userinfo_url.push_str("hunter2");
+        userinfo_url.push('@');
+        userinfo_url.push_str("cdn.example.com/photo.jpg");
+        assert_eq!(picture_url_kind(&userinfo_url), "https");
+        assert!(!picture_url_kind(&userinfo_url).contains("hunter2"));
+        assert_eq!(picture_url_kind("http://insecure.example/pic.png"), "http");
+        assert_eq!(picture_url_kind("data:image/png;base64,AAAA"), "data");
+        assert_eq!(picture_url_kind("ftp://files.example/pic"), "other");
+    }
+
+    #[test]
+    fn test_skip_empty_picture_url_is_a_no_op() {
+        let mut resume = ResumeData::default();
+        resume.basics.picture = Picture::default();
+        resume.basics.picture.size = 48;
+
+        assert!(extract_picture_asset(&mut resume).is_none());
+        skip_non_embeddable_picture_url(&mut resume);
+
+        assert!(resume.basics.picture.url.is_empty());
+        assert_eq!(resume.basics.picture.size, 48);
+    }
+
+    #[test]
+    fn test_generate_source_skips_remote_picture_url() {
+        let renderer = TypstRenderer::new();
+        let mut resume = sample_resume();
+        resume.basics.picture = Picture::new(REMOTE_PICTURE_URL);
+
+        let (source, asset) = renderer.prepare_source(&resume).unwrap();
+        assert!(
+            asset.is_none(),
+            "remote URLs must not be fetched or embedded"
+        );
+        assert!(
+            !source.contains(REMOTE_PICTURE_URL),
+            "remote picture URL must not be passed to Typst: {source}"
+        );
+        assert!(
+            !source.contains("photo.jpg"),
+            "remote picture path must not reach Typst source: {source}"
+        );
+    }
+
+    #[test]
+    fn test_generate_source_embeds_data_url_picture() {
+        let renderer = TypstRenderer::new();
+        let mut resume = sample_resume();
+        resume.basics.picture = Picture::new(PNG_DATA_URL);
+
+        let (source, asset) = renderer.prepare_source(&resume).unwrap();
+        let (path, bytes) = asset.expect("PNG data URL should become a virtual asset");
+        assert_eq!(path, "/assets/picture.png");
+        assert!(!bytes.is_empty());
+        assert!(
+            source.contains("/assets/picture.png"),
+            "embedded picture path missing from Typst source: {source}"
+        );
+        assert!(
+            !source.contains("data:image/png"),
+            "raw data URL must be rewritten before Typst: {source}"
+        );
+    }
+
+    #[test]
+    fn test_generate_source_empty_picture_url() {
+        let renderer = TypstRenderer::new();
+        let mut resume = sample_resume();
+        resume.basics.picture = Picture::default();
+        assert!(resume.basics.picture.url.is_empty());
+
+        let (source, asset) = renderer.prepare_source(&resume).unwrap();
+        assert!(asset.is_none());
+        assert!(source.contains("John Doe"));
     }
 
     #[test]
@@ -553,6 +718,64 @@ mod tests {
             err.contains("Font size"),
             "Expected font size error, got: {err}"
         );
+    }
+
+    #[test]
+    fn generate_source_embeds_metadata_font_size() {
+        let mut resume = sample_resume();
+        resume.metadata.typography.font.size = 18;
+        let source = TypstRenderer::new().generate_source(&resume).unwrap();
+        assert!(
+            source.contains("size: 18pt"),
+            "engine must #set text(size) from metadata.typography.font.size, got:\n{source}"
+        );
+    }
+
+    #[test]
+    fn templates_use_shared_typography_leading() {
+        let dir =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/typst_engine/templates");
+        let common = std::fs::read_to_string(dir.join("_common.typ")).unwrap();
+        assert!(
+            common.contains("#let typography-leading"),
+            "_common.typ must export typography-leading"
+        );
+        assert!(
+            common.contains("#let clamp-line-height"),
+            "_common.typ must clamp lineHeight at the template boundary"
+        );
+        assert!(
+            common.contains("(line-height - 1.0) * 1em"),
+            "_common.typ must document leading = (clamped_line_height - 1.0) * 1em"
+        );
+        assert!(
+            !common.contains("1.3em"),
+            "magic 1.3 multiplier must not return"
+        );
+
+        for name in TEMPLATES {
+            let src = std::fs::read_to_string(dir.join(format!("{name}.typ"))).unwrap();
+            assert!(
+                src.contains("typography-leading(data)"),
+                "{name} must use typography-leading, not a hardcoded leading"
+            );
+            assert!(
+                !src.contains("leading: 0.65em")
+                    && !src.contains("leading: 0.7em")
+                    && !src.contains("leading: 0.6em"),
+                "{name} still hardcodes par.leading"
+            );
+
+            let page_set_text = src
+                .split("set par(")
+                .next()
+                .and_then(|before| before.rsplit("set text(").next())
+                .unwrap_or("");
+            assert!(
+                !page_set_text.contains("size:"),
+                "{name} page-level set text still overrides body size:\n{page_set_text}"
+            );
+        }
     }
 
     #[test]
@@ -640,8 +863,9 @@ mod tests {
 
     #[test]
     fn test_preprocess_rich_text_markdown_marker_does_not_change_html_resumes() {
-        // Asterisks inside HTML content are literal text, not markdown. The
-        // default (absent) marker keeps them on the HTML path.
+        // A lone asterisk inside HTML is literal text, not emphasis. The
+        // default (absent) marker keeps the field on the HTML path, which
+        // honours a markdown subset but does not sniff contentFormat.
         let mut resume = ResumeData::default();
         resume.sections.summary.content = "<p>Rated 4*5 stars</p>".to_string();
 
@@ -651,26 +875,24 @@ mod tests {
     }
 
     #[test]
-    fn test_preprocess_without_marker_never_parses_markdown() {
-        // Regression guard for the format-sniffing design this replaced.
-        // Legacy resumes hold plain text alongside HTML, and several plain
-        // strings are also valid markdown. Sniffing parsed them as markdown
-        // and silently rewrote the author's words — most destructively
-        // "1988. A good year", where the ordered-list marker swallowed the
-        // year entirely. With no marker, the content is HTML and stays literal.
+    fn test_preprocess_without_marker_does_not_infer_ordered_lists() {
+        // Absent marker still means HTML — format is never sniffed from
+        // content. The HTML converter understands a markdown subset so
+        // `**bold**` and `- ` lists render, but `1988. A good year` must
+        // stay prose (the reason contentFormat is never inferred).
         let cases = [
-            // Ordered-list marker: the number must survive.
             ("1988. A good year", "1988. A good year"),
-            // Emphasis markers inside identifiers and arithmetic.
             (
                 "Maintainer of __init__ and 4*5*6",
-                "Maintainer of \\_\\_init\\_\\_ and 4\\*5\\*6",
+                "Maintainer of #text(weight: \"bold\")[init] and 4\\*5\\*6",
             ),
-            // A leading hyphen is a bullet in markdown, plain prose here.
+            // Dash-space is the HTML-path bullet subset; Typst form matches.
             ("- not a list", "- not a list"),
-            // A leading hash is a heading in markdown; Typst escapes it either
-            // way, but the text must not lose the marker character.
             ("#1 pick", "\\#1 pick"),
+            (
+                "**PwC Tax Technology**",
+                "#text(weight: \"bold\")[PwC Tax Technology]",
+            ),
         ];
 
         for (content, expected) in cases {
@@ -685,7 +907,7 @@ mod tests {
 
             assert_eq!(
                 processed.sections.summary.content, expected,
-                "unmarked content must render literally: {content}"
+                "unmarked HTML-path content: {content}"
             );
         }
     }

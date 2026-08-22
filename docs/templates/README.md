@@ -55,8 +55,9 @@ leading (~0.65em) and most lock **IBM Plex Sans**. Issue #701 should:
   template paints a full-bleed sidebar that ignores `page.margin`.
 
 Display sizes (name ~18–28pt, section titles ~8–11pt) stay template-authored.
-There is no separate mono face in Typst; the sheet's `--doc-font-mono` dates are a
-sheet-only convention until an owner decision says otherwise.
+There is no separate mono face in Typst. Education dates use the muted body face
+on the PDF and in Done mode; Edit mode keeps `--doc-font-mono` as a sanctioned
+editing affordance (#860).
 
 ## Divergence tags
 
@@ -85,8 +86,9 @@ These recur on almost every template; each template page repeats only the ones t
 | Level glyphs: sheet always draws five dots; Typst `template-default` is bars / squares / dots / text bullets per template, and `metadata.levelDisplay` can override | fix-in-sheet | Sheet should follow `levelDisplay`, with `template-default` matching the template native glyph. |
 | Skill / interest keywords: sheet uses soft tag chips for skills (and experience/education extras); Typst mixes comma lists, middots, chips, and `— keywords` | fix-in-sheet | Match the Typst treatment named in each template spec. |
 | Avatar without photo | — | Closed by #857: photo-less default is **collapsed**; initials disc is `showInitials` opt-in. Hidden photos collapse. No pikachu exception. |
-| Mono dates: sheet uses `--doc-font-mono` for education dates; Typst uses muted body face | owner-decision-needed | Mono is a sheet editing affordance; decide whether PDF should match. |
+| Education dates: PDF and Done mode use the muted body face; Edit mode uses `--doc-font-mono` | — | Closed by #860. Documented in [`item-presentation.md`](../design/item-presentation.md). |
 | `metadata.typography.font.size` / `lineHeight`: engine emits a top-level `#set text`, then nearly every template re-locks size and leading | fix-in-typst | Tracked by #701 — lift shared resolution into `_common.typ`. |
+| `page.margin` on full-bleed templates (pikachu, ditto, gengar, glalie) | decided (#859) | Owner: PDFs keep ignoring it. Template metadata declares `supportsMargins: false`; the editor disables the margin control with an accessible explanation. |
 
 ## Related code
 

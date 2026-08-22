@@ -17,7 +17,12 @@ import {
   SIDEBAR_TEMPLATE,
   SINGLE_TEMPLATE,
 } from "../../../test/docEditorFixture";
-import { bundledTemplateLayout, docFontStack, type TemplateLayout } from "../../../lib/docLayout";
+import {
+  bundledTemplateLayout,
+  clampLineHeight,
+  docFontStackFromFamily,
+  type TemplateLayout,
+} from "../../../lib/docLayout";
 import { DocSheet } from "../DocSheet";
 import type { ResumeData } from "../../../wasm/types";
 
@@ -193,43 +198,147 @@ describe("document sheet structural chrome", () => {
     });
   });
 
-  describe("sheet typography (#828)", () => {
+  describe("sheet typography (#828 / #701)", () => {
     it("scopes document faces on the sheet root, not app chrome --font-*", () => {
       renderSheet();
 
       const sheet = screen.getByTestId("doc-sheet");
       const body = sheet.style.getPropertyValue("--doc-font-body");
       const display = sheet.style.getPropertyValue("--doc-font-display");
-      expect(body).toBe(docFontStack("ibm-plex-sans"));
-      expect(display).toBe(docFontStack("ibm-plex-sans"));
+      const expected = docFontStackFromFamily(resume.metadata.typography.font.family);
+      expect(body).toBe(expected);
+      expect(display).toBe(expected);
       // Must not inherit / re-expose the app chrome tokens.
       expect(sheet.style.getPropertyValue("--font-body")).toBe("");
       expect(body).not.toContain("Source Serif");
       expect(body).not.toContain("Fraunces");
     });
 
-    it("follows nosepass chrome with IBM Plex Serif", () => {
+    it("honours metadata.typography family, size, and clamped lineHeight", () => {
+      resume.metadata.typography.font.family = "IBM Plex Serif";
+      resume.metadata.typography.font.size = 16;
+      resume.metadata.typography.lineHeight = 1.8;
+      renderSheet();
+
+      const sheet = screen.getByTestId("doc-sheet");
+      const expected = docFontStackFromFamily("IBM Plex Serif");
+      expect(sheet.style.getPropertyValue("--doc-font-body")).toBe(expected);
+      expect(sheet.style.getPropertyValue("--doc-font-display")).toBe(expected);
+      expect(sheet.style.getPropertyValue("--doc-font-size")).toBe("16pt");
+      expect(sheet.style.getPropertyValue("--doc-line-height")).toBe("1.8");
+      expect(expected).toContain("IBM Plex Serif");
+    });
+
+    it("follows metadata family on nosepass instead of the chrome serif lock", () => {
       resume.metadata.template = "nosepass";
+      resume.metadata.typography.font.family = "IBM Plex Sans";
       const layout = bundledTemplateLayout("nosepass");
       renderSheet({ template: layout });
 
       const sheet = screen.getByTestId("doc-sheet");
-      const expected = docFontStack(layout.fontBody);
+      const expected = docFontStackFromFamily(resume.metadata.typography.font.family);
       expect(sheet.style.getPropertyValue("--doc-font-body")).toBe(expected);
       expect(sheet.style.getPropertyValue("--doc-font-display")).toBe(expected);
-      expect(expected).toContain("IBM Plex Serif");
+      expect(expected).toContain("IBM Plex Sans");
+      expect(layout.fontBody).toBe("ibm-plex-serif");
     });
 
-    it("follows glalie chrome with IBM Plex Sans (Typst still inherits engine serif)", () => {
+    it("follows metadata family on glalie instead of the chrome sans lock", () => {
       resume.metadata.template = "glalie";
+      resume.metadata.typography.font.family = "IBM Plex Serif";
       const layout = bundledTemplateLayout("glalie");
       renderSheet({ template: layout });
 
       const sheet = screen.getByTestId("doc-sheet");
-      const expected = docFontStack(layout.fontBody);
+      const expected = docFontStackFromFamily(resume.metadata.typography.font.family);
       expect(sheet.style.getPropertyValue("--doc-font-body")).toBe(expected);
       expect(sheet.style.getPropertyValue("--doc-font-display")).toBe(expected);
-      expect(expected).toContain("IBM Plex Sans");
+      expect(expected).toContain("IBM Plex Serif");
+      expect(layout.fontBody).toBe("ibm-plex-sans");
+    });
+
+    it("falls back when font family is not a string", () => {
+      // Persisted / raw JSON can violate the TS shape.
+      (resume.metadata.typography.font as { family: unknown }).family = 14;
+      renderSheet();
+
+      const sheet = screen.getByTestId("doc-sheet");
+      expect(sheet.style.getPropertyValue("--doc-font-body")).toContain("IBM Plex Serif");
+    });
+
+    it("falls back to schema defaults when typography is missing", () => {
+      // Legacy persisted / raw imports can omit the block entirely.
+      Reflect.deleteProperty(resume.metadata, "typography");
+      renderSheet();
+
+      const sheet = screen.getByTestId("doc-sheet");
+      expect(sheet.style.getPropertyValue("--doc-font-body")).toContain("IBM Plex Serif");
+      expect(sheet.style.getPropertyValue("--doc-font-size")).toBe("14pt");
+      expect(sheet.style.getPropertyValue("--doc-line-height")).toBe("1.5");
+    });
+
+    it("clamps sub-1.0 lineHeight at the sheet boundary", () => {
+      resume.metadata.typography.lineHeight = 0.5;
+      renderSheet();
+
+      const sheet = screen.getByTestId("doc-sheet");
+      expect(sheet.style.getPropertyValue("--doc-line-height")).toBe(String(clampLineHeight(0.5)));
+      expect(sheet.style.getPropertyValue("--doc-line-height")).toBe("1");
+    });
+  });
+
+  describe("Done-mode PDF fidelity (#860)", () => {
+    function eduDate(sheet: HTMLElement): HTMLElement {
+      const date = sheet.querySelector<HTMLElement>(".doc-sheet__edu-date");
+      expect(date, "expected an education date").not.toBeNull();
+      return date!;
+    }
+
+    it("justifies glalie body text in Done mode", () => {
+      resume.metadata.template = "glalie";
+      renderSheet({ template: bundledTemplateLayout("glalie"), mode: "done" });
+
+      const sheet = screen.getByTestId("doc-sheet");
+      expect(sheet.className).toContain("doc-sheet--tpl-glalie");
+      expect(sheet.classList.contains("doc-sheet--justify-body")).toBe(true);
+      expect(sheet).toHaveAttribute("data-sheet-mode", "done");
+      expect(sheet.querySelector(".doc-sheet__summary")).not.toBeNull();
+      expect(sheet.querySelector(".doc-sheet__lang-desc")).not.toBeNull();
+    });
+
+    it("leaves other templates' Done-mode body start-aligned", () => {
+      for (const id of ["onyx", "gengar", "rhyhorn"] as const) {
+        resume.metadata.template = id;
+        const { unmount } = renderSheet({
+          template: bundledTemplateLayout(id),
+          mode: "done",
+        });
+        const sheets = screen.getAllByTestId("doc-sheet");
+        const sheet = sheets[sheets.length - 1];
+        expect(sheet.className).toContain(`doc-sheet--tpl-${id}`);
+        expect(sheet.classList.contains("doc-sheet--justify-body")).toBe(false);
+        unmount();
+      }
+    });
+
+    it("uses the muted body face for education dates in Done mode", () => {
+      resume.metadata.template = "glalie";
+      renderSheet({ template: bundledTemplateLayout("glalie"), mode: "done" });
+
+      const sheet = screen.getByTestId("doc-sheet");
+      const date = eduDate(sheet);
+      expect(date.classList.contains("doc-sheet__edu-date--body")).toBe(true);
+    });
+
+    it("keeps education dates mono in edit mode", () => {
+      resume.metadata.template = "glalie";
+      renderSheet({ template: bundledTemplateLayout("glalie"), mode: "edit" });
+
+      const sheet = screen.getByTestId("doc-sheet");
+      expect(sheet).toHaveAttribute("data-sheet-mode", "edit");
+      const date = eduDate(sheet);
+      expect(date.classList.contains("doc-sheet__edu-date--body")).toBe(false);
+      expect(date.className).toContain("doc-sheet__edu-date");
     });
   });
 

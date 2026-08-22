@@ -69,9 +69,10 @@ jobs:
   # which is what keeps a GitHub Release from existing without its image.
   #
   # The wait budget covers the docker job's own timeout-minutes: 120 plus
-  # queueing. WATCH_WORKFLOW short-circuits the wait when that workflow has
-  # already concluded without success, so a dead runner fails in minutes
-  # rather than burning the full budget.
+  # queueing while that workflow is still running. WATCH_WORKFLOW
+  # short-circuits immediately on a failed/cancelled docker run, and once
+  # docker succeeds the remaining poll shrinks to POST_SUCCESS_TIMEOUT_SECONDS
+  # (GHCR lag only) so a missing tag cannot burn a runner for hours (#698).
   verify-image:
     name: 🔍 Verify Release Image
     needs: verify-tag
@@ -110,6 +111,7 @@ jobs:
           IMAGE_REF: ghcr.io/lgtm-hq/rustume
           EXPECT_PLATFORMS: linux/amd64,linux/arm64
           TIMEOUT_SECONDS: "8100"
+          POST_SUCCESS_TIMEOUT_SECONDS: "600"
           POLL_INTERVAL_SECONDS: "30"
           WATCH_WORKFLOW: docker-build-publish.yml
           REGISTRY_USERNAME: ${{ github.actor }}
@@ -120,12 +122,27 @@ jobs:
   release:
     name: 📦 Create GitHub Release
     needs: [verify-tag, build-binaries, verify-image]
+    # always() so a failed image verify turns this job red instead of skipped
+    # (#698). A skipped "Create GitHub Release" reads as "not applicable".
+    if: >-
+      always()
+      && needs.verify-tag.result == 'success'
+      && needs.build-binaries.result == 'success'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     timeout-minutes: 15
 
     steps:
+      - name: Fail when the release image is missing
+        if: needs.verify-image.result != 'success'
+        env:
+          VERIFY_RESULT: ${{ needs.verify-image.result }}
+        run: |
+          echo "::error::Create GitHub Release refused: Verify Release Image ${VERIFY_RESULT}."
+          echo "A missing image is a failed release, not a skip (#698)."
+          exit 1
+
       - name: Harden Runner
         # Direct step-security invocation: lgtm-ci removed its harden-runner
         # composite in v0.50.0 (the action pre hook must install the agent).

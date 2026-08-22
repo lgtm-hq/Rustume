@@ -46,6 +46,28 @@ describe("template chrome metadata", () => {
     expect(bundledTemplateLayout("chikorita").sidebarTint).toBe(true);
   });
 
+  it("declares no margin support only on full-bleed templates", () => {
+    const fullBleed = new Set(["pikachu", "ditto", "gengar", "glalie"]);
+    const ids = [
+      "rhyhorn",
+      "onyx",
+      "nosepass",
+      "bronzor",
+      "kakuna",
+      "azurill",
+      "chikorita",
+      "ditto",
+      "gengar",
+      "glalie",
+      "pikachu",
+      "leafish",
+    ];
+    for (const id of ids) {
+      expect(bundledTemplateLayout(id).supportsMargins).toBe(!fullBleed.has(id));
+    }
+    expect(bundledTemplateLayout("not-a-template").supportsMargins).toBe(true);
+  });
+
   it("covers every gallery template with chrome fields", () => {
     const ids = [
       "rhyhorn",

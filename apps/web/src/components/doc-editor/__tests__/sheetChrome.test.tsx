@@ -47,6 +47,29 @@ describe("DocSheet chrome modifiers", () => {
     expect(sheet.getAttribute("data-heading-style")).toBe("band");
   });
 
+  it("keeps rhyhorn left-headed and bronzor center-headed (#701 / #856)", () => {
+    const resume = loadDocEditorFixture();
+
+    resume.metadata.template = "rhyhorn";
+    const { unmount: unmountRhyhorn } = render(() => (
+      <DocSheet resume={resume} templateLayout={bundledTemplateLayout("rhyhorn")} mode="done" />
+    ));
+    const rhyhorn = screen.getByTestId("doc-sheet");
+    expect(rhyhorn.className).toContain("doc-sheet--head-left");
+    expect(rhyhorn.className).not.toContain("doc-sheet--head-center");
+    expect(bundledTemplateLayout("rhyhorn").headerStyle).toBe("left");
+    unmountRhyhorn();
+
+    resume.metadata.template = "bronzor";
+    render(() => (
+      <DocSheet resume={resume} templateLayout={bundledTemplateLayout("bronzor")} mode="done" />
+    ));
+    const bronzor = screen.getByTestId("doc-sheet");
+    expect(bronzor.className).toContain("doc-sheet--head-center");
+    expect(bronzor.className).not.toContain("doc-sheet--head-left");
+    expect(bundledTemplateLayout("bronzor").headerStyle).toBe("center");
+  });
+
   it("applies nosepass rule / serif / as-written modifiers", () => {
     const resume = loadDocEditorFixture();
     resume.metadata.template = "nosepass";

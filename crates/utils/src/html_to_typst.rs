@@ -3,6 +3,13 @@
 //! Handles the formatting tags produced by the TipTap rich text editor and the
 //! markdown pipeline: bold, italic, underline, links, bullet/ordered lists,
 //! paragraphs, line breaks, and inline/block code.
+//!
+//! Legacy resume fields are marked HTML (or have no `contentFormat`) but often
+//! contain a markdown subset — `**bold**`, `__bold__`, `***bold italic***`,
+//! `*italic*`, `_italic_`, and `- `/`* ` unordered lists, including mixed
+//! `<p>**heading**</p>` plus markdown list lines. That subset is interpreted
+//! **before** remaining text is Typst-escaped, so stars do not print. Ordered
+//! markers (`1.`, `1988.`) are never inferred as lists.
 
 use scraper::{Html, Node};
 
@@ -27,13 +34,15 @@ use crate::sanitize::is_allowed_tag;
 /// own tag, so `<ol>` inside `<ul>` (and the reverse) renders correctly.
 ///
 /// All other tags are stripped; their text content is preserved.
-/// Plain text without any HTML tags passes through unchanged.
 ///
-/// Prefer [`sanitize_html_to_typst`] when the input is untrusted HTML that
-/// still needs the resume allow-list applied — that path sanitizes and
-/// converts from a single parse tree.
+/// Plain text and text nodes are scanned for a markdown subset (`**`/`__`
+/// bold, `***`/`___` bold+italic, `*`/`_` italic, `- `/`* ` lists) and then
+/// escaped. Prefer
+/// [`sanitize_html_to_typst`] when the input is untrusted HTML that still
+/// needs the resume allow-list applied — that path sanitizes and converts
+/// from a single parse tree.
 pub fn html_to_typst(html: &str) -> String {
-    html_to_typst_inner(html, false)
+    html_to_typst_with(html, false, true)
 }
 
 /// Sanitize with the resume HTML allow-list and convert to Typst in one parse.
@@ -45,28 +54,42 @@ pub fn html_to_typst(html: &str) -> String {
 /// parse → serialize → scraper re-parse on the render path while keeping
 /// typst output byte-compatible with the former two-pass pipeline.
 pub fn sanitize_html_to_typst(html: &str) -> String {
-    html_to_typst_inner(html, true)
+    html_to_typst_with(html, true, true)
 }
 
-fn html_to_typst_inner(html: &str, sanitize: bool) -> String {
+/// Sanitize and convert HTML that comrak already produced from markdown.
+///
+/// Skips the legacy markdown-subset pass: emphasis and lists were already
+/// interpreted, and leftover `*` from escaped markdown must stay literal.
+/// Used only by [`crate::markdown_to_typst`].
+pub(crate) fn sanitize_html_to_typst_without_markdown_subset(html: &str) -> String {
+    html_to_typst_with(html, true, false)
+}
+
+fn html_to_typst_with(html: &str, sanitize: bool, markdown_subset: bool) -> String {
     let trimmed = html.trim();
     if trimmed.is_empty() {
         return String::new();
     }
 
-    // Fast path: no HTML tags at all → escape Typst special chars and return.
-    // Even plain text needs escaping because templates eval() the result.
-    // Run through clean_output so newline normalization matches the HTML path.
+    // Fast path: no HTML tags. Templates eval() the result, so remaining text
+    // still needs Typst escaping — but interpret the markdown subset first so
+    // `**bold**` and `- ` lists are not printed as literal stars.
     // Nothing to sanitize when there are no tags.
     if !trimmed.contains('<') {
-        return clean_output(&escape_typst(trimmed));
+        let converted = if markdown_subset {
+            apply_markdown_subset(trimmed)
+        } else {
+            escape_typst(trimmed)
+        };
+        return clean_output(&converted);
     }
 
     let document = Html::parse_fragment(trimmed);
     let mut output = String::new();
 
     for child in document.root_element().children() {
-        process_node(&child, &mut output, 0, sanitize);
+        process_node(&child, &mut output, 0, sanitize, markdown_subset);
     }
 
     clean_output(&output)
@@ -113,6 +136,7 @@ fn process_node(
     output: &mut String,
     list_depth: usize,
     sanitize: bool,
+    markdown_subset: bool,
 ) {
     let in_list = list_depth > 0;
     match node.value() {
@@ -123,7 +147,18 @@ fn process_node(
             if in_list && t.chars().all(|c| c.is_whitespace()) {
                 return;
             }
-            output.push_str(&escape_typst(t));
+            if markdown_subset {
+                // HTML <li> already emitted the Typst list marker. Line-based
+                // markdown list parsing here would turn `* item` into a
+                // second dash (`- - item`). Keep emphasis, skip list prefixes.
+                if in_list {
+                    output.push_str(&apply_inline_markdown(t, 0));
+                } else {
+                    output.push_str(&apply_markdown_subset(t));
+                }
+            } else {
+                output.push_str(&escape_typst(t));
+            }
         }
         Node::Element(el) => {
             let tag = el.name.local.as_ref();
@@ -136,7 +171,7 @@ fn process_node(
                     return;
                 }
                 for child in node.children() {
-                    process_node(&child, output, list_depth, sanitize);
+                    process_node(&child, output, list_depth, sanitize, markdown_subset);
                 }
                 return;
             }
@@ -144,7 +179,7 @@ fn process_node(
                 "p" => {
                     let mut inner = String::new();
                     for child in node.children() {
-                        process_node(&child, &mut inner, 0, sanitize);
+                        process_node(&child, &mut inner, list_depth, sanitize, markdown_subset);
                     }
                     let trimmed = inner.trim();
                     // TipTap produces <p><br></p> for empty editors — treat as empty.
@@ -156,7 +191,7 @@ fn process_node(
                 "strong" | "b" => {
                     let mut inner = String::new();
                     for child in node.children() {
-                        process_node(&child, &mut inner, list_depth, sanitize);
+                        process_node(&child, &mut inner, list_depth, sanitize, markdown_subset);
                     }
                     if !inner.is_empty() {
                         output.push_str("#text(weight: \"bold\")[");
@@ -167,7 +202,7 @@ fn process_node(
                 "em" | "i" => {
                     let mut inner = String::new();
                     for child in node.children() {
-                        process_node(&child, &mut inner, list_depth, sanitize);
+                        process_node(&child, &mut inner, list_depth, sanitize, markdown_subset);
                     }
                     if !inner.is_empty() {
                         output.push_str("#emph[");
@@ -178,7 +213,7 @@ fn process_node(
                 "u" => {
                     let mut inner = String::new();
                     for child in node.children() {
-                        process_node(&child, &mut inner, list_depth, sanitize);
+                        process_node(&child, &mut inner, list_depth, sanitize, markdown_subset);
                     }
                     if !inner.is_empty() {
                         output.push_str("#underline[");
@@ -190,7 +225,7 @@ fn process_node(
                     let href = el.attr("href").unwrap_or("");
                     let mut inner = String::new();
                     for child in node.children() {
-                        process_node(&child, &mut inner, list_depth, sanitize);
+                        process_node(&child, &mut inner, list_depth, sanitize, markdown_subset);
                     }
                     if !inner.is_empty() {
                         // Only emit links with safe schemes.
@@ -214,7 +249,7 @@ fn process_node(
                 }
                 "ul" | "ol" => {
                     let marker = if tag == "ul" { '-' } else { '+' };
-                    process_list(node, output, marker, list_depth, sanitize);
+                    process_list(node, output, marker, list_depth, sanitize, markdown_subset);
                 }
                 "pre" => {
                     // A fenced code block (comrak emits `<pre><code>…</code></pre>`).
@@ -247,7 +282,7 @@ fn process_node(
                 // Allowed-but-unmapped (sanitize) or unknown (legacy): unwrap.
                 _ => {
                     for child in node.children() {
-                        process_node(&child, output, list_depth, sanitize);
+                        process_node(&child, output, list_depth, sanitize, markdown_subset);
                     }
                 }
             }
@@ -338,6 +373,7 @@ fn process_list(
     marker: char,
     depth: usize,
     sanitize: bool,
+    markdown_subset: bool,
 ) {
     let indent = "  ".repeat(depth);
     let mut emitted_any = false;
@@ -354,7 +390,7 @@ fn process_list(
         for li_child in child.children() {
             // Children of this item sit one level deeper, so a list among
             // them renders as a sublist rather than more sibling bullets.
-            process_node(&li_child, &mut inner, depth + 1, sanitize);
+            process_node(&li_child, &mut inner, depth + 1, sanitize, markdown_subset);
         }
         let trimmed = inner.trim();
         if !trimmed.is_empty() {
@@ -386,6 +422,174 @@ fn process_list(
     if emitted_any && depth == 0 {
         output.push('\n');
     }
+}
+
+/// Interpret a markdown subset, then Typst-escape remaining text.
+///
+/// Honours `**`/`__` bold, `***`/`___` bold+italic, `*`/`_` italic, and
+/// `- `/`* ` unordered list
+/// lines. Does **not** treat `1.` / `1988.` as ordered lists. Intra-word
+/// markers (`4*5*6`, `foo_bar`) stay literal so arithmetic and identifiers
+/// are not rewritten.
+fn apply_markdown_subset(text: &str) -> String {
+    if text.is_empty() {
+        return String::new();
+    }
+
+    let mut out = String::with_capacity(text.len());
+    let trailing_nl = text.ends_with('\n');
+    let lines: Vec<&str> = text.split('\n').collect();
+
+    for (idx, raw_line) in lines.iter().enumerate() {
+        if idx == lines.len() - 1 && trailing_nl && raw_line.is_empty() {
+            out.push('\n');
+            break;
+        }
+        if idx > 0 {
+            out.push('\n');
+        }
+        let line = raw_line.trim_end_matches('\r');
+        if let Some((indent, item)) = parse_unordered_list_line(line) {
+            out.push_str(&"  ".repeat(indent));
+            out.push_str("- ");
+            out.push_str(&apply_inline_markdown(item, 0));
+        } else {
+            out.push_str(&apply_inline_markdown(line, 0));
+        }
+    }
+    out
+}
+
+/// A line is an unordered list item when it starts with `- ` or `* `
+/// (optional indent). `*italic*` (no space after `*`) is not a list.
+fn parse_unordered_list_line(line: &str) -> Option<(usize, &str)> {
+    let leading_spaces = line.chars().take_while(|&c| c == ' ').count();
+    let stripped = line.trim_start_matches([' ', '\t']);
+    let rest = stripped
+        .strip_prefix("- ")
+        .or_else(|| stripped.strip_prefix("* "))?;
+    if rest.trim().is_empty() {
+        return None;
+    }
+    Some((leading_spaces / 2, rest))
+}
+
+const MAX_EMPHASIS_DEPTH: u8 = 8;
+
+fn apply_inline_markdown(text: &str, depth: u8) -> String {
+    if text.is_empty() {
+        return String::new();
+    }
+    if depth >= MAX_EMPHASIS_DEPTH {
+        return escape_typst(text);
+    }
+
+    let chars: Vec<char> = text.chars().collect();
+    let mut out = String::with_capacity(text.len());
+    let mut literal = String::new();
+    let mut i = 0;
+
+    while i < chars.len() {
+        if let Some((consumed, markup)) = match_emphasis(&chars, i, depth) {
+            if !literal.is_empty() {
+                out.push_str(&escape_typst(&literal));
+                literal.clear();
+            }
+            out.push_str(&markup);
+            i += consumed;
+        } else {
+            literal.push(chars[i]);
+            i += 1;
+        }
+    }
+    if !literal.is_empty() {
+        out.push_str(&escape_typst(&literal));
+    }
+    out
+}
+
+fn match_emphasis(chars: &[char], i: usize, depth: u8) -> Option<(usize, String)> {
+    // Longer delimiters first so `***both***` is bold+italic (not leftover
+    // stars) and `**` is not consumed as italic.
+    const CANDIDATES: [(&str, bool, bool); 6] = [
+        ("***", true, true),
+        ("___", true, true),
+        ("**", true, false),
+        ("__", true, false),
+        ("*", false, true),
+        ("_", false, true),
+    ];
+
+    for (delim, is_bold, is_italic) in CANDIDATES {
+        let d: Vec<char> = delim.chars().collect();
+        if !starts_with_delim(chars, i, &d) || !can_open_emphasis(chars, i, d[0]) {
+            continue;
+        }
+        let content_start = i + d.len();
+        if content_start >= chars.len() || chars[content_start].is_whitespace() {
+            continue;
+        }
+        let Some(close) = find_closing_emphasis(chars, content_start, &d) else {
+            continue;
+        };
+        let content: String = chars[content_start..close].iter().collect();
+        let inner = apply_inline_markdown(&content, depth + 1);
+        if inner.is_empty() {
+            continue;
+        }
+        let markup = match (is_bold, is_italic) {
+            (true, true) => format!("#text(weight: \"bold\")[#emph[{inner}]]"),
+            (true, false) => format!("#text(weight: \"bold\")[{inner}]"),
+            (false, true) => format!("#emph[{inner}]"),
+            (false, false) => inner,
+        };
+        return Some((close + d.len() - i, markup));
+    }
+    None
+}
+
+fn starts_with_delim(chars: &[char], i: usize, delim: &[char]) -> bool {
+    let end = i + delim.len();
+    end <= chars.len() && &chars[i..end] == delim
+}
+
+fn is_word_char(c: char) -> bool {
+    c.is_alphanumeric()
+}
+
+fn can_open_emphasis(chars: &[char], i: usize, marker: char) -> bool {
+    // Mid-run retries (`foo**bar**` at the second star) must not open
+    // italic and leave a stray marker. Underscores stay intra-word-safe.
+    i == 0 || (!is_word_char(chars[i - 1]) && chars[i - 1] != marker)
+}
+
+fn can_close_emphasis(chars: &[char], close: usize, delim_len: usize) -> bool {
+    let after = close + delim_len;
+    after >= chars.len() || !is_word_char(chars[after])
+}
+
+fn delimiter_run_len(chars: &[char], j: usize, marker: char) -> usize {
+    chars[j..].iter().take_while(|&&c| c == marker).count()
+}
+
+fn find_closing_emphasis(chars: &[char], content_start: usize, delim: &[char]) -> Option<usize> {
+    let dlen = delim.len();
+    let marker = delim[0];
+    let mut j = content_start;
+    while j + dlen <= chars.len() {
+        // Require an exact run so `**a *b***` closes on the last two stars
+        // (inner italic keeps the first) instead of leaving a stray `*`.
+        if &chars[j..j + dlen] == delim
+            && j > content_start
+            && !chars[j - 1].is_whitespace()
+            && delimiter_run_len(chars, j, marker) == dlen
+            && can_close_emphasis(chars, j, dlen)
+        {
+            return Some(j);
+        }
+        j += 1;
+    }
+    None
 }
 
 /// Clean up the final output: collapse excessive blank lines and trim.
@@ -755,6 +959,191 @@ mod tests {
             sanitize_html_to_typst("<p><center>Centered</center></p>"),
             "Centered"
         );
+    }
+
+    #[test]
+    fn markdown_bold_asterisks_on_plain_text_fast_path() {
+        assert_eq!(
+            html_to_typst("**PwC Tax Technology**"),
+            "#text(weight: \"bold\")[PwC Tax Technology]"
+        );
+        assert!(
+            !html_to_typst("**PwC Tax Technology**").contains('*'),
+            "stars must not print as literal text"
+        );
+    }
+
+    #[test]
+    fn markdown_bold_underscores() {
+        assert_eq!(html_to_typst("__bold__"), "#text(weight: \"bold\")[bold]");
+    }
+
+    #[test]
+    fn markdown_italic_asterisks_and_underscores() {
+        assert_eq!(html_to_typst("*italic*"), "#emph[italic]");
+        assert_eq!(html_to_typst("_italic_"), "#emph[italic]");
+    }
+
+    #[test]
+    fn nested_emphasis_overlapping_closers_does_not_leave_a_star() {
+        assert_eq!(
+            html_to_typst("**a *b***"),
+            "#text(weight: \"bold\")[a #emph[b]]"
+        );
+        assert_eq!(
+            html_to_typst("<p>**a *b***</p>"),
+            "#text(weight: \"bold\")[a #emph[b]]"
+        );
+        let result = html_to_typst("**a *b***");
+        assert!(
+            !result.contains('*'),
+            "overlapping closers must not print leftover markers: {result}"
+        );
+    }
+
+    #[test]
+    fn markdown_triple_emphasis_is_bold_and_italic() {
+        assert_eq!(
+            html_to_typst("***both***"),
+            "#text(weight: \"bold\")[#emph[both]]"
+        );
+        assert_eq!(
+            html_to_typst("___both___"),
+            "#text(weight: \"bold\")[#emph[both]]"
+        );
+        assert_eq!(
+            html_to_typst("<p>***both***</p>"),
+            "#text(weight: \"bold\")[#emph[both]]"
+        );
+        for input in ["***both***", "___both___", "<p>***both***</p>"] {
+            let result = html_to_typst(input);
+            assert!(
+                !result.contains('*') && !result.contains('_'),
+                "triple emphasis must not print leftover markers: {result}"
+            );
+        }
+    }
+
+    #[test]
+    fn markdown_dash_and_asterisk_lists() {
+        assert_eq!(html_to_typst("- item"), "- item");
+        assert_eq!(html_to_typst("* item"), "- item");
+        assert_eq!(html_to_typst("- item 1\n- item 2"), "- item 1\n- item 2");
+        assert_eq!(html_to_typst("* item 1\n* item 2"), "- item 1\n- item 2");
+    }
+
+    #[test]
+    fn markdown_list_marker_does_not_open_italic() {
+        // `* ` at the start of a line is a list, not emphasis.
+        assert_eq!(
+            html_to_typst("*italic*\n* list item"),
+            "#emph[italic]\n- list item"
+        );
+    }
+
+    #[test]
+    fn markdown_bold_inside_list_item() {
+        assert_eq!(
+            html_to_typst("- **Bold** item"),
+            "- #text(weight: \"bold\")[Bold] item"
+        );
+    }
+
+    #[test]
+    fn mixed_html_paragraph_and_markdown_list() {
+        let input = "<p>**heading**</p>\n- item 1\n- item 2";
+        let result = html_to_typst(input);
+        assert_eq!(
+            result,
+            "#text(weight: \"bold\")[heading]\n\n- item 1\n- item 2"
+        );
+        assert!(
+            !result.contains('*'),
+            "mixed HTML+markdown must not print stars: {result}"
+        );
+    }
+
+    #[test]
+    fn mixed_html_paragraph_and_asterisk_markdown_list() {
+        let result = html_to_typst("<p>**heading**</p>\n* item");
+        assert_eq!(result, "#text(weight: \"bold\")[heading]\n\n- item");
+    }
+
+    #[test]
+    fn lone_asterisk_in_prose_stays_literal() {
+        let result = html_to_typst("rate is 3 * 4");
+        assert_eq!(result, "rate is 3 \\* 4");
+        assert!(!result.contains("#emph"));
+    }
+
+    #[test]
+    fn intra_word_asterisks_stay_literal() {
+        assert_eq!(html_to_typst("4*5*6"), "4\\*5\\*6");
+        assert_eq!(html_to_typst("Rated 4*5 stars"), "Rated 4\\*5 stars");
+        assert_eq!(html_to_typst("foo**bar**"), "foo\\*\\*bar\\*\\*");
+        assert_eq!(html_to_typst("foo__bar__"), "foo\\_\\_bar\\_\\_");
+        assert_eq!(html_to_typst("foo***bar***"), "foo\\*\\*\\*bar\\*\\*\\*");
+        assert_eq!(html_to_typst("foo___bar___"), "foo\\_\\_\\_bar\\_\\_\\_");
+        for input in ["foo**bar**", "foo__bar__", "foo***bar***", "foo___bar___"] {
+            let result = html_to_typst(input);
+            assert!(
+                !result.contains("#emph") && !result.contains("weight: \"bold\""),
+                "intra-word delimiter run must stay literal: {result}"
+            );
+        }
+    }
+
+    #[test]
+    fn html_list_item_does_not_reparse_markdown_list_prefix() {
+        assert_eq!(html_to_typst("<ul><li>* item</li></ul>"), "- \\* item");
+        assert_eq!(
+            html_to_typst("<ul><li><p>* item</p></li></ul>"),
+            "- \\* item"
+        );
+        assert_eq!(
+            html_to_typst("<ul><li>**Bold** item</li></ul>"),
+            "- #text(weight: \"bold\")[Bold] item"
+        );
+    }
+
+    #[test]
+    fn year_period_is_not_an_ordered_list() {
+        assert_eq!(html_to_typst("1988. A good year"), "1988. A good year");
+        assert!(!html_to_typst("1988. A good year").contains('+'));
+        assert_eq!(html_to_typst("1. First"), "1. First");
+    }
+
+    #[test]
+    fn unclosed_emphasis_stays_literal() {
+        assert_eq!(html_to_typst("**unclosed"), "\\*\\*unclosed");
+        assert_eq!(html_to_typst("*unclosed"), "\\*unclosed");
+    }
+
+    #[test]
+    fn sanitize_path_interprets_markdown_subset_and_drops_script() {
+        assert_eq!(
+            sanitize_html_to_typst("<p>**hi**</p><script>alert(1)</script>"),
+            "#text(weight: \"bold\")[hi]"
+        );
+        assert_eq!(sanitize_html_to_typst("<script>**xss**</script>"), "");
+        assert_eq!(
+            sanitize_html_to_typst("**PwC Tax Technology**"),
+            "#text(weight: \"bold\")[PwC Tax Technology]"
+        );
+    }
+
+    #[test]
+    fn html_strong_still_wins_over_plain_stars() {
+        // Existing TipTap path must keep working.
+        assert_eq!(
+            html_to_typst("<p><strong>bold</strong></p>"),
+            "#text(weight: \"bold\")[bold]"
+        );
+    }
+
+    #[test]
+    fn underscore_identifier_mid_word_stays_literal() {
+        assert_eq!(html_to_typst("foo_bar_baz"), "foo\\_bar\\_baz");
     }
 }
 

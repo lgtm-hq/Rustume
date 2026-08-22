@@ -51,7 +51,10 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
   rustume-ops repo — this repo ends at the GHCR publish). A trailing
   `🔍 Verify Published Tags` job asserts the contracted tags actually resolve
   (`scripts/ci/docker/verify-published-tags.sh`), so a skipped manifest merge
-  fails the run instead of passing as "mostly green with skips" (#597)
+  fails the run instead of passing as "mostly green with skips" (#597).
+  Post-merge Vulnerability Scan is a local Trivy job with
+  `TRIVY_DB_REPOSITORY=ghcr.io/aquasecurity/trivy-db` (#851); reusable
+  Trivy stays PR-only.
 
 ## Release
 
@@ -65,8 +68,11 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
   `create-github-release` composite). `📦 Create GitHub Release` is gated on
   `🔍 Verify Release Image`, which waits for the GHCR tags
   docker-build-publish.yml is contracted to publish, so a Release is never
-  created without its image (#597). The git tag is created earlier by
-  auto-tag-on-main.yml and is **not** covered by that gate
+  created without its image (#597). A failed image verify turns Create
+  GitHub Release red instead of skipped (#698). The git tag is created
+  earlier by auto-tag-on-main.yml and is **not** covered by that gate
+- **reconcile-releases.yml** — Daily / tag-push check that recent `v*` tags
+  still have a GitHub Release and a GHCR image (`scripts/ci/release/reconcile-releases.sh`)
 - **build-binary.yml** — Cross-platform release binaries (inline; Windows
   `actions/checkout` exception)
 
@@ -93,8 +99,8 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
 - **boundary-guard.yml** — Ops boundary path and content guards (inline;
   `scripts/ci/boundary/`)
 - **test-boundary-shell.yml** / **test-docker-shell.yml** /
-  **test-maintenance-shell.yml** — BATS suites for `scripts/ci/` via
-  `reusable-test-shell`
+  **test-maintenance-shell.yml** / **test-release-shell.yml** — BATS suites
+  for `scripts/ci/` via `reusable-test-shell`
 - **ghcr-cleanup.yml** — GHCR prune (hybrid: `reusable-ghcr-cleanup` for untagged +
   inline tagged retention)
 - **renovate.yml** — Scheduled Renovate runs (direct `step-security/harden-runner` +

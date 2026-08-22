@@ -3,12 +3,12 @@
 //! The document editor stores rich text as markdown. Rendering reuses the
 //! existing HTML pipeline: markdown is parsed to HTML with raw HTML escaped
 //! (never passed through), then sanitized and converted to Typst markup from
-//! a **single** HTML parse tree via [`sanitize_html_to_typst`].
+//! a **single** HTML parse tree via [`crate::html_to_typst::sanitize_html_to_typst_without_markdown_subset`].
 
 use comrak::{markdown_to_html, Options};
 use once_cell::sync::Lazy;
 
-use crate::html_to_typst::sanitize_html_to_typst;
+use crate::html_to_typst::sanitize_html_to_typst_without_markdown_subset;
 
 /// Comrak options: CommonMark only, raw HTML escaped rather than emitted.
 static MARKDOWN_OPTIONS: Lazy<Options<'static>> = Lazy::new(|| {
@@ -58,7 +58,9 @@ pub fn markdown_to_typst(md: &str) -> String {
     // element at all (`&lt;script&gt;…`), and `html_to_typst`'s tag-free fast
     // path would then emit those entities literally instead of as text.
     // Sanitizer allow-list + Typst conversion share one scraper parse.
-    sanitize_html_to_typst(&format!("<div>{html}</div>"))
+    // Skip the HTML-path markdown subset: comrak already interpreted markdown,
+    // and leftover `*` from `\*escaped\*` must stay literal.
+    sanitize_html_to_typst_without_markdown_subset(&format!("<div>{html}</div>"))
 }
 
 #[cfg(test)]

@@ -75,6 +75,9 @@ test.describe("per-template sheet baselines", () => {
         await docEditorPage.assertSaved();
       }
 
+      await expect(docEditorPage.sheet).toHaveClass(
+        new RegExp(`doc-sheet--head-${template.layout.headerStyle}`),
+      );
       await expect(docEditorPage.sheet).toHaveScreenshot(`sheet-${template.id}.png`);
     });
   }

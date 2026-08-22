@@ -244,6 +244,12 @@ pub struct TemplateLayout {
     /// sidebar is a fixed width. `None` when the split is proportional
     /// (`fr` units) or when the template has no sidebar at all.
     pub sidebar_width: Option<u32>,
+    /// Whether the template honours `metadata.page.margin` on the page box.
+    ///
+    /// Full-bleed templates set Typst `margin: 0pt` so the sidebar paint meets
+    /// the paper edge; they ignore the stored margin. `false` only for those
+    /// sources — see #859.
+    pub supports_margins: bool,
     /// Per-template presentation chrome (headings, fonts, accent usage).
     pub chrome: TemplateChrome,
 }
@@ -339,6 +345,7 @@ fn single(header_style: HeaderStyle, chrome: TemplateChrome) -> TemplateLayout {
         header_style,
         contact_in: ContactIn::Header,
         sidebar_width: None,
+        supports_margins: true,
         chrome,
     }
 }
@@ -357,7 +364,17 @@ fn two_column(
         header_style,
         contact_in,
         sidebar_width,
+        supports_margins: true,
         chrome,
+    }
+}
+
+/// Full-bleed templates set Typst `set page(margin: 0pt)` and ignore
+/// `metadata.page.margin` on the page box (#859).
+fn full_bleed(layout: TemplateLayout) -> TemplateLayout {
+    TemplateLayout {
+        supports_margins: false,
+        ..layout
     }
 }
 
@@ -410,14 +427,14 @@ pub fn get_template_layout(template: &str) -> TemplateLayout {
             // Tinted: chikorita.typ wraps the right column in a light-bg box.
             chrome_underline_chips(true, true),
         ),
-        "ditto" => two_column(
+        "ditto" => full_bleed(two_column(
             LayoutMode::SidebarLeft,
             HeaderStyle::Banner,
             ContactIn::Banner,
             Some(160),
             chrome_underline_chips(false, true),
-        ),
-        "gengar" => two_column(
+        )),
+        "gengar" => full_bleed(two_column(
             LayoutMode::SidebarLeft,
             HeaderStyle::Sidebar,
             ContactIn::Sidebar,
@@ -433,8 +450,8 @@ pub fn get_template_layout(template: &str) -> TemplateLayout {
                 keyword_style: KeywordStyle::Chips,
                 header_rule: false,
             },
-        ),
-        "glalie" => two_column(
+        )),
+        "glalie" => full_bleed(two_column(
             LayoutMode::SidebarLeft,
             HeaderStyle::Sidebar,
             ContactIn::Sidebar,
@@ -450,8 +467,8 @@ pub fn get_template_layout(template: &str) -> TemplateLayout {
                 keyword_style: KeywordStyle::Plain,
                 header_rule: false,
             },
-        ),
-        "pikachu" => two_column(
+        )),
+        "pikachu" => full_bleed(two_column(
             LayoutMode::SidebarLeft,
             HeaderStyle::Left,
             ContactIn::Sidebar,
@@ -467,7 +484,7 @@ pub fn get_template_layout(template: &str) -> TemplateLayout {
                 keyword_style: KeywordStyle::Plain,
                 header_rule: false,
             },
-        ),
+        )),
         "leafish" => TemplateLayout {
             layout_mode: LayoutMode::HeaderSplit,
             default_columns: [
@@ -477,6 +494,7 @@ pub fn get_template_layout(template: &str) -> TemplateLayout {
             header_style: HeaderStyle::Banner,
             contact_in: ContactIn::Banner,
             sidebar_width: None,
+            supports_margins: true,
             chrome: chrome_underline_chips(false, false),
         },
         _ => single(HeaderStyle::Left, chrome_underline_plain(true)),
@@ -691,6 +709,26 @@ mod tests {
         assert!(get_template_layout("chikorita").chrome.sidebar_tint);
     }
 
+    /// Templates whose Typst `set page(margin: …)` is `0pt` (full-bleed).
+    /// Verified against the sources; do not expand from the audit tag list.
+    const FULL_BLEED_TEMPLATES: &[&str] = &["ditto", "gengar", "glalie", "pikachu"];
+
+    #[test]
+    fn full_bleed_templates_declare_no_margin_support() {
+        for template in TEMPLATES {
+            let layout = get_template_layout(template);
+            let expected = !FULL_BLEED_TEMPLATES.contains(template);
+            assert_eq!(
+                layout.supports_margins, expected,
+                "{template} supports_margins"
+            );
+        }
+        assert!(
+            get_template_layout(UNKNOWN_TEMPLATE_ID).supports_margins,
+            "unknown ids fall back to rhyhorn, which honours page margins"
+        );
+    }
+
     const UNKNOWN_TEMPLATE_ID: &str = "not-a-template";
 
     /// Wire shape of the lockstep fixture. Paired with `LayoutInfo` in
@@ -714,6 +752,7 @@ mod tests {
         sidebar_tint: bool,
         keyword_style: &'a str,
         header_rule: bool,
+        supports_margins: bool,
     }
 
     /// Owned twin of [`LayoutWire`] used to `deny_unknown_fields` round-trip
@@ -736,11 +775,12 @@ mod tests {
         sidebar_tint: bool,
         keyword_style: String,
         header_rule: bool,
+        supports_margins: bool,
     }
 
     /// Must match the number of serde fields on `LayoutInfo` (`dto.rs`) and
     /// `LayoutWire` above. Bump this in the same change that adds a field.
-    const LAYOUT_WIRE_FIELD_COUNT: usize = 14;
+    const LAYOUT_WIRE_FIELD_COUNT: usize = 15;
 
     const UPDATE_LAYOUTS_FIXTURE_HINT: &str = concat!(
         "UPDATE_FIXTURES=1 cargo test -p rustume-render ",
@@ -763,6 +803,7 @@ mod tests {
             sidebar_tint: layout.chrome.sidebar_tint,
             keyword_style: layout.chrome.keyword_style.as_str(),
             header_rule: layout.chrome.header_rule,
+            supports_margins: layout.supports_margins,
         }
     }
 
