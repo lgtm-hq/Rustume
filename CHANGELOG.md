@@ -22,6 +22,44 @@ and this project adheres to
 
 ### Security
 
+## [0.68.0] - 2026-08-22
+
+### Added
+
+- **typst**: honour metadata.typography across all templates (#902) (571b920)
+
+### Changed
+
+- **deps**: update test-tools to 4.1.11 (patch) (#907) (1713851)
+- **deps**: update postgres:18-alpine docker digest to d3e1620 (#898) (b4fe0f0)
+- **deps**: update docker/dockerfile:1 docker digest to ecfaec9 (#897) (bb932ea)
+- **deps**: update lintro to 0.123.3 (patch) (#893) (384cbe9)
+- **deps**: update lintro to 0.123.1 (minor) (#892) (31f12da)
+- **deps**: update lintro to 0.122.0 (minor) (#891) (1eb681b)
+- **deps**: update lintro to 0.120.0 (minor) (#890) (421ee69)
+- **deps**: update lintro to 0.118.5 (minor) (#889) (6008130)
+- **deps**: update dependency cargo-llvm-cov to 0.9.0 (minor) (#888) (16c0f21)
+- **deps**: update dependency @solidjs/router to 1.0.0 (major) (#747) (39ccc39)
+- **deps**: update dependency @axe-core/playwright to 4.13.0 (minor) (#874) (eed9ea4)
+- **deps**: update dependency @types/node to 26.2.0 (minor) (#849) (111f47e)
+- **deps**: update dependency axe-core to 4.13.0 (minor) (#834) (eabd3b4)
+- **deps**: update dependency @playwright/test to 1.62.1 (patch) (#790) (5f6ab19)
+- **deps**: update dependency oxlint to 1.78.0 (minor) (#816) (bf98b40)
+- **deps-dev**: update rust crate criterion to 0.8.2 (minor) (#873) (da88096)
+- **deps**: update step-security/harden-runner action to v2.21.0 (minor) (#876)
+  (2f51b25)
+
+### Fixed
+
+- **render**: skip remote profile pictures instead of failing PDF render (#905)
+  (2704ab2)
+- **web**: match Done mode to PDF on glalie justify and education dates (#904) (6a13e5a)
+- **ci**: fail release publish when the image build fails (#903) (82949e2)
+- **web**: declare per-template margin support and disable the inert control (#901)
+  (bce33f7)
+- **render**: interpret markdown subset in html_to_typst (#900) (a921b2a)
+- **ci**: pin Trivy DB to ghcr.io so Vulnerability Scan stops 404ing (#899) (8d76514)
+
 ## [0.67.7] - 2026-08-18
 
 ### Fixed
@@ -1087,7 +1125,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.67.7...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.68.0...HEAD
+[0.68.0]: https://github.com/lgtm-hq/Rustume/compare/v0.67.7...v0.68.0
 [0.67.7]: https://github.com/lgtm-hq/Rustume/compare/v0.67.6...v0.67.7
 [0.67.6]: https://github.com/lgtm-hq/Rustume/compare/v0.67.5...v0.67.6
 [0.67.5]: https://github.com/lgtm-hq/Rustume/compare/v0.67.4...v0.67.5
