@@ -22,6 +22,19 @@ and this project adheres to
 
 ### Security
 
+## [0.69.0] - 2026-08-26
+
+### Added
+
+- add org AI review via lgtm-ci reusable (5c81e05)
+
+### Changed
+
+- **deps**: update github-actions (#917) (1aa88b6)
+- **deps**: update dependency h3 to 2.0.1-rc.29 (patch) (#914) (d690cbd)
+- **deps**: update gcr.io/distroless/static:nonroot docker digest to 1c2c046 (#913)
+  (56fe845)
+
 ## [0.68.1] - 2026-08-22
 
 ### Fixed
@@ -1132,7 +1145,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.68.1...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.69.0...HEAD
+[0.69.0]: https://github.com/lgtm-hq/Rustume/compare/v0.68.1...v0.69.0
 [0.68.1]: https://github.com/lgtm-hq/Rustume/compare/v0.68.0...v0.68.1
 [0.68.0]: https://github.com/lgtm-hq/Rustume/compare/v0.67.7...v0.68.0
 [0.67.7]: https://github.com/lgtm-hq/Rustume/compare/v0.67.6...v0.67.7
