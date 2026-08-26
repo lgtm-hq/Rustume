@@ -31,7 +31,7 @@ and this project adheres to
 ### Changed
 
 - **deps**: update github-actions (#917) (1aa88b6)
-- **deps**: update dependency h3 to 2.0.1-rc.28 (patch) (#914) (d690cbd)
+- **deps**: update dependency h3 to 2.0.1-rc.29 (patch) (#914) (d690cbd)
 - **deps**: update gcr.io/distroless/static:nonroot docker digest to 1c2c046 (#913)
   (56fe845)
 
