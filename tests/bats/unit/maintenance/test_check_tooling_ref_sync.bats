@@ -110,6 +110,27 @@ EOF
 	assert_output --partial "does not match any 'uses:' pin"
 }
 
+@test "pin sync: two consistent jobs in ai-review.yml on different SHAs fail" {
+	cat >"${WORKFLOW_DIR}/ai-review.yml" <<EOF
+jobs:
+  review:
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-ai-review.yml@${SHA_A} # v0.67.0
+    with:
+      tooling-ref: '${SHA_A}' # v0.67.0
+  extra:
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-ai-review.yml@${SHA_B} # v0.68.0
+    with:
+      tooling-ref: '${SHA_B}' # v0.68.0
+EOF
+
+	run_guard
+
+	assert_failure
+	assert_output --partial "more than one version"
+	assert_output --partial "inside ai-review.yml"
+	assert_output --partial "${SHA_B}"
+}
+
 @test "pin sync: straggler with only a uses pin is still caught repo-wide" {
 	write_caller "a.yml" "${SHA_A}" "v0.54.0" "${SHA_A}" "v0.54.0"
 	cat >"${WORKFLOW_DIR}/inline.yml" <<EOF
