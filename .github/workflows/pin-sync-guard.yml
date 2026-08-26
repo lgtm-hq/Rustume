@@ -2,7 +2,8 @@
 ---
 name: Quality - Pin Sync Guard
 # Fails when a workflow's `tooling-ref:` input drifts from the lgtm-ci `uses:`
-# pin it mirrors, or when the workflows disagree on the lgtm-ci release.
+# pin it mirrors, or when non-ai-review workflows disagree on the lgtm-ci
+# release. ai-review.yml may pin a newer reusable than the shared repo pin.
 
 "on":
   pull_request:

@@ -83,6 +83,9 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
 - **pr-labeler.yml** — Auto-label PRs via `reusable-pr-labeler`
 - **pr-auto-assign.yml** — Auto-assign reviewers via `reusable-pr-auto-assign`
 - **dependency-review.yml** — PR dependency review via `reusable-dependency-review`
+- **ai-review.yml** — Org AI review via `reusable-ai-review` (`lintro-review[bot]`).
+  Pins lgtm-ci **v0.67.0** while the rest of the repo stays on **v0.63.6**;
+  `pin-sync-guard.yml` allows that one newer pin.
 
 ## Security & maintenance
 
@@ -94,8 +97,9 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
   `reusable-vuln-suppression-check`
 - **validate-action-pinning.yml** — SHA pin policy via `reusable-validate-action-pinning`
 - **pin-sync-guard.yml** — Fails when a workflow's `tooling-ref:` input drifts from the
-  lgtm-ci `uses:` pin it mirrors, or when workflows disagree on the lgtm-ci release
-  (`scripts/ci/maintenance/check-tooling-ref-sync.sh`)
+  lgtm-ci `uses:` pin it mirrors, or when non-`ai-review.yml` workflows disagree
+  on the lgtm-ci release (`scripts/ci/maintenance/check-tooling-ref-sync.sh`).
+  `ai-review.yml` may pin a newer reusable than the shared repo pin.
 - **boundary-guard.yml** — Ops boundary path and content guards (inline;
   `scripts/ci/boundary/`)
 - **test-boundary-shell.yml** / **test-docker-shell.yml** /

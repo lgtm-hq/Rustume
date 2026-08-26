@@ -71,6 +71,45 @@ run_guard() {
 	assert_output --partial "${SHA_B}"
 }
 
+@test "pin sync: ai-review.yml may pin a newer lgtm-ci than the rest" {
+	write_caller "quality.yml" "${SHA_A}" "v0.54.0" "${SHA_A}" "v0.54.0"
+	write_caller "ai-review.yml" "${SHA_B}" "v0.67.0" "${SHA_B}" "v0.67.0"
+
+	run_guard
+
+	assert_success
+	assert_output --partial "pin sync guard passed"
+	assert_output --partial "2 tooling-ref pin(s)"
+}
+
+@test "pin sync: a non-ai-review file still cannot diverge when ai-review.yml is present" {
+	write_caller "quality.yml" "${SHA_A}" "v0.54.0" "${SHA_A}" "v0.54.0"
+	write_caller "coverage.yml" "${SHA_B}" "v0.52.3" "${SHA_B}" "v0.52.3"
+	write_caller "ai-review.yml" "${SHA_B}" "v0.67.0" "${SHA_B}" "v0.67.0"
+
+	run_guard
+
+	assert_failure
+	assert_output --partial "more than one version"
+	assert_output --partial "excluding ai-review.yml"
+	assert_output --partial "${SHA_B}"
+}
+
+@test "pin sync: pins inside ai-review.yml must still agree with each other" {
+	cat >"${WORKFLOW_DIR}/ai-review.yml" <<EOF
+jobs:
+  call:
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-ai-review.yml@${SHA_A} # v0.67.0
+    with:
+      tooling-ref: '${SHA_B}' # v0.67.0
+EOF
+
+	run_guard
+
+	assert_failure
+	assert_output --partial "does not match any 'uses:' pin"
+}
+
 @test "pin sync: straggler with only a uses pin is still caught repo-wide" {
 	write_caller "a.yml" "${SHA_A}" "v0.54.0" "${SHA_A}" "v0.54.0"
 	cat >"${WORKFLOW_DIR}/inline.yml" <<EOF
