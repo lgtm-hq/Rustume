@@ -1,6 +1,6 @@
 # bronzor
 
-Centered single-column cyan resume; uppercase underlined headings; square rating glyphs.
+Centered single-column cyan resume; uppercase underlined headings; five-dot levels.
 
 Adapted-from context: Reactive Resume artboard `apps/web/public/templates/{jpg,pdf}/bronzor.*` (not
 a 1:1 target).

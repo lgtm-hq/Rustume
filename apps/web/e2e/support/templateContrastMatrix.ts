@@ -72,11 +72,33 @@ const UNIVERSAL_PAIRS: readonly ContrastPair[] = [
 ];
 
 /**
+ * The sheet's `.doc-sheet__tag-chip` treatment, painted by the templates whose
+ * `keywordStyle` is `chips` (#919): a body-ink label on the accent-tinted
+ * fill, and the mixed border stroked on that same fill. Every chip-style
+ * template passes `text-color` / `accent-color` / `bg-color`, so one shared
+ * pair set covers them all.
+ */
+const SHEET_CHIP_PAIRS: readonly ContrastPair[] = [
+  {
+    label: "sheet keyword chip label",
+    ink: "text-color",
+    backdrop: "sheet-chip-fill(accent-color, bg-color)",
+  },
+  {
+    label: "sheet keyword chip border on its fill",
+    ink: "sheet-chip-stroke(accent-color)",
+    backdrop: "sheet-chip-fill(accent-color, bg-color)",
+    role: ContrastRole.NonText,
+  },
+];
+
+/**
  * Per-template pairs: tinted panels, chips, coloured bars and any ink a
  * template paints on something other than the bare page.
  */
 const TEMPLATE_PAIRS: Readonly<Record<string, readonly ContrastPair[]>> = {
   azurill: [
+    ...SHEET_CHIP_PAIRS,
     { label: "keyword chip ink", ink: "accent-color", backdrop: "light-bg" },
     {
       label: "rating indicator fill vs empty",
@@ -94,6 +116,7 @@ const TEMPLATE_PAIRS: Readonly<Record<string, readonly ContrastPair[]>> = {
     },
   ],
   chikorita: [
+    ...SHEET_CHIP_PAIRS,
     { label: "sidebar panel heading", ink: "accent-color", backdrop: "light-bg" },
     { label: "sidebar panel body text", ink: "text-color", backdrop: "light-bg" },
     { label: "sidebar panel muted text", ink: "muted-color", backdrop: "light-bg" },
@@ -106,6 +129,7 @@ const TEMPLATE_PAIRS: Readonly<Record<string, readonly ContrastPair[]>> = {
     },
   ],
   ditto: [
+    ...SHEET_CHIP_PAIRS,
     { label: "sidebar heading", ink: "accent-color", backdrop: "sidebar-bg" },
     { label: "sidebar body text", ink: "text-color", backdrop: "sidebar-bg" },
     { label: "sidebar muted text", ink: "muted-color", backdrop: "sidebar-bg" },
@@ -129,6 +153,7 @@ const TEMPLATE_PAIRS: Readonly<Record<string, readonly ContrastPair[]>> = {
     },
   ],
   gengar: [
+    ...SHEET_CHIP_PAIRS,
     { label: "sidebar heading", ink: "accent-color", backdrop: "sidebar-bg" },
     { label: "sidebar body text", ink: "sidebar-text", backdrop: "sidebar-bg" },
     { label: "sidebar muted text", ink: "muted-color", backdrop: "sidebar-bg" },
@@ -170,6 +195,7 @@ const TEMPLATE_PAIRS: Readonly<Record<string, readonly ContrastPair[]>> = {
     },
   ],
   kakuna: [
+    ...SHEET_CHIP_PAIRS,
     { label: "keyword chip ink", ink: "accent-color", backdrop: "light-bg" },
     {
       label: "header box border on page",
@@ -185,6 +211,7 @@ const TEMPLATE_PAIRS: Readonly<Record<string, readonly ContrastPair[]>> = {
     },
   ],
   leafish: [
+    ...SHEET_CHIP_PAIRS,
     { label: "header name on header band", ink: "accent-color", backdrop: "header-bg" },
     { label: "header headline on header band", ink: "header-text-color", backdrop: "header-bg" },
     { label: "contact bar ink", ink: "#ffffff", backdrop: "contact-bar-bg" },
@@ -225,6 +252,7 @@ const TEMPLATE_PAIRS: Readonly<Record<string, readonly ContrastPair[]>> = {
     },
   ],
   onyx: [
+    ...SHEET_CHIP_PAIRS,
     { label: "keyword chip ink", ink: "accent-color", backdrop: "accent-color.lighten(92%)" },
     {
       label: "rating indicator fill vs empty",

@@ -61,7 +61,7 @@ bodies above.
 | Divergence | Tag |
 | --- | --- |
 | Sheet does not swap visual sidebar to the right from `layoutMode` chrome alone without matching heading styles | fix-in-typst |
-| Main bottom-stroke headings vs generic sheet titles | fix-in-typst |
+| Main bottom-stroke headings vs the sheet's underline + uppercase chrome (`bundledTemplateLayout`: `chromeUnderlineChips`) — stroke weight and dual scales remain Typst extras | fix-in-typst |
 | Experience lead field was company-first in Typst | fixed (#858) |
 | Typography metadata ignored | fix-in-typst (#701) |
 | **Body starts on page 2** — PDF page 1 held only the header because the tinted sidebar wrapped in an unbreakable Typst `box`, forcing the two-column grid onto the next page. Fixed in #855 by using a breakable `block` for the sidebar fill. | fixed (#855) |

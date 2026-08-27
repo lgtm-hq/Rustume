@@ -128,7 +128,10 @@ export function evaluateExpression(expression: string, resolved: Palette): strin
   if (sheetCall) {
     const name = sheetCall[1].toLowerCase();
     const args = sheetCall[2].split(",").map((arg) => arg.trim());
-    const resolveArg = (arg: string): string | null => evaluateExpression(arg, resolved);
+    // A missing argument (arity drift in a template) fails closed like every
+    // other unresolvable expression instead of throwing mid-parse.
+    const resolveArg = (arg: string | undefined): string | null =>
+      arg === undefined ? null : evaluateExpression(arg, resolved);
     const top = resolveArg(args[0]);
     if (top === null) {
       return null;

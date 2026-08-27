@@ -87,11 +87,13 @@ function readSource(name: string): string {
 const SHEET_FORMULAS: readonly {
   helper: string;
   source: string;
+  pct: number;
   typstRe: RegExp;
   cssRe: RegExp;
 }[] = [
   {
     helper: "sheet-sidebar-tint",
+    pct: 15,
     source: "_common",
     typstRe: /#let sheet-sidebar-tint\(accent, bg\) = sheet-mix\(accent, bg, 15\)/,
     cssRe:
@@ -99,12 +101,14 @@ const SHEET_FORMULAS: readonly {
   },
   {
     helper: "sheet-muted",
+    pct: 60,
     source: "_common",
     typstRe: /#let sheet-muted\(text-color, bg\) = sheet-mix\(text-color, bg, 60\)/,
     cssRe: /--doc-sheet-muted: color-mix\(in srgb, var\(--doc-sheet-text\) 60%, transparent\);/,
   },
   {
     helper: "sheet-chip-fill",
+    pct: 10,
     source: "_common",
     typstRe: /#let sheet-chip-fill\(accent, bg\) = sheet-mix\(accent, bg, 10\)/,
     cssRe:
@@ -112,9 +116,11 @@ const SHEET_FORMULAS: readonly {
   },
   {
     helper: "sheet-chip-stroke",
+    pct: 28,
     source: "_common",
     typstRe: /#let sheet-chip-stroke\(accent\) = sheet-mix\(accent, rgb\("#e7e5e4"\), 28\)/,
-    cssRe: /border: 1px solid color-mix\(in srgb, var\(--doc-sheet-accent\) 28%, #e7e5e4\);/,
+    cssRe:
+      /\.doc-sheet__tag-chip \{\n(?:[^}]*\n)? {2}border: 1px solid color-mix\(in srgb, var\(--doc-sheet-accent\) 28%, #e7e5e4\);/,
   },
   {
     // Template-local: only leafish paints a banner tint, so it has no shared
@@ -122,6 +128,7 @@ const SHEET_FORMULAS: readonly {
     // it could be hand-rolled back into a `lighten()` with every other
     // assertion staying green.
     helper: "leafish banner tint",
+    pct: 12,
     source: "leafish",
     typstRe: /let header-bg = sheet-mix\(primary-color, bg-color, 12\)/,
     cssRe:
@@ -230,14 +237,22 @@ test.describe("template sheet-parity matrix", () => {
     expect(drifted).toEqual([]);
   });
 
-  test("every sheet-mix percentage the Typst side uses is one the sheet paints", () => {
+  test("every sheet-mix percentage the Typst side uses has a named formula row", () => {
     // The rows above name the mixes we know about. This is the open-ended
     // half: a NEW `sheet-mix(…, N)` anywhere — a fresh helper, a template-local
-    // tint like leafish's banner — is a percentage that must exist in
-    // `docSheet.css`, or the PDF is painting a tint the sheet never had.
-    const painted = cssMixPercentages(readFileSync(DOC_SHEET_CSS, "utf8"));
-    const unanchored = [...typstMixPercentages()].filter((pct) => !painted.has(pct)).sort();
+    // tint like leafish's banner — must come with its own SHEET_FORMULAS row
+    // (naming the exact CSS rule it mirrors), not merely reuse a percentage
+    // some unrelated `--doc-sheet-*` mix happens to paint.
+    const locked = new Set(SHEET_FORMULAS.map((formula) => formula.pct));
+    const unanchored = [...typstMixPercentages()].filter((pct) => !locked.has(pct)).sort();
     expect(unanchored).toEqual([]);
+
+    // And every locked percentage really is painted by the sheet — a stale row
+    // whose CSS counterpart was retuned fails the regex test above, but a row
+    // could still cite a percentage the sheet dropped entirely.
+    const painted = cssMixPercentages(readFileSync(DOC_SHEET_CSS, "utf8"));
+    const dropped = [...locked].filter((pct) => !painted.has(pct)).sort();
+    expect(dropped).toEqual([]);
   });
 
   test("the mix maths resolves the sheet formulas to their sheet values", () => {

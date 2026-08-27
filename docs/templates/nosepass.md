@@ -65,7 +65,7 @@ bodies above.
 | Divergence | Tag |
 | --- | --- |
 | **Typst compile failure** on languages row: `stroke: (dash: "dotted") + border-color` is invalid Typst (`cannot add dictionary and color`) — fixture does not render | fix-in-typst |
-| Sheet headings are uppercase-ish generic; Typst is title-case + trailing rule | fix-in-typst |
+| Sheet headings are as-written with a rule (`bundledTemplateLayout`: `rule` + `as-written`); Typst adds title-case and its own trailing-rule weight — align the case and rule details | fix-in-typst |
 | Skill presentation (chip cloud vs compact rows) — the bordered skill pill stays, since it is already this template's chip and nesting keyword chips inside would double it | owner-decision-needed |
 | Level text bullets vs sheet dots | fixed (#919) |
 | Experience lead field | fixed (#858) |

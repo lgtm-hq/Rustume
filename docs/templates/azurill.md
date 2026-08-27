@@ -65,7 +65,7 @@ bodies above.
 
 | Divergence | Tag |
 | --- | --- |
-| Sheet heading chrome is single-style; Typst has main vs sidebar weights | fix-in-typst |
+| Sheet paints azurill's underline + uppercase chrome (`bundledTemplateLayout`); Typst still differs in main vs sidebar heading weights | fix-in-typst |
 | Native level bars vs sheet dots | fixed (#919) |
 | Profile sheet label (username-first) matches Typst `username` — OK; still diverges when only network is set | fix-in-typst |
 | Skill / interest keywords now share the sheet's pill chips | fixed (#919) |
