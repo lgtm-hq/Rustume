@@ -212,6 +212,42 @@ fn template_pdf_visual_baseline(#[case] template: &str) {
     assert_matches_baseline(template, &png);
 }
 
+/// Template whose sidebar custom section carries a labeled URL in the fixture.
+const CUSTOM_URL_TEMPLATE: &str = "pikachu";
+
+/// Fixture page that carries pikachu's "Talks & Workshops" sidebar section.
+const CUSTOM_URL_PAGE: usize = 1;
+
+/// Baseline slot for the labeled custom-section URL (#919). The per-template
+/// baselines above only cover page 0, where no custom section renders, so the
+/// label-over-href fix needs its own page-1 slot.
+const CUSTOM_URL_BASELINE: &str = "pikachu-custom-url";
+
+/// The fixture's `Talks & Workshops` sidebar item carries
+/// `url: { label: "Slides & transcript", href: … }`. Its visible link text must
+/// be the label, not the raw href (#919) — this baseline freezes that page.
+#[test]
+fn custom_section_url_label_visual_baseline() {
+    let mut resume = load_doc_editor_fixture();
+    apply_template(&mut resume, CUSTOM_URL_TEMPLATE);
+
+    let renderer = TypstRenderer::new();
+    let (png, pages) = renderer
+        .render_preview_at(&resume, CUSTOM_URL_PAGE, BASELINE_PIXEL_PER_PT)
+        .unwrap_or_else(|e| panic!("render_preview_at failed for '{CUSTOM_URL_BASELINE}': {e:?}"));
+
+    assert!(
+        pages > CUSTOM_URL_PAGE,
+        "fixture should render past page {CUSTOM_URL_PAGE} on '{CUSTOM_URL_TEMPLATE}'"
+    );
+    assert!(
+        png.starts_with(&[0x89, 0x50, 0x4E, 0x47]),
+        "'{CUSTOM_URL_BASELINE}' output is not a PNG"
+    );
+
+    assert_matches_baseline(CUSTOM_URL_BASELINE, &png);
+}
+
 #[test]
 fn baselines_readme_documents_parity_review() {
     let readme = Path::new(env!("CARGO_MANIFEST_DIR"))
