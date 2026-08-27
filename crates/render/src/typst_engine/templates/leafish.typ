@@ -10,19 +10,21 @@
   let text-color = rgb(data.metadata.theme.at("text", default: "#1f2937"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
   let level-display = data.metadata.at("levelDisplay", default: "template-default")
-  // Derived colors (not in schema — computed from theme values)
-  let muted-color = text-color.lighten(25%)
-  // Accent ink: the ink for headings, links and rules. Every other template
-  // has to darken `primary-color` to clear WCAG AA (4.5:1) on the backdrops
-  // it paints; this crimson already clears 4.79:1 at its worst, so the seed
-  // is used as-is. The alias keeps the ink and the decorative tints below
-  // distinguishable, so a future palette change has an obvious place to go.
+  // Muted ink: the sheet's `--doc-sheet-muted` — `text` at 60% over the ground.
+  let muted-color = sheet-muted(text-color, bg-color)
+  // Accent ink: the raw `primary-color` seed, exactly what the sheet paints as
+  // `--doc-sheet-accent` (#919). The sheet is the PDF's visual source of truth,
+  // so the old `darken(…)` step is gone — it was an unenforced WCAG-AA
+  // convention with no test or CI gate behind it. Decorative tints are mixed
+  // over the page ground below with the sheet's own `color-mix` formulas.
   let accent-color = primary-color
 
   // ── Helper functions (capture theme colors from enclosing scope) ──
 
-  let header-bg = primary-color.lighten(90%)
-  let header-text-color = primary-color.darken(40%)
+  // Banner tint and ink: `.doc-sheet__banner--tint` paints
+  // `color-mix(in srgb, accent 12%, bg)` under normal document ink (#919).
+  let header-bg = sheet-mix(primary-color, bg-color, 12)
+  let header-text-color = text-color
   let contact-bar-bg = primary-color
   let separator-color = primary-color.lighten(60%)
   let tag-bg = primary-color.lighten(90%)

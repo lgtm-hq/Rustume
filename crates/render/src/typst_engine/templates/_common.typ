@@ -31,6 +31,42 @@
   }
 }
 
+// ── Sheet-parity color formulas (#919) ────────────────────────────────────
+//
+// The document sheet (`apps/web/src/components/doc-editor/docSheet.css`) is
+// the visual source of truth for the PDF. Every tint it paints is a CSS
+// `color-mix(in srgb, …)` over the sheet background, so these helpers mirror
+// that arithmetic with Typst's `color.mix(…, space: rgb)`. Keep the
+// percentages here in lockstep with the `--doc-sheet-*` custom properties and
+// the `.doc-sheet__*` rules they are named after.
+
+/// Mix `pct` percent of `top` into `base`, the way CSS
+/// `color-mix(in srgb, top pct%, base)` does.
+#let sheet-mix(top, base, pct) = {
+  color.mix((top, pct * 1%), (base, (100 - pct) * 1%), space: rgb)
+}
+
+/// Sidebar tint: `.doc-sheet--sidebar-tint .doc-sheet__side`
+/// (`color-mix(in srgb, accent 15%, bg)`).
+#let sheet-sidebar-tint(accent, bg) = sheet-mix(accent, bg, 15)
+
+/// Muted body ink: `--doc-sheet-muted` (`text 60%` over the sheet ground).
+#let sheet-muted(text-color, bg) = sheet-mix(text-color, bg, 60)
+
+/// Hairline rule ink: `--doc-sheet-rule` (`accent 35%` over the sheet ground).
+#let sheet-rule(accent, bg) = sheet-mix(accent, bg, 35)
+
+/// Keyword-chip fill: `.doc-sheet__tag-chip`
+/// (`color-mix(in srgb, accent 10%, bg)`).
+#let sheet-chip-fill(accent, bg) = sheet-mix(accent, bg, 10)
+
+/// Keyword-chip border: `.doc-sheet__tag-chip`
+/// (`color-mix(in srgb, accent 28%, #e7e5e4)`).
+#let sheet-chip-stroke(accent) = sheet-mix(accent, rgb("#e7e5e4"), 28)
+
+/// Unfilled level-indicator dot: `.doc-sheet__lang-dots i` background.
+#let SHEET_LEVEL_DOT_EMPTY = rgb("#d6d3d1")
+
 /// True when Typst `image()` can load this URL from the virtual world.
 /// Remote `http(s):` URLs are never fetched and must not reach `image()`.
 #let is-embeddable-picture-url(url) = {
@@ -278,6 +314,25 @@
       fill: color,
       radius: radius,
       stroke: 0.5pt + filled-color,
+    )
+  }
+}
+
+/// Sheet-parity level indicator: five 6pt dots, filled in `accent` up to
+/// `level` and left on the sheet's flat `#d6d3d1` track after it
+/// (`.doc-sheet__lang-dots`). This is the shared `template-default` glyph
+/// (#919) — the sheet draws no outline, so neither does this; the explicit
+/// `metadata.levelDisplay` overrides still route through `render-level`,
+/// which keeps its outlined indicators.
+#let sheet-level-dots(level, accent, spacing: 2.5pt, size: 6pt) = {
+  let level = clamp-level(level)
+  for i in range(5) {
+    if i > 0 { h(spacing) }
+    box(
+      width: size,
+      height: size,
+      fill: if i < level { accent } else { SHEET_LEVEL_DOT_EMPTY },
+      radius: 50%,
     )
   }
 }
@@ -628,12 +683,28 @@
 }
 
 /// Render an item's keywords as soft tag chips (doc-editor spec §4.3).
-/// Used for experience/education entries, whose keywords are new fields no
-/// template renders natively. Colors are intentionally neutral so the chips
-/// read as secondary metadata in every template's palette.
-#let render-item-tag-chips(item, size: 7pt, ink: rgb("#57534e")) = {
+///
+/// Since #919 this is the one keyword-chip treatment for every section that
+/// shows keywords — experience/education extras as before, plus skills and
+/// interests. Pass `accent` and `bg` to paint the sheet's `.doc-sheet__tag-chip`
+/// (`color-mix(accent 10%, bg)` fill, `color-mix(accent 28%, #e7e5e4)` border,
+/// accent text). Without them the chips fall back to the neutral stone grey
+/// the helper shipped with, so callers that want secondary-metadata chips in a
+/// template with no local accent keep their old look.
+#let render-item-tag-chips(
+  item,
+  size: 7pt,
+  ink: rgb("#57534e"),
+  accent: none,
+  bg: none,
+  lead: 3pt,
+) = {
   if not has-keywords(item) { return }
-  v(3pt)
+  let themed = accent != none and bg != none
+  let chip-fill = if themed { sheet-chip-fill(accent, bg) } else { ink.lighten(88%) }
+  let chip-stroke = if themed { sheet-chip-stroke(accent) } else { ink.lighten(60%) }
+  let chip-ink = if themed { accent } else { ink }
+  v(lead)
   // No outer box: a box is an unbreakable inline atom, so a long keyword list
   // would overflow the column instead of wrapping onto the next line. Each
   // chip stays boxed (it must not split mid-word); the gaps between them are
@@ -641,11 +712,11 @@
   for (i, keyword) in item.keywords.enumerate() {
     if i > 0 { h(3pt) }
     box(
-      fill: ink.lighten(88%),
-      stroke: 0.4pt + ink.lighten(60%),
+      fill: chip-fill,
+      stroke: 0.4pt + chip-stroke,
       radius: 999pt,
       inset: (x: 5pt, y: 2.5pt),
-      text(size: size, fill: ink)[#keyword],
+      text(size: size, fill: chip-ink, weight: "semibold")[#keyword],
     )
   }
 }

@@ -10,13 +10,14 @@
   let text-color = rgb(data.metadata.theme.at("text", default: "#111827"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
   let level-display = data.metadata.at("levelDisplay", default: "template-default")
-  // Derived colors (not in schema — computed from theme values)
-  let muted-color = text-color.lighten(35%)
-  // Accent ink: `primary-color` darkened until it clears WCAG AA (4.5:1)
-  // as text on every backdrop this template paints it on — page, tinted
-  // panels, chips and its own profile badge. `primary-color` itself stays
-  // the untouched brand seed the decorative tints below are derived from.
-  let accent-color = primary-color.darken(20%)
+  // Muted ink: the sheet's `--doc-sheet-muted` — `text` at 60% over the ground.
+  let muted-color = sheet-muted(text-color, bg-color)
+  // Accent ink: the raw `primary-color` seed, exactly what the sheet paints as
+  // `--doc-sheet-accent` (#919). The sheet is the PDF's visual source of truth,
+  // so the old `darken(…)` step is gone — it was an unenforced WCAG-AA
+  // convention with no test or CI gate behind it. Decorative tints are mixed
+  // over the page ground below with the sheet's own `color-mix` formulas.
+  let accent-color = primary-color
 
   // ── Helper functions (capture theme colors from enclosing scope) ──
 
