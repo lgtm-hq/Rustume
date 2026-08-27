@@ -123,9 +123,9 @@ const TEMPLATE_PAIRS: Readonly<Record<string, readonly ContrastPair[]>> = {
     },
   ],
   chikorita: [
-    { label: "sidebar panel heading", ink: "accent-color", backdrop: "light-bg" },
-    { label: "sidebar panel body text", ink: "text-color", backdrop: "light-bg" },
-    { label: "sidebar panel muted text", ink: "muted-color", backdrop: "light-bg" },
+    { label: "sidebar panel heading", ink: "accent-color", backdrop: "sidebar-bg" },
+    { label: "sidebar panel body text", ink: "text-color", backdrop: "sidebar-bg" },
+    { label: "sidebar panel muted text", ink: "muted-color", backdrop: "sidebar-bg" },
     { label: "keyword chip ink", ink: "accent-color", backdrop: "accent-bg" },
     {
       label: "rating indicator fill vs empty",

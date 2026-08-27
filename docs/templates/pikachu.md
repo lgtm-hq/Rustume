@@ -51,7 +51,7 @@ Default main / sidebar section ids are defined once in
 | Concern | Rule |
 | --- | --- |
 | Education order | Stacked (not side-by-side): institution → degree → score → date → summary — sized for the narrow sidebar default |
-| Profile label mode | `network` |
+| Profile label mode | `auto` (username, then network, then URL label) |
 | Skill keywords | Comma-joined muted — the sheet's `keywordStyle: "plain"` (`.doc-sheet--keywords-plain`) |
 | Interest keywords | Comma-joined muted — the sheet's `keywordStyle: "plain"` (`.doc-sheet--keywords-plain`) |
 | Project / custom keywords | Middot ` · ` joined |

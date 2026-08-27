@@ -3,7 +3,13 @@
 
 /// Check whether an item has a non-empty URL.
 #let has-url(item) = {
-  "url" in item and item.url != none and item.url.href != ""
+  if not ("url" in item) or item.url == none {
+    return false
+  }
+  // Trim so a whitespace-only href cannot yield a blank link with a
+  // whitespace destination (`url-display-label` trims the same way).
+  let href = if "href" in item.url and item.url.href != none { item.url.href.trim() } else { "" }
+  href != ""
 }
 
 /// Visible text for a `{ label, href }` URL: prefer label, then href, then fallback.

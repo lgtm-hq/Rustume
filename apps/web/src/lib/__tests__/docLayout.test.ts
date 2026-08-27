@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  bundledTemplateLayout,
   CUSTOM_SECTION_SENTINEL,
   DEFAULT_DOC_FONT_FAMILY,
   SERIF_DOC_FONT_FAMILY,
@@ -704,6 +705,26 @@ describe("templateDocFontFamily / docFontStack", () => {
       const match = /font:\s*"(IBM Plex [^"]+)"/.exec(src);
       const expected = match?.[1] ?? SERIF_DOC_FONT_FAMILY;
       expect(templateDocFontFamily(id), id).toBe(expected);
+    }
+  });
+
+  it("keeps each template's keywordStyle in lockstep with the Typst chip call", () => {
+    // The registry's `keywordStyle` decides whether the sheet paints
+    // `.doc-sheet__tag-chip` pills or comma-joined muted text for
+    // skills/interests; the PDF converges on it (#919) by making a themed
+    // `render-item-tag-chips(…, accent: …, bg: …)` call in exactly the
+    // `chips` templates. A registry-only flip, or a Typst-only conversion,
+    // fails here rather than silently splitting the two renderers.
+    const ids = readdirSync(typstTemplates)
+      .filter((name) => name.endsWith(".typ") && !name.startsWith("_"))
+      .map((name) => name.replace(/\.typ$/, ""));
+    for (const id of ids) {
+      const src = readFileSync(join(typstTemplates, `${id}.typ`), "utf8");
+      const themedChips =
+        /render-item-tag-chips\([\s\S]{0,400}?accent: accent-color,[\s\S]{0,100}?bg: bg-color/.test(
+          src,
+        );
+      expect(bundledTemplateLayout(id).keywordStyle, id).toBe(themedChips ? "chips" : "plain");
     }
   });
 

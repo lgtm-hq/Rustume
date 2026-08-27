@@ -21,7 +21,10 @@
 
   // ── Helper functions (capture theme colors from enclosing scope) ──
 
-  let light-bg = primary-color.lighten(92%)
+  // Tinted right column: the sheet paints `sidebarTint` panels with
+  // `color-mix(accent 15%, bg)` (`.doc-sheet--sidebar-tint`), so the panel
+  // uses the shared sheet formula (#919).
+  let sidebar-bg = sheet-sidebar-tint(primary-color, bg-color)
   let accent-bg = primary-color.lighten(85%)
   let border-color = primary-color.lighten(75%)
 
@@ -464,7 +467,7 @@
     // can split with the grid.
     let right-wrapper(body) = {
       block(
-        fill: light-bg,
+        fill: sidebar-bg,
         radius: 6pt,
         inset: 12pt,
         width: 100%,

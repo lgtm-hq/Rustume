@@ -67,7 +67,7 @@ bodies above.
 | --- | --- |
 | Sheet paints azurill's underline + uppercase chrome (`bundledTemplateLayout`); Typst still differs in main vs sidebar heading weights | fix-in-typst |
 | Native level bars vs sheet dots | fixed (#919) |
-| Profile sheet label (username-first) matches Typst `username` — OK; still diverges when only network is set | fix-in-typst |
+| Profile label: both sides use the `auto` order (username, then network, then URL label) — azurill passes `label-mode: "auto"`, so a network-only profile renders the network on both | fixed (#829) |
 | Skill / interest keywords now share the sheet's pill chips | fixed (#919) |
 | Accent ink, level dots and keyword chips follow the sheet | fixed (#919) |
 | Experience lead field was company-first in Typst | fixed (#858) |
