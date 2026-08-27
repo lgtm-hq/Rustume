@@ -30,7 +30,13 @@ import { join } from "node:path";
 import type { Page } from "@playwright/test";
 import { test, expect, TEMPLATES_ROUTE } from "./support/fixtures";
 import { pairsFor, uncoveredBindings } from "./support/templateContrastMatrix";
-import { TEMPLATE_DIR, TEMPLATE_IDS, readPalette, resolveColor } from "./support/typstPalette";
+import {
+  TEMPLATE_DIR,
+  TEMPLATE_IDS,
+  evaluateExpression,
+  readPalette,
+  resolveColor,
+} from "./support/typstPalette";
 
 /** WCAG 2.1 AA scan scope, matching the rest of the suite. */
 const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
@@ -62,42 +68,91 @@ function readSource(name: string): string {
 }
 
 /**
- * The sheet formulas the Typst helpers must mirror, one row per helper.
+ * The sheet formulas the Typst side must mirror, one row per mix.
  *
- * `typstRe` matches the helper's definition in `_common.typ`; `cssRe` matches
+ * `typstRe` matches the declaration in `source` (`_common.typ` for the shared
+ * helpers, a template for a tint only that template paints); `cssRe` matches
  * the `docSheet.css` declaration it is named after. Both anchor the mix
  * percentage, so retuning either side without the other fails here rather
  * than silently splitting the sheet and the PDF.
+ *
+ * The percentage is all these rows lock. `--doc-sheet-muted` is `text 60%` over
+ * TRANSPARENT, not over the sheet background — a translucent ink the browser
+ * composites over whatever is behind it. Typst has no compositing model here,
+ * so `sheet-muted` resolves the same arithmetic against a ground the caller
+ * passes (`0.6·text + 0.4·ground` either way); the two agree exactly, provided
+ * the caller passes the LOCAL ground. Inside a tinted sidebar that is the rail,
+ * not the page — see `sheet-muted`'s own doc comment in `_common.typ`.
  */
-const SHEET_FORMULAS: readonly { helper: string; typstRe: RegExp; cssRe: RegExp }[] = [
+const SHEET_FORMULAS: readonly {
+  helper: string;
+  source: string;
+  typstRe: RegExp;
+  cssRe: RegExp;
+}[] = [
   {
     helper: "sheet-sidebar-tint",
+    source: "_common",
     typstRe: /#let sheet-sidebar-tint\(accent, bg\) = sheet-mix\(accent, bg, 15\)/,
     cssRe:
       /\.doc-sheet__side \{\n(?:[^}]*\n)? {2}background: color-mix\(in srgb, var\(--doc-sheet-accent\) 15%, var\(--doc-sheet-bg\)\);/,
   },
   {
     helper: "sheet-muted",
+    source: "_common",
     typstRe: /#let sheet-muted\(text-color, bg\) = sheet-mix\(text-color, bg, 60\)/,
     cssRe: /--doc-sheet-muted: color-mix\(in srgb, var\(--doc-sheet-text\) 60%, transparent\);/,
   },
   {
-    helper: "sheet-rule",
-    typstRe: /#let sheet-rule\(accent, bg\) = sheet-mix\(accent, bg, 35\)/,
-    cssRe: /--doc-sheet-rule: color-mix\(in srgb, var\(--doc-sheet-accent\) 35%, transparent\);/,
-  },
-  {
     helper: "sheet-chip-fill",
+    source: "_common",
     typstRe: /#let sheet-chip-fill\(accent, bg\) = sheet-mix\(accent, bg, 10\)/,
     cssRe:
       /\.doc-sheet__tag-chip \{\n(?:[^}]*\n)? {2}background: color-mix\(in srgb, var\(--doc-sheet-accent\) 10%, var\(--doc-sheet-bg\)\);/,
   },
   {
     helper: "sheet-chip-stroke",
+    source: "_common",
     typstRe: /#let sheet-chip-stroke\(accent\) = sheet-mix\(accent, rgb\("#e7e5e4"\), 28\)/,
     cssRe: /border: 1px solid color-mix\(in srgb, var\(--doc-sheet-accent\) 28%, #e7e5e4\);/,
   },
+  {
+    // Template-local: only leafish paints a banner tint, so it has no shared
+    // helper — but it is still a sheet formula and still needs anchoring, or
+    // it could be hand-rolled back into a `lighten()` with every other
+    // assertion staying green.
+    helper: "leafish banner tint",
+    source: "leafish",
+    typstRe: /let header-bg = sheet-mix\(primary-color, bg-color, 12\)/,
+    cssRe:
+      /\.doc-sheet__banner--tint \{\n {2}background: color-mix\(in srgb, var\(--doc-sheet-accent\) 12%, var\(--doc-sheet-bg\)\);/,
+  },
 ];
+
+/** Every `sheet-mix(…, N)` percentage across `_common.typ` and the templates. */
+function typstMixPercentages(): ReadonlySet<number> {
+  const found = new Set<number>();
+  for (const name of [...TEMPLATE_IDS, "_common"]) {
+    // One nested paren level, so a literal operand (`rgb("#e7e5e4")`) counts.
+    for (const [, pct] of readSource(name).matchAll(
+      /sheet-mix\((?:[^()]|\([^()]*\))*?,\s*(\d+(?:\.\d+)?)\)/g,
+    )) {
+      found.add(Number(pct));
+    }
+  }
+  return found;
+}
+
+/** Every `color-mix(in srgb, var(--doc-sheet-*) N%, …)` percentage in the sheet. */
+function cssMixPercentages(css: string): ReadonlySet<number> {
+  const found = new Set<number>();
+  for (const [, pct] of css.matchAll(
+    /color-mix\(in srgb, var\(--doc-sheet-[a-z-]+\) (\d+(?:\.\d+)?)%/g,
+  )) {
+    found.add(Number(pct));
+  }
+  return found;
+}
 
 /** `docSheet.css`, the stylesheet whose formulas the templates converge on. */
 const DOC_SHEET_CSS = join(
@@ -120,10 +175,19 @@ test.describe("template sheet-parity matrix", () => {
     test(`${templateId} resolves every audited pair`, () => {
       // The resolver throws on any expression outside the audited grammar, so
       // a retuned tint or renamed binding fails here instead of going unread.
+      // With the WCAG ratio floors retired (#921), resolvability IS the
+      // assertion — the audited grammar is the guard. The resolved value is
+      // still shape-checked so a resolver that started returning something
+      // other than an opaque hex could not pass silently; the VALUES the
+      // formulas must produce are locked by the mix-maths test above.
       const palette = readPalette(templateId);
       for (const pair of pairsFor(templateId)) {
-        resolveColor(palette, pair.ink, templateId);
-        resolveColor(palette, pair.backdrop, templateId);
+        for (const expression of [pair.ink, pair.backdrop]) {
+          expect(
+            resolveColor(palette, expression, templateId),
+            `${templateId}: ${pair.label} (${expression})`,
+          ).toMatch(/^#[0-9a-f]{6}$/);
+        }
       }
     });
   });
@@ -158,13 +222,37 @@ test.describe("template sheet-parity matrix", () => {
     expect(diverged).toEqual([]);
   });
 
-  test("the sheet-parity helpers mirror docSheet.css", () => {
-    const common = readSource("_common");
+  test("the sheet-parity formulas lock the same mix percentages as docSheet.css", () => {
     const css = readFileSync(DOC_SHEET_CSS, "utf8");
     const drifted = SHEET_FORMULAS.filter(
-      (formula) => !formula.typstRe.test(common) || !formula.cssRe.test(css),
+      (formula) => !formula.typstRe.test(readSource(formula.source)) || !formula.cssRe.test(css),
     ).map((formula) => formula.helper);
     expect(drifted).toEqual([]);
+  });
+
+  test("every sheet-mix percentage the Typst side uses is one the sheet paints", () => {
+    // The rows above name the mixes we know about. This is the open-ended
+    // half: a NEW `sheet-mix(…, N)` anywhere — a fresh helper, a template-local
+    // tint like leafish's banner — is a percentage that must exist in
+    // `docSheet.css`, or the PDF is painting a tint the sheet never had.
+    const painted = cssMixPercentages(readFileSync(DOC_SHEET_CSS, "utf8"));
+    const unanchored = [...typstMixPercentages()].filter((pct) => !painted.has(pct)).sort();
+    expect(unanchored).toEqual([]);
+  });
+
+  test("the mix maths resolves the sheet formulas to their sheet values", () => {
+    // The regex rows lock the SOURCE; this locks the ARITHMETIC. Without it an
+    // inverted `mixSrgb`, or a helper percentage parsed from the wrong capture
+    // group, would leave every assertion above green while the audit measured
+    // colours no renderer paints. Values are `color-mix(in srgb, …)` over the
+    // fixture theme (`#65a30d` accent on `#ffffff`).
+    const palette = { "accent-color": "#65a30d", "bg-color": "#ffffff", "text-color": "#000000" };
+    const resolve = (expression: string) => evaluateExpression(expression, palette);
+    expect(resolve("sheet-sidebar-tint(accent-color, bg-color)")).toBe("#e8f1db");
+    expect(resolve("sheet-chip-fill(accent-color, bg-color)")).toBe("#f0f6e7");
+    expect(resolve("sheet-chip-stroke(accent-color)")).toBe("#c3d3a8");
+    expect(resolve("sheet-muted(text-color, bg-color)")).toBe("#666666");
+    expect(resolve("sheet-mix(accent-color, bg-color, 12)")).toBe("#edf4e2");
   });
 
   test("every template declares an audited accent ink", () => {
@@ -245,7 +333,7 @@ test.describe("template rendering surfaces", () => {
       });
 
       await test.step("the PDF export carries this template", async () => {
-        // Ties the print half of the matrix to the artefact a user actually
+        // Ties the source-resolved matrix to the artefact a user actually
         // sends: the export asks the server for THIS template, so the colours
         // gated above are the colours the PDF is built from.
         await docEditorPage.openExportModal();

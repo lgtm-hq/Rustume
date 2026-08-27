@@ -132,6 +132,15 @@ const TEMPLATE_PAIRS: Readonly<Record<string, readonly ContrastPair[]>> = {
     { label: "sidebar heading", ink: "accent-color", backdrop: "sidebar-bg" },
     { label: "sidebar body text", ink: "sidebar-text", backdrop: "sidebar-bg" },
     { label: "sidebar muted text", ink: "muted-color", backdrop: "sidebar-bg" },
+    {
+      // Muted ink the template resolves against the RAIL rather than the page,
+      // because the sheet composites `--doc-sheet-muted` (60% alpha) over
+      // whatever is behind it. Section renderers shared with the main column
+      // keep the page-ground `muted-color` above.
+      label: "sidebar-local muted text",
+      ink: "sidebar-muted-color",
+      backdrop: "sidebar-bg",
+    },
     { label: "project tag ink", ink: "accent-color", backdrop: "sidebar-bg" },
     {
       label: "rating indicator fill vs empty",
@@ -144,6 +153,15 @@ const TEMPLATE_PAIRS: Readonly<Record<string, readonly ContrastPair[]>> = {
     { label: "sidebar heading", ink: "accent-color", backdrop: "sidebar-bg" },
     { label: "sidebar body text", ink: "text-color", backdrop: "sidebar-bg" },
     { label: "sidebar muted text", ink: "muted-color", backdrop: "sidebar-bg" },
+    {
+      // Muted ink the template resolves against the RAIL rather than the page,
+      // because the sheet composites `--doc-sheet-muted` (60% alpha) over
+      // whatever is behind it. Section renderers shared with the main column
+      // keep the page-ground `muted-color` above.
+      label: "sidebar-local muted text",
+      ink: "sidebar-muted-color",
+      backdrop: "sidebar-bg",
+    },
     {
       label: "rating indicator fill vs empty",
       ink: "accent-color",

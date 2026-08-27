@@ -56,22 +56,53 @@ const THEME_DEFAULT_RE =
 const RGB_LITERAL_RE = /^rgb\(\s*"(#[0-9a-f]{3,6})"\s*\)$/i;
 const HEX_LITERAL_RE = /^(#[0-9a-f]{3}|#[0-9a-f]{6})$/i;
 const MODIFIER_RE = /^(.+?)\.(lighten|darken)\(\s*(\d+(?:\.\d+)?)%\s*\)$/i;
-const SHEET_CALL_RE =
-  /^(sheet-mix|sheet-sidebar-tint|sheet-muted|sheet-rule|sheet-chip-fill|sheet-chip-stroke)\(\s*(.+?)\s*\)$/i;
+const SHEET_CALL_RE = /^(sheet-[a-z][a-z0-9-]*)\(\s*(.+?)\s*\)$/i;
 
 /**
- * Mix percentage each `sheet-*` tint helper in `_common.typ` bakes in. Keep in
- * lockstep with the helper bodies (which themselves mirror `docSheet.css`).
+ * One `sheet-*` tint helper, as declared in `_common.typ`.
+ *
+ * `base` is non-null only when the helper hard-codes its second operand (the
+ * chip border mixes into a literal `#e7e5e4`); otherwise the caller supplies it.
  */
-const SHEET_CALL_PCT: Readonly<Record<string, number>> = {
-  "sheet-sidebar-tint": 15,
-  "sheet-muted": 60,
-  "sheet-rule": 35,
-  "sheet-chip-fill": 10,
-};
+export interface SheetHelper {
+  readonly name: string;
+  readonly pct: number;
+  readonly base: string | null;
+}
 
-/** `.doc-sheet__tag-chip` border mix base, from `sheet-chip-stroke`. */
-const SHEET_CHIP_STROKE_BASE = "#e7e5e4";
+/** `#let sheet-x(a, b) = sheet-mix(a, b, 15)` — the whole helper grammar. */
+const SHEET_HELPER_RE =
+  /^#let\s+(sheet-[a-z][a-z0-9-]*)\([^)]*\)\s*=\s*sheet-mix\(\s*[^,]+?\s*,\s*(.+?)\s*,\s*(\d+(?:\.\d+)?)\s*\)\s*$/gm;
+
+/**
+ * Parse the `sheet-*` helpers out of `_common.typ`.
+ *
+ * The percentages are read from the Typst source rather than restated here:
+ * a hand-copied table is a third place the sheet's formulas live, and it can
+ * drift from `_common.typ` (which mirrors `docSheet.css`) without any test
+ * noticing. `sheet-mix` itself is variadic in its percentage and is handled
+ * directly by the evaluator.
+ */
+export function parseSheetHelpers(commonSource: string): ReadonlyMap<string, SheetHelper> {
+  const helpers = new Map<string, SheetHelper>();
+  for (const [, name, base, pct] of commonSource.matchAll(SHEET_HELPER_RE)) {
+    const literal = RGB_LITERAL_RE.exec(base) ?? HEX_LITERAL_RE.exec(base);
+    helpers.set(name.toLowerCase(), {
+      name,
+      pct: Number(pct),
+      base: literal ? literal[1].toLowerCase() : null,
+    });
+  }
+  return helpers;
+}
+
+/** Read `_common.typ` and parse its `sheet-*` helpers. */
+export function readSheetHelpers(templateDir = TEMPLATE_DIR): ReadonlyMap<string, SheetHelper> {
+  return parseSheetHelpers(readFileSync(join(templateDir, "_common.typ"), "utf8"));
+}
+
+/** The shipped helpers, resolved once at load from `_common.typ`. */
+export const SHEET_HELPERS = readSheetHelpers();
 
 /**
  * Evaluate one Typst colour expression against already-resolved bindings.
@@ -98,19 +129,21 @@ export function evaluateExpression(expression: string, resolved: Palette): strin
     const name = sheetCall[1].toLowerCase();
     const args = sheetCall[2].split(",").map((arg) => arg.trim());
     const resolveArg = (arg: string): string | null => evaluateExpression(arg, resolved);
+    const top = resolveArg(args[0]);
+    if (top === null) {
+      return null;
+    }
     if (name === "sheet-mix") {
-      const top = resolveArg(args[0]);
       const base = resolveArg(args[1]);
       const pct = Number(args[2]?.replace(/%$/, ""));
-      return top !== null && base !== null && Number.isFinite(pct) ? mixSrgb(top, base, pct) : null;
+      return base !== null && Number.isFinite(pct) ? mixSrgb(top, base, pct) : null;
     }
-    if (name === "sheet-chip-stroke") {
-      const accent = resolveArg(args[0]);
-      return accent !== null ? mixSrgb(accent, SHEET_CHIP_STROKE_BASE, 28) : null;
+    const helper = SHEET_HELPERS.get(name);
+    if (helper === undefined) {
+      return null;
     }
-    const top = resolveArg(args[0]);
-    const base = resolveArg(args[1]);
-    return top !== null && base !== null ? mixSrgb(top, base, SHEET_CALL_PCT[name]) : null;
+    const base = helper.base ?? resolveArg(args[1]);
+    return base !== null ? mixSrgb(top, base, helper.pct) : null;
   }
 
   const themed = THEME_DEFAULT_RE.exec(expr);
