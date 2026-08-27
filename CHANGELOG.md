@@ -22,6 +22,13 @@ and this project adheres to
 
 ### Security
 
+## [0.69.1] - 2026-08-27
+
+### Fixed
+
+- **typst**: converge PDF export on the sheet preview (sheet-parity) + url.label for
+  custom-section items (#920) (041380c)
+
 ## [0.69.0] - 2026-08-26
 
 ### Added
@@ -1145,7 +1152,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.69.0...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.69.1...HEAD
+[0.69.1]: https://github.com/lgtm-hq/Rustume/compare/v0.69.0...v0.69.1
 [0.69.0]: https://github.com/lgtm-hq/Rustume/compare/v0.68.1...v0.69.0
 [0.68.1]: https://github.com/lgtm-hq/Rustume/compare/v0.68.0...v0.68.1
 [0.68.0]: https://github.com/lgtm-hq/Rustume/compare/v0.67.7...v0.68.0
