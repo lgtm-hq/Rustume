@@ -60,7 +60,7 @@ bodies above.
 | Divergence | Tag |
 | --- | --- |
 | Sheet `headerStyle: boxed` draws a stroked banner approximation; Typst centers a full-width padded box including contact | fix-in-typst |
-| Heading trailing-rule chrome missing | fix-in-typst |
+| Typst's trailing accent rule vs the sheet's underline + uppercase chrome (`chromeUnderlineChips`) — the sheet has kakuna's heading chrome; the rule treatment is a Typst extra | fix-in-typst |
 | Light name weight not mirrored | fix-in-typst |
 | Experience lead field | fixed (#858) |
 | Typography metadata ignored | fix-in-typst (#701) |

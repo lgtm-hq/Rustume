@@ -21,8 +21,10 @@
  * floor each pair was (and would again be) gated against, kept because the
  * follow-up work restoring contrast compliance starts from exactly this map.
  */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { ContrastRole } from "./contrast";
-import type { Palette } from "./typstPalette";
+import { TEMPLATE_DIR, type Palette } from "./typstPalette";
 
 /** One ink-on-backdrop relationship a template paints. */
 export interface ContrastPair {
@@ -77,6 +79,12 @@ const UNIVERSAL_PAIRS: readonly ContrastPair[] = [
  * fill, and the mixed border stroked on that same fill. Every chip-style
  * template passes `text-color` / `accent-color` / `bg-color`, so one shared
  * pair set covers them all.
+ *
+ * Membership is not hand-listed: `pairsFor` includes these pairs for exactly
+ * the templates whose SOURCE makes a themed `render-item-tag-chips` call, the
+ * same way every other colour here is resolved from what the template actually
+ * paints. A template that flips its `keywordStyle` gains or loses the pairs
+ * with the call site itself.
  */
 const SHEET_CHIP_PAIRS: readonly ContrastPair[] = [
   {
@@ -98,7 +106,6 @@ const SHEET_CHIP_PAIRS: readonly ContrastPair[] = [
  */
 const TEMPLATE_PAIRS: Readonly<Record<string, readonly ContrastPair[]>> = {
   azurill: [
-    ...SHEET_CHIP_PAIRS,
     { label: "keyword chip ink", ink: "accent-color", backdrop: "light-bg" },
     {
       label: "rating indicator fill vs empty",
@@ -116,7 +123,6 @@ const TEMPLATE_PAIRS: Readonly<Record<string, readonly ContrastPair[]>> = {
     },
   ],
   chikorita: [
-    ...SHEET_CHIP_PAIRS,
     { label: "sidebar panel heading", ink: "accent-color", backdrop: "light-bg" },
     { label: "sidebar panel body text", ink: "text-color", backdrop: "light-bg" },
     { label: "sidebar panel muted text", ink: "muted-color", backdrop: "light-bg" },
@@ -129,7 +135,6 @@ const TEMPLATE_PAIRS: Readonly<Record<string, readonly ContrastPair[]>> = {
     },
   ],
   ditto: [
-    ...SHEET_CHIP_PAIRS,
     { label: "sidebar heading", ink: "accent-color", backdrop: "sidebar-bg" },
     { label: "sidebar body text", ink: "text-color", backdrop: "sidebar-bg" },
     { label: "sidebar muted text", ink: "muted-color", backdrop: "sidebar-bg" },
@@ -153,7 +158,6 @@ const TEMPLATE_PAIRS: Readonly<Record<string, readonly ContrastPair[]>> = {
     },
   ],
   gengar: [
-    ...SHEET_CHIP_PAIRS,
     { label: "sidebar heading", ink: "accent-color", backdrop: "sidebar-bg" },
     { label: "sidebar body text", ink: "sidebar-text", backdrop: "sidebar-bg" },
     { label: "sidebar muted text", ink: "muted-color", backdrop: "sidebar-bg" },
@@ -195,7 +199,6 @@ const TEMPLATE_PAIRS: Readonly<Record<string, readonly ContrastPair[]>> = {
     },
   ],
   kakuna: [
-    ...SHEET_CHIP_PAIRS,
     { label: "keyword chip ink", ink: "accent-color", backdrop: "light-bg" },
     {
       label: "header box border on page",
@@ -211,7 +214,6 @@ const TEMPLATE_PAIRS: Readonly<Record<string, readonly ContrastPair[]>> = {
     },
   ],
   leafish: [
-    ...SHEET_CHIP_PAIRS,
     { label: "header name on header band", ink: "accent-color", backdrop: "header-bg" },
     { label: "header headline on header band", ink: "header-text-color", backdrop: "header-bg" },
     { label: "contact bar ink", ink: "#ffffff", backdrop: "contact-bar-bg" },
@@ -252,7 +254,6 @@ const TEMPLATE_PAIRS: Readonly<Record<string, readonly ContrastPair[]>> = {
     },
   ],
   onyx: [
-    ...SHEET_CHIP_PAIRS,
     { label: "keyword chip ink", ink: "accent-color", backdrop: "accent-color.lighten(92%)" },
     {
       label: "rating indicator fill vs empty",
@@ -284,13 +285,20 @@ const TEMPLATE_PAIRS: Readonly<Record<string, readonly ContrastPair[]>> = {
   ],
 };
 
+/** True when a template's Typst source paints the themed sheet chips. */
+function paintsThemedChips(templateId: string): boolean {
+  const source = readFileSync(join(TEMPLATE_DIR, `${templateId}.typ`), "utf8");
+  return /render-item-tag-chips\(/.test(source) && /accent: accent-color/.test(source);
+}
+
 /** Every pair audited for one template. */
 export function pairsFor(templateId: string): readonly ContrastPair[] {
   const specific = TEMPLATE_PAIRS[templateId];
   if (!specific) {
     throw new Error(`no contrast matrix entry for template ${templateId}`);
   }
-  return [...UNIVERSAL_PAIRS, ...specific];
+  const chipPairs = paintsThemedChips(templateId) ? SHEET_CHIP_PAIRS : [];
+  return [...UNIVERSAL_PAIRS, ...chipPairs, ...specific];
 }
 
 /**

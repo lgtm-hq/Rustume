@@ -58,7 +58,7 @@ bodies above.
 
 | Divergence | Tag |
 | --- | --- |
-| Sheet header is not distinctly centered/contact-wrapped per bronzor | fix-in-typst |
+| Sheet centers bronzor's header via `.doc-sheet--head-center` (`bundledSingle("center")`, asserted by the sheetChrome tests), so header centering is no longer a divergence | fixed (#830) |
 | Heading chrome: the sheet already applies bronzor's underline + uppercase (`bundledTemplateLayout`), so this is no longer a divergence | fixed (#830) |
 | Level squares vs sheet dots | fixed (#919) |
 | Experience lead field was company-first in Typst | fixed (#858) |

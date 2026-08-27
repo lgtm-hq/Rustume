@@ -63,7 +63,7 @@ bodies above.
 | Divergence | Tag |
 | --- | --- |
 | Sheet banner tint/boxing approximates banner but not ditto's solid accent fill + white type. The solid banner is ditto's identity, so flattening it onto the sheet's tinted band is not a given — same carve-out as nosepass's skill pill | owner-decision-needed |
-| Body 9pt denser leading not mirrored on sheet | fix-in-typst |
+| Body 9pt / 0.6em leading is ditto's frozen typeface baseline (see the table above); the sheet reads the shared base size — converging either side changes an identity choice | owner-decision-needed |
 | Experience lead field was company-first in Typst | fixed (#858) |
 | `page.margin` inert (full-bleed) | decided (#859) |
 | Typography metadata ignored | fix-in-typst (#701) |

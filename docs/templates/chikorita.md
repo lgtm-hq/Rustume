@@ -60,7 +60,7 @@ bodies above.
 
 | Divergence | Tag |
 | --- | --- |
-| Sheet does not swap visual sidebar to the right from `layoutMode` chrome alone without matching heading styles | fix-in-typst |
+| Sheet paints `sidebar-right` via `doc-sheet__grid--side-right` (`bundledTemplateLayout`), so the visual swap is no longer a divergence | fixed (#830) |
 | Main bottom-stroke headings vs the sheet's underline + uppercase chrome (`bundledTemplateLayout`: `chromeUnderlineChips`) — stroke weight and dual scales remain Typst extras | fix-in-typst |
 | Experience lead field was company-first in Typst | fixed (#858) |
 | Typography metadata ignored | fix-in-typst (#701) |

@@ -186,7 +186,7 @@ test.describe("template sheet-parity matrix", () => {
       // assertion — the audited grammar is the guard. The resolved value is
       // still shape-checked so a resolver that started returning something
       // other than an opaque hex could not pass silently; the VALUES the
-      // formulas must produce are locked by the mix-maths test above.
+      // formulas must produce are locked by the mix-maths test below.
       const palette = readPalette(templateId);
       for (const pair of pairsFor(templateId)) {
         for (const expression of [pair.ink, pair.backdrop]) {
@@ -229,6 +229,21 @@ test.describe("template sheet-parity matrix", () => {
     expect(diverged).toEqual([]);
   });
 
+  test("every sidebar-local muted ink composites over the rail", () => {
+    // The sheet's muted ink is 60% alpha composited over whatever sits behind
+    // it, so a sidebar-local muted binding must mix against the rail, not the
+    // page. Swapped or wrong operands still resolve to a plausible hex, which
+    // is why the pair audit alone cannot catch this — only a source lock can.
+    const diverged = TEMPLATE_IDS.filter((templateId) => {
+      const source = readSource(templateId);
+      return (
+        /let sidebar-muted-color =/.test(source) &&
+        !/let sidebar-muted-color = sheet-muted\(text-color, sidebar-bg\)\s*$/m.test(source)
+      );
+    });
+    expect(diverged).toEqual([]);
+  });
+
   test("the sheet-parity formulas lock the same mix percentages as docSheet.css", () => {
     const css = readFileSync(DOC_SHEET_CSS, "utf8");
     const drifted = SHEET_FORMULAS.filter(
@@ -240,9 +255,12 @@ test.describe("template sheet-parity matrix", () => {
   test("every sheet-mix percentage the Typst side uses has a named formula row", () => {
     // The rows above name the mixes we know about. This is the open-ended
     // half: a NEW `sheet-mix(…, N)` anywhere — a fresh helper, a template-local
-    // tint like leafish's banner — must come with its own SHEET_FORMULAS row
-    // (naming the exact CSS rule it mirrors), not merely reuse a percentage
-    // some unrelated `--doc-sheet-*` mix happens to paint.
+    // tint like leafish's banner — must use a percentage some SHEET_FORMULAS
+    // row locks. It is a number-level net, deliberately coarse: a fresh mix
+    // that reuses an already-locked percentage slips through here, and it is
+    // the named typstRe/cssRe rows (and review) that tell 10%-over-bg chips
+    // apart from a 10%-over-transparent tint. What this net does stop is a
+    // percentage the sheet never painted arriving without its own row.
     const locked = new Set(SHEET_FORMULAS.map((formula) => formula.pct));
     const unanchored = [...typstMixPercentages()].filter((pct) => !locked.has(pct)).sort();
     expect(unanchored).toEqual([]);
