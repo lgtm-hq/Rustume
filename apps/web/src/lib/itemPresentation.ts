@@ -32,9 +32,12 @@ export function profileEntryLabel(item: {
   if (username !== "") return username;
   const network = (item.network ?? "").trim();
   if (network !== "") return network;
+  // Like Typst `has-url`, the URL fallback exists only for a real (non-blank)
+  // href — a label without a destination is not a link on either renderer.
+  const href = (item.url?.href ?? "").trim();
+  if (href === "") return "";
   const label = (item.url?.label ?? "").trim();
-  if (label !== "") return label;
-  return (item.url?.href ?? "").trim();
+  return label !== "" ? label : href;
 }
 
 /** Education primary line: study type / degree only. */
