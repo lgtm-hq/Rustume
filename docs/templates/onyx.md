@@ -1,6 +1,6 @@
 # onyx
 
-Single-column red-accent resume; split header like rhyhorn; uppercase bottom-stroke headings; square
+Single-column red-accent resume; split header like rhyhorn; uppercase bottom-stroke headings; dot
 levels.
 
 Adapted-from context: Reactive Resume artboard `apps/web/public/templates/{jpg,pdf}/onyx.*` (not a
@@ -46,10 +46,10 @@ Default main / sidebar section ids are defined once in
 | --- | --- |
 | Experience order | **Position-first** (bold, text ink); company in accent below, `· location` muted — already sheet-aligned |
 | Education order | Institution + degree; date right; score; summary |
-| Profile label mode | URL → `network`; else `network-username` |
-| Skill / project keywords | Soft accent chips |
-| Interest keywords | ` — ` + comma list |
-| Level (`template-default`) | Squares 8×8pt (radius 0) |
+| Profile label mode | `auto` (username, then network, then URL label) |
+| Skill / interest keywords | Themed pill chips (`render-item-tag-chips`, #919) — the sheet's `keywordStyle: "chips"` |
+| Project keywords | Soft accent chips (template-local) |
+| Level (`template-default`) | Sheet-parity five dots: 4.5pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.25pt apart (#919) |
 
 Shared extras from `_common.typ` (experience/education keyword chips + custom
 fields; projects/skills custom fields) still apply on top of the native item
@@ -59,9 +59,9 @@ bodies above.
 
 | Divergence | Tag |
 | --- | --- |
-| Visually close to rhyhorn on the sheet today; Typst headings/levels/keyword chips still differ (experience is position-first on both as of #858) | fix-in-sheet |
-| Profile `network` when linked vs sheet username-first | fix-in-sheet |
-| Level squares vs sheet dots | fix-in-sheet |
+| Visually close to rhyhorn on the sheet today; Typst heading chrome still differs (levels and keyword chips converged in #919; experience is position-first on both as of #858) | fix-in-typst |
+| Profile label: both sides use the `auto` order — onyx passes `label-mode: "auto"` | fixed (#829) |
+| Level squares vs sheet dots | fixed (#919) |
 | Experience lead field | fixed (#858) |
 | Typography metadata ignored | fix-in-typst (#701) |
 

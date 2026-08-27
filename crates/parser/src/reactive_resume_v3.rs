@@ -87,6 +87,19 @@ impl V3Url {
         }
     }
 
+    /// Full `{ label, href }` pair, preserving an explicit display label so it
+    /// survives import and reaches the renderers (#919).
+    fn to_url(&self) -> Url {
+        match self {
+            V3Url::Empty => Url::default(),
+            V3Url::String(s) => Url::new(s.clone()),
+            V3Url::Object { href, label } => Url {
+                label: label.clone().unwrap_or_default(),
+                href: href.clone().unwrap_or_default(),
+            },
+        }
+    }
+
     fn to_label(&self) -> String {
         match self {
             V3Url::Empty => String::new(),
@@ -655,7 +668,7 @@ fn convert_profiles(v3: &V3Section<V3Profile>, section: &mut Section<Profile>) {
                 profile = profile.with_icon(icon);
             }
             if let Some(url) = &p.url {
-                profile = profile.with_url(url.to_href());
+                profile.url = url.to_url();
             }
             profile
         })
@@ -688,7 +701,7 @@ fn convert_experience(v3: &V3Section<V3Experience>, section: &mut Section<Experi
                 exp = exp.with_summary(summary);
             }
             if let Some(url) = &e.url {
-                exp = exp.with_url(url.to_href());
+                exp.url = url.to_url();
             }
             exp
         })
@@ -724,7 +737,7 @@ fn convert_education(v3: &V3Section<V3Education>, section: &mut Section<Educatio
                 edu = edu.with_summary(summary);
             }
             if let Some(url) = &e.url {
-                edu.url = Url::new(url.to_href());
+                edu.url = url.to_url();
             }
             edu
         })
@@ -805,7 +818,7 @@ fn convert_awards(v3: &V3Section<V3Award>, section: &mut Section<Award>) {
                 award = award.with_summary(summary);
             }
             if let Some(url) = &a.url {
-                award = award.with_url(url.to_href());
+                award.url = url.to_url();
             }
             award
         })
@@ -838,7 +851,7 @@ fn convert_certifications(v3: &V3Section<V3Certification>, section: &mut Section
                 cert = cert.with_date(date);
             }
             if let Some(url) = &c.url {
-                cert = cert.with_url(url.to_href());
+                cert.url = url.to_url();
             }
             if let Some(summary) = &c.summary {
                 cert = cert.with_summary(summary);
@@ -895,7 +908,7 @@ fn convert_projects(v3: &V3Section<V3Project>, section: &mut Section<Project>) {
                 project = project.with_keywords(p.keywords.clone());
             }
             if let Some(url) = &p.url {
-                project = project.with_url(url.to_href());
+                project.url = url.to_url();
             }
             project
         })
@@ -928,7 +941,7 @@ fn convert_publications(v3: &V3Section<V3Publication>, section: &mut Section<Pub
                 pub_item.summary = summary.clone();
             }
             if let Some(url) = &p.url {
-                pub_item.url = Url::new(url.to_href());
+                pub_item.url = url.to_url();
             }
             pub_item
         })
@@ -961,7 +974,7 @@ fn convert_volunteer(v3: &V3Section<V3Volunteer>, section: &mut Section<Voluntee
                 vol.summary = summary.clone();
             }
             if let Some(url) = &v.url {
-                vol.url = Url::new(url.to_href());
+                vol.url = url.to_url();
             }
             vol
         })
@@ -988,7 +1001,7 @@ fn convert_references(v3: &V3Section<V3Reference>, section: &mut Section<Referen
                 reference.summary = summary.clone();
             }
             if let Some(url) = &r.url {
-                reference.url = Url::new(url.to_href());
+                reference.url = url.to_url();
             }
             reference
         })
@@ -1020,7 +1033,7 @@ fn convert_custom_sections(
                 custom_item.summary = item.summary.clone().unwrap_or_default();
                 custom_item.keywords = item.keywords.clone();
                 if let Some(url) = &item.url {
-                    custom_item.url = Url::new(url.to_href());
+                    custom_item.url = url.to_url();
                 }
                 custom_item
             })
@@ -1457,5 +1470,118 @@ mod tests {
         };
         assert_eq!(url_object.to_href(), "https://example.com");
         assert_eq!(url_object.to_label(), "My Website");
+
+        // `to_url` keeps both halves so renderers can prefer the label (#919).
+        let pair = url_object.to_url();
+        assert_eq!(pair.label, "My Website");
+        assert_eq!(pair.href, "https://example.com");
+
+        // A bare string carries no label; the href is the only display text.
+        let bare = url_string.to_url();
+        assert_eq!(bare.label, "");
+        assert_eq!(bare.href, "https://example.com");
+
+        assert_eq!(V3Url::Empty.to_url().href, "");
+    }
+
+    /// Item URLs used to be imported href-only, dropping every display label
+    /// before it ever reached the renderers (#919).
+    #[test]
+    fn test_v3_item_url_labels_survive_import() {
+        let json = r#"{
+            "basics": {},
+            "sections": {
+                "profiles": { "items": [{ "network": "GitHub", "username": "jd",
+                    "url": { "label": "gh/jd", "href": "https://github.com/jd" } }] },
+                "experience": { "items": [{ "company": "Acme",
+                    "url": { "label": "acme.dev", "href": "https://acme.dev" } }] },
+                "education": { "items": [{ "institution": "MIT",
+                    "url": { "label": "mit.edu", "href": "https://mit.edu" } }] },
+                "awards": { "items": [{ "title": "Prize",
+                    "url": { "label": "prize.org", "href": "https://prize.org" } }] },
+                "certifications": { "items": [{ "name": "Cert",
+                    "url": { "label": "cert.io", "href": "https://cert.io" } }] },
+                "projects": { "items": [{ "name": "Proj",
+                    "url": { "label": "proj.dev", "href": "https://proj.dev" } }] },
+                "publications": { "items": [{ "name": "Paper",
+                    "url": { "label": "paper.pub", "href": "https://paper.pub" } }] },
+                "volunteer": { "items": [{ "organization": "Org",
+                    "url": { "label": "org.ngo", "href": "https://org.ngo" } }] },
+                "references": { "items": [{ "name": "Ref",
+                    "url": { "label": "ref.me", "href": "https://ref.me" } }] },
+                "custom": { "open-source": { "name": "Open Source", "items": [{ "title": "Skills",
+                    "url": { "label": "lgtm-hq/ai-skills",
+                             "href": "https://github.com/lgtm-hq/ai-skills" } }] } }
+            }
+        }"#;
+
+        let resume = ReactiveResumeV3Parser.parse(json.as_bytes()).unwrap();
+        let s = &resume.sections;
+        let cases: Vec<(&str, &Url, &str, &str)> = vec![
+            (
+                "profiles",
+                &s.profiles.items[0].url,
+                "gh/jd",
+                "https://github.com/jd",
+            ),
+            (
+                "experience",
+                &s.experience.items[0].url,
+                "acme.dev",
+                "https://acme.dev",
+            ),
+            (
+                "education",
+                &s.education.items[0].url,
+                "mit.edu",
+                "https://mit.edu",
+            ),
+            (
+                "awards",
+                &s.awards.items[0].url,
+                "prize.org",
+                "https://prize.org",
+            ),
+            (
+                "certifications",
+                &s.certifications.items[0].url,
+                "cert.io",
+                "https://cert.io",
+            ),
+            (
+                "projects",
+                &s.projects.items[0].url,
+                "proj.dev",
+                "https://proj.dev",
+            ),
+            (
+                "publications",
+                &s.publications.items[0].url,
+                "paper.pub",
+                "https://paper.pub",
+            ),
+            (
+                "volunteer",
+                &s.volunteer.items[0].url,
+                "org.ngo",
+                "https://org.ngo",
+            ),
+            (
+                "references",
+                &s.references.items[0].url,
+                "ref.me",
+                "https://ref.me",
+            ),
+            (
+                "custom",
+                &s.custom["open-source"].items[0].url,
+                "lgtm-hq/ai-skills",
+                "https://github.com/lgtm-hq/ai-skills",
+            ),
+        ];
+        for (section, url, label, href) in cases {
+            assert_eq!(url.label, label, "'{section}' should keep the URL label");
+            assert_eq!(url.href, href, "'{section}' should keep the URL href");
+        }
     }
 }

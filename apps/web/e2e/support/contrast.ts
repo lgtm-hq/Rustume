@@ -142,6 +142,20 @@ export function darken(hex: string, factor: number): string {
 }
 
 /**
+ * CSS `color-mix(in srgb, top pct%, base)` for hex colours.
+ *
+ * Interpolates the gamma-encoded channels, which is also what Typst's
+ * `color.mix(…, space: rgb)` does — the sheet-parity helpers in `_common.typ`
+ * (`sheet-mix` and the `sheet-*` tints built on it) rely on that equivalence.
+ */
+export function mixSrgb(top: string, base: string, pct: number): string {
+  const topRgb = hexToRgb(top);
+  const baseRgb = hexToRgb(base);
+  const weight = pct / 100;
+  return rgbToHex(topRgb.map((channel, i) => channel * weight + baseRgb[i] * (1 - weight)));
+}
+
+/**
  * Project a colour onto a monochrome printer's single ink.
  *
  * Uses BT.601 luma over the gamma-encoded channels, which is what a greyscale

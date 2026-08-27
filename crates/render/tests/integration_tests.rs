@@ -8,7 +8,7 @@ use rustume_parser::{JsonResumeParser, Parser, ReactiveResumeV3Parser};
 use rustume_render::{get_page_size, get_template_theme, Renderer, TypstRenderer, TEMPLATES};
 use rustume_schema::{
     Award, Basics, ContentFormat, CustomField, CustomItem, Education, Experience, LevelDisplay,
-    PageFormat, Picture, PictureEffects, Profile, Project, ResumeData, Section, Skill,
+    PageFormat, Picture, PictureEffects, Profile, Project, ResumeData, Section, Skill, Url,
 };
 use std::collections::HashMap;
 use std::fs;
@@ -2267,4 +2267,126 @@ fn test_sidebar_titles_stay_on_one_line(#[case] template_name: &str) {
             "sidebar title wrapped mid-word as '{broken}' on '{template_name}':\n{text}"
         );
     }
+}
+
+/// Custom-section items carry a `{ label, href }` URL. The visible link text
+/// must be the label whenever it is non-empty, and fall back to the raw href
+/// only when the label is empty — matching the built-in sections (#919).
+#[rstest]
+#[case("rhyhorn")]
+#[case("azurill")]
+#[case("pikachu")]
+#[case("nosepass")]
+#[case("bronzor")]
+#[case("chikorita")]
+#[case("ditto")]
+#[case("gengar")]
+#[case("glalie")]
+#[case("kakuna")]
+#[case("leafish")]
+#[case("onyx")]
+fn test_custom_section_item_url_prefers_label_over_href(#[case] template_name: &str) {
+    const LABEL: &str = "lgtm-hq/ai-skills";
+    const LABELED_HREF: &str = "https://github.com/lgtm-hq/ai-skills";
+    const BARE_HREF: &str = "https://rustume.dev/unlabeled";
+    const WHITESPACE_HREF: &str = "https://rustume.dev/whitespace-label";
+
+    let renderer = TypstRenderer::new();
+    let mut resume = sample_resume();
+    resume.metadata.template = template_name.to_string();
+    // Second column is the sidebar on the two-column templates (#919 repro).
+    resume.metadata.layout = vec![vec![
+        vec!["summary".to_string(), "experience".to_string()],
+        vec!["custom".to_string()],
+    ]];
+
+    let mut custom_section = Section::new("open-source", "Open Source");
+    let mut labeled = CustomItem::new("AI Skills");
+    labeled.url = Url::with_label(LABEL, LABELED_HREF);
+    custom_section.add_item(labeled);
+    let mut unlabeled = CustomItem::new("Unlabeled Project");
+    unlabeled.url = Url::new(BARE_HREF);
+    custom_section.add_item(unlabeled);
+    let mut whitespace_labeled = CustomItem::new("Whitespace Label Project");
+    whitespace_labeled.url = Url::with_label("   ", WHITESPACE_HREF);
+    custom_section.add_item(whitespace_labeled);
+    resume.sections.custom = HashMap::from([("open-source".to_string(), custom_section)]);
+
+    let pdf = renderer
+        .render_pdf(&resume)
+        .unwrap_or_else(|e| panic!("PDF render failed for '{template_name}': {e:?}"));
+
+    // Line wrapping in a narrow sidebar splits the text across lines, so
+    // compare with whitespace removed.
+    let text = extract_pdf_pages_text(&pdf).join("\n");
+    let compact: String = text.chars().filter(|c| !c.is_whitespace()).collect();
+
+    assert!(
+        compact.contains(LABEL),
+        "'{template_name}' should render the URL label as link text, got:\n{text}"
+    );
+    assert!(
+        !compact.contains(LABELED_HREF),
+        "'{template_name}' should not print the raw href when a label exists, got:\n{text}"
+    );
+    assert!(
+        compact.contains(BARE_HREF),
+        "'{template_name}' should fall back to the href when the label is empty, got:\n{text}"
+    );
+    assert!(
+        compact.contains(WHITESPACE_HREF),
+        "'{template_name}' should fall back to the href when the label is whitespace-only, got:\n{text}"
+    );
+
+    // The hyperlink destination stays the href for all items.
+    let pdf_str = String::from_utf8_lossy(&pdf);
+    for href in [LABELED_HREF, BARE_HREF, WHITESPACE_HREF] {
+        assert!(
+            pdf_str.contains(href),
+            "'{template_name}' should keep '{href}' as the link target"
+        );
+    }
+}
+
+/// A profile with neither username nor network falls back to its URL. That
+/// fallback prefers the URL label over the raw href, and still prints the href
+/// when no label is set (#919).
+#[rstest]
+#[case("pikachu")]
+#[case("onyx")]
+#[case("rhyhorn")]
+fn test_profile_url_fallback_prefers_label(#[case] template_name: &str) {
+    const LABEL: &str = "okafor.design/links";
+    const LABELED_HREF: &str = "https://okafor.design/links";
+    const BARE_HREF: &str = "https://rustume.dev/anon";
+
+    let renderer = TypstRenderer::new();
+    let mut resume = sample_resume();
+    resume.metadata.template = template_name.to_string();
+    resume.sections.profiles = Section::new("profiles", "Profiles");
+    resume.sections.profiles.visible = true;
+
+    resume.sections.profiles.add_item(Profile {
+        url: Url::with_label(LABEL, LABELED_HREF),
+        ..Profile::default()
+    });
+    resume.sections.profiles.add_item(Profile {
+        url: Url::new(BARE_HREF),
+        ..Profile::default()
+    });
+
+    let pdf = renderer
+        .render_pdf(&resume)
+        .unwrap_or_else(|e| panic!("PDF render failed for '{template_name}': {e:?}"));
+
+    let text = extract_pdf_pages_text(&pdf).join("\n");
+    let compact: String = text.chars().filter(|c| !c.is_whitespace()).collect();
+    assert!(
+        compact.contains(LABEL) && !compact.contains(LABELED_HREF),
+        "'{template_name}' should use the profile URL label as fallback text, got:\n{text}"
+    );
+    assert!(
+        compact.contains(BARE_HREF),
+        "'{template_name}' should print the href when the label is empty, got:\n{text}"
+    );
 }

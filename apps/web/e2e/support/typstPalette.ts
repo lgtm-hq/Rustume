@@ -10,7 +10,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { darken, lighten } from "./contrast";
+import { darken, lighten, mixSrgb } from "./contrast";
 
 /** Directory holding the 12 Typst templates and their shared `_common.typ`. */
 export const TEMPLATE_DIR = resolve(
@@ -56,6 +56,53 @@ const THEME_DEFAULT_RE =
 const RGB_LITERAL_RE = /^rgb\(\s*"(#[0-9a-f]{3,6})"\s*\)$/i;
 const HEX_LITERAL_RE = /^(#[0-9a-f]{3}|#[0-9a-f]{6})$/i;
 const MODIFIER_RE = /^(.+?)\.(lighten|darken)\(\s*(\d+(?:\.\d+)?)%\s*\)$/i;
+const SHEET_CALL_RE = /^(sheet-[a-z][a-z0-9-]*)\(\s*(.+?)\s*\)$/i;
+
+/**
+ * One `sheet-*` tint helper, as declared in `_common.typ`.
+ *
+ * `base` is non-null only when the helper hard-codes its second operand (the
+ * chip border mixes into a literal `#e7e5e4`); otherwise the caller supplies it.
+ */
+export interface SheetHelper {
+  readonly name: string;
+  readonly pct: number;
+  readonly base: string | null;
+}
+
+/** `#let sheet-x(a, b) = sheet-mix(a, b, 15)` — the whole helper grammar. */
+const SHEET_HELPER_RE =
+  /^#let\s+(sheet-[a-z][a-z0-9-]*)\([^)]*\)\s*=\s*sheet-mix\(\s*[^,]+?\s*,\s*(.+?)\s*,\s*(\d+(?:\.\d+)?)\s*\)\s*$/gm;
+
+/**
+ * Parse the `sheet-*` helpers out of `_common.typ`.
+ *
+ * The percentages are read from the Typst source rather than restated here:
+ * a hand-copied table is a third place the sheet's formulas live, and it can
+ * drift from `_common.typ` (which mirrors `docSheet.css`) without any test
+ * noticing. `sheet-mix` itself is variadic in its percentage and is handled
+ * directly by the evaluator.
+ */
+export function parseSheetHelpers(commonSource: string): ReadonlyMap<string, SheetHelper> {
+  const helpers = new Map<string, SheetHelper>();
+  for (const [, name, base, pct] of commonSource.matchAll(SHEET_HELPER_RE)) {
+    const literal = RGB_LITERAL_RE.exec(base) ?? HEX_LITERAL_RE.exec(base);
+    helpers.set(name.toLowerCase(), {
+      name,
+      pct: Number(pct),
+      base: literal ? literal[1].toLowerCase() : null,
+    });
+  }
+  return helpers;
+}
+
+/** Read `_common.typ` and parse its `sheet-*` helpers. */
+export function readSheetHelpers(templateDir = TEMPLATE_DIR): ReadonlyMap<string, SheetHelper> {
+  return parseSheetHelpers(readFileSync(join(templateDir, "_common.typ"), "utf8"));
+}
+
+/** The shipped helpers, resolved once at load from `_common.typ`. */
+export const SHEET_HELPERS = readSheetHelpers();
 
 /**
  * Evaluate one Typst colour expression against already-resolved bindings.
@@ -75,6 +122,31 @@ export function evaluateExpression(expression: string, resolved: Palette): strin
     }
     const factor = Number(modifier[3]) / 100;
     return modifier[2].toLowerCase() === "lighten" ? lighten(base, factor) : darken(base, factor);
+  }
+
+  const sheetCall = SHEET_CALL_RE.exec(expr);
+  if (sheetCall) {
+    const name = sheetCall[1].toLowerCase();
+    const args = sheetCall[2].split(",").map((arg) => arg.trim());
+    // A missing argument (arity drift in a template) fails closed like every
+    // other unresolvable expression instead of throwing mid-parse.
+    const resolveArg = (arg: string | undefined): string | null =>
+      arg === undefined ? null : evaluateExpression(arg, resolved);
+    const top = resolveArg(args[0]);
+    if (top === null) {
+      return null;
+    }
+    if (name === "sheet-mix") {
+      const base = resolveArg(args[1]);
+      const pct = Number(args[2]?.replace(/%$/, ""));
+      return base !== null && Number.isFinite(pct) ? mixSrgb(top, base, pct) : null;
+    }
+    const helper = SHEET_HELPERS.get(name);
+    if (helper === undefined) {
+      return null;
+    }
+    const base = helper.base ?? resolveArg(args[1]);
+    return base !== null ? mixSrgb(top, base, helper.pct) : null;
   }
 
   const themed = THEME_DEFAULT_RE.exec(expr);

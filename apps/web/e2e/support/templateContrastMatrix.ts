@@ -15,9 +15,17 @@
  * That walk was a one-time audit; `uncoveredBindings` below is what keeps it
  * honest. It fails the suite when a template declares a colour no pair
  * measures, so a template that gains a tint cannot stay silently unaudited.
+ *
+ * Since #919 the suite gates sheet PARITY, not WCAG ratios — resolving these
+ * pairs is what detects palette drift. The `role` field records which WCAG
+ * floor each pair was (and would again be) gated against, kept because the
+ * follow-up work restoring contrast compliance starts from exactly this map.
  */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { THEMED_CHIP_CALL_RE } from "../../src/test/typstPatterns";
 import { ContrastRole } from "./contrast";
-import type { Palette } from "./typstPalette";
+import { TEMPLATE_DIR, type Palette } from "./typstPalette";
 
 /** One ink-on-backdrop relationship a template paints. */
 export interface ContrastPair {
@@ -67,6 +75,33 @@ const UNIVERSAL_PAIRS: readonly ContrastPair[] = [
 ];
 
 /**
+ * The sheet's `.doc-sheet__tag-chip` treatment, painted by the templates whose
+ * `keywordStyle` is `chips` (#919): a body-ink label on the accent-tinted
+ * fill, and the mixed border stroked on that same fill. Every chip-style
+ * template passes `text-color` / `accent-color` / `bg-color`, so one shared
+ * pair set covers them all.
+ *
+ * Membership is not hand-listed: `pairsFor` includes these pairs for exactly
+ * the templates whose SOURCE makes a themed `render-item-tag-chips` call, the
+ * same way every other colour here is resolved from what the template actually
+ * paints. A template that flips its `keywordStyle` gains or loses the pairs
+ * with the call site itself.
+ */
+const SHEET_CHIP_PAIRS: readonly ContrastPair[] = [
+  {
+    label: "sheet keyword chip label",
+    ink: "text-color",
+    backdrop: "sheet-chip-fill(accent-color, bg-color)",
+  },
+  {
+    label: "sheet keyword chip border on its fill",
+    ink: "sheet-chip-stroke(accent-color)",
+    backdrop: "sheet-chip-fill(accent-color, bg-color)",
+    role: ContrastRole.NonText,
+  },
+];
+
+/**
  * Per-template pairs: tinted panels, chips, coloured bars and any ink a
  * template paints on something other than the bare page.
  */
@@ -89,9 +124,9 @@ const TEMPLATE_PAIRS: Readonly<Record<string, readonly ContrastPair[]>> = {
     },
   ],
   chikorita: [
-    { label: "sidebar panel heading", ink: "accent-color", backdrop: "light-bg" },
-    { label: "sidebar panel body text", ink: "text-color", backdrop: "light-bg" },
-    { label: "sidebar panel muted text", ink: "muted-color", backdrop: "light-bg" },
+    { label: "sidebar panel heading", ink: "accent-color", backdrop: "sidebar-bg" },
+    { label: "sidebar panel body text", ink: "text-color", backdrop: "sidebar-bg" },
+    { label: "sidebar panel muted text", ink: "muted-color", backdrop: "sidebar-bg" },
     { label: "keyword chip ink", ink: "accent-color", backdrop: "accent-bg" },
     {
       label: "rating indicator fill vs empty",
@@ -127,6 +162,15 @@ const TEMPLATE_PAIRS: Readonly<Record<string, readonly ContrastPair[]>> = {
     { label: "sidebar heading", ink: "accent-color", backdrop: "sidebar-bg" },
     { label: "sidebar body text", ink: "sidebar-text", backdrop: "sidebar-bg" },
     { label: "sidebar muted text", ink: "muted-color", backdrop: "sidebar-bg" },
+    {
+      // Muted ink the template resolves against the RAIL rather than the page,
+      // because the sheet composites `--doc-sheet-muted` (60% alpha) over
+      // whatever is behind it. Section renderers shared with the main column
+      // keep the page-ground `muted-color` above.
+      label: "sidebar-local muted text",
+      ink: "sidebar-muted-color",
+      backdrop: "sidebar-bg",
+    },
     { label: "project tag ink", ink: "accent-color", backdrop: "sidebar-bg" },
     {
       label: "rating indicator fill vs empty",
@@ -139,6 +183,15 @@ const TEMPLATE_PAIRS: Readonly<Record<string, readonly ContrastPair[]>> = {
     { label: "sidebar heading", ink: "accent-color", backdrop: "sidebar-bg" },
     { label: "sidebar body text", ink: "text-color", backdrop: "sidebar-bg" },
     { label: "sidebar muted text", ink: "muted-color", backdrop: "sidebar-bg" },
+    {
+      // Muted ink the template resolves against the RAIL rather than the page,
+      // because the sheet composites `--doc-sheet-muted` (60% alpha) over
+      // whatever is behind it. Section renderers shared with the main column
+      // keep the page-ground `muted-color` above.
+      label: "sidebar-local muted text",
+      ink: "sidebar-muted-color",
+      backdrop: "sidebar-bg",
+    },
     {
       label: "rating indicator fill vs empty",
       ink: "accent-color",
@@ -233,13 +286,26 @@ const TEMPLATE_PAIRS: Readonly<Record<string, readonly ContrastPair[]>> = {
   ],
 };
 
+/**
+ * True when a template's Typst source paints the themed sheet chips: a
+ * `render-item-tag-chips` call passing BOTH `accent` and `bg` (the helper only
+ * paints the `.doc-sheet__tag-chip` treatment when both are non-none). The
+ * membership this derives is pinned by the spec's chip-membership test, so a
+ * heuristic miss cannot drift silently.
+ */
+export function paintsThemedChips(templateId: string): boolean {
+  const source = readFileSync(join(TEMPLATE_DIR, `${templateId}.typ`), "utf8");
+  return THEMED_CHIP_CALL_RE.test(source);
+}
+
 /** Every pair audited for one template. */
 export function pairsFor(templateId: string): readonly ContrastPair[] {
   const specific = TEMPLATE_PAIRS[templateId];
   if (!specific) {
     throw new Error(`no contrast matrix entry for template ${templateId}`);
   }
-  return [...UNIVERSAL_PAIRS, ...specific];
+  const chipPairs = paintsThemedChips(templateId) ? SHEET_CHIP_PAIRS : [];
+  return [...UNIVERSAL_PAIRS, ...chipPairs, ...specific];
 }
 
 /**
@@ -254,11 +320,11 @@ export function pairsFor(templateId: string): readonly ContrastPair[] {
  * painted somewhere, it belongs in the matrix above, not here.
  */
 export const UNPAINTED_BINDINGS: ReadonlySet<string> = new Set([
-  // The user-facing brand seed. Every template derives its inks from it
-  // (`accent-color = primary-color.darken(35%)`) and its decorative tints too
-  // (`light-bg = primary-color.lighten(90%)`), but deliberately never paints
-  // the raw seed: it is whatever hue the user picked, so it carries no
-  // contrast guarantee of its own. See the comment at `azurill.typ:15-17`.
+  // The user-facing brand seed. Since #919 every template paints it — but
+  // always through the `accent-color` binding that aliases it
+  // (`accent-color = primary-color`, asserted by the parity spec) and the
+  // `sheet-*` tints derived from it, so the accent and tint pairs above are
+  // where the seed is measured. No pair names the seed itself.
   "primary-color",
 ]);
 

@@ -652,6 +652,13 @@ mod reactive_resume_v3 {
         assert_eq!(speaking.items.len(), 3);
         assert_eq!(speaking.items[0].name, "Design Tokens Beyond Colour");
         assert_eq!(speaking.items[0].description, "Clarity Conference");
+        // The labeled URL is the corpus input for the #919 render tests: the
+        // label must survive import as the visible link text.
+        assert_eq!(speaking.items[0].url.label, "Slides & transcript");
+        assert_eq!(
+            speaking.items[0].url.href,
+            "https://okafor.design/talks/beyond-colour"
+        );
 
         let advisory = resume
             .sections

@@ -7,7 +7,7 @@ a 1:1 target).
 
 ## Theme
 
-background `#ffffff`, text `#000000`, primary `#65a30d` → accent darkened ~35% for ink.
+background `#ffffff`, text `#000000`, primary `#65a30d`, used raw as accent ink (#919).
 
 ## Typefaces
 
@@ -47,9 +47,9 @@ Default main / sidebar section ids are defined once in
 | --- | --- |
 | Education order | **institution** (bold) + date right; then `format-degree(studyType, area)`; then score; then summary |
 | Profile label mode | URL present → `username`; else `network-username` |
-| Skill keywords | Comma-joined muted inline string |
-| Interest keywords | ` — ` + comma-joined muted string after the name |
-| Level (`template-default`) | Rounded squares (8×8pt, radius 2pt) inline after the name |
+| Skill keywords | Comma-joined muted — the sheet's `keywordStyle: "plain"` (`.doc-sheet--keywords-plain`) |
+| Interest keywords | ` — ` + comma list, the sheet's plain treatment |
+| Level (`template-default`) | Sheet-parity five dots: 4.5pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.25pt apart (#919) |
 
 Experience leads with **position — company** and date right; location on its own muted line (#858).
 
@@ -62,9 +62,9 @@ bodies above.
 | Divergence | Tag |
 | --- | --- |
 | Sheet experience field order vs Typst | fixed (#858) |
-| Sheet heading chrome lacks uppercase underline | fix-in-sheet |
-| Sheet always draws level dots; native glyph is rounded squares | fix-in-sheet |
-| Interest keywords as sheet chips vs Typst `— list` | fix-in-sheet |
+| Heading chrome: the sheet already applies rhyhorn's underline + uppercase (`bundledTemplateLayout`), so this is no longer a divergence | fixed (#830) |
+| Sheet always draws level dots; native glyph was rounded squares | fixed (#919) |
+| Interest keywords: the sheet's `keywordStyle: "plain"` is a comma list, which Typst matches | fixed (#919) |
 | No-photo initials on sheet (edit) vs omitted in PDF | fixed (#857): Done/PDF collapse; edit keeps a placeholder; initials are `showInitials` opt-in |
 | Hardcoded 10pt / 0.65em ignores metadata typography | fix-in-typst (#701) |
 

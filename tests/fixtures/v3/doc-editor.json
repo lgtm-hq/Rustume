@@ -400,6 +400,7 @@
             "summary": "Forty minutes on what happens when a token set has to describe motion, elevation, and density rather than just colour.\n\n- Why *semantic* naming breaks down at the third platform\n- The versioning policy we adopted after two painful renames\n\nSlides and a transcript are at [okafor.design/talks/beyond-colour](https://okafor.design/talks/beyond-colour).",
             "keywords": ["Design Tokens", "Conference Talk"],
             "url": {
+              "label": "Slides & transcript",
               "href": "https://okafor.design/talks/beyond-colour"
             }
           },

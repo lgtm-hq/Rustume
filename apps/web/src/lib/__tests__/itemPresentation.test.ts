@@ -25,6 +25,29 @@ describe("itemPresentation contract (#829)", () => {
     );
   });
 
+  it("prefers the URL label over the raw href in the profile fallback (#919)", () => {
+    expect(
+      profileEntryLabel({
+        username: "",
+        network: "",
+        url: { label: "gh/turbo", href: "https://github.com/TurboCoder13" },
+      }),
+    ).toBe("gh/turbo");
+    // Whitespace-only labels fall through, matching Typst `url-display-label`.
+    expect(
+      profileEntryLabel({
+        username: "",
+        network: "",
+        url: { label: "   ", href: "https://x.test" },
+      }),
+    ).toBe("https://x.test");
+    // A label without a real href is not a link on either renderer
+    // (Typst gates on `has-url`), so it renders nothing.
+    expect(
+      profileEntryLabel({ username: "", network: "", url: { label: "gh/turbo", href: "  " } }),
+    ).toBe("");
+  });
+
   it("composes education degree-first with institution · area", () => {
     expect(educationDegree({ studyType: "Diploma" })).toBe("Diploma");
     expect(

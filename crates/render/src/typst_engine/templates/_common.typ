@@ -3,7 +3,13 @@
 
 /// Check whether an item has a non-empty URL.
 #let has-url(item) = {
-  "url" in item and item.url != none and item.url.href != ""
+  if not ("url" in item) or item.url == none {
+    return false
+  }
+  // Trim so a whitespace-only href cannot yield a blank link with a
+  // whitespace destination (`url-display-label` trims the same way).
+  let href = if "href" in item.url and item.url.href != none { item.url.href.trim() } else { "" }
+  href != ""
 }
 
 /// Visible text for a `{ label, href }` URL: prefer label, then href, then fallback.
@@ -11,12 +17,17 @@
   if url == none {
     return fallback
   }
-  let label = if "label" in url and url.label != none { url.label } else { "" }
+  let label = if "label" in url and url.label != none { url.label.trim() } else { "" }
   if label != "" { return label }
-  let href = if "href" in url and url.href != none { url.href } else { "" }
+  let href = if "href" in url and url.href != none { url.href.trim() } else { "" }
   if href != "" { return href }
   fallback
 }
+
+/// Link destination for a `{ label, href }` URL: the trimmed href, so padded
+/// input ("  https://… ") cannot become a broken PDF annotation target.
+/// Callers gate on `has-url` first, which guarantees a non-empty trim.
+#let url-href(url) = url.href.trim()
 
 /// Resolve a hex color, falling back when the input is empty.
 /// Typst's rgb() string form requires a leading #, so prepend one
@@ -30,6 +41,51 @@
     rgb("#" + value)
   }
 }
+
+// ── Sheet-parity color formulas (#919) ────────────────────────────────────
+//
+// The document sheet (`apps/web/src/components/doc-editor/docSheet.css`) is
+// the visual source of truth for the PDF. Every tint it paints is a CSS
+// `color-mix(in srgb, …)` over the sheet background, so these helpers mirror
+// that arithmetic with Typst's `color.mix(…, space: rgb)`. Keep the
+// percentages here in lockstep with the `--doc-sheet-*` custom properties and
+// the `.doc-sheet__*` rules they are named after.
+
+/// Mix `pct` percent of `top` into `base`, the way CSS
+/// `color-mix(in srgb, top pct%, base)` does.
+#let sheet-mix(top, base, pct) = {
+  color.mix((top, pct * 1%), (base, (100 - pct) * 1%), space: rgb)
+}
+
+/// Sidebar tint: `.doc-sheet--sidebar-tint .doc-sheet__side`
+/// (`color-mix(in srgb, accent 15%, bg)`).
+#let sheet-sidebar-tint(accent, bg) = sheet-mix(accent, bg, 15)
+
+/// Muted body ink: `--doc-sheet-muted`, which CSS writes as
+/// `color-mix(in srgb, text 60%, transparent)` — a translucent ink, not an
+/// opaque one. Typst has no compositing model here, so the caller resolves it:
+/// alpha-over-ground and mix-with-ground are the same arithmetic, because
+/// `text` at 60% alpha composited over a ground `G` is exactly
+/// `0.6·text + 0.4·G`, i.e. `sheet-mix(text, G, 60)`.
+///
+/// The consequence is that `bg` must be the LOCAL ground the ink actually
+/// lands on, not always the page background: inside a tinted sidebar the sheet
+/// composites through the rail, so pass the sidebar tint there
+/// (`sheet-muted(text-color, sidebar-bg)`). Section renderers a template shares
+/// between both columns keep the page ground, since their backdrop is not
+/// knowable at the call site.
+#let sheet-muted(text-color, bg) = sheet-mix(text-color, bg, 60)
+
+/// Keyword-chip fill: `.doc-sheet__tag-chip`
+/// (`color-mix(in srgb, accent 10%, bg)`).
+#let sheet-chip-fill(accent, bg) = sheet-mix(accent, bg, 10)
+
+/// Keyword-chip border: `.doc-sheet__tag-chip`
+/// (`color-mix(in srgb, accent 28%, #e7e5e4)`).
+#let sheet-chip-stroke(accent) = sheet-mix(accent, rgb("#e7e5e4"), 28)
+
+/// Unfilled level-indicator dot: `.doc-sheet__lang-dots i` background.
+#let SHEET_LEVEL_DOT_EMPTY = rgb("#d6d3d1")
 
 /// True when Typst `image()` can load this URL from the virtual world.
 /// Remote `http(s):` URLs are never fetched and must not reach `image()`.
@@ -282,6 +338,29 @@
   }
 }
 
+/// Sheet-parity level indicator: five dots, filled in `accent` up to `level`
+/// and left on the sheet's flat `#d6d3d1` track after it
+/// (`.doc-sheet__lang-dots`). This is the shared `template-default` glyph
+/// (#919) — the sheet draws no outline, so neither does this; the explicit
+/// `metadata.levelDisplay` overrides still route through `render-level`,
+/// which keeps its outlined indicators.
+///
+/// Sizes use the same px→pt mapping as the sheet-grid column padding
+/// (1rem = 16px = 12pt, so 1px = 0.75pt): the sheet's 6px dot with a 3px gap
+/// becomes 4.5pt with a 2.25pt gap.
+#let sheet-level-dots(level, accent, spacing: 2.25pt, size: 4.5pt) = {
+  let level = clamp-level(level)
+  for i in range(5) {
+    if i > 0 { h(spacing) }
+    box(
+      width: size,
+      height: size,
+      fill: if i < level { accent } else { SHEET_LEVEL_DOT_EMPTY },
+      radius: 50%,
+    )
+  }
+}
+
 /// Whether an overridden level display should render an indicator for `level`.
 /// False for the template's native rendering ("template-default"), for
 /// "hidden", and for a "text" display with no level set (level 0).
@@ -353,10 +432,13 @@
 
 /// Render a clickable URL link for an item, if present.
 /// `color` is link ink, so callers pass their audited `accent-color`.
+/// The visible text is the URL label when set, falling back to the href
+/// (#919); the href always stays the link destination.
 #let render-url(item, color) = {
   if has-url(item) {
     v(2pt)
-    link(item.url.href)[#text(size: 9pt, fill: color)[#item.url.href]]
+    let label = url-display-label(item.url, fallback: item.url.href)
+    link(url-href(item.url))[#text(size: 9pt, fill: color)[#label]]
   }
 }
 
@@ -543,22 +625,27 @@
 #let profile-entry-label(item, mode: "auto") = {
   let network = if "network" in item and item.network != none { item.network.trim() } else { "" }
   let username = if "username" in item and item.username != none { item.username.trim() } else { "" }
-  let href = if has-url(item) { item.url.href.trim() } else { "" }
+  // Last-resort URL text prefers the label over the raw href (#919).
+  let url-text = if has-url(item) {
+    url-display-label(item.url, fallback: "").trim()
+  } else {
+    ""
+  }
 
   if mode == "network" {
     if network != "" { network }
     else if username != "" { username }
-    else { href }
+    else { url-text }
   } else if mode == "network-username" {
     if network != "" and username != "" { network + ": " + username }
     else if network != "" { network }
     else if username != "" { username }
-    else { href }
+    else { url-text }
   } else {
     // "username" and "auto" share the same preference order (#829 / #820).
     if username != "" { username }
     else if network != "" { network }
-    else { href }
+    else { url-text }
   }
 }
 
@@ -601,7 +688,7 @@
     } else {
       body
     }
-    link(item.url.href)[#linked]
+    link(url-href(item.url))[#linked]
   } else {
     body
   }
@@ -620,12 +707,36 @@
 }
 
 /// Render an item's keywords as soft tag chips (doc-editor spec §4.3).
-/// Used for experience/education entries, whose keywords are new fields no
-/// template renders natively. Colors are intentionally neutral so the chips
-/// read as secondary metadata in every template's palette.
-#let render-item-tag-chips(item, size: 7pt, ink: rgb("#57534e")) = {
+///
+/// This is the chip treatment for the sections the sheet paints as chips —
+/// experience/education extras as before, plus skills and interests on the
+/// templates whose `keywordStyle` is `chips` (see `template_layout.rs` /
+/// `docLayout.ts`). Templates the registry marks `plain` keep the sheet's
+/// comma-separated muted text instead; do not call this there.
+///
+/// Pass `accent` and `bg` to paint the sheet's `.doc-sheet__tag-chip`
+/// (`color-mix(accent 10%, bg)` fill, `color-mix(accent 28%, #e7e5e4)` border).
+/// The chip LABEL is `ink`, not the accent: the CSS rule sets no `color`, so a
+/// chip inherits `--doc-sheet-text` at `font-weight: 600`. Themed callers pass
+/// their `text-color`. Without `accent`/`bg` the chips fall back to the neutral
+/// stone grey the helper shipped with, so callers that want secondary-metadata
+/// chips in a template with no local accent keep their old look.
+#let render-item-tag-chips(
+  item,
+  size: 7pt,
+  ink: rgb("#57534e"),
+  accent: none,
+  bg: none,
+  lead: 3pt,
+) = {
   if not has-keywords(item) { return }
-  v(3pt)
+  let themed = accent != none and bg != none
+  let chip-fill = if themed { sheet-chip-fill(accent, bg) } else { ink.lighten(88%) }
+  let chip-stroke = if themed { sheet-chip-stroke(accent) } else { ink.lighten(60%) }
+  // `.doc-sheet__tag-chip` declares no `color`, so the label is body ink at
+  // weight 600 — the accent is only the fill and border mix seed.
+  let chip-ink = ink
+  v(lead)
   // No outer box: a box is an unbreakable inline atom, so a long keyword list
   // would overflow the column instead of wrapping onto the next line. Each
   // chip stays boxed (it must not split mid-word); the gaps between them are
@@ -633,11 +744,11 @@
   for (i, keyword) in item.keywords.enumerate() {
     if i > 0 { h(3pt) }
     box(
-      fill: ink.lighten(88%),
-      stroke: 0.4pt + ink.lighten(60%),
+      fill: chip-fill,
+      stroke: 0.4pt + chip-stroke,
       radius: 999pt,
       inset: (x: 5pt, y: 2.5pt),
-      text(size: size, fill: ink)[#keyword],
+      text(size: size, fill: chip-ink, weight: "semibold")[#keyword],
     )
   }
 }

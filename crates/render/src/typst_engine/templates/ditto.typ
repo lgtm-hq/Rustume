@@ -10,18 +10,20 @@
   let text-color = rgb(data.metadata.theme.at("text", default: "#1f2937"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
   let level-display = data.metadata.at("levelDisplay", default: "template-default")
-  // Derived colors (not in schema — computed from theme values)
-  let muted-color = text-color.lighten(30%)
-  // Accent ink: `primary-color` darkened until it clears WCAG AA (4.5:1)
-  // as text on every backdrop this template paints it on — page, tinted
-  // panels, chips and its own profile badge. `primary-color` itself stays
-  // the untouched brand seed the decorative tints below are derived from.
-  let accent-color = primary-color.darken(30%)
+  // Muted ink: the sheet's `--doc-sheet-muted` — `text` at 60% over the ground.
+  let muted-color = sheet-muted(text-color, bg-color)
+  // Accent ink: the raw `primary-color` seed, exactly what the sheet paints as
+  // `--doc-sheet-accent` (#919). The sheet is the PDF's visual source of truth,
+  // so the old `darken(…)` step is gone — it was an unenforced WCAG-AA
+  // convention with no test or CI gate behind it. Decorative tints are mixed
+  // over the page ground below with the sheet's own `color-mix` formulas.
+  let accent-color = primary-color
 
   // ── Helper functions (capture theme colors from enclosing scope) ──
 
   let light-bg = primary-color.lighten(92%)
-  let sidebar-bg = primary-color.lighten(95%)
+  // Sidebar tint: `.doc-sheet--sidebar-tint .doc-sheet__side` (#919).
+  let sidebar-bg = sheet-sidebar-tint(primary-color, bg-color)
   let white = rgb("#ffffff")
 
   let sidebar-heading(title) = {
@@ -53,7 +55,7 @@
         #text(weight: "bold", size: 9pt)[#item.position]
         #v(1pt)
         #if has-url(item) {
-          link(item.url.href)[#text(size: 9pt, fill: accent-color)[#item.company]]
+          link(url-href(item.url))[#text(size: 9pt, fill: accent-color)[#item.company]]
         } else {
           text(size: 9pt)[#item.company]
         }
@@ -123,16 +125,20 @@
     let level = clamp-level(item.level)
     if level-display == "template-default" and level > 0 {
       v(2pt)
-      rating-indicators(level, 6pt, 6pt, accent-color, bg-color.darken(10%), 50%, 2pt)
+      sheet-level-dots(level, accent-color)
     } else if should-render-level(level, level-display) {
       v(2pt)
       render-level(level, level-display, accent-color, bg-color.darken(10%))
     }
 
-    if has-keywords(item) {
-      v(2pt)
-      text(size: 7pt, fill: muted-color)[#item.keywords.join(", ")]
-    }
+    render-item-tag-chips(
+      item,
+      size: 7pt,
+      ink: text-color,
+      accent: accent-color,
+      bg: bg-color,
+      lead: 2pt,
+    )
 
     v(6pt)
   }
@@ -149,7 +155,7 @@
     let level = clamp-level(item.level)
     if level-display == "template-default" and level > 0 {
       v(2pt)
-      rating-indicators(level, 6pt, 6pt, accent-color, bg-color.darken(10%), 50%, 2pt)
+      sheet-level-dots(level, accent-color)
     } else if should-render-level(level, level-display) {
       v(2pt)
       render-level(level, level-display, accent-color, bg-color.darken(10%))
@@ -260,18 +266,14 @@
 
     text(size: 8pt, weight: "medium")[#item.name]
 
-    if has-keywords(item) {
-      v(2pt)
-      for keyword in item.keywords {
-        box(
-          fill: light-bg,
-          radius: 2pt,
-          inset: (x: 4pt, y: 1pt),
-          text(size: 7pt, fill: accent-color)[#keyword]
-        )
-        h(3pt)
-      }
-    }
+    render-item-tag-chips(
+      item,
+      size: 7pt,
+      ink: text-color,
+      accent: accent-color,
+      bg: bg-color,
+      lead: 2pt,
+    )
 
     v(6pt)
   }
@@ -421,6 +423,8 @@
     justify: false,
   )
 
+  // The cover-letter page is not the sheet grid — the sheet has no opinion on
+  // it — so its inset stays this template's own, independent of the columns.
   render-cover-letter-page(data, section-heading, muted: muted-color, inset: (x: 20pt, y: 12pt))
 
   if has-resume-body(data) {
@@ -430,7 +434,9 @@
       #box(
         width: 100%,
         fill: accent-color,
-        inset: (x: 24pt, y: 18pt),
+        // `.doc-sheet__banner` padding is `1.4rem 1.6rem 1rem` (#919); the
+        // symmetric Typst inset takes the 1.4rem top for both edges.
+        inset: (x: 19.2pt, y: 16.8pt),
         [
           #avatar-above(
             data.basics,
@@ -449,7 +455,7 @@
           #v(8pt)
 
           #let contact-items = build-contact-items(data.basics)
-          #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#text(fill: white)[#url-display-label(data.basics.url)]],) }
+          #if has-url(data.basics) { contact-items = contact-items + (link(url-href(data.basics.url))[#text(fill: white)[#url-display-label(data.basics.url)]],) }
 
           #text(size: 8pt, fill: accent-color.lighten(85%))[#contact-items.join("  |  ")]
         ]
@@ -463,8 +469,14 @@
       sidebar-width: sidebar-width-from-ratio(data, 160pt),
       sidebar-bg: sidebar-bg,
       body-bg: bg-color,
-      sidebar-inset: (x: 14pt, y: 12pt),
-      main-inset: (x: 20pt, y: 12pt),
+      // Column padding mirrors the sheet grid (#919). The CSS paddings are
+      // three-value: `.doc-sheet__side` is `1.6rem 0.95rem 2rem` and
+      // `.doc-sheet__main` is `1.6rem 1.45rem 2rem`, at the sheet's
+      // 1rem = 16px = 12pt. Typst insets are symmetric in y, so the top value
+      // (1.6rem = 19.2pt) is used for both edges; the sheet's larger 2rem
+      // bottom is slack under a scrolling column, not a print margin.
+      sidebar-inset: (x: 11.4pt, y: 19.2pt),
+      main-inset: (x: 17.4pt, y: 19.2pt),
       sidebar-heading: sidebar-heading,
       main-heading: section-heading,
       header: header,

@@ -10,17 +10,21 @@
   let text-color = rgb(data.metadata.theme.at("text", default: "#166534"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
   let level-display = data.metadata.at("levelDisplay", default: "template-default")
-  // Derived colors (not in schema — computed from theme values)
-  let muted-color = text-color.lighten(10%)
-  // Accent ink: `primary-color` darkened until it clears WCAG AA (4.5:1)
-  // as text on every backdrop this template paints it on — page, tinted
-  // panels, chips and its own profile badge. `primary-color` itself stays
-  // the untouched brand seed the decorative tints below are derived from.
-  let accent-color = primary-color.darken(35%)
+  // Muted ink: the sheet's `--doc-sheet-muted` — `text` at 60% over the ground.
+  let muted-color = sheet-muted(text-color, bg-color)
+  // Accent ink: the raw `primary-color` seed, exactly what the sheet paints as
+  // `--doc-sheet-accent` (#919). The sheet is the PDF's visual source of truth,
+  // so the old `darken(…)` step is gone — it was an unenforced WCAG-AA
+  // convention with no test or CI gate behind it. Decorative tints are mixed
+  // over the page ground below with the sheet's own `color-mix` formulas.
+  let accent-color = primary-color
 
   // ── Helper functions (capture theme colors from enclosing scope) ──
 
-  let light-bg = primary-color.lighten(92%)
+  // Tinted right column: the sheet paints `sidebarTint` panels with
+  // `color-mix(accent 15%, bg)` (`.doc-sheet--sidebar-tint`), so the panel
+  // uses the shared sheet formula (#919).
+  let sidebar-bg = sheet-sidebar-tint(primary-color, bg-color)
   let accent-bg = primary-color.lighten(85%)
   let border-color = primary-color.lighten(75%)
 
@@ -46,7 +50,7 @@
   let rating-dots(level) = {
     let level = clamp-level(level)
     if level-display == "template-default" {
-      rating-indicators(level, 6pt, 6pt, accent-color, border-color, 50%, 3pt)
+      sheet-level-dots(level, accent-color)
     } else {
       render-level(level, level-display, accent-color, border-color, spacing: 3pt)
     }
@@ -132,10 +136,14 @@
       rating-dots(level)
     }
 
-    if has-keywords(item) {
-      v(2pt)
-      text(size: 8pt, fill: muted-color)[#item.keywords.join(", ")]
-    }
+    render-item-tag-chips(
+      item,
+      size: 8pt,
+      ink: text-color,
+      accent: accent-color,
+      bg: bg-color,
+      lead: 2pt,
+    )
 
     v(8pt)
   }
@@ -264,10 +272,14 @@
 
     text(size: 9pt, weight: "medium")[#item.name]
 
-    if has-keywords(item) {
-      v(2pt)
-      text(size: 8pt, fill: muted-color)[#item.keywords.join(", ")]
-    }
+    render-item-tag-chips(
+      item,
+      size: 8pt,
+      ink: text-color,
+      accent: accent-color,
+      bg: bg-color,
+      lead: 2pt,
+    )
 
     v(6pt)
   }
@@ -439,7 +451,7 @@
 
     // Contact info
     let contact-items = build-contact-items(data.basics)
-    if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#url-display-label(data.basics.url)],) }
+    if has-url(data.basics) { contact-items = contact-items + (link(url-href(data.basics.url))[#url-display-label(data.basics.url)],) }
 
     if contact-items.len() > 0 {
       text(size: 9pt, fill: muted-color)[#contact-items.join("  |  ")]
@@ -455,7 +467,7 @@
     // can split with the grid.
     let right-wrapper(body) = {
       block(
-        fill: light-bg,
+        fill: sidebar-bg,
         radius: 6pt,
         inset: 12pt,
         width: 100%,

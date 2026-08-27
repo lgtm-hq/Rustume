@@ -10,19 +10,21 @@
   let text-color = rgb(data.metadata.theme.at("text", default: "#1f2937"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
   let level-display = data.metadata.at("levelDisplay", default: "template-default")
-  // Derived colors (not in schema — computed from theme values)
-  let muted-color = text-color.lighten(25%)
-  // Accent ink: the ink for headings, links and rules. Every other template
-  // has to darken `primary-color` to clear WCAG AA (4.5:1) on the backdrops
-  // it paints; this crimson already clears 4.79:1 at its worst, so the seed
-  // is used as-is. The alias keeps the ink and the decorative tints below
-  // distinguishable, so a future palette change has an obvious place to go.
+  // Muted ink: the sheet's `--doc-sheet-muted` — `text` at 60% over the ground.
+  let muted-color = sheet-muted(text-color, bg-color)
+  // Accent ink: the raw `primary-color` seed, exactly what the sheet paints as
+  // `--doc-sheet-accent` (#919). The sheet is the PDF's visual source of truth,
+  // so the old `darken(…)` step is gone — it was an unenforced WCAG-AA
+  // convention with no test or CI gate behind it. Decorative tints are mixed
+  // over the page ground below with the sheet's own `color-mix` formulas.
   let accent-color = primary-color
 
   // ── Helper functions (capture theme colors from enclosing scope) ──
 
-  let header-bg = primary-color.lighten(90%)
-  let header-text-color = primary-color.darken(40%)
+  // Banner tint and ink: `.doc-sheet__banner--tint` paints
+  // `color-mix(in srgb, accent 12%, bg)` under normal document ink (#919).
+  let header-bg = sheet-mix(primary-color, bg-color, 12)
+  let header-text-color = text-color
   let contact-bar-bg = primary-color
   let separator-color = primary-color.lighten(60%)
   let tag-bg = primary-color.lighten(90%)
@@ -41,7 +43,7 @@
   let rating-dots(level) = {
     let level = clamp-level(level)
     if level-display == "template-default" {
-      rating-indicators(level, 6pt, 6pt, accent-color, bg-color.darken(10%), 50%, 2pt)
+      sheet-level-dots(level, accent-color)
     } else {
       render-level(level, level-display, accent-color, bg-color.darken(10%))
     }
@@ -58,7 +60,7 @@
         #if item.company != "" {
           v(2pt)
           if has-url(item) {
-            link(item.url.href)[#text(size: 9.5pt, fill: accent-color)[#item.company]]
+            link(url-href(item.url))[#text(size: 9.5pt, fill: accent-color)[#item.company]]
           } else {
             text(size: 9.5pt)[#item.company]
           }
@@ -132,18 +134,14 @@
       rating-dots(item.level)
     )
 
-    if has-keywords(item) {
-      v(3pt)
-      for keyword in item.keywords {
-        box(
-          fill: tag-bg,
-          radius: 3pt,
-          inset: (x: 5pt, y: 2pt),
-          text(size: 7.5pt, fill: accent-color)[#keyword]
-        )
-        h(3pt)
-      }
-    }
+    render-item-tag-chips(
+      item,
+      size: 7.5pt,
+      ink: text-color,
+      accent: accent-color,
+      bg: bg-color,
+      lead: 3pt,
+    )
 
     v(8pt)
   }
@@ -270,18 +268,14 @@
 
     text(size: 9.5pt, weight: "medium")[#item.name]
 
-    if has-keywords(item) {
-      v(2pt)
-      for keyword in item.keywords {
-        box(
-          fill: tag-bg,
-          radius: 3pt,
-          inset: (x: 5pt, y: 2pt),
-          text(size: 7.5pt, fill: accent-color)[#keyword]
-        )
-        h(3pt)
-      }
-    }
+    render-item-tag-chips(
+      item,
+      size: 7.5pt,
+      ink: text-color,
+      accent: accent-color,
+      bg: bg-color,
+      lead: 2pt,
+    )
 
     v(6pt)
   }
@@ -461,7 +455,7 @@
                 below: if has-url(data.basics) { 6pt } else { 0pt },
               )
               #if has-url(data.basics) {
-                link(data.basics.url.href)[#text(size: 9pt, fill: accent-color)[#url-display-label(data.basics.url)]]
+                link(url-href(data.basics.url))[#text(size: 9pt, fill: accent-color)[#url-display-label(data.basics.url)]]
               }
             ]
           )

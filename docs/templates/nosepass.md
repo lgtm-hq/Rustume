@@ -52,7 +52,7 @@ Default main / sidebar section ids are defined once in
 | Profile label mode | `network-username` |
 | Skill keywords | Comma-joined inside bordered skill chips |
 | Interest keywords | ` — ` + comma list inside the interest chip row |
-| Level (`template-default`) | Filled/outline `●` text bullets inside the skill chip |
+| Level (`template-default`) | Sheet-parity five dots: 4.5pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.25pt apart (#919) |
 
 Skills render as wrapped bordered chips, not rows.
 
@@ -65,9 +65,9 @@ bodies above.
 | Divergence | Tag |
 | --- | --- |
 | **Typst compile failure** on languages row: `stroke: (dash: "dotted") + border-color` is invalid Typst (`cannot add dictionary and color`) — fixture does not render | fix-in-typst |
-| Sheet headings are uppercase-ish generic; Typst is title-case + trailing rule | fix-in-sheet |
-| Skill presentation (chip cloud vs compact rows) | fix-in-sheet |
-| Level text bullets vs sheet dots | fix-in-sheet |
+| Sheet headings are as-written with a rule (`bundledTemplateLayout`: `rule` + `as-written`); Typst adds title-case and its own trailing-rule weight — align the case and rule details | fix-in-typst |
+| Skill presentation (chip cloud vs compact rows) — the bordered skill pill stays, since it is already this template's chip and nesting keyword chips inside would double it | owner-decision-needed |
+| Level text bullets vs sheet dots | fixed (#919) |
 | Experience lead field | fixed (#858) |
 
 ### Audit evidence

@@ -10,19 +10,23 @@
   let text-color = rgb(data.metadata.theme.at("text", default: "#1c1917"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
   let level-display = data.metadata.at("levelDisplay", default: "template-default")
-  // Derived colors (not in schema — computed from theme values)
-  let muted-color = text-color.lighten(30%)
-  // Accent ink: `primary-color` darkened until it clears WCAG AA (4.5:1)
-  // as text on every backdrop this template paints it on — page, tinted
-  // panels, chips and its own profile badge. `primary-color` itself stays
-  // the untouched brand seed the decorative tints below are derived from.
-  let accent-color = primary-color.darken(40%)
+  // Muted ink: the sheet's `--doc-sheet-muted` — `text` at 60% over the ground.
+  let muted-color = sheet-muted(text-color, bg-color)
+  // Accent ink: the raw `primary-color` seed, exactly what the sheet paints as
+  // `--doc-sheet-accent` (#919). The sheet is the PDF's visual source of truth,
+  // so the old `darken(…)` step is gone — it was an unenforced WCAG-AA
+  // convention with no test or CI gate behind it. Decorative tints are mixed
+  // over the page ground below with the sheet's own `color-mix` formulas.
+  let accent-color = primary-color
 
   // ── Helper functions (capture theme colors from enclosing scope) ──
 
   let white = rgb("#ffffff")
-  let sidebar-bg = primary-color.lighten(85%)
-  let sidebar-text-color = primary-color.darken(60%)
+  // Sidebar tint and ink: `.doc-sheet--sidebar-tint .doc-sheet__side` paints
+  // `color-mix(in srgb, accent 15%, bg)` and leaves the text at the normal
+  // document colour, so the PDF does the same (#919).
+  let sidebar-bg = sheet-sidebar-tint(primary-color, bg-color)
+  let sidebar-text-color = text-color
 
   let sidebar-section(title) = {
     v(12pt)
@@ -44,7 +48,7 @@
   let skill-dots(level) = {
     let level = clamp-level(level)
     if level-display == "template-default" {
-      rating-indicators(level, 6pt, 6pt, accent-color, sidebar-bg.darken(15%), 50%, 3pt)
+      sheet-level-dots(level, accent-color)
     } else {
       render-level(level, level-display, accent-color, sidebar-bg.darken(15%), spacing: 3pt)
     }
@@ -115,9 +119,12 @@
       render-rich-text(item.description, size: 8pt, fill: muted-color)
     }
 
+    // Sheet parity (#919): this template's registry `keywordStyle` is
+    // `plain`, which `.doc-sheet--keywords-plain` renders as comma-separated
+    // muted text — not `.doc-sheet__tag-chip` pills.
     if has-keywords(item) {
       v(2pt)
-      text(size: 8pt, fill: muted-color)[#item.keywords.join(", ")]
+      render-keywords-inline(item, 8pt, muted-color)
     }
 
     v(6pt)
@@ -205,9 +212,12 @@
 
     text(size: 9pt)[#item.name]
 
+    // Sheet parity (#919): this template's registry `keywordStyle` is
+    // `plain`, which `.doc-sheet--keywords-plain` renders as comma-separated
+    // muted text — not `.doc-sheet__tag-chip` pills.
     if has-keywords(item) {
       v(2pt)
-      text(size: 8pt, fill: muted-color)[#item.keywords.join(", ")]
+      render-keywords-inline(item, 8pt, muted-color)
     }
 
     v(4pt)
@@ -345,6 +355,8 @@
     justify: false,
   )
 
+  // The cover-letter page is not the sheet grid — the sheet has no opinion on
+  // it — so its inset stays this template's own, independent of the columns.
   render-cover-letter-page(data, main-section, muted: muted-color, inset: (x: 24pt, y: 32pt))
 
   if has-resume-body(data) {
@@ -378,7 +390,7 @@
       }
 
       #if has-url(data.basics) {
-        text(size: 9pt)[#contact-item(data, "link", link(data.basics.url.href)[#url-display-label(data.basics.url)], fill: sidebar-text-color)]
+        text(size: 9pt)[#contact-item(data, "link", link(url-href(data.basics.url))[#url-display-label(data.basics.url)], fill: sidebar-text-color)]
         v(4pt)
       }
     ]
@@ -400,8 +412,14 @@
       sidebar-width: sidebar-width-from-ratio(data, 180pt),
       sidebar-bg: sidebar-bg,
       body-bg: bg-color,
-      sidebar-inset: (x: 16pt, y: 32pt),
-      main-inset: (x: 24pt, y: 32pt),
+      // Column padding mirrors the sheet grid (#919). The CSS paddings are
+      // three-value: `.doc-sheet__side` is `1.6rem 0.95rem 2rem` and
+      // `.doc-sheet__main` is `1.6rem 1.45rem 2rem`, at the sheet's
+      // 1rem = 16px = 12pt. Typst insets are symmetric in y, so the top value
+      // (1.6rem = 19.2pt) is used for both edges; the sheet's larger 2rem
+      // bottom is slack under a scrolling column, not a print margin.
+      sidebar-inset: (x: 11.4pt, y: 19.2pt),
+      main-inset: (x: 17.4pt, y: 19.2pt),
       sidebar-heading: sidebar-section,
       main-heading: main-section,
       sidebar-before: sidebar-before,

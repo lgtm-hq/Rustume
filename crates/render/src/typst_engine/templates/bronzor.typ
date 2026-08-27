@@ -11,13 +11,14 @@
   let text-color = rgb(data.metadata.theme.at("text", default: "#1f2937"))
   let bg-color = rgb(data.metadata.theme.at("background", default: "#ffffff"))
   let level-display = data.metadata.at("levelDisplay", default: "template-default")
-  // Derived colors (not in schema — computed from theme values)
-  let muted-color = text-color.lighten(30%)
-  // Accent ink: `primary-color` darkened until it clears WCAG AA (4.5:1)
-  // as text on every backdrop this template paints it on — page, tinted
-  // panels, chips and its own profile badge. `primary-color` itself stays
-  // the untouched brand seed the decorative tints below are derived from.
-  let accent-color = primary-color.darken(30%)
+  // Muted ink: the sheet's `--doc-sheet-muted` — `text` at 60% over the ground.
+  let muted-color = sheet-muted(text-color, bg-color)
+  // Accent ink: the raw `primary-color` seed, exactly what the sheet paints as
+  // `--doc-sheet-accent` (#919). The sheet is the PDF's visual source of truth,
+  // so the old `darken(…)` step is gone — it was an unenforced WCAG-AA
+  // convention with no test or CI gate behind it. Decorative tints are mixed
+  // over the page ground below with the sheet's own `color-mix` formulas.
+  let accent-color = primary-color
 
   // ── Helper functions (capture theme colors from enclosing scope) ──
 
@@ -44,7 +45,7 @@
     let level = clamp-level(level)
     if level-display == "template-default" {
       h(4pt)
-      rating-indicators(level, 8pt, 8pt, accent-color, bg-color.darken(10%), 2pt, 2pt)
+      sheet-level-dots(level, accent-color)
     } else if should-render-level(level, level-display) {
       h(4pt)
       render-level(level, level-display, accent-color, bg-color.darken(10%), width: 8pt, height: 8pt)
@@ -117,9 +118,12 @@
       skill-bar(item.level)
     )
 
+    // Sheet parity (#919): this template's registry `keywordStyle` is
+    // `plain`, which `.doc-sheet--keywords-plain` renders as comma-separated
+    // muted text — not `.doc-sheet__tag-chip` pills.
     if has-keywords(item) {
       v(2pt)
-      text(size: 9pt, fill: muted-color)[#item.keywords.join(", ")]
+      render-keywords-inline(item, 9pt, muted-color)
     }
 
     v(8pt)
@@ -230,6 +234,9 @@
 
     text(size: 10pt, weight: "bold")[#item.name]
 
+    // Sheet parity (#919): this template's registry `keywordStyle` is
+    // `plain`, which `.doc-sheet--keywords-plain` renders as comma-separated
+    // muted text — not `.doc-sheet__tag-chip` pills.
     if has-keywords(item) {
       text(size: 9pt, fill: muted-color)[ — #item.keywords.join(", ")]
     }
@@ -387,7 +394,7 @@
       // Contact items - wrapped horizontally
       #let contact-items = build-contact-items(data.basics)
       #if has-url(data.basics) {
-        contact-items = contact-items + (link(data.basics.url.href)[#text(fill: accent-color)[#url-display-label(data.basics.url)]],)
+        contact-items = contact-items + (link(url-href(data.basics.url))[#text(fill: accent-color)[#url-display-label(data.basics.url)]],)
       }
 
       #text(size: 9pt)[#contact-items.join([#h(10pt)#text(fill: muted-color)[|]#h(10pt)])]

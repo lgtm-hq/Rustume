@@ -1,6 +1,6 @@
 # bronzor
 
-Centered single-column cyan resume; uppercase underlined headings; square rating glyphs.
+Centered single-column cyan resume; uppercase underlined headings; five-dot levels.
 
 Adapted-from context: Reactive Resume artboard `apps/web/public/templates/{jpg,pdf}/bronzor.*` (not
 a 1:1 target).
@@ -46,9 +46,9 @@ Default main / sidebar section ids are defined once in
 | Experience order | **Position-first** (bold) `— company`; date right; location on its own muted line (#858) |
 | Education order | Institution + date; then degree; score; summary (rhyhorn-like) |
 | Profile label mode | URL → `username`; else `network-username` |
-| Skill / project keywords | Comma-joined muted |
-| Interest keywords | ` — ` + comma list |
-| Level (`template-default`) | Rounded squares 8×8pt (radius 2pt) |
+| Skill / project keywords | Comma-joined muted — the sheet's `keywordStyle: "plain"` (`.doc-sheet--keywords-plain`) |
+| Interest keywords | ` — ` + comma list, the sheet's plain treatment |
+| Level (`template-default`) | Sheet-parity five dots: 4.5pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.25pt apart (#919) |
 
 Shared extras from `_common.typ` (experience/education keyword chips + custom
 fields; projects/skills custom fields) still apply on top of the native item
@@ -58,9 +58,9 @@ bodies above.
 
 | Divergence | Tag |
 | --- | --- |
-| Sheet header is not distinctly centered/contact-wrapped per bronzor | fix-in-sheet |
-| Heading underline + uppercase missing on sheet | fix-in-sheet |
-| Level squares vs sheet dots | fix-in-sheet |
+| Sheet centers bronzor's header via `.doc-sheet--head-center` (`bundledSingle("center")`, asserted by the sheetChrome tests), so header centering is no longer a divergence | fixed (#830) |
+| Heading chrome: the sheet already applies bronzor's underline + uppercase (`bundledTemplateLayout`), so this is no longer a divergence | fixed (#830) |
+| Level squares vs sheet dots | fixed (#919) |
 | Experience lead field was company-first in Typst | fixed (#858) |
 | Typography metadata ignored | fix-in-typst (#701) |
 

@@ -46,10 +46,10 @@ Default main / sidebar section ids are defined once in
 | Experience order | **Position-first** (semibold); `— company` muted on the same line; location on its own row — already sheet-aligned |
 | Education order | Institution + degree; date right; score; summary |
 | Profile label mode | `network-username` |
-| Skill keywords | Comma-joined |
-| Interest keywords | ` — ` + comma list |
-| Project keywords | Soft chips on some items; skills comma |
-| Level (`template-default`) | Rounded squares 8×8pt |
+| Skill keywords | Themed pill chips (`render-item-tag-chips`, #919) |
+| Interest keywords | Themed pill chips (`render-item-tag-chips`, #919) |
+| Project keywords | Soft chips (template-local); custom-section keywords stay comma-joined |
+| Level (`template-default`) | Sheet-parity five dots: 4.5pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.25pt apart (#919) |
 
 Shared extras from `_common.typ` (experience/education keyword chips + custom
 fields; projects/skills custom fields) still apply on top of the native item
@@ -59,9 +59,9 @@ bodies above.
 
 | Divergence | Tag |
 | --- | --- |
-| Sheet `headerStyle: boxed` draws a stroked banner approximation; Typst centers a full-width padded box including contact | fix-in-sheet |
-| Heading trailing-rule chrome missing | fix-in-sheet |
-| Light name weight not mirrored | fix-in-sheet |
+| Sheet `headerStyle: boxed` draws a stroked banner approximation; Typst centers a full-width padded box including contact | fix-in-typst |
+| Typst's trailing accent rule vs the sheet's underline + uppercase chrome (`chromeUnderlineChips`) — the sheet has kakuna's heading chrome; the rule treatment is a Typst extra | fix-in-typst |
+| Light name weight not mirrored | fix-in-typst |
 | Experience lead field | fixed (#858) |
 | Typography metadata ignored | fix-in-typst (#701) |
 

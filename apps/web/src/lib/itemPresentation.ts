@@ -19,19 +19,25 @@ export function clampLevel(value: number): number {
 }
 
 /**
- * Visible profile label: username first, then network, then URL.
+ * Visible profile label: username first, then network, then URL — where the
+ * URL fallback prefers `url.label` over the raw href (#919).
  * Matches Typst `profile-entry-label` mode `"auto"` / `"username"`.
  */
 export function profileEntryLabel(item: {
   username?: string | null;
   network?: string | null;
-  url?: { href?: string | null } | null;
+  url?: { label?: string | null; href?: string | null } | null;
 }): string {
   const username = (item.username ?? "").trim();
   if (username !== "") return username;
   const network = (item.network ?? "").trim();
   if (network !== "") return network;
-  return (item.url?.href ?? "").trim();
+  // Like Typst `has-url`, the URL fallback exists only for a real (non-blank)
+  // href — a label without a destination is not a link on either renderer.
+  const href = (item.url?.href ?? "").trim();
+  if (href === "") return "";
+  const label = (item.url?.label ?? "").trim();
+  return label !== "" ? label : href;
 }
 
 /** Education primary line: study type / degree only. */
