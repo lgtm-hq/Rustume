@@ -23,6 +23,10 @@
   let accent-color = primary-color
   // Sidebar tint: `.doc-sheet--sidebar-tint .doc-sheet__side` (#919).
   let sidebar-bg = sheet-sidebar-tint(primary-color, bg-color)
+  // Muted ink INSIDE the tinted rail: `--doc-sheet-muted` is `text` at 60%
+  // alpha, so the sheet composites it over the rail, not over the page. Same
+  // arithmetic, local ground (#919).
+  let sidebar-muted-color = sheet-muted(text-color, sidebar-bg)
 
   // ── Helper functions (capture theme colors from enclosing scope) ──
 
@@ -135,13 +139,13 @@
       skill-dots(level)
     }
 
-    render-item-tag-chips(
-      item,
-      size: 8pt,
-      accent: accent-color,
-      bg: bg-color,
-      lead: 2pt,
-    )
+    // Sheet parity (#919): this template's registry `keywordStyle` is
+    // `plain`, which `.doc-sheet--keywords-plain` renders as comma-separated
+    // muted text — not `.doc-sheet__tag-chip` pills.
+    if has-keywords(item) {
+      v(2pt)
+      render-keywords-inline(item, 8pt, muted-color)
+    }
 
     v(8pt)
   }
@@ -262,13 +266,13 @@
 
     text(size: 9pt, weight: "bold")[#item.name]
 
-    render-item-tag-chips(
-      item,
-      size: 8pt,
-      accent: accent-color,
-      bg: bg-color,
-      lead: 1pt,
-    )
+    // Sheet parity (#919): this template's registry `keywordStyle` is
+    // `plain`, which `.doc-sheet--keywords-plain` renders as comma-separated
+    // muted text — not `.doc-sheet__tag-chip` pills.
+    if has-keywords(item) {
+      v(1pt)
+      render-keywords-inline(item, 8pt, muted-color)
+    }
 
     v(6pt)
   }
@@ -416,7 +420,9 @@
     justify: true,
   )
 
-  render-cover-letter-page(data, section-heading, muted: muted-color, inset: (x: 17.4pt, y: 19.2pt))
+  // The cover-letter page is not the sheet grid — the sheet has no opinion on
+  // it — so its inset stays this template's own, independent of the columns.
+  render-cover-letter-page(data, section-heading, muted: muted-color, inset: (x: 24pt, y: 24pt))
 
   if has-resume-body(data) {
     let sidebar-before = () => [
@@ -429,7 +435,7 @@
 
       #if data.basics.headline != "" {
         v(6pt)
-        text(size: 9pt, style: "italic", fill: muted-color)[#data.basics.headline]
+        text(size: 9pt, style: "italic", fill: sidebar-muted-color)[#data.basics.headline]
       }
 
       #v(12pt)
@@ -459,9 +465,12 @@
       // Default width must match FIXED_SIDEBAR_WIDTH_PT in apps/web/src/components/templates/ThemeEditor.tsx.
       sidebar-width: sidebar-width-from-ratio(data, 170pt),
       sidebar-bg: sidebar-bg,
-      // Column padding mirrors the sheet grid (#919): `.doc-sheet__side` is
-      // `1.6rem 0.95rem` and `.doc-sheet__main` is `1.6rem 1.45rem`, at the
-      // sheet's 1rem = 16px = 12pt.
+      // Column padding mirrors the sheet grid (#919). The CSS paddings are
+      // three-value: `.doc-sheet__side` is `1.6rem 0.95rem 2rem` and
+      // `.doc-sheet__main` is `1.6rem 1.45rem 2rem`, at the sheet's
+      // 1rem = 16px = 12pt. Typst insets are symmetric in y, so the top value
+      // (1.6rem = 19.2pt) is used for both edges; the sheet's larger 2rem
+      // bottom is slack under a scrolling column, not a print margin.
       sidebar-inset: (x: 11.4pt, y: 19.2pt),
       main-inset: (x: 17.4pt, y: 19.2pt),
       sidebar-heading: sidebar-heading,

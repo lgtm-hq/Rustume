@@ -24,6 +24,10 @@
 
   // Sidebar tint and ink: `.doc-sheet--sidebar-tint .doc-sheet__side` (#919).
   let sidebar-bg = sheet-sidebar-tint(primary-color, bg-color)
+  // Muted ink INSIDE the tinted rail: `--doc-sheet-muted` is `text` at 60%
+  // alpha, so the sheet composites it over the rail, not over the page. Same
+  // arithmetic, local ground (#919).
+  let sidebar-muted-color = sheet-muted(text-color, sidebar-bg)
   let sidebar-text = text-color
 
   let sidebar-section-heading(title) = {
@@ -143,6 +147,7 @@
     render-item-tag-chips(
       item,
       size: 8pt,
+      ink: text-color,
       accent: accent-color,
       bg: bg-color,
       lead: 2pt,
@@ -274,6 +279,7 @@
     render-item-tag-chips(
       item,
       size: 8pt,
+      ink: text-color,
       accent: accent-color,
       bg: bg-color,
       lead: 2pt,
@@ -415,7 +421,9 @@
     justify: false,
   )
 
-  render-cover-letter-page(data, main-section-heading, muted: muted-color, inset: (x: 17.4pt, y: 19.2pt))
+  // The cover-letter page is not the sheet grid — the sheet has no opinion on
+  // it — so its inset stays this template's own, independent of the columns.
+  render-cover-letter-page(data, main-section-heading, muted: muted-color, inset: (x: 24pt, y: 28pt))
 
   if has-resume-body(data) {
     let sidebar-wrapper(body) = {
@@ -433,7 +441,7 @@
 
       #if data.basics.headline != "" {
         v(6pt)
-        text(size: 9pt, fill: muted-color)[#data.basics.headline]
+        text(size: 9pt, fill: sidebar-muted-color)[#data.basics.headline]
       }
 
       #v(12pt)
@@ -464,9 +472,12 @@
       sidebar-width: sidebar-width-from-ratio(data, 170pt),
       sidebar-bg: sidebar-bg,
       body-bg: bg-color,
-      // Column padding mirrors the sheet grid (#919): `.doc-sheet__side` is
-      // `1.6rem 0.95rem` and `.doc-sheet__main` is `1.6rem 1.45rem`, at the
-      // sheet's 1rem = 16px = 12pt.
+      // Column padding mirrors the sheet grid (#919). The CSS paddings are
+      // three-value: `.doc-sheet__side` is `1.6rem 0.95rem 2rem` and
+      // `.doc-sheet__main` is `1.6rem 1.45rem 2rem`, at the sheet's
+      // 1rem = 16px = 12pt. Typst insets are symmetric in y, so the top value
+      // (1.6rem = 19.2pt) is used for both edges; the sheet's larger 2rem
+      // bottom is slack under a scrolling column, not a print margin.
       sidebar-inset: (x: 11.4pt, y: 19.2pt),
       main-inset: (x: 17.4pt, y: 19.2pt),
       sidebar-heading: sidebar-section-heading,

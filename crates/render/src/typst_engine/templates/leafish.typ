@@ -137,6 +137,7 @@
     render-item-tag-chips(
       item,
       size: 7.5pt,
+      ink: text-color,
       accent: accent-color,
       bg: bg-color,
       lead: 3pt,
@@ -270,6 +271,7 @@
     render-item-tag-chips(
       item,
       size: 7.5pt,
+      ink: text-color,
       accent: accent-color,
       bg: bg-color,
       lead: 2pt,

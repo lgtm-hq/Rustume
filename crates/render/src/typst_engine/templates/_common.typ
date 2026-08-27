@@ -50,11 +50,20 @@
 /// (`color-mix(in srgb, accent 15%, bg)`).
 #let sheet-sidebar-tint(accent, bg) = sheet-mix(accent, bg, 15)
 
-/// Muted body ink: `--doc-sheet-muted` (`text 60%` over the sheet ground).
+/// Muted body ink: `--doc-sheet-muted`, which CSS writes as
+/// `color-mix(in srgb, text 60%, transparent)` — a translucent ink, not an
+/// opaque one. Typst has no compositing model here, so the caller resolves it:
+/// alpha-over-ground and mix-with-ground are the same arithmetic, because
+/// `text` at 60% alpha composited over a ground `G` is exactly
+/// `0.6·text + 0.4·G`, i.e. `sheet-mix(text, G, 60)`.
+///
+/// The consequence is that `bg` must be the LOCAL ground the ink actually
+/// lands on, not always the page background: inside a tinted sidebar the sheet
+/// composites through the rail, so pass the sidebar tint there
+/// (`sheet-muted(text-color, sidebar-bg)`). Section renderers a template shares
+/// between both columns keep the page ground, since their backdrop is not
+/// knowable at the call site.
 #let sheet-muted(text-color, bg) = sheet-mix(text-color, bg, 60)
-
-/// Hairline rule ink: `--doc-sheet-rule` (`accent 35%` over the sheet ground).
-#let sheet-rule(accent, bg) = sheet-mix(accent, bg, 35)
 
 /// Keyword-chip fill: `.doc-sheet__tag-chip`
 /// (`color-mix(in srgb, accent 10%, bg)`).
@@ -318,13 +327,17 @@
   }
 }
 
-/// Sheet-parity level indicator: five 6pt dots, filled in `accent` up to
-/// `level` and left on the sheet's flat `#d6d3d1` track after it
+/// Sheet-parity level indicator: five dots, filled in `accent` up to `level`
+/// and left on the sheet's flat `#d6d3d1` track after it
 /// (`.doc-sheet__lang-dots`). This is the shared `template-default` glyph
 /// (#919) — the sheet draws no outline, so neither does this; the explicit
 /// `metadata.levelDisplay` overrides still route through `render-level`,
 /// which keeps its outlined indicators.
-#let sheet-level-dots(level, accent, spacing: 2.5pt, size: 6pt) = {
+///
+/// Sizes use the same px→pt mapping as the sheet-grid column padding
+/// (1rem = 16px = 12pt, so 1px = 0.75pt): the sheet's 6px dot with a 3px gap
+/// becomes 4.5pt with a 2.25pt gap.
+#let sheet-level-dots(level, accent, spacing: 2.25pt, size: 4.5pt) = {
   let level = clamp-level(level)
   for i in range(5) {
     if i > 0 { h(spacing) }
@@ -684,13 +697,19 @@
 
 /// Render an item's keywords as soft tag chips (doc-editor spec §4.3).
 ///
-/// Since #919 this is the one keyword-chip treatment for every section that
-/// shows keywords — experience/education extras as before, plus skills and
-/// interests. Pass `accent` and `bg` to paint the sheet's `.doc-sheet__tag-chip`
-/// (`color-mix(accent 10%, bg)` fill, `color-mix(accent 28%, #e7e5e4)` border,
-/// accent text). Without them the chips fall back to the neutral stone grey
-/// the helper shipped with, so callers that want secondary-metadata chips in a
-/// template with no local accent keep their old look.
+/// This is the chip treatment for the sections the sheet paints as chips —
+/// experience/education extras as before, plus skills and interests on the
+/// templates whose `keywordStyle` is `chips` (see `template_layout.rs` /
+/// `docLayout.ts`). Templates the registry marks `plain` keep the sheet's
+/// comma-separated muted text instead; do not call this there.
+///
+/// Pass `accent` and `bg` to paint the sheet's `.doc-sheet__tag-chip`
+/// (`color-mix(accent 10%, bg)` fill, `color-mix(accent 28%, #e7e5e4)` border).
+/// The chip LABEL is `ink`, not the accent: the CSS rule sets no `color`, so a
+/// chip inherits `--doc-sheet-text` at `font-weight: 600`. Themed callers pass
+/// their `text-color`. Without `accent`/`bg` the chips fall back to the neutral
+/// stone grey the helper shipped with, so callers that want secondary-metadata
+/// chips in a template with no local accent keep their old look.
 #let render-item-tag-chips(
   item,
   size: 7pt,
@@ -703,7 +722,9 @@
   let themed = accent != none and bg != none
   let chip-fill = if themed { sheet-chip-fill(accent, bg) } else { ink.lighten(88%) }
   let chip-stroke = if themed { sheet-chip-stroke(accent) } else { ink.lighten(60%) }
-  let chip-ink = if themed { accent } else { ink }
+  // `.doc-sheet__tag-chip` declares no `color`, so the label is body ink at
+  // weight 600 — the accent is only the fill and border mix seed.
+  let chip-ink = ink
   v(lead)
   // No outer box: a box is an unbreakable inline atom, so a long keyword list
   // would overflow the column instead of wrapping onto the next line. Each

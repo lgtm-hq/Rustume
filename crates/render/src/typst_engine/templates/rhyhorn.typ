@@ -118,13 +118,13 @@
       skill-bar(item.level)
     )
 
-    render-item-tag-chips(
-      item,
-      size: 9pt,
-      accent: accent-color,
-      bg: bg-color,
-      lead: 2pt,
-    )
+    // Sheet parity (#919): this template's registry `keywordStyle` is
+    // `plain`, which `.doc-sheet--keywords-plain` renders as comma-separated
+    // muted text — not `.doc-sheet__tag-chip` pills.
+    if has-keywords(item) {
+      v(2pt)
+      render-keywords-inline(item, 9pt, muted-color)
+    }
 
     v(8pt)
   }
@@ -234,13 +234,12 @@
 
     text(size: 10pt, weight: "bold")[#item.name]
 
-    render-item-tag-chips(
-      item,
-      size: 8pt,
-      accent: accent-color,
-      bg: bg-color,
-      lead: 3pt,
-    )
+    // Sheet parity (#919): this template's registry `keywordStyle` is
+    // `plain`, which `.doc-sheet--keywords-plain` renders as comma-separated
+    // muted text — not `.doc-sheet__tag-chip` pills.
+    if has-keywords(item) {
+      text(size: 9pt, fill: muted-color)[ — #item.keywords.join(", ")]
+    }
 
     v(4pt)
   }

@@ -134,6 +134,7 @@
     render-item-tag-chips(
       item,
       size: 7pt,
+      ink: text-color,
       accent: accent-color,
       bg: bg-color,
       lead: 2pt,
@@ -268,6 +269,7 @@
     render-item-tag-chips(
       item,
       size: 7pt,
+      ink: text-color,
       accent: accent-color,
       bg: bg-color,
       lead: 2pt,
@@ -421,7 +423,9 @@
     justify: false,
   )
 
-  render-cover-letter-page(data, section-heading, muted: muted-color, inset: (x: 17.4pt, y: 19.2pt))
+  // The cover-letter page is not the sheet grid — the sheet has no opinion on
+  // it — so its inset stays this template's own, independent of the columns.
+  render-cover-letter-page(data, section-heading, muted: muted-color, inset: (x: 20pt, y: 12pt))
 
   if has-resume-body(data) {
     // Header lives in render-resume's header slot so the page-height
@@ -430,7 +434,8 @@
       #box(
         width: 100%,
         fill: accent-color,
-        // `.doc-sheet__banner` padding: 1.4rem 1.6rem (#919).
+        // `.doc-sheet__banner` padding is `1.4rem 1.6rem 1rem` (#919); the
+        // symmetric Typst inset takes the 1.4rem top for both edges.
         inset: (x: 19.2pt, y: 16.8pt),
         [
           #avatar-above(
@@ -464,9 +469,12 @@
       sidebar-width: sidebar-width-from-ratio(data, 160pt),
       sidebar-bg: sidebar-bg,
       body-bg: bg-color,
-      // Column padding mirrors the sheet grid (#919): `.doc-sheet__side` is
-      // `1.6rem 0.95rem` and `.doc-sheet__main` is `1.6rem 1.45rem`, at the
-      // sheet's 1rem = 16px = 12pt.
+      // Column padding mirrors the sheet grid (#919). The CSS paddings are
+      // three-value: `.doc-sheet__side` is `1.6rem 0.95rem 2rem` and
+      // `.doc-sheet__main` is `1.6rem 1.45rem 2rem`, at the sheet's
+      // 1rem = 16px = 12pt. Typst insets are symmetric in y, so the top value
+      // (1.6rem = 19.2pt) is used for both edges; the sheet's larger 2rem
+      // bottom is slack under a scrolling column, not a print margin.
       sidebar-inset: (x: 11.4pt, y: 19.2pt),
       main-inset: (x: 17.4pt, y: 19.2pt),
       sidebar-heading: sidebar-heading,
