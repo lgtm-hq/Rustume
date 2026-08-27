@@ -11,9 +11,9 @@
   if url == none {
     return fallback
   }
-  let label = if "label" in url and url.label != none { url.label } else { "" }
+  let label = if "label" in url and url.label != none { url.label.trim() } else { "" }
   if label != "" { return label }
-  let href = if "href" in url and url.href != none { url.href } else { "" }
+  let href = if "href" in url and url.href != none { url.href.trim() } else { "" }
   if href != "" { return href }
   fallback
 }

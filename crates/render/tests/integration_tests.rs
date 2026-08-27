@@ -2289,6 +2289,7 @@ fn test_custom_section_item_url_prefers_label_over_href(#[case] template_name: &
     const LABEL: &str = "lgtm-hq/ai-skills";
     const LABELED_HREF: &str = "https://github.com/lgtm-hq/ai-skills";
     const BARE_HREF: &str = "https://rustume.dev/unlabeled";
+    const WHITESPACE_HREF: &str = "https://rustume.dev/whitespace-label";
 
     let renderer = TypstRenderer::new();
     let mut resume = sample_resume();
@@ -2306,6 +2307,9 @@ fn test_custom_section_item_url_prefers_label_over_href(#[case] template_name: &
     let mut unlabeled = CustomItem::new("Unlabeled Project");
     unlabeled.url = Url::new(BARE_HREF);
     custom_section.add_item(unlabeled);
+    let mut whitespace_labeled = CustomItem::new("Whitespace Label Project");
+    whitespace_labeled.url = Url::with_label("   ", WHITESPACE_HREF);
+    custom_section.add_item(whitespace_labeled);
     resume.sections.custom = HashMap::from([("open-source".to_string(), custom_section)]);
 
     let pdf = renderer
@@ -2329,10 +2333,14 @@ fn test_custom_section_item_url_prefers_label_over_href(#[case] template_name: &
         compact.contains(BARE_HREF),
         "'{template_name}' should fall back to the href when the label is empty, got:\n{text}"
     );
+    assert!(
+        compact.contains(WHITESPACE_HREF),
+        "'{template_name}' should fall back to the href when the label is whitespace-only, got:\n{text}"
+    );
 
-    // The hyperlink destination stays the href for both items.
+    // The hyperlink destination stays the href for all items.
     let pdf_str = String::from_utf8_lossy(&pdf);
-    for href in [LABELED_HREF, BARE_HREF] {
+    for href in [LABELED_HREF, BARE_HREF, WHITESPACE_HREF] {
         assert!(
             pdf_str.contains(href),
             "'{template_name}' should keep '{href}' as the link target"
