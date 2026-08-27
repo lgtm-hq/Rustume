@@ -19,18 +19,21 @@ export function clampLevel(value: number): number {
 }
 
 /**
- * Visible profile label: username first, then network, then URL.
+ * Visible profile label: username first, then network, then URL — where the
+ * URL fallback prefers `url.label` over the raw href (#919).
  * Matches Typst `profile-entry-label` mode `"auto"` / `"username"`.
  */
 export function profileEntryLabel(item: {
   username?: string | null;
   network?: string | null;
-  url?: { href?: string | null } | null;
+  url?: { label?: string | null; href?: string | null } | null;
 }): string {
   const username = (item.username ?? "").trim();
   if (username !== "") return username;
   const network = (item.network ?? "").trim();
   if (network !== "") return network;
+  const label = (item.url?.label ?? "").trim();
+  if (label !== "") return label;
   return (item.url?.href ?? "").trim();
 }
 
