@@ -422,7 +422,7 @@
       ],
       align(right)[
         #let contact-items = build-contact-items(data.basics)
-        #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#text(fill: accent-color)[#url-display-label(data.basics.url)]],) }
+        #if has-url(data.basics) { contact-items = contact-items + (link(url-href(data.basics.url))[#text(fill: accent-color)[#url-display-label(data.basics.url)]],) }
 
         #for item in contact-items {
           text(size: 9pt, fill: muted-color)[#item]

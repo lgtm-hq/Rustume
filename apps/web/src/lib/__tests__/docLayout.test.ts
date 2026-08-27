@@ -27,6 +27,7 @@ import {
   type TemplateLayout,
 } from "../docLayout";
 import { renderSheetPages } from "../docPagination";
+import { THEMED_CHIP_CALL_RE } from "../../test/typstPatterns";
 import {
   HEADER_SPLIT_TEMPLATE,
   loadDocEditorFixture as loadFixture,
@@ -718,12 +719,10 @@ describe("templateDocFontFamily / docFontStack", () => {
     const ids = readdirSync(typstTemplates)
       .filter((name) => name.endsWith(".typ") && !name.startsWith("_"))
       .map((name) => name.replace(/\.typ$/, ""));
+    expect(ids.length).toBe(12);
     for (const id of ids) {
       const src = readFileSync(join(typstTemplates, `${id}.typ`), "utf8");
-      const themedChips =
-        /render-item-tag-chips\([\s\S]{0,400}?accent: accent-color,[\s\S]{0,100}?bg: bg-color/.test(
-          src,
-        );
+      const themedChips = THEMED_CHIP_CALL_RE.test(src);
       expect(bundledTemplateLayout(id).keywordStyle, id).toBe(themedChips ? "chips" : "plain");
     }
   });

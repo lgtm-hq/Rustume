@@ -24,6 +24,11 @@
   fallback
 }
 
+/// Link destination for a `{ label, href }` URL: the trimmed href, so padded
+/// input ("  https://… ") cannot become a broken PDF annotation target.
+/// Callers gate on `has-url` first, which guarantees a non-empty trim.
+#let url-href(url) = url.href.trim()
+
 /// Resolve a hex color, falling back when the input is empty.
 /// Typst's rgb() string form requires a leading #, so prepend one
 /// for legacy stored values that lack it.
@@ -433,7 +438,7 @@
   if has-url(item) {
     v(2pt)
     let label = url-display-label(item.url, fallback: item.url.href)
-    link(item.url.href)[#text(size: 9pt, fill: color)[#label]]
+    link(url-href(item.url))[#text(size: 9pt, fill: color)[#label]]
   }
 }
 
@@ -683,7 +688,7 @@
     } else {
       body
     }
-    link(item.url.href)[#linked]
+    link(url-href(item.url))[#linked]
   } else {
     body
   }

@@ -60,7 +60,7 @@
         #if item.company != "" {
           v(2pt)
           if has-url(item) {
-            link(item.url.href)[#text(size: 9.5pt, fill: accent-color)[#item.company]]
+            link(url-href(item.url))[#text(size: 9.5pt, fill: accent-color)[#item.company]]
           } else {
             text(size: 9.5pt)[#item.company]
           }
@@ -455,7 +455,7 @@
                 below: if has-url(data.basics) { 6pt } else { 0pt },
               )
               #if has-url(data.basics) {
-                link(data.basics.url.href)[#text(size: 9pt, fill: accent-color)[#url-display-label(data.basics.url)]]
+                link(url-href(data.basics.url))[#text(size: 9pt, fill: accent-color)[#url-display-label(data.basics.url)]]
               }
             ]
           )

@@ -74,7 +74,7 @@
         #text(weight: "bold", size: 10pt)[#item.position]
         #v(2pt)
         #if has-url(item) {
-          link(item.url.href)[#text(size: 10pt, fill: text-color)[#item.company]]
+          link(url-href(item.url))[#text(size: 10pt, fill: text-color)[#item.company]]
         } else {
           text(size: 10pt, fill: text-color)[#item.company]
         }
@@ -196,7 +196,7 @@
     entry-header(
       [
         #if has-url(item) {
-          link(item.url.href)[#text(weight: "bold", size: 10pt)[#item.name]]
+          link(url-href(item.url))[#text(weight: "bold", size: 10pt)[#item.name]]
         } else {
           text(weight: "bold", size: 10pt)[#item.name]
         }
@@ -460,7 +460,7 @@
         v(4pt)
       }
       #if has-url(data.basics) {
-        link(data.basics.url.href)[#text(size: 8pt, fill: accent-color)[#url-display-label(data.basics.url)]]
+        link(url-href(data.basics.url))[#text(size: 8pt, fill: accent-color)[#url-display-label(data.basics.url)]]
         v(4pt)
       }
     ]

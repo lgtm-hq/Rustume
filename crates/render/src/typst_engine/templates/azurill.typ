@@ -446,7 +446,7 @@
       #if data.basics.email != "" { contact-items = contact-items + (link("mailto:" + data.basics.email)[#data.basics.email],) }
       #if data.basics.phone != "" { contact-items = contact-items + (data.basics.phone,) }
       #if data.basics.location != "" { contact-items = contact-items + (data.basics.location,) }
-      #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#url-display-label(data.basics.url)],) }
+      #if has-url(data.basics) { contact-items = contact-items + (link(url-href(data.basics.url))[#url-display-label(data.basics.url)],) }
 
       #text(size: 9pt, fill: muted-color)[#contact-items.join("  ·  ")]
     ]

@@ -23,6 +23,7 @@
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { THEMED_CHIP_CALL_RE } from "../../src/test/typstPatterns";
 import { ContrastRole } from "./contrast";
 import { TEMPLATE_DIR, type Palette } from "./typstPalette";
 
@@ -294,9 +295,7 @@ const TEMPLATE_PAIRS: Readonly<Record<string, readonly ContrastPair[]>> = {
  */
 export function paintsThemedChips(templateId: string): boolean {
   const source = readFileSync(join(TEMPLATE_DIR, `${templateId}.typ`), "utf8");
-  return /render-item-tag-chips\([\s\S]{0,400}?accent: accent-color,[\s\S]{0,100}?bg: bg-color/.test(
-    source,
-  );
+  return THEMED_CHIP_CALL_RE.test(source);
 }
 
 /** Every pair audited for one template. */

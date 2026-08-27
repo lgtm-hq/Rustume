@@ -55,7 +55,7 @@
         #text(weight: "bold", size: 9pt)[#item.position]
         #v(1pt)
         #if has-url(item) {
-          link(item.url.href)[#text(size: 9pt, fill: accent-color)[#item.company]]
+          link(url-href(item.url))[#text(size: 9pt, fill: accent-color)[#item.company]]
         } else {
           text(size: 9pt)[#item.company]
         }
@@ -455,7 +455,7 @@
           #v(8pt)
 
           #let contact-items = build-contact-items(data.basics)
-          #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#text(fill: white)[#url-display-label(data.basics.url)]],) }
+          #if has-url(data.basics) { contact-items = contact-items + (link(url-href(data.basics.url))[#text(fill: white)[#url-display-label(data.basics.url)]],) }
 
           #text(size: 8pt, fill: accent-color.lighten(85%))[#contact-items.join("  |  ")]
         ]

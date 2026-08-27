@@ -390,7 +390,7 @@
       }
 
       #if has-url(data.basics) {
-        text(size: 9pt)[#contact-item(data, "link", link(data.basics.url.href)[#url-display-label(data.basics.url)], fill: sidebar-text-color)]
+        text(size: 9pt)[#contact-item(data, "link", link(url-href(data.basics.url))[#url-display-label(data.basics.url)], fill: sidebar-text-color)]
         v(4pt)
       }
     ]

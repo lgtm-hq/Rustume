@@ -394,7 +394,7 @@
       // Contact items - wrapped horizontally
       #let contact-items = build-contact-items(data.basics)
       #if has-url(data.basics) {
-        contact-items = contact-items + (link(data.basics.url.href)[#text(fill: accent-color)[#url-display-label(data.basics.url)]],)
+        contact-items = contact-items + (link(url-href(data.basics.url))[#text(fill: accent-color)[#url-display-label(data.basics.url)]],)
       }
 
       #text(size: 9pt)[#contact-items.join([#h(10pt)#text(fill: muted-color)[|]#h(10pt)])]

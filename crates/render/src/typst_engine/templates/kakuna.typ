@@ -422,7 +422,7 @@
           #v(10pt)
 
           #let contact-items = build-contact-items(data.basics)
-          #if has-url(data.basics) { contact-items = contact-items + (link(data.basics.url.href)[#url-display-label(data.basics.url)],) }
+          #if has-url(data.basics) { contact-items = contact-items + (link(url-href(data.basics.url))[#url-display-label(data.basics.url)],) }
 
           #text(size: 9pt, fill: muted-color)[#contact-items.join("  ·  ")]
         ]

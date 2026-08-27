@@ -429,7 +429,7 @@
           contact-parts.push([#contact-item(data, "location", data.basics.location, fill: text-color)])
         }
         #if has-url(data.basics) {
-          contact-parts.push([#contact-item(data, "link", link(data.basics.url.href)[#url-display-label(data.basics.url, fallback: "Portfolio")], fill: text-color)])
+          contact-parts.push([#contact-item(data, "link", link(url-href(data.basics.url))[#url-display-label(data.basics.url, fallback: "Portfolio")], fill: text-color)])
         }
 
         #text(size: 9pt)[#contact-parts.join("    ")]

@@ -454,7 +454,7 @@
         v(3pt)
       }
       #if has-url(data.basics) {
-        link(data.basics.url.href)[#text(size: 8pt, fill: accent-color)[#url-display-label(data.basics.url)]]
+        link(url-href(data.basics.url))[#text(size: 8pt, fill: accent-color)[#url-display-label(data.basics.url)]]
         v(3pt)
       }
     ]
