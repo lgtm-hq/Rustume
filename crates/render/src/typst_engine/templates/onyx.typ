@@ -122,18 +122,13 @@
       rating-squares(item.level)
     )
 
-    if has-keywords(item) {
-      v(2pt)
-      for keyword in item.keywords {
-        box(
-          fill: accent-color.lighten(92%),
-          radius: 3pt,
-          inset: (x: 6pt, y: 2pt),
-          text(size: 8pt, fill: accent-color)[#keyword]
-        )
-        h(4pt)
-      }
-    }
+    render-item-tag-chips(
+      item,
+      size: 8pt,
+      accent: accent-color,
+      bg: bg-color,
+      lead: 2pt,
+    )
 
     v(8pt)
   }
@@ -252,9 +247,13 @@
 
     text(size: 10pt, weight: "medium", fill: text-color)[#item.name]
 
-    if has-keywords(item) {
-      text(size: 9pt, fill: muted-color)[ — #item.keywords.join(", ")]
-    }
+    render-item-tag-chips(
+      item,
+      size: 8pt,
+      accent: accent-color,
+      bg: bg-color,
+      lead: 3pt,
+    )
 
     v(6pt)
   }

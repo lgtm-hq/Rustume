@@ -136,10 +136,13 @@
       rating-bars(level)
     }
 
-    if has-keywords(item) {
-      v(2pt)
-      text(size: 8pt, fill: muted-color)[#item.keywords.join(", ")]
-    }
+    render-item-tag-chips(
+      item,
+      size: 8pt,
+      accent: accent-color,
+      bg: bg-color,
+      lead: 2pt,
+    )
 
     v(8pt)
   }
@@ -269,18 +272,13 @@
 
     text(size: 9pt, weight: "bold")[#item.name]
 
-    if has-keywords(item) {
-      v(2pt)
-      for keyword in item.keywords {
-        box(
-          fill: light-bg,
-          radius: 3pt,
-          inset: (x: 5pt, y: 2pt),
-          text(size: 8pt, fill: accent-color)[#keyword]
-        )
-        h(3pt)
-      }
-    }
+    render-item-tag-chips(
+      item,
+      size: 8pt,
+      accent: accent-color,
+      bg: bg-color,
+      lead: 2pt,
+    )
 
     v(8pt)
   }

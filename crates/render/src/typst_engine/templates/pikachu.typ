@@ -119,10 +119,13 @@
       render-rich-text(item.description, size: 8pt, fill: muted-color)
     }
 
-    if has-keywords(item) {
-      v(2pt)
-      text(size: 8pt, fill: muted-color)[#item.keywords.join(", ")]
-    }
+    render-item-tag-chips(
+      item,
+      size: 8pt,
+      accent: accent-color,
+      bg: bg-color,
+      lead: 2pt,
+    )
 
     v(6pt)
   }
@@ -209,10 +212,13 @@
 
     text(size: 9pt)[#item.name]
 
-    if has-keywords(item) {
-      v(2pt)
-      text(size: 8pt, fill: muted-color)[#item.keywords.join(", ")]
-    }
+    render-item-tag-chips(
+      item,
+      size: 8pt,
+      accent: accent-color,
+      bg: bg-color,
+      lead: 2pt,
+    )
 
     v(4pt)
   }

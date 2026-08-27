@@ -133,10 +133,13 @@
       rating-dots(level)
     }
 
-    if has-keywords(item) {
-      v(2pt)
-      text(size: 8pt, fill: muted-color)[#item.keywords.join(", ")]
-    }
+    render-item-tag-chips(
+      item,
+      size: 8pt,
+      accent: accent-color,
+      bg: bg-color,
+      lead: 2pt,
+    )
 
     v(8pt)
   }
@@ -265,10 +268,13 @@
 
     text(size: 9pt, weight: "medium")[#item.name]
 
-    if has-keywords(item) {
-      v(2pt)
-      text(size: 8pt, fill: muted-color)[#item.keywords.join(", ")]
-    }
+    render-item-tag-chips(
+      item,
+      size: 8pt,
+      accent: accent-color,
+      bg: bg-color,
+      lead: 2pt,
+    )
 
     v(6pt)
   }

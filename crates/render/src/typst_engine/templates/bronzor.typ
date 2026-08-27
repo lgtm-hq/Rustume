@@ -118,10 +118,13 @@
       skill-bar(item.level)
     )
 
-    if has-keywords(item) {
-      v(2pt)
-      text(size: 9pt, fill: muted-color)[#item.keywords.join(", ")]
-    }
+    render-item-tag-chips(
+      item,
+      size: 9pt,
+      accent: accent-color,
+      bg: bg-color,
+      lead: 2pt,
+    )
 
     v(8pt)
   }
@@ -231,9 +234,13 @@
 
     text(size: 10pt, weight: "bold")[#item.name]
 
-    if has-keywords(item) {
-      text(size: 9pt, fill: muted-color)[ — #item.keywords.join(", ")]
-    }
+    render-item-tag-chips(
+      item,
+      size: 8pt,
+      accent: accent-color,
+      bg: bg-color,
+      lead: 3pt,
+    )
 
     v(4pt)
   }

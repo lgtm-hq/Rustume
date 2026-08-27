@@ -131,10 +131,13 @@
       render-level(level, level-display, accent-color, bg-color.darken(10%))
     }
 
-    if has-keywords(item) {
-      v(2pt)
-      text(size: 7pt, fill: muted-color)[#item.keywords.join(", ")]
-    }
+    render-item-tag-chips(
+      item,
+      size: 7pt,
+      accent: accent-color,
+      bg: bg-color,
+      lead: 2pt,
+    )
 
     v(6pt)
   }
@@ -262,18 +265,13 @@
 
     text(size: 8pt, weight: "medium")[#item.name]
 
-    if has-keywords(item) {
-      v(2pt)
-      for keyword in item.keywords {
-        box(
-          fill: light-bg,
-          radius: 2pt,
-          inset: (x: 4pt, y: 1pt),
-          text(size: 7pt, fill: accent-color)[#keyword]
-        )
-        h(3pt)
-      }
-    }
+    render-item-tag-chips(
+      item,
+      size: 7pt,
+      accent: accent-color,
+      bg: bg-color,
+      lead: 2pt,
+    )
 
     v(6pt)
   }
