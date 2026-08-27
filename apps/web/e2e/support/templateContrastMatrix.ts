@@ -15,6 +15,11 @@
  * That walk was a one-time audit; `uncoveredBindings` below is what keeps it
  * honest. It fails the suite when a template declares a colour no pair
  * measures, so a template that gains a tint cannot stay silently unaudited.
+ *
+ * Since #919 the suite gates sheet PARITY, not WCAG ratios — resolving these
+ * pairs is what detects palette drift. The `role` field records which WCAG
+ * floor each pair was (and would again be) gated against, kept because the
+ * follow-up work restoring contrast compliance starts from exactly this map.
  */
 import { ContrastRole } from "./contrast";
 import type { Palette } from "./typstPalette";
@@ -254,11 +259,11 @@ export function pairsFor(templateId: string): readonly ContrastPair[] {
  * painted somewhere, it belongs in the matrix above, not here.
  */
 export const UNPAINTED_BINDINGS: ReadonlySet<string> = new Set([
-  // The user-facing brand seed. Every template derives its inks from it
-  // (`accent-color = primary-color.darken(35%)`) and its decorative tints too
-  // (`light-bg = primary-color.lighten(90%)`), but deliberately never paints
-  // the raw seed: it is whatever hue the user picked, so it carries no
-  // contrast guarantee of its own. See the comment at `azurill.typ:15-17`.
+  // The user-facing brand seed. Since #919 every template paints it — but
+  // always through the `accent-color` binding that aliases it
+  // (`accent-color = primary-color`, asserted by the parity spec) and the
+  // `sheet-*` tints derived from it, so the accent and tint pairs above are
+  // where the seed is measured. No pair names the seed itself.
   "primary-color",
 ]);
 

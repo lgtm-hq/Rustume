@@ -1,21 +1,25 @@
 /**
- * Contrast audit of the 12 resume templates across screen and print.
+ * Sheet-parity audit of the 12 resume templates.
  *
- * ## Why this is not an axe scan of a render
+ * Since #919 the document sheet (`docSheet.css`) is the visual source of truth
+ * for the PDF, and the Typst templates converge on its colour formulas — the
+ * raw brand seed as accent ink, `color-mix`-derived tints via the `sheet-*`
+ * helpers in `_common.typ`. That direction knowingly retires the WCAG-AA
+ * ratio floors this spec used to assert (the raw seed carries no contrast
+ * guarantee, and the sheet's own muted formula does not clear AA either);
+ * restoring proper WCAG compliance for both renderers is tracked in #921.
  *
- * A resume template is a Typst document, not DOM. `crates/render` compiles it
- * once and hands it to two backends — `typst-render` rasterises PNG pages,
- * `typst-pdf` writes the export — so any rendered page is pixels, and every
- * glyph inside it is opaque to axe. Running the colour-contrast rule against
- * a render would report a clean page while the resume inside it failed, which
- * is the exact false negative this audit exists to prevent.
+ * What still needs gating is DRIFT, in three directions, all source-resolved
+ * (a rendered page is pixels — opaque to axe — and the PDF path never touches
+ * a browser, so parsing `crates/render/src/typst_engine/templates/` is the
+ * only content-independent hold on it):
  *
- * So the matrix gates the source of both renders: every ink/backdrop pair the
- * templates can paint, resolved from the Typst sources themselves
- * (`support/templateContrastMatrix.ts`). That is content-independent — it holds
- * for every resume a template can render, not just whichever fixture a scan
- * happened to load — and it covers the PDF path, which no browser-side check
- * can reach because `renderPdf` in `src/api/render.ts` POSTs to a server.
+ * 1. A template that stops painting the sheet's formulas — re-darkening its
+ *    accent, hand-rolling a tint — silently un-converges the PDF.
+ * 2. The Typst helpers and `docSheet.css` disagreeing on a mix percentage
+ *    makes "parity" a fiction while every template still passes.
+ * 3. A binding or expression the audit cannot resolve, or never measures,
+ *    is a colour nothing watches (`support/templateContrastMatrix.ts`).
  *
  * axe still runs, per template, over the editor chrome that frames the sheet:
  * that surface IS DOM, and it is where a template switch could regress the app.
@@ -25,15 +29,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Page } from "@playwright/test";
 import { test, expect, TEMPLATES_ROUTE } from "./support/fixtures";
-import { ContrastRole, SURFACES, floorFor, surfaceRatio, type Surface } from "./support/contrast";
 import { pairsFor, uncoveredBindings } from "./support/templateContrastMatrix";
-import {
-  TEMPLATE_DIR,
-  TEMPLATE_IDS,
-  readPalette,
-  resolveColor,
-  type TemplateId,
-} from "./support/typstPalette";
+import { TEMPLATE_DIR, TEMPLATE_IDS, readPalette, resolveColor } from "./support/typstPalette";
 
 /** WCAG 2.1 AA scan scope, matching the rest of the suite. */
 const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
@@ -59,56 +56,121 @@ const FULL_TEMPLATE_CATALOG = TEMPLATE_IDS.map((id) => ({
   theme: { background: "#ffffff", text: "#000000", primary: "#65a30d" },
 }));
 
-/** One measured cell of the matrix. */
-interface Measurement {
-  readonly label: string;
-  readonly ink: string;
-  readonly backdrop: string;
-  readonly ratio: number;
-  readonly required: number;
+/** Read one template's Typst source. */
+function readSource(name: string): string {
+  return readFileSync(join(TEMPLATE_DIR, `${name}.typ`), "utf8");
 }
 
-/** Measure every pair a template paints, on one surface. */
-function measure(templateId: TemplateId, surface: Surface): Measurement[] {
-  const palette = readPalette(templateId);
-  return pairsFor(templateId).map((pair) => {
-    const ink = resolveColor(palette, pair.ink, templateId);
-    const backdrop = resolveColor(palette, pair.backdrop, templateId);
-    const role = pair.role ?? ContrastRole.Text;
-    return {
-      label: pair.label,
-      ink,
-      backdrop,
-      ratio: surfaceRatio(ink, backdrop, surface),
-      required: floorFor(role),
-    };
-  });
-}
+/**
+ * The sheet formulas the Typst helpers must mirror, one row per helper.
+ *
+ * `typstRe` matches the helper's definition in `_common.typ`; `cssRe` matches
+ * the `docSheet.css` declaration it is named after. Both anchor the mix
+ * percentage, so retuning either side without the other fails here rather
+ * than silently splitting the sheet and the PDF.
+ */
+const SHEET_FORMULAS: readonly { helper: string; typstRe: RegExp; cssRe: RegExp }[] = [
+  {
+    helper: "sheet-sidebar-tint",
+    typstRe: /#let sheet-sidebar-tint\(accent, bg\) = sheet-mix\(accent, bg, 15\)/,
+    cssRe:
+      /\.doc-sheet__side \{\n(?:[^}]*\n)? {2}background: color-mix\(in srgb, var\(--doc-sheet-accent\) 15%, var\(--doc-sheet-bg\)\);/,
+  },
+  {
+    helper: "sheet-muted",
+    typstRe: /#let sheet-muted\(text-color, bg\) = sheet-mix\(text-color, bg, 60\)/,
+    cssRe: /--doc-sheet-muted: color-mix\(in srgb, var\(--doc-sheet-text\) 60%, transparent\);/,
+  },
+  {
+    helper: "sheet-rule",
+    typstRe: /#let sheet-rule\(accent, bg\) = sheet-mix\(accent, bg, 35\)/,
+    cssRe: /--doc-sheet-rule: color-mix\(in srgb, var\(--doc-sheet-accent\) 35%, transparent\);/,
+  },
+  {
+    helper: "sheet-chip-fill",
+    typstRe: /#let sheet-chip-fill\(accent, bg\) = sheet-mix\(accent, bg, 10\)/,
+    cssRe:
+      /\.doc-sheet__tag-chip \{\n(?:[^}]*\n)? {2}background: color-mix\(in srgb, var\(--doc-sheet-accent\) 10%, var\(--doc-sheet-bg\)\);/,
+  },
+  {
+    helper: "sheet-chip-stroke",
+    typstRe: /#let sheet-chip-stroke\(accent\) = sheet-mix\(accent, rgb\("#e7e5e4"\), 28\)/,
+    cssRe: /border: 1px solid color-mix\(in srgb, var\(--doc-sheet-accent\) 28%, #e7e5e4\);/,
+  },
+];
 
-/** Render a failing cell as an assertion message line. */
-function describeFailure(templateId: TemplateId, surface: Surface, cell: Measurement): string {
-  return (
-    `${templateId} [${surface}] ${cell.label}: ${cell.ink} on ${cell.backdrop} ` +
-    `= ${cell.ratio.toFixed(2)}:1 (needs ${cell.required}:1)`
-  );
-}
+/** `docSheet.css`, the stylesheet whose formulas the templates converge on. */
+const DOC_SHEET_CSS = join(
+  TEMPLATE_DIR,
+  "..",
+  "..",
+  "..",
+  "..",
+  "..",
+  "apps",
+  "web",
+  "src",
+  "components",
+  "doc-editor",
+  "docSheet.css",
+);
 
-test.describe("template contrast matrix", () => {
+test.describe("template sheet-parity matrix", () => {
   TEMPLATE_IDS.forEach((templateId) => {
-    SURFACES.forEach((surface) => {
-      test(`${templateId} clears WCAG AA on ${surface}`, () => {
-        const failures = measure(templateId, surface)
-          .filter((cell) => cell.ratio < cell.required)
-          .map((cell) => describeFailure(templateId, surface, cell));
-        expect(failures).toEqual([]);
-      });
+    test(`${templateId} resolves every audited pair`, () => {
+      // The resolver throws on any expression outside the audited grammar, so
+      // a retuned tint or renamed binding fails here instead of going unread.
+      const palette = readPalette(templateId);
+      for (const pair of pairsFor(templateId)) {
+        resolveColor(palette, pair.ink, templateId);
+        resolveColor(palette, pair.backdrop, templateId);
+      }
     });
   });
 
+  test("every template paints the raw brand seed as its accent", () => {
+    // Sheet parity (#919): `--doc-sheet-accent` IS the theme primary, so a
+    // template that re-darkens its accent un-converges the PDF.
+    const diverged = TEMPLATE_IDS.filter(
+      (templateId) => !/let accent-color = primary-color\s*$/m.test(readSource(templateId)),
+    );
+    expect(diverged).toEqual([]);
+  });
+
+  test("every template derives its muted ink from the sheet formula", () => {
+    const diverged = TEMPLATE_IDS.filter(
+      (templateId) =>
+        !/let muted-color = sheet-muted\(text-color, bg-color\)\s*$/m.test(readSource(templateId)),
+    );
+    expect(diverged).toEqual([]);
+  });
+
+  test("every sidebar tint comes from the shared sheet helper", () => {
+    // Only templates that declare a sidebar are in scope; hand-rolled tints
+    // (`primary-color.lighten(85%)` and friends) are the drift this catches.
+    const diverged = TEMPLATE_IDS.filter((templateId) => {
+      const source = readSource(templateId);
+      return (
+        /let sidebar-bg =/.test(source) &&
+        !/let sidebar-bg = sheet-sidebar-tint\(primary-color, bg-color\)\s*$/m.test(source)
+      );
+    });
+    expect(diverged).toEqual([]);
+  });
+
+  test("the sheet-parity helpers mirror docSheet.css", () => {
+    const common = readSource("_common");
+    const css = readFileSync(DOC_SHEET_CSS, "utf8");
+    const drifted = SHEET_FORMULAS.filter(
+      (formula) => !formula.typstRe.test(common) || !formula.cssRe.test(css),
+    ).map((formula) => formula.helper);
+    expect(drifted).toEqual([]);
+  });
+
   test("every template declares an audited accent ink", () => {
-    // The accent is what makes headings, links and rules readable; a template
-    // that drops the binding would silently fall back to the raw brand seed,
-    // which is the failure this whole audit started from.
+    // The accent binding is where every heading, link and rule gets its ink;
+    // a template that drops it falls outside the audit entirely, so its
+    // convergence on the sheet would be unverifiable.
     const missing = TEMPLATE_IDS.filter((templateId) => !readPalette(templateId)["accent-color"]);
     expect(missing).toEqual([]);
   });
@@ -120,8 +182,7 @@ test.describe("template contrast matrix", () => {
     // comment, and `resolveColor` throws only for expressions a pair already
     // REFERENCES — a binding no pair mentions is never looked up. So a template
     // that gains a tint and paints text on it would stay unaudited while every
-    // test above stayed green, which is the same false-negative class as
-    // axe-scanning a rasterised render, one level up. Anything genuinely
+    // test above stayed green — a colour nothing watches. Anything genuinely
     // never painted is named in `UNPAINTED_BINDINGS`, per binding, with a
     // reason.
     const uncovered = TEMPLATE_IDS.flatMap((templateId) =>
@@ -131,14 +192,13 @@ test.describe("template contrast matrix", () => {
   });
 
   test("no template paints ink over an unaudited gradient", () => {
-    // axe flattens a gradient to a single colour and misses one-end failures,
-    // and so would the flat pair matrix above: sRGB blending is linear per
-    // channel but luminance is not, so a ramp dips below the chord between its
-    // endpoints and both stops can clear the floor while the middle does not.
-    // No template uses a Typst gradient today. If one appears, its ink has to
-    // be gated against every sample of the ramp — `gradientRamp` in
-    // `apps/site/scripts/check-craft-contrast.mjs` already does the sampling —
-    // rather than against a single stop, and this guard is what says so.
+    // The sheet paints no gradients, so a Typst gradient is un-converged by
+    // construction — and it is invisible to the flat pair matrix above, whose
+    // resolver only speaks in single colours. No template uses one today; if
+    // one appears it needs its own parity story (and, should ratio floors
+    // return, ramp sampling like `gradientRamp` in
+    // `apps/site/scripts/check-craft-contrast.mjs`), and this guard is what
+    // says so.
     const withGradients = [...TEMPLATE_IDS, "_common"].filter((name) =>
       /\bgradient\s*[.(]/.test(readFileSync(join(TEMPLATE_DIR, `${name}.typ`), "utf8")),
     );
