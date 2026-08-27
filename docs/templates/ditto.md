@@ -52,7 +52,7 @@ Default main / sidebar section ids are defined once in
 | Profile label mode | `network-username` |
 | Skill keywords | Themed pill chips (`render-item-tag-chips`, #919) |
 | Interest / project keywords | Soft chips |
-| Level (`template-default`) | Sheet-parity five dots: 6pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.5pt apart (#919) |
+| Level (`template-default`) | Sheet-parity five dots: 4.5pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.25pt apart (#919) |
 
 Shared extras from `_common.typ` (experience/education keyword chips + custom
 fields; projects/skills custom fields) still apply on top of the native item
@@ -62,7 +62,7 @@ bodies above.
 
 | Divergence | Tag |
 | --- | --- |
-| Sheet banner tint/boxing approximates banner but not ditto's solid accent fill + white type | fix-in-typst |
+| Sheet banner tint/boxing approximates banner but not ditto's solid accent fill + white type. The solid banner is ditto's identity, so flattening it onto the sheet's tinted band is not a given — same carve-out as nosepass's skill pill | owner-decision-needed |
 | Body 9pt denser leading not mirrored on sheet | fix-in-typst |
 | Experience lead field was company-first in Typst | fixed (#858) |
 | `page.margin` inert (full-bleed) | decided (#859) |

@@ -215,12 +215,17 @@ fn template_pdf_visual_baseline(#[case] template: &str) {
 /// Template whose sidebar custom section carries a labeled URL in the fixture.
 const CUSTOM_URL_TEMPLATE: &str = "pikachu";
 
-/// Fixture page that carries pikachu's "Talks & Workshops" sidebar section.
+/// PDF page that carries pikachu's "Talks & Workshops" sidebar section.
+///
+/// The fixture places `speaking` last in layout page 0's sidebar column, so it
+/// belongs to the FIRST layout page; on pikachu that column overflows and the
+/// section lands on PDF page 1.
 const CUSTOM_URL_PAGE: usize = 1;
 
 /// Baseline slot for the labeled custom-section URL (#919). The per-template
-/// baselines above only cover page 0, where no custom section renders, so the
-/// label-over-href fix needs its own page-1 slot.
+/// baselines above all freeze PDF page 0, which on pikachu stops before the
+/// overflowing sidebar reaches `speaking`, so the label-over-href fix needs its
+/// own slot on the page the section actually renders on.
 const CUSTOM_URL_BASELINE: &str = "pikachu-custom-url";
 
 /// The fixture's `Talks & Workshops` sidebar item carries

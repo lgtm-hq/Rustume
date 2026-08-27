@@ -50,7 +50,7 @@ Default main / sidebar section ids are defined once in
 | Interest keywords | Themed pill chips (`render-item-tag-chips`, #919) |
 | Experience order | **Position-first** (bold) over company (accent); date/location right (#858) |
 | Project keywords | Soft chips |
-| Level (`template-default`) | Sheet-parity five dots: 6pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.5pt apart (#919) |
+| Level (`template-default`) | Sheet-parity five dots: 4.5pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.25pt apart (#919) |
 
 Shared extras from `_common.typ` (experience/education keyword chips + custom
 fields; projects/skills custom fields) still apply on top of the native item

@@ -54,7 +54,7 @@ Default main / sidebar section ids are defined once in
 | Skill keywords | Themed pill chips (`render-item-tag-chips`, #919) |
 | Interest keywords | Themed pill chips (`render-item-tag-chips`, #919) |
 | Project keywords | Soft chips |
-| Level (`template-default`) | Sheet-parity five dots: 6pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.5pt apart (#919) |
+| Level (`template-default`) | Sheet-parity five dots: 4.5pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.25pt apart (#919) |
 
 Shared extras from `_common.typ` (experience/education keyword chips + custom
 fields; projects/skills custom fields) still apply on top of the native item
@@ -64,7 +64,7 @@ bodies above.
 
 | Divergence | Tag |
 | --- | --- |
-| Sheet sidebar header/contact placement exists, but heading/level chrome still generic | fix-in-typst |
+| Sheet sidebar header/contact placement exists and it already selects gengar's `headingInk: "text"`; Typst's extra heading rule chrome still differs | fix-in-typst |
 | Level boxes vs sheet dots | fixed (#919) |
 | No PDF initials fallback while sheet edit mode shows initials | fixed (#857): Done/PDF collapse; edit keeps a placeholder; initials are `showInitials` opt-in |
 | Experience lead field was company-first in Typst | fixed (#858) |

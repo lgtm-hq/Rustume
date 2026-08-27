@@ -52,7 +52,7 @@ Default main / sidebar section ids are defined once in
 | Profile label mode | `network-username` |
 | Skill keywords | Comma-joined inside bordered skill chips |
 | Interest keywords | ` — ` + comma list inside the interest chip row |
-| Level (`template-default`) | Sheet-parity five dots: 6pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.5pt apart (#919) |
+| Level (`template-default`) | Sheet-parity five dots: 4.5pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.25pt apart (#919) |
 
 Skills render as wrapped bordered chips, not rows.
 

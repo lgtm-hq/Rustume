@@ -23,9 +23,11 @@ git add crates/render/tests/baselines/pdf
 Baselines are single-page PNGs at 1 px/pt (moderate DPI) to bound repo growth.
 Comparison allows ±8 per channel and up to 2% differing pixels.
 
-One extra slot, `pdf/pikachu-custom-url.png`, freezes fixture page 1 instead of
-page 0: it is where the sidebar custom section renders, and it guards that a
-custom-item URL shows its label rather than the raw href (#919).
+One extra slot, `pdf/pikachu-custom-url.png`, freezes PDF page 1 instead of page
+0. The fixture places its `speaking` custom section last in layout page 0's
+sidebar column; on pikachu that column overflows, so the section — and the
+labeled custom-item URL inside it — renders on PDF page 1. The slot guards that
+the URL shows its label rather than the raw href (#919).
 
 ## Regenerating sheet baselines (CI / #812 convention)
 

@@ -53,7 +53,7 @@ Default main / sidebar section ids are defined once in
 | Profile label mode | `username` |
 | Skill keywords | Themed pill chips (`render-item-tag-chips`, #919) |
 | Interest keywords | Themed pill chips (`render-item-tag-chips`, #919) |
-| Level (`template-default`) | Sheet-parity five dots: 6pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.5pt apart (#919) |
+| Level (`template-default`) | Sheet-parity five dots: 4.5pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.25pt apart (#919) |
 
 Experience: **position** bold over company; date/location right column (#858).
 

@@ -52,10 +52,10 @@ Default main / sidebar section ids are defined once in
 | --- | --- |
 | Education order | Stacked (not side-by-side): institution → degree → score → date → summary — sized for the narrow sidebar default |
 | Profile label mode | `network` |
-| Skill keywords | Themed pill chips (`render-item-tag-chips`, #919) |
-| Interest keywords | Themed pill chips (`render-item-tag-chips`, #919) |
+| Skill keywords | Comma-joined muted — the sheet's `keywordStyle: "plain"` (`.doc-sheet--keywords-plain`) |
+| Interest keywords | Comma-joined muted — the sheet's `keywordStyle: "plain"` (`.doc-sheet--keywords-plain`) |
 | Project / custom keywords | Middot ` · ` joined |
-| Level (`template-default`) | Sheet-parity five dots: 6pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.5pt apart (#919) |
+| Level (`template-default`) | Sheet-parity five dots: 4.5pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.25pt apart (#919) |
 
 Experience in main: **position** bold over company + date (the #858 contract).
 
@@ -67,12 +67,12 @@ bodies above.
 
 | Divergence | Tag |
 | --- | --- |
-| Sheet lacks filled heading bands / plain sidebar titles | fix-in-typst |
+| Heading chrome: the sheet already selects pikachu's `headingStyle: "band"` + `sidebarHeadingStyle: "plain"` (`bundledTemplateLayout`); only Typst's extra band geometry differs | fix-in-typst |
 | Sheet profile prefers username; Typst uses `network` | fix-in-typst |
 | Photo-less avatar: PDF/Done-mode collapse; edit keeps a placeholder; initials are `showInitials` opt-in | fixed (#857) |
 | Education on sheet uses degree-first row layout even when education sits in the sidebar | fix-in-typst |
 | Column padding follows `.doc-sheet__side` / `.doc-sheet__main` | fixed (#919) |
-| Accent, sidebar tint, level dots and keyword chips follow the sheet | fixed (#919) |
+| Accent, sidebar tint and level dots follow the sheet; keywords stay the sheet's plain comma list | fixed (#919) |
 | `page.margin` inert — document as intentional; editor disables the control | decided (#859) |
 | Typography honouring incomplete across templates | fix-in-typst (#701) |
 
