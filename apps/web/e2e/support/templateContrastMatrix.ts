@@ -285,10 +285,18 @@ const TEMPLATE_PAIRS: Readonly<Record<string, readonly ContrastPair[]>> = {
   ],
 };
 
-/** True when a template's Typst source paints the themed sheet chips. */
-function paintsThemedChips(templateId: string): boolean {
+/**
+ * True when a template's Typst source paints the themed sheet chips: a
+ * `render-item-tag-chips` call passing BOTH `accent` and `bg` (the helper only
+ * paints the `.doc-sheet__tag-chip` treatment when both are non-none). The
+ * membership this derives is pinned by the spec's chip-membership test, so a
+ * heuristic miss cannot drift silently.
+ */
+export function paintsThemedChips(templateId: string): boolean {
   const source = readFileSync(join(TEMPLATE_DIR, `${templateId}.typ`), "utf8");
-  return /render-item-tag-chips\(/.test(source) && /accent: accent-color/.test(source);
+  return /render-item-tag-chips\([\s\S]{0,400}?accent: accent-color,[\s\S]{0,100}?bg: bg-color/.test(
+    source,
+  );
 }
 
 /** Every pair audited for one template. */

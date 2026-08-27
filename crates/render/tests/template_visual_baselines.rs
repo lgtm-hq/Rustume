@@ -222,10 +222,12 @@ const CUSTOM_URL_TEMPLATE: &str = "pikachu";
 /// section lands on PDF page 1.
 const CUSTOM_URL_PAGE: usize = 1;
 
-/// Baseline slot for the labeled custom-section URL (#919). The per-template
-/// baselines above all freeze PDF page 0, which on pikachu stops before the
-/// overflowing sidebar reaches `speaking`, so the label-over-href fix needs its
-/// own slot on the page the section actually renders on.
+/// Baseline slot for the page carrying the labeled custom-section URL (#919).
+/// The per-template baselines above all freeze PDF page 0, which on pikachu
+/// stops before the overflowing sidebar reaches `speaking`, so this slot
+/// freezes the page that section actually renders on. Like every slot here it
+/// pins PIXELS only — the label-over-href text contract itself is asserted by
+/// the extraction tests in `integration_tests.rs`.
 const CUSTOM_URL_BASELINE: &str = "pikachu-custom-url";
 
 /// The fixture's `Talks & Workshops` sidebar item carries

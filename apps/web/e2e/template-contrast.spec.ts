@@ -29,8 +29,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Page } from "@playwright/test";
 import { test, expect, TEMPLATES_ROUTE } from "./support/fixtures";
-import { pairsFor, uncoveredBindings } from "./support/templateContrastMatrix";
+import { pairsFor, paintsThemedChips, uncoveredBindings } from "./support/templateContrastMatrix";
 import {
+  SHEET_HELPERS,
   TEMPLATE_DIR,
   TEMPLATE_IDS,
   evaluateExpression,
@@ -97,7 +98,7 @@ const SHEET_FORMULAS: readonly {
     source: "_common",
     typstRe: /#let sheet-sidebar-tint\(accent, bg\) = sheet-mix\(accent, bg, 15\)/,
     cssRe:
-      /\.doc-sheet__side \{\n(?:[^}]*\n)? {2}background: color-mix\(in srgb, var\(--doc-sheet-accent\) 15%, var\(--doc-sheet-bg\)\);/,
+      /\.doc-sheet--sidebar-tint \.doc-sheet__side \{\n(?:[^}]*\n)? {2}background: color-mix\(in srgb, var\(--doc-sheet-accent\) 15%, var\(--doc-sheet-bg\)\);/,
   },
   {
     helper: "sheet-muted",
@@ -180,13 +181,16 @@ const DOC_SHEET_CSS = join(
 test.describe("template sheet-parity matrix", () => {
   TEMPLATE_IDS.forEach((templateId) => {
     test(`${templateId} resolves every audited pair`, () => {
-      // The resolver throws on any expression outside the audited grammar, so
-      // a retuned tint or renamed binding fails here instead of going unread.
-      // With the WCAG ratio floors retired (#921), resolvability IS the
-      // assertion — the audited grammar is the guard. The resolved value is
-      // still shape-checked so a resolver that started returning something
-      // other than an opaque hex could not pass silently; the VALUES the
-      // formulas must produce are locked by the mix-maths test below.
+      // The resolver throws on any expression outside the audited grammar and
+      // on any binding a pair names that the template no longer declares, so a
+      // renamed binding or an off-grammar tint fails here instead of going
+      // unread. That is the whole contract of this loop: grammar plus binding
+      // existence. It does NOT lock percentages — matrix expressions are
+      // hand-written relationships, and a template retuning its own
+      // `lighten()` passes; the sheet formulas (and their percentages) are
+      // locked by the SHEET_FORMULAS rows and the mix-maths test below. The
+      // resolved value is still shape-checked so a resolver returning
+      // something other than an opaque hex could not pass silently.
       const palette = readPalette(templateId);
       for (const pair of pairsFor(templateId)) {
         for (const expression of [pair.ink, pair.backdrop]) {
@@ -250,6 +254,29 @@ test.describe("template sheet-parity matrix", () => {
       (formula) => !formula.typstRe.test(readSource(formula.source)) || !formula.cssRe.test(css),
     ).map((formula) => formula.helper);
     expect(drifted).toEqual([]);
+
+    // The evaluator parses the same helpers from `_common.typ`; its parsed
+    // percentages and these rows must be the same numbers, or the audit would
+    // resolve colours with one percentage while the regex rows lock another.
+    for (const formula of SHEET_FORMULAS.filter((row) => row.source === "_common")) {
+      expect(SHEET_HELPERS.get(formula.helper)?.pct, formula.helper).toBe(formula.pct);
+    }
+  });
+
+  test("chip-style membership matches the documented template set", () => {
+    // `paintsThemedChips` is a source heuristic; this pins what it derives.
+    // A template flipping its `keywordStyle` (or a heuristic miss) must show
+    // up as a conscious edit here, in the docs, and in `template_layout.rs`.
+    const chipTemplates = TEMPLATE_IDS.filter((templateId) => paintsThemedChips(templateId));
+    expect(chipTemplates).toEqual([
+      "azurill",
+      "chikorita",
+      "ditto",
+      "gengar",
+      "kakuna",
+      "leafish",
+      "onyx",
+    ]);
   });
 
   test("every sheet-mix percentage the Typst side uses has a named formula row", () => {

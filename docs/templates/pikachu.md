@@ -68,7 +68,7 @@ bodies above.
 | Divergence | Tag |
 | --- | --- |
 | Heading chrome: the sheet already selects pikachu's `headingStyle: "band"` + `sidebarHeadingStyle: "plain"` (`bundledTemplateLayout`); only Typst's extra band geometry differs | fix-in-typst |
-| Sheet profile prefers username; Typst uses `network` | fix-in-typst |
+| Profile label order: both sheet and PDF use the `auto` order (username, then network, then URL label) — pikachu passes `label-mode: "auto"`; do not reintroduce per-template `network` modes | fixed (#829) |
 | Photo-less avatar: PDF/Done-mode collapse; edit keeps a placeholder; initials are `showInitials` opt-in | fixed (#857) |
 | Education on sheet uses degree-first row layout even when education sits in the sidebar | fix-in-typst |
 | Column padding follows `.doc-sheet__side` / `.doc-sheet__main` | fixed (#919) |
