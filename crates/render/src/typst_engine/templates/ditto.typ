@@ -421,7 +421,7 @@
     justify: false,
   )
 
-  render-cover-letter-page(data, section-heading, muted: muted-color, inset: (x: 20pt, y: 12pt))
+  render-cover-letter-page(data, section-heading, muted: muted-color, inset: (x: 17.4pt, y: 19.2pt))
 
   if has-resume-body(data) {
     // Header lives in render-resume's header slot so the page-height
@@ -430,7 +430,8 @@
       #box(
         width: 100%,
         fill: accent-color,
-        inset: (x: 24pt, y: 18pt),
+        // `.doc-sheet__banner` padding: 1.4rem 1.6rem (#919).
+        inset: (x: 19.2pt, y: 16.8pt),
         [
           #avatar-above(
             data.basics,
@@ -463,8 +464,11 @@
       sidebar-width: sidebar-width-from-ratio(data, 160pt),
       sidebar-bg: sidebar-bg,
       body-bg: bg-color,
-      sidebar-inset: (x: 14pt, y: 12pt),
-      main-inset: (x: 20pt, y: 12pt),
+      // Column padding mirrors the sheet grid (#919): `.doc-sheet__side` is
+      // `1.6rem 0.95rem` and `.doc-sheet__main` is `1.6rem 1.45rem`, at the
+      // sheet's 1rem = 16px = 12pt.
+      sidebar-inset: (x: 11.4pt, y: 19.2pt),
+      main-inset: (x: 17.4pt, y: 19.2pt),
       sidebar-heading: sidebar-heading,
       main-heading: section-heading,
       header: header,

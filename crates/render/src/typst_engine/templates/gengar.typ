@@ -415,7 +415,7 @@
     justify: false,
   )
 
-  render-cover-letter-page(data, main-section-heading, muted: muted-color, inset: (x: 24pt, y: 28pt))
+  render-cover-letter-page(data, main-section-heading, muted: muted-color, inset: (x: 17.4pt, y: 19.2pt))
 
   if has-resume-body(data) {
     let sidebar-wrapper(body) = {
@@ -464,8 +464,11 @@
       sidebar-width: sidebar-width-from-ratio(data, 170pt),
       sidebar-bg: sidebar-bg,
       body-bg: bg-color,
-      sidebar-inset: (x: 16pt, y: 28pt),
-      main-inset: (x: 24pt, y: 28pt),
+      // Column padding mirrors the sheet grid (#919): `.doc-sheet__side` is
+      // `1.6rem 0.95rem` and `.doc-sheet__main` is `1.6rem 1.45rem`, at the
+      // sheet's 1rem = 16px = 12pt.
+      sidebar-inset: (x: 11.4pt, y: 19.2pt),
+      main-inset: (x: 17.4pt, y: 19.2pt),
       sidebar-heading: sidebar-section-heading,
       main-heading: main-section-heading,
       sidebar-before: sidebar-before,
