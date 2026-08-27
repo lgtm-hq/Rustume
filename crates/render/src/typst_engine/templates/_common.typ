@@ -353,10 +353,13 @@
 
 /// Render a clickable URL link for an item, if present.
 /// `color` is link ink, so callers pass their audited `accent-color`.
+/// The visible text is the URL label when set, falling back to the href
+/// (#919); the href always stays the link destination.
 #let render-url(item, color) = {
   if has-url(item) {
     v(2pt)
-    link(item.url.href)[#text(size: 9pt, fill: color)[#item.url.href]]
+    let label = url-display-label(item.url, fallback: item.url.href)
+    link(item.url.href)[#text(size: 9pt, fill: color)[#label]]
   }
 }
 
@@ -543,22 +546,27 @@
 #let profile-entry-label(item, mode: "auto") = {
   let network = if "network" in item and item.network != none { item.network.trim() } else { "" }
   let username = if "username" in item and item.username != none { item.username.trim() } else { "" }
-  let href = if has-url(item) { item.url.href.trim() } else { "" }
+  // Last-resort URL text prefers the label over the raw href (#919).
+  let url-text = if has-url(item) {
+    url-display-label(item.url, fallback: "").trim()
+  } else {
+    ""
+  }
 
   if mode == "network" {
     if network != "" { network }
     else if username != "" { username }
-    else { href }
+    else { url-text }
   } else if mode == "network-username" {
     if network != "" and username != "" { network + ": " + username }
     else if network != "" { network }
     else if username != "" { username }
-    else { href }
+    else { url-text }
   } else {
     // "username" and "auto" share the same preference order (#829 / #820).
     if username != "" { username }
     else if network != "" { network }
-    else { href }
+    else { url-text }
   }
 }
 
