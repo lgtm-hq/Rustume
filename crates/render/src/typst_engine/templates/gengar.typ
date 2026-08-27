@@ -56,7 +56,7 @@
   let rating-boxes(level) = {
     let level = clamp-level(level)
     if level-display == "template-default" {
-      rating-indicators(level, 8pt, 8pt, accent-color, bg-color.darken(10%), 1pt, 2pt)
+      sheet-level-dots(level, accent-color)
     } else {
       render-level(level, level-display, accent-color, bg-color.darken(10%), width: 8pt, height: 8pt)
     }

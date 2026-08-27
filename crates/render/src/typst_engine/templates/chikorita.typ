@@ -47,7 +47,7 @@
   let rating-dots(level) = {
     let level = clamp-level(level)
     if level-display == "template-default" {
-      rating-indicators(level, 6pt, 6pt, accent-color, border-color, 50%, 3pt)
+      sheet-level-dots(level, accent-color)
     } else {
       render-level(level, level-display, accent-color, border-color, spacing: 3pt)
     }

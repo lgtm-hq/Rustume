@@ -43,10 +43,10 @@
   }
 
   // Rating bars helper (0-5 scale)
-  let rating-bars(level) = {
+  let rating-dots(level) = {
     let level = clamp-level(level)
     if level-display == "template-default" {
-      rating-indicators(level, 14pt, 4pt, accent-color, bar-empty, 2pt, 2pt)
+      sheet-level-dots(level, accent-color)
     } else if level-display == "progress-bar" {
       render-level(level, level-display, accent-color, bar-empty, track-width: 70pt)
     } else {
@@ -130,10 +130,10 @@
     let level = clamp-level(item.level)
     if level-display == "template-default" and level > 0 {
       v(2pt)
-      rating-bars(level)
+      rating-dots(level)
     } else if should-render-level(level, level-display) {
       v(2pt)
-      rating-bars(level)
+      rating-dots(level)
     }
 
     render-item-tag-chips(
@@ -160,10 +160,10 @@
     let level = clamp-level(item.level)
     if level-display == "template-default" and level > 0 {
       v(2pt)
-      rating-bars(level)
+      rating-dots(level)
     } else if should-render-level(level, level-display) {
       v(2pt)
-      rating-bars(level)
+      rating-dots(level)
     }
 
     v(8pt)

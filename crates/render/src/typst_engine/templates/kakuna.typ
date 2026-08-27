@@ -43,7 +43,7 @@
     let level = clamp-level(level)
     if level-display == "template-default" {
       h(4pt)
-      rating-indicators(level, 8pt, 8pt, accent-color, bg-color.darken(10%), 50%, 2pt)
+      sheet-level-dots(level, accent-color)
     } else if should-render-level(level, level-display) {
       h(4pt)
       render-level(level, level-display, accent-color, bg-color.darken(10%), width: 8pt, height: 8pt)

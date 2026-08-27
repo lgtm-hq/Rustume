@@ -48,7 +48,7 @@
   let skill-dots(level) = {
     let level = clamp-level(level)
     if level-display == "template-default" {
-      rating-indicators(level, 6pt, 6pt, accent-color, sidebar-bg.darken(15%), 50%, 3pt)
+      sheet-level-dots(level, accent-color)
     } else {
       render-level(level, level-display, accent-color, sidebar-bg.darken(15%), spacing: 3pt)
     }

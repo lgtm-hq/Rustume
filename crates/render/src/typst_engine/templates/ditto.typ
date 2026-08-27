@@ -125,7 +125,7 @@
     let level = clamp-level(item.level)
     if level-display == "template-default" and level > 0 {
       v(2pt)
-      rating-indicators(level, 6pt, 6pt, accent-color, bg-color.darken(10%), 50%, 2pt)
+      sheet-level-dots(level, accent-color)
     } else if should-render-level(level, level-display) {
       v(2pt)
       render-level(level, level-display, accent-color, bg-color.darken(10%))
@@ -154,7 +154,7 @@
     let level = clamp-level(item.level)
     if level-display == "template-default" and level > 0 {
       v(2pt)
-      rating-indicators(level, 6pt, 6pt, accent-color, bg-color.darken(10%), 50%, 2pt)
+      sheet-level-dots(level, accent-color)
     } else if should-render-level(level, level-display) {
       v(2pt)
       render-level(level, level-display, accent-color, bg-color.darken(10%))

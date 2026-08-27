@@ -115,12 +115,7 @@
         #let level = clamp-level(item.level)
         #if level-display == "template-default" and level > 0 {
           h(4pt)
-          for i in range(level) {
-            text(fill: accent-color)[●]
-          }
-          for i in range(5 - level) {
-            text(fill: bg-color, stroke: 0.4pt + accent-color)[●]
-          }
+          sheet-level-dots(level, accent-color)
         } else if should-render-level(level, level-display) {
           h(4pt)
           render-level(level, level-display, accent-color, bg-color.darken(10%))
