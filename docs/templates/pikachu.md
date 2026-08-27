@@ -7,8 +7,9 @@ a 1:1 target).
 
 ## Theme
 
-background `#ffffff`, text `#1c1917`, primary `#ca8a04`. Sidebar bg = primary lighten 85%; sidebar
-text = primary darken 60%.
+background `#ffffff`, text `#1c1917`, primary `#ca8a04`. Accent ink is the raw primary, as the
+sheet paints `--doc-sheet-accent`. Sidebar fill is `color-mix(accent 15%, bg)` under normal
+document ink, matching `.doc-sheet--sidebar-tint .doc-sheet__side` (#919).
 
 ## Typefaces
 
@@ -51,10 +52,10 @@ Default main / sidebar section ids are defined once in
 | --- | --- |
 | Education order | Stacked (not side-by-side): institution → degree → score → date → summary — sized for the narrow sidebar default |
 | Profile label mode | `network` |
-| Skill keywords | Comma-joined 8pt muted |
-| Interest keywords | Comma-joined 8pt muted under name |
+| Skill keywords | Themed pill chips (`render-item-tag-chips`, #919) |
+| Interest keywords | Themed pill chips (`render-item-tag-chips`, #919) |
 | Project / custom keywords | Middot ` · ` joined |
-| Level (`template-default`) | Circles 6pt |
+| Level (`template-default`) | Sheet-parity five dots: 6pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.5pt apart (#919) |
 
 Experience in main: **position** bold over company + date (the #858 contract).
 
@@ -66,10 +67,12 @@ bodies above.
 
 | Divergence | Tag |
 | --- | --- |
-| Sheet lacks filled heading bands / plain sidebar titles | fix-in-sheet |
-| Sheet profile prefers username; Typst uses `network` | fix-in-sheet |
+| Sheet lacks filled heading bands / plain sidebar titles | fix-in-typst |
+| Sheet profile prefers username; Typst uses `network` | fix-in-typst |
 | Photo-less avatar: PDF/Done-mode collapse; edit keeps a placeholder; initials are `showInitials` opt-in | fixed (#857) |
-| Education on sheet uses degree-first row layout even when education sits in the sidebar | fix-in-sheet |
+| Education on sheet uses degree-first row layout even when education sits in the sidebar | fix-in-typst |
+| Column padding follows `.doc-sheet__side` / `.doc-sheet__main` | fixed (#919) |
+| Accent, sidebar tint, level dots and keyword chips follow the sheet | fixed (#919) |
 | `page.margin` inert — document as intentional; editor disables the control | decided (#859) |
 | Typography honouring incomplete across templates | fix-in-typst (#701) |
 

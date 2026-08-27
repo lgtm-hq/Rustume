@@ -48,8 +48,8 @@ Default main / sidebar section ids are defined once in
 | Education order | Institution + degree; date right; score; summary |
 | Profile label mode | URL → `network`; else `network-username` |
 | Skill / project keywords | Soft accent chips |
-| Interest keywords | ` — ` + comma list |
-| Level (`template-default`) | Squares 8×8pt (radius 0) |
+| Interest keywords | Themed pill chips (`render-item-tag-chips`, #919) |
+| Level (`template-default`) | Sheet-parity five dots: 6pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.5pt apart (#919) |
 
 Shared extras from `_common.typ` (experience/education keyword chips + custom
 fields; projects/skills custom fields) still apply on top of the native item
@@ -59,9 +59,9 @@ bodies above.
 
 | Divergence | Tag |
 | --- | --- |
-| Visually close to rhyhorn on the sheet today; Typst headings/levels/keyword chips still differ (experience is position-first on both as of #858) | fix-in-sheet |
-| Profile `network` when linked vs sheet username-first | fix-in-sheet |
-| Level squares vs sheet dots | fix-in-sheet |
+| Visually close to rhyhorn on the sheet today; Typst headings/levels/keyword chips still differ (experience is position-first on both as of #858) | fix-in-typst |
+| Profile `network` when linked vs sheet username-first | fix-in-typst |
+| Level squares vs sheet dots | fixed (#919) |
 | Experience lead field | fixed (#858) |
 | Typography metadata ignored | fix-in-typst (#701) |
 

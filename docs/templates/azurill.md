@@ -8,8 +8,9 @@ a 1:1 target).
 
 ## Theme
 
-background `#ffffff`, text `#1f2937`, primary `#d97706` → accent darkened ~35%. Sidebar uses a light
-primary wash only via chips / bars, not a full-bleed column fill.
+background `#ffffff`, text `#1f2937`, primary `#d97706`. Accent ink is the raw primary, as the
+sheet paints `--doc-sheet-accent` (#919). No full-bleed column fill: the primary shows only
+through keyword chips and level dots.
 
 ## Typefaces
 
@@ -50,9 +51,9 @@ Default main / sidebar section ids are defined once in
 | --- | --- |
 | Education order | **institution** bold + degree under; date right; score as `Score: …`; summary |
 | Profile label mode | `username` |
-| Skill keywords | Comma-joined muted 8pt |
-| Interest keywords | Soft accent chips (`light-bg` fill, 3pt radius) |
-| Level (`template-default`) | Horizontal **bars** 14×4pt (radius 2pt) |
+| Skill keywords | Themed pill chips (`render-item-tag-chips`, #919) |
+| Interest keywords | Themed pill chips (`render-item-tag-chips`, #919) |
+| Level (`template-default`) | Sheet-parity five dots: 6pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.5pt apart (#919) |
 
 Experience: **position** bold over company; date/location right column (#858).
 
@@ -64,10 +65,11 @@ bodies above.
 
 | Divergence | Tag |
 | --- | --- |
-| Sheet heading chrome is single-style; Typst has main vs sidebar weights | fix-in-sheet |
-| Native level bars vs sheet dots | fix-in-sheet |
-| Profile sheet label (username-first) matches Typst `username` — OK; still diverges when only network is set | fix-in-sheet |
-| Interest chips in PDF vs plain/generic sheet list | fix-in-sheet |
+| Sheet heading chrome is single-style; Typst has main vs sidebar weights | fix-in-typst |
+| Native level bars vs sheet dots | fixed (#919) |
+| Profile sheet label (username-first) matches Typst `username` — OK; still diverges when only network is set | fix-in-typst |
+| Skill / interest keywords now share the sheet's pill chips | fixed (#919) |
+| Accent ink, level dots and keyword chips follow the sheet | fixed (#919) |
 | Experience lead field was company-first in Typst | fixed (#858) |
 | Typography metadata ignored | fix-in-typst (#701) |
 

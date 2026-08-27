@@ -6,19 +6,30 @@ documents — not against memory of Reactive Resume (RR) artboards.
 
 ## Source of truth
 
-1. **Typst** — `crates/render/src/typst_engine/templates/<id>.typ` (+ helpers in
-   `_common.typ`). When the sheet and PDF disagree, the Typst source is the
-   default target unless a divergence is tagged `owner-decision-needed`.
+1. **The document sheet** — `apps/web/src/components/doc-editor/docSheet.css`,
+   `DocSheet.tsx`, `apps/web/src/lib/docLayout.ts`. **When the sheet and PDF
+   disagree, the sheet is the default target** unless a divergence is tagged
+   `owner-decision-needed` (#919). It is what the author is looking at while
+   they edit, so it is what the export has to reproduce: accent ink, tints,
+   chips, level glyphs, faces and column padding all come from the sheet's
+   `--doc-sheet-*` properties and `.doc-sheet__*` rules, and the Typst side
+   mirrors them (`sheet-mix()` and friends in `_common.typ` restate the CSS
+   `color-mix(in srgb, …)` formulas). Page geometry the sheet has no opinion
+   on — pagination, page margins on single-column templates — stays with
+   Typst.
+2. **Typst** — `crates/render/src/typst_engine/templates/<id>.typ` (+ helpers in
+   `_common.typ`). Authoritative for everything the sheet does not paint, and
+   the place a sheet-parity fix lands.
    **Item composition** (profile labels, education field order, avatar initials,
    keyword presence, level clamp) is owned by
    [`item-presentation.md`](../design/item-presentation.md) (#829) and wins over
    per-template Item composition tables that still describe the pre-unification
    audit.
-2. **Layout registry** — column mode, default section columns, `headerStyle`,
+3. **Layout registry** — column mode, default section columns, `headerStyle`,
    `contactIn`, and sidebar width live in
    [`template_layout.rs`](../../crates/render/src/typst_engine/template_layout.rs).
    Specs link there instead of duplicating column lists.
-3. **Shared fixture** — `tests/fixtures/v3/doc-editor.json`, rendered with
+4. **Shared fixture** — `tests/fixtures/v3/doc-editor.json`, rendered with
    `cargo run -p rustume-render --example render_json -- <json> --text`
    (template field overridden per audit). RR reference assets under
    AmruthPillai/Reactive-Resume `apps/web/public/templates/{jpg,pdf}/` are
@@ -51,8 +62,9 @@ leading (~0.65em) and most lock **IBM Plex Sans**. Issue #701 should:
   (with a documented, clamped `lineHeight` → Typst `leading` mapping), and
   surface when a control is inert for the active template.
 - **Keep as template identity:** the named family pair (Sans vs Serif),
-  heading case/chrome, native `template-default` level glyph, and whether the
-  template paints a full-bleed sidebar that ignores `page.margin`.
+  heading case/chrome, and whether the template paints a full-bleed sidebar
+  that ignores `page.margin`. The `template-default` level glyph left this
+  list in #919 — it is the sheet's five dots on every template now.
 
 Display sizes (name ~18–28pt, section titles ~8–11pt) stay template-authored.
 There is no separate mono face in Typst. Education dates use the muted body face
@@ -63,9 +75,12 @@ editing affordance (#860).
 
 Each template lists concrete deltas with one of:
 
-- `fix-in-sheet` — change the document sheet / CSS to match Typst.
 - `fix-in-typst` — change the Typst template (or `_common.typ`) to match the
-  stated intent or to fix a render bug.
+  sheet, the stated intent, or to fix a render bug. Since #919 this is where a
+  sheet-vs-PDF delta goes by default.
+- `fix-in-sheet` — change the document sheet / CSS. Reserved for sheet bugs and
+  for the cases where the sheet is the side that is wrong; it is no longer the
+  landing place for a plain sheet-vs-PDF disagreement.
 - `owner-decision-needed` — sheet and Typst disagree on purpose or the intended
   behaviour is ambiguous; do not "fix" either side without a call.
 
@@ -81,10 +96,13 @@ These recur on almost every template; each template page repeats only the ones t
 | --- | --- | --- |
 | Experience lead field | — | Closed by #858: **position-first on all 12 templates**, sheet and PDF. Position leads; company and dates follow, styled per each frozen spec. Do not revert the eight previously company-first Typst templates (rhyhorn, bronzor, azurill, chikorita, ditto, gengar, glalie, leafish). |
 | Education lead field | — | Closed by #829 / `item-presentation.md`: degree-first, never `" in "`. Per-template tables that still say institution-first are stale. |
-| Section-heading chrome is template-specific in Typst; the sheet uses one `.doc-sheet__sec-title` treatment for all `tpl-*` ids | fix-in-sheet | Per-template heading chrome is the sheet-chrome epic's job; this audit freezes the Typst target. |
+| Section-heading chrome is template-specific in Typst; the sheet uses one `.doc-sheet__sec-title` treatment for all `tpl-*` ids | fix-in-typst | Still open. Per-template heading chrome the sheet does draw (`--heading-*` modifiers) is the target; Typst's extra band/rule variants converge onto it. |
+| Accent ink, sidebar tint, muted ink | fixed (#919) | Closed: templates paint the raw `primary` seed as accent (`--doc-sheet-accent`), `sheet-sidebar-tint()` for `accent 15%` sidebars under normal ink, and `sheet-muted()` for `text 60%`. The old `darken(15–45%)` accent step is gone; it was an unenforced WCAG-AA convention with no gate behind it. |
+| Column padding on full-bleed templates (pikachu, ditto, gengar, glalie) | fixed (#919) | Closed: insets follow `.doc-sheet__side` 1.6rem/0.95rem and `.doc-sheet__main` 1.6rem/1.45rem at 1rem = 12pt. Single-column `page.margin` stays at 48pt — the sheet's scroll-surface padding is not a print margin. |
+| Document face | — | Already in lockstep: Sans everywhere except nosepass (`IBM Plex Serif`) and glalie (inherits the engine's Serif default), asserted against `templateDocFontFamily()` by `apps/web/src/lib/__tests__/docLayout.test.ts`. Base size is `metadata.typography.font.size` on both sides — the sheet's 12.5px ≈ 9.4pt is its CSS fallback, not a second source. |
 | Profile label | — | Closed by #829: username-first (`auto`). Templates may pass `network` / `network-username` only when a later spec change re-declares that mode. |
-| Level glyphs: sheet always draws five dots; Typst `template-default` is bars / squares / dots / text bullets per template, and `metadata.levelDisplay` can override | fix-in-sheet | Sheet should follow `levelDisplay`, with `template-default` matching the template native glyph. |
-| Skill / interest keywords: sheet uses soft tag chips for skills (and experience/education extras); Typst mixes comma lists, middots, chips, and `— keywords` | fix-in-sheet | Match the Typst treatment named in each template spec. |
+| Level glyphs | fixed (#919) | Closed: `template-default` is the sheet's five 6pt dots on all 12 templates (`sheet-level-dots()`), flat accent over a flat `#d6d3d1` track, no outline. Explicit `metadata.levelDisplay` overrides keep `render-level`'s outlined indicators. |
+| Skill / interest keywords | fixed (#919) | Closed: `render-item-tag-chips()` paints `.doc-sheet__tag-chip` (999pt radius, `color-mix(accent 10%, bg)` fill, `color-mix(accent 28%, #e7e5e4)` border) for skills and interests on every template. nosepass keeps its boxed skill pill — the pill is already the chip there. Project / custom keywords stay per-template. |
 | Avatar without photo | — | Closed by #857: photo-less default is **collapsed**; initials disc is `showInitials` opt-in. Hidden photos collapse. No pikachu exception. |
 | Education dates: PDF and Done mode use the muted body face; Edit mode uses `--doc-font-mono` | — | Closed by #860. Documented in [`item-presentation.md`](../design/item-presentation.md). |
 | `metadata.typography.font.size` / `lineHeight`: engine emits a top-level `#set text`, then nearly every template re-locks size and leading | fix-in-typst | Tracked by #701 — lift shared resolution into `_common.typ`. |

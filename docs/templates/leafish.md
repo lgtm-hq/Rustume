@@ -7,8 +7,9 @@ a 1:1 target).
 
 ## Theme
 
-background `#ffffff`, text `#1f2937`, primary `#9f1239`. Header bg = primary lighten 90%; contact
-bar uses a darker rose wash.
+background `#ffffff`, text `#1f2937`, primary `#9f1239`, used raw as accent ink. The tier-1 band is
+`color-mix(accent 12%, bg)` under normal ink, matching `.doc-sheet__banner--tint` (#919); the
+contact bar keeps its solid rose fill.
 
 ## Typefaces
 
@@ -50,10 +51,7 @@ Default main / sidebar section ids are defined once in
 | Education order | Institution + degree; date right; score; summary |
 | Profile label mode | `network-username` |
 | Skill / interest / project keywords | Soft accent chips |
-| Level (`template-default`) | Circles |
-
-Accent ink stays the primary seed (crimson already clears WCAG AA); only
-`header-text-color` is darkened for the washed tier-1 band.
+| Level (`template-default`) | Sheet-parity five dots: 6pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.5pt apart (#919) |
 
 Shared extras from `_common.typ` (experience/education keyword chips + custom
 fields; projects/skills custom fields) still apply on top of the native item
@@ -63,8 +61,8 @@ bodies above.
 
 | Divergence | Tag |
 | --- | --- |
-| Sheet banner is one band; Typst is explicitly two-tier (wash + contact bar) | fix-in-sheet |
-| Keyword chips broadly used in Typst; sheet chips only on some sections | fix-in-sheet |
+| Sheet banner is one band; Typst is explicitly two-tier (wash + contact bar) | fix-in-typst |
+| Keyword chips broadly used in Typst; sheet chips only on some sections | fixed (#919) |
 | Experience lead field was company-first in Typst | fixed (#858) |
 | Typography metadata ignored | fix-in-typst (#701) |
 

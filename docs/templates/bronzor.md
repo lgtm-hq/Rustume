@@ -47,8 +47,8 @@ Default main / sidebar section ids are defined once in
 | Education order | Institution + date; then degree; score; summary (rhyhorn-like) |
 | Profile label mode | URL → `username`; else `network-username` |
 | Skill / project keywords | Comma-joined muted |
-| Interest keywords | ` — ` + comma list |
-| Level (`template-default`) | Rounded squares 8×8pt (radius 2pt) |
+| Interest keywords | Themed pill chips (`render-item-tag-chips`, #919) |
+| Level (`template-default`) | Sheet-parity five dots: 6pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.5pt apart (#919) |
 
 Shared extras from `_common.typ` (experience/education keyword chips + custom
 fields; projects/skills custom fields) still apply on top of the native item
@@ -58,9 +58,9 @@ bodies above.
 
 | Divergence | Tag |
 | --- | --- |
-| Sheet header is not distinctly centered/contact-wrapped per bronzor | fix-in-sheet |
-| Heading underline + uppercase missing on sheet | fix-in-sheet |
-| Level squares vs sheet dots | fix-in-sheet |
+| Sheet header is not distinctly centered/contact-wrapped per bronzor | fix-in-typst |
+| Heading underline + uppercase missing on sheet | fix-in-typst |
+| Level squares vs sheet dots | fixed (#919) |
 | Experience lead field was company-first in Typst | fixed (#858) |
 | Typography metadata ignored | fix-in-typst (#701) |
 

@@ -50,7 +50,7 @@ Default main / sidebar section ids are defined once in
 | Education order | Institution + degree; date right; score; summary |
 | Profile label mode | `network-username` |
 | Skill / interest / project keywords | Comma-joined muted |
-| Level (`template-default`) | Circles 6pt |
+| Level (`template-default`) | Sheet-parity five dots: 6pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.5pt apart (#919) |
 
 Shared extras from `_common.typ` (experience/education keyword chips + custom
 fields; projects/skills custom fields) still apply on top of the native item
@@ -61,7 +61,7 @@ bodies above.
 | Divergence | Tag |
 | --- | --- |
 | Sheet locks IBM Plex Serif; PDF honors `metadata.typography.font.family` (schema default Serif) | owner-decision-needed |
-| Sheet uppercases section titles; Typst keeps title-case | fix-in-sheet |
+| Sheet uppercases section titles; Typst keeps title-case | fix-in-typst |
 | Justify-on in Typst vs sheet left-aligned body | fixed (#860): sheet body (`summary` / entry sum / desc) is justified, both modes |
 | Experience lead field was company-first in Typst | fixed (#858) |
 | `page.margin` does not inset the page box (full-bleed); `content-width()` still uses it for ratio math | decided (#859) |
