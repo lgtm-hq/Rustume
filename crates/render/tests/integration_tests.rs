@@ -1818,7 +1818,7 @@ fn test_hidden_only_trailing_layout_page_adds_no_page() {
     base.sections.interests.visible = false;
     let (_, base_pages) = renderer.render_preview(&base, 0).expect("baseline preview");
 
-    let mut padded = base.clone();
+    let mut padded = base;
     let mut layout = base_layout;
     layout.push(vec![vec!["interests".to_string()], vec![]]);
     padded.metadata.layout = layout;
