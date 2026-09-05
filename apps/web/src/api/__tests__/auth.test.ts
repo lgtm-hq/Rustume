@@ -222,6 +222,34 @@ describe("probeAuth", () => {
     });
   });
 
+  it("maps billing_customer_linked from /auth/me only when present", async () => {
+    for (const linked of [true, false, undefined]) {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          id: "user-1",
+          plan: "pro",
+          billing_enabled: true,
+          ...(linked === undefined ? {} : { billing_customer_linked: linked }),
+        }),
+      });
+
+      const result = await probeAuth();
+
+      expect(result).toEqual({
+        mode: "cloud",
+        user: {
+          id: "user-1",
+          plan: "pro",
+          ...(linked === undefined ? {} : { billing_customer_linked: linked }),
+        },
+        requireAuth: false,
+        billingEnabled: true,
+      });
+    }
+  });
+
   it("rejects invalid authenticated /auth/me payloads", async () => {
     fetchMock.mockResolvedValue({
       ok: true,

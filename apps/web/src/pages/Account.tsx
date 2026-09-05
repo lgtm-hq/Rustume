@@ -1,6 +1,7 @@
 import { Show, createEffect, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { deleteAccount } from "../api/account";
+import type { AuthUser } from "../api/auth";
 import { openCheckout, redirectToPortal } from "../api/billing";
 import { downloadResumesJson, downloadResumesPdf } from "../api/export";
 import { listCloudResumesPage } from "../api/resumes";
@@ -39,7 +40,7 @@ function ComingSoonRow(props: { title: string; description: string }) {
 
 export default function Account() {
   usePageTitle("Account");
-  const { state, signIn, signOut, clearUser, displayName, refresh } = authStore;
+  const { state, signIn, signOut, clearUser, displayName, refreshUser } = authStore;
   const navigate = useNavigate();
   const [signingOut, setSigningOut] = createSignal(false);
   const [deleteModalOpen, setDeleteModalOpen] = createSignal(false);
@@ -91,7 +92,10 @@ export default function Account() {
     setOpeningCheckout(true);
     try {
       await openCheckout(() => {
-        void refresh();
+        // Paddle fires checkout.completed before its webhook reaches us, so
+        // this is a silent re-probe: no spinner, and a transient failure
+        // keeps the current session rather than wiping it.
+        void refreshUser();
       });
     } catch (error) {
       console.error("Checkout failed:", error);
@@ -117,7 +121,7 @@ export default function Account() {
 
   // The portal needs a linked Paddle customer; until the first webhook links
   // one, "Subscribe" stays available even if the plan already reads as paid.
-  const canManageSubscription = (user: { billing_customer_linked?: boolean }) =>
+  const canManageSubscription = (user: Pick<AuthUser, "billing_customer_linked">) =>
     user.billing_customer_linked === true;
 
   const handleExportJson = async () => {

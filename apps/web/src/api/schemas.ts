@@ -150,7 +150,10 @@ export const deleteAccountResponseSchema = z.object({
   message: z.string(),
 });
 
-export const billingCheckoutSettingsSchema = z.object({
+// Billing responses are strict (unknown keys fail) because the client and
+// server ship together in one image: a renamed field should fail loudly, not
+// silently hide the billing UI. /auth/me stays strip-mode for skew tolerance.
+export const billingCheckoutSettingsSchema = z.strictObject({
   client_token: z.string().min(1),
   price_id: z.string().min(1),
   email: z.string().min(1),
@@ -160,8 +163,15 @@ export const billingCheckoutSettingsSchema = z.object({
 
 export type BillingCheckoutSettings = z.infer<typeof billingCheckoutSettingsSchema>;
 
-export const billingPortalResponseSchema = z.object({
-  url: z.string().url(),
+export const billingPortalResponseSchema = z.strictObject({
+  // The browser is redirected here, so only https Paddle portal URLs are
+  // acceptable; javascript:/http: never are.
+  url: z
+    .string()
+    .url()
+    .refine((value) => value.startsWith("https://"), {
+      message: "portal URL must use https",
+    }),
 });
 
 export type BillingPortalResponse = z.infer<typeof billingPortalResponseSchema>;

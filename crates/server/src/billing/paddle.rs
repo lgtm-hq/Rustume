@@ -49,7 +49,8 @@ const PADDLE_HTTP_TIMEOUT_SECS: u64 = 10;
         (status = 401, description = "Not authenticated", body = ApiError),
         (
             status = 404,
-            description = "Route not mounted: billing is not configured on this deployment (no JSON body)"
+            description = "Billing not configured. The route is not mounted, so the server's generic JSON 404 is returned; the handler's own 404 (`Billing is not enabled on this server`) is a defensive path that is not reachable in production.",
+            body = ApiError
         ),
     ),
     security(("cookieAuth" = []))
@@ -67,7 +68,7 @@ pub async fn checkout(
         client_token: billing.client_token.clone(),
         price_id: billing.price_id.clone(),
         email,
-        custom_data: serde_json::json!({ "user_id": user.id.to_string() }),
+        custom_data: signed_custom_data(&billing.webhook_secret, user.id),
         environment: if billing.sandbox {
             "sandbox".to_string()
         } else {
@@ -86,7 +87,8 @@ pub async fn checkout(
         (status = 401, description = "Not authenticated", body = ApiError),
         (
             status = 404,
-            description = "Route not mounted: billing is not configured on this deployment (no JSON body)"
+            description = "Billing not configured. The route is not mounted, so the server's generic JSON 404 is returned; the handler's own 404 is a defensive path that is not reachable in production.",
+            body = ApiError
         ),
         (status = 409, description = "No Paddle customer linked yet", body = ApiError),
     ),
@@ -123,13 +125,15 @@ pub async fn customer_portal(
     ),
     responses(
         (status = 200, description = "Event processed or already processed"),
-        (status = 400, description = "Malformed payload or event could not be applied", body = ApiError),
+        (status = 400, description = "Malformed payload, missing event_id, or event could not be applied", body = ApiError),
         (status = 401, description = "Missing or invalid signature, or stale timestamp", body = ApiError),
         (
             status = 404,
-            description = "Route not mounted: billing is not configured on this deployment (no JSON body)"
+            description = "Billing not configured. The route is not mounted, so the server's generic JSON 404 is returned (`/webhooks/*` is a reserved path and is never served by the SPA fallback).",
+            body = ApiError
         ),
         (status = 409, description = "Paddle customer already linked to a different account", body = ApiError),
+        (status = 500, description = "Event applied but could not be marked processed; Paddle should retry", body = ApiError),
     )
 )]
 pub async fn paddle_webhook(
@@ -152,28 +156,34 @@ pub async fn paddle_webhook(
         ApiError::new("Invalid webhook payload")
     })?;
 
-    // Replay protection: claim the event id before handling so each Paddle
-    // event is processed at most once, even across webhook retries.
-    if let Some(event_id) = payload.event_id.as_deref() {
-        if !claim_webhook_event(&cloud.db, event_id).await? {
-            debug!(event_id, "skipping already-processed Paddle webhook event");
-            return Ok(StatusCode::OK);
-        }
+    // Every Paddle notification carries an event_id; without one there is no
+    // replay protection, so a signed but id-less payload is rejected rather
+    // than applied unguarded.
+    let event_id = payload
+        .event_id
+        .as_deref()
+        .ok_or_else(|| ApiError::new("Missing Paddle event_id"))?;
+
+    // Replay protection: an event is skipped only once it has been fully
+    // applied (processed_at set). A retry of a delivery that failed midway
+    // finds an unprocessed row and is handled again; the handlers are
+    // idempotent and ordering-guarded, so a concurrent duplicate is harmless.
+    if claim_webhook_event(&cloud.db, event_id).await? == WebhookClaim::AlreadyProcessed {
+        debug!(event_id, "skipping already-processed Paddle webhook event");
+        return Ok(StatusCode::OK);
     }
 
-    if let Err(err) = dispatch_webhook_event(&cloud.db, &payload).await {
-        // Release the claim so Paddle's retry can reprocess the event.
-        if let Some(event_id) = payload.event_id.as_deref() {
-            release_webhook_event(&cloud.db, event_id).await;
-        }
-        return Err(err);
-    }
+    dispatch_webhook_event(&cloud.db, billing, &payload).await?;
+
+    // If this fails the event stays unprocessed and the 500 makes Paddle
+    // retry; re-applying is safe.
+    mark_webhook_event_processed(&cloud.db, event_id).await?;
 
     record_event(
         &cloud.db,
         AuditEvent {
             event_type: "billing.webhook.received",
-            actor_user_id: extract_user_id(&payload.data),
+            actor_user_id: verified_custom_user_id(&billing.webhook_secret, &payload.data),
             resource_type: Some("billing"),
             resource_id: None,
             metadata: serde_json::json!({
@@ -190,9 +200,11 @@ pub async fn paddle_webhook(
 
 async fn dispatch_webhook_event(
     pool: &sqlx::PgPool,
+    billing: &BillingConfig,
     payload: &PaddleWebhook,
 ) -> Result<(), ApiError> {
     let occurred_at = payload.occurred_at.as_deref().and_then(parse_rfc3339);
+    let secret = billing.webhook_secret.as_str();
 
     match payload.event_type.as_str() {
         // Paddle emits a dedicated event per lifecycle transition. Whether or
@@ -208,16 +220,16 @@ async fn dispatch_webhook_event(
         | "subscription.resumed" => {
             let status = payload.data.get("status").and_then(Value::as_str);
             if status == Some(SubscriptionStatus::Canceled.as_str()) {
-                handle_subscription_canceled(pool, &payload.data, occurred_at).await?;
+                handle_subscription_canceled(pool, secret, &payload.data, occurred_at).await?;
             } else {
-                handle_subscription_upsert(pool, &payload.data, occurred_at).await?;
+                handle_subscription_upsert(pool, secret, &payload.data, occurred_at).await?;
             }
         }
         "subscription.canceled" => {
-            handle_subscription_canceled(pool, &payload.data, occurred_at).await?;
+            handle_subscription_canceled(pool, secret, &payload.data, occurred_at).await?;
         }
         "customer.created" => {
-            handle_customer_created(pool, &payload.data).await?;
+            handle_customer_created(pool, secret, &payload.data).await?;
         }
         other => {
             debug!(
@@ -230,33 +242,97 @@ async fn dispatch_webhook_event(
     Ok(())
 }
 
-/// Claim a webhook event id for processing. Returns `false` when the event
-/// was already processed (replayed delivery).
-async fn claim_webhook_event(pool: &sqlx::PgPool, event_id: &str) -> Result<bool, ApiError> {
-    let result = sqlx::query(
+/// Result of registering a webhook delivery for processing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum WebhookClaim {
+    /// First delivery, or a retry of one that never finished: handle it.
+    Claimed,
+    /// This event was already applied in full.
+    AlreadyProcessed,
+}
+
+/// Register a delivery of `event_id`. Rows without `processed_at` (a failed
+/// or in-flight attempt) are re-claimed so Paddle's retry is not mistaken
+/// for a replay.
+async fn claim_webhook_event(
+    pool: &sqlx::PgPool,
+    event_id: &str,
+) -> Result<WebhookClaim, ApiError> {
+    let claimed: Option<String> = sqlx::query_scalar(
         r#"
         INSERT INTO billing_webhook_events (event_id)
         VALUES ($1)
-        ON CONFLICT (event_id) DO NOTHING
+        ON CONFLICT (event_id) DO UPDATE SET received_at = now()
+        WHERE billing_webhook_events.processed_at IS NULL
+        RETURNING event_id
         "#,
     )
     .bind(event_id)
-    .execute(pool)
+    .fetch_optional(pool)
     .await
     .map_err(internal_db_error)?;
 
-    Ok(result.rows_affected() > 0)
+    Ok(if claimed.is_some() {
+        WebhookClaim::Claimed
+    } else {
+        WebhookClaim::AlreadyProcessed
+    })
 }
 
-/// Release a previously claimed webhook event id after a handling failure so
-/// Paddle's retry of the same event is not treated as a replay.
-async fn release_webhook_event(pool: &sqlx::PgPool, event_id: &str) {
-    if let Err(err) = sqlx::query("DELETE FROM billing_webhook_events WHERE event_id = $1")
+/// Record that `event_id` was applied in full. Only then do later deliveries
+/// of the same event get skipped.
+async fn mark_webhook_event_processed(pool: &sqlx::PgPool, event_id: &str) -> Result<(), ApiError> {
+    sqlx::query("UPDATE billing_webhook_events SET processed_at = now() WHERE event_id = $1")
         .bind(event_id)
         .execute(pool)
         .await
-    {
-        error!(event_id, "failed to release claimed webhook event: {err}");
+        .map_err(|err| {
+            error!(event_id, "failed to mark webhook event processed: {err}");
+            ApiError::internal("failed to record webhook processing")
+        })?;
+    Ok(())
+}
+
+/// Key derivation for the checkout `custom_data` signature: the webhook
+/// secret already binds us to Paddle; a domain prefix keeps the two uses of
+/// that secret from ever producing interchangeable MACs.
+const CHECKOUT_SIGNATURE_DOMAIN: &str = "rustume-checkout-v1:";
+
+/// Sign a user id for inclusion in checkout `custom_data`.
+///
+/// The overlay is opened by the browser, so anything in `custom_data` can be
+/// tampered with before Paddle sees it. Carrying an HMAC over the user id
+/// (keyed by a server-only secret) means a webhook's `custom_data.user_id`
+/// is trusted only if it was minted by our own `/api/billing/checkout` for
+/// that very user.
+fn sign_checkout_user_id(secret: &str, user_id: Uuid) -> String {
+    let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).expect("HMAC accepts any key");
+    mac.update(CHECKOUT_SIGNATURE_DOMAIN.as_bytes());
+    mac.update(user_id.as_bytes());
+    bytes_to_hex(&mac.finalize().into_bytes())
+}
+
+fn signed_custom_data(secret: &str, user_id: Uuid) -> Value {
+    serde_json::json!({
+        "user_id": user_id.to_string(),
+        "sig": sign_checkout_user_id(secret, user_id),
+    })
+}
+
+/// Return `custom_data.user_id` only when its signature verifies.
+fn verified_custom_user_id(secret: &str, data: &Value) -> Option<Uuid> {
+    let custom = data.get("custom_data")?;
+    let user_id = custom
+        .get("user_id")
+        .and_then(Value::as_str)
+        .and_then(|value| Uuid::parse_str(value).ok())?;
+    let sig = custom.get("sig").and_then(Value::as_str)?;
+    let expected = sign_checkout_user_id(secret, user_id);
+    if constant_time_eq(&sig.to_ascii_lowercase(), &expected) {
+        Some(user_id)
+    } else {
+        warn!(%user_id, "rejecting Paddle custom_data.user_id with invalid signature");
+        None
     }
 }
 
@@ -433,22 +509,33 @@ fn bytes_to_hex(bytes: &[u8]) -> String {
 
 async fn handle_subscription_upsert(
     pool: &sqlx::PgPool,
+    secret: &str,
     data: &Value,
     occurred_at: Option<DateTime<Utc>>,
 ) -> Result<(), ApiError> {
     let subscription_id = required_str(data, "id")?;
-    let status = required_str(data, "status")?;
+    let raw_status = required_str(data, "status")?;
     let customer_id = required_str(data, "customer_id")?;
     let price_id = extract_price_id(data).unwrap_or_else(|| "unknown".to_string());
     let period_end = extract_period_end(data);
-    let user_id = require_user_id(pool, data, Some(&customer_id)).await?;
+    let user_id = require_user_id(pool, secret, data, Some(&customer_id)).await?;
 
-    if SubscriptionStatus::parse(&status).is_none() {
-        // Stored verbatim for auditability; `SubscriptionAccess::from_row`
-        // treats unknown statuses as non-active (grace period until
-        // `current_period_end`, then expired) so this never fails open.
-        warn!(status = %status, "unknown paddle subscription status");
-    }
+    // `subscriptions.status` has a CHECK constraint over the known values, so
+    // a status this build does not understand is persisted as `past_due`:
+    // read-only until the period ends, never paid access. The raw value is
+    // kept in the log for the operator.
+    let status = match SubscriptionStatus::parse(&raw_status) {
+        Some(known) => known,
+        None => {
+            warn!(
+                status = %raw_status,
+                subscription_id = %subscription_id,
+                "unknown paddle subscription status; storing as past_due"
+            );
+            SubscriptionStatus::PastDue
+        }
+    };
+    let status = status.as_str();
 
     // The WHERE clause guards against out-of-order deliveries: an event older
     // than the last one applied to the row must not overwrite newer state. An
@@ -483,7 +570,7 @@ async fn handle_subscription_upsert(
     .bind(&subscription_id)
     .bind(&price_id)
     .bind(HOSTED_PLAN)
-    .bind(&status)
+    .bind(status)
     .bind(period_end)
     .bind(occurred_at)
     .execute(pool)
@@ -504,7 +591,7 @@ async fn handle_subscription_upsert(
     // leaves the account able to reach the customer portal.
     link_paddle_customer(pool, user_id, &customer_id).await?;
 
-    if matches!(status.as_str(), "active" | "trialing") {
+    if matches!(status, "active" | "trialing") {
         sqlx::query(
             r#"
             UPDATE users
@@ -524,6 +611,7 @@ async fn handle_subscription_upsert(
 
 async fn handle_subscription_canceled(
     pool: &sqlx::PgPool,
+    secret: &str,
     data: &Value,
     occurred_at: Option<DateTime<Utc>>,
 ) -> Result<(), ApiError> {
@@ -571,8 +659,14 @@ async fn handle_subscription_canceled(
         );
         return Ok(());
     } else {
-        handle_subscription_upsert(pool, data, occurred_at).await?;
-        require_user_id(pool, data, data.get("customer_id").and_then(Value::as_str)).await?
+        handle_subscription_upsert(pool, secret, data, occurred_at).await?;
+        require_user_id(
+            pool,
+            secret,
+            data,
+            data.get("customer_id").and_then(Value::as_str),
+        )
+        .await?
     };
 
     downgrade_user_plan_if_no_active_subscription(pool, user_id).await?;
@@ -580,10 +674,14 @@ async fn handle_subscription_canceled(
     Ok(())
 }
 
-async fn handle_customer_created(pool: &sqlx::PgPool, data: &Value) -> Result<(), ApiError> {
+async fn handle_customer_created(
+    pool: &sqlx::PgPool,
+    secret: &str,
+    data: &Value,
+) -> Result<(), ApiError> {
     let customer_id = required_str(data, "id")?;
 
-    match resolve_user_id(pool, data, Some(&customer_id)).await? {
+    match resolve_user_id(pool, secret, data, Some(&customer_id)).await? {
         Some(user_id) => link_paddle_customer(pool, user_id, &customer_id).await,
         None => {
             // Not an error: customer.created often carries no usable linkage
@@ -715,14 +813,17 @@ async fn downgrade_user_plan_if_no_active_subscription(
 /// 1. An existing `users.paddle_customer_id` link for the event's customer id
 ///    always wins over `custom_data` — a customer already linked to an
 ///    account cannot be re-pointed at another one by forged custom data.
-/// 2. `custom_data.user_id` is accepted only when it names an existing user
-///    whose linked Paddle customer id is absent or matches this event's
-///    customer id.
+/// 2. `custom_data.user_id` is accepted only when it carries a valid
+///    signature minted by our own checkout endpoint for that user (so the
+///    overlay caller cannot substitute another account's id), and it names
+///    an existing user whose linked Paddle customer id is absent or matches
+///    this event's customer id.
 /// 3. Checkout emails are never used: they are unverified, and matching on
 ///    them would let an attacker attach their subscription to any victim
 ///    account simply by typing the victim's email at checkout.
 async fn resolve_user_id(
     pool: &sqlx::PgPool,
+    secret: &str,
     data: &Value,
     customer_id: Option<&str>,
 ) -> Result<Option<Uuid>, ApiError> {
@@ -732,7 +833,7 @@ async fn resolve_user_id(
         }
     }
 
-    if let Some(user_id) = extract_custom_user_id(data) {
+    if let Some(user_id) = verified_custom_user_id(secret, data) {
         let linked_customer: Option<Option<String>> =
             sqlx::query_scalar("SELECT paddle_customer_id FROM users WHERE id = $1")
                 .bind(user_id)
@@ -766,10 +867,11 @@ async fn resolve_user_id(
 /// Like [`resolve_user_id`], but treat an unresolvable event as an error.
 async fn require_user_id(
     pool: &sqlx::PgPool,
+    secret: &str,
     data: &Value,
     customer_id: Option<&str>,
 ) -> Result<Uuid, ApiError> {
-    resolve_user_id(pool, data, customer_id)
+    resolve_user_id(pool, secret, data, customer_id)
         .await?
         .ok_or_else(|| ApiError::new("Unable to match Paddle event to a Rustume user"))
 }
@@ -794,17 +896,6 @@ async fn lookup_user_id_by_customer(
         .fetch_optional(pool)
         .await
         .map_err(internal_db_error)
-}
-
-fn extract_custom_user_id(data: &Value) -> Option<Uuid> {
-    data.get("custom_data")
-        .and_then(|custom| custom.get("user_id"))
-        .and_then(Value::as_str)
-        .and_then(|value| Uuid::parse_str(value).ok())
-}
-
-fn extract_user_id(data: &Value) -> Option<Uuid> {
-    extract_custom_user_id(data)
 }
 
 fn extract_price_id(data: &Value) -> Option<String> {
@@ -853,6 +944,8 @@ mod tests {
     use super::*;
     use chrono::{Datelike, TimeZone};
 
+    const TEST_SECRET: &str = "test_webhook_secret";
+
     fn sign_payload(secret: &str, timestamp: i64, body: &str) -> String {
         let signed_payload = format!("{timestamp}:{body}");
         let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).unwrap();
@@ -900,12 +993,22 @@ mod tests {
     }
 
     #[test]
-    fn extract_custom_user_id_reads_custom_data() {
-        let data = serde_json::json!({
-            "custom_data": { "user_id": "550e8400-e29b-41d4-a716-446655440000" }
-        });
-        let user_id = extract_custom_user_id(&data).expect("user id");
-        assert_eq!(user_id.to_string(), "550e8400-e29b-41d4-a716-446655440000");
+    fn signed_custom_data_round_trips_only_with_matching_secret() {
+        let user_id = Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
+        let data = serde_json::json!({ "custom_data": signed_custom_data(TEST_SECRET, user_id) });
+
+        assert_eq!(verified_custom_user_id(TEST_SECRET, &data), Some(user_id));
+        assert_eq!(verified_custom_user_id("other_secret", &data), None);
+
+        // Unsigned custom_data — what an attacker can put in the overlay — is
+        // never trusted, nor is a signature for a different user id.
+        let unsigned = serde_json::json!({ "custom_data": { "user_id": user_id.to_string() } });
+        assert_eq!(verified_custom_user_id(TEST_SECRET, &unsigned), None);
+        let other = Uuid::new_v4();
+        let mut forged = signed_custom_data(TEST_SECRET, other);
+        forged["user_id"] = Value::String(user_id.to_string());
+        let forged = serde_json::json!({ "custom_data": forged });
+        assert_eq!(verified_custom_user_id(TEST_SECRET, &forged), None);
     }
 
     #[test]
@@ -931,7 +1034,7 @@ mod tests {
     }
 
     fn database_url_for_tests() -> Option<String> {
-        let url = std::env::var("TEST_DATABASE_URL")
+        let Some(url) = std::env::var("TEST_DATABASE_URL")
             .ok()
             .map(|url| url.trim().to_owned())
             .filter(|url| !url.is_empty())
@@ -940,16 +1043,29 @@ mod tests {
                     .ok()
                     .map(|url| url.trim().to_owned())
                     .filter(|url| !url.is_empty())
-            })?;
+            })
+        else {
+            skip_or_fail_without_test_db();
+            return None;
+        };
 
         if looks_like_test_database_url(&url) {
             Some(url)
         } else {
-            eprintln!(
-                "SKIP billing integration tests: set TEST_DATABASE_URL (or DATABASE_URL) to a database whose name contains _test"
-            );
+            skip_or_fail_without_test_db();
             None
         }
+    }
+
+    /// Locally the DB-backed tests are optional; in CI (which always provisions
+    /// Postgres) a missing or misnamed database must fail instead of quietly
+    /// passing with zero assertions.
+    fn skip_or_fail_without_test_db() {
+        let message = "billing integration tests need TEST_DATABASE_URL (or DATABASE_URL) naming a *_test database";
+        if std::env::var("CI").is_ok() {
+            panic!("{message}");
+        }
+        eprintln!("SKIP {message}");
     }
 
     async fn test_pool() -> Option<sqlx::PgPool> {
@@ -998,7 +1114,7 @@ mod tests {
             "customer_id": format!("ctm_test_{user_id}"),
             "items": [{ "price": { "id": "pri_test" } }],
             "current_billing_period": { "ends_at": "2099-01-01T00:00:00Z" },
-            "custom_data": { "user_id": user_id.to_string() }
+            "custom_data": signed_custom_data(TEST_SECRET, user_id)
         })
     }
 
@@ -1017,10 +1133,10 @@ mod tests {
 
         let data = subscription_event(user_id, "active");
 
-        handle_subscription_upsert(&pool, &data, None)
+        handle_subscription_upsert(&pool, TEST_SECRET, &data, None)
             .await
             .expect("first upsert");
-        handle_subscription_upsert(&pool, &data, None)
+        handle_subscription_upsert(&pool, TEST_SECRET, &data, None)
             .await
             .expect("second upsert");
 
@@ -1037,27 +1153,44 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn webhook_event_claim_is_single_use_when_database_available() {
+    async fn webhook_event_claim_skips_only_processed_events_when_database_available() {
         let Some(pool) = test_pool().await else {
             return;
         };
 
         let event_id = format!("evt_test_{}", uuid::Uuid::new_v4());
 
-        assert!(claim_webhook_event(&pool, &event_id)
-            .await
-            .expect("first claim"));
-        assert!(!claim_webhook_event(&pool, &event_id)
-            .await
-            .expect("second claim"));
+        // First delivery.
+        assert_eq!(
+            claim_webhook_event(&pool, &event_id)
+                .await
+                .expect("first claim"),
+            WebhookClaim::Claimed
+        );
+        // A retry before the handler finished (or after it failed) must be
+        // handled again, not mistaken for a replay.
+        assert_eq!(
+            claim_webhook_event(&pool, &event_id)
+                .await
+                .expect("retry claim"),
+            WebhookClaim::Claimed
+        );
 
-        // A released claim can be claimed again (failed-delivery retry path).
-        release_webhook_event(&pool, &event_id).await;
-        assert!(claim_webhook_event(&pool, &event_id)
+        mark_webhook_event_processed(&pool, &event_id)
             .await
-            .expect("claim after release"));
+            .expect("mark processed");
+        assert_eq!(
+            claim_webhook_event(&pool, &event_id)
+                .await
+                .expect("claim after processing"),
+            WebhookClaim::AlreadyProcessed
+        );
 
-        release_webhook_event(&pool, &event_id).await;
+        sqlx::query("DELETE FROM billing_webhook_events WHERE event_id = $1")
+            .bind(&event_id)
+            .execute(&pool)
+            .await
+            .expect("cleanup event");
     }
 
     #[tokio::test]
@@ -1072,18 +1205,33 @@ mod tests {
         let active = subscription_event(user_id, "active");
 
         // Activation at T1, cancellation at T2.
-        handle_subscription_upsert(&pool, &active, occurred("2099-01-01T00:00:00Z"))
-            .await
-            .expect("activate");
-        handle_subscription_canceled(&pool, &active, occurred("2099-01-02T00:00:00Z"))
-            .await
-            .expect("cancel");
+        handle_subscription_upsert(
+            &pool,
+            TEST_SECRET,
+            &active,
+            occurred("2099-01-01T00:00:00Z"),
+        )
+        .await
+        .expect("activate");
+        handle_subscription_canceled(
+            &pool,
+            TEST_SECRET,
+            &active,
+            occurred("2099-01-02T00:00:00Z"),
+        )
+        .await
+        .expect("cancel");
 
         // A delayed replay of the T1 update must not resurrect the
         // subscription or restore the paid plan.
-        handle_subscription_upsert(&pool, &active, occurred("2099-01-01T00:00:00Z"))
-            .await
-            .expect("stale update");
+        handle_subscription_upsert(
+            &pool,
+            TEST_SECRET,
+            &active,
+            occurred("2099-01-01T00:00:00Z"),
+        )
+        .await
+        .expect("stale update");
 
         let status: String = sqlx::query_scalar(
             "SELECT status FROM subscriptions WHERE paddle_subscription_id = $1",
@@ -1102,9 +1250,14 @@ mod tests {
         assert_eq!(plan, "free");
 
         // A stale cancellation replay must also be a no-op.
-        handle_subscription_canceled(&pool, &active, occurred("2099-01-01T00:00:00Z"))
-            .await
-            .expect("stale cancel");
+        handle_subscription_canceled(
+            &pool,
+            TEST_SECRET,
+            &active,
+            occurred("2099-01-01T00:00:00Z"),
+        )
+        .await
+        .expect("stale cancel");
 
         delete_test_user(&pool, user_id).await;
     }
@@ -1130,27 +1283,39 @@ mod tests {
 
         // Forged custom_data naming the victim, but the event's customer id
         // belongs to no one: the victim's existing link must block the match.
+        // Even a correctly signed custom_data (the victim's own checkout token
+        // replayed by an attacker) is blocked by the victim's existing link.
         let forged = serde_json::json!({
-            "custom_data": { "user_id": victim_id.to_string() }
+            "custom_data": signed_custom_data(TEST_SECRET, victim_id)
         });
         let attacker_customer = format!("ctm_attacker_{attacker_id}");
-        let resolved = resolve_user_id(&pool, &forged, Some(&attacker_customer))
+        let resolved = resolve_user_id(&pool, TEST_SECRET, &forged, Some(&attacker_customer))
             .await
             .expect("resolve");
         assert_eq!(resolved, None);
 
         // An unverified checkout email must never be used for linkage.
         let email_only = serde_json::json!({ "email": "victim@example.com" });
-        let resolved = resolve_user_id(&pool, &email_only, Some(&attacker_customer))
+        let resolved = resolve_user_id(&pool, TEST_SECRET, &email_only, Some(&attacker_customer))
             .await
             .expect("resolve email");
         assert_eq!(resolved, None);
 
-        // The event's customer id mapping wins over custom_data.
-        let mismatched = serde_json::json!({
+        // Unsigned custom_data naming an unlinked user (what the overlay caller
+        // controls) is refused too: first-link requires our checkout token.
+        let unsigned = serde_json::json!({
             "custom_data": { "user_id": attacker_id.to_string() }
         });
-        let resolved = resolve_user_id(&pool, &mismatched, Some(&victim_customer))
+        let resolved = resolve_user_id(&pool, TEST_SECRET, &unsigned, Some(&attacker_customer))
+            .await
+            .expect("resolve unsigned");
+        assert_eq!(resolved, None);
+
+        // The event's customer id mapping wins over custom_data.
+        let mismatched = serde_json::json!({
+            "custom_data": signed_custom_data(TEST_SECRET, attacker_id)
+        });
+        let resolved = resolve_user_id(&pool, TEST_SECRET, &mismatched, Some(&victim_customer))
             .await
             .expect("resolve linked");
         assert_eq!(resolved, Some(victim_id));
@@ -1256,14 +1421,19 @@ mod tests {
         insert_test_user(&pool, user_id, "timestampless@example.com").await;
         let active = subscription_event(user_id, "active");
 
-        handle_subscription_upsert(&pool, &active, occurred("2099-01-02T00:00:00Z"))
-            .await
-            .expect("activate");
+        handle_subscription_upsert(
+            &pool,
+            TEST_SECRET,
+            &active,
+            occurred("2099-01-02T00:00:00Z"),
+        )
+        .await
+        .expect("activate");
         assert_eq!(user_plan(&pool, user_id).await, "pro");
 
         // A cancel with no usable occurred_at (missing or unparsable) must not
         // downgrade a timestamped active row.
-        handle_subscription_canceled(&pool, &active, None)
+        handle_subscription_canceled(&pool, TEST_SECRET, &active, None)
             .await
             .expect("timestampless cancel");
         assert_eq!(subscription_status(&pool, user_id).await, "active");
@@ -1271,7 +1441,7 @@ mod tests {
 
         // Nor may a timestampless upsert with a different status.
         let paused = subscription_event(user_id, "paused");
-        handle_subscription_upsert(&pool, &paused, None)
+        handle_subscription_upsert(&pool, TEST_SECRET, &paused, None)
             .await
             .expect("timestampless upsert");
         assert_eq!(subscription_status(&pool, user_id).await, "active");
@@ -1281,10 +1451,10 @@ mod tests {
         let other_user = uuid::Uuid::new_v4();
         insert_test_user(&pool, other_user, "legacy@example.com").await;
         let legacy = subscription_event(other_user, "active");
-        handle_subscription_upsert(&pool, &legacy, None)
+        handle_subscription_upsert(&pool, TEST_SECRET, &legacy, None)
             .await
             .expect("legacy activate");
-        handle_subscription_canceled(&pool, &legacy, None)
+        handle_subscription_canceled(&pool, TEST_SECRET, &legacy, None)
             .await
             .expect("legacy cancel");
         assert_eq!(subscription_status(&pool, other_user).await, "canceled");
@@ -1306,9 +1476,14 @@ mod tests {
         // seen (or the active event may have failed). The customer must still
         // be linked so the account can reach the portal.
         let canceled = subscription_event(user_id, "canceled");
-        handle_subscription_canceled(&pool, &canceled, occurred("2099-01-01T00:00:00Z"))
-            .await
-            .expect("canceled-first");
+        handle_subscription_canceled(
+            &pool,
+            TEST_SECRET,
+            &canceled,
+            occurred("2099-01-01T00:00:00Z"),
+        )
+        .await
+        .expect("canceled-first");
 
         assert_eq!(subscription_status(&pool, user_id).await, "canceled");
         assert_eq!(user_plan(&pool, user_id).await, "free");
@@ -1410,6 +1585,7 @@ mod tests {
         // re-activate directly, then replay the cancel and expect no change.
         handle_subscription_upsert(
             &pool,
+            TEST_SECRET,
             &subscription_event(user_id, "active"),
             occurred("2099-01-03T00:00:00Z"),
         )
@@ -1448,7 +1624,8 @@ mod tests {
 
     #[tokio::test]
     async fn portal_returns_conflict_without_linked_customer() {
-        let state = billing_state(None);
+        // Lazy pool: the handler never reaches the database on this path.
+        let state = billing_state(Some(crate::cloud::test_cloud_state().db.clone()));
         let user = test_user(Uuid::new_v4(), Some("dev@example.com"), None);
 
         let err = customer_portal(AuthUser(user), State(state))
@@ -1459,7 +1636,7 @@ mod tests {
 
     #[tokio::test]
     async fn checkout_requires_account_email() {
-        let state = billing_state(None);
+        let state = billing_state(Some(crate::cloud::test_cloud_state().db.clone()));
         let user = test_user(Uuid::new_v4(), None, None);
 
         let err = checkout(AuthUser(user), State(state.clone()))
@@ -1474,5 +1651,230 @@ mod tests {
         assert_eq!(settings.environment, "sandbox");
         assert_eq!(settings.price_id, "pri_test");
         assert_eq!(settings.custom_data["user_id"], user.id.to_string());
+    }
+
+    #[tokio::test]
+    async fn failed_delivery_is_reprocessed_and_idless_events_are_rejected_when_database_available()
+    {
+        let Some(pool) = test_pool().await else {
+            return;
+        };
+
+        let user_id = uuid::Uuid::new_v4();
+        insert_test_user(&pool, user_id, "retry@example.com").await;
+        let state = billing_state(Some(pool.clone()));
+        let event_id = format!("evt_retry_{user_id}");
+
+        // First attempt fails: the event names a subscription whose custom_data
+        // is missing, so no user can be resolved -> 400. The claim row stays
+        // unprocessed.
+        let mut data = subscription_event(user_id, "active");
+        data.as_object_mut().unwrap().remove("custom_data");
+        let failing = serde_json::json!({
+            "event_id": event_id,
+            "event_type": "subscription.activated",
+            "occurred_at": "2099-01-01T00:00:00Z",
+            "data": data,
+        })
+        .to_string();
+        let err = paddle_webhook(
+            State(state.clone()),
+            signed_headers(&failing),
+            failing.into(),
+        )
+        .await
+        .expect_err("unresolvable event must fail");
+        assert!(matches!(err.kind, crate::error::ApiErrorKind::BadRequest));
+        assert_eq!(user_plan(&pool, user_id).await, "free");
+
+        // Paddle retries the same event id, now resolvable: it must be applied,
+        // not skipped as a replay.
+        let retry = serde_json::json!({
+            "event_id": event_id,
+            "event_type": "subscription.activated",
+            "occurred_at": "2099-01-01T00:00:00Z",
+            "data": subscription_event(user_id, "active"),
+        })
+        .to_string();
+        let status = paddle_webhook(State(state.clone()), signed_headers(&retry), retry.into())
+            .await
+            .expect("retry applies");
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(user_plan(&pool, user_id).await, "pro");
+
+        // A signed payload without event_id has no replay protection: reject.
+        let idless = serde_json::json!({
+            "event_type": "subscription.canceled",
+            "occurred_at": "2099-01-02T00:00:00Z",
+            "data": subscription_event(user_id, "canceled"),
+        })
+        .to_string();
+        let err = paddle_webhook(State(state), signed_headers(&idless), idless.into())
+            .await
+            .expect_err("event without id must be rejected");
+        assert!(matches!(err.kind, crate::error::ApiErrorKind::BadRequest));
+        assert_eq!(err.error, "Missing Paddle event_id");
+        assert_eq!(user_plan(&pool, user_id).await, "pro");
+
+        sqlx::query("DELETE FROM billing_webhook_events WHERE event_id = $1")
+            .bind(&event_id)
+            .execute(&pool)
+            .await
+            .expect("cleanup event");
+        delete_test_user(&pool, user_id).await;
+    }
+
+    #[tokio::test]
+    async fn unknown_status_is_stored_as_past_due_when_database_available() {
+        let Some(pool) = test_pool().await else {
+            return;
+        };
+
+        let user_id = uuid::Uuid::new_v4();
+        insert_test_user(&pool, user_id, "unknown-status@example.com").await;
+
+        let odd = subscription_event(user_id, "hibernating");
+        handle_subscription_upsert(&pool, TEST_SECRET, &odd, occurred("2099-01-01T00:00:00Z"))
+            .await
+            .expect("unknown status must not 500 on the CHECK constraint");
+
+        assert_eq!(subscription_status(&pool, user_id).await, "past_due");
+        assert_eq!(user_plan(&pool, user_id).await, "free");
+        let access = crate::subscription::load_access(&pool, user_id)
+            .await
+            .expect("load access");
+        assert!(
+            access.ensure_write().is_err(),
+            "unknown status is never paid access"
+        );
+
+        delete_test_user(&pool, user_id).await;
+    }
+
+    #[tokio::test]
+    async fn access_follows_live_subscription_over_newer_canceled_row_when_database_available() {
+        let Some(pool) = test_pool().await else {
+            return;
+        };
+
+        let user_id = uuid::Uuid::new_v4();
+        insert_test_user(&pool, user_id, "resubscribed@example.com").await;
+
+        // Old subscription, canceled and expired.
+        let mut old = subscription_event(user_id, "active");
+        old["id"] = Value::String(format!("sub_old_{user_id}"));
+        old["current_billing_period"]["ends_at"] = Value::String("2020-01-01T00:00:00Z".into());
+        handle_subscription_upsert(&pool, TEST_SECRET, &old, occurred("2019-01-01T00:00:00Z"))
+            .await
+            .expect("old active");
+        // New subscription under a fresh Paddle id.
+        let new = subscription_event(user_id, "active");
+        handle_subscription_upsert(&pool, TEST_SECRET, &new, occurred("2099-01-01T00:00:00Z"))
+            .await
+            .expect("new active");
+        // A late webhook cancels the *old* one, touching its updated_at last.
+        handle_subscription_canceled(&pool, TEST_SECRET, &old, occurred("2020-01-01T00:00:00Z"))
+            .await
+            .expect("cancel old");
+
+        assert_eq!(user_plan(&pool, user_id).await, "pro");
+        let access = crate::subscription::load_access(&pool, user_id)
+            .await
+            .expect("load access");
+        assert_eq!(access, crate::subscription::SubscriptionAccess::Active);
+
+        delete_test_user(&pool, user_id).await;
+    }
+
+    /// Minimal stand-in for the Paddle API: answers portal-session requests
+    /// with a canned response. Returns the base URL to point `api_base` at.
+    async fn mock_paddle_api(
+        status: StatusCode,
+        body: serde_json::Value,
+    ) -> (String, tokio::task::JoinHandle<()>) {
+        use axum::routing::post;
+        let router = axum::Router::new().route(
+            "/customers/{customer_id}/portal-sessions",
+            post(move || {
+                let body = body.clone();
+                async move { (status, Json(body)) }
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind mock paddle api");
+        let addr = listener.local_addr().expect("local addr");
+        let server = tokio::spawn(async move {
+            axum::serve(listener, router)
+                .await
+                .expect("serve mock paddle api");
+        });
+        (format!("http://{addr}"), server)
+    }
+
+    #[tokio::test]
+    async fn portal_returns_overview_url_from_paddle() {
+        let (api_base, server) = mock_paddle_api(
+            StatusCode::CREATED,
+            serde_json::json!({
+                "data": { "urls": { "general": { "overview": "https://customer-portal.paddle.com/cpl_test" } } }
+            }),
+        )
+        .await;
+        let mut config = test_billing_config();
+        config.api_base = api_base;
+        let state = AppState::with_options_and_billing(
+            std::sync::Arc::new(crate::routes::static_dir()),
+            Some(crate::cloud::test_cloud_state()),
+            true,
+            crate::config::RateLimitConfig::default(),
+            Some(config),
+        );
+        let user = test_user(Uuid::new_v4(), Some("dev@example.com"), Some("ctm_linked"));
+
+        let Json(response) = customer_portal(AuthUser(user), State(state))
+            .await
+            .expect("portal session");
+        assert_eq!(response.url, "https://customer-portal.paddle.com/cpl_test");
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn portal_failure_never_echoes_paddle_error_body() {
+        let (api_base, server) = mock_paddle_api(
+            StatusCode::FORBIDDEN,
+            serde_json::json!({
+                "error": {
+                    "code": "forbidden",
+                    "detail": "customer secret-email@example.com is not accessible"
+                }
+            }),
+        )
+        .await;
+        let mut config = test_billing_config();
+        config.api_base = api_base;
+        let state = AppState::with_options_and_billing(
+            std::sync::Arc::new(crate::routes::static_dir()),
+            Some(crate::cloud::test_cloud_state()),
+            true,
+            crate::config::RateLimitConfig::default(),
+            Some(config),
+        );
+        let user = test_user(Uuid::new_v4(), Some("dev@example.com"), Some("ctm_linked"));
+
+        let err = customer_portal(AuthUser(user), State(state))
+            .await
+            .expect_err("paddle rejection surfaces as an error");
+        assert!(matches!(
+            err.kind,
+            crate::error::ApiErrorKind::InternalError
+        ));
+        assert_eq!(err.error, "failed to create customer portal session");
+        assert!(!err.error.contains("secret-email"));
+        assert_eq!(
+            paddle_error_code(r#"{"error":{"code":"forbidden"}}"#).as_deref(),
+            Some("forbidden")
+        );
+        server.abort();
     }
 }

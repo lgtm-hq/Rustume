@@ -48,11 +48,13 @@ async function ensurePaddleInitialized(
     paddle = await reloadPaddleScript();
   }
 
-  if (paddle.Environment) {
-    paddle.Environment.set(settings.environment);
-  }
-
+  // Paddle.js documents Environment.set() as a pre-Initialize call, so it is
+  // only issued on the first initialisation (or after a reload); repeat opens
+  // with unchanged settings skip both.
   if (!paddleInitialized) {
+    if (paddle.Environment) {
+      paddle.Environment.set(settings.environment);
+    }
     paddle.Initialize({ token: settings.client_token });
     paddleInitialized = true;
     paddleInitializedToken = settings.client_token;
@@ -77,12 +79,29 @@ function loadPaddleScript(): Promise<void> {
       paddleScriptPromise = null;
       reject(error);
     };
+    // A script that loads but does not define window.Paddle (CDN error page,
+    // blocked by CSP, tampered response) is a failure: keeping the resolved
+    // promise would leave every later click stuck without ever refetching.
+    const settle = (script: HTMLScriptElement) => {
+      if (window.Paddle) {
+        resolve();
+      } else {
+        fail(script, new Error("Paddle.js loaded without defining window.Paddle"));
+      }
+    };
 
     const existing = document.querySelector<HTMLScriptElement>(
       `script[src="${PADDLE_SCRIPT_SRC}"]`,
     );
     if (existing) {
-      existing.addEventListener("load", () => resolve(), { once: true });
+      // window.Paddle was absent above, so a tag that already finished
+      // loading is a dead one: replace it rather than wait for a load event
+      // that will never fire again.
+      if (existing.dataset.paddleLoaded === "true") {
+        fail(existing, new Error("Paddle.js loaded without defining window.Paddle"));
+        return;
+      }
+      existing.addEventListener("load", () => settle(existing), { once: true });
       existing.addEventListener(
         "error",
         () => fail(existing, new Error("Failed to load Paddle.js")),
@@ -94,7 +113,10 @@ function loadPaddleScript(): Promise<void> {
     const script = document.createElement("script");
     script.src = PADDLE_SCRIPT_SRC;
     script.async = true;
-    script.onload = () => resolve();
+    script.onload = () => {
+      script.dataset.paddleLoaded = "true";
+      settle(script);
+    };
     script.onerror = () => fail(script, new Error("Failed to load Paddle.js"));
     document.head.appendChild(script);
   });
@@ -120,6 +142,8 @@ export async function openCheckout(onComplete?: () => void): Promise<void> {
 
   let paddle = window.Paddle;
   if (!paddle) {
+    // Drop the cached load so the next attempt fetches the script again.
+    resetPaddleScriptState();
     throw new Error("Paddle.js failed to initialize");
   }
 

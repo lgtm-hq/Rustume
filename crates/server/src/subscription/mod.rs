@@ -69,8 +69,10 @@ impl SubscriptionAccess {
         let Some(status) = SubscriptionStatus::parse(status) else {
             // Fail closed: a status this build does not understand is never
             // treated as paid access. It behaves like `past_due` — read-only
-            // until the current period ends, then expired — and is reported
-            // to clients as `past_due` since that is the closest known state.
+            // until the current period ends, then expired. (The webhook
+            // handler already maps unknown Paddle statuses to `past_due`
+            // before insert because of the CHECK constraint; this branch
+            // guards rows written by other means.)
             tracing::warn!(
                 status = status,
                 "unknown subscription status, treating as past_due"
@@ -147,12 +149,19 @@ impl SubscriptionAccess {
 
 /// Load the latest subscription access for a user.
 pub async fn load_access(pool: &PgPool, user_id: Uuid) -> Result<SubscriptionAccess, ApiError> {
+    // A user can accumulate several subscription rows (cancel, then
+    // resubscribe under a new Paddle id). Access follows the best row, not the
+    // most recently touched one, so a late webhook on an old subscription
+    // cannot hide a live one.
     let row = sqlx::query_as::<_, SubscriptionRow>(
         r#"
         SELECT status, current_period_end
         FROM subscriptions
         WHERE user_id = $1
-        ORDER BY updated_at DESC
+        ORDER BY
+            CASE WHEN status IN ('active', 'trialing') THEN 0 ELSE 1 END,
+            current_period_end DESC NULLS LAST,
+            updated_at DESC
         LIMIT 1
         "#,
     )

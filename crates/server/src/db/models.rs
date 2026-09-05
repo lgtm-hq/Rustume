@@ -481,5 +481,43 @@ mod tests {
 
         assert_eq!(json["subscription"]["status"], "canceled");
         assert!(json["subscription"]["expires_at"].as_str().is_some());
+        // The two billing flags are independent: routes mounted vs customer linked.
+        assert_eq!(json["billing_enabled"], true);
+        assert_eq!(json["billing_customer_linked"], false);
+    }
+
+    #[test]
+    fn auth_user_response_reports_linked_paddle_customer() {
+        let user = User {
+            id: Uuid::nil(),
+            workos_id: "user_01".to_string(),
+            plan: "pro".to_string(),
+            paddle_customer_id: Some("ctm_123".to_string()),
+            email: None,
+            first_name: None,
+            last_name: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+
+        let json =
+            serde_json::to_value(AuthUserResponse::from_user(user, true, None, true)).unwrap();
+
+        assert_eq!(json["billing_enabled"], true);
+        assert_eq!(json["billing_customer_linked"], true);
+        // The customer id itself stays server-side.
+        assert!(json.get("paddle_customer_id").is_none());
+    }
+
+    #[test]
+    fn auth_me_unauthorized_response_carries_billing_flag() {
+        let json = serde_json::to_value(AuthMeUnauthorizedResponse {
+            error: "Not authenticated".to_string(),
+            require_auth: true,
+            billing_enabled: true,
+        })
+        .unwrap();
+        assert_eq!(json["require_auth"], true);
+        assert_eq!(json["billing_enabled"], true);
     }
 }
