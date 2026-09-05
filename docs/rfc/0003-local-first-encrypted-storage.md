@@ -134,16 +134,16 @@ like to the user; the difference is where the durable copy lives.
 
 A relay's document API is the sync protocol from RFC 0002, generalised:
 
-| Method   | Path                                      | Purpose                                                                                                                                                                                                   |
-| -------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/api/sync/changes?since=`                | Delta since a cursor, or the full current state when `since` is absent or `0` (live documents and unexpired tombstones); returns the new cursor; `Sync-Client` required, advances the client's cursor row |
-| `GET`    | `/api/sync/docs/{id}`                     | Fetch one envelope with version metadata                                                                                                                                                                  |
-| `PUT`    | `/api/sync/docs/{id}`                     | Push an envelope; `If-Match: version` (`0` to create), `Sync-Cursor`, `Idempotency-Key` required                                                                                                          |
-| `POST`   | `/api/sync/reconcile`                     | Batched first sync; `Idempotency-Key` required, per-document targets make a repeat a no-op                                                                                                                |
-| `DELETE` | `/api/sync/docs/{id}`                     | Write a versioned tombstone; `If-Match: version`, `Sync-Cursor`, `Idempotency-Key` required                                                                                                               |
-| `GET`    | `/api/sync/docs/{id}/snapshots`           | List snapshot versions for one document; `Sync-Client` required                                                                                                                                           |
-| `GET`    | `/api/sync/docs/{id}/snapshots/{version}` | Fetch one encrypted history snapshot                                                                                                                                                                      |
-| `PUT`    | `/api/sync/docs/{id}/snapshots/{version}` | Client-written encrypted history snapshot; insert-only, 409 on an existing version unless the ciphertext is byte-identical                                                                                |
+| Method   | Path                                      | Purpose                                                                                                                                                                                                                                                                                                          |
+| -------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/api/sync/changes?since=`                | Summaries only (id, version, content tag, tombstone flag), never envelopes; a delta since a cursor, or the full current state when `since` is absent or `0`; returns the new cursor; `Sync-Client` required, advances the client's cursor row. Envelopes are fetched per document with `GET /api/sync/docs/{id}` |
+| `GET`    | `/api/sync/docs/{id}`                     | Fetch one envelope with version metadata                                                                                                                                                                                                                                                                         |
+| `PUT`    | `/api/sync/docs/{id}`                     | Push an envelope; `If-Match: version` (`0` to create), `Sync-Cursor`, `Idempotency-Key` required                                                                                                                                                                                                                 |
+| `POST`   | `/api/sync/reconcile`                     | Batched first sync; `Idempotency-Key` required, per-document targets make a repeat a no-op                                                                                                                                                                                                                       |
+| `DELETE` | `/api/sync/docs/{id}`                     | Write a versioned tombstone; `If-Match: version`, `Sync-Cursor`, `Idempotency-Key` required                                                                                                                                                                                                                      |
+| `GET`    | `/api/sync/docs/{id}/snapshots`           | List snapshot versions for one document; `Sync-Client` required                                                                                                                                                                                                                                                  |
+| `GET`    | `/api/sync/docs/{id}/snapshots/{version}` | Fetch one encrypted history snapshot                                                                                                                                                                                                                                                                             |
+| `PUT`    | `/api/sync/docs/{id}/snapshots/{version}` | Client-written encrypted history snapshot; insert-only, 409 on an existing version unless the ciphertext is byte-identical                                                                                                                                                                                       |
 
 Today's `/api/resumes` CRUD stays during migration and is retired once every client
 speaks sync. The relay validates envelope shape and byte limits, never content.
@@ -407,13 +407,13 @@ Server-side rendering is the one place plaintext leaves the client today (#633).
 This RFC does not remove the server renderer; #633 recorded why it cannot go
 (published pages, crawlers, OG images). It changes the **default path**:
 
-| Path                          | Today                        | Target                                                                 |
-| ----------------------------- | ---------------------------- | ---------------------------------------------------------------------- |
-| Live preview                  | POST plaintext per keystroke | `crates/render` in WASM, in the browser                                |
-| PDF export                    | POST plaintext               | WASM render, download locally; works offline                           |
-| Bulk PDF export               | Server reads DB              | Client iterates local library, renders each, zips locally              |
-| Published page HTML, OG image | Server render                | Server render of the **published snapshot** only                       |
-| Weak device fallback          | n/a                          | Opt-in "render on server" toggle; sends transient plaintext, disclosed |
+| Path                          | Today                                   | Target                                                                           |
+| ----------------------------- | --------------------------------------- | -------------------------------------------------------------------------------- |
+| Live preview                  | DOM sheet; no server preview since #784 | Unchanged; `crates/render` in WASM serves export and the version-history preview |
+| PDF export                    | POST plaintext                          | WASM render, download locally; works offline                                     |
+| Bulk PDF export               | Server reads DB                         | Client iterates local library, renders each, zips locally                        |
+| Published page HTML, OG image | Server render                           | Server render of the **published snapshot** only                                 |
+| Weak device fallback          | n/a                                     | Opt-in "render on server" toggle; sends transient plaintext, disclosed           |
 
 Client rendering is gated on #682. The unoptimised WASM payload is 17.4 MB gzipped,
 almost entirely embedded fonts. #682 must answer font subsetting or on-demand font
@@ -480,8 +480,9 @@ a token. Every sync request must present the token; requests without it get 401.
 Because the container binds `0.0.0.0` and compose publishes the port, the default
 compose deployment needs a token without asking the user to invent one. The compose
 file sets `RUSTUME_ACCESS_TOKEN_FILE=/data/access_token`; on first start the relay
-generates a random token there with mode 0600 and logs only the file path, never
-the secret; the operator reads it with `docker compose exec rustume cat
+generates a random token there with mode 0600 before the bind check runs, so the
+default compose deployment always starts; it logs only the file path, never the
+secret; the operator reads it with `docker compose exec rustume cat
 /data/access_token`. The web app asks for it on first visit to that origin and keeps
 it in local storage. Operators may set `RUSTUME_ACCESS_TOKEN` directly instead.
 
@@ -553,6 +554,10 @@ What changes in RFC 0002:
 - Deletions become versioned tombstones; a local-only id with a relay tombstone is a
   conflict, not a create.
 - Self-hosted Postgres is replaced by the SQLite relay.
+- Endpoints move from `/api/sync/resumes/{id}` to `/api/sync/docs/{id}`; `if_hash`
+  is replaced by `If-Match` plus `Sync-Cursor`; the relay validates envelope shape
+  and byte limits only, so RFC 0002's reuse of `validate_resume_json` and
+  `validate_title` on sync routes no longer applies.
 - Pairing, LWW, and unlink are unchanged.
 
 Both documents should gain a note pointing here when this RFC is accepted. The
