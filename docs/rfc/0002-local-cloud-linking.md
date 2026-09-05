@@ -307,7 +307,7 @@ sequenceDiagram
 
     LC->>CC: GET /api/resumes (summaries)
     LC->>LC: Compare with local index
-    LC->>LC: Classify: added_local, added_cloud, identical, conflicting
+    LC->>LC: Classify: added_local, added_cloud, identical, updated, conflicting
     LC->>U: Show merge summary modal
     Note over U: "12 new local, 3 new cloud, 2 conflicts"
     U->>LC: Confirm / cancel / per-conflict choice

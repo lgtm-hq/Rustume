@@ -134,16 +134,16 @@ like to the user; the difference is where the durable copy lives.
 
 A relay's document API is the sync protocol from RFC 0002, generalised:
 
-| Method   | Path                                      | Purpose                                                                                                                                                                                                                                                                                                          |
-| -------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/api/sync/changes?since=`                | Summaries only (id, version, content tag, tombstone flag), never envelopes; a delta since a cursor, or the full current state when `since` is absent or `0`; returns the new cursor; `Sync-Client` required, advances the client's cursor row. Envelopes are fetched per document with `GET /api/sync/docs/{id}` |
-| `GET`    | `/api/sync/docs/{id}`                     | Fetch one envelope with version metadata                                                                                                                                                                                                                                                                         |
-| `PUT`    | `/api/sync/docs/{id}`                     | Push an envelope; `If-Match: version` (`0` to create), `Sync-Cursor`, `Idempotency-Key` required                                                                                                                                                                                                                 |
-| `POST`   | `/api/sync/reconcile`                     | Batched first sync; `Idempotency-Key` required, per-document targets make a repeat a no-op                                                                                                                                                                                                                       |
-| `DELETE` | `/api/sync/docs/{id}`                     | Write a versioned tombstone; `If-Match: version`, `Sync-Cursor`, `Idempotency-Key` required                                                                                                                                                                                                                      |
-| `GET`    | `/api/sync/docs/{id}/snapshots`           | List snapshot versions for one document; `Sync-Client` required                                                                                                                                                                                                                                                  |
-| `GET`    | `/api/sync/docs/{id}/snapshots/{version}` | Fetch one encrypted history snapshot                                                                                                                                                                                                                                                                             |
-| `PUT`    | `/api/sync/docs/{id}/snapshots/{version}` | Client-written encrypted history snapshot; `Sync-Client`, `Sync-Cursor`, `Idempotency-Key` required like any write; insert-only, 409 `snapshot_exists` on an existing version unless the ciphertext is byte-identical, which also covers a retry that outlived its replay record                                 |
+| Method   | Path                                      | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| -------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/api/sync/changes?since=`                | Summaries only (id, version, content tag, tombstone flag), never envelopes; a delta since a cursor, or the full current state when `since` is absent or `0`; a `since` value that is unknown or older than tombstone retention gets 428 `cursor_required` instead of a delta; returns the new cursor; `Sync-Client` required, advances the client's cursor row. Envelopes are fetched per document with `GET /api/sync/docs/{id}`; the client persists the new cursor only after every listed envelope is fetched and stored |
+| `GET`    | `/api/sync/docs/{id}`                     | Fetch one envelope with version metadata                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `PUT`    | `/api/sync/docs/{id}`                     | Push an envelope; `If-Match: version` (`0` to create), `Sync-Cursor`, `Idempotency-Key` required                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `POST`   | `/api/sync/reconcile`                     | Batched first sync; `Idempotency-Key` required, per-document targets make a repeat a no-op                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `DELETE` | `/api/sync/docs/{id}`                     | Write a versioned tombstone; `If-Match: version`, `Sync-Cursor`, `Idempotency-Key` required                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `GET`    | `/api/sync/docs/{id}/snapshots`           | List snapshot versions for one document; `Sync-Client` required                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `GET`    | `/api/sync/docs/{id}/snapshots/{version}` | Fetch one encrypted history snapshot                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `PUT`    | `/api/sync/docs/{id}/snapshots/{version}` | Client-written encrypted history snapshot; `Sync-Client`, `Sync-Cursor`, `Idempotency-Key` required like any write; insert-only, 409 `snapshot_exists` on an existing version unless the ciphertext is byte-identical, which also covers a retry that outlived its replay record                                                                                                                                                                                                                                             |
 
 Today's `/api/resumes` CRUD stays during migration and is retired once every client
 speaks sync. The relay validates envelope shape and byte limits, never content.
@@ -188,8 +188,9 @@ Replays are safe because every mutation carries a client-generated
 `Idempotency-Key` (UUID). The relay commits the document write and the replay record
 (key plus the response it produced, attached to the client's `sync_cursors` row) in
 one database transaction, so a crash cannot leave one without the other. A retry with the same
-key returns the
-stored response even though the `If-Match` version has since moved, so a lost
+key returns the stored response for as long as the record exists (see the
+acknowledgement and hard-bound rules below) even though the `If-Match` version has
+since moved, so a lost
 response after a committed write does not turn into a false conflict.
 
 Replay records are bounded by explicit acknowledgement, not by cursor movement or
@@ -253,8 +254,10 @@ change. The rules that make deletes safe across offline devices:
   days without a pull, so an abandoned tab cannot hold tombstones forever. Once both
   conditions hold the relay may
   garbage-collect them.
-- A client whose cursor has expired gets 428 and performs the full pull
-  (`GET /api/sync/changes` without a cursor), not a delta. While reclassifying its
+- A client whose cursor has expired gets 428 on its next pull as well as on its next
+  write, because the relay refuses a delta from a `since` older than tombstone
+  retention, and performs the full pull (`GET /api/sync/changes` without a cursor). While
+  reclassifying its
   local store against that listing, a local document that has a relay version
   recorded (it was synced before) but appears in neither the live documents nor the
   unexpired tombstones is treated as deleted on the relay, and surfaces the same
@@ -535,7 +538,8 @@ cannot help and says so.
 
 **Self-hoster.** `docker compose up`. The container is the relay and stores the
 library in SQLite on the mounted volume by default; no profile flag, no second
-container. Open the app; no sign-in. Set a
+container. Open the app; there is no WorkOS sign-in, only the one-time access-token
+prompt described under "Identity and account data". Set a
 passphrase, or set `RUSTUME_ALLOW_PLAINTEXT=true` and skip it. Back up by copying
 `/data/rustume.db`. Later, link to Cloud from the account page to sync the same
 library to a phone; linking requires encryption enabled on the relay first, because
@@ -557,12 +561,12 @@ What changes in RFC 0001:
 - Default-on instead of opt-in; titles encrypted.
 - Phase 1.5 server-managed encryption dropped.
 - Public pages handled by explicit publish instead of "Exclude".
-- Enable flow also seals snapshot history; disable flow unavailable on Cloud.
+- Disable flow unavailable on Cloud.
 - MK and RK wraps hold the 64-byte `DEK || tag_key`; DEK rotation replaces only the
   first 32 bytes.
-- The envelope gains a `generation` field bound to `e2ee_config.key_generation`,
-  which the relay checks on every write so a retired-DEK envelope cannot be stored.
-- Envelope, KDF, recovery codes, and the rotation procedure are otherwise unchanged.
+- Envelope (including its `generation` field), KDF, recovery codes, snapshot sealing
+  in the enable flow, and the rotation procedure are RFC 0001 rules restated here,
+  not new amendments.
 
 What changes in RFC 0002:
 
@@ -578,8 +582,7 @@ What changes in RFC 0002:
 - Pairing, LWW, and unlink are unchanged.
 
 Both documents should gain a note pointing here when this RFC is accepted. The
-`docs/rfcs/` → `docs/rfc/` consolidation (RFC 0002 open question 5) is done in the
-PR that adds this RFC.
+`docs/rfcs/` → `docs/rfc/` consolidation (RFC 0002 open question 5) landed in #927.
 
 ## Migration from today
 
