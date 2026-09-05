@@ -258,7 +258,7 @@ pub struct AuthUserResponse {
 }
 
 /// Single resume in a bulk JSON export.
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ResumeExportItem {
     #[schema(value_type = String, format = "uuid")]
     pub id: Uuid,
@@ -294,6 +294,141 @@ pub struct DeleteAccountRequest {
 pub struct DeleteAccountResponse {
     pub deleted: bool,
     pub message: String,
+}
+
+/// Account metadata included in GDPR portability export.
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct AccountExportProfile {
+    #[schema(value_type = String, format = "uuid")]
+    pub id: Uuid,
+    /// Account email synced from WorkOS, when available.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+    /// Given name synced from WorkOS, when available.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub first_name: Option<String>,
+    /// Family name synced from WorkOS, when available.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_name: Option<String>,
+    pub plan: String,
+    #[schema(value_type = String, format = "date-time")]
+    pub created_at: DateTime<Utc>,
+}
+
+/// Versioned policy acceptance included in the GDPR portability export.
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize, ToSchema)]
+pub struct PolicyAcceptanceExport {
+    /// Policy identifier (`terms`, `privacy`).
+    pub policy: String,
+    /// Policy version accepted by the user.
+    pub version: String,
+    #[schema(value_type = String, format = "date-time")]
+    pub accepted_at: DateTime<Utc>,
+    /// Client IP recorded at acceptance time, when available.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ip_address: Option<String>,
+}
+
+/// Resume version-history snapshot included in the GDPR portability export.
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct ResumeSnapshotExport {
+    #[schema(value_type = String, format = "uuid")]
+    pub resume_id: Uuid,
+    pub version: i32,
+    #[schema(value_type = String, format = "date-time")]
+    pub created_at: DateTime<Utc>,
+    #[schema(value_type = Object)]
+    pub data: serde_json::Value,
+}
+
+/// Resume as it appears in the GDPR portability export: the bulk-export
+/// fields plus the sharing state and timestamps the account holds about it.
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct AccountResumeExportItem {
+    #[schema(value_type = String, format = "uuid")]
+    pub id: Uuid,
+    pub title: String,
+    /// Whether the resume is published at its public URL.
+    pub is_public: bool,
+    /// Public URL slug, present once the resume has ever been shared.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub public_slug: Option<String>,
+    #[schema(value_type = String, format = "date-time")]
+    pub created_at: DateTime<Utc>,
+    #[schema(value_type = String, format = "date-time")]
+    pub updated_at: DateTime<Utc>,
+    #[schema(value_type = Object)]
+    pub data: serde_json::Value,
+}
+
+/// Hosted-billing subscription record included in the GDPR portability export.
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize, ToSchema)]
+pub struct SubscriptionExport {
+    /// Paddle subscription identifier (the customer can use it with Paddle support).
+    pub paddle_subscription_id: String,
+    pub paddle_price_id: String,
+    pub plan: String,
+    pub status: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<String>, format = "date-time")]
+    pub current_period_end: Option<DateTime<Utc>>,
+    #[schema(value_type = String, format = "date-time")]
+    pub created_at: DateTime<Utc>,
+    #[schema(value_type = String, format = "date-time")]
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Security/audit log entry recorded for the account's own actions, included in
+/// the GDPR portability export (it carries the client IP at the time).
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct AuditEventExport {
+    pub event_type: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resource_type: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<String>, format = "uuid")]
+    pub resource_id: Option<Uuid>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ip_address: Option<String>,
+    #[schema(value_type = String, format = "date-time")]
+    pub created_at: DateTime<Utc>,
+    #[schema(value_type = Object)]
+    pub metadata: serde_json::Value,
+}
+
+/// Full account data export payload for `GET /api/account/export`.
+///
+/// This is an explicit allow-list of the account-linked data Rustume holds.
+/// Session rows are deliberately excluded: they are short-lived credential
+/// material (hashed tokens and expiries), not information about the person.
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct AccountDataExport {
+    #[schema(value_type = String, format = "date-time")]
+    pub exported_at: DateTime<Utc>,
+    pub account: AccountExportProfile,
+    /// Terms and Privacy Policy versions the user accepted.
+    pub policy_acceptances: Vec<PolicyAcceptanceExport>,
+    /// Hosted-billing subscriptions ever attached to the account.
+    pub subscriptions: Vec<SubscriptionExport>,
+    pub resumes: Vec<AccountResumeExportItem>,
+    /// Retained version-history snapshots for every exported resume.
+    pub resume_snapshots: Vec<ResumeSnapshotExport>,
+    /// Audit trail of the account's own actions, oldest first.
+    pub audit_events: Vec<AuditEventExport>,
+}
+
+impl AccountExportProfile {
+    /// Build a portability-safe account profile from the authenticated user row.
+    pub fn from_user(user: &User) -> Self {
+        Self {
+            id: user.id,
+            email: user.email.clone(),
+            first_name: user.first_name.clone(),
+            last_name: user.last_name.clone(),
+            plan: user.plan.clone(),
+            created_at: user.created_at,
+        }
+    }
 }
 
 impl AuthUserResponse {
@@ -449,5 +584,258 @@ mod tests {
 
         assert_eq!(json["subscription"]["status"], "canceled");
         assert!(json["subscription"]["expires_at"].as_str().is_some());
+    }
+
+    #[test]
+    fn account_export_profile_is_an_allow_list() {
+        let full = User {
+            id: Uuid::nil(),
+            workos_id: "user_01SECRET".to_string(),
+            plan: "pro".to_string(),
+            paddle_customer_id: Some("ctm_secret".to_string()),
+            email: Some("dev@example.com".to_string()),
+            first_name: Some("Ada".to_string()),
+            last_name: Some("Lovelace".to_string()),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        let json = serde_json::to_value(AccountExportProfile::from_user(&full)).unwrap();
+        let keys: std::collections::BTreeSet<&str> = json
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        assert_eq!(
+            keys,
+            [
+                "id",
+                "email",
+                "first_name",
+                "last_name",
+                "plan",
+                "created_at"
+            ]
+            .into_iter()
+            .collect()
+        );
+        assert!(json.get("workos_id").is_none());
+        assert!(json.get("paddle_customer_id").is_none());
+        assert!(json.get("updated_at").is_none());
+
+        // Optional fields are omitted rather than serialised as null.
+        let sparse = User {
+            email: None,
+            first_name: None,
+            last_name: None,
+            ..full
+        };
+        let json = serde_json::to_value(AccountExportProfile::from_user(&sparse)).unwrap();
+        let keys: std::collections::BTreeSet<&str> = json
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        assert_eq!(keys, ["id", "plan", "created_at"].into_iter().collect());
+
+        // Omitted optionals must read back as None: the export is meant to be
+        // re-parseable with these same types.
+        let parsed: AccountExportProfile = serde_json::from_value(json).unwrap();
+        assert_eq!(parsed.email, None);
+        assert_eq!(parsed.first_name, None);
+        assert_eq!(parsed.last_name, None);
+        assert_eq!(parsed.plan, "pro");
+    }
+
+    #[test]
+    fn export_items_round_trip_with_omitted_optionals() {
+        fn keys(value: &serde_json::Value) -> std::collections::BTreeSet<String> {
+            value.as_object().unwrap().keys().cloned().collect()
+        }
+        let now = Utc::now();
+
+        let resume = AccountResumeExportItem {
+            id: Uuid::nil(),
+            title: "t".to_string(),
+            is_public: false,
+            public_slug: None,
+            created_at: now,
+            updated_at: now,
+            data: serde_json::json!({}),
+        };
+        let json = serde_json::to_value(&resume).unwrap();
+        assert!(
+            !keys(&json).contains("public_slug"),
+            "None must be omitted, not null"
+        );
+        let back: AccountResumeExportItem = serde_json::from_value(json).unwrap();
+        assert_eq!(back.public_slug, None);
+        assert_eq!(back.title, "t");
+
+        let sub = SubscriptionExport {
+            paddle_subscription_id: "sub_1".to_string(),
+            paddle_price_id: "pri_1".to_string(),
+            plan: "pro".to_string(),
+            status: "canceled".to_string(),
+            current_period_end: None,
+            created_at: now,
+            updated_at: now,
+        };
+        let json = serde_json::to_value(&sub).unwrap();
+        assert!(!keys(&json).contains("current_period_end"));
+        let back: SubscriptionExport = serde_json::from_value(json).unwrap();
+        assert_eq!(back.current_period_end, None);
+        assert_eq!(back.paddle_subscription_id, "sub_1");
+
+        let event = AuditEventExport {
+            event_type: "account.export".to_string(),
+            resource_type: None,
+            resource_id: None,
+            ip_address: None,
+            created_at: now,
+            metadata: serde_json::json!({ "stage": "started" }),
+        };
+        let json = serde_json::to_value(&event).unwrap();
+        let event_keys = keys(&json);
+        for omitted in ["resource_type", "resource_id", "ip_address"] {
+            assert!(!event_keys.contains(omitted), "{omitted} must be omitted");
+        }
+        let back: AuditEventExport = serde_json::from_value(json).unwrap();
+        assert_eq!(back.resource_type, None);
+        assert_eq!(back.resource_id, None);
+        assert_eq!(back.ip_address, None);
+        assert_eq!(back.metadata["stage"], "started");
+
+        let acceptance = PolicyAcceptanceExport {
+            policy: "terms".to_string(),
+            version: "2026-01-01".to_string(),
+            accepted_at: now,
+            ip_address: None,
+        };
+        let json = serde_json::to_value(&acceptance).unwrap();
+        assert!(!keys(&json).contains("ip_address"));
+        let back: PolicyAcceptanceExport = serde_json::from_value(json).unwrap();
+        assert_eq!(back.ip_address, None);
+        assert_eq!(back.policy, "terms");
+    }
+
+    /// `account_export_contents.json` is the user-facing statement of this
+    /// module's allow-list, shared with the web Account page. Pin it here:
+    /// every collection it names must be a field of `AccountDataExport` and
+    /// vice versa, and the cloud-endpoints docs must document the same fields
+    /// and exclusions. Adding a collection without telling the user, or
+    /// dropping a documented exclusion, fails this test.
+    #[test]
+    fn export_contents_match_allow_list_and_docs() {
+        #[derive(serde::Deserialize)]
+        struct Included {
+            collections: Vec<String>,
+            text: String,
+        }
+        #[derive(serde::Deserialize)]
+        struct Excluded {
+            text: String,
+            docs: String,
+        }
+        #[derive(serde::Deserialize)]
+        struct Contents {
+            included: Vec<Included>,
+            excluded: Vec<Excluded>,
+        }
+        let contents: Contents =
+            serde_json::from_str(include_str!("account_export_contents.json")).unwrap();
+        let docs = include_str!("../../../../apps/site/src/content/docs/api/cloud-endpoints.md");
+
+        // The collections the user is told about, plus the timestamp field
+        // that is metadata rather than a collection.
+        let mut told: std::collections::BTreeSet<String> = ["exported_at".to_string()].into();
+        for item in &contents.included {
+            assert!(!item.text.trim().is_empty());
+            for collection in &item.collections {
+                assert!(told.insert(collection.clone()), "duplicate {collection}");
+                assert!(
+                    docs.contains(&format!("| `{collection}` |")),
+                    "cloud-endpoints.md must have a table row for `{collection}`"
+                );
+            }
+        }
+        for item in &contents.excluded {
+            assert!(!item.text.trim().is_empty());
+            assert!(
+                docs.contains(&item.docs),
+                "cloud-endpoints.md must name the exclusion: {}",
+                item.docs
+            );
+        }
+
+        // The `account` row lists the profile columns by name; lock that list
+        // to what `AccountExportProfile` actually serialises (every optional
+        // field populated so nothing is skipped).
+        let account_row = docs
+            .lines()
+            .find(|line| line.starts_with("| `account` |"))
+            .expect("account row in the docs table");
+        let documented_columns: std::collections::BTreeSet<String> = account_row
+            .split('|')
+            .nth(2)
+            .expect("contents cell")
+            .split('`')
+            .skip(1)
+            .step_by(2)
+            .map(str::to_string)
+            .collect();
+        let profile_columns: std::collections::BTreeSet<String> =
+            serde_json::to_value(AccountExportProfile::from_user(&User {
+                id: Uuid::nil(),
+                workos_id: String::new(),
+                plan: "free".to_string(),
+                paddle_customer_id: None,
+                email: Some("ada@example.com".to_string()),
+                first_name: Some("Ada".to_string()),
+                last_name: Some("Lovelace".to_string()),
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+            }))
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .keys()
+            .cloned()
+            .collect();
+        assert_eq!(documented_columns, profile_columns);
+
+        // And the schema itself has exactly the collections the user is told about.
+        let export = AccountDataExport {
+            exported_at: Utc::now(),
+            account: AccountExportProfile::from_user(&User {
+                id: Uuid::nil(),
+                workos_id: String::new(),
+                plan: "free".to_string(),
+                paddle_customer_id: None,
+                email: None,
+                first_name: None,
+                last_name: None,
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+            }),
+            policy_acceptances: vec![],
+            subscriptions: vec![],
+            resumes: vec![],
+            resume_snapshots: vec![],
+            audit_events: vec![],
+        };
+        // serde_json orders object keys alphabetically; compare as a set.
+        let keys: std::collections::BTreeSet<String> = serde_json::to_value(&export)
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .keys()
+            .cloned()
+            .collect();
+        assert_eq!(
+            keys, told,
+            "AccountDataExport fields and account_export_contents.json collections differ"
+        );
     }
 }
