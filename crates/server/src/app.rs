@@ -199,22 +199,24 @@ pub fn create_router_with_state(state: AppState) -> Router {
             require_auth_when_enabled,
         ));
 
+        // Layer order matters: the last route_layer runs first, so the rate
+        // limiter is added last to sit outside auth (as on the resume routes)
+        // and failed authentications are still counted. The auth layer gives a
+        // uniform 401 before the handler; the SessionAuthUser extractor keeps
+        // API keys from managing keys.
         let mut api_key_routes = Router::new()
             .route("/api/keys", get(list_api_keys).post(create_api_key))
-            .route("/api/keys/{id}", delete(revoke_api_key));
+            .route("/api/keys/{id}", delete(revoke_api_key))
+            .route_layer(middleware::from_fn_with_state(
+                state.clone(),
+                require_auth_when_enabled,
+            ));
         if cloud_rate_limits {
             api_key_routes = api_key_routes.route_layer(middleware::from_fn_with_state(
                 state_for_layers.clone(),
                 rate_limit_api_key,
             ));
         }
-        // Defense in depth alongside the SessionAuthUser extractor: the layer
-        // gives a uniform 401 before the handler, the extractor keeps API keys
-        // from managing keys.
-        api_key_routes = api_key_routes.route_layer(middleware::from_fn_with_state(
-            state.clone(),
-            require_auth_when_enabled,
-        ));
 
         let mut export_json_routes = Router::new()
             .route("/api/resumes/export", get(export_resumes_json))
