@@ -565,6 +565,21 @@ mod tests {
             .as_object()
             .unwrap()
             .contains_key("/api/resumes"));
+        let account = &spec["paths"]["/api/account"];
+        assert!(
+            account["patch"].is_object(),
+            "PATCH /api/account documented"
+        );
+        assert!(
+            account["delete"].is_object(),
+            "DELETE /api/account documented"
+        );
+        for status in ["400", "401", "404", "409"] {
+            assert!(
+                account["patch"]["responses"][status].is_object(),
+                "PATCH /api/account documents {status}"
+            );
+        }
         assert!(spec["components"]["securitySchemes"]["cookieAuth"].is_object());
     }
 

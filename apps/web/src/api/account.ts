@@ -20,6 +20,7 @@ const RESERVED_USERNAMES: ReadonlySet<string> = new Set(usernameRules.reserved);
 const USERNAME_MIN_LENGTH: number = usernameRules.min_length;
 const USERNAME_MAX_LENGTH: number = usernameRules.max_length;
 const USERNAME_PATTERN = new RegExp(usernameRules.pattern);
+const USERNAME_CHARSET_PATTERN = new RegExp(usernameRules.charset_pattern);
 const USERNAME_MESSAGES = usernameRules.messages;
 const USERNAME_LENGTH_MESSAGE = USERNAME_MESSAGES.length
   .replace("{min}", String(USERNAME_MIN_LENGTH))
@@ -33,8 +34,10 @@ export function validateUsername(username: string): string | null {
   }
   if (!USERNAME_PATTERN.test(normalized)) {
     // The pattern is the rule; the two messages only explain which part of it
-    // failed. Same split as the server.
-    return /[^a-z0-9-]/.test(normalized) ? USERNAME_MESSAGES.charset : USERNAME_MESSAGES.hyphens;
+    // failed. Same split as the server, driven by the shared charset_pattern.
+    return USERNAME_CHARSET_PATTERN.test(normalized)
+      ? USERNAME_MESSAGES.hyphens
+      : USERNAME_MESSAGES.charset;
   }
   if (RESERVED_USERNAMES.has(normalized)) {
     return USERNAME_MESSAGES.reserved;
