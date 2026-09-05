@@ -492,7 +492,29 @@ mod tests {
             .expect("bob username");
         assert_eq!(bob_stored, bob.username);
 
-        cleanup_user(&pool, alice.id).await;
+        // Account deleted between session validation and the update: 404, and
+        // no audit row for a user that no longer exists.
         cleanup_user(&pool, bob.id).await;
+        let err = update_account(
+            AuthUser(bob.clone()),
+            State(app_state(pool.clone())),
+            HeaderMap::new(),
+            Json(UpdateAccountRequest {
+                username: format!("ghost-{suffix}"),
+            }),
+        )
+        .await
+        .expect_err("vanished account must 404");
+        assert!(matches!(err.kind, ApiErrorKind::NotFound), "{err:?}");
+        let ghost_audits: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM audit_events WHERE actor_user_id = $1 AND event_type = 'account.username_changed'",
+        )
+        .bind(bob.id)
+        .fetch_one(&pool)
+        .await
+        .expect("ghost audit count");
+        assert_eq!(ghost_audits, 0);
+
+        cleanup_user(&pool, alice.id).await;
     }
 }

@@ -33,6 +33,8 @@ struct UsernameRules {
     max_length: usize,
     /// Charset and hyphen rules as one anchored regex.
     pattern: String,
+    /// Charset only; decides which message explains a `pattern` failure.
+    charset_pattern: String,
     /// User-facing rejection strings, shared with the web client so the UI
     /// and a raw PATCH 400 say the same thing.
     messages: UsernameMessages,
@@ -61,6 +63,13 @@ fn pattern() -> &'static Regex {
     static PATTERN: OnceLock<Regex> = OnceLock::new();
     PATTERN
         .get_or_init(|| Regex::new(&rules().pattern).expect("username_rules.json pattern is valid"))
+}
+
+fn charset_pattern() -> &'static Regex {
+    static PATTERN: OnceLock<Regex> = OnceLock::new();
+    PATTERN.get_or_init(|| {
+        Regex::new(&rules().charset_pattern).expect("username_rules.json charset_pattern is valid")
+    })
 }
 
 const USERNAME_RULES_JSON: &str = include_str!("username_rules.json");
@@ -98,10 +107,7 @@ pub fn validate_username(username: &str) -> Result<(), String> {
     if !pattern().is_match(username) {
         // The pattern is the rule; the two messages only explain which part
         // of it failed. Same split as the web client.
-        let bad_charset = username
-            .chars()
-            .any(|ch| !(ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '-'));
-        return Err(if bad_charset {
+        return Err(if !charset_pattern().is_match(username) {
             rules.messages.charset.clone()
         } else {
             rules.messages.hyphens.clone()
