@@ -48,6 +48,10 @@ pub struct RateLimitConfig {
     pub pdf_per_min: u32,
     /// GDPR account data export.
     pub account_export_per_min: u32,
+    /// Maximum account exports streaming at once per process. Each export holds
+    /// one database connection for the duration of the download, so this
+    /// should stay well below `DB_MAX_CONNECTIONS`.
+    pub account_export_concurrency: u32,
     /// Auth login/callback/logout/me.
     pub auth_per_min: u32,
     /// Account deletion (per user when authenticated, per IP otherwise).
@@ -73,6 +77,7 @@ impl Default for RateLimitConfig {
             preview_per_min: 60,
             pdf_per_min: 20,
             account_export_per_min: 5,
+            account_export_concurrency: 2,
             auth_per_min: 10,
             account_delete_per_min: 5,
             health_per_min: 60,
@@ -101,6 +106,12 @@ impl RateLimitConfig {
                 "RATE_LIMIT_ACCOUNT_EXPORT_PER_MIN",
                 defaults.account_export_per_min,
             ),
+            // At least one slot, or exports could never start.
+            account_export_concurrency: env_u32(
+                "RATE_LIMIT_ACCOUNT_EXPORT_CONCURRENCY",
+                defaults.account_export_concurrency,
+            )
+            .max(1),
             auth_per_min: env_u32("RATE_LIMIT_AUTH_PER_MIN", defaults.auth_per_min),
             account_delete_per_min: env_u32(
                 "RATE_LIMIT_ACCOUNT_DELETE_PER_MIN",
@@ -244,6 +255,7 @@ mod tests {
         assert_eq!(config.preview_per_min, 60);
         assert_eq!(config.pdf_per_min, 20);
         assert_eq!(config.account_export_per_min, 5);
+        assert_eq!(config.account_export_concurrency, 2);
         assert_eq!(config.auth_per_min, 10);
         assert_eq!(config.account_delete_per_min, 5);
         assert_eq!(config.health_per_min, 60);

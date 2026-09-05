@@ -977,6 +977,11 @@ mod tests {
         eprintln!("SKIP {message}");
     }
 
+    /// Configured export concurrency for the default test state.
+    fn default_export_slots() -> usize {
+        crate::config::RateLimitConfig::default().account_export_concurrency as usize
+    }
+
     /// Export integration tests share one database and some of them park or
     /// terminate streaming connections, so they run one at a time.
     static EXPORT_TESTS: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
@@ -1779,11 +1784,11 @@ mod tests {
         let state = test_app_state(pool.clone());
         assert_eq!(
             state.export_permits.available_permits(),
-            crate::state::MAX_CONCURRENT_ACCOUNT_EXPORTS
+            default_export_slots()
         );
 
         let mut parked = Vec::new();
-        for _ in 0..crate::state::MAX_CONCURRENT_ACCOUNT_EXPORTS {
+        for _ in 0..default_export_slots() {
             let response = export_account(
                 AuthUser(user.clone()),
                 State(state.clone()),
@@ -1817,16 +1822,14 @@ mod tests {
             let _ = read_export_body(response).await;
         }
         for _ in 0..50 {
-            if state.export_permits.available_permits()
-                == crate::state::MAX_CONCURRENT_ACCOUNT_EXPORTS
-            {
+            if state.export_permits.available_permits() == default_export_slots() {
                 break;
             }
             tokio::time::sleep(std::time::Duration::from_millis(20)).await;
         }
         assert_eq!(
             state.export_permits.available_permits(),
-            crate::state::MAX_CONCURRENT_ACCOUNT_EXPORTS
+            default_export_slots()
         );
 
         let again = export_account(AuthUser(user.clone()), State(state), HeaderMap::new())
@@ -1844,10 +1847,7 @@ mod tests {
         .await
         .expect("count start audits");
         cleanup_user(&pool, user.id).await;
-        assert_eq!(
-            started as usize,
-            crate::state::MAX_CONCURRENT_ACCOUNT_EXPORTS + 1
-        );
+        assert_eq!(started as usize, default_export_slots() + 1);
     }
 
     #[tokio::test]
@@ -1959,7 +1959,7 @@ mod tests {
         // The permit was released with the failed attempt.
         assert_eq!(
             state.export_permits.available_permits(),
-            crate::state::MAX_CONCURRENT_ACCOUNT_EXPORTS
+            default_export_slots()
         );
     }
 
