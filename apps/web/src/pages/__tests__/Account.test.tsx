@@ -48,6 +48,7 @@ vi.mock("../../api/resumes", () => ({
 }));
 
 vi.mock("../../api/apiKeys", () => ({
+  API_KEY_NAME_MAX_LENGTH: 100,
   listApiKeys: vi.fn().mockResolvedValue([]),
   createApiKey: vi.fn(),
   revokeApiKey: vi.fn(),

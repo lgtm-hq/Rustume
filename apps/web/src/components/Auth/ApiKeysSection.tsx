@@ -1,5 +1,6 @@
 import { For, Show, createSignal, onMount } from "solid-js";
 import {
+  API_KEY_NAME_MAX_LENGTH,
   createApiKey,
   listApiKeys,
   revokeApiKey,
@@ -27,6 +28,7 @@ function formatLastUsed(lastUsedAt: string | null): string {
 export function ApiKeysSection() {
   const [keys, setKeys] = createSignal<ApiKeySummary[]>([]);
   const [loading, setLoading] = createSignal(true);
+  const [loadError, setLoadError] = createSignal<string | null>(null);
   const [createModalOpen, setCreateModalOpen] = createSignal(false);
   const [createName, setCreateName] = createSignal("");
   const [creating, setCreating] = createSignal(false);
@@ -35,15 +37,28 @@ export function ApiKeysSection() {
   const [keyToRevoke, setKeyToRevoke] = createSignal<ApiKeySummary | null>(null);
   const [revoking, setRevoking] = createSignal(false);
 
+  // Monotonic counter so a slow, superseded list request cannot overwrite the
+  // result of a newer one (for example the reload that follows a create).
+  let loadGeneration = 0;
+
   const loadKeys = async () => {
+    const generation = ++loadGeneration;
     setLoading(true);
+    setLoadError(null);
     try {
-      setKeys(await listApiKeys());
+      const result = await listApiKeys();
+      if (generation !== loadGeneration) return;
+      setKeys(result);
     } catch (error) {
+      if (generation !== loadGeneration) return;
       console.error("Failed to load API keys:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to load API keys");
+      const message = error instanceof Error ? error.message : "Failed to load API keys";
+      setLoadError(message);
+      toast.error(message);
     } finally {
-      setLoading(false);
+      if (generation === loadGeneration) {
+        setLoading(false);
+      }
     }
   };
 
@@ -142,8 +157,9 @@ export function ApiKeysSection() {
         <div>
           <h2 class="font-display text-lg font-semibold text-ink mb-2">API keys</h2>
           <p class="text-sm text-stone">
-            Create keys for programmatic access to the Rustume Cloud API. Keys authenticate requests
-            with <code class="font-mono text-xs">Authorization: Bearer rk_…</code>.
+            Create keys for programmatic access to the Rustume Cloud API. A key acts as your account
+            (except for key management and account deletion) and authenticates requests with{" "}
+            <code class="font-mono text-xs">Authorization: Bearer rk_…</code>.
           </p>
         </div>
         <Button onClick={() => setCreateModalOpen(true)}>Create key</Button>
@@ -158,33 +174,47 @@ export function ApiKeysSection() {
         }
       >
         <Show
-          when={keys().length > 0}
+          when={!loadError()}
           fallback={
-            <p class="text-sm text-stone py-2">
-              No API keys yet. Create one to access resumes and other cloud data from scripts, CI
-              pipelines, or integrations.
-            </p>
+            <div class="flex flex-wrap items-center justify-between gap-3 py-2">
+              <p class="text-sm text-stone" role="alert">
+                Couldn't load your API keys. {loadError()}
+              </p>
+              <Button variant="secondary" size="sm" onClick={() => void loadKeys()}>
+                Retry
+              </Button>
+            </div>
           }
         >
-          <ul class="divide-y divide-border">
-            <For each={keys()}>
-              {(key) => (
-                <li class="flex flex-wrap items-start justify-between gap-4 py-4 first:pt-0 last:pb-0">
-                  <div class="min-w-0">
-                    <h3 class="font-medium text-ink">{key.name}</h3>
-                    <p class="mt-1 font-mono text-sm text-stone">rk_{key.prefix}…</p>
-                    <p class="mt-2 text-xs text-stone">
-                      Created {formatTimestamp(key.created_at)} · Last used{" "}
-                      {formatLastUsed(key.last_used_at)}
-                    </p>
-                  </div>
-                  <Button variant="danger" size="sm" onClick={() => openRevokeModal(key)}>
-                    Revoke
-                  </Button>
-                </li>
-              )}
-            </For>
-          </ul>
+          <Show
+            when={keys().length > 0}
+            fallback={
+              <p class="text-sm text-stone py-2">
+                No API keys yet. Create one to access resumes and other cloud data from scripts, CI
+                pipelines, or integrations.
+              </p>
+            }
+          >
+            <ul class="divide-y divide-border">
+              <For each={keys()}>
+                {(key) => (
+                  <li class="flex flex-wrap items-start justify-between gap-4 py-4 first:pt-0 last:pb-0">
+                    <div class="min-w-0">
+                      <h3 class="font-medium text-ink">{key.name}</h3>
+                      <p class="mt-1 font-mono text-sm text-stone">rk_{key.prefix}…</p>
+                      <p class="mt-2 text-xs text-stone">
+                        Created {formatTimestamp(key.created_at)} · Last used{" "}
+                        {formatLastUsed(key.last_used_at)}
+                      </p>
+                    </div>
+                    <Button variant="danger" size="sm" onClick={() => openRevokeModal(key)}>
+                      Revoke
+                    </Button>
+                  </li>
+                )}
+              </For>
+            </ul>
+          </Show>
         </Show>
       </Show>
 
@@ -209,7 +239,8 @@ export function ApiKeysSection() {
                 value={createName()}
                 onInput={setCreateName}
                 placeholder="CI deploy"
-                description="1–100 characters"
+                description={`1–${API_KEY_NAME_MAX_LENGTH} characters`}
+                maxLength={API_KEY_NAME_MAX_LENGTH}
               />
               <div class="flex justify-end gap-3 pt-2">
                 <Button variant="secondary" onClick={() => handleCreateModalChange(false)}>
