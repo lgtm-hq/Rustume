@@ -41,6 +41,24 @@ export const importBatchResponseSchema = z.object({
   ),
 });
 
+export const apiKeySummarySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  prefix: z.string(),
+  last_used_at: z.string().nullable(),
+  created_at: z.string(),
+});
+
+export const apiKeyListSchema = z.array(apiKeySummarySchema);
+
+/** `POST /api/keys` response: the plaintext key is returned exactly once. */
+export const createdApiKeySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  prefix: z.string(),
+  key: z.string(),
+});
+
 export const themeSchema = z.object({
   background: z.string(),
   text: z.string(),
