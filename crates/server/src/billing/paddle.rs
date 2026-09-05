@@ -119,27 +119,21 @@ pub async fn paddle_webhook(
         ApiError::new("Invalid webhook payload")
     })?;
 
-    match payload.event_type.as_str() {
-        "subscription.created" | "subscription.updated" => {
-            let status = payload.data.get("status").and_then(Value::as_str);
-            if status == Some(SubscriptionStatus::Canceled.as_str()) {
-                handle_subscription_canceled(&cloud.db, &payload.data).await?;
-            } else {
-                handle_subscription_upsert(&cloud.db, &payload.data).await?;
-            }
+    // Replay protection: claim the event id before handling so each Paddle
+    // event is processed at most once, even across webhook retries.
+    if let Some(event_id) = payload.event_id.as_deref() {
+        if !claim_webhook_event(&cloud.db, event_id).await? {
+            debug!(event_id, "skipping already-processed Paddle webhook event");
+            return Ok(StatusCode::OK);
         }
-        "subscription.canceled" => {
-            handle_subscription_canceled(&cloud.db, &payload.data).await?;
+    }
+
+    if let Err(err) = dispatch_webhook_event(&cloud.db, &payload).await {
+        // Release the claim so Paddle's retry can reprocess the event.
+        if let Some(event_id) = payload.event_id.as_deref() {
+            release_webhook_event(&cloud.db, event_id).await;
         }
-        "customer.created" => {
-            handle_customer_created(&cloud.db, &payload.data).await?;
-        }
-        other => {
-            debug!(
-                event_type = other,
-                "ignoring unhandled Paddle webhook event"
-            );
-        }
+        return Err(err);
     }
 
     record_event(
@@ -159,6 +153,68 @@ pub async fn paddle_webhook(
     .await;
 
     Ok(StatusCode::OK)
+}
+
+async fn dispatch_webhook_event(
+    pool: &sqlx::PgPool,
+    payload: &PaddleWebhook,
+) -> Result<(), ApiError> {
+    let occurred_at = payload.occurred_at.as_deref().and_then(parse_rfc3339);
+
+    match payload.event_type.as_str() {
+        "subscription.created" | "subscription.updated" => {
+            let status = payload.data.get("status").and_then(Value::as_str);
+            if status == Some(SubscriptionStatus::Canceled.as_str()) {
+                handle_subscription_canceled(pool, &payload.data, occurred_at).await?;
+            } else {
+                handle_subscription_upsert(pool, &payload.data, occurred_at).await?;
+            }
+        }
+        "subscription.canceled" => {
+            handle_subscription_canceled(pool, &payload.data, occurred_at).await?;
+        }
+        "customer.created" => {
+            handle_customer_created(pool, &payload.data).await?;
+        }
+        other => {
+            debug!(
+                event_type = other,
+                "ignoring unhandled Paddle webhook event"
+            );
+        }
+    }
+
+    Ok(())
+}
+
+/// Claim a webhook event id for processing. Returns `false` when the event
+/// was already processed (replayed delivery).
+async fn claim_webhook_event(pool: &sqlx::PgPool, event_id: &str) -> Result<bool, ApiError> {
+    let result = sqlx::query(
+        r#"
+        INSERT INTO billing_webhook_events (event_id)
+        VALUES ($1)
+        ON CONFLICT (event_id) DO NOTHING
+        "#,
+    )
+    .bind(event_id)
+    .execute(pool)
+    .await
+    .map_err(internal_db_error)?;
+
+    Ok(result.rows_affected() > 0)
+}
+
+/// Release a previously claimed webhook event id after a handling failure so
+/// Paddle's retry of the same event is not treated as a replay.
+async fn release_webhook_event(pool: &sqlx::PgPool, event_id: &str) {
+    if let Err(err) = sqlx::query("DELETE FROM billing_webhook_events WHERE event_id = $1")
+        .bind(event_id)
+        .execute(pool)
+        .await
+    {
+        error!(event_id, "failed to release claimed webhook event: {err}");
+    }
 }
 
 fn billing_config(state: &AppState) -> Result<&BillingConfig, ApiError> {
@@ -222,6 +278,7 @@ async fn create_portal_session(
 struct PaddleWebhook {
     event_id: Option<String>,
     event_type: String,
+    occurred_at: Option<String>,
     data: Value,
 }
 
@@ -313,19 +370,25 @@ fn bytes_to_hex(bytes: &[u8]) -> String {
     bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
-async fn handle_subscription_upsert(pool: &sqlx::PgPool, data: &Value) -> Result<(), ApiError> {
+async fn handle_subscription_upsert(
+    pool: &sqlx::PgPool,
+    data: &Value,
+    occurred_at: Option<DateTime<Utc>>,
+) -> Result<(), ApiError> {
     let subscription_id = required_str(data, "id")?;
     let status = required_str(data, "status")?;
     let customer_id = required_str(data, "customer_id")?;
     let price_id = extract_price_id(data).unwrap_or_else(|| "unknown".to_string());
     let period_end = extract_period_end(data);
-    let user_id = resolve_user_id(pool, data, Some(&customer_id)).await?;
+    let user_id = require_user_id(pool, data, Some(&customer_id)).await?;
 
     if SubscriptionStatus::parse(&status).is_none() {
         warn!(status = %status, "unknown paddle subscription status");
     }
 
-    sqlx::query(
+    // The WHERE clause guards against out-of-order deliveries: an event older
+    // than the last one applied to the row must not overwrite newer state.
+    let result = sqlx::query(
         r#"
         INSERT INTO subscriptions (
             user_id,
@@ -333,25 +396,39 @@ async fn handle_subscription_upsert(pool: &sqlx::PgPool, data: &Value) -> Result
             paddle_price_id,
             plan,
             status,
-            current_period_end
+            current_period_end,
+            last_event_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         ON CONFLICT (paddle_subscription_id) DO UPDATE SET
             status = EXCLUDED.status,
             current_period_end = EXCLUDED.current_period_end,
             paddle_price_id = EXCLUDED.paddle_price_id,
+            last_event_at = COALESCE(EXCLUDED.last_event_at, subscriptions.last_event_at),
             updated_at = now()
+        WHERE subscriptions.last_event_at IS NULL
+           OR EXCLUDED.last_event_at IS NULL
+           OR EXCLUDED.last_event_at >= subscriptions.last_event_at
         "#,
     )
     .bind(user_id)
-    .bind(subscription_id)
+    .bind(&subscription_id)
     .bind(&price_id)
     .bind(HOSTED_PLAN)
     .bind(&status)
     .bind(period_end)
+    .bind(occurred_at)
     .execute(pool)
     .await
     .map_err(internal_db_error)?;
+
+    if result.rows_affected() == 0 {
+        debug!(
+            subscription_id = %subscription_id,
+            "skipping out-of-order Paddle subscription event"
+        );
+        return Ok(());
+    }
 
     if matches!(status.as_str(), "active" | "trialing") {
         sqlx::query(
@@ -373,33 +450,57 @@ async fn handle_subscription_upsert(pool: &sqlx::PgPool, data: &Value) -> Result
     Ok(())
 }
 
-async fn handle_subscription_canceled(pool: &sqlx::PgPool, data: &Value) -> Result<(), ApiError> {
+async fn handle_subscription_canceled(
+    pool: &sqlx::PgPool,
+    data: &Value,
+    occurred_at: Option<DateTime<Utc>>,
+) -> Result<(), ApiError> {
     let subscription_id = required_str(data, "id")?;
     let period_end = extract_period_end(data);
     let status = SubscriptionStatus::Canceled.as_str();
 
+    // Out-of-order guard: never apply a cancellation older than the last
+    // event already applied to the subscription row.
     let user_id = sqlx::query_scalar(
         r#"
         UPDATE subscriptions
         SET status = $2,
             current_period_end = COALESCE($3, current_period_end),
+            last_event_at = COALESCE($4, last_event_at),
             updated_at = now()
         WHERE paddle_subscription_id = $1
+          AND (
+            last_event_at IS NULL
+            OR $4 IS NULL
+            OR $4 >= last_event_at
+          )
         RETURNING user_id
         "#,
     )
-    .bind(subscription_id)
+    .bind(&subscription_id)
     .bind(status)
     .bind(period_end)
+    .bind(occurred_at)
     .fetch_optional(pool)
     .await
     .map_err(internal_db_error)?;
 
     let user_id = if let Some(user_id) = user_id {
         user_id
+    } else if lookup_subscription_user(pool, &subscription_id)
+        .await?
+        .is_some()
+    {
+        // The row exists but the guard rejected this event as stale; the
+        // stored state is newer, so leave it untouched.
+        debug!(
+            subscription_id = %subscription_id,
+            "skipping out-of-order Paddle cancellation event"
+        );
+        return Ok(());
     } else {
-        handle_subscription_upsert(pool, data).await?;
-        resolve_user_id(pool, data, data.get("customer_id").and_then(Value::as_str)).await?
+        handle_subscription_upsert(pool, data, occurred_at).await?;
+        require_user_id(pool, data, data.get("customer_id").and_then(Value::as_str)).await?
     };
 
     downgrade_user_plan_if_no_active_subscription(pool, user_id).await?;
@@ -409,11 +510,20 @@ async fn handle_subscription_canceled(pool: &sqlx::PgPool, data: &Value) -> Resu
 
 async fn handle_customer_created(pool: &sqlx::PgPool, data: &Value) -> Result<(), ApiError> {
     let customer_id = required_str(data, "id")?;
-    let user_id = resolve_user_id(pool, data, None).await?;
 
-    link_paddle_customer(pool, user_id, &customer_id).await?;
-
-    Ok(())
+    match resolve_user_id(pool, data, Some(&customer_id)).await? {
+        Some(user_id) => link_paddle_customer(pool, user_id, &customer_id).await,
+        None => {
+            // Not an error: customer.created often carries no usable linkage
+            // data. The customer is linked when a subscription event with a
+            // verifiable custom_data.user_id arrives.
+            debug!(
+                customer_id = %customer_id,
+                "customer.created did not match a user; deferring linkage to subscription events"
+            );
+            Ok(())
+        }
+    }
 }
 
 async fn link_paddle_customer(
@@ -497,38 +607,83 @@ async fn downgrade_user_plan_if_no_active_subscription(
     Ok(())
 }
 
+/// Resolve which Rustume user a Paddle event belongs to, or `None` when no
+/// trustworthy match exists.
+///
+/// Trust model: the webhook signature proves the event came from Paddle, but
+/// it does NOT make the event contents trustworthy for account linkage —
+/// `custom_data` is supplied by whichever browser opened the checkout
+/// overlay, so an attacker can start a real checkout carrying an arbitrary
+/// `custom_data.user_id`. Therefore:
+///
+/// 1. An existing `users.paddle_customer_id` link for the event's customer id
+///    always wins over `custom_data` — a customer already linked to an
+///    account cannot be re-pointed at another one by forged custom data.
+/// 2. `custom_data.user_id` is accepted only when it names an existing user
+///    whose linked Paddle customer id is absent or matches this event's
+///    customer id.
+/// 3. Checkout emails are never used: they are unverified, and matching on
+///    them would let an attacker attach their subscription to any victim
+///    account simply by typing the victim's email at checkout.
 async fn resolve_user_id(
     pool: &sqlx::PgPool,
     data: &Value,
     customer_id: Option<&str>,
-) -> Result<Uuid, ApiError> {
-    if let Some(user_id) = extract_custom_user_id(data) {
-        return Ok(user_id);
-    }
-
-    if let Some(email) = extract_email(data) {
-        if let Some(user_id) = lookup_user_id_by_email(pool, email).await? {
-            return Ok(user_id);
-        }
-    }
-
+) -> Result<Option<Uuid>, ApiError> {
     if let Some(customer_id) = customer_id {
         if let Some(user_id) = lookup_user_id_by_customer(pool, customer_id).await? {
-            return Ok(user_id);
+            return Ok(Some(user_id));
         }
     }
 
-    Err(ApiError::new(
-        "Unable to match Paddle event to a Rustume user",
-    ))
+    if let Some(user_id) = extract_custom_user_id(data) {
+        let linked_customer: Option<Option<String>> =
+            sqlx::query_scalar("SELECT paddle_customer_id FROM users WHERE id = $1")
+                .bind(user_id)
+                .fetch_optional(pool)
+                .await
+                .map_err(internal_db_error)?;
+
+        if let Some(linked_customer) = linked_customer {
+            let conflicts = match (linked_customer.as_deref(), customer_id) {
+                (None, _) => false,
+                (Some(linked), Some(event_customer)) => linked != event_customer,
+                // User already linked to a customer, but this event carries
+                // none to verify against: refuse the ambiguous match.
+                (Some(_), None) => true,
+            };
+
+            if !conflicts {
+                return Ok(Some(user_id));
+            }
+
+            warn!(
+                user_id = %user_id,
+                "rejecting Paddle custom_data.user_id: conflicting paddle_customer_id link"
+            );
+        }
+    }
+
+    Ok(None)
 }
 
-async fn lookup_user_id_by_email(
+/// Like [`resolve_user_id`], but treat an unresolvable event as an error.
+async fn require_user_id(
     pool: &sqlx::PgPool,
-    email: &str,
+    data: &Value,
+    customer_id: Option<&str>,
+) -> Result<Uuid, ApiError> {
+    resolve_user_id(pool, data, customer_id)
+        .await?
+        .ok_or_else(|| ApiError::new("Unable to match Paddle event to a Rustume user"))
+}
+
+async fn lookup_subscription_user(
+    pool: &sqlx::PgPool,
+    subscription_id: &str,
 ) -> Result<Option<Uuid>, ApiError> {
-    sqlx::query_scalar("SELECT id FROM users WHERE lower(email) = lower($1)")
-        .bind(email)
+    sqlx::query_scalar("SELECT user_id FROM subscriptions WHERE paddle_subscription_id = $1")
+        .bind(subscription_id)
         .fetch_optional(pool)
         .await
         .map_err(internal_db_error)
@@ -543,14 +698,6 @@ async fn lookup_user_id_by_customer(
         .fetch_optional(pool)
         .await
         .map_err(internal_db_error)
-}
-
-fn extract_email(data: &Value) -> Option<&str> {
-    data.get("email").and_then(Value::as_str).or_else(|| {
-        data.get("customer")
-            .and_then(|customer| customer.get("email"))
-            .and_then(Value::as_str)
-    })
 }
 
 fn extract_custom_user_id(data: &Value) -> Option<Uuid> {
@@ -657,17 +804,6 @@ mod tests {
     }
 
     #[test]
-    fn extract_email_reads_top_level_and_nested_customer_email() {
-        let top_level = serde_json::json!({ "email": "dev@example.com" });
-        assert_eq!(extract_email(&top_level), Some("dev@example.com"));
-
-        let nested = serde_json::json!({
-            "customer": { "email": "nested@example.com" }
-        });
-        assert_eq!(extract_email(&nested), Some("nested@example.com"));
-    }
-
-    #[test]
     fn extract_custom_user_id_reads_custom_data() {
         let data = serde_json::json!({
             "custom_data": { "user_id": "550e8400-e29b-41d4-a716-446655440000" }
@@ -720,11 +856,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn subscription_upsert_is_idempotent_when_database_available() {
-        let Some(database_url) = database_url_for_tests() else {
-            return;
-        };
+    async fn test_pool() -> Option<sqlx::PgPool> {
+        let database_url = database_url_for_tests()?;
 
         let pool = sqlx::postgres::PgPoolOptions::new()
             .max_connections(2)
@@ -736,29 +869,58 @@ mod tests {
             .await
             .expect("run migrations");
 
-        let user_id = uuid::Uuid::new_v4();
+        Some(pool)
+    }
+
+    async fn insert_test_user(pool: &sqlx::PgPool, user_id: Uuid, email: &str) {
         let workos_id = format!("workos_billing_{user_id}");
         sqlx::query("INSERT INTO users (id, workos_id, email) VALUES ($1, $2, $3)")
             .bind(user_id)
             .bind(&workos_id)
-            .bind("billing@example.com")
-            .execute(&pool)
+            .bind(email)
+            .execute(pool)
             .await
             .expect("insert user");
+    }
 
-        let data = serde_json::json!({
+    async fn delete_test_user(pool: &sqlx::PgPool, user_id: Uuid) {
+        sqlx::query("DELETE FROM users WHERE id = $1")
+            .bind(user_id)
+            .execute(pool)
+            .await
+            .expect("cleanup user");
+    }
+
+    fn subscription_event(user_id: Uuid, status: &str) -> Value {
+        serde_json::json!({
             "id": format!("sub_test_{user_id}"),
-            "status": "active",
+            "status": status,
             "customer_id": format!("ctm_test_{user_id}"),
             "items": [{ "price": { "id": "pri_test" } }],
             "current_billing_period": { "ends_at": "2099-01-01T00:00:00Z" },
             "custom_data": { "user_id": user_id.to_string() }
-        });
+        })
+    }
 
-        handle_subscription_upsert(&pool, &data)
+    fn occurred(rfc3339: &str) -> Option<DateTime<Utc>> {
+        Some(parse_rfc3339(rfc3339).expect("valid timestamp"))
+    }
+
+    #[tokio::test]
+    async fn subscription_upsert_is_idempotent_when_database_available() {
+        let Some(pool) = test_pool().await else {
+            return;
+        };
+
+        let user_id = uuid::Uuid::new_v4();
+        insert_test_user(&pool, user_id, "billing@example.com").await;
+
+        let data = subscription_event(user_id, "active");
+
+        handle_subscription_upsert(&pool, &data, None)
             .await
             .expect("first upsert");
-        handle_subscription_upsert(&pool, &data)
+        handle_subscription_upsert(&pool, &data, None)
             .await
             .expect("second upsert");
 
@@ -771,10 +933,129 @@ mod tests {
 
         assert_eq!(count, 1);
 
-        sqlx::query("DELETE FROM users WHERE id = $1")
+        delete_test_user(&pool, user_id).await;
+    }
+
+    #[tokio::test]
+    async fn webhook_event_claim_is_single_use_when_database_available() {
+        let Some(pool) = test_pool().await else {
+            return;
+        };
+
+        let event_id = format!("evt_test_{}", uuid::Uuid::new_v4());
+
+        assert!(claim_webhook_event(&pool, &event_id)
+            .await
+            .expect("first claim"));
+        assert!(!claim_webhook_event(&pool, &event_id)
+            .await
+            .expect("second claim"));
+
+        // A released claim can be claimed again (failed-delivery retry path).
+        release_webhook_event(&pool, &event_id).await;
+        assert!(claim_webhook_event(&pool, &event_id)
+            .await
+            .expect("claim after release"));
+
+        release_webhook_event(&pool, &event_id).await;
+    }
+
+    #[tokio::test]
+    async fn stale_update_does_not_resurrect_canceled_subscription_when_database_available() {
+        let Some(pool) = test_pool().await else {
+            return;
+        };
+
+        let user_id = uuid::Uuid::new_v4();
+        insert_test_user(&pool, user_id, "ordering@example.com").await;
+
+        let active = subscription_event(user_id, "active");
+
+        // Activation at T1, cancellation at T2.
+        handle_subscription_upsert(&pool, &active, occurred("2099-01-01T00:00:00Z"))
+            .await
+            .expect("activate");
+        handle_subscription_canceled(&pool, &active, occurred("2099-01-02T00:00:00Z"))
+            .await
+            .expect("cancel");
+
+        // A delayed replay of the T1 update must not resurrect the
+        // subscription or restore the paid plan.
+        handle_subscription_upsert(&pool, &active, occurred("2099-01-01T00:00:00Z"))
+            .await
+            .expect("stale update");
+
+        let status: String = sqlx::query_scalar(
+            "SELECT status FROM subscriptions WHERE paddle_subscription_id = $1",
+        )
+        .bind(format!("sub_test_{user_id}"))
+        .fetch_one(&pool)
+        .await
+        .expect("subscription status");
+        assert_eq!(status, "canceled");
+
+        let plan: String = sqlx::query_scalar("SELECT plan FROM users WHERE id = $1")
             .bind(user_id)
+            .fetch_one(&pool)
+            .await
+            .expect("user plan");
+        assert_eq!(plan, "free");
+
+        // A stale cancellation replay must also be a no-op.
+        handle_subscription_canceled(&pool, &active, occurred("2099-01-01T00:00:00Z"))
+            .await
+            .expect("stale cancel");
+
+        delete_test_user(&pool, user_id).await;
+    }
+
+    #[tokio::test]
+    async fn resolve_user_id_rejects_conflicting_custom_data_when_database_available() {
+        let Some(pool) = test_pool().await else {
+            return;
+        };
+
+        let victim_id = uuid::Uuid::new_v4();
+        let attacker_id = uuid::Uuid::new_v4();
+        insert_test_user(&pool, victim_id, "victim@example.com").await;
+        insert_test_user(&pool, attacker_id, "attacker@example.com").await;
+
+        let victim_customer = format!("ctm_victim_{victim_id}");
+        sqlx::query("UPDATE users SET paddle_customer_id = $2 WHERE id = $1")
+            .bind(victim_id)
+            .bind(&victim_customer)
             .execute(&pool)
             .await
-            .expect("cleanup user");
+            .expect("link victim customer");
+
+        // Forged custom_data naming the victim, but the event's customer id
+        // belongs to no one: the victim's existing link must block the match.
+        let forged = serde_json::json!({
+            "custom_data": { "user_id": victim_id.to_string() }
+        });
+        let attacker_customer = format!("ctm_attacker_{attacker_id}");
+        let resolved = resolve_user_id(&pool, &forged, Some(&attacker_customer))
+            .await
+            .expect("resolve");
+        assert_eq!(resolved, None);
+
+        // An unverified checkout email must never be used for linkage.
+        let email_only = serde_json::json!({ "email": "victim@example.com" });
+        let resolved = resolve_user_id(&pool, &email_only, Some(&attacker_customer))
+            .await
+            .expect("resolve email");
+        assert_eq!(resolved, None);
+
+        // The event's customer id mapping wins over custom_data.
+        let mismatched = serde_json::json!({
+            "custom_data": { "user_id": attacker_id.to_string() }
+        });
+        let resolved = resolve_user_id(&pool, &mismatched, Some(&victim_customer))
+            .await
+            .expect("resolve linked");
+        assert_eq!(resolved, Some(victim_id));
+
+        delete_test_user(&pool, victim_id).await;
+        delete_test_user(&pool, attacker_id).await;
     }
 }
