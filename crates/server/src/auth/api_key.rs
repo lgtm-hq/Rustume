@@ -4,6 +4,38 @@ use axum::http::{header, HeaderMap};
 use base64::Engine as _;
 use rand::Rng;
 use sha2::{Digest, Sha256};
+use uuid::Uuid;
+
+/// Identity of an active (non-revoked) API key row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ActiveApiKey {
+    pub key_id: Uuid,
+    pub user_id: Uuid,
+}
+
+/// Resolve the active key matching a token hash.
+///
+/// This is the single place that encodes "active" (`revoked_at IS NULL`); both
+/// the auth extractor and the rate limiter go through it so the two can never
+/// disagree about which keys are live.
+pub async fn find_active_key(
+    pool: &sqlx::PgPool,
+    key_hash: &str,
+) -> Result<Option<ActiveApiKey>, sqlx::Error> {
+    let row = sqlx::query_as::<_, (Uuid, Uuid)>(
+        r#"
+        SELECT id, user_id
+        FROM api_keys
+        WHERE key_hash = $1
+          AND revoked_at IS NULL
+        "#,
+    )
+    .bind(key_hash)
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(row.map(|(key_id, user_id)| ActiveApiKey { key_id, user_id }))
+}
 
 /// Prefix for all issued API tokens.
 pub const TOKEN_PREFIX: &str = "rk_";
