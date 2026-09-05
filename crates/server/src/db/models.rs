@@ -361,7 +361,46 @@ pub struct AccountResumeExportItem {
     pub data: serde_json::Value,
 }
 
+/// Hosted-billing subscription record included in the GDPR portability export.
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize, ToSchema)]
+pub struct SubscriptionExport {
+    /// Paddle subscription identifier (the customer can use it with Paddle support).
+    pub paddle_subscription_id: String,
+    pub paddle_price_id: String,
+    pub plan: String,
+    pub status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<String>, format = "date-time")]
+    pub current_period_end: Option<DateTime<Utc>>,
+    #[schema(value_type = String, format = "date-time")]
+    pub created_at: DateTime<Utc>,
+    #[schema(value_type = String, format = "date-time")]
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Security/audit log entry recorded for the account's own actions, included in
+/// the GDPR portability export (it carries the client IP at the time).
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct AuditEventExport {
+    pub event_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resource_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<String>, format = "uuid")]
+    pub resource_id: Option<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ip_address: Option<String>,
+    #[schema(value_type = String, format = "date-time")]
+    pub created_at: DateTime<Utc>,
+    #[schema(value_type = Object)]
+    pub metadata: serde_json::Value,
+}
+
 /// Full account data export payload for `GET /api/account/export`.
+///
+/// This is an explicit allow-list of the account-linked data Rustume holds.
+/// Session rows are deliberately excluded: they are short-lived credential
+/// material (hashed tokens and expiries), not information about the person.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct AccountDataExport {
     #[schema(value_type = String, format = "date-time")]
@@ -369,9 +408,13 @@ pub struct AccountDataExport {
     pub account: AccountExportProfile,
     /// Terms and Privacy Policy versions the user accepted.
     pub policy_acceptances: Vec<PolicyAcceptanceExport>,
+    /// Hosted-billing subscriptions ever attached to the account.
+    pub subscriptions: Vec<SubscriptionExport>,
     pub resumes: Vec<AccountResumeExportItem>,
     /// Retained version-history snapshots for every exported resume.
     pub resume_snapshots: Vec<ResumeSnapshotExport>,
+    /// Audit trail of the account's own actions, oldest first.
+    pub audit_events: Vec<AuditEventExport>,
 }
 
 impl AccountExportProfile {

@@ -128,6 +128,27 @@ describe("downloadAccountExport", () => {
     expect((error as ApiError).message).toBe("Authentication required");
   });
 
+  it("surfaces the export concurrency ceiling as a 503 ApiError", async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 503,
+      headers: new Headers({ "Retry-After": "30" }),
+      text: async () =>
+        JSON.stringify({
+          error: "Too many account exports are running right now. Please try again shortly.",
+          retry_after: 30,
+        }),
+    });
+
+    const error = await downloadAccountExport().catch((err: unknown) => err);
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).status).toBe(503);
+    expect((error as ApiError).message).toBe(
+      "Too many account exports are running right now. Please try again shortly.",
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("surfaces the export rate limit as a 429 ApiError without retrying", async () => {
     fetchMock.mockResolvedValue({
       ok: false,

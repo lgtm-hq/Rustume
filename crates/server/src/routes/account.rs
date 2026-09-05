@@ -22,7 +22,7 @@ use crate::audit::{record_event, record_event_required, AuditEvent};
 use crate::auth::session::SESSION_COOKIE;
 use crate::db::{
     AccountDataExport, AccountExportProfile, DeleteAccountRequest, DeleteAccountResponse,
-    PolicyAcceptanceExport,
+    PolicyAcceptanceExport, SubscriptionExport,
 };
 use crate::email::log_send_failure;
 use crate::error::ApiError;
@@ -53,6 +53,17 @@ struct ExportSnapshotRow {
     version: i32,
     created_at: DateTime<Utc>,
     data_json: String,
+}
+
+/// Audit event fields required for account data export.
+#[derive(Debug, sqlx::FromRow)]
+struct ExportAuditRow {
+    event_type: String,
+    resource_type: Option<String>,
+    resource_id: Option<Uuid>,
+    ip_address: Option<String>,
+    created_at: DateTime<Utc>,
+    metadata_json: String,
 }
 
 /// Export all account data for GDPR data portability.
@@ -96,6 +107,7 @@ pub async fn export_account(
     let resume_count = account_resume_count(&cloud.db, user.id).await?;
     let snapshot_count = account_snapshot_count(&cloud.db, user.id).await?;
     let policy_acceptances = account_policy_acceptances(&cloud.db, user.id).await?;
+    let subscriptions = account_subscriptions(&cloud.db, user.id).await?;
 
     record_event_required(
         &cloud.db,
@@ -113,6 +125,7 @@ pub async fn export_account(
                 "resume_count": resume_count,
                 "snapshot_count": snapshot_count,
                 "policy_acceptance_count": policy_acceptances.len(),
+                "subscription_count": subscriptions.len(),
             }),
             ip_address: ip,
         },
@@ -133,7 +146,7 @@ pub async fn export_account(
 
     let exported_at = Utc::now();
     let account = AccountExportProfile::from_user(&user);
-    let prefix = build_export_prefix(exported_at, &account, &policy_acceptances)?;
+    let prefix = build_export_prefix(exported_at, &account, &policy_acceptances, &subscriptions)?;
     let export_stream = stream_account_export(
         cloud.db.clone(),
         tx,
@@ -328,16 +341,40 @@ where
     .map_err(internal_db_error)
 }
 
+async fn account_subscriptions<'e, E>(
+    db: E,
+    user_id: Uuid,
+) -> Result<Vec<SubscriptionExport>, ApiError>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+{
+    sqlx::query_as::<_, SubscriptionExport>(
+        r#"
+        SELECT paddle_subscription_id, paddle_price_id, plan, status, current_period_end,
+               created_at, updated_at
+        FROM subscriptions
+        WHERE user_id = $1
+        ORDER BY created_at ASC
+        "#,
+    )
+    .bind(user_id)
+    .fetch_all(db)
+    .await
+    .map_err(internal_db_error)
+}
+
 fn build_export_prefix(
     exported_at: DateTime<Utc>,
     account: &AccountExportProfile,
     policy_acceptances: &[PolicyAcceptanceExport],
+    subscriptions: &[SubscriptionExport],
 ) -> Result<Vec<u8>, ApiError> {
     let mut body = Vec::new();
     body.push(b'{');
     append_json_field(&mut body, "exported_at", &exported_at, true)?;
     append_json_field(&mut body, "account", account, false)?;
     append_json_field(&mut body, "policy_acceptances", &policy_acceptances, false)?;
+    append_json_field(&mut body, "subscriptions", &subscriptions, false)?;
     body.extend_from_slice(br#","resumes":["#);
     Ok(body)
 }
@@ -364,6 +401,7 @@ struct ExportOutcome {
     bytes_streamed: u64,
     resumes_streamed: u64,
     snapshots_streamed: u64,
+    audit_events_streamed: u64,
     /// Why delivery stopped short, when it did.
     error: Option<String>,
 }
@@ -377,6 +415,7 @@ struct ChunkSink {
     bytes_streamed: u64,
     resumes_streamed: u64,
     snapshots_streamed: u64,
+    audit_events_streamed: u64,
 }
 
 impl ChunkSink {
@@ -399,6 +438,7 @@ impl ChunkSink {
             bytes_streamed: self.bytes_streamed,
             resumes_streamed: self.resumes_streamed,
             snapshots_streamed: self.snapshots_streamed,
+            audit_events_streamed: self.audit_events_streamed,
             error,
         }
     }
@@ -424,6 +464,7 @@ fn stream_account_export(
             bytes_streamed: 0,
             resumes_streamed: 0,
             snapshots_streamed: 0,
+            audit_events_streamed: 0,
         };
 
         // The HTTP status has already been sent by the time this task runs, so
@@ -468,6 +509,7 @@ fn stream_account_export(
                     "bytes_streamed": outcome.bytes_streamed,
                     "resumes_streamed": outcome.resumes_streamed,
                     "snapshots_streamed": outcome.snapshots_streamed,
+                    "audit_events_streamed": outcome.audit_events_streamed,
                     "error": outcome.error,
                 }),
                 ip_address: ip_address.as_deref(),
@@ -569,6 +611,47 @@ async fn run_export_stream(
     }
     drop(snapshots);
 
+    if !sink
+        .send(Bytes::from_static(br#"],"audit_events":["#))
+        .await
+    {
+        return sink.outcome(false, None);
+    }
+
+    let mut audit_rows = sqlx::query_as::<_, ExportAuditRow>(
+        r#"
+        SELECT event_type, resource_type, resource_id, host(ip_address) AS ip_address,
+               created_at, metadata::text AS metadata_json
+        FROM audit_events
+        WHERE actor_user_id = $1
+        ORDER BY created_at ASC, id ASC
+        "#,
+    )
+    .bind(user_id)
+    .fetch(&mut *db_tx);
+
+    let mut first_event = true;
+    loop {
+        let row = match audit_rows.try_next().await {
+            Ok(Some(row)) => row,
+            Ok(None) => break,
+            Err(err) => {
+                let message = internal_db_error(err).error;
+                sink.fail(message.clone()).await;
+                return sink.outcome(false, Some(message));
+            }
+        };
+        match stream_audit_row(&mut sink, row, &mut first_event).await {
+            Ok(true) => sink.audit_events_streamed += 1,
+            Ok(false) => return sink.outcome(false, None),
+            Err(err) => {
+                sink.fail(err.error.clone()).await;
+                return sink.outcome(false, Some(err.error));
+            }
+        }
+    }
+    drop(audit_rows);
+
     if !sink.send(Bytes::from_static(b"]}")).await {
         return sink.outcome(false, None);
     }
@@ -648,6 +731,40 @@ async fn stream_snapshot_row(
     header.pop();
     let header = format!(r#"{}{header},"data":"#, take_separator(first));
     stream_json_object(sink, header, &row.data_json).await
+}
+
+/// Stream one audit event row. Returns `Ok(false)` when the client
+/// disconnects so the caller can abort the DB cursor immediately.
+async fn stream_audit_row(
+    sink: &mut ChunkSink,
+    row: ExportAuditRow,
+    first: &mut bool,
+) -> Result<bool, ApiError> {
+    #[derive(Serialize)]
+    struct Head<'a> {
+        event_type: &'a str,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        resource_type: Option<&'a str>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        resource_id: Option<Uuid>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        ip_address: Option<&'a str>,
+        created_at: DateTime<Utc>,
+    }
+    let mut header = serde_json::to_string(&Head {
+        event_type: &row.event_type,
+        resource_type: row.resource_type.as_deref(),
+        resource_id: row.resource_id,
+        ip_address: row.ip_address.as_deref(),
+        created_at: row.created_at,
+    })
+    .map_err(|err| {
+        error!("account export audit header serialization failed: {err}");
+        ApiError::internal("failed to export account data")
+    })?;
+    header.pop();
+    let header = format!(r#"{}{header},"metadata":"#, take_separator(first));
+    stream_json_object(sink, header, &row.metadata_json).await
 }
 
 /// Return the array separator for the current element and clear `first`.
@@ -989,6 +1106,7 @@ mod tests {
             bytes_streamed: 0,
             resumes_streamed: 0,
             snapshots_streamed: 0,
+            audit_events_streamed: 0,
         };
 
         let delivered = stream_json_object(&mut sink, "{\"data\":".to_string(), "{}")
@@ -1006,6 +1124,7 @@ mod tests {
                 bytes_streamed: 0,
                 resumes_streamed: 0,
                 snapshots_streamed: 0,
+                audit_events_streamed: 0,
                 error: None,
             }
         );
@@ -1019,6 +1138,7 @@ mod tests {
             bytes_streamed: 0,
             resumes_streamed: 0,
             snapshots_streamed: 0,
+            audit_events_streamed: 0,
         };
         let mut first = true;
 
@@ -1063,6 +1183,7 @@ mod tests {
 
         let user = seed_user_with_resumes(&pool, 2).await;
         seed_snapshots_and_policy_acceptances(&pool, user.id).await;
+        seed_expired_subscription(&pool, user.id).await;
         // One resume is shared publicly so the export carries sharing state.
         let shared_slug = format!("shared-{}", &user.id.simple().to_string()[..8]);
         sqlx::query(
@@ -1112,11 +1233,29 @@ mod tests {
         assert_eq!(private.public_slug, None);
         assert_eq!(typed.resume_snapshots.len(), 4);
         assert_eq!(typed.policy_acceptances.len(), 2);
+        assert_eq!(typed.subscriptions.len(), 1);
+        assert_eq!(typed.subscriptions[0].plan, "pro");
+        assert_eq!(typed.subscriptions[0].status, "canceled");
+        // The audit trail includes this very export's start event (committed
+        // before the snapshot was taken) and the seeded policy acceptances.
+        assert!(typed
+            .audit_events
+            .iter()
+            .any(|event| event.event_type == "account.export"
+                && event.metadata["stage"] == "started"));
+        assert!(typed
+            .audit_events
+            .windows(2)
+            .all(|pair| pair[0].created_at <= pair[1].created_at));
 
         assert_eq!(completion["delivered"], true);
         assert_eq!(completion["bytes_streamed"], body.len() as u64);
         assert_eq!(completion["resumes_streamed"], 2);
         assert_eq!(completion["snapshots_streamed"], 4);
+        assert_eq!(
+            completion["audit_events_streamed"].as_u64().expect("count"),
+            typed.audit_events.len() as u64
+        );
         assert!(completion["error"].is_null());
 
         let payload: serde_json::Value = serde_json::from_slice(&body).expect("parse JSON");
@@ -1247,8 +1386,24 @@ mod tests {
         cleanup_user(&pool, user.id).await;
 
         assert_eq!(payload["policy_acceptances"], serde_json::json!([]));
+        assert_eq!(payload["subscriptions"], serde_json::json!([]));
         assert_eq!(payload["resumes"], serde_json::json!([]));
         assert_eq!(payload["resume_snapshots"], serde_json::json!([]));
+        // Only the export's own start event exists for a brand-new account.
+        let events = payload["audit_events"]
+            .as_array()
+            .expect("audit_events array");
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0]["event_type"], "account.export");
+        let keys: std::collections::BTreeSet<&str> = events[0]
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        for forbidden in ["id", "actor_user_id"] {
+            assert!(!keys.contains(forbidden), "audit event leaked {forbidden}");
+        }
     }
 
     #[tokio::test]

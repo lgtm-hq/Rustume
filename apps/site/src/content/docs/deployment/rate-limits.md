@@ -90,9 +90,17 @@ spaced apart.
 
 `GET /api/account/export` (the GDPR portability download) is **not** subject to the resume-count
 cap or to subscription gating: data portability must work for every account, including expired or
-canceled ones. Instead it streams the account profile, policy acceptances, every resume, and every
-retained version snapshot under its own per-user limit of 5 requests per minute
-(`RATE_LIMIT_ACCOUNT_EXPORT_PER_MIN`). Each export is recorded in the audit log.
+canceled ones. Instead it streams the account profile, policy acceptances, subscriptions, every
+resume, every retained version snapshot, and the account's audit trail under its own per-user
+limit of 5 requests per minute (`RATE_LIMIT_ACCOUNT_EXPORT_PER_MIN`). Each export is recorded in
+the audit log.
+
+Because an export keeps one database connection busy for as long as the client is downloading,
+each server process also caps **concurrent** exports at **2**. When both slots are taken the
+request is refused up front with `503 Service Unavailable`, a `Retry-After: 30` header, and the
+usual JSON error body; nothing is written to the audit log for a refused request. This ceiling
+is a build-time constant, not an environment variable, and multiplies with the number of
+replicas.
 
 ## Configuration
 
