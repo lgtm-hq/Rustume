@@ -212,8 +212,8 @@ Rationale grounded in the codebase:
 **Adopt LWW + manual resolution** ([#42](https://github.com/lgtm-hq/Rustume/issues/42)
 offline queue + [#43](https://github.com/lgtm-hq/Rustume/issues/43) conflict UI):
 
-- Automatic path: if one side's edit is strictly newer and the other has no
-  concurrent edit, apply LWW silently.
+- Automatic path: if exactly one side's tag differs from `last_synced_hash`, apply
+  that side's copy silently.
 - Manual path: if both sides edited since last sync, show a conflict for user
   choice (keep local, keep cloud, or per-field merge in UI).
 
@@ -230,8 +230,12 @@ Per-resume sync metadata (new `sync_state` table / IndexedDB store):
 | `last_synced_hash` | Hash at last successful sync                                                                                                            |
 | `last_synced_at`   | Timestamp of last successful sync                                                                                                       |
 
-**Conflict rule:** A conflict exists when the content tag differs on both sides
-AND both `updated_at` values are **after** `last_synced_at` for that resume. On the
+**Conflict rule:** edits are detected by content tag, never by timestamp. Each
+side stores `last_synced_hash`, the tag at the last successful sync. A side has
+edited when its current tag differs from `last_synced_hash`. Exactly one side edited
+is automatic LWW toward that side; both edited is a conflict. `updated_at` is used
+only to order the two copies for display and as the tie-break the clock-skew row
+describes, never to decide whether an edit happened. On the
 first link no `last_synced_at` exists, so the same-origin import record stands in
 for it: `import_synced_at` plus the content tag recorded at import time. A side whose
 current tag equals the import-time tag has not edited since the common point; if
