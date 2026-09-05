@@ -40,12 +40,28 @@ JSON export uses the resume CRUD limit group; PDF export uses the PDF limit grou
 
 | Method | Path | Description |
 | --- | --- | --- |
-| `GET` | `/api/account/export` | GDPR data-portability download: profile, policy acceptances, every resume (with sharing state), and retained version snapshots as one streamed JSON document |
+| `GET` | `/api/account/export` | GDPR data-portability download as one streamed JSON document (see below) |
 | `DELETE` | `/api/account` | Permanently delete the account and all associated data (body: `{"confirmation":"DELETE"}`) |
 
-The account export is not subject to the 50-resume cap or to subscription gating, and has its own
-rate limit (5 per minute per user). Every export and deletion is written to the audit log. See
-[Rate Limits](/docs/deployment/rate-limits/#account-export-is-not-capped).
+The account export is an explicit allow-list of the account-linked data Rustume stores:
+
+| Field | Contents |
+| --- | --- |
+| `account` | Profile: id, email, name fields, plan, created_at |
+| `policy_acceptances` | Terms/Privacy versions accepted, with timestamp and client IP |
+| `subscriptions` | Hosted-billing subscriptions ever attached to the account |
+| `resumes` | Every resume: id, title, sharing state (`is_public`, `public_slug`), timestamps, full document |
+| `resume_snapshots` | Every retained version-history snapshot, per resume |
+| `audit_events` | The account's own audit trail (event type, resource, client IP, metadata), oldest first |
+
+Not included: session rows (short-lived credential material, not information about the person),
+internal identifiers such as the WorkOS user id and Paddle customer id, and password hashes for
+protected shares.
+
+The export is not subject to the 50-resume cap or to subscription gating. It has its own rate
+limit (5 per minute per user) and a per-process ceiling of 2 concurrent downloads, beyond which
+the request is refused with `503` and `Retry-After`. Every export and deletion is written to the
+audit log. See [Rate Limits](/docs/deployment/rate-limits/#account-export-is-not-capped).
 
 ## Connected workflows
 

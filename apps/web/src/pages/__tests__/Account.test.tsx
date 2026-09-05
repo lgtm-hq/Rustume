@@ -5,6 +5,7 @@ import { axeConfig } from "../../test/a11y";
 import { Route, Router } from "@solidjs/router";
 import Account from "../Account";
 import { downloadAccountExport } from "../../api/account";
+import { ApiError } from "../../api/client";
 
 const { mockAuthState, signInMock, signOutMock } = vi.hoisted(() => ({
   mockAuthState: {
@@ -154,7 +155,10 @@ describe("Account page", () => {
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Account data downloaded"));
   });
 
-  it("shows the server error when account data export fails", async () => {
+  it.each([
+    [429, "Too many requests. Please try again shortly."],
+    [503, "Too many account exports are running right now. Please try again shortly."],
+  ])("shows the server's %i error when account data export fails", async (status, message) => {
     mockAuthState.loading = false;
     mockAuthState.cloudEnabled = true;
     mockAuthState.user = {
@@ -162,8 +166,9 @@ describe("Account page", () => {
       plan: "free",
       email: "dev@example.com",
     };
+    // The real client surfaces the server's JSON `error` string as ApiError.
     vi.mocked(downloadAccountExport).mockRejectedValueOnce(
-      new Error("Too many export requests — try again in a minute"),
+      new ApiError(status, message, JSON.stringify({ error: message, retry_after: 30 })),
     );
 
     renderAccount();
@@ -172,9 +177,7 @@ describe("Account page", () => {
     fireEvent.click(button);
 
     const { toast } = await import("../../components/ui");
-    await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith("Too many export requests — try again in a minute"),
-    );
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(message));
     // The button must recover so the user can retry.
     await waitFor(() => expect(button).not.toBeDisabled());
   });
