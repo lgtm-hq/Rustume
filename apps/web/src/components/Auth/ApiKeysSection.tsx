@@ -72,9 +72,15 @@ export function ApiKeysSection() {
     setCreating(false);
   };
 
+  const openCreateModal = () => {
+    resetCreateModal();
+    setCreateModalOpen(true);
+  };
+
   const handleCreateModalChange = (open: boolean) => {
-    // Keep the one-time key visible until the user explicitly clicks Done.
-    if (!open && createdKey()) {
+    // Keep the dialog open while the create request is in flight (so the
+    // one-time key cannot be lost) and until the user explicitly clicks Done.
+    if (!open && (createdKey() || creating())) {
       return;
     }
     setCreateModalOpen(open);
@@ -162,7 +168,7 @@ export function ApiKeysSection() {
             <code class="font-mono text-xs">Authorization: Bearer rk_…</code>.
           </p>
         </div>
-        <Button onClick={() => setCreateModalOpen(true)}>Create key</Button>
+        <Button onClick={openCreateModal}>Create key</Button>
       </div>
 
       <Show
@@ -228,7 +234,7 @@ export function ApiKeysSection() {
             : "Give your key a name so you can identify it later."
         }
         size="md"
-        dismissible={!createdKey()}
+        dismissible={!createdKey() && !creating()}
       >
         <Show
           when={createdKey()}
@@ -243,7 +249,11 @@ export function ApiKeysSection() {
                 maxLength={API_KEY_NAME_MAX_LENGTH}
               />
               <div class="flex justify-end gap-3 pt-2">
-                <Button variant="secondary" onClick={() => handleCreateModalChange(false)}>
+                <Button
+                  variant="secondary"
+                  onClick={() => handleCreateModalChange(false)}
+                  disabled={creating()}
+                >
                   Cancel
                 </Button>
                 <Button

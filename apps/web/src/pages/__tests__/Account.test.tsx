@@ -104,7 +104,7 @@ describe("Account page", () => {
     expect(screen.queryByText(/Continue without signing in/i)).not.toBeInTheDocument();
   });
 
-  it("shows profile details when signed in", () => {
+  it("shows profile details when signed in", async () => {
     mockAuthState.loading = false;
     mockAuthState.cloudEnabled = true;
     mockAuthState.user = {
@@ -126,6 +126,8 @@ describe("Account page", () => {
       screen.getByText(/email and name are stored by both WorkOS and Rustume/i),
     ).toBeInTheDocument();
     expect(screen.getByText("API keys")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create key" })).toBeInTheDocument();
+    expect(await screen.findByText(/No API keys yet/i)).toBeInTheDocument();
     expect(screen.getByText("Billing")).toBeInTheDocument();
     expect(screen.getByText("End-to-end encryption")).toBeInTheDocument();
     expect(screen.getAllByText("Coming soon").length).toBeGreaterThan(0);
