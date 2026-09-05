@@ -619,6 +619,89 @@ describe("ApiKeysSection", () => {
     expect(createApiKeyMock).toHaveBeenCalledTimes(1);
   });
 
+  it("discards a key whose create completes after the signed-in identity changed", async () => {
+    let resolveCreate: (key: {
+      id: string;
+      name: string;
+      prefix: string;
+      key: string;
+    }) => void = () => {};
+    createApiKeyMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveCreate = resolve;
+      }),
+    );
+    listApiKeysMock.mockResolvedValue([]);
+
+    const first = render(() => <ApiKeysSection />);
+    await screen.findByText(/No API keys yet/i);
+    fireEvent.click(screen.getByRole("button", { name: "Create key" }));
+    const createDialog = await screen.findByRole("dialog");
+    fireEvent.input(within(createDialog).getByLabelText("Key name"), {
+      target: { value: "Automation" },
+    });
+    fireEvent.click(within(createDialog).getByRole("button", { name: "Create key" }));
+
+    // User A signs out and user B signs in while A's POST is still in flight.
+    first.unmount();
+    setMockAuthState("user", null);
+    setMockAuthState("user", { id: "user-b", plan: "free" });
+    render(() => <ApiKeysSection />);
+    await screen.findByText(/No API keys yet/i);
+
+    resolveCreate({ id: "key-9", name: "Automation", prefix: "aaaa9999", key: "rk_belongs_to_a" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(screen.queryByText("rk_belongs_to_a")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(toastSuccessMock).not.toHaveBeenCalled();
+  });
+
+  it("refreshes the remounted list when a late create completes", async () => {
+    let resolveCreate: (key: {
+      id: string;
+      name: string;
+      prefix: string;
+      key: string;
+    }) => void = () => {};
+    createApiKeyMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveCreate = resolve;
+      }),
+    );
+    const created = {
+      id: "key-3",
+      name: "Late arrival",
+      prefix: "zzzz9999",
+      last_used_at: null,
+      created_at: "2026-06-21T12:00:00Z",
+    };
+    // Initial mount: empty. Remount: still empty. After the key lands: the new key.
+    listApiKeysMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([created]);
+
+    const first = render(() => <ApiKeysSection />);
+    await screen.findByText(/No API keys yet/i);
+    fireEvent.click(screen.getByRole("button", { name: "Create key" }));
+    const createDialog = await screen.findByRole("dialog");
+    fireEvent.input(within(createDialog).getByLabelText("Key name"), {
+      target: { value: "Late arrival" },
+    });
+    fireEvent.click(within(createDialog).getByRole("button", { name: "Create key" }));
+
+    first.unmount();
+    render(() => <ApiKeysSection />);
+    await screen.findByText(/No API keys yet/i);
+
+    resolveCreate({ id: "key-3", name: "Late arrival", prefix: "zzzz9999", key: "rk_late_list" });
+
+    expect(await screen.findByText("rk_late_list")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    expect(await screen.findByRole("heading", { name: "Late arrival" })).toBeInTheDocument();
+  });
+
   it("warns before unload only while a one-time key is on screen", async () => {
     const addSpy = vi.spyOn(window, "addEventListener");
     const removeSpy = vi.spyOn(window, "removeEventListener");
