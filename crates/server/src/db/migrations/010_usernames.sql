@@ -8,7 +8,7 @@
 --
 --   * keeps first_name/last_name (old replicas still SELECT them);
 --   * leaves username NULLABLE (old replicas still INSERT without it). The
---     unique index below is over the COALESCEd effective handle, so a NULL
+--     unique index below is over the coalesced effective handle, so a NULL
 --     username is indexed as the row's hyphen-stripped id, which is unique per
 --     row; the new binary reads such rows with the same expression.
 --

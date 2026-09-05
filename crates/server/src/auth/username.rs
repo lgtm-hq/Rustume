@@ -238,12 +238,17 @@ mod tests {
     #[test]
     fn username_contract_matches_migration() {
         let migration = include_str!("../db/migrations/010_usernames.sql");
-        let backfill_expression = USERNAME_FALLBACK_SQL
-            .trim_start_matches("COALESCE(username, ")
-            .trim_end_matches(')');
+        // The full backfill statement, not a derived fragment: the expression a
+        // NULL username is read as must be exactly what the backfill assigns.
         assert!(
-            migration.contains(&format!("SET username = {backfill_expression}")),
-            "backfill must use the fallback expression"
+            migration.contains(
+                "UPDATE users\nSET username = replace(id::text, '-', '')\nWHERE username IS NULL;"
+            ),
+            "backfill must assign the fallback expression to NULL usernames"
+        );
+        assert!(
+            USERNAME_FALLBACK_SQL.contains("replace(id::text, '-', '')"),
+            "fallback constant must embed the backfill expression"
         );
         assert!(
             migration.contains(&format!("CREATE UNIQUE INDEX {USERNAME_UNIQUE_INDEX}")),
