@@ -4,7 +4,8 @@ import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { axeConfig } from "../../test/a11y";
 import { Route, Router } from "@solidjs/router";
 import Account from "../Account";
-import { ACCOUNT_EXPORT_CONTENTS, downloadAccountExport } from "../../api/account";
+import accountExportContents from "../../../../../crates/server/src/db/account_export_contents.json";
+import { downloadAccountExport } from "../../api/account";
 import { downloadResumesJson, downloadResumesPdf } from "../../api/export";
 import { ApiError } from "../../api/client";
 
@@ -201,24 +202,13 @@ describe("Account page", () => {
 
     renderAccount();
 
-    // Test-owned literals (not the page's own constant) so dropping a disclosure
-    // from ACCOUNT_EXPORT_CONTENTS fails here. Keep in step with the server's
-    // AccountDataExport (a Rust test cross-checks the constant's wording too).
-    const expectedIncluded = [
-      "your profile",
-      "policy acceptances",
-      "billing subscriptions (including Paddle subscription and price ids)",
-      "every resume with its retained version snapshots",
-      "your account's audit trail (including the IP addresses recorded with each event)",
-    ];
-    const expectedExcluded = [
-      "sessions",
-      "the WorkOS user id",
-      "the Paddle customer id",
-      "share password hashes",
-    ];
-    expect([...ACCOUNT_EXPORT_CONTENTS.included]).toEqual(expectedIncluded);
-    expect([...ACCOUNT_EXPORT_CONTENTS.excluded]).toEqual(expectedExcluded);
+    // The wording comes from the JSON shared with the server; the Rust test
+    // pins that file to the AccountDataExport allow-list and the docs, so this
+    // test only has to prove the page renders all of it.
+    const expectedIncluded = accountExportContents.included.map((item) => item.text);
+    const expectedExcluded = accountExportContents.excluded.map((item) => item.text);
+    expect(expectedIncluded).toHaveLength(5);
+    expect(expectedExcluded).toHaveLength(4);
 
     const copy =
       screen.getByText(/Download a JSON archive of the account data Rustume stores/).textContent ??
@@ -269,11 +259,15 @@ describe("Account page", () => {
       expect(toast.error).toHaveBeenCalledWith("Export exceeds maximum of 50 resumes"),
     );
     await waitFor(() => expect(button).not.toBeDisabled());
+    expect(toast.success).not.toHaveBeenCalled();
   });
 
   // The page never branches on status or retry_after; it shows the server's
-  // error message as-is. Two real server messages, one behaviour.
+  // error message as-is. Every documented account-export error status, one
+  // behaviour.
   it.each([
+    [401, "Invalid or expired session"],
+    [404, "account not found"],
     [429, "Too many requests. Please try again shortly."],
     [503, "Too many account exports are running right now. Please try again shortly."],
   ])(
@@ -300,8 +294,25 @@ describe("Account page", () => {
       await waitFor(() => expect(toast.error).toHaveBeenCalledWith(message));
       // The button must recover so the user can retry.
       await waitFor(() => expect(button).not.toBeDisabled());
+      expect(toast.success).not.toHaveBeenCalled();
     },
   );
+
+  it("falls back to a generic message when the export rejects with a non-Error", async () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.user = { id: "user-1", plan: "free", email: "dev@example.com" };
+    vi.mocked(downloadAccountExport).mockRejectedValueOnce("socket closed");
+
+    renderAccount();
+    const button = screen.getByRole("button", { name: "Export account data" });
+    fireEvent.click(button);
+
+    const { toast } = await import("../../components/ui");
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Failed to export account data"));
+    await waitFor(() => expect(button).not.toBeDisabled());
+    expect(toast.success).not.toHaveBeenCalled();
+  });
 
   it("opens the delete confirmation modal", () => {
     mockAuthState.loading = false;

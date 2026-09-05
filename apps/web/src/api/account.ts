@@ -1,3 +1,4 @@
+import accountExportContents from "../../../../crates/server/src/db/account_export_contents.json";
 import { delJson, getBlob } from "./client";
 import { downloadBlob } from "./export";
 import { deleteAccountResponseSchema } from "./schemas";
@@ -9,19 +10,13 @@ export interface DeleteAccountResponse {
 
 /**
  * What `GET /api/account/export` contains and omits, as shown to the user.
- * Mirrors the server's `AccountDataExport` allow-list (crates/server/src/db/models.rs)
- * and the cloud-endpoints docs; the page renders from this and its test asserts it.
+ * The wording lives in a JSON file shared with the server, whose test pins it to
+ * the `AccountDataExport` allow-list and the cloud-endpoints docs.
  */
 export const ACCOUNT_EXPORT_CONTENTS = {
-  included: [
-    "your profile",
-    "policy acceptances",
-    "billing subscriptions (including Paddle subscription and price ids)",
-    "every resume with its retained version snapshots",
-    "your account's audit trail (including the IP addresses recorded with each event)",
-  ],
-  excluded: ["sessions", "the WorkOS user id", "the Paddle customer id", "share password hashes"],
-} as const;
+  included: accountExportContents.included.map((item) => item.text),
+  excluded: accountExportContents.excluded.map((item) => item.text),
+};
 
 /** Download a machine-readable copy of all account data as JSON. */
 export async function downloadAccountExport(): Promise<void> {
