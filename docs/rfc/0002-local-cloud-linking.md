@@ -172,7 +172,8 @@ Revocation paths:
 
 - User unlinks from either side → token invalidated immediately.
 - Cloud account deletion → all link tokens for that `user_id` cascade-delete.
-- Admin revokes from cloud API-keys UI (extends [#85](https://github.com/lgtm-hq/Rustume/issues/85)).
+- Admin revokes from cloud API-keys UI (extends
+  [#85](https://github.com/lgtm-hq/Rustume/issues/85)).
 
 ## Source of truth & merge model
 
@@ -364,7 +365,8 @@ human CRUD quotas (`import_per_min`, `resume_crud_per_min` in
 
 Extend the planned single-backend offline queue to tag mutations with `link_id`:
 
-- Queue entries: `{operation_id, resume_id, mutation_type, payload, content_hash, base_hash, queued_at}`
+- Queue entries: `{operation_id, resume_id, mutation_type, payload, content_hash, base_hash,
+  queued_at}`
 - On reconnect, replay in `queued_at` order; abort batch on unrecoverable conflict
 - Subscription read-only mode (`SubscriptionReadOnlyError` in `cloudStorage.ts`)
   blocks pushes but still allows queueing for post-resubscribe replay
