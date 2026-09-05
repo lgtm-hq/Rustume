@@ -54,7 +54,6 @@ Resume CRUD allows short bursts (for example rapid autosave) via a separate burs
 | Public resume page and data | 30 | `GET /r/{slug}`, `GET /r/{slug}/data` |
 | Public resume preview | 60 (preview group) | `GET /r/{slug}/preview.png` |
 
-
 On cloud deployments (`RUSTUME_CLOUD=true`), authentication is mandatory for the connected API
 and the authenticated render routes. The exception is [public resume
 pages](/docs/cloud/public-pages/): `/r/{slug}` routes are reachable anonymously by design, and
