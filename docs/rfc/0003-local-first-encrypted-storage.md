@@ -137,8 +137,8 @@ A relay's document API is the sync protocol from RFC 0002, generalised:
 | -------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | `GET`    | `/api/sync/changes?since=`                | Delta of document ids, versions, content tags, deletions                                                                   |
 | `GET`    | `/api/sync/docs/{id}`                     | Fetch one envelope with version metadata                                                                                   |
-| `PUT`    | `/api/sync/docs/{id}`                     | Push an envelope; `If-Match: version`, `Sync-Cursor`, `Idempotency-Key` required                                           |
-| `POST`   | `/api/sync/reconcile`                     | Batched first sync (idempotent)                                                                                            |
+| `PUT`    | `/api/sync/docs/{id}`                     | Push an envelope; `If-Match: version` (`0` to create), `Sync-Cursor`, `Idempotency-Key` required                           |
+| `POST`   | `/api/sync/reconcile`                     | Batched first sync; `Idempotency-Key` required, per-document targets make a repeat a no-op                                 |
 | `DELETE` | `/api/sync/docs/{id}`                     | Write a versioned tombstone; `If-Match: version`, `Sync-Cursor`, `Idempotency-Key` required                                |
 | `GET`    | `/api/sync/docs/{id}/snapshots`           | List snapshot versions for one document                                                                                    |
 | `GET`    | `/api/sync/docs/{id}/snapshots/{version}` | Fetch one encrypted history snapshot                                                                                       |
@@ -168,23 +168,34 @@ Write preconditions are checked in this order and fail with distinct codes:
 A 428 is never a document conflict. The client runs the full reconcile, reclassifies
 its queue against the result, pulls a fresh cursor, and only then drains.
 
+Creating a document the relay has never seen uses `If-Match: 0`, which maps to
+`expected: None` in `DocumentRepo::put`. The relay accepts `0` only when no row, live
+or tombstone, exists for that id; if a tombstone exists the write is an undelete and
+must carry the tombstone version instead. A `PUT` with no `If-Match` at all is 400.
+
 Replays are safe because every mutation carries a client-generated
 `Idempotency-Key` (UUID). The relay stores the key with the response it produced,
 attached to the client's `sync_cursors` row. A retry with the same key returns the
 stored response even though the `If-Match` version has since moved, so a lost
 response after a committed write does not turn into a false conflict.
 
-Replay records are bounded by acknowledgement, not by time alone. A record is
-compacted once the client's cursor has advanced past the version that mutation
-produced, because a client that has pulled past its own write has seen the result
-and will never replay it. A floor of 24 hours applies so an in-flight retry is never
-compacted under it. For an active client this keeps the set to the handful of
-mutations since its last pull. If the cursor row expires the remaining records go
-with it; a client returning after that long gets 428 on its first write and
-reclassifies the queue through the full reconcile, which recognises an
-already-applied mutation by matching content tags rather than by replaying it.
-`POST /api/sync/reconcile` is idempotent by
-construction and needs no key.
+Replay records are bounded by explicit acknowledgement, not by cursor movement or
+time. Pulls run on their own cadence and can advance the cursor while a mutation is
+still queued, so the cursor is not proof the client saw the write's response. Instead,
+when the client dequeues a mutation after receiving its response it lists the key in
+the `Sync-Ack` header of its next request, and the relay compacts only acknowledged
+records. For an active client this keeps the set to the mutations in flight. If the
+cursor row expires the remaining records go with it; a client returning after that
+long gets 428 on its first write and reclassifies the queue through the full
+reconcile, which recognises an already-applied mutation by matching content tags
+rather than by replaying it.
+
+`POST /api/sync/reconcile` carries an `Idempotency-Key` like any other mutation, so a
+lost response after a partial apply is replayed from the stored result. Independently
+of that, the batch is safe to repeat: each entry names a document id, the base version
+the client last saw, and the target content tag, and the relay applies an entry only
+when the row's current tag differs from the target. Entries already applied by an
+earlier attempt match and are skipped.
 
 #### Deletions are versioned tombstones
 
