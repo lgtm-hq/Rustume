@@ -146,6 +146,31 @@ describe("Account page", () => {
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Account data downloaded"));
   });
 
+  it("shows the server error when account data export fails", async () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.user = {
+      id: "user-1",
+      plan: "free",
+      email: "dev@example.com",
+    };
+    vi.mocked(downloadAccountExport).mockRejectedValueOnce(
+      new Error("Too many export requests — try again in a minute"),
+    );
+
+    renderAccount();
+
+    const button = screen.getByRole("button", { name: "Export account data" });
+    fireEvent.click(button);
+
+    const { toast } = await import("../../components/ui");
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Too many export requests — try again in a minute"),
+    );
+    // The button must recover so the user can retry.
+    await waitFor(() => expect(button).not.toBeDisabled());
+  });
+
   it("opens the delete confirmation modal", () => {
     mockAuthState.loading = false;
     mockAuthState.cloudEnabled = true;

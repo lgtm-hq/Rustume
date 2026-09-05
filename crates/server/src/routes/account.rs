@@ -10,9 +10,10 @@ use axum::{
 use axum_extra::extract::cookie::CookieJar;
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
-use futures::{stream, Stream, TryStreamExt};
+use futures::{stream, FutureExt, Stream, TryStreamExt};
 use serde::Serialize;
 use std::io;
+use std::panic::AssertUnwindSafe;
 use tokio::sync::mpsc;
 use tracing::{error, info, warn};
 use uuid::Uuid;
@@ -87,7 +88,12 @@ pub async fn export_account(
             actor_user_id: Some(user.id),
             resource_type: Some("account"),
             resource_id: Some(user.id),
+            // `account.export` records that an export was authorised and
+            // started; it is required so no data leaves without an audit
+            // trail. Delivery is recorded separately by
+            // `account.export.completed` once the stream finishes.
             metadata: serde_json::json!({
+                "stage": "started",
                 "resume_count": resume_count,
                 "snapshot_count": snapshot_count,
                 "policy_acceptance_count": policy_acceptances.len(),
@@ -104,7 +110,8 @@ pub async fn export_account(
     let exported_at = Utc::now();
     let account = AccountExportProfile::from_user(&user);
     let prefix = build_export_prefix(exported_at, &account, &policy_acceptances)?;
-    let export_stream = stream_account_export(tx, user.id, prefix);
+    let export_stream =
+        stream_account_export(cloud.db.clone(), tx, user.id, prefix, ip_address.clone());
 
     let content_disposition =
         HeaderValue::from_static("attachment; filename=\"rustume-account-export.json\"");
@@ -305,102 +312,110 @@ fn build_export_prefix(
     Ok(body)
 }
 
+/// Outcome of the detached export stream, recorded as `account.export.completed`.
+#[derive(Debug, Default, PartialEq, Eq)]
+struct ExportOutcome {
+    /// True only when the closing `]}` was handed to the client.
+    delivered: bool,
+    bytes_streamed: u64,
+    /// Why delivery stopped short, when it did.
+    error: Option<String>,
+}
+
+/// Byte-counting wrapper around the chunk channel.
+///
+/// `send` returns `false` when the client has gone away (receiver dropped) so
+/// callers can abort the DB cursor immediately.
+struct ChunkSink {
+    tx: mpsc::Sender<Result<Bytes, io::Error>>,
+    bytes_streamed: u64,
+}
+
+impl ChunkSink {
+    async fn send(&mut self, chunk: Bytes) -> bool {
+        let len = chunk.len() as u64;
+        if self.tx.send(Ok(chunk)).await.is_err() {
+            return false;
+        }
+        self.bytes_streamed += len;
+        true
+    }
+
+    async fn fail(&self, message: String) {
+        let _ = self.tx.send(Err(io::Error::other(message))).await;
+    }
+
+    fn outcome(&self, delivered: bool, error: Option<String>) -> ExportOutcome {
+        ExportOutcome {
+            delivered,
+            bytes_streamed: self.bytes_streamed,
+            error,
+        }
+    }
+}
+
 fn stream_account_export(
+    pool: sqlx::PgPool,
     db_tx: sqlx::Transaction<'static, sqlx::Postgres>,
     user_id: Uuid,
     prefix: Vec<u8>,
+    ip_address: Option<String>,
 ) -> impl Stream<Item = Result<Bytes, io::Error>> + Send + 'static {
     let (chunk_tx, chunk_rx) =
         mpsc::channel::<Result<Bytes, io::Error>>(EXPORT_STREAM_CHANNEL_CAPACITY);
 
     tokio::spawn(async move {
-        let mut db_tx = db_tx;
+        let sink = ChunkSink {
+            tx: chunk_tx.clone(),
+            bytes_streamed: 0,
+        };
 
-        if chunk_tx.send(Ok(Bytes::from(prefix))).await.is_err() {
-            return;
-        }
-
-        let mut rows = sqlx::query_as::<_, ExportResumeRow>(
-            r#"
-            SELECT id, title, data::text AS data_json
-            FROM resumes
-            WHERE user_id = $1
-            ORDER BY updated_at DESC
-            "#,
-        )
-        .bind(user_id)
-        .fetch(&mut *db_tx);
-
-        let mut first_resume = true;
-        while let Some(row) = match rows.try_next().await {
-            Ok(row) => row,
-            Err(err) => {
-                let _ = chunk_tx
-                    .send(Err(io::Error::other(internal_db_error(err).error)))
-                    .await;
-                return;
-            }
-        } {
-            match stream_resume_row(&chunk_tx, row, &mut first_resume).await {
-                Ok(true) => {}
-                Ok(false) => {
-                    // Client disconnected: stop fetching so the cursor and
-                    // transaction are dropped immediately.
-                    return;
-                }
-                Err(err) => {
-                    let _ = chunk_tx.send(Err(io::Error::other(err.error))).await;
-                    return;
-                }
-            }
-        }
-
-        drop(rows);
-        if chunk_tx
-            .send(Ok(Bytes::from_static(br#"],"resume_snapshots":["#)))
+        // The HTTP status has already been sent by the time this task runs, so
+        // a panic here would otherwise vanish with the dropped JoinHandle and
+        // the client would see a silently truncated body.
+        let outcome = match AssertUnwindSafe(run_export_stream(db_tx, user_id, prefix, sink))
+            .catch_unwind()
             .await
-            .is_err()
         {
-            return;
-        }
-
-        let mut snapshots = sqlx::query_as::<_, ExportSnapshotRow>(
-            r#"
-            SELECT s.resume_id, s.version, s.created_at, s.data::text AS data_json
-            FROM resume_snapshots s
-            INNER JOIN resumes r ON r.id = s.resume_id
-            WHERE r.user_id = $1
-            ORDER BY s.resume_id ASC, s.version ASC
-            "#,
-        )
-        .bind(user_id)
-        .fetch(&mut *db_tx);
-
-        let mut first_snapshot = true;
-        while let Some(row) = match snapshots.try_next().await {
-            Ok(row) => row,
-            Err(err) => {
+            Ok(outcome) => outcome,
+            Err(_) => {
+                error!(user_id = %user_id, "account export stream task panicked");
                 let _ = chunk_tx
-                    .send(Err(io::Error::other(internal_db_error(err).error)))
+                    .send(Err(io::Error::other("account export failed")))
                     .await;
-                return;
-            }
-        } {
-            match stream_snapshot_row(&chunk_tx, row, &mut first_snapshot).await {
-                Ok(true) => {}
-                Ok(false) => return,
-                Err(err) => {
-                    let _ = chunk_tx.send(Err(io::Error::other(err.error))).await;
-                    return;
+                ExportOutcome {
+                    error: Some("stream task panicked".to_string()),
+                    ..ExportOutcome::default()
                 }
             }
+        };
+        drop(chunk_tx);
+
+        if !outcome.delivered {
+            warn!(
+                user_id = %user_id,
+                bytes_streamed = outcome.bytes_streamed,
+                error = outcome.error.as_deref().unwrap_or("client disconnected"),
+                "account export not delivered"
+            );
         }
 
-        drop(snapshots);
-        let _ = chunk_tx.send(Ok(Bytes::from_static(b"]}"))).await;
-        if let Err(err) = db_tx.commit().await {
-            error!("account export transaction commit failed: {err}");
-        }
+        record_event(
+            &pool,
+            AuditEvent {
+                event_type: "account.export.completed",
+                actor_user_id: Some(user_id),
+                resource_type: Some("account"),
+                resource_id: Some(user_id),
+                metadata: serde_json::json!({
+                    "delivered": outcome.delivered,
+                    "bytes_streamed": outcome.bytes_streamed,
+                    "error": outcome.error,
+                }),
+                ip_address: ip_address.as_deref(),
+            },
+        )
+        .await;
     });
 
     stream::unfold(chunk_rx, |mut chunk_rx| async move {
@@ -408,10 +423,112 @@ fn stream_account_export(
     })
 }
 
+/// Stream the export body. Returns how far delivery got; never panics on
+/// expected failures (DB errors, client disconnect).
+async fn run_export_stream(
+    mut db_tx: sqlx::Transaction<'static, sqlx::Postgres>,
+    user_id: Uuid,
+    prefix: Vec<u8>,
+    mut sink: ChunkSink,
+) -> ExportOutcome {
+    if !sink.send(Bytes::from(prefix)).await {
+        return sink.outcome(false, None);
+    }
+
+    let mut rows = sqlx::query_as::<_, ExportResumeRow>(
+        r#"
+        SELECT id, title, data::text AS data_json
+        FROM resumes
+        WHERE user_id = $1
+        ORDER BY updated_at DESC
+        "#,
+    )
+    .bind(user_id)
+    .fetch(&mut *db_tx);
+
+    let mut first_resume = true;
+    loop {
+        let row = match rows.try_next().await {
+            Ok(Some(row)) => row,
+            Ok(None) => break,
+            Err(err) => {
+                let message = internal_db_error(err).error;
+                sink.fail(message.clone()).await;
+                return sink.outcome(false, Some(message));
+            }
+        };
+        match stream_resume_row(&mut sink, row, &mut first_resume).await {
+            Ok(true) => {}
+            // Client disconnected: stop fetching so the cursor and
+            // transaction are dropped immediately.
+            Ok(false) => return sink.outcome(false, None),
+            Err(err) => {
+                sink.fail(err.error.clone()).await;
+                return sink.outcome(false, Some(err.error));
+            }
+        }
+    }
+    drop(rows);
+
+    if !sink
+        .send(Bytes::from_static(br#"],"resume_snapshots":["#))
+        .await
+    {
+        return sink.outcome(false, None);
+    }
+
+    let mut snapshots = sqlx::query_as::<_, ExportSnapshotRow>(
+        r#"
+        SELECT s.resume_id, s.version, s.created_at, s.data::text AS data_json
+        FROM resume_snapshots s
+        INNER JOIN resumes r ON r.id = s.resume_id
+        WHERE r.user_id = $1
+        ORDER BY s.resume_id ASC, s.version ASC
+        "#,
+    )
+    .bind(user_id)
+    .fetch(&mut *db_tx);
+
+    let mut first_snapshot = true;
+    loop {
+        let row = match snapshots.try_next().await {
+            Ok(Some(row)) => row,
+            Ok(None) => break,
+            Err(err) => {
+                let message = internal_db_error(err).error;
+                sink.fail(message.clone()).await;
+                return sink.outcome(false, Some(message));
+            }
+        };
+        match stream_snapshot_row(&mut sink, row, &mut first_snapshot).await {
+            Ok(true) => {}
+            Ok(false) => return sink.outcome(false, None),
+            Err(err) => {
+                sink.fail(err.error.clone()).await;
+                return sink.outcome(false, Some(err.error));
+            }
+        }
+    }
+    drop(snapshots);
+
+    if !sink.send(Bytes::from_static(b"]}")).await {
+        return sink.outcome(false, None);
+    }
+
+    // The transaction only ever read under REPEATABLE READ, so a failed
+    // commit cannot lose or corrupt data; it is logged for operators and
+    // does not affect the bytes already delivered.
+    if let Err(err) = db_tx.commit().await {
+        error!("account export transaction commit failed: {err}");
+    }
+
+    sink.outcome(true, None)
+}
+
 /// Stream one resume row. Returns `Ok(false)` when the client disconnects so
 /// the caller can abort the DB cursor immediately.
 async fn stream_resume_row(
-    chunk_tx: &mpsc::Sender<Result<Bytes, io::Error>>,
+    sink: &mut ChunkSink,
     row: ExportResumeRow,
     first: &mut bool,
 ) -> Result<bool, ApiError> {
@@ -425,13 +542,13 @@ async fn stream_resume_row(
         row.id,
         title_json
     );
-    stream_json_object(chunk_tx, header, &row.data_json).await
+    stream_json_object(sink, header, &row.data_json).await
 }
 
 /// Stream one resume snapshot row. Returns `Ok(false)` when the client
 /// disconnects so the caller can abort the DB cursor immediately.
 async fn stream_snapshot_row(
-    chunk_tx: &mpsc::Sender<Result<Bytes, io::Error>>,
+    sink: &mut ChunkSink,
     row: ExportSnapshotRow,
     first: &mut bool,
 ) -> Result<bool, ApiError> {
@@ -446,7 +563,7 @@ async fn stream_snapshot_row(
         row.version,
         created_at_json
     );
-    stream_json_object(chunk_tx, header, &row.data_json).await
+    stream_json_object(sink, header, &row.data_json).await
 }
 
 /// Return the array separator for the current element and clear `first`.
@@ -462,25 +579,21 @@ fn take_separator(first: &mut bool) -> &'static str {
 /// Send a pre-rendered object header, the raw JSON `data` value in bounded
 /// chunks, and the closing brace. Returns `Ok(false)` on client disconnect.
 async fn stream_json_object(
-    chunk_tx: &mpsc::Sender<Result<Bytes, io::Error>>,
+    sink: &mut ChunkSink,
     header: String,
     data_json: &str,
 ) -> Result<bool, ApiError> {
-    if chunk_tx.send(Ok(Bytes::from(header))).await.is_err() {
+    if !sink.send(Bytes::from(header)).await {
         return Ok(false);
     }
 
     for chunk in data_json.as_bytes().chunks(EXPORT_STREAM_CHUNK_BYTES) {
-        if chunk_tx
-            .send(Ok(Bytes::copy_from_slice(chunk)))
-            .await
-            .is_err()
-        {
+        if !sink.send(Bytes::copy_from_slice(chunk)).await {
             return Ok(false);
         }
     }
 
-    if chunk_tx.send(Ok(Bytes::from_static(b"}"))).await.is_err() {
+    if !sink.send(Bytes::from_static(b"}")).await {
         return Ok(false);
     }
 
@@ -728,11 +841,100 @@ mod tests {
         )
     }
 
-    async fn read_export_payload(response: Response) -> serde_json::Value {
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+    async fn read_export_body(response: Response) -> Bytes {
+        axum::body::to_bytes(response.into_body(), usize::MAX)
             .await
-            .expect("read account export body");
+            .expect("read account export body")
+    }
+
+    async fn read_export_payload(response: Response) -> serde_json::Value {
+        let body = read_export_body(response).await;
         serde_json::from_slice(&body).expect("parse account export JSON")
+    }
+
+    async fn wait_for_completion_audit(pool: &sqlx::PgPool, user_id: Uuid) -> serde_json::Value {
+        // The completion event is written by the detached stream task after
+        // the last chunk is consumed, so allow it a moment to land.
+        for _ in 0..50 {
+            let row: Option<serde_json::Value> = sqlx::query_scalar(
+                r#"
+                SELECT metadata FROM audit_events
+                WHERE actor_user_id = $1 AND event_type = 'account.export.completed'
+                ORDER BY created_at DESC LIMIT 1
+                "#,
+            )
+            .bind(user_id)
+            .fetch_optional(pool)
+            .await
+            .expect("query completion audit");
+            if let Some(row) = row {
+                return row;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+        panic!("account.export.completed audit event was not recorded");
+    }
+
+    #[tokio::test]
+    async fn stream_helpers_report_client_disconnect() {
+        let (tx, rx) = mpsc::channel::<Result<Bytes, io::Error>>(1);
+        drop(rx);
+        let mut sink = ChunkSink {
+            tx,
+            bytes_streamed: 0,
+        };
+
+        let delivered = stream_json_object(&mut sink, "{\"data\":".to_string(), "{}")
+            .await
+            .expect("no serialization error");
+        assert!(
+            !delivered,
+            "a dropped receiver must be reported as a disconnect"
+        );
+        assert_eq!(sink.bytes_streamed, 0);
+        assert_eq!(
+            sink.outcome(false, None),
+            ExportOutcome {
+                delivered: false,
+                bytes_streamed: 0,
+                error: None,
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn stream_helpers_count_delivered_bytes() {
+        let (tx, mut rx) = mpsc::channel::<Result<Bytes, io::Error>>(8);
+        let mut sink = ChunkSink {
+            tx,
+            bytes_streamed: 0,
+        };
+        let mut first = true;
+
+        let header_and_body = tokio::spawn(async move {
+            let mut out = Vec::new();
+            while let Some(Ok(chunk)) = rx.recv().await {
+                out.extend_from_slice(&chunk);
+            }
+            out
+        });
+
+        let row = ExportResumeRow {
+            id: Uuid::nil(),
+            title: "Quote \"me\"".to_string(),
+            data_json: r#"{"basics":{"name":"Ada"}}"#.to_string(),
+        };
+        assert!(stream_resume_row(&mut sink, row, &mut first).await.unwrap());
+        assert!(!first);
+        let bytes = sink.bytes_streamed;
+        drop(sink);
+
+        let out = header_and_body.await.unwrap();
+        assert_eq!(out.len() as u64, bytes);
+        let item: crate::db::ResumeExportItem =
+            serde_json::from_slice(&out).expect("streamed resume item is valid JSON");
+        assert_eq!(item.title, "Quote \"me\"");
+        assert_eq!(item.data["basics"]["name"], "Ada");
     }
 
     #[tokio::test]
@@ -756,8 +958,66 @@ mod tests {
             "attachment; filename=\"rustume-account-export.json\"",
         );
 
-        let payload = read_export_payload(response).await;
+        let body = read_export_body(response).await;
+        let completion = wait_for_completion_audit(&pool, user.id).await;
         cleanup_user(&pool, user.id).await;
+
+        // Round-trip: the hand-assembled stream must deserialize into the
+        // documented `AccountDataExport` schema, so the OpenAPI body and the
+        // byte-spliced output cannot drift apart unnoticed.
+        let typed: AccountDataExport =
+            serde_json::from_slice(&body).expect("stream matches AccountDataExport schema");
+        assert_eq!(typed.account.id, user.id);
+        assert_eq!(typed.resumes.len(), 2);
+        assert_eq!(typed.resume_snapshots.len(), 4);
+        assert_eq!(typed.policy_acceptances.len(), 2);
+
+        assert_eq!(completion["delivered"], true);
+        assert_eq!(completion["bytes_streamed"], body.len() as u64);
+        assert!(completion["error"].is_null());
+
+        let payload: serde_json::Value = serde_json::from_slice(&body).expect("parse JSON");
+
+        // Sensitive and internal fields must never appear in the export.
+        let account_keys: std::collections::BTreeSet<&str> = payload["account"]
+            .as_object()
+            .expect("account object")
+            .keys()
+            .map(String::as_str)
+            .collect();
+        for forbidden in ["workos_id", "paddle_customer_id", "updated_at"] {
+            assert!(
+                !account_keys.contains(forbidden),
+                "account leaked {forbidden}"
+            );
+        }
+        for resume in payload["resumes"].as_array().expect("resumes array") {
+            let keys: std::collections::BTreeSet<&str> = resume
+                .as_object()
+                .expect("resume object")
+                .keys()
+                .map(String::as_str)
+                .collect();
+            assert_eq!(keys, ["id", "title", "data"].into_iter().collect());
+        }
+        for snapshot in payload["resume_snapshots"]
+            .as_array()
+            .expect("snapshots array")
+        {
+            let keys: std::collections::BTreeSet<&str> = snapshot
+                .as_object()
+                .expect("snapshot object")
+                .keys()
+                .map(String::as_str)
+                .collect();
+            assert_eq!(
+                keys,
+                ["resume_id", "version", "created_at", "data"]
+                    .into_iter()
+                    .collect()
+            );
+        }
+
         assert_eq!(payload["account"]["id"], user.id.to_string());
         assert_eq!(
             payload["account"]["email"],
@@ -867,9 +1127,54 @@ mod tests {
         assert_eq!(audit_row.0, "account.export");
         assert_eq!(audit_row.1, Some(user.id));
         assert_eq!(audit_row.2.as_deref(), Some("account"));
+        assert_eq!(audit_row.3["stage"], "started");
         assert_eq!(audit_row.3["resume_count"], 1);
         assert_eq!(audit_row.3["snapshot_count"], 2);
         assert_eq!(audit_row.3["policy_acceptance_count"], 2);
+    }
+
+    #[tokio::test]
+    async fn export_account_records_undelivered_export_on_client_disconnect() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+        let pool = connect_test_pool(&database_url).await;
+
+        // Enough resume payload that the stream cannot fit in the channel
+        // buffer before the client goes away.
+        let user = seed_user_with_resumes(&pool, 1).await;
+        let big = serde_json::json!({ "blob": "x".repeat(EXPORT_STREAM_CHUNK_BYTES * 8) });
+        sqlx::query("UPDATE resumes SET data = $1 WHERE user_id = $2")
+            .bind(&big)
+            .bind(user.id)
+            .execute(&pool)
+            .await
+            .expect("inflate resume");
+        let state = test_app_state(pool.clone());
+
+        let response = export_account(AuthUser(user.clone()), State(state), HeaderMap::new())
+            .await
+            .expect("expected account export to start");
+        assert_eq!(response.status(), StatusCode::OK);
+
+        // Read one chunk, then drop the body: the client disconnected.
+        {
+            use futures::StreamExt;
+            let mut body = response.into_body().into_data_stream();
+            let first = body.next().await.expect("first chunk").expect("chunk ok");
+            assert!(!first.is_empty());
+        }
+
+        let completion = wait_for_completion_audit(&pool, user.id).await;
+        cleanup_user(&pool, user.id).await;
+
+        assert_eq!(completion["delivered"], false);
+        assert!(completion["error"].is_null(), "disconnect is not an error");
+        let streamed = completion["bytes_streamed"].as_u64().expect("bytes");
+        assert!(
+            streamed < (EXPORT_STREAM_CHUNK_BYTES * 8) as u64,
+            "stream must stop early on disconnect, streamed {streamed}"
+        );
     }
 
     #[tokio::test]
