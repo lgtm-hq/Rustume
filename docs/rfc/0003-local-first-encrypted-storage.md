@@ -1,13 +1,13 @@
 # RFC 0003: Local-First Encrypted Storage
 
-| Field              | Value                                                                                 |
-| ------------------ | ------------------------------------------------------------------------------------- |
-| **Title**          | Local-First Encrypted Storage                                                         |
-| **Status**         | Draft                                                                                 |
-| **Author(s)**      | Rustume maintainers                                                                   |
-| **Date**           | 2026-09-05                                                                            |
-| **Tracking issue** | [#254](https://github.com/lgtm-hq/Rustume/issues/254)                                 |
-| **Amends**         | [RFC 0001](../rfcs/0001-e2e-encryption.md), [RFC 0002](./0002-local-cloud-linking.md) |
+| Field              | Value                                                                           |
+| ------------------ | ------------------------------------------------------------------------------- |
+| **Title**          | Local-First Encrypted Storage                                                   |
+| **Status**         | Draft                                                                           |
+| **Author(s)**      | Rustume maintainers                                                             |
+| **Date**           | 2026-09-05                                                                      |
+| **Tracking issue** | [#254](https://github.com/lgtm-hq/Rustume/issues/254)                           |
+| **Amends**         | [RFC 0001](./0001-e2e-encryption.md), [RFC 0002](./0002-local-cloud-linking.md) |
 
 ## Summary
 
@@ -357,9 +357,9 @@ backup.
 | 0001 | Amended               | Default-on instead of opt-in; titles encrypted; Phase 1.5 server-managed encryption dropped; public pages handled by explicit publish instead of "Exclude". Envelope, KDF, recovery, rotation unchanged. |
 | 0002 | Amended               | Sync protocol applies to all clients; `content_hash` becomes an HMAC content tag; self-hosted Postgres replaced by SQLite relay; pairing, LWW, unlink unchanged.                                         |
 
-Both documents should gain a note pointing here when this RFC is accepted.
-Consolidating `docs/rfcs/` into `docs/rfc/` (RFC 0002 open question 5) can happen in
-the same PR.
+Both documents should gain a note pointing here when this RFC is accepted. The
+`docs/rfcs/` → `docs/rfc/` consolidation (RFC 0002 open question 5) is done in the
+PR that adds this RFC.
 
 ## Migration from today
 
@@ -416,7 +416,7 @@ own. Implementation issues are opened when this RFC is accepted.
 
 - Tracking: [#254](https://github.com/lgtm-hq/Rustume/issues/254)
 - Epic: [#243](https://github.com/lgtm-hq/Rustume/issues/243) Rustume Cloud
-- Amends: [RFC 0001](../rfcs/0001-e2e-encryption.md), [RFC 0002](./0002-local-cloud-linking.md)
+- Amends: [RFC 0001](./0001-e2e-encryption.md), [RFC 0002](./0002-local-cloud-linking.md)
 - Closed by this RFC: [PR #487](https://github.com/lgtm-hq/Rustume/pull/487)
 - Related: [#40](https://github.com/lgtm-hq/Rustume/issues/40) CRDT,
   [#42](https://github.com/lgtm-hq/Rustume/issues/42) offline queue,

@@ -113,7 +113,7 @@ is_listed() {
 		bash -c '
 			git() {
 				if [[ "$1" == "diff" ]]; then
-					printf "%s\n" "docs/rfcs/0001-e2e-encryption.md" "README.md"
+					printf "%s\n" "docs/rfc/0001-e2e-encryption.md" "README.md"
 					return 0
 				fi
 				command git "$@"

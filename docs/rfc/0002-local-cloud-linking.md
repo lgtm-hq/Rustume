@@ -431,7 +431,7 @@ ASCII equivalent:
 
 ## Encryption interplay ([#44](https://github.com/lgtm-hq/Rustume/issues/44))
 
-Per [RFC 0001 E2E encryption](../rfcs/0001-e2e-encryption.md) (proposed):
+Per [RFC 0001 E2E encryption](./0001-e2e-encryption.md) (proposed):
 
 ### Ciphertext-only transport
 
@@ -500,7 +500,7 @@ Extend `crates/server/src/audit/mod.rs` with:
    instances? Proposal: yes, up to N (e.g. 3) with separate `link_id` each.
 4. **Self-hosted without #254** — Browser-only can link before self-hosted
    Postgres ships; confirm priority order.
-5. **Consolidate `docs/rfcs/` and `docs/rfc/`** — Shared numbering is documented
+5. **Consolidate `docs/rfc/` and `docs/rfc/`** — Shared numbering is documented
    in README; migrate the E2E RFC into `docs/rfc/` when convenient.
 
 ## Rollout plan
