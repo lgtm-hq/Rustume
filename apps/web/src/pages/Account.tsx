@@ -285,9 +285,10 @@ export default function Account() {
                     </h2>
                     <p class="text-sm text-stone mb-4">
                       Download a JSON archive of the account data Rustume stores: profile, policy
-                      acceptances, billing subscriptions, every resume with its retained version
-                      snapshots, and your account's audit trail (including the IP addresses recorded
-                      with each event). Sessions and payment-provider ids are not included.
+                      acceptances, billing subscriptions (including Paddle subscription and price
+                      ids), every resume with its retained version snapshots, and your account's
+                      audit trail (including the IP addresses recorded with each event). Sessions,
+                      the WorkOS user id, and the Paddle customer id are not included.
                     </p>
                     <Button
                       variant="secondary"
