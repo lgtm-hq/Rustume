@@ -7,6 +7,22 @@ export interface DeleteAccountResponse {
   message: string;
 }
 
+/**
+ * What `GET /api/account/export` contains and omits, as shown to the user.
+ * Mirrors the server's `AccountDataExport` allow-list (crates/server/src/db/models.rs)
+ * and the cloud-endpoints docs; the page renders from this and its test asserts it.
+ */
+export const ACCOUNT_EXPORT_CONTENTS = {
+  included: [
+    "your profile",
+    "policy acceptances",
+    "billing subscriptions (including Paddle subscription and price ids)",
+    "every resume with its retained version snapshots",
+    "your account's audit trail (including the IP addresses recorded with each event)",
+  ],
+  excluded: ["sessions", "the WorkOS user id", "the Paddle customer id", "share password hashes"],
+} as const;
+
 /** Download a machine-readable copy of all account data as JSON. */
 export async function downloadAccountExport(): Promise<void> {
   const blob = await getBlob("/account/export");

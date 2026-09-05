@@ -4,7 +4,7 @@ import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { axeConfig } from "../../test/a11y";
 import { Route, Router } from "@solidjs/router";
 import Account from "../Account";
-import { downloadAccountExport } from "../../api/account";
+import { ACCOUNT_EXPORT_CONTENTS, downloadAccountExport } from "../../api/account";
 import { ApiError } from "../../api/client";
 
 const { mockAuthState, signInMock, signOutMock } = vi.hoisted(() => ({
@@ -41,10 +41,16 @@ vi.mock("../../stores/auth", () => ({
   },
 }));
 
-vi.mock("../../api/account", () => ({
-  deleteAccount: vi.fn(),
-  downloadAccountExport: vi.fn().mockResolvedValue(undefined),
-}));
+// Only the network calls are mocked; ACCOUNT_EXPORT_CONTENTS is the real
+// constant so the copy assertions below test what production renders.
+vi.mock("../../api/account", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/account")>();
+  return {
+    ...actual,
+    deleteAccount: vi.fn(),
+    downloadAccountExport: vi.fn().mockResolvedValue(undefined),
+  };
+});
 
 vi.mock("../../api/resumes", () => ({
   listCloudResumesPage: vi.fn().mockResolvedValue({ total: 2, items: [], page: 1, per_page: 100 }),
@@ -182,22 +188,25 @@ describe("Account page", () => {
 
     renderAccount();
 
-    // This copy is a second statement of the AccountDataExport allow-list; keep
-    // it in step with the server model and the cloud-endpoints docs.
+    // The page renders from ACCOUNT_EXPORT_CONTENTS, which mirrors the server's
+    // AccountDataExport allow-list; assert every entry reaches the user, and
+    // that the list itself still names the documented exclusions.
     const copy =
       screen.getByText(/Download a JSON archive of the account data Rustume stores/).textContent ??
       "";
-    for (const included of [
-      "policy acceptances",
-      "billing subscriptions (including Paddle subscription and price ids)",
-      "every resume with its retained version snapshots",
-      "audit trail (including the IP addresses recorded with each event)",
-    ]) {
-      expect(copy).toContain(included);
+    for (const item of [...ACCOUNT_EXPORT_CONTENTS.included, ...ACCOUNT_EXPORT_CONTENTS.excluded]) {
+      expect(copy).toContain(item);
     }
-    expect(copy).toContain(
-      "Sessions, the WorkOS user id, and the Paddle customer id are not included.",
+    expect(ACCOUNT_EXPORT_CONTENTS.excluded).toEqual(
+      expect.arrayContaining([
+        "sessions",
+        "the WorkOS user id",
+        "the Paddle customer id",
+        "share password hashes",
+      ]),
     );
+    expect(ACCOUNT_EXPORT_CONTENTS.included.join(" ")).toMatch(/audit trail/);
+    expect(ACCOUNT_EXPORT_CONTENTS.included.join(" ")).toMatch(/version snapshots/);
   });
 
   // The page never branches on status or retry_after; it shows the server's

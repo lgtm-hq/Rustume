@@ -1,6 +1,6 @@
 import { Show, createEffect, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { deleteAccount, downloadAccountExport } from "../api/account";
+import { ACCOUNT_EXPORT_CONTENTS, deleteAccount, downloadAccountExport } from "../api/account";
 import { downloadResumesJson, downloadResumesPdf } from "../api/export";
 import { listCloudResumesPage } from "../api/resumes";
 import { authStore } from "../stores/auth";
@@ -284,11 +284,9 @@ export default function Account() {
                       Export account data
                     </h2>
                     <p class="text-sm text-stone mb-4">
-                      Download a JSON archive of the account data Rustume stores: profile, policy
-                      acceptances, billing subscriptions (including Paddle subscription and price
-                      ids), every resume with its retained version snapshots, and your account's
-                      audit trail (including the IP addresses recorded with each event). Sessions,
-                      the WorkOS user id, and the Paddle customer id are not included.
+                      Download a JSON archive of the account data Rustume stores:{" "}
+                      {ACCOUNT_EXPORT_CONTENTS.included.join(", ")}. Not included:{" "}
+                      {ACCOUNT_EXPORT_CONTENTS.excluded.join(", ")}.
                     </p>
                     <Button
                       variant="secondary"
