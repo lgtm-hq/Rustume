@@ -59,9 +59,10 @@ On cloud deployments (`RUSTUME_CLOUD=true`), authentication is mandatory for the
 and the authenticated render routes. The exception is [public resume
 pages](/docs/cloud/public-pages/): `/r/{slug}` routes are reachable anonymously by design, and
 `GET /r/{slug}/preview.png` renders a PNG with Typst for anonymous callers. That route therefore
-counts against the **preview render** quota (keyed by client IP when no session is present) and
-honours `If-None-Match`, so crawlers and caches that already hold the current ETag receive `304`
-without a render. The generic unauthenticated bucket covers the HTML page, the JSON data route,
+counts against the **preview render** quota (keyed by client IP when no session is present). The
+PNG is served with `Cache-Control: public, no-cache` plus an ETag, so caches may store it but must
+revalidate on reuse: an unchanged preview costs a cheap `304`, and unpublishing or a version bump
+takes effect immediately. The generic unauthenticated bucket covers the HTML page, the JSON data route,
 probes, and stray traffic.
 
 ## Bulk export cap

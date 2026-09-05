@@ -11,7 +11,7 @@ use rustume_render::Renderer;
 use rustume_schema::ResumeData;
 use serde::Serialize;
 use sqlx::FromRow;
-use tracing::{error, warn};
+use tracing::{debug, error};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -20,7 +20,11 @@ use crate::error::ApiError;
 use crate::state::AppState;
 
 const OG_DESCRIPTION_MAX_CHARS: usize = 200;
-const PREVIEW_CACHE_MAX_AGE: u64 = 3600;
+
+/// Caches may store the PNG but must revalidate with `If-None-Match` on every
+/// reuse, so unpublishing or a version bump takes effect immediately while
+/// unchanged previews still cost only a cheap `304`.
+const PREVIEW_CACHE_CONTROL: &str = "public, no-cache";
 
 const ROBOTS_TXT: &str = "\
 User-agent: *
@@ -239,7 +243,9 @@ pub async fn public_resume_page(
     let resume = parse_resume_data(&row.data)?;
     let base_url = public_base_url();
     if base_url.is_none() {
-        warn!("PUBLIC_BASE_URL is unset; serving /r/{slug} without og:url and og:image");
+        // Startup already warned once; keep the per-request signal at debug so
+        // crawler traffic cannot flood the logs with a static configuration fact.
+        debug!("PUBLIC_BASE_URL is unset; serving /r/{slug} without og:url and og:image");
     }
     let meta_tags = build_og_meta_tags(&row, &resume, &slug, base_url.as_deref());
 
@@ -303,22 +309,26 @@ pub async fn public_resume_preview(
     let resume = parse_resume_data(&row.data)?;
     let renderer = state.renderer.clone();
 
+    // This route is anonymous: log the raw Typst/task diagnostics server-side
+    // and return a fixed message so nothing about the document leaks.
     let png = tokio::task::spawn_blocking(move || {
-        renderer
-            .render_preview(&resume, 0)
-            .map(|(bytes, _)| bytes)
-            .map_err(|err| format!("Failed to render preview: {err}"))
+        renderer.render_preview(&resume, 0).map(|(bytes, _)| bytes)
     })
     .await
-    .map_err(|err| ApiError::internal(format!("Render task failed: {err}")))?
-    .map_err(ApiError::internal)?;
+    .map_err(|err| {
+        error!("public preview render task failed for {slug}: {err}");
+        ApiError::internal("Failed to render preview")
+    })?
+    .map_err(|err| {
+        error!("public preview render failed for {slug}: {err}");
+        ApiError::internal("Failed to render preview")
+    })?;
 
-    let cache_control = format!("public, max-age={PREVIEW_CACHE_MAX_AGE}");
     Ok((
         StatusCode::OK,
         [
             (header::CONTENT_TYPE, "image/png"),
-            (header::CACHE_CONTROL, cache_control.as_str()),
+            (header::CACHE_CONTROL, PREVIEW_CACHE_CONTROL),
             (header::ETAG, etag.as_str()),
         ],
         png,
@@ -848,7 +858,7 @@ mod tests {
             assert_eq!(response.headers().get(header::ETAG).unwrap(), etag.as_str());
             assert_eq!(
                 response.headers().get(header::CACHE_CONTROL).unwrap(),
-                format!("public, max-age={PREVIEW_CACHE_MAX_AGE}").as_str()
+                PREVIEW_CACHE_CONTROL
             );
             let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
                 .await
