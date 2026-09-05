@@ -41,12 +41,14 @@ JSON export uses the resume CRUD limit group; PDF export uses the PDF limit grou
 | Method | Path | Description |
 | --- | --- | --- |
 | `PATCH` | `/api/account` | Change the display username (`{"username": "swift-otter-4821"}`); `400` on an invalid handle, `409` when already taken |
-| `DELETE` | `/api/account` | Permanently delete the account and all associated data (body: `{"confirmation":"DELETE"}`) |
+| `DELETE` | `/api/account` | Permanently delete the account and all associated data (body: `{"confirmation":"DELETE"}`); own limit of 5/min (`RATE_LIMIT_ACCOUNT_DELETE_PER_MIN`), per user and shared per IP |
 
 **Profile shape change.** `GET /auth/me` returns `username`, a friendly and editable handle that is
 generated at sign-up (for example `swift-otter-4821`). It no longer returns `first_name` or
-`last_name`; legal names stay in WorkOS and are not stored by Rustume. External consumers of
-`/auth/me` should read `username` for display.
+`last_name`. This release neither reads nor writes legal names; migration `010_usernames.sql`
+keeps the legacy columns (and leaves `username` nullable) so that pre-username replicas keep
+working during a rolling deploy, and a later release drops them. External consumers of `/auth/me`
+should read `username` for display.
 
 The username rules (3–32 UTF-16 code units, lowercase letters, digits, and single interior
 hyphens, a reserved-word list) are shared verbatim between the server and the bundled web client.

@@ -281,6 +281,8 @@ describe("Account page", () => {
       ["admin", "Username is reserved"],
       ["swift--otter", "Username cannot start, end, or contain consecutive hyphens"],
       ["Bad_Name", "Username may only contain lowercase letters, digits, and hyphens"],
+      ["ab", "Username must be 3-32 characters"],
+      ["   ", "Username must be 3-32 characters"],
     ] as const) {
       fireEvent.input(screen.getByLabelText("Username"), { target: { value: input } });
       fireEvent.click(screen.getByRole("button", { name: "Save username" }));
@@ -314,6 +316,33 @@ describe("Account page", () => {
     // The toast keys off the 409 status, not the prose of the message.
     expect(toast.error).toHaveBeenCalledWith("That username is already taken");
     expect(mockAuthState.user?.username).toBe("swift-otter-4821");
+  });
+
+  it.each([
+    ["a 500 ApiError", new ApiError(500, "internal server error")],
+    ["a network TypeError", new TypeError("Failed to fetch")],
+  ])("keeps the editor open and the handle unchanged on %s", async (_label, failure) => {
+    setAuth("loading", false);
+    setAuth("cloudEnabled", true);
+    setAuth("user", { id: "user-1", plan: "free", username: "swift-otter-4821" });
+    updateUsernameMock.mockRejectedValue(failure);
+
+    renderAccount();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit username" }));
+    fireEvent.input(screen.getByLabelText("Username"), { target: { value: "calm-finch-1234" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save username" }));
+
+    await waitFor(() => expect(screen.getByText(failure.message)).toBeInTheDocument());
+    // Editor stays open with the draft, nothing was applied locally, no 409 toast.
+    expect(screen.getByLabelText("Username")).toHaveValue("calm-finch-1234");
+    expect(updateLocalUsernameMock).not.toHaveBeenCalled();
+    expect(mockAuthState.user?.username).toBe("swift-otter-4821");
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Save username" })).not.toBeDisabled(),
+    );
   });
 
   it("opens the delete confirmation modal", () => {
