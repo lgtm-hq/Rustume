@@ -385,8 +385,9 @@ toggle).
 4. **Import from plaintext local storage.** When enabling E2EE, should local IndexedDB
    copies also be encrypted locally, or remain plaintext on device?
 
-5. **Envelope in `resume_snapshots`.** Same envelope format, or version-specific nonce
-   tracking to prevent nonce reuse across history snapshots?
+5. **Envelope in `resume_snapshots`.** Resolved: the same v1 envelope as the parent
+   resume, with a fresh 12-byte nonce per encryption and no separate history nonce
+   map. The scope table, enable flow, and DEK rotation already require this.
 
 6. **Subscription / billing interaction.** Does E2EE affect plan limits (storage size
    of ciphertext ≈ plaintext + overhead)?

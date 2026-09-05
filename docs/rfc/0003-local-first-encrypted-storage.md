@@ -50,8 +50,9 @@ This settles the storage question for four deployment shapes with one codebase:
   `apps/web/src/stores/cloudStorage.ts` with optimistic concurrency on `version`.
 - Self-hosted mode is browser-only. `docker compose up` runs a stateless server;
   Postgres sits behind the `cloud` compose profile. Clearing site data loses everything.
-- Preview and PDF post the full plaintext resume to `/api/render/*`, preview on a
-  500 ms debounce while typing
+- PDF export and version-history previews post the full plaintext resume to
+  `/api/render/*`. The document editor draws the sheet in the DOM, so there is no
+  longer a live server preview while typing (removed with the form builder in #784)
   (#633). The README privacy claim was scoped per deployment mode because of this.
 - `crates/storage` has an IndexedDB backend through `bindings/wasm` and a reserved,
   unimplemented SQLite backend. Its trait (list, get, save, delete, exists) is unused
@@ -157,6 +158,11 @@ client in a `sync_cursors` table (`account_id`, `client_id`, `cursor`,
 relay holds; it is not a device registry the user manages, and rows expire after
 90 days without a pull.
 
+`GET /api/sync/changes` always uses the client-supplied `since` value, never the
+stored cursor row, so a retried pull after a lost response repeats the same delta.
+On writes, "unknown" means the `Sync-Cursor` value does not equal the cursor stored
+in the client's `sync_cursors` row.
+
 Write preconditions are checked in this order and fail with distinct codes:
 
 | Condition                                         | Response                                     |
@@ -188,8 +194,11 @@ still queued, so the cursor is not proof the client saw the write's response. In
 when the client dequeues a mutation after receiving its response it moves the key
 to a durable pending-ack list in its local store. Every subsequent request carries up
 to 100 pending keys in the `Sync-Ack` header; the relay compacts those records and
-echoes the keys it compacted in a `Sync-Acked` response header, and only then does
-the client drop them from the pending list. A lost request therefore retries the
+echoes in a `Sync-Acked` response header every listed key that is absent after the
+request, whether it was compacted just now or by an earlier attempt whose response
+was lost, and only then does the client drop them from the pending list. Acks are
+therefore idempotent and a lost response costs one retry, nothing more. A lost request
+therefore retries the
 acknowledgement on the next one. As a hard bound the relay also keeps at most 1,000
 replay records per client and compacts the oldest beyond that, which can only affect
 a client that has failed to acknowledge for longer than a thousand of its own
