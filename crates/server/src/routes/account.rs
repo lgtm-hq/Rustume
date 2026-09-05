@@ -14,7 +14,7 @@ use futures::{stream, FutureExt, Stream, TryStreamExt};
 use serde::Serialize;
 use std::io;
 use std::panic::AssertUnwindSafe;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, OwnedSemaphorePermit};
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
@@ -63,7 +63,13 @@ struct ExportSnapshotRow {
     responses(
         (status = 200, description = "Account data export", body = AccountDataExport),
         (status = 401, description = "Not authenticated", body = ApiError),
+        (status = 429, description = "Per-user export quota exceeded", body = ApiError),
         (status = 500, description = "Export failed", body = ApiError),
+        (
+            status = 503,
+            description = "Too many exports streaming right now; retry after the Retry-After seconds",
+            body = ApiError
+        ),
     ),
     security(("cookieAuth" = []))
 )]
@@ -76,14 +82,20 @@ pub async fn export_account(
     let ip_address = trusted_client_ip(&headers, net::trusted_proxy_enabled());
     let ip = ip_address.as_deref();
 
-    let mut tx = cloud.db.begin().await.map_err(internal_db_error)?;
-    sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
-        .execute(&mut *tx)
-        .await
-        .map_err(internal_db_error)?;
-    let resume_count = account_resume_count(&mut *tx, user.id).await?;
-    let snapshot_count = account_snapshot_count(&mut *tx, user.id).await?;
-    let policy_acceptances = account_policy_acceptances(&mut *tx, user.id).await?;
+    // Each export pins one pool connection for as long as the client keeps
+    // downloading. Cap how many can do that at once so a burst of slow
+    // downloads cannot starve every other request of a connection.
+    let Ok(permit) = state.export_permits.clone().try_acquire_owned() else {
+        warn!(user_id = %user.id, "account export refused: concurrency ceiling reached");
+        return Ok(export_busy_response());
+    };
+
+    // Pre-flight reads and the required start audit run on ordinary pool
+    // connections and complete before the export transaction opens, so the
+    // handler never holds one connection while waiting for a second.
+    let resume_count = account_resume_count(&cloud.db, user.id).await?;
+    let snapshot_count = account_snapshot_count(&cloud.db, user.id).await?;
+    let policy_acceptances = account_policy_acceptances(&cloud.db, user.id).await?;
 
     record_event_required(
         &cloud.db,
@@ -111,11 +123,25 @@ pub async fn export_account(
         ApiError::internal("failed to record audit event")
     })?;
 
+    // One connection, one snapshot: every row streamed below comes from this
+    // REPEATABLE READ transaction, which the stream task owns until it ends.
+    let mut tx = cloud.db.begin().await.map_err(internal_db_error)?;
+    sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+        .execute(&mut *tx)
+        .await
+        .map_err(internal_db_error)?;
+
     let exported_at = Utc::now();
     let account = AccountExportProfile::from_user(&user);
     let prefix = build_export_prefix(exported_at, &account, &policy_acceptances)?;
-    let export_stream =
-        stream_account_export(cloud.db.clone(), tx, user.id, prefix, ip_address.clone());
+    let export_stream = stream_account_export(
+        cloud.db.clone(),
+        tx,
+        permit,
+        user.id,
+        prefix,
+        ip_address.clone(),
+    );
 
     let content_disposition =
         HeaderValue::from_static("attachment; filename=\"rustume-account-export.json\"");
@@ -316,12 +342,28 @@ fn build_export_prefix(
     Ok(body)
 }
 
+/// 503 with `Retry-After` for when the export concurrency ceiling is reached.
+fn export_busy_response() -> Response {
+    const RETRY_AFTER_SECS: &str = "30";
+    (
+        StatusCode::SERVICE_UNAVAILABLE,
+        [(header::RETRY_AFTER, RETRY_AFTER_SECS)],
+        Json(serde_json::json!({
+            "error": "Too many account exports are running right now. Please try again shortly.",
+            "retry_after": RETRY_AFTER_SECS.parse::<u64>().unwrap_or(30),
+        })),
+    )
+        .into_response()
+}
+
 /// Outcome of the detached export stream, recorded as `account.export.completed`.
 #[derive(Debug, Default, PartialEq, Eq)]
 struct ExportOutcome {
     /// True only when the closing `]}` was handed to the client.
     delivered: bool,
     bytes_streamed: u64,
+    resumes_streamed: u64,
+    snapshots_streamed: u64,
     /// Why delivery stopped short, when it did.
     error: Option<String>,
 }
@@ -333,6 +375,8 @@ struct ExportOutcome {
 struct ChunkSink {
     tx: mpsc::Sender<Result<Bytes, io::Error>>,
     bytes_streamed: u64,
+    resumes_streamed: u64,
+    snapshots_streamed: u64,
 }
 
 impl ChunkSink {
@@ -353,6 +397,8 @@ impl ChunkSink {
         ExportOutcome {
             delivered,
             bytes_streamed: self.bytes_streamed,
+            resumes_streamed: self.resumes_streamed,
+            snapshots_streamed: self.snapshots_streamed,
             error,
         }
     }
@@ -361,6 +407,7 @@ impl ChunkSink {
 fn stream_account_export(
     pool: sqlx::PgPool,
     db_tx: sqlx::Transaction<'static, sqlx::Postgres>,
+    permit: OwnedSemaphorePermit,
     user_id: Uuid,
     prefix: Vec<u8>,
     ip_address: Option<String>,
@@ -369,9 +416,14 @@ fn stream_account_export(
         mpsc::channel::<Result<Bytes, io::Error>>(EXPORT_STREAM_CHANNEL_CAPACITY);
 
     tokio::spawn(async move {
+        // Held until this task ends, i.e. until the transaction (and its
+        // connection) is gone, whichever way the stream finishes.
+        let _permit = permit;
         let sink = ChunkSink {
             tx: chunk_tx.clone(),
             bytes_streamed: 0,
+            resumes_streamed: 0,
+            snapshots_streamed: 0,
         };
 
         // The HTTP status has already been sent by the time this task runs, so
@@ -414,6 +466,8 @@ fn stream_account_export(
                 metadata: serde_json::json!({
                     "delivered": outcome.delivered,
                     "bytes_streamed": outcome.bytes_streamed,
+                    "resumes_streamed": outcome.resumes_streamed,
+                    "snapshots_streamed": outcome.snapshots_streamed,
                     "error": outcome.error,
                 }),
                 ip_address: ip_address.as_deref(),
@@ -462,7 +516,7 @@ async fn run_export_stream(
             }
         };
         match stream_resume_row(&mut sink, row, &mut first_resume).await {
-            Ok(true) => {}
+            Ok(true) => sink.resumes_streamed += 1,
             // Client disconnected: stop fetching so the cursor and
             // transaction are dropped immediately.
             Ok(false) => return sink.outcome(false, None),
@@ -505,7 +559,7 @@ async fn run_export_stream(
             }
         };
         match stream_snapshot_row(&mut sink, row, &mut first_snapshot).await {
-            Ok(true) => {}
+            Ok(true) => sink.snapshots_streamed += 1,
             Ok(false) => return sink.outcome(false, None),
             Err(err) => {
                 sink.fail(err.error.clone()).await;
@@ -574,17 +628,25 @@ async fn stream_snapshot_row(
     row: ExportSnapshotRow,
     first: &mut bool,
 ) -> Result<bool, ApiError> {
-    let created_at_json = serde_json::to_string(&row.created_at).map_err(|err| {
-        error!("account export snapshot timestamp serialization failed: {err}");
+    // Same approach as resumes: serde for every field except the raw `data`
+    // document, so the streamed object tracks `ResumeSnapshotExport`.
+    #[derive(Serialize)]
+    struct Head {
+        resume_id: Uuid,
+        version: i32,
+        created_at: DateTime<Utc>,
+    }
+    let mut header = serde_json::to_string(&Head {
+        resume_id: row.resume_id,
+        version: row.version,
+        created_at: row.created_at,
+    })
+    .map_err(|err| {
+        error!("account export snapshot header serialization failed: {err}");
         ApiError::internal("failed to export account data")
     })?;
-    let header = format!(
-        r#"{}{{"resume_id":"{}","version":{},"created_at":{},"data":"#,
-        take_separator(first),
-        row.resume_id,
-        row.version,
-        created_at_json
-    );
+    header.pop();
+    let header = format!(r#"{}{header},"data":"#, take_separator(first));
     stream_json_object(sink, header, &row.data_json).await
 }
 
@@ -925,6 +987,8 @@ mod tests {
         let mut sink = ChunkSink {
             tx,
             bytes_streamed: 0,
+            resumes_streamed: 0,
+            snapshots_streamed: 0,
         };
 
         let delivered = stream_json_object(&mut sink, "{\"data\":".to_string(), "{}")
@@ -940,6 +1004,8 @@ mod tests {
             ExportOutcome {
                 delivered: false,
                 bytes_streamed: 0,
+                resumes_streamed: 0,
+                snapshots_streamed: 0,
                 error: None,
             }
         );
@@ -951,6 +1017,8 @@ mod tests {
         let mut sink = ChunkSink {
             tx,
             bytes_streamed: 0,
+            resumes_streamed: 0,
+            snapshots_streamed: 0,
         };
         let mut first = true;
 
@@ -1047,6 +1115,8 @@ mod tests {
 
         assert_eq!(completion["delivered"], true);
         assert_eq!(completion["bytes_streamed"], body.len() as u64);
+        assert_eq!(completion["resumes_streamed"], 2);
+        assert_eq!(completion["snapshots_streamed"], 4);
         assert!(completion["error"].is_null());
 
         let payload: serde_json::Value = serde_json::from_slice(&body).expect("parse JSON");
@@ -1314,6 +1384,97 @@ mod tests {
         let payload = read_export_payload(response).await;
         cleanup_user(&pool, user.id).await;
         assert_eq!(payload["resumes"].as_array().map(Vec::len), Some(51));
+    }
+
+    #[tokio::test]
+    async fn export_account_caps_concurrent_streams_when_database_available() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+        let pool = connect_test_pool(&database_url).await;
+
+        // Large enough that an unread body parks the stream task on the
+        // channel, keeping its permit (and connection) held.
+        let big = serde_json::json!({ "blob": "x".repeat(EXPORT_STREAM_CHUNK_BYTES * 8) });
+        let user = seed_user_with_resumes(&pool, 1).await;
+        sqlx::query("UPDATE resumes SET data = $1 WHERE user_id = $2")
+            .bind(&big)
+            .bind(user.id)
+            .execute(&pool)
+            .await
+            .expect("inflate resume");
+        let state = test_app_state(pool.clone());
+        assert_eq!(
+            state.export_permits.available_permits(),
+            crate::state::MAX_CONCURRENT_ACCOUNT_EXPORTS
+        );
+
+        let mut parked = Vec::new();
+        for _ in 0..crate::state::MAX_CONCURRENT_ACCOUNT_EXPORTS {
+            let response = export_account(
+                AuthUser(user.clone()),
+                State(state.clone()),
+                HeaderMap::new(),
+            )
+            .await
+            .expect("export starts");
+            assert_eq!(response.status(), StatusCode::OK);
+            parked.push(response);
+        }
+        assert_eq!(state.export_permits.available_permits(), 0);
+
+        // The next export is refused up front, before any audit row or
+        // transaction, with a Retry-After hint.
+        let busy = export_account(
+            AuthUser(user.clone()),
+            State(state.clone()),
+            HeaderMap::new(),
+        )
+        .await
+        .expect("busy is a response, not an error");
+        assert_eq!(busy.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(busy.headers().get(header::RETRY_AFTER).unwrap(), "30");
+        let payload: serde_json::Value =
+            serde_json::from_slice(&read_export_body(busy).await).expect("busy body is JSON");
+        assert!(payload["error"].as_str().is_some());
+        assert_eq!(payload["retry_after"], 30);
+
+        // Drain (finish) the parked downloads: permits come back.
+        for response in parked {
+            let _ = read_export_body(response).await;
+        }
+        for _ in 0..50 {
+            if state.export_permits.available_permits()
+                == crate::state::MAX_CONCURRENT_ACCOUNT_EXPORTS
+            {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+        assert_eq!(
+            state.export_permits.available_permits(),
+            crate::state::MAX_CONCURRENT_ACCOUNT_EXPORTS
+        );
+
+        let again = export_account(AuthUser(user.clone()), State(state), HeaderMap::new())
+            .await
+            .expect("export resumes once a slot is free");
+        assert_eq!(again.status(), StatusCode::OK);
+        let _ = read_export_body(again).await;
+
+        // Only the started exports produced audit rows; the refused one did not.
+        let started: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM audit_events WHERE actor_user_id = $1 AND event_type = 'account.export'",
+        )
+        .bind(user.id)
+        .fetch_one(&pool)
+        .await
+        .expect("count start audits");
+        cleanup_user(&pool, user.id).await;
+        assert_eq!(
+            started as usize,
+            crate::state::MAX_CONCURRENT_ACCOUNT_EXPORTS + 1
+        );
     }
 
     #[tokio::test]

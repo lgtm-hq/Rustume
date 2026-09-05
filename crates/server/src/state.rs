@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use rustume_render::TypstRenderer;
+use tokio::sync::Semaphore;
 
 use crate::cloud::CloudState;
 use crate::config::{rate_limits_enabled_from_env, RateLimitConfig};
@@ -21,7 +22,15 @@ pub struct AppState {
     pub require_auth: bool,
     /// In-memory rate limiters (cloud mode only).
     pub rate_limits: Option<Arc<RateLimitState>>,
+    /// Bounds concurrent GDPR account exports per process. Each export streams
+    /// an unbounded amount of data while holding one database connection, so
+    /// without a ceiling a handful of slow downloads could exhaust the pool
+    /// for every other request.
+    pub export_permits: Arc<Semaphore>,
 }
+
+/// Maximum account exports streaming at once per server process.
+pub const MAX_CONCURRENT_ACCOUNT_EXPORTS: usize = 2;
 
 impl AppState {
     /// Build application state with a shared Typst renderer instance.
@@ -36,6 +45,7 @@ impl AppState {
             renderer: Arc::new(TypstRenderer::new()),
             require_auth: crate::cloud::require_auth_enabled(),
             rate_limits,
+            export_permits: Arc::new(Semaphore::new(MAX_CONCURRENT_ACCOUNT_EXPORTS)),
         }
     }
 
@@ -66,6 +76,7 @@ impl AppState {
             renderer: Arc::new(TypstRenderer::new()),
             require_auth,
             rate_limits,
+            export_permits: Arc::new(Semaphore::new(MAX_CONCURRENT_ACCOUNT_EXPORTS)),
         }
     }
 
