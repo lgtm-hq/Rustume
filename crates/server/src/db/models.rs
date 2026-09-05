@@ -732,41 +732,43 @@ mod tests {
             .expect("ACCOUNT_EXPORT_CONTENTS constant exists")..];
         let constant = &constant[..constant.find("} as const;").expect("constant ends")];
 
-        // One phrase per exported collection.
-        for (field, phrase) in [
-            ("account", "your profile"),
-            ("policy_acceptances", "policy acceptances"),
-            (
-                "subscriptions",
+        /// Pull the double-quoted string literals out of `<key>[ ... ]`.
+        fn string_array(source: &str, key: &str) -> Vec<String> {
+            let start = source
+                .find(key)
+                .unwrap_or_else(|| panic!("{key} array present"));
+            let body = &source[start + key.len()..];
+            let body = &body[..body.find(']').expect("array closes")];
+            body.split('"')
+                .skip(1)
+                .step_by(2)
+                .map(str::to_string)
+                .collect()
+        }
+
+        // The exact arrays, in order: one sentence per exported collection
+        // (resumes and their snapshots are one object graph, so one sentence)
+        // and every documented exclusion. Substring checks would let stale or
+        // extra copy through.
+        assert_eq!(
+            string_array(constant, "included: ["),
+            [
+                "your profile",
+                "policy acceptances",
                 "billing subscriptions (including Paddle subscription and price ids)",
-            ),
-            (
-                "resumes",
                 "every resume with its retained version snapshots",
-            ),
-            ("resume_snapshots", "version snapshots"),
-            (
-                "audit_events",
-                "audit trail (including the IP addresses recorded with each event)",
-            ),
-        ] {
-            assert!(
-                constant.contains(phrase),
-                "web copy must describe `{field}`: {phrase}"
-            );
-        }
-        // Every documented exclusion.
-        for excluded in [
-            "sessions",
-            "the WorkOS user id",
-            "the Paddle customer id",
-            "share password hashes",
-        ] {
-            assert!(
-                constant.contains(excluded),
-                "web copy must name exclusion: {excluded}"
-            );
-        }
+                "your account's audit trail (including the IP addresses recorded with each event)",
+            ]
+        );
+        assert_eq!(
+            string_array(constant, "excluded: ["),
+            [
+                "sessions",
+                "the WorkOS user id",
+                "the Paddle customer id",
+                "share password hashes",
+            ]
+        );
         // And the schema itself still has exactly these collections.
         let export = AccountDataExport {
             exported_at: Utc::now(),

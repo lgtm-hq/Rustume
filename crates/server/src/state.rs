@@ -5,7 +5,7 @@ use rustume_render::TypstRenderer;
 use tokio::sync::Semaphore;
 
 use crate::cloud::CloudState;
-use crate::config::{rate_limits_enabled_from_env, RateLimitConfig};
+use crate::config::{floor_export_concurrency, rate_limits_enabled_from_env, RateLimitConfig};
 use crate::middleware::rate_limit::RateLimitState;
 
 /// Shared router state for all handlers.
@@ -30,6 +30,14 @@ pub struct AppState {
     pub export_permits: Arc<Semaphore>,
 }
 
+/// The one place the export semaphore is sized, so production and test
+/// constructors cannot drift on the floor policy.
+fn export_permits(config: &RateLimitConfig) -> Arc<Semaphore> {
+    Arc::new(Semaphore::new(
+        floor_export_concurrency(config.account_export_concurrency) as usize,
+    ))
+}
+
 impl AppState {
     /// Build application state with a shared Typst renderer instance.
     pub fn new(static_dir: Arc<PathBuf>, cloud: Option<Arc<CloudState>>) -> Self {
@@ -50,11 +58,8 @@ impl AppState {
         rate_limits_enabled: bool,
     ) -> Self {
         // The export ceiling applies even when per-minute limits are disabled
-        // for local development: it protects the pool, not the quota. Floor of
-        // one slot, or exports could never start.
-        let export_permits = Arc::new(Semaphore::new(
-            config.account_export_concurrency.max(1) as usize
-        ));
+        // for local development: it protects the pool, not the quota.
+        let export_permits = export_permits(&config);
         let rate_limits = cloud
             .as_ref()
             .filter(|_| rate_limits_enabled)
@@ -87,9 +92,7 @@ impl AppState {
         require_auth: bool,
         rate_limit_config: RateLimitConfig,
     ) -> Self {
-        let export_permits = Arc::new(Semaphore::new(
-            rate_limit_config.account_export_concurrency.max(1) as usize,
-        ));
+        let export_permits = export_permits(&rate_limit_config);
         let rate_limits = cloud
             .as_ref()
             .map(|_| Arc::new(RateLimitState::new(rate_limit_config)));

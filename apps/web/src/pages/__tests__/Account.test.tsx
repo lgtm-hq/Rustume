@@ -254,17 +254,18 @@ describe("Account page", () => {
     mockAuthState.loading = false;
     mockAuthState.cloudEnabled = true;
     mockAuthState.user = { id: "user-1", plan: "free", email: "dev@example.com" };
-    vi.mocked(api).mockRejectedValueOnce(
-      new ApiError(413, "Bulk export is limited to 50 resumes per request"),
-    );
+    // The server's real 413 body (reject_export_over_resume_cap in export.rs).
+    vi.mocked(api).mockRejectedValueOnce(new ApiError(413, "Export exceeds maximum of 50 resumes"));
 
     renderAccount();
-    fireEvent.click(screen.getByRole("button", { name: label }));
+    const button = screen.getByRole("button", { name: label });
+    fireEvent.click(button);
 
     const { toast } = await import("../../components/ui");
     await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith("Bulk export is limited to 50 resumes per request"),
+      expect(toast.error).toHaveBeenCalledWith("Export exceeds maximum of 50 resumes"),
     );
+    await waitFor(() => expect(button).not.toBeDisabled());
   });
 
   // The page never branches on status or retry_after; it shows the server's
