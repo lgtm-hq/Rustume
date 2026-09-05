@@ -96,13 +96,12 @@ resume, every retained version snapshot, and the account's audit trail under its
 shared per-IP bucket like every other signed-in route (see Scope above). Each export is recorded
 in the audit log.
 
-Because an export keeps one database connection busy for as long as the client is downloading,
-each server process also caps **concurrent** exports, at **2** by default
-(`RATE_LIMIT_ACCOUNT_EXPORT_CONCURRENCY`; keep it well below `DB_MAX_CONNECTIONS`). When both slots are taken the
-request is refused up front with `503 Service Unavailable`, a `Retry-After: 30` header, and the
-same `{ "error", "retry_after" }` body as a `429`; nothing is written to the audit log for a
-refused request. The ceiling
-is per process and multiplies with the number of replicas.
+Because an export keeps one database connection busy for as long as the client is downloading, each
+server process also caps **concurrent** exports, at **2** by default
+(`RATE_LIMIT_ACCOUNT_EXPORT_CONCURRENCY`; keep it well below `DB_MAX_CONNECTIONS`). When both slots
+are taken the request is refused up front with `503 Service Unavailable`, a `Retry-After: 30`
+header, and the same `{ "error", "retry_after" }` body as a `429`; nothing is written to the audit
+log for a refused request. The ceiling is per process and multiplies with the number of replicas.
 
 ## Configuration
 
