@@ -33,6 +33,7 @@ const DELETE_CONFIRMATION: &str = "DELETE";
         (status = 200, description = "Username updated", body = UpdateAccountResponse),
         (status = 400, description = "Invalid username", body = ApiError),
         (status = 401, description = "Not authenticated", body = ApiError),
+        (status = 404, description = "Account no longer exists", body = ApiError),
         (status = 409, description = "Username already taken", body = ApiError),
         (status = 500, description = "Update failed", body = ApiError),
     ),
@@ -313,14 +314,16 @@ mod tests {
         for (input, message) in [
             (
                 "Bad_Name",
-                "username may only contain lowercase letters, digits, and hyphens",
+                "Username may only contain lowercase letters, digits, and hyphens",
             ),
-            ("ab", "username must be 3-32 characters"),
+            ("ab", "Username must be 3-32 characters"),
+            ("", "Username must be 3-32 characters"),
+            ("   ", "Username must be 3-32 characters"),
             (
                 "-swift",
-                "username cannot start, end, or contain consecutive hyphens",
+                "Username cannot start, end, or contain consecutive hyphens",
             ),
-            ("admin", "username is reserved"),
+            ("admin", "Username is reserved"),
         ] {
             let err = update_account(
                 AuthUser(user.clone()),

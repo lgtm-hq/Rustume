@@ -197,9 +197,7 @@ pub async fn upsert_user(
         let username = generate_username();
         match upsert_user_with_username(pool, workos_user, &username).await {
             Ok(upserted) => return Ok(upserted.into()),
-            Err(sqlx::Error::Database(db_err)) if db_err.code().as_deref() == Some("23505") => {
-                continue;
-            }
+            Err(err) if is_username_collision(&err) => continue,
             Err(err) => return Err(err),
         }
     }
@@ -214,14 +212,28 @@ pub async fn upsert_user(
         debug_assert!(crate::auth::username::validate_username(&fallback).is_ok());
         match upsert_user_with_username(pool, workos_user, &fallback).await {
             Ok(upserted) => return Ok(upserted.into()),
-            Err(sqlx::Error::Database(db_err)) if db_err.code().as_deref() == Some("23505") => {
-                last_err = Some(sqlx::Error::Database(db_err));
-            }
+            Err(err) if is_username_collision(&err) => last_err = Some(err),
             Err(err) => return Err(err),
         }
     }
     Err(last_err.expect("at least one fallback attempt"))
 }
+
+/// Only a unique violation on the username index is worth retrying with a
+/// new handle; any other 23505 (for example a duplicate email) is a real
+/// failure and must surface immediately instead of burning retries.
+fn is_username_collision(err: &sqlx::Error) -> bool {
+    match err {
+        sqlx::Error::Database(db_err) => {
+            db_err.code().as_deref() == Some("23505")
+                && db_err.constraint() == Some(USERNAME_UNIQUE_INDEX)
+        }
+        _ => false,
+    }
+}
+
+/// Unique index created by migration 010.
+const USERNAME_UNIQUE_INDEX: &str = "idx_users_username_unique";
 
 /// Random lowercase-hex fallback handle: `user-` plus eight hex characters.
 fn fallback_username() -> String {
@@ -314,6 +326,96 @@ async fn upsert_user_with_username(
 
 #[cfg(test)]
 mod tests {
+    #[tokio::test]
+    async fn only_username_unique_violations_are_retried_when_database_available() {
+        let Some(url) = std::env::var("TEST_DATABASE_URL")
+            .ok()
+            .filter(|url| url.contains("_test"))
+        else {
+            if std::env::var("CI").is_ok() {
+                panic!("workos integration test needs TEST_DATABASE_URL naming a *_test database");
+            }
+            eprintln!("SKIP workos integration test: TEST_DATABASE_URL not set");
+            return;
+        };
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .max_connections(2)
+            .connect(&url)
+            .await
+            .expect("connect");
+        sqlx::migrate!("./src/db/migrations")
+            .run(&pool)
+            .await
+            .expect("migrate");
+
+        let suffix = &uuid::Uuid::new_v4().simple().to_string()[..8];
+        let taken = format!("taken-{suffix}");
+        let existing_email = format!("existing-{suffix}@example.com");
+        let existing_workos = format!("user_EXISTING{suffix}");
+        sqlx::query("INSERT INTO users (workos_id, email, username) VALUES ($1, $2, $3)")
+            .bind(&existing_workos)
+            .bind(&existing_email)
+            .bind(&taken)
+            .execute(&pool)
+            .await
+            .expect("seed existing user");
+
+        // Same handle, new WorkOS id: a username collision, retryable.
+        let newcomer = super::WorkOsUser {
+            id: format!("user_NEW{suffix}"),
+            email: format!("new-{suffix}@example.com"),
+            first_name: None,
+            last_name: None,
+        };
+        let err = super::upsert_user_with_username(&pool, &newcomer, &taken)
+            .await
+            .expect_err("duplicate username must fail");
+        assert!(super::is_username_collision(&err), "{err:?}");
+
+        // Duplicate email, fresh handle: a different unique index, not retryable.
+        let duplicate_email = super::WorkOsUser {
+            id: format!("user_DUP{suffix}"),
+            email: existing_email.clone(),
+            first_name: None,
+            last_name: None,
+        };
+        let err =
+            super::upsert_user_with_username(&pool, &duplicate_email, &format!("free-{suffix}"))
+                .await
+                .expect_err("duplicate email must fail");
+        assert!(!super::is_username_collision(&err), "{err:?}");
+
+        // Through the public entry point the email conflict surfaces at once
+        // rather than after the retry budget.
+        let err = super::upsert_user(&pool, &duplicate_email)
+            .await
+            .expect_err("duplicate email must surface");
+        assert!(matches!(err, sqlx::Error::Database(_)));
+
+        // A returning user is refreshed without touching their handle.
+        let returning = super::WorkOsUser {
+            id: existing_workos.clone(),
+            email: format!("renamed-{suffix}@example.com"),
+            first_name: None,
+            last_name: None,
+        };
+        let refreshed = super::upsert_user(&pool, &returning)
+            .await
+            .expect("returning user");
+        assert!(!refreshed.is_new);
+        assert_eq!(refreshed.user.username, taken);
+        assert_eq!(
+            refreshed.user.email.as_deref(),
+            Some(returning.email.as_str())
+        );
+
+        sqlx::query("DELETE FROM users WHERE workos_id = $1")
+            .bind(&existing_workos)
+            .execute(&pool)
+            .await
+            .expect("cleanup");
+    }
+
     #[test]
     fn fallback_username_is_valid_and_random() {
         let first = super::fallback_username();

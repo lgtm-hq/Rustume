@@ -20,22 +20,24 @@ const RESERVED_USERNAMES: ReadonlySet<string> = new Set(usernameRules.reserved);
 const USERNAME_MIN_LENGTH: number = usernameRules.min_length;
 const USERNAME_MAX_LENGTH: number = usernameRules.max_length;
 const USERNAME_PATTERN = new RegExp(usernameRules.pattern);
+const USERNAME_MESSAGES = usernameRules.messages;
+const USERNAME_LENGTH_MESSAGE = USERNAME_MESSAGES.length
+  .replace("{min}", String(USERNAME_MIN_LENGTH))
+  .replace("{max}", String(USERNAME_MAX_LENGTH));
 
 /** Client-side username validation mirroring the server rules. */
 export function validateUsername(username: string): string | null {
   const normalized = username.trim().toLowerCase();
   if (normalized.length < USERNAME_MIN_LENGTH || normalized.length > USERNAME_MAX_LENGTH) {
-    return `Username must be ${USERNAME_MIN_LENGTH}-${USERNAME_MAX_LENGTH} characters`;
+    return USERNAME_LENGTH_MESSAGE;
   }
   if (!USERNAME_PATTERN.test(normalized)) {
     // The pattern is the rule; the two messages only explain which part of it
     // failed. Same split as the server.
-    return /[^a-z0-9-]/.test(normalized)
-      ? "Username may only contain lowercase letters, digits, and hyphens"
-      : "Username cannot start, end, or contain consecutive hyphens";
+    return /[^a-z0-9-]/.test(normalized) ? USERNAME_MESSAGES.charset : USERNAME_MESSAGES.hyphens;
   }
   if (RESERVED_USERNAMES.has(normalized)) {
-    return "Username is reserved";
+    return USERNAME_MESSAGES.reserved;
   }
   return null;
 }
