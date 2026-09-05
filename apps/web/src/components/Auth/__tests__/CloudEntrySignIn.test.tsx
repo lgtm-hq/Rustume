@@ -63,7 +63,12 @@ function renderAppComposition() {
 describe("Cloud entry sign-in (#589)", () => {
   beforeEach(async () => {
     probeAuthMock.mockReset();
-    probeAuthMock.mockResolvedValue({ mode: "cloud", requireAuth: true, user: null });
+    probeAuthMock.mockResolvedValue({
+      mode: "cloud",
+      requireAuth: true,
+      user: null,
+      billingEnabled: false,
+    });
     // refresh() does not clear dialog state; without this a test failing between
     // the click and its assertion bleeds an open modal into the next test.
     authStore.closeSignInDialog();
@@ -86,7 +91,12 @@ describe("Cloud entry sign-in (#589)", () => {
   });
 
   it("blocks cloud deployments even when require-auth is off", async () => {
-    probeAuthMock.mockResolvedValue({ mode: "cloud", requireAuth: false, user: null });
+    probeAuthMock.mockResolvedValue({
+      mode: "cloud",
+      requireAuth: false,
+      user: null,
+      billingEnabled: false,
+    });
     await authStore.refresh();
 
     renderAppComposition();
