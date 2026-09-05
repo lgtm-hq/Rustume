@@ -97,12 +97,12 @@ shared per-IP bucket like every other signed-in route (see Scope above). Each ex
 in the audit log.
 
 Because an export keeps one database connection busy for as long as the client is downloading,
-each server process also caps **concurrent** exports at **2**. When both slots are taken the
+each server process also caps **concurrent** exports, at **2** by default
+(`RATE_LIMIT_ACCOUNT_EXPORT_CONCURRENCY`; keep it well below `DB_MAX_CONNECTIONS`). When both slots are taken the
 request is refused up front with `503 Service Unavailable`, a `Retry-After: 30` header, and the
 same `{ "error", "retry_after" }` body as a `429`; nothing is written to the audit log for a
-refused request. This ceiling
-is a build-time constant, not an environment variable, and multiplies with the number of
-replicas.
+refused request. The ceiling
+is per process and multiplies with the number of replicas.
 
 ## Configuration
 
@@ -121,6 +121,7 @@ RATE_LIMIT_METRICS_PER_MIN=60
 RATE_LIMIT_UNAUTHENTICATED_PER_MIN=30
 RATE_LIMIT_BILLABLE_PER_MIN=30   # templates, parse, validate (not subscription-gated)
 RATE_LIMIT_ACCOUNT_EXPORT_PER_MIN=5   # GET /api/account/export
+RATE_LIMIT_ACCOUNT_EXPORT_CONCURRENCY=2   # concurrent exports per process (503 + Retry-After beyond)
 RATE_LIMIT_ACCOUNT_DELETE_PER_MIN=5   # DELETE /api/account
 TRUSTED_PROXY=true   # only behind a trusted reverse proxy
 ```

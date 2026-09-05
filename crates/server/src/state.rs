@@ -22,30 +22,32 @@ pub struct AppState {
     pub require_auth: bool,
     /// In-memory rate limiters (cloud mode only).
     pub rate_limits: Option<Arc<RateLimitState>>,
-    /// Bounds concurrent GDPR account exports per process. Each export streams
+    /// Bounds concurrent GDPR account exports per process
+    /// (`RATE_LIMIT_ACCOUNT_EXPORT_CONCURRENCY`, default 2). Each export streams
     /// an unbounded amount of data while holding one database connection, so
     /// without a ceiling a handful of slow downloads could exhaust the pool
     /// for every other request.
     pub export_permits: Arc<Semaphore>,
 }
 
-/// Maximum account exports streaming at once per server process.
-pub const MAX_CONCURRENT_ACCOUNT_EXPORTS: usize = 2;
-
 impl AppState {
     /// Build application state with a shared Typst renderer instance.
     pub fn new(static_dir: Arc<PathBuf>, cloud: Option<Arc<CloudState>>) -> Self {
+        let config = RateLimitConfig::from_env();
+        // The export ceiling applies even when per-minute limits are disabled
+        // for local development: it protects the pool, not the quota.
+        let export_permits = Arc::new(Semaphore::new(config.account_export_concurrency as usize));
         let rate_limits = cloud
             .as_ref()
             .filter(|_| rate_limits_enabled_from_env())
-            .map(|_| Arc::new(RateLimitState::new(RateLimitConfig::from_env())));
+            .map(|_| Arc::new(RateLimitState::new(config)));
         Self {
             static_dir,
             cloud,
             renderer: Arc::new(TypstRenderer::new()),
             require_auth: crate::cloud::require_auth_enabled(),
             rate_limits,
-            export_permits: Arc::new(Semaphore::new(MAX_CONCURRENT_ACCOUNT_EXPORTS)),
+            export_permits,
         }
     }
 
@@ -67,6 +69,9 @@ impl AppState {
         require_auth: bool,
         rate_limit_config: RateLimitConfig,
     ) -> Self {
+        let export_permits = Arc::new(Semaphore::new(
+            rate_limit_config.account_export_concurrency.max(1) as usize,
+        ));
         let rate_limits = cloud
             .as_ref()
             .map(|_| Arc::new(RateLimitState::new(rate_limit_config)));
@@ -76,7 +81,7 @@ impl AppState {
             renderer: Arc::new(TypstRenderer::new()),
             require_auth,
             rate_limits,
-            export_permits: Arc::new(Semaphore::new(MAX_CONCURRENT_ACCOUNT_EXPORTS)),
+            export_permits,
         }
     }
 
