@@ -19,12 +19,12 @@ plaintext to do their job.
 
 This settles the storage question for four deployment shapes with one codebase:
 
-| Shape             | Local store      | Relay                         | Identity                             |
-| ----------------- | ---------------- | ----------------------------- | ------------------------------------ |
-| Browser-only      | IndexedDB (WASM) | none                          | none                                 |
-| Rustume Cloud     | IndexedDB (WASM) | Postgres, operated by Rustume | WorkOS email sign-in                 |
-| Self-hosted relay | IndexedDB (WASM) | SQLite on a volume, your box  | implicit local user + optional token |
-| Desktop / mobile  | SQLite (native)  | any of the above              | as the relay requires                |
+| Shape             | Local store      | Relay                                             | Identity                             |
+| ----------------- | ---------------- | ------------------------------------------------- | ------------------------------------ |
+| Browser-only      | IndexedDB (WASM) | none (static build, or hosted app before sign-in) | none                                 |
+| Rustume Cloud     | IndexedDB (WASM) | Postgres, operated by Rustume                     | WorkOS email sign-in                 |
+| Self-hosted relay | IndexedDB (WASM) | SQLite on a volume, your box                      | implicit local user + optional token |
+| Desktop / mobile  | SQLite (native)  | any of the above                                  | as the relay requires                |
 
 **Decisions at a glance:**
 
@@ -307,6 +307,11 @@ The relay stores the minimum needed to authenticate and bill:
 | Plan, Paddle customer         | yes                          | none                         |
 | `e2ee_config`, recovery blobs | yes                          | yes unless plaintext allowed |
 
+The self-hosted container stores data by default. `docker compose up` starts the
+relay with SQLite on the mounted volume and no profile flag; the browser copy is a
+working replica, never the system of record. Browser-only mode is for the static
+build and the hosted app before sign-in, not for a container someone chose to run.
+
 Self-hosted relay authentication is an implicit single local user. When the relay
 binds to a non-loopback address without `RUSTUME_ACCESS_TOKEN` set, it logs a loud
 warning at startup. With the token set, every sync request must present it.
@@ -342,12 +347,15 @@ the library. Same as a second device.
 **Cloud-only user, lost passphrase.** Enter a recovery code, set a new passphrase.
 Without a recovery code: account reset, documents gone. Support cannot help and says so.
 
-**Self-hoster.** `docker compose --profile storage up`. Open the app; no sign-in. Set a
+**Self-hoster.** `docker compose up`. The container is the relay and stores the
+library in SQLite on the mounted volume by default; no profile flag, no second
+container. Open the app; no sign-in. Set a
 passphrase, or set `RUSTUME_ALLOW_PLAINTEXT=true` and skip it. Back up by copying
 `/data/rustume.db`. Later, link to Cloud from the account page to sync the same
 library to a phone.
 
-**Browser-only user.** Unchanged from today. Optional app lock. Manual export is the
+**Browser-only user.** Only the static build and the hosted app before sign-in.
+Unchanged from today. Optional app lock. Manual export is the
 backup.
 
 ## Relationship to existing RFCs
@@ -407,7 +415,7 @@ own. Implementation issues are opened when this RFC is accepted.
 | ----- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | ----------------------------------- |
 | 1     | `crates/crypto`, WASM bindings, `users.e2ee_config`, passphrase and recovery UI, default-on for new accounts, existing-account migration | RFC 0001 items 1–5 | #44, #369                           |
 | 2     | Local-first web client: IndexedDB primary, sync engine on `/api/sync/*`, offline queue, conflict UI, status surface                      | Phase 1            | #42, #43, #645, RFC 0002 orders 2–4 |
-| 3     | `DocumentRepo` trait, SQLite engine, self-hosted relay, `storage` compose profile, access token, import-from-browser prompt              | Phase 2            | #254 (this issue), closes #487      |
+| 3     | `DocumentRepo` trait, SQLite engine, self-hosted relay on by default in `docker compose up`, access token, import-from-browser prompt    | Phase 2            | #254 (this issue), closes #487      |
 | 4     | Client-side rendering: font strategy, lazy module, equivalence CI, offline export, server fallback toggle                                | #682 outcome       | #61, #633 follow-up                 |
 | 5     | Explicit publish snapshots wired into #359 / #360; account export over envelopes (#353)                                                  | Phase 1            | #65, #408                           |
 | 6     | Relay-to-Cloud linking, desktop and mobile clients on the shared crates                                                                  | Phases 2, 3        | RFC 0002 orders 1, 5–7; #9 Android  |
