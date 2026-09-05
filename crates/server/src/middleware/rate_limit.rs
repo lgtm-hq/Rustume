@@ -28,7 +28,7 @@ type KeyedRateLimiter =
     RateLimiter<String, dashmap::DashMap<String, governor::state::InMemoryState>, DefaultClock>;
 
 /// Route groups with distinct rate limits.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RateLimitGroup {
     ResumeCrud,
     Import,
@@ -331,7 +331,11 @@ async fn enforce_session_rate_limit(
     if let Some(api_key) = api_key_rate_limit_key(state, headers).await {
         rate_limits.check(group, &ip_key)?;
         rate_limits.check(RateLimitGroup::ApiKey, &api_key)?;
-        rate_limits.check(group, &api_key)?;
+        // On the key-management routes `group` is already the per-key bucket;
+        // do not charge the same token twice.
+        if group != RateLimitGroup::ApiKey {
+            rate_limits.check(group, &api_key)?;
+        }
         return Ok(next.run(request).await);
     }
 

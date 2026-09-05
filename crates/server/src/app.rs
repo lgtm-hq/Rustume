@@ -208,6 +208,13 @@ pub fn create_router_with_state(state: AppState) -> Router {
                 rate_limit_api_key,
             ));
         }
+        // Defense in depth alongside the SessionAuthUser extractor: the layer
+        // gives a uniform 401 before the handler, the extractor keeps API keys
+        // from managing keys.
+        api_key_routes = api_key_routes.route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            require_auth_when_enabled,
+        ));
 
         let mut export_json_routes = Router::new()
             .route("/api/resumes/export", get(export_resumes_json))

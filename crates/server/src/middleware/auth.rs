@@ -140,6 +140,12 @@ async fn user_from_api_key(
     Ok(Some(user))
 }
 
+/// Record key usage without holding up the request.
+///
+/// `last_used_at` is eventually consistent by design: the update runs on a
+/// spawned task after authentication succeeds, so a request can complete before
+/// the column is written and a write lost during shutdown is tolerated. It is
+/// telemetry for the account UI, not an authorization input.
 fn touch_api_key_last_used(pool: sqlx::PgPool, key_id: Uuid) {
     tokio::spawn(async move {
         let result = sqlx::query(
@@ -245,8 +251,9 @@ mod tests {
         use crate::cloud::CloudState;
         use crate::db::CreateApiKeyRequest;
         use crate::error::ApiErrorKind;
-        use crate::routes::api_keys::{create_api_key, list_api_keys};
+        use crate::routes::api_keys::{create_api_key, list_api_keys, revoke_api_key};
         use axum::body::Body;
+        use axum::extract::Path;
         use axum::extract::State;
         use axum::http::{header, Request, StatusCode};
         use axum::Json;
@@ -390,19 +397,111 @@ mod tests {
                 .expect_err("unknown key is rejected");
             assert!(matches!(err.kind, ApiErrorKind::Unauthorized));
 
-            // Revoked key stops working immediately.
-            sqlx::query("UPDATE api_keys SET revoked_at = now() WHERE id = $1")
-                .bind(key_id)
-                .execute(&pool)
-                .await
-                .expect("revoke");
+            // last_used_at is written by a spawned task after a successful auth.
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+            loop {
+                let (last_used,): (Option<chrono::DateTime<chrono::Utc>>,) =
+                    sqlx::query_as("SELECT last_used_at FROM api_keys WHERE id = $1")
+                        .bind(key_id)
+                        .fetch_one(&pool)
+                        .await
+                        .expect("read last_used_at");
+                if last_used.is_some() {
+                    break;
+                }
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "last_used_at was not recorded within 5s"
+                );
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            }
+
+            // A different user cannot revoke the key, and gets 404 rather than a hint.
+            let other = seed_user(&pool).await;
+            let err = revoke_api_key(
+                SessionAuthUser(other.clone()),
+                State(state.clone()),
+                HeaderMap::new(),
+                Path(key_id),
+            )
+            .await
+            .expect_err("non-owner cannot revoke");
+            assert!(matches!(err.kind, ApiErrorKind::NotFound));
+
+            // The owner revokes through the handler; the key stops working immediately.
+            let status = revoke_api_key(
+                SessionAuthUser(user.clone()),
+                State(state.clone()),
+                HeaderMap::new(),
+                Path(key_id),
+            )
+            .await
+            .expect("owner revokes");
+            assert_eq!(status, StatusCode::NO_CONTENT);
             let mut parts = parts_with_header(header::AUTHORIZATION, format!("Bearer {token}"));
             let err = AuthUser::from_request_parts(&mut parts, &state)
                 .await
                 .expect_err("revoked key is rejected");
             assert!(matches!(err.kind, ApiErrorKind::Unauthorized));
 
+            // Revoking again is a 404, not a second audit event.
+            let err = revoke_api_key(
+                SessionAuthUser(user.clone()),
+                State(state.clone()),
+                HeaderMap::new(),
+                Path(key_id),
+            )
+            .await
+            .expect_err("already revoked");
+            assert!(matches!(err.kind, ApiErrorKind::NotFound));
+
+            cleanup_user(&pool, other.id).await;
             cleanup_user(&pool, user.id).await;
+        }
+
+        #[tokio::test]
+        async fn session_cookie_wins_over_api_key_for_auth_user() {
+            let Some(url) = database_url_for_tests() else {
+                return;
+            };
+            let pool = connect_test_pool(&url).await;
+            let cookie_user = seed_user(&pool).await;
+            let key_user = seed_user(&pool).await;
+            let (_, token) = seed_key(&pool, key_user.id, "CI").await;
+            let state = test_app_state(pool.clone());
+            let cloud = state.cloud().expect("cloud");
+            let (_, cookie) = cloud
+                .sessions
+                .create(cookie_user.id)
+                .await
+                .expect("create session");
+
+            let (mut parts, _) = Request::builder()
+                .uri("/api/resumes")
+                .header(
+                    header::COOKIE,
+                    format!("{}={}", cookie.name(), cookie.value()),
+                )
+                .header(header::AUTHORIZATION, format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap()
+                .into_parts();
+
+            let AuthUser(user) = AuthUser::from_request_parts(&mut parts, &state)
+                .await
+                .expect("session authenticates");
+            assert_eq!(
+                user.id, cookie_user.id,
+                "session cookie must take precedence"
+            );
+
+            let SessionAuthUser(user) = SessionAuthUser::from_request_parts(&mut parts, &state)
+                .await
+                .expect("session-only extractor accepts the cookie");
+            assert_eq!(user.id, cookie_user.id);
+
+            cleanup_user(&pool, key_user.id).await;
+            cleanup_user(&pool, cookie_user.id).await;
         }
 
         #[tokio::test]
