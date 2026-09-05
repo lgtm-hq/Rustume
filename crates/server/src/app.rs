@@ -2,7 +2,7 @@ use axum::{
     extract::DefaultBodyLimit,
     http::{header, HeaderValue, Method},
     middleware,
-    routing::{delete, get, post, put},
+    routing::{delete, get, patch, post, put},
     Router,
 };
 use std::path::PathBuf;
@@ -32,7 +32,7 @@ use crate::routes::{
     export_resumes_pdf, get_resume, get_resume_version, health, import_resumes,
     list_resume_versions, list_resumes, list_templates, login, logout, me, metrics, parse,
     render_pdf, render_preview, restore_resume_version, security_txt, spa_fallback, static_dir,
-    template_thumbnail, update_resume, update_sharing, validate, version,
+    template_thumbnail, update_account, update_resume, update_sharing, validate, version,
 };
 use crate::state::AppState;
 
@@ -199,6 +199,17 @@ pub fn create_router_with_state(state: AppState) -> Router {
             require_auth_when_enabled,
         ));
 
+        let mut account_update_routes = Router::new().route("/api/account", patch(update_account));
+        if cloud_rate_limits {
+            account_update_routes = account_update_routes.route_layer(
+                middleware::from_fn_with_state(state_for_layers.clone(), rate_limit_resume_crud),
+            );
+        }
+        account_update_routes = account_update_routes.route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            require_auth_when_enabled,
+        ));
+
         let mut export_json_routes = Router::new()
             .route("/api/resumes/export", get(export_resumes_json))
             .route_layer(middleware::from_fn_with_state(
@@ -231,7 +242,8 @@ pub fn create_router_with_state(state: AppState) -> Router {
             .merge(import_routes)
             .merge(export_json_routes)
             .merge(export_pdf_routes)
-            .merge(account_routes);
+            .merge(account_routes)
+            .merge(account_update_routes);
     }
 
     let router = router
@@ -257,6 +269,7 @@ fn build_cors_layer_for_origin(origin: Option<String>) -> CorsLayer {
             Method::GET,
             Method::POST,
             Method::PUT,
+            Method::PATCH,
             Method::DELETE,
             Method::OPTIONS,
         ])

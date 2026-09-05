@@ -150,6 +150,10 @@ export const deleteAccountResponseSchema = z.object({
   message: z.string(),
 });
 
+export const updateAccountResponseSchema = z.object({
+  username: z.string(),
+});
+
 export const authRequireAuthSchema = z.object({
   require_auth: z.boolean().optional(),
 });
@@ -158,8 +162,7 @@ const authMePayloadSchema = z.object({
   id: z.string(),
   plan: z.string(),
   email: z.string().optional(),
-  first_name: z.string().optional(),
-  last_name: z.string().optional(),
+  username: z.string().optional(),
   subscription: z.unknown().optional(),
   require_auth: z.boolean().optional(),
 });
@@ -168,8 +171,7 @@ export interface ParsedAuthUser {
   id: string;
   plan: string;
   email?: string;
-  first_name?: string;
-  last_name?: string;
+  username: string;
   subscription?: {
     status: string;
     expires_at?: string;
@@ -206,16 +208,16 @@ export function parseAuthMePayload(payload: unknown): {
   }
 
   const record = result.data;
-  const user: ParsedAuthUser = { id: record.id, plan: record.plan };
+  // Older server builds omit `username`; derive a stable placeholder so the
+  // account UI always has a handle to show.
+  const username =
+    record.username !== undefined && record.username.length > 0
+      ? record.username
+      : `user-${record.id.slice(0, 8)}`;
+  const user: ParsedAuthUser = { id: record.id, plan: record.plan, username };
 
   if (record.email !== undefined) {
     user.email = record.email;
-  }
-  if (record.first_name !== undefined) {
-    user.first_name = record.first_name;
-  }
-  if (record.last_name !== undefined) {
-    user.last_name = record.last_name;
   }
 
   const subscription = parseSubscription(record.subscription);

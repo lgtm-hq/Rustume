@@ -9,8 +9,7 @@ export interface AuthUser {
   id: string;
   plan: string;
   email?: string;
-  first_name?: string;
-  last_name?: string;
+  username: string;
   subscription?: SubscriptionInfo;
 }
 
@@ -23,16 +22,10 @@ function parseRequireAuth(payload: unknown): boolean {
   return result.success && result.data.require_auth === true;
 }
 
-/** Build a display label from profile fields, falling back to email or a generic label. */
-export function userDisplayName(
-  user: Pick<AuthUser, "email" | "first_name" | "last_name">,
-): string {
-  const parts = [user.first_name, user.last_name].filter(Boolean);
-  if (parts.length > 0) {
-    return parts.join(" ");
-  }
-  if (user.email) {
-    return user.email;
+/** Build a display label from the username, falling back to a generic label. */
+export function userDisplayName(user: Pick<AuthUser, "username">): string {
+  if (user.username) {
+    return user.username;
   }
   return "Account";
 }
