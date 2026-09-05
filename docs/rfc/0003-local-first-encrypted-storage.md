@@ -133,16 +133,16 @@ like to the user; the difference is where the durable copy lives.
 
 A relay's document API is the sync protocol from RFC 0002, generalised:
 
-| Method   | Path                                      | Purpose                                                                                                                    |
-| -------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/api/sync/changes?since=`                | Delta of document ids, versions, content tags, tombstones; `Sync-Client` required, advances the client's cursor row        |
-| `GET`    | `/api/sync/docs/{id}`                     | Fetch one envelope with version metadata                                                                                   |
-| `PUT`    | `/api/sync/docs/{id}`                     | Push an envelope; `If-Match: version` (`0` to create), `Sync-Cursor`, `Idempotency-Key` required                           |
-| `POST`   | `/api/sync/reconcile`                     | Batched first sync; `Idempotency-Key` required, per-document targets make a repeat a no-op                                 |
-| `DELETE` | `/api/sync/docs/{id}`                     | Write a versioned tombstone; `If-Match: version`, `Sync-Cursor`, `Idempotency-Key` required                                |
-| `GET`    | `/api/sync/docs/{id}/snapshots`           | List snapshot versions for one document; `Sync-Client` required                                                            |
-| `GET`    | `/api/sync/docs/{id}/snapshots/{version}` | Fetch one encrypted history snapshot                                                                                       |
-| `PUT`    | `/api/sync/docs/{id}/snapshots/{version}` | Client-written encrypted history snapshot; insert-only, 409 on an existing version unless the ciphertext is byte-identical |
+| Method   | Path                                      | Purpose                                                                                                                                                                                                   |
+| -------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/api/sync/changes?since=`                | Delta since a cursor, or the full current state when `since` is absent or `0` (live documents and unexpired tombstones); returns the new cursor; `Sync-Client` required, advances the client's cursor row |
+| `GET`    | `/api/sync/docs/{id}`                     | Fetch one envelope with version metadata                                                                                                                                                                  |
+| `PUT`    | `/api/sync/docs/{id}`                     | Push an envelope; `If-Match: version` (`0` to create), `Sync-Cursor`, `Idempotency-Key` required                                                                                                          |
+| `POST`   | `/api/sync/reconcile`                     | Batched first sync; `Idempotency-Key` required, per-document targets make a repeat a no-op                                                                                                                |
+| `DELETE` | `/api/sync/docs/{id}`                     | Write a versioned tombstone; `If-Match: version`, `Sync-Cursor`, `Idempotency-Key` required                                                                                                               |
+| `GET`    | `/api/sync/docs/{id}/snapshots`           | List snapshot versions for one document; `Sync-Client` required                                                                                                                                           |
+| `GET`    | `/api/sync/docs/{id}/snapshots/{version}` | Fetch one encrypted history snapshot                                                                                                                                                                      |
+| `PUT`    | `/api/sync/docs/{id}/snapshots/{version}` | Client-written encrypted history snapshot; insert-only, 409 on an existing version unless the ciphertext is byte-identical                                                                                |
 
 Today's `/api/resumes` CRUD stays during migration and is retired once every client
 speaks sync. The relay validates envelope shape and byte limits, never content.
@@ -159,14 +159,15 @@ relay holds; it is not a device registry the user manages, and rows expire after
 
 Write preconditions are checked in this order and fail with distinct codes:
 
-| Condition                                         | Response                                |
-| ------------------------------------------------- | --------------------------------------- |
-| `Sync-Cursor` missing, unknown, or expired        | 428 `cursor_required`; reconcile first  |
-| `If-Match` does not equal the current version     | 409 `version_conflict`; run conflict UI |
-| Snapshot version exists with different ciphertext | 409 `snapshot_exists`                   |
+| Condition                                         | Response                                     |
+| ------------------------------------------------- | -------------------------------------------- |
+| `Sync-Cursor` missing, unknown, or expired        | 428 `cursor_required`; full pull, then drain |
+| `If-Match` does not equal the current version     | 409 `version_conflict`; run conflict UI      |
+| Snapshot version exists with different ciphertext | 409 `snapshot_exists`                        |
 
-A 428 is never a document conflict. The client runs the full reconcile, reclassifies
-its queue against the result, pulls a fresh cursor, and only then drains.
+A 428 is never a document conflict. The client performs a full pull, reclassifies
+its queue against the result, and only then drains through ordinary `PUT` and
+`DELETE` requests. It never uses `POST /api/sync/reconcile` for this.
 
 Creating a document the relay has never seen uses `If-Match: 0`, which maps to
 `expected: None` in `DocumentRepo::put`. The relay accepts `0` only when no row, live
@@ -174,8 +175,10 @@ or tombstone, exists for that id; if a tombstone exists the write is an undelete
 must carry the tombstone version instead. A `PUT` with no `If-Match` at all is 400.
 
 Replays are safe because every mutation carries a client-generated
-`Idempotency-Key` (UUID). The relay stores the key with the response it produced,
-attached to the client's `sync_cursors` row. A retry with the same key returns the
+`Idempotency-Key` (UUID). The relay commits the document write and the replay record
+(key plus the response it produced, attached to the client's `sync_cursors` row) in
+one database transaction, so a crash cannot leave one without the other. A retry with the same
+key returns the
 stored response even though the `If-Match` version has since moved, so a lost
 response after a committed write does not turn into a false conflict.
 
@@ -194,14 +197,15 @@ mutations. If the cursor row expires the remaining records go with it; a client
 returning after that long gets 428 on its first write.
 
 Recovery from 428 is a full pull, a reclassification of the queue against it, and
-then a normal drain through `If-Match` PUTs and DELETEs. It never goes through
+then a normal drain through `If-Match` `PUT` and `DELETE` requests. It never goes through
 `POST /api/sync/reconcile`, which exists for first sync and linking only.
 
 `POST /api/sync/reconcile` carries an `Idempotency-Key` like any other mutation. The
 relay applies the whole batch and stores the idempotency record in one database
 transaction, so a crash can never leave applied writes without a stored result or a
 stored result without the writes. Each entry names a document id, the base version
-the client last saw, and the target content tag. An entry is applied only when the
+the client last saw, the target content tag, and the sealed envelope (or snapshot)
+to write. An entry is applied only when the
 row's current version equals the base version; otherwise it is reported as 409
 `version_conflict` for that entry, and the batch response lists per-entry outcomes.
 Entries whose current tag already equals the target are reported as applied without
@@ -554,10 +558,12 @@ PR that adds this RFC.
    engine, then is removed. During the overlap both paths read and write the same
    rows and the same `version` column, and CRUD adopts the sync semantics rather
    than keeping its own: `DELETE /api/resumes/{id}` writes a versioned tombstone
-   instead of today's hard delete with cascading snapshot removal, and the server's
-   own snapshot capture on update (`db/snapshots.rs`) is switched off for sealed
-   accounts, because the server cannot seal a snapshot. Snapshots for those accounts
-   come only from the client through the sync snapshot endpoint, which is
+   instead of today's hard delete with cascading snapshot removal. Server-side
+   snapshot capture on update (`db/snapshots.rs`) keeps running through Phase 1: for
+   a sealed account it copies the envelope it just stored into `resume_snapshots`
+   unchanged, which is a copy of ciphertext, not a new encryption, so history never
+   stops. It is switched off for sealed accounts only in Phase 2, when the client
+   becomes the snapshot author through the sync snapshot endpoint, which is
    insert-only on `(resume_id, version)` and answers 409 to a different ciphertext
    for an existing version. History is never rewritten in place. For a migrated account,
    `/api/resumes` accepts only

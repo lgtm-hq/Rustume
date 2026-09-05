@@ -269,14 +269,14 @@ Resume IDs are **UUID v4** (`DEFAULT gen_random_uuid()` in
 
 **Strategy:**
 
-| Situation                                                             | Action                                                                                    |
-| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| ID exists only on local                                               | Create on cloud (push)                                                                    |
-| ID exists only on cloud                                               | Create on local (pull)                                                                    |
-| ID on both, identical `content_hash`                                  | No-op; record sync state                                                                  |
-| ID on both, different hash, one side edited since last common point   | Automatic LWW; the edited side wins                                                       |
-| ID on both, different hash, both sides edited since last common point | **Conflict**, user resolves in merge summary                                              |
-| ID on both, different hash, import already ran (same origin)          | Treat as conflict, not duplicate; likely LWW candidate if one side unchanged since import |
+| Situation                                                             | Action                                                                                                          |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| ID exists only on local                                               | Create on cloud (push)                                                                                          |
+| ID exists only on cloud                                               | Create on local (pull)                                                                                          |
+| ID on both, identical `content_hash`                                  | No-op; record sync state                                                                                        |
+| ID on both, different hash, one side edited since last common point   | Automatic LWW; the edited side wins                                                                             |
+| ID on both, different hash, both sides edited since last common point | **Conflict**, user resolves in merge summary                                                                    |
+| ID on both, different hash, import already ran (same origin)          | Same rules as above: one-sided edit since import is automatic LWW; both edited is a conflict, never a duplicate |
 
 The existing import's `ON CONFLICT DO UPDATE` (`import_single_resume`) is a
 **destructive LWW without confirmation**, acceptable for one-time same-origin
@@ -326,6 +326,8 @@ sequenceDiagram
 
 - **Added (local only).** Will be pushed to cloud
 - **Added (cloud only).** Will be pulled to local
+- **Updated.** One side edited since the last common point; automatic LWW, the
+  edited side's copy will be written to the other
 - **Up to date.** Identical hash, skipped
 - **Conflicting.** Requires a per-resume decision before commit
 
