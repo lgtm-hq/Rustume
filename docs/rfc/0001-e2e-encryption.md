@@ -349,15 +349,21 @@ Requires explicit user action. The operator cannot reverse it alone.
 
 ### DEK rotation (compromise recovery)
 
-1. Client sets `e2ee_config.rotation_in_progress = true` (server accepts generation N and N+1
-   from here), then generates the new DEK.
+1. Client generates the new DEK, wraps it with the current MK as a **second** wrap
+   stored beside the old one in `e2ee_config` (`wrapped_dek_next`), and rewrites every
+   recovery backup so each holds both `DEK || tag_key` generations. Setting
+   `e2ee_config.rotation_in_progress = true` is part of the same server write, and the
+   server accepts generation N and N+1 from here. Nothing has been re-encrypted yet,
+   so a crash at this point loses nothing: both keys are recoverable.
 2. Re-encrypt every resume envelope and every `resume_snapshots` row for the account
-   with the new DEK, each with a fresh nonce. Rotation must not complete while any
-   snapshot row is still under the old DEK; the server verifies this atomically the
-   same way the enable flow does.
-3. Re-wrap new DEK with current MK, update `e2ee_config`.
-4. Re-encrypt each recovery-code backup with a **fresh** `nonce_recovery` so every
-   stored recovery blob unwraps the new DEK (never reuse a prior recovery nonce under
+   with the new DEK, each with a fresh nonce. A crash mid-way is safe because both
+   wraps exist; the client resumes by scanning for rows still at generation N.
+   Rotation must not complete while any row is still under the old DEK; the server
+   verifies this atomically the same way the enable flow does.
+3. Promote `wrapped_dek_next` to `wrapped_dek` and drop the old wrap in `e2ee_config`.
+4. Rewrite each recovery-code backup once more, with a **fresh** `nonce_recovery`,
+   so it holds only the new generation (step 1 wrote both) and every stored recovery
+   blob unwraps the new DEK (never reuse a prior recovery nonce under
    the same `RK`), **or** invalidate and regenerate recovery codes before completing
    rotation. When keeping the same codes, each `code_hash` row's `backup` **must be
    replaced atomically** (single-row upsert / delete-then-insert in one transaction) so
@@ -407,18 +413,18 @@ toggle).
 
 If this RFC is accepted, file the following implementation sub-issues:
 
-| #   | Title                                                         | Scope                                                                                                                                                 |
-| --- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | `feat(crypto): add crates/crypto with v1 envelope`            | Argon2id, ChaCha20-Poly1305, HKDF, envelope serialize/deserialize, tests with test vectors                                                            |
-| 2   | `feat(wasm): expose encrypt/decrypt bindings`                 | `bindings/wasm` wrappers for web client                                                                                                               |
-| 3   | `feat(server): E2EE account config column and detection`      | `users.e2ee_config`, strict envelope detection/rejection in validation middleware, reject non-envelope resume and snapshot writes when `e2ee_enabled` |
-| 4   | `feat(web): E2EE enable/disable/ unlock UI`                   | Account settings, passphrase entry, recovery code display, DEK session management                                                                     |
-| 5   | `feat(web): encrypt on cloud save, decrypt on load`           | `cloudStorage.ts` integration with WASM crypto; enable/disable flows convert `resume_snapshots` rows as well as resumes                               |
-| 6   | `feat(web): client-side bulk export for E2EE accounts`        | Replace server-side JSON/PDF export when `e2ee_enabled`                                                                                               |
-| 7   | `feat(server): block public page publish for E2EE resumes`    | Guard `is_public` toggle when account has E2EE                                                                                                        |
-| 8   | `docs: update encryption.md to match RFC 0001`                | Align user-facing docs with decided design                                                                                                            |
-| 9   | `feat(server): server-managed at-rest encryption (Phase 1.5)` | Separate from E2EE: `ENCRYPTION_SECRET`, AES-256-GCM on `data` column for non-E2EE accounts                                                           |
-| 10  | `feat(server): version history with E2EE snapshots`           | Make the existing `resume_snapshots` writers and restore routes envelope-aware; do not add writers to the unused `resume_versions` table              |
+| #   | Title                                                             | Scope                                                                                                                                                 |
+| --- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `feat(crypto): add crates/crypto with v1 envelope`                | Argon2id, ChaCha20-Poly1305, HKDF, envelope serialize/deserialize, tests with test vectors                                                            |
+| 2   | `feat(wasm): expose encrypt/decrypt bindings`                     | `bindings/wasm` wrappers for web client                                                                                                               |
+| 3   | `feat(server): E2EE account config column and detection`          | `users.e2ee_config`, strict envelope detection/rejection in validation middleware, reject non-envelope resume and snapshot writes when `e2ee_enabled` |
+| 4   | `feat(web): E2EE enable and unlock UI`                            | Account settings, passphrase entry, recovery code display, DEK session management. Disable is self-hosted only under RFC 0003                         |
+| 5   | `feat(web): encrypt on cloud save, decrypt on load`               | `cloudStorage.ts` integration with WASM crypto; enable/disable flows convert `resume_snapshots` rows as well as resumes                               |
+| 6   | `feat(web): client-side bulk export for E2EE accounts`            | Replace server-side JSON/PDF export when `e2ee_enabled`                                                                                               |
+| 7   | `feat(server): explicit published snapshot for public pages`      | Replaces the original publish block: publishing uploads a readable snapshot per RFC 0003; private envelopes are never served                          |
+| 8   | `docs: update encryption.md to match RFC 0001`                    | Align user-facing docs with decided design                                                                                                            |
+| 9   | ~~`feat(server): server-managed at-rest encryption (Phase 1.5)`~~ | Dropped by RFC 0003; redundant once every stored document is an envelope                                                                              |
+| 10  | `feat(server): version history with E2EE snapshots`               | Make the existing `resume_snapshots` writers and restore routes envelope-aware; do not add writers to the unused `resume_versions` table              |
 
 ---
 

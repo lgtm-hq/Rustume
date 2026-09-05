@@ -160,8 +160,9 @@ relay holds; it is not a device registry the user manages, and rows expire after
 
 `GET /api/sync/changes` always uses the client-supplied `since` value, never the
 stored cursor row, so a retried pull after a lost response repeats the same delta.
-On writes, "unknown" means the `Sync-Cursor` value does not equal the cursor stored
-in the client's `sync_cursors` row.
+On writes, the relay keeps the last two cursors it issued to the client and accepts
+either, so a `PUT` that was in flight while an interval pull advanced the row does
+not fail; "unknown" means the `Sync-Cursor` value is neither of those two.
 
 On every `PUT` and `DELETE` the relay first looks up the `Idempotency-Key`; a known
 key returns the stored response before any precondition below is evaluated, which is
@@ -207,7 +208,10 @@ therefore retries the
 acknowledgement on the next one. As a hard bound the relay also keeps at most 1,000
 replay records per client and compacts the oldest beyond that, which can only affect
 a client that has failed to acknowledge for longer than a thousand of its own
-mutations. If the cursor row expires the remaining records go with it; a client
+mutations. A retry that has lost its record is still not a false conflict: if the
+`If-Match` is stale but the row's current envelope bytes equal the bytes being
+pushed, the relay answers 200 as an idempotent no-op, the same rule snapshots use. If the
+cursor row expires the remaining records go with it; a client
 returning after that long gets 428 on its first write.
 
 Recovery from 428 is a full pull, a reclassification of the queue against it, and
@@ -323,11 +327,11 @@ question 4) matters. RFC 0001 chose opt-in to preserve server-side export, bulk 
 public pages; this RFC moves those features client-side or behind explicit publish
 instead of weakening the default.
 
-| Shape             | Encryption                                                                                                                                                                                   |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Rustume Cloud     | Mandatory. Passphrase and recovery codes set at first cloud use.                                                                                                                             |
-| Self-hosted relay | On by default. Operator may set `RUSTUME_ALLOW_PLAINTEXT=true` to permit plaintext envelopes; the relay logs a warning at startup. Existing envelope detection distinguishes the two shapes. |
-| Browser-only      | Optional app lock. No relay exists to protect against; forcing a passphrase here adds loss risk without benefit.                                                                             |
+| Shape             | Encryption                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Rustume Cloud     | Mandatory. Passphrase and recovery codes set at first cloud use.                                                                                                                                                                                                                                                                                                                                                                             |
+| Self-hosted relay | On by default. Operator may set `RUSTUME_ALLOW_PLAINTEXT=true` to permit plaintext envelopes; the relay logs a warning at startup. In that mode there is no `tag_key`, so `content_tag` is plain `SHA-256(canonical bytes)`; there is nothing to hide from a relay that already holds plaintext. Linking to Cloud requires enabling encryption first, which re-tags with the HMAC. Existing envelope detection distinguishes the two shapes. |
+| Browser-only      | Optional app lock. No relay exists to protect against; forcing a passphrase here adds loss risk without benefit.                                                                                                                                                                                                                                                                                                                             |
 
 ### No owner access, stated as policy
 
