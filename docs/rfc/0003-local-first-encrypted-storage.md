@@ -143,7 +143,7 @@ A relay's document API is the sync protocol from RFC 0002, generalised:
 | `DELETE` | `/api/sync/docs/{id}`                     | Write a versioned tombstone; `If-Match: version`, `Sync-Cursor`, `Idempotency-Key` required                                                                                                                                                                                                                      |
 | `GET`    | `/api/sync/docs/{id}/snapshots`           | List snapshot versions for one document; `Sync-Client` required                                                                                                                                                                                                                                                  |
 | `GET`    | `/api/sync/docs/{id}/snapshots/{version}` | Fetch one encrypted history snapshot                                                                                                                                                                                                                                                                             |
-| `PUT`    | `/api/sync/docs/{id}/snapshots/{version}` | Client-written encrypted history snapshot; insert-only, 409 on an existing version unless the ciphertext is byte-identical                                                                                                                                                                                       |
+| `PUT`    | `/api/sync/docs/{id}/snapshots/{version}` | Client-written encrypted history snapshot; `Sync-Client`, `Sync-Cursor`, `Idempotency-Key` required like any write; insert-only, 409 `snapshot_exists` on an existing version unless the ciphertext is byte-identical, which also covers a retry that outlived its replay record                                 |
 
 Today's `/api/resumes` CRUD stays during migration and is retired once every client
 speaks sync. The relay validates envelope shape and byte limits, never content.
@@ -163,7 +163,11 @@ stored cursor row, so a retried pull after a lost response repeats the same delt
 On writes, "unknown" means the `Sync-Cursor` value does not equal the cursor stored
 in the client's `sync_cursors` row.
 
-Write preconditions are checked in this order and fail with distinct codes:
+On every `PUT` and `DELETE` the relay first looks up the `Idempotency-Key`; a known
+key returns the stored response before any precondition below is evaluated, which is
+what makes a retry after a lost response safe on the ordinary drain path as well as
+on reconcile. Only a new key goes through the checks, in this order, failing with
+distinct codes:
 
 | Condition                                         | Response                                     |
 | ------------------------------------------------- | -------------------------------------------- |
@@ -339,7 +343,10 @@ local-first client the list renders from the local store, which is decrypted aft
 unlock anyway. Titles move inside the envelope. The relay's document row carries no
 human-readable field. This lands in Phase 2, when the list comes from the local
 store; during Phase 1 the CRUD list still returns `resumes.title` in plaintext as
-RFC 0001 specified, and Phase 2 moves it into the envelope and nulls the column.
+RFC 0001 specified. Phase 2 moves it into the envelope; its migration first alters
+`resumes.title` from `TEXT NOT NULL DEFAULT 'Untitled'` to nullable, then writes
+`NULL` for sealed accounts, and a later cleanup drops the column once no client
+reads it.
 
 ### Content tags, not content hashes
 
@@ -475,7 +482,10 @@ Self-hosted relay authentication is an implicit single local user, gated by an
 access token. The relay fails closed: if it is bound to a non-loopback address and
 no token is configured, it refuses to start with a non-zero exit and a message
 naming the variable. Only a loopback bind (`RUSTUME_BIND=127.0.0.1`) may run without
-a token. Every sync request must present the token; requests without it get 401.
+a token. The token gates every route under `/api/` except `/health`, and every write to the
+relay; requests without it get 401. The SPA shell, static assets, and published pages
+under `/r/{slug}` are served without it, because the browser must load the app before
+it can present the token and public pages are public by design.
 
 Because the container binds `0.0.0.0` and compose publishes the port, the default
 compose deployment needs a token without asking the user to invent one. The compose
