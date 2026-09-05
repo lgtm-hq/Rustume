@@ -258,7 +258,7 @@ pub struct AuthUserResponse {
 }
 
 /// Single resume in a bulk JSON export.
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ResumeExportItem {
     #[schema(value_type = String, format = "uuid")]
     pub id: Uuid,
@@ -297,7 +297,7 @@ pub struct DeleteAccountResponse {
 }
 
 /// Account metadata included in GDPR portability export.
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct AccountExportProfile {
     #[schema(value_type = String, format = "uuid")]
     pub id: Uuid,
@@ -316,7 +316,7 @@ pub struct AccountExportProfile {
 }
 
 /// Versioned policy acceptance included in the GDPR portability export.
-#[derive(Debug, Clone, FromRow, Serialize, ToSchema)]
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize, ToSchema)]
 pub struct PolicyAcceptanceExport {
     /// Policy identifier (`terms`, `privacy`).
     pub policy: String,
@@ -330,7 +330,7 @@ pub struct PolicyAcceptanceExport {
 }
 
 /// Resume version-history snapshot included in the GDPR portability export.
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ResumeSnapshotExport {
     #[schema(value_type = String, format = "uuid")]
     pub resume_id: Uuid,
@@ -342,7 +342,7 @@ pub struct ResumeSnapshotExport {
 }
 
 /// Full account data export payload for `GET /api/account/export`.
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct AccountDataExport {
     #[schema(value_type = String, format = "date-time")]
     pub exported_at: DateTime<Utc>,

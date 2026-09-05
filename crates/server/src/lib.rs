@@ -1263,6 +1263,38 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_export_account_unauthenticated_not_rate_limited() {
+        let config = config::RateLimitConfig {
+            account_export_per_min: 1,
+            ..Default::default()
+        };
+        let state = state::AppState::with_options(
+            std::sync::Arc::new(routes::static_dir()),
+            Some(test_cloud_state()),
+            true,
+            config,
+        );
+        let app = create_router_with_state(state);
+
+        // Auth runs before the per-user export quota, so anonymous probing
+        // gets 401 every time rather than consuming (or revealing) the quota.
+        for _ in 0..3 {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method("GET")
+                        .uri("/api/account/export")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        }
+    }
+
+    #[tokio::test]
     async fn test_export_account_unauthenticated_401() {
         let state = state::AppState::with_require_auth(
             std::sync::Arc::new(routes::static_dir()),
