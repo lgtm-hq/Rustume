@@ -41,6 +41,7 @@ states. Accepted RFCs should link to the implementation issues they spawned.
 
 ## Index
 
-| RFC                                   | Title                        | Status |
-| ------------------------------------- | ---------------------------- | ------ |
-| [0002](./0002-local-cloud-linking.md) | Local↔Cloud Instance Linking | Draft  |
+| RFC                                             | Title                         | Status |
+| ----------------------------------------------- | ----------------------------- | ------ |
+| [0002](./0002-local-cloud-linking.md)           | Local↔Cloud Instance Linking  | Draft  |
+| [0003](./0003-local-first-encrypted-storage.md) | Local-First Encrypted Storage | Draft  |
