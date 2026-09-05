@@ -43,6 +43,7 @@ enabled, these identity and persistence settings are required:
 | `SESSION_SECRET` | Session signing secret, at least 32 characters |
 | `RESEND_API_KEY` | Resend API key; required together with `EMAIL_FROM` to enable transactional email |
 | `EMAIL_FROM` | Sender address for outbound mail (for example `noreply@rustume.com`) |
+| `PUBLIC_BASE_URL` | Absolute `http(s)` origin used for `og:url`/`og:image` on public resume pages (for example `https://rustume.com`). When unset, pages still render but omit those tags, so link previews fall back to a plain card. Request `Host` headers are never trusted for this. |
 
 Connected mode always requires authentication. Render, template, resume, and account
 routes return `401` without a valid session, and there is no setting that re-opens them

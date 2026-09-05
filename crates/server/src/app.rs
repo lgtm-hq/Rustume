@@ -228,14 +228,24 @@ pub fn create_router_with_state(state: AppState) -> Router {
         }
 
         let mut public_routes = Router::new()
-            .route("/r/{slug}/preview.png", get(public_resume_preview))
             .route("/r/{slug}/data", get(public_resume_data))
             .route("/r/{slug}", get(public_resume_page));
         if cloud_rate_limits {
             public_routes = public_routes.route_layer(middleware::from_fn_with_state(
-                state_for_layers,
+                state_for_layers.clone(),
                 rate_limit_unauthenticated,
             ));
+        }
+
+        // The PNG preview runs Typst for anonymous callers, so it shares the
+        // preview render quota (IP-keyed when no session is present) instead of
+        // the cheaper probe bucket.
+        let mut public_preview_routes =
+            Router::new().route("/r/{slug}/preview.png", get(public_resume_preview));
+        if cloud_rate_limits {
+            public_preview_routes = public_preview_routes.route_layer(
+                middleware::from_fn_with_state(state_for_layers, rate_limit_preview),
+            );
         }
 
         router = router
@@ -245,7 +255,8 @@ pub fn create_router_with_state(state: AppState) -> Router {
             .merge(export_json_routes)
             .merge(export_pdf_routes)
             .merge(account_routes)
-            .merge(public_routes);
+            .merge(public_routes)
+            .merge(public_preview_routes);
     }
 
     let router = router

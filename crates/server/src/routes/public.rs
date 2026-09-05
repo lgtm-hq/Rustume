@@ -11,7 +11,7 @@ use rustume_render::Renderer;
 use rustume_schema::ResumeData;
 use serde::Serialize;
 use sqlx::FromRow;
-use tracing::error;
+use tracing::{error, warn};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -105,13 +105,12 @@ fn og_description(resume: &ResumeData) -> String {
     truncate_description(&summary, OG_DESCRIPTION_MAX_CHARS)
 }
 
-fn absolute_url(base: Option<&str>, path: &str) -> String {
-    match base {
-        Some(base) => format!("{base}{path}"),
-        None => path.to_string(),
-    }
-}
-
+/// Build the Open Graph `<meta>` block for a public resume.
+///
+/// `og:url` and `og:image` must be absolute URLs for social crawlers, and the
+/// server never trusts request `Host` headers to build them. When
+/// `PUBLIC_BASE_URL` is unset the tags are omitted (rather than emitted as
+/// relative paths that crawlers reject) and the card degrades to `summary`.
 fn build_og_meta_tags(
     row: &PublicResumeRow,
     resume: &ResumeData,
@@ -120,10 +119,18 @@ fn build_og_meta_tags(
 ) -> String {
     let title = escape_html(&og_title(&resume.basics.name, &row.title));
     let description = escape_html(&og_description(resume));
-    let page_path = format!("/r/{slug}");
-    let preview_path = format!("/r/{slug}/preview.png");
-    let url = escape_html(&absolute_url(base_url, &page_path));
-    let image = escape_html(&absolute_url(base_url, &preview_path));
+
+    let Some(base) = base_url else {
+        return format!(
+            r#"<meta property="og:title" content="{title}">
+<meta property="og:description" content="{description}">
+<meta property="og:type" content="profile">
+<meta name="twitter:card" content="summary">"#
+        );
+    };
+
+    let url = escape_html(&format!("{base}/r/{slug}"));
+    let image = escape_html(&format!("{base}/r/{slug}/preview.png"));
 
     format!(
         r#"<meta property="og:title" content="{title}">
@@ -175,7 +182,11 @@ fn parse_resume_data(data: &serde_json::Value) -> Result<ResumeData, ApiError> {
 
 fn etag_entity_tag(candidate: &str) -> &str {
     let trimmed = candidate.trim();
-    let without_weak = trimmed.strip_prefix("W/").unwrap_or(trimmed);
+    // The weak-validator prefix is case-insensitive (RFC 9110 §8.8.3).
+    let without_weak = trimmed
+        .strip_prefix("W/")
+        .or_else(|| trimmed.strip_prefix("w/"))
+        .unwrap_or(trimmed);
     without_weak.trim_matches('"')
 }
 
@@ -220,6 +231,9 @@ pub async fn public_resume_page(
     let row = fetch_public_resume(&state, &slug).await?;
     let resume = parse_resume_data(&row.data)?;
     let base_url = public_base_url();
+    if base_url.is_none() {
+        warn!("PUBLIC_BASE_URL is unset; serving /r/{slug} without og:url and og:image");
+    }
     let meta_tags = build_og_meta_tags(&row, &resume, &slug, base_url.as_deref());
 
     let index_path = state.static_dir.join("index.html");
@@ -405,6 +419,10 @@ mod tests {
             "W/\"550e8400-e29b-41d4-a716-446655440000-2\"",
             &etag
         ));
+        assert!(etag_matches(
+            "w/\"550e8400-e29b-41d4-a716-446655440000-2\"",
+            &etag
+        ));
     }
 
     #[test]
@@ -416,7 +434,7 @@ mod tests {
     }
 
     #[test]
-    fn build_og_meta_tags_uses_relative_urls_without_public_base_url() {
+    fn build_og_meta_tags_omits_url_and_image_without_public_base_url() {
         let row = PublicResumeRow {
             id: uuid!("550e8400-e29b-41d4-a716-446655440000"),
             title: "Resume".into(),
@@ -427,8 +445,12 @@ mod tests {
         let resume = ResumeData::default();
         let meta = build_og_meta_tags(&row, &resume, "foo", None);
 
-        assert!(meta.contains(r#"content="/r/foo""#));
-        assert!(meta.contains(r#"content="/r/foo/preview.png""#));
+        assert!(meta.contains(r#"property="og:title""#));
+        assert!(meta.contains(r#"property="og:description""#));
+        assert!(!meta.contains("og:url"));
+        assert!(!meta.contains("og:image"));
+        assert!(!meta.contains("/r/foo"));
+        assert!(meta.contains(r#"name="twitter:card" content="summary""#));
     }
 
     #[test]
@@ -445,5 +467,303 @@ mod tests {
 
         assert!(meta.contains(r#"content="https://rustume.com/r/foo""#));
         assert!(meta.contains(r#"content="https://rustume.com/r/foo/preview.png""#));
+    }
+
+    mod handlers {
+        //! Cloud-mode handler tests. Skipped unless `TEST_DATABASE_URL` points at a
+        //! database whose name contains `_test` (same convention as resume tests).
+
+        use super::*;
+        use crate::app::create_router_with_state;
+        use crate::auth::session::SessionService;
+        use crate::auth::workos::WorkOsClient;
+        use crate::cloud::CloudState;
+        use crate::error::ApiErrorKind;
+        use axum::body::Body;
+        use axum::http::Request;
+        use sqlx::postgres::PgPoolOptions;
+        use std::sync::Arc;
+        use tower::ServiceExt;
+
+        fn database_url_for_tests() -> Option<String> {
+            let url = std::env::var("TEST_DATABASE_URL")
+                .ok()
+                .or_else(|| std::env::var("DATABASE_URL").ok())
+                .map(|url| url.trim().to_owned())
+                .filter(|url| !url.is_empty())?;
+            let db_name = url
+                .split(['?', '#'])
+                .next()
+                .unwrap_or(&url)
+                .rsplit('/')
+                .next()
+                .unwrap_or("");
+            if db_name.contains("_test") {
+                Some(url)
+            } else {
+                eprintln!("SKIP public route integration tests: TEST_DATABASE_URL must name a *_test database");
+                None
+            }
+        }
+
+        async fn connect_test_pool(database_url: &str) -> sqlx::PgPool {
+            let pool = PgPoolOptions::new()
+                .max_connections(2)
+                .connect(database_url)
+                .await
+                .expect("connect to test database");
+            sqlx::migrate!("./src/db/migrations")
+                .run(&pool)
+                .await
+                .expect("run migrations");
+            pool
+        }
+
+        struct Seeded {
+            user_id: Uuid,
+            slug: String,
+            version: i32,
+            resume_id: Uuid,
+        }
+
+        async fn seed_resume(pool: &sqlx::PgPool, is_public: bool) -> Seeded {
+            let user_id = Uuid::new_v4();
+            sqlx::query("INSERT INTO users (id, workos_id) VALUES ($1, $2)")
+                .bind(user_id)
+                .bind(format!("workos_public_{user_id}"))
+                .execute(pool)
+                .await
+                .expect("insert user");
+
+            let slug = format!("pub_{}", Uuid::new_v4().simple());
+            let mut resume = ResumeData::default();
+            resume.basics.name = "Ada Lovelace".into();
+            resume.basics.headline = "Analytical engine programmer".into();
+            let data = serde_json::to_value(&resume).expect("serialize resume");
+
+            let (resume_id, version): (Uuid, i32) = sqlx::query_as(
+                r#"
+                INSERT INTO resumes (user_id, title, data, is_public, public_slug)
+                VALUES ($1, $2, $3, $4, $5)
+                RETURNING id, version
+                "#,
+            )
+            .bind(user_id)
+            .bind("Public Test")
+            .bind(data)
+            .bind(is_public)
+            .bind(&slug)
+            .fetch_one(pool)
+            .await
+            .expect("insert resume");
+
+            Seeded {
+                user_id,
+                slug,
+                version,
+                resume_id,
+            }
+        }
+
+        async fn cleanup_user(pool: &sqlx::PgPool, user_id: Uuid) {
+            sqlx::query("DELETE FROM users WHERE id = $1")
+                .bind(user_id)
+                .execute(pool)
+                .await
+                .expect("cleanup user");
+        }
+
+        fn test_app_state(pool: sqlx::PgPool, static_dir: std::path::PathBuf) -> AppState {
+            let sessions_pool = pool.clone();
+            AppState::with_require_auth(
+                Arc::new(static_dir),
+                Some(Arc::new(CloudState {
+                    db: pool,
+                    workos: WorkOsClient::new("client_test".into(), "api_key_test".into()),
+                    sessions: SessionService::new(
+                        sessions_pool,
+                        "test-session-secret-at-least-32-chars".into(),
+                        false,
+                    ),
+                    workos_redirect_uri: "http://localhost/auth/callback".into(),
+                    email: None,
+                })),
+                false,
+            )
+        }
+
+        fn temp_static_dir() -> tempfile::TempDir {
+            let dir = tempfile::tempdir().expect("temp static dir");
+            std::fs::write(
+                dir.path().join("index.html"),
+                "<!doctype html><html><head><title>Rustume</title></head><body></body></html>",
+            )
+            .expect("write index.html");
+            dir
+        }
+
+        async fn body_string(response: Response) -> String {
+            let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .expect("read body");
+            String::from_utf8(bytes.to_vec()).expect("utf8 body")
+        }
+
+        #[tokio::test]
+        async fn public_page_serves_html_with_escaped_og_tags() {
+            let Some(url) = database_url_for_tests() else {
+                return;
+            };
+            let pool = connect_test_pool(&url).await;
+            let seeded = seed_resume(&pool, true).await;
+            let static_dir = temp_static_dir();
+            let app = create_router_with_state(test_app_state(
+                pool.clone(),
+                static_dir.path().to_path_buf(),
+            ));
+
+            let response = app
+                .oneshot(
+                    Request::builder()
+                        .uri(format!("/r/{}", seeded.slug))
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::OK);
+            assert!(response
+                .headers()
+                .get(header::CONTENT_TYPE)
+                .and_then(|v| v.to_str().ok())
+                .is_some_and(|v| v.starts_with("text/html")));
+            let html = body_string(response).await;
+            assert!(html.contains(r#"<meta property="og:title" content="Ada Lovelace — Resume">"#));
+            assert!(html.contains(
+                r#"<meta property="og:description" content="Analytical engine programmer">"#
+            ));
+            assert!(html.contains("</head>"));
+
+            cleanup_user(&pool, seeded.user_id).await;
+        }
+
+        #[tokio::test]
+        async fn unpublished_resume_is_not_found_on_every_public_route() {
+            let Some(url) = database_url_for_tests() else {
+                return;
+            };
+            let pool = connect_test_pool(&url).await;
+            let seeded = seed_resume(&pool, false).await;
+            let static_dir = temp_static_dir();
+            let state = test_app_state(pool.clone(), static_dir.path().to_path_buf());
+
+            let page = public_resume_page(State(state.clone()), Path(seeded.slug.clone()))
+                .await
+                .expect_err("unpublished page should 404");
+            assert!(matches!(page.kind, ApiErrorKind::NotFound));
+
+            let data = public_resume_data(State(state.clone()), Path(seeded.slug.clone()))
+                .await
+                .expect_err("unpublished data should 404");
+            assert!(matches!(data.kind, ApiErrorKind::NotFound));
+
+            let preview = public_resume_preview(
+                State(state.clone()),
+                Path(seeded.slug.clone()),
+                HeaderMap::new(),
+            )
+            .await
+            .expect_err("unpublished preview should 404");
+            assert!(matches!(preview.kind, ApiErrorKind::NotFound));
+
+            let missing = public_resume_data(State(state), Path("does-not-exist".into()))
+                .await
+                .expect_err("unknown slug should 404");
+            assert!(matches!(missing.kind, ApiErrorKind::NotFound));
+
+            cleanup_user(&pool, seeded.user_id).await;
+        }
+
+        #[tokio::test]
+        async fn public_data_returns_published_resume_without_owner_fields() {
+            let Some(url) = database_url_for_tests() else {
+                return;
+            };
+            let pool = connect_test_pool(&url).await;
+            let seeded = seed_resume(&pool, true).await;
+            let static_dir = temp_static_dir();
+            let state = test_app_state(pool.clone(), static_dir.path().to_path_buf());
+
+            let Json(payload) = public_resume_data(State(state), Path(seeded.slug.clone()))
+                .await
+                .expect("published data");
+            assert_eq!(payload.id, seeded.resume_id);
+            assert_eq!(payload.title, "Public Test");
+            let json = serde_json::to_value(&payload).unwrap();
+            assert!(json.get("user_id").is_none());
+            assert!(json.get("password_hash").is_none());
+
+            cleanup_user(&pool, seeded.user_id).await;
+        }
+
+        #[tokio::test]
+        async fn preview_returns_304_for_matching_etag_without_rendering() {
+            let Some(url) = database_url_for_tests() else {
+                return;
+            };
+            let pool = connect_test_pool(&url).await;
+            let seeded = seed_resume(&pool, true).await;
+            let static_dir = temp_static_dir();
+            let state = test_app_state(pool.clone(), static_dir.path().to_path_buf());
+            let etag = format_etag(seeded.resume_id, seeded.version);
+
+            for candidate in [
+                etag.clone(),
+                format!("W/{etag}"),
+                format!("w/{etag}"),
+                "*".into(),
+            ] {
+                let mut headers = HeaderMap::new();
+                headers.insert(header::IF_NONE_MATCH, candidate.parse().unwrap());
+                let response =
+                    public_resume_preview(State(state.clone()), Path(seeded.slug.clone()), headers)
+                        .await
+                        .expect("preview");
+                assert_eq!(response.status(), StatusCode::NOT_MODIFIED, "{candidate}");
+                assert_eq!(
+                    response
+                        .headers()
+                        .get(header::ETAG)
+                        .unwrap()
+                        .to_str()
+                        .unwrap(),
+                    etag
+                );
+            }
+
+            cleanup_user(&pool, seeded.user_id).await;
+        }
+
+        #[tokio::test]
+        async fn robots_txt_allows_public_pages_and_blocks_api() {
+            let static_dir = temp_static_dir();
+            let app = crate::app::create_router_with_static_dir(static_dir.path().to_path_buf());
+
+            let response = app
+                .oneshot(
+                    Request::builder()
+                        .uri("/robots.txt")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::OK);
+            let body = body_string(response).await;
+            assert!(body.contains("Allow: /r/"));
+            assert!(body.contains("Disallow: /api/"));
+        }
     }
 }
