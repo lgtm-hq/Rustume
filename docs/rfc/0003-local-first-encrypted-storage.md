@@ -170,11 +170,11 @@ what makes a retry after a lost response safe on the ordinary drain path as well
 on reconcile. Only a new key goes through the checks, in this order, failing with
 distinct codes:
 
-| Condition                                         | Response                                     |
-| ------------------------------------------------- | -------------------------------------------- |
-| `Sync-Cursor` missing, unknown, or expired        | 428 `cursor_required`; full pull, then drain |
-| `If-Match` does not equal the current version     | 409 `version_conflict`; run conflict UI      |
-| Snapshot version exists with different ciphertext | 409 `snapshot_exists`                        |
+| Condition                                         | Response                                                                                                                                                               |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Sync-Cursor` missing, unknown, or expired        | 428 `cursor_required`; full pull, then drain                                                                                                                           |
+| `If-Match` does not equal the current version     | 200 as an idempotent no-op if the row's current envelope bytes equal the body (a retry that lost its replay record); otherwise 409 `version_conflict`, run conflict UI |
+| Snapshot version exists with different ciphertext | 409 `snapshot_exists`                                                                                                                                                  |
 
 A 428 is never a document conflict. The client performs a full pull, reclassifies
 its queue against the result, and only then drains through ordinary `PUT` and
@@ -186,7 +186,9 @@ or tombstone, exists for that id; if a tombstone exists the write is an undelete
 must carry the tombstone version instead. A `PUT` with no `If-Match` at all is 400.
 
 Replays are safe because every mutation carries a client-generated
-`Idempotency-Key` (UUID). The relay commits the document write and the replay record
+`Idempotency-Key` (UUID). Only 2xx outcomes, including byte-identical no-ops, are
+recorded; a 4xx such as 428 or 409 is never stored, so a mutation retried after
+recovery is evaluated fresh. The relay commits the document write and the replay record
 (key plus the response it produced, attached to the client's `sync_cursors` row) in
 one database transaction, so a crash cannot leave one without the other. A retry with the same
 key returns the stored response for as long as the record exists (see the
@@ -307,8 +309,8 @@ other.
 
 Only document tables live behind the trait. Users, sessions, policy acceptances,
 subscriptions, and audit are cloud concerns and stay in the server crate on Postgres.
-Of the server's roughly 47 query sites, the 27 in `routes/resumes.rs` and
-`db/snapshots.rs` move behind the trait; the rest are untouched.
+The document query sites in `routes/resumes.rs` and `db/snapshots.rs` move behind
+the trait; query sites elsewhere in the server crate are untouched.
 
 ## Encryption
 

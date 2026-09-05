@@ -9,8 +9,13 @@
 
 ## Status
 
-**Draft.** This document settles design questions before any encryption code is
-written. Implementation sub-issues follow from the recommendation at the end.
+**Draft, amended by [RFC 0003](./0003-local-first-encrypted-storage.md).** This
+document settles the envelope, key hierarchy, recovery, and rotation design. Where the
+two disagree, RFC 0003 wins; the overridden decisions here are marked in place and
+are, in short: encryption is on by default rather than opt-in; titles are encrypted;
+disable is unavailable on Cloud; server-managed at-rest encryption (Phase 1.5) is
+dropped; and wraps hold `DEK || tag_key`. Implementation sub-issues follow from the
+recommendation at the end as amended.
 
 ## Context
 
@@ -157,20 +162,20 @@ mandatory recovery flow when enabling E2EE.
 
 ### Scope: what is encrypted
 
-| Data                                                   | Plaintext or ciphertext                     | Rationale                                                                                                             |
-| ------------------------------------------------------ | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `resumes.data`                                         | **Ciphertext envelope** (when E2EE enabled) | Core PII, the full resume document                                                                                    |
-| `resumes.title`                                        | **Plaintext**                               | Required for list UI (`GET /api/resumes` returns title only)                                                          |
-| `resumes.id`, timestamps, `version`                    | **Plaintext**                               | Metadata and OCC                                                                                                      |
-| `resumes.is_public`, `public_slug`                     | **Plaintext flags**                         | Routing metadata; public content itself cannot be E2EE                                                                |
-| `resume_snapshots.data`                                | **Same envelope as parent**                 | History snapshots must match parent encryption mode (`resume_versions` is unused; live history is `resume_snapshots`) |
-| Local IndexedDB (`apps/web/src/stores/persistence.ts`) | **User choice**                             | Local-only users unaffected; cloud users decrypt on load                                                              |
+| Data                                                   | Plaintext or ciphertext                                                   | Rationale                                                                                                             |
+| ------------------------------------------------------ | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `resumes.data`                                         | **Ciphertext envelope** (when E2EE enabled)                               | Core PII, the full resume document                                                                                    |
+| `resumes.title`                                        | **Plaintext** in v1 as written; **encrypted** under RFC 0003 from Phase 2 | Required for list UI (`GET /api/resumes` returns title only) until the list comes from the local store                |
+| `resumes.id`, timestamps, `version`                    | **Plaintext**                                                             | Metadata and OCC                                                                                                      |
+| `resumes.is_public`, `public_slug`                     | **Plaintext flags**                                                       | Routing metadata; public content itself cannot be E2EE                                                                |
+| `resume_snapshots.data`                                | **Same envelope as parent**                                               | History snapshots must match parent encryption mode (`resume_versions` is unused; live history is `resume_snapshots`) |
+| Local IndexedDB (`apps/web/src/stores/persistence.ts`) | **User choice**                                                           | Local-only users unaffected; cloud users decrypt on load                                                              |
 
 ### Opt-in vs default
 
 | Approach               | Recommendation                                                                                                                                |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Opt-in per account** | **Recommended.** User explicitly enables E2EE, sets passphrase, saves recovery codes. Default remains plaintext for feature parity.           |
+| **Opt-in per account** | Recommended in v1 as written; **overridden by RFC 0003, which makes encryption default-on** for every relay-backed account.                   |
 | **Opt-in per resume**  | Possible future extension; adds UI and conflict complexity when mixing modes. Defer to v2.                                                    |
 | **Default-on E2EE**    | **Rejected for v1.** Breaks server export, bulk PDF, and future public pages without explicit user consent and feature degradation messaging. |
 
@@ -281,21 +286,22 @@ decrypt + explicit plaintext handoff), **Exclude** (incompatible when E2EE enabl
 
 ## Recommendation
 
-**Adopt opt-in, account-level E2EE with a passphrase + recovery codes, storing
+**Adopt account-level E2EE with a passphrase + recovery codes (opt-in as written here,
+default-on under RFC 0003), storing
 versioned ChaCha20-Poly1305 envelopes in the existing `resumes.data` JSONB column.**
 
 ### Decision log
 
-| Decision                  | Choice                                                                      | Rationale                                                                                                      |
-| ------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| E2EE default              | Opt-in                                                                      | Preserves feature parity for users who need public pages, server export, and zero-friction multi-device access |
-| Key derivation            | Passphrase + Argon2id (not WorkOS password)                                 | WorkOS provides no password; SSO and E2EE secrets must be independent                                          |
-| DEK model                 | Per-account DEK wrapped by passphrase-derived MK                            | Enables single unlock to encrypt/decrypt all resumes; simplifies key rotation                                  |
-| Storage                   | Envelope in existing `data` column                                          | Avoids schema migration for column type; detection via `"e2ee"` wrapper                                        |
-| Code location             | New `crates/crypto` + WASM bindings                                         | Shared across web and future mobile; keeps schema crate pure                                                   |
-| Public pages              | Excluded when E2EE on; superseded by RFC 0003's explicit published snapshot | Cannot serve readable HTML from ciphertext without defeating E2EE purpose                                      |
-| Server render/export      | Degraded (client decrypt → transient plaintext)                             | Acceptable trade-off for opt-in users; document transient exposure                                             |
-| Server-managed encryption | Proceed separately (Phase 1.5)                                              | Addresses at-rest disk encryption, not operator access; orthogonal to E2EE                                     |
+| Decision                  | Choice                                                                      | Rationale                                                                           |
+| ------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| E2EE default              | Opt-in as written; **default-on under RFC 0003**                            | Feature parity was the v1 reason; RFC 0003 moves those features client-side instead |
+| Key derivation            | Passphrase + Argon2id (not WorkOS password)                                 | WorkOS provides no password; SSO and E2EE secrets must be independent               |
+| DEK model                 | Per-account DEK wrapped by passphrase-derived MK                            | Enables single unlock to encrypt/decrypt all resumes; simplifies key rotation       |
+| Storage                   | Envelope in existing `data` column                                          | Avoids schema migration for column type; detection via `"e2ee"` wrapper             |
+| Code location             | New `crates/crypto` + WASM bindings                                         | Shared across web and future mobile; keeps schema crate pure                        |
+| Public pages              | Excluded when E2EE on; superseded by RFC 0003's explicit published snapshot | Cannot serve readable HTML from ciphertext without defeating E2EE purpose           |
+| Server render/export      | Degraded (client decrypt → transient plaintext)                             | Acceptable trade-off for opt-in users; document transient exposure                  |
+| Server-managed encryption | ~~Proceed separately (Phase 1.5)~~ dropped by RFC 0003                      | Redundant once every stored document is an envelope                                 |
 
 ### Decision triggers
 
@@ -353,13 +359,16 @@ Requires explicit user action. The operator cannot reverse it alone.
    stored beside the old one in `e2ee_config` (`wrapped_dek_next`), and rewrites every
    recovery backup so each holds both `DEK || tag_key` generations. Setting
    `e2ee_config.rotation_in_progress = true` is part of the same server write, and the
-   server accepts generation N and N+1 from here. Nothing has been re-encrypted yet,
+   server accepts generation N and N+1 from here until step 2's verify passes. Nothing has
+   been re-encrypted yet,
    so a crash at this point loses nothing: both keys are recoverable.
 2. Re-encrypt every resume envelope and every `resume_snapshots` row for the account
    with the new DEK, each with a fresh nonce. A crash mid-way is safe because both
    wraps exist; the client resumes by scanning for rows still at generation N.
    Rotation must not complete while any row is still under the old DEK; the server
-   verifies this atomically the same way the enable flow does.
+   verifies this atomically the same way the enable flow does, and in that same
+   transaction stops accepting generation N. From here only N+1 envelopes are stored,
+   so nothing written after this point can depend on the old wrap.
 3. Promote `wrapped_dek_next` to `wrapped_dek` and drop the old wrap in `e2ee_config`.
 4. Rewrite each recovery-code backup once more, with a **fresh** `nonce_recovery`,
    so it holds only the new generation (step 1 wrote both) and every stored recovery
@@ -374,7 +383,8 @@ Requires explicit user action. The operator cannot reverse it alone.
    complete. Leaving old rows active while adding new ones is forbidden: an old or
    stale backup must not unwrap the previous DEK after resumes have moved to the new
    DEK.
-5. Increment `e2ee_config.key_generation` and clear `rotation_in_progress`. The server accepts
+5. Increment `e2ee_config.key_generation` and clear `rotation_in_progress`. The
+   accept window therefore runs from step 1 to the step 2 verify, never past it. The server accepts
    envelopes carrying
    either the old or the new generation only between steps 1 and 5; after step 5
    only the new generation is accepted, and the rotation is complete only when no
