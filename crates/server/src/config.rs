@@ -42,6 +42,21 @@ pub fn public_base_url() -> Option<String> {
     parse_public_base_url(std::env::var("PUBLIC_BASE_URL").ok().as_deref())
 }
 
+/// Describe why `PUBLIC_BASE_URL` will be ignored, for a one-time startup log.
+///
+/// Returns `None` when the variable is unset or valid. The message never
+/// includes the raw value, which may contain credentials.
+pub fn public_base_url_problem() -> Option<&'static str> {
+    let raw = std::env::var("PUBLIC_BASE_URL").ok()?;
+    if raw.trim().is_empty() {
+        return None;
+    }
+    if parse_public_base_url(Some(&raw)).is_some() {
+        return None;
+    }
+    Some("PUBLIC_BASE_URL is set but is not a bare absolute http(s) origin; it will be ignored")
+}
+
 /// Normalize a `PUBLIC_BASE_URL` value to a bare `scheme://host[:port]` origin.
 ///
 /// Only absolute `http(s)` URLs with an empty path and no query, fragment, or
@@ -53,10 +68,11 @@ pub fn parse_public_base_url(value: Option<&str>) -> Option<String> {
         return None;
     }
 
+    // Deliberately quiet and value-free: this runs per request in cloud mode
+    // and the raw value may carry credentials. `init_cloud` reports an invalid
+    // setting once at startup via `public_base_url_problem`.
     let reject = |reason: &str| {
-        tracing::warn!(
-            "PUBLIC_BASE_URL must be an absolute http(s) origin ({reason}); ignoring {trimmed:?}"
-        );
+        tracing::debug!("PUBLIC_BASE_URL rejected: {reason}");
         None
     };
 
