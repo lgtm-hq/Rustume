@@ -948,6 +948,48 @@ mod tests {
             response.headers().get("referrer-policy").unwrap(),
             "strict-origin-when-cross-origin"
         );
+        let csp = response
+            .headers()
+            .get("content-security-policy")
+            .unwrap()
+            .to_str()
+            .unwrap();
+        assert!(csp.contains("script-src 'self' 'wasm-unsafe-eval';"));
+        assert!(!csp.contains("paddle.com"));
+    }
+
+    #[tokio::test]
+    async fn test_security_headers_allow_paddle_hosts_when_billing_configured() {
+        let state = state::AppState::with_options_and_billing(
+            std::sync::Arc::new(routes::static_dir()),
+            Some(test_cloud_state()),
+            false,
+            config::RateLimitConfig::default(),
+            Some(sample_billing_config()),
+        );
+        let app = create_router_with_state(state);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let csp = response
+            .headers()
+            .get("content-security-policy")
+            .unwrap()
+            .to_str()
+            .unwrap();
+        assert!(csp.contains("script-src 'self' 'wasm-unsafe-eval' https://cdn.paddle.com;"));
+        assert!(
+            csp.contains("frame-src 'self' https://buy.paddle.com https://sandbox-buy.paddle.com;")
+        );
+        assert!(csp.contains("https://sandbox-checkout-service.paddle.com"));
     }
 
     fn sample_render_pdf_request() -> RenderPdfRequest {

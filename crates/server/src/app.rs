@@ -252,7 +252,7 @@ pub fn create_router_with_state(state: AppState) -> Router {
             let mut webhook_routes = Router::new().route("/webhooks/paddle", post(paddle_webhook));
             if cloud_rate_limits {
                 webhook_routes = webhook_routes.route_layer(middleware::from_fn_with_state(
-                    state_for_layers,
+                    state_for_layers.clone(),
                     rate_limit_unauthenticated,
                 ));
             }
@@ -264,7 +264,10 @@ pub fn create_router_with_state(state: AppState) -> Router {
     let router = router
         .fallback(spa_fallback)
         .with_state(state)
-        .layer(middleware::from_fn(security_headers))
+        .layer(middleware::from_fn_with_state(
+            state_for_layers,
+            security_headers,
+        ))
         .layer(CompressionLayer::new())
         .layer(cors)
         .layer(TraceLayer::new_for_http())
