@@ -24,8 +24,9 @@ Requests that carry a key on those routes receive `401 Unauthorized`.
 
 ## Creating and using a key
 
-Create a key from the account settings page or with `POST /api/keys` while signed in. The request
-body carries only a `name` (1–100 characters) used to label the key. The response includes the
+Create a key with `POST /api/keys` while signed in with a session cookie (the account settings
+page gains a key management section in a follow-up release). The request body carries only a
+`name` (1–100 characters) used to label the key. The response includes the
 plaintext token exactly once; the server stores a SHA-256 hash and the first eight characters after
 the prefix for display.
 

@@ -22,7 +22,8 @@ is available at `/api-docs/openapi.json`; Swagger UI is available at `/swagger-u
 | --- | --- | --- |
 | Parse, render, validate, templates, health | None | Every deployment |
 | Prometheus metrics | Bearer `METRICS_TOKEN` | Configured server deployments |
-| Authentication and resume storage | Session cookie | Connected deployments |
+| Authentication | Session cookie (login is browser-only) | Connected deployments |
+| Resume storage, import, export, history | Session cookie or API key | Connected deployments |
 | Sync, public sharing, history, API keys | Session cookie or API key (key management is session-only) | Connected deployments |
 | Hosted billing management | Hosted account session | Rustume-operated service only |
 
