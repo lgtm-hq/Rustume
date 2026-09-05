@@ -169,10 +169,15 @@ A 428 is never a document conflict. The client runs the full reconcile, reclassi
 its queue against the result, pulls a fresh cursor, and only then drains.
 
 Replays are safe because every mutation carries a client-generated
-`Idempotency-Key` (UUID). The relay stores the key with the response it produced for
-24 hours. A retry with the same key returns the stored response even though the
-`If-Match` version has since moved, so a lost response after a committed write does
-not turn into a false conflict. `POST /api/sync/reconcile` is idempotent by
+`Idempotency-Key` (UUID). The relay stores the key with the response it produced,
+attached to the client's `sync_cursors` row, and keeps it for as long as that row
+lives (90 days without a pull). A retry with the same key returns the stored
+response even though the `If-Match` version has since moved, so a lost response
+after a committed write does not turn into a false conflict. Once the cursor row
+expires the replay records go with it; a client returning after that long gets 428
+on its first write and reclassifies the queue through the full reconcile, which
+recognises an already-applied mutation by matching content tags rather than by
+replaying it. `POST /api/sync/reconcile` is idempotent by
 construction and needs no key.
 
 #### Deletions are versioned tombstones
