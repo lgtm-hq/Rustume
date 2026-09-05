@@ -19,12 +19,12 @@ plaintext to do their job.
 
 This settles the storage question for four deployment shapes with one codebase:
 
-| Shape             | Local store      | Relay                                             | Identity                             |
-| ----------------- | ---------------- | ------------------------------------------------- | ------------------------------------ |
-| Browser-only      | IndexedDB (WASM) | none (static build, or hosted app before sign-in) | none                                 |
-| Rustume Cloud     | IndexedDB (WASM) | Postgres, operated by Rustume                     | WorkOS email sign-in                 |
-| Self-hosted relay | IndexedDB (WASM) | SQLite on a volume, your box                      | implicit local user + optional token |
-| Desktop / mobile  | SQLite (native)  | any of the above                                  | as the relay requires                |
+| Shape             | Local store      | Relay                                             | Identity                                                        |
+| ----------------- | ---------------- | ------------------------------------------------- | --------------------------------------------------------------- |
+| Browser-only      | IndexedDB (WASM) | none (static build, or hosted app before sign-in) | none                                                            |
+| Rustume Cloud     | IndexedDB (WASM) | Postgres, operated by Rustume                     | WorkOS email sign-in                                            |
+| Self-hosted relay | IndexedDB (WASM) | SQLite on a volume, your box                      | implicit local user + access token, required except on loopback |
+| Desktop / mobile  | SQLite (native)  | any of the above                                  | as the relay requires                                           |
 
 **Decisions at a glance:**
 
@@ -132,16 +132,16 @@ like to the user; the difference is where the durable copy lives.
 
 A relay's document API is the sync protocol from RFC 0002, generalised:
 
-| Method   | Path                                      | Purpose                                                      |
-| -------- | ----------------------------------------- | ------------------------------------------------------------ |
-| `GET`    | `/api/sync/changes?since=`                | Delta of document ids, versions, content tags, deletions     |
-| `GET`    | `/api/sync/docs/{id}`                     | Fetch one envelope with version metadata                     |
-| `PUT`    | `/api/sync/docs/{id}`                     | Push an envelope; `If-Match: version` for conflict detection |
-| `POST`   | `/api/sync/reconcile`                     | Batched first sync (idempotent)                              |
-| `DELETE` | `/api/sync/docs/{id}`                     | Write a versioned tombstone; `If-Match: version` required    |
-| `GET`    | `/api/sync/docs/{id}/snapshots`           | List snapshot versions for one document                      |
-| `GET`    | `/api/sync/docs/{id}/snapshots/{version}` | Fetch one encrypted history snapshot                         |
-| `PUT`    | `/api/sync/docs/{id}/snapshots/{version}` | Client-written encrypted history snapshot                    |
+| Method   | Path                                      | Purpose                                                                                                                    |
+| -------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/api/sync/changes?since=`                | Delta of document ids, versions, content tags, deletions                                                                   |
+| `GET`    | `/api/sync/docs/{id}`                     | Fetch one envelope with version metadata                                                                                   |
+| `PUT`    | `/api/sync/docs/{id}`                     | Push an envelope; `If-Match: version` for conflict detection                                                               |
+| `POST`   | `/api/sync/reconcile`                     | Batched first sync (idempotent)                                                                                            |
+| `DELETE` | `/api/sync/docs/{id}`                     | Write a versioned tombstone; `If-Match: version` required                                                                  |
+| `GET`    | `/api/sync/docs/{id}/snapshots`           | List snapshot versions for one document                                                                                    |
+| `GET`    | `/api/sync/docs/{id}/snapshots/{version}` | Fetch one encrypted history snapshot                                                                                       |
+| `PUT`    | `/api/sync/docs/{id}/snapshots/{version}` | Client-written encrypted history snapshot; insert-only, 409 on an existing version unless the ciphertext is byte-identical |
 
 Today's `/api/resumes` CRUD stays during migration and is retired once every client
 speaks sync. The relay validates envelope shape and byte limits, never content.
@@ -162,12 +162,13 @@ change. The rules that make deletes safe across offline devices:
   conflict for the user (keep deleted, or restore from local), never as a silent
   create. This replaces RFC 0002's "local-only id creates a cloud row" rule when a
   tombstone is present.
-- Tombstones are retained until every client holding a sync cursor on the account
-  has pulled past their version, and for at least 90 days regardless. A client is
-  any browser session, relay, or native app that has completed a pull; there is no
-  separate device registry. After that the relay may garbage-collect them.
-- A client whose cursor is older than the retention window must run a full
-  reconcile, not a delta pull. In a full reconcile, a local document that has a
+- Tombstones are retained for at least 90 days, and until every non-expired cursor
+  on the account has pulled past their version. A client is any browser session,
+  relay, or native app that has completed a pull; there is no separate device
+  registry. A cursor expires after 90 days without a pull, so an abandoned tab
+  cannot hold tombstones forever. Once both conditions hold the relay may
+  garbage-collect them.
+- A client whose cursor has expired must run a full reconcile, not a delta pull. In a full reconcile, a local document that has a
   relay version recorded (it was synced before) but no row on the relay is treated
   as deleted on the relay, and surfaces the same keep-deleted-or-restore choice as
   a live tombstone. Only a local document that has never been synced is created.
@@ -186,6 +187,8 @@ pub trait DocumentRepo {
     async fn put(&self, owner: OwnerId, doc: StoredDoc, expected: Option<Version>) -> Result<PutOutcome>;
     /// Writes a tombstone at `expected + 1`; the row is retained, not removed.
     async fn delete(&self, owner: OwnerId, id: DocId, expected: Version) -> Result<Tombstone>;
+    /// Insert-only. An existing `(id, version)` is an error unless the stored
+    /// ciphertext is byte-identical, which makes retries idempotent.
     async fn put_snapshot(&self, owner: OwnerId, snap: StoredSnapshot) -> Result<()>;
     async fn list_snapshots(&self, owner: OwnerId, id: DocId) -> Result<Vec<SnapshotMeta>>;
     async fn get_snapshot(&self, owner: OwnerId, id: DocId, version: Version) -> Result<Option<StoredSnapshot>>;
@@ -275,9 +278,11 @@ accounts. That equality leak is accepted; it is the information sync needs anywa
 
 ### Key lifetime on a device
 
-The unwrapped DEK lives in memory for the session. "Remember this device" wraps the
-DEK with a non-exportable WebCrypto key held in IndexedDB, so the passphrase is
-needed once per device rather than once per visit. Sign-out clears both. Passkeys
+The unwrapped keys live in memory for the session. "Remember this device" wraps the
+same 64-byte `DEK || tag_key` blob with a non-exportable WebCrypto key held in
+IndexedDB, so the passphrase is needed once per device rather than once per visit
+and a returning session can both decrypt and tag. Sign-out clears the blob and the
+in-memory keys. Passkeys
 with the WebAuthn PRF extension are the intended replacement for the passphrase and
 are tracked as an open question.
 
@@ -456,8 +461,9 @@ PR that adds this RFC.
    instead of today's hard delete with cascading snapshot removal, and the server's
    own snapshot capture on update (`db/snapshots.rs`) is switched off for sealed
    accounts, because the server cannot seal a snapshot. Snapshots for those accounts
-   come only from the client through the sync snapshot endpoint, which upserts on
-   `(resume_id, version)`. For a migrated account, `/api/resumes` accepts only
+   come only from the client through the sync snapshot endpoint, which is
+   insert-only on `(resume_id, version)` and answers 409 to a different ciphertext
+   for an existing version. History is never rewritten in place. For a migrated account, `/api/resumes` accepts only
    envelopes (422 otherwise, per RFC 0001) and returns envelopes; a client too old to
    handle envelopes gets 426 Upgrade Required rather than plaintext.
 5. **`resume_snapshots`** keeps its shape. After migration every row for the account
