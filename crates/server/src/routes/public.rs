@@ -212,14 +212,21 @@ fn etag_matches(if_none_match: &str, etag: &str) -> bool {
 }
 
 /// Serve `GET /robots.txt` for crawlers.
-pub async fn robots_txt() -> Response {
+///
+/// A `robots.txt` shipped in the static bundle wins, so self-hosted operators
+/// keep full control; the built-in policy is only the fallback.
+pub async fn robots_txt(State(state): State<AppState>) -> Response {
+    let body = match tokio::fs::read_to_string(state.static_dir.join("robots.txt")).await {
+        Ok(custom) => custom,
+        Err(_) => ROBOTS_TXT.to_string(),
+    };
     (
         StatusCode::OK,
         [(
             header::CONTENT_TYPE,
             HeaderValue::from_static("text/plain; charset=utf-8"),
         )],
-        ROBOTS_TXT,
+        body,
     )
         .into_response()
 }
@@ -885,6 +892,86 @@ mod tests {
                 .await
                 .expect_err("password-protected row must not be public");
             assert!(matches!(err.kind, ApiErrorKind::NotFound));
+
+            cleanup_user(&pool, seeded.user_id).await;
+        }
+
+        #[tokio::test]
+        async fn robots_txt_prefers_a_bundled_file() {
+            let static_dir = temp_static_dir();
+            std::fs::write(
+                static_dir.path().join("robots.txt"),
+                "User-agent: *\nDisallow: /\n",
+            )
+            .expect("write robots.txt");
+            let app = crate::app::create_router_with_static_dir(static_dir.path().to_path_buf());
+
+            let response = app
+                .oneshot(
+                    Request::builder()
+                        .uri("/robots.txt")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::OK);
+            let body = body_string(response).await;
+            assert_eq!(body, "User-agent: *\nDisallow: /\n");
+        }
+
+        #[tokio::test]
+        async fn public_page_fails_closed_without_leaking_internals() {
+            let Some(url) = database_url_for_tests() else {
+                return;
+            };
+            let pool = connect_test_pool(&url).await;
+            let seeded = seed_resume(&pool, true).await;
+
+            // index.html without </head>: 500 with a generic message.
+            let no_head = tempfile::tempdir().expect("temp dir");
+            std::fs::write(
+                no_head.path().join("index.html"),
+                "<html><body></body></html>",
+            )
+            .expect("write index");
+            let state = test_app_state(pool.clone(), no_head.path().to_path_buf());
+            let err = public_resume_page(State(state), Path(seeded.slug.clone()))
+                .await
+                .expect_err("missing </head> is an error");
+            assert!(matches!(err.kind, ApiErrorKind::InternalError));
+
+            // Missing index.html entirely.
+            let empty = tempfile::tempdir().expect("temp dir");
+            let state = test_app_state(pool.clone(), empty.path().to_path_buf());
+            let err = public_resume_page(State(state), Path(seeded.slug.clone()))
+                .await
+                .expect_err("unreadable index is an error");
+            assert!(matches!(err.kind, ApiErrorKind::InternalError));
+
+            // Row whose data is not a ResumeData document.
+            sqlx::query("UPDATE resumes SET data = '\"not a resume\"'::jsonb WHERE id = $1")
+                .bind(seeded.resume_id)
+                .execute(&pool)
+                .await
+                .expect("corrupt data");
+            let static_dir = temp_static_dir();
+            let state = test_app_state(pool.clone(), static_dir.path().to_path_buf());
+            let err = public_resume_page(State(state.clone()), Path(seeded.slug.clone()))
+                .await
+                .expect_err("invalid resume data is an error");
+            assert!(matches!(err.kind, ApiErrorKind::InternalError));
+            let err =
+                public_resume_preview(State(state), Path(seeded.slug.clone()), HeaderMap::new())
+                    .await
+                    .expect_err("invalid resume data is an error for preview too");
+            assert!(matches!(err.kind, ApiErrorKind::InternalError));
+            let body = serde_json::to_string(&err).unwrap_or_default();
+            assert!(
+                !body.contains("not a resume"),
+                "raw document must not leak: {body}"
+            );
 
             cleanup_user(&pool, seeded.user_id).await;
         }
