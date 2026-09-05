@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ApiValidationError } from "../client";
+import { ApiError, ApiValidationError } from "../client";
 import { deleteAccount, updateUsername, validateUsername } from "../account";
 import usernameCases from "../../../../../crates/server/src/auth/username_cases.json";
 import usernameRules from "../../../../../crates/server/src/auth/username_rules.json";
@@ -130,7 +130,10 @@ describe("updateUsername", () => {
       text: async () => JSON.stringify({ error: "username already taken" }),
     });
 
-    await expect(updateUsername("taken-handle")).rejects.toThrow("username already taken");
+    const error = await updateUsername("taken-handle").catch((err: unknown) => err);
+    // The page keys its toast off the status, so the client must preserve it.
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ status: 409, message: "username already taken" });
   });
 
   it("rejects update responses with unexpected fields", async () => {

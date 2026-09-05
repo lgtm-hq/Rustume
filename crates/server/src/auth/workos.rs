@@ -203,6 +203,12 @@ async fn upsert_user_with_generator(
 
     for _ in 0..MAX_USERNAME_ATTEMPTS {
         let username = next_username();
+        // The generator is closed over a vetted word list today, but the
+        // shared validator is the contract; never insert a handle it rejects.
+        if let Err(reason) = crate::auth::username::validate_username(&username) {
+            tracing::warn!(%username, %reason, "generated username rejected; retrying");
+            continue;
+        }
         match upsert_user_with_username(pool, workos_user, &username).await {
             Ok(upserted) => return Ok(upserted.into()),
             Err(err) if is_username_collision(&err) => continue,
@@ -217,7 +223,10 @@ async fn upsert_user_with_generator(
     let mut last_err = None;
     for _ in 0..MAX_USERNAME_ATTEMPTS {
         let fallback = fallback_username();
-        debug_assert!(crate::auth::username::validate_username(&fallback).is_ok());
+        if let Err(reason) = crate::auth::username::validate_username(&fallback) {
+            tracing::warn!(%fallback, %reason, "fallback username rejected; retrying");
+            continue;
+        }
         match upsert_user_with_username(pool, workos_user, &fallback).await {
             Ok(upserted) => return Ok(upserted.into()),
             Err(err) if is_username_collision(&err) => last_err = Some(err),
@@ -240,11 +249,7 @@ fn is_username_collision(err: &sqlx::Error) -> bool {
     }
 }
 
-/// Unique index created by migration 010. CONTRACT with the migration: the
-/// index is defined over `COALESCE(username, replace(id::text, '-', ''))` and
-/// its name is what `is_username_collision` matches on; renaming it there
-/// without updating this constant would silently disable sign-up retries.
-const USERNAME_UNIQUE_INDEX: &str = "idx_users_username_unique";
+use crate::auth::username::USERNAME_UNIQUE_INDEX;
 
 /// Random lowercase-hex fallback handle: `user-` plus eight hex characters.
 fn fallback_username() -> String {
@@ -277,7 +282,7 @@ async fn refresh_existing_user(
     pool: &sqlx::PgPool,
     workos_user: &WorkOsUser,
 ) -> Result<Option<UpsertedUser>, sqlx::Error> {
-    sqlx::query_as::<_, UpsertedUser>(
+    sqlx::query_as::<_, UpsertedUser>(sqlx::AssertSqlSafe(format!(
         r#"
         UPDATE users
         SET email = $2, updated_at = now()
@@ -288,14 +293,14 @@ async fn refresh_existing_user(
             plan,
             paddle_customer_id,
             email,
-            -- CONTRACT: same fallback expression as the migration 010 backfill
-            -- and the unique index; see auth/session.rs too.
-            COALESCE(username, replace(id::text, '-', '')) AS username,
+            {fallback} AS username,
             created_at,
             updated_at,
             false AS is_new
         "#,
-    )
+        // Constant-only interpolation; no user input reaches the SQL text.
+        fallback = crate::auth::username::USERNAME_FALLBACK_SQL
+    )))
     .bind(&workos_user.id)
     .bind(&workos_user.email)
     .fetch_optional(pool)
@@ -310,7 +315,7 @@ async fn upsert_user_with_username(
     workos_user: &WorkOsUser,
     username: &str,
 ) -> Result<UpsertedUser, sqlx::Error> {
-    sqlx::query_as::<_, UpsertedUser>(
+    sqlx::query_as::<_, UpsertedUser>(sqlx::AssertSqlSafe(format!(
         r#"
         INSERT INTO users (workos_id, plan, email, username)
         VALUES ($1, 'free', $2, $3)
@@ -324,14 +329,14 @@ async fn upsert_user_with_username(
             plan,
             paddle_customer_id,
             email,
-            -- CONTRACT: same fallback expression as the migration 010 backfill
-            -- and the unique index; see auth/session.rs too.
-            COALESCE(username, replace(id::text, '-', '')) AS username,
+            {fallback} AS username,
             created_at,
             updated_at,
             (xmax = 0) AS is_new
         "#,
-    )
+        // Constant-only interpolation; no user input reaches the SQL text.
+        fallback = crate::auth::username::USERNAME_FALLBACK_SQL
+    )))
     .bind(&workos_user.id)
     .bind(&workos_user.email)
     .bind(username)
