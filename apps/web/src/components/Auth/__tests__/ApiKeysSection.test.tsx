@@ -468,6 +468,41 @@ describe("ApiKeysSection", () => {
     });
   });
 
+  it("reveals a key whose create request resolves after an unmount and remount", async () => {
+    let resolveCreate: (key: {
+      id: string;
+      name: string;
+      prefix: string;
+      key: string;
+    }) => void = () => {};
+    createApiKeyMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveCreate = resolve;
+      }),
+    );
+    listApiKeysMock.mockResolvedValue([]);
+
+    const first = render(() => <ApiKeysSection />);
+    await screen.findByText(/No API keys yet/i);
+    fireEvent.click(screen.getByRole("button", { name: "Create key" }));
+    const createDialog = await screen.findByRole("dialog");
+    fireEvent.input(within(createDialog).getByLabelText("Key name"), {
+      target: { value: "Automation" },
+    });
+    fireEvent.click(within(createDialog).getByRole("button", { name: "Create key" }));
+
+    // Navigate away while the POST is still in flight, then come back.
+    first.unmount();
+    render(() => <ApiKeysSection />);
+    await screen.findByText(/No API keys yet/i);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    resolveCreate({ id: "key-3", name: "Automation", prefix: "zzzz9999", key: "rk_late" });
+
+    expect(await screen.findByText("rk_late")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "API key created" })).toBeInTheDocument();
+  });
+
   it("warns before unload only while a one-time key is on screen", async () => {
     const addSpy = vi.spyOn(window, "addEventListener");
     const removeSpy = vi.spyOn(window, "removeEventListener");
