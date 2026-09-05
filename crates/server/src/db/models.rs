@@ -720,58 +720,56 @@ mod tests {
         assert_eq!(back.policy, "terms");
     }
 
-    /// The Account page's ACCOUNT_EXPORT_CONTENTS is the web statement of this
-    /// module's allow-list. It cannot be imported across languages, so pin its
-    /// wording here: adding a collection to `AccountDataExport` without telling
-    /// the user fails this test, as does dropping a documented exclusion.
+    /// `account_export_contents.json` is the user-facing statement of this
+    /// module's allow-list, shared with the web Account page. Pin it here:
+    /// every collection it names must be a field of `AccountDataExport` and
+    /// vice versa, and the cloud-endpoints docs must document the same fields
+    /// and exclusions. Adding a collection without telling the user, or
+    /// dropping a documented exclusion, fails this test.
     #[test]
-    fn web_export_copy_matches_allow_list() {
-        let web = include_str!("../../../../apps/web/src/api/account.ts");
-        let constant = &web[web
-            .find("export const ACCOUNT_EXPORT_CONTENTS")
-            .expect("ACCOUNT_EXPORT_CONTENTS constant exists")..];
-        let constant = &constant[..constant.find("} as const;").expect("constant ends")];
+    fn export_contents_match_allow_list_and_docs() {
+        #[derive(serde::Deserialize)]
+        struct Included {
+            collections: Vec<String>,
+            text: String,
+        }
+        #[derive(serde::Deserialize)]
+        struct Excluded {
+            text: String,
+            docs: String,
+        }
+        #[derive(serde::Deserialize)]
+        struct Contents {
+            included: Vec<Included>,
+            excluded: Vec<Excluded>,
+        }
+        let contents: Contents =
+            serde_json::from_str(include_str!("account_export_contents.json")).unwrap();
+        let docs = include_str!("../../../../apps/site/src/content/docs/api/cloud-endpoints.md");
 
-        /// Pull the double-quoted string literals out of the `<key>: [ ... ]`
-        /// property, anchored to the start of its own line so a phrase that
-        /// merely contains the key cannot match.
-        fn string_array(source: &str, key: &str) -> Vec<String> {
-            let start = source
-                .find(key)
-                .unwrap_or_else(|| panic!("{key} array present"));
-            let body = &source[start + key.len()..];
-            let body = &body[..body.find(']').expect("array closes")];
-            body.split('"')
-                .skip(1)
-                .step_by(2)
-                .map(str::to_string)
-                .collect()
+        // The collections the user is told about, plus the timestamp field
+        // that is metadata rather than a collection.
+        let mut told: std::collections::BTreeSet<String> = ["exported_at".to_string()].into();
+        for item in &contents.included {
+            assert!(!item.text.trim().is_empty());
+            for collection in &item.collections {
+                assert!(told.insert(collection.clone()), "duplicate {collection}");
+                assert!(
+                    docs.contains(&format!("| `{collection}` |")),
+                    "cloud-endpoints.md must have a table row for `{collection}`"
+                );
+            }
+        }
+        for item in &contents.excluded {
+            assert!(!item.text.trim().is_empty());
+            assert!(
+                docs.contains(&item.docs),
+                "cloud-endpoints.md must name the exclusion: {}",
+                item.docs
+            );
         }
 
-        // The exact arrays, in order: one sentence per exported collection
-        // (resumes and their snapshots are one object graph, so one sentence)
-        // and every documented exclusion. Substring checks would let stale or
-        // extra copy through.
-        assert_eq!(
-            string_array(constant, "\n  included: ["),
-            [
-                "your profile",
-                "policy acceptances",
-                "billing subscriptions (including Paddle subscription and price ids)",
-                "every resume with its retained version snapshots",
-                "your account's audit trail (including the IP addresses recorded with each event)",
-            ]
-        );
-        assert_eq!(
-            string_array(constant, "\n  excluded: ["),
-            [
-                "sessions",
-                "the WorkOS user id",
-                "the Paddle customer id",
-                "share password hashes",
-            ]
-        );
-        // And the schema itself still has exactly these collections.
+        // And the schema itself has exactly the collections the user is told about.
         let export = AccountDataExport {
             exported_at: Utc::now(),
             account: AccountExportProfile::from_user(&User {
@@ -799,18 +797,9 @@ mod tests {
             .keys()
             .cloned()
             .collect();
-        let expected: std::collections::BTreeSet<String> = [
-            "exported_at",
-            "account",
-            "policy_acceptances",
-            "subscriptions",
-            "resumes",
-            "resume_snapshots",
-            "audit_events",
-        ]
-        .into_iter()
-        .map(String::from)
-        .collect();
-        assert_eq!(keys, expected);
+        assert_eq!(
+            keys, told,
+            "AccountDataExport fields and account_export_contents.json collections differ"
+        );
     }
 }
