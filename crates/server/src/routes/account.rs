@@ -33,6 +33,10 @@ use crate::state::AppState;
 
 const DELETE_CONFIRMATION: &str = "DELETE";
 const EXPORT_STREAM_CHUNK_BYTES: usize = 64 * 1024;
+/// `application_name` set on the export transaction's connection, so operators
+/// (and the fault-injection tests) can find long-running exports in
+/// `pg_stat_activity` without depending on query text.
+const EXPORT_APPLICATION_NAME: &str = "rustume-account-export";
 const EXPORT_STREAM_CHANNEL_CAPACITY: usize = 2;
 
 /// Resume fields required for account data export.
@@ -189,14 +193,39 @@ async fn start_export_stream(
     }
 
     // One connection, one snapshot: everything in the archive, including the
-    // small collections in the prefix, is read from this REPEATABLE READ
-    // transaction, which the stream task owns until it ends. The start audit
-    // has already committed, so only one pool connection is held from here.
+    // profile and the small collections in the prefix, is read from this
+    // REPEATABLE READ transaction, which the stream task owns until it ends.
+    // The start audit has already committed, so only one pool connection is
+    // held from here.
     let mut tx = pool.begin().await.map_err(internal_db_error)?;
     sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
         .execute(&mut *tx)
         .await
         .map_err(internal_db_error)?;
+    // Constant-only interpolation (SET cannot take bind parameters); scoped to
+    // this transaction so the pooled connection is not renamed for later users.
+    sqlx::query(sqlx::AssertSqlSafe(format!(
+        "SET LOCAL application_name = '{EXPORT_APPLICATION_NAME}'"
+    )))
+    .execute(&mut *tx)
+    .await
+    .map_err(internal_db_error)?;
+    // The session middleware's `User` predates the snapshot; re-read the
+    // profile inside it so a concurrent profile change cannot make the
+    // archive internally inconsistent.
+    let profile_user = sqlx::query_as::<_, crate::db::User>(
+        r#"
+        SELECT id, workos_id, plan, paddle_customer_id, email, first_name, last_name,
+               created_at, updated_at
+        FROM users
+        WHERE id = $1
+        "#,
+    )
+    .bind(user.id)
+    .fetch_optional(&mut *tx)
+    .await
+    .map_err(internal_db_error)?
+    .ok_or_else(|| ApiError::not_found("account not found"))?;
     let policy_acceptances = account_policy_acceptances(&mut *tx, user.id).await?;
     let subscriptions = account_subscriptions(&mut *tx, user.id).await?;
     let prefix_counts = PrefixCounts {
@@ -205,7 +234,7 @@ async fn start_export_stream(
     };
 
     let exported_at = Utc::now();
-    let account = AccountExportProfile::from_user(user);
+    let account = AccountExportProfile::from_user(&profile_user);
     let prefix = build_export_prefix(exported_at, &account, &policy_acceptances, &subscriptions)?;
     let export_stream =
         stream_account_export(pool, tx, permit, user.id, prefix, prefix_counts, ip_address);
@@ -1708,10 +1737,11 @@ mod tests {
                 WHERE datname = current_database()
                   AND pid <> pg_backend_pid()
                   AND state <> 'idle'
-                  AND query LIKE '%account-export: resumes%'
+                  AND application_name = $1
             ) AS killed
             "#,
         )
+        .bind(EXPORT_APPLICATION_NAME)
         .fetch_one(&pool)
         .await
         .expect("terminate export backend");
@@ -2029,10 +2059,11 @@ mod tests {
                 WHERE datname = current_database()
                   AND pid <> pg_backend_pid()
                   AND state <> 'idle'
-                  AND query LIKE '%account-export: resumes%'
+                  AND application_name = $1
             ) AS killed
             "#,
         )
+        .bind(EXPORT_APPLICATION_NAME)
         .fetch_one(&pool)
         .await
         .expect("terminate export backend");
