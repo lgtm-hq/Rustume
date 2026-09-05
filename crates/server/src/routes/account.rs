@@ -168,6 +168,13 @@ pub async fn export_account(
     }
 }
 
+/// Test seam: when set, `start_export_stream` fails before opening the
+/// transaction, standing in for a `begin()`/`SET TRANSACTION` failure that
+/// cannot be injected through a live pool. Export tests are serialised.
+#[cfg(test)]
+static FAIL_EXPORT_START_FOR_TESTS: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
 /// Open the export snapshot, build the prefix, and hand the body stream to the
 /// client. Runs after the start audit has committed.
 async fn start_export_stream(
@@ -176,6 +183,11 @@ async fn start_export_stream(
     permit: OwnedSemaphorePermit,
     ip_address: Option<String>,
 ) -> Result<Response, ApiError> {
+    #[cfg(test)]
+    if FAIL_EXPORT_START_FOR_TESTS.load(std::sync::atomic::Ordering::SeqCst) {
+        return Err(internal_db_error("injected export start failure"));
+    }
+
     // One connection, one snapshot: everything in the archive, including the
     // small collections in the prefix, is read from this REPEATABLE READ
     // transaction, which the stream task owns until it ends. The start audit
@@ -901,6 +913,7 @@ mod tests {
     use crate::auth::{session::SessionService, workos::WorkOsClient};
     use crate::cloud::CloudState;
     use crate::email::EmailService;
+    use crate::error::ApiErrorKind;
 
     use crate::state::AppState;
     use axum::body::Body;
@@ -1247,6 +1260,10 @@ mod tests {
         let user = seed_user_with_resumes(&pool, 2).await;
         seed_snapshots_and_policy_acceptances(&pool, user.id).await;
         seed_expired_subscription(&pool, user.id).await;
+        // A second account with its own data: nothing of theirs may leak.
+        let bystander = seed_user_with_resumes(&pool, 3).await;
+        seed_snapshots_and_policy_acceptances(&pool, bystander.id).await;
+        seed_expired_subscription(&pool, bystander.id).await;
         // One resume is shared publicly so the export carries sharing state.
         let shared_slug = format!("shared-{}", &user.id.simple().to_string()[..8]);
         sqlx::query(
@@ -1271,13 +1288,44 @@ mod tests {
 
         let body = read_export_body(response).await;
         let completion = wait_for_completion_audit(&pool, user.id).await;
+        let own_resume_ids: std::collections::BTreeSet<Uuid> =
+            sqlx::query_scalar("SELECT id FROM resumes WHERE user_id = $1")
+                .bind(user.id)
+                .fetch_all(&pool)
+                .await
+                .expect("own resume ids")
+                .into_iter()
+                .collect();
+        // Everything this user did before the export snapshot was taken; the
+        // completion event is written after the stream ends, so it is excluded.
+        let own_audit_count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM audit_events WHERE actor_user_id = $1 AND event_type <> 'account.export.completed'",
+        )
+        .bind(user.id)
+        .fetch_one(&pool)
+        .await
+        .expect("own audit count");
         cleanup_user(&pool, user.id).await;
+        cleanup_user(&pool, bystander.id).await;
 
         // Round-trip: the hand-assembled stream must deserialize into the
         // documented `AccountDataExport` schema, so the OpenAPI body and the
         // byte-spliced output cannot drift apart unnoticed.
         let typed: AccountDataExport =
             serde_json::from_slice(&body).expect("stream matches AccountDataExport schema");
+
+        // Isolation: every streamed collection is scoped to the requesting user.
+        assert!(typed
+            .resumes
+            .iter()
+            .all(|resume| own_resume_ids.contains(&resume.id)));
+        assert!(typed
+            .resume_snapshots
+            .iter()
+            .all(|snapshot| own_resume_ids.contains(&snapshot.resume_id)));
+        assert_eq!(typed.audit_events.len() as i64, own_audit_count);
+        assert_eq!(typed.subscriptions.len(), 1);
+        assert_eq!(typed.policy_acceptances.len(), 2);
         assert_eq!(typed.account.id, user.id);
         assert_eq!(typed.resumes.len(), 2);
         let shared = typed
@@ -1851,6 +1899,59 @@ mod tests {
         let payload: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert!(payload["error"].as_str().is_some());
         assert!(payload["retry_after"].as_u64().is_some());
+    }
+
+    #[tokio::test]
+    async fn export_account_pairs_start_audit_when_stream_cannot_start_when_database_available() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+        let _serial = EXPORT_TESTS.lock().await;
+        let pool = connect_test_pool(&database_url).await;
+
+        let user = seed_user_with_resumes(&pool, 1).await;
+        let state = test_app_state(pool.clone());
+
+        FAIL_EXPORT_START_FOR_TESTS.store(true, std::sync::atomic::Ordering::SeqCst);
+        let result = export_account(
+            AuthUser(user.clone()),
+            State(state.clone()),
+            HeaderMap::new(),
+        )
+        .await;
+        FAIL_EXPORT_START_FOR_TESTS.store(false, std::sync::atomic::Ordering::SeqCst);
+
+        let err = result.expect_err("export must fail when the stream cannot start");
+        assert!(matches!(err.kind, ApiErrorKind::InternalError));
+
+        // The required start audit was written, and it is paired with a
+        // completion event even though no stream task ever ran.
+        let events: Vec<(String, serde_json::Value)> = sqlx::query_as(
+            r#"
+            SELECT event_type, metadata FROM audit_events
+            WHERE actor_user_id = $1 AND event_type LIKE 'account.export%'
+            ORDER BY created_at ASC
+            "#,
+        )
+        .bind(user.id)
+        .fetch_all(&pool)
+        .await
+        .expect("audit rows");
+        cleanup_user(&pool, user.id).await;
+
+        assert_eq!(events.len(), 2, "{events:?}");
+        assert_eq!(events[0].0, "account.export");
+        assert_eq!(events[0].1["stage"], "started");
+        assert_eq!(events[1].0, "account.export.completed");
+        assert_eq!(events[1].1["delivered"], false);
+        assert_eq!(events[1].1["bytes_streamed"], 0);
+        assert_eq!(events[1].1["error"], "internal server error");
+
+        // The permit was released with the failed attempt.
+        assert_eq!(
+            state.export_permits.available_permits(),
+            crate::state::MAX_CONCURRENT_ACCOUNT_EXPORTS
+        );
     }
 
     #[tokio::test]

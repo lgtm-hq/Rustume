@@ -650,32 +650,73 @@ mod tests {
 
     #[test]
     fn export_items_round_trip_with_omitted_optionals() {
-        let resume: AccountResumeExportItem = serde_json::from_value(serde_json::json!({
-            "id": Uuid::nil(), "title": "t", "is_public": false,
-            "created_at": Utc::now(), "updated_at": Utc::now(), "data": {}
-        }))
-        .unwrap();
-        assert_eq!(resume.public_slug, None);
+        fn keys(value: &serde_json::Value) -> std::collections::BTreeSet<String> {
+            value.as_object().unwrap().keys().cloned().collect()
+        }
+        let now = Utc::now();
 
-        let sub: SubscriptionExport = serde_json::from_value(serde_json::json!({
-            "paddle_subscription_id": "sub_1", "paddle_price_id": "pri_1", "plan": "pro",
-            "status": "canceled", "created_at": Utc::now(), "updated_at": Utc::now()
-        }))
-        .unwrap();
-        assert_eq!(sub.current_period_end, None);
+        let resume = AccountResumeExportItem {
+            id: Uuid::nil(),
+            title: "t".to_string(),
+            is_public: false,
+            public_slug: None,
+            created_at: now,
+            updated_at: now,
+            data: serde_json::json!({}),
+        };
+        let json = serde_json::to_value(&resume).unwrap();
+        assert!(
+            !keys(&json).contains("public_slug"),
+            "None must be omitted, not null"
+        );
+        let back: AccountResumeExportItem = serde_json::from_value(json).unwrap();
+        assert_eq!(back.public_slug, None);
+        assert_eq!(back.title, "t");
 
-        let event: AuditEventExport = serde_json::from_value(serde_json::json!({
-            "event_type": "account.export", "created_at": Utc::now(), "metadata": {}
-        }))
-        .unwrap();
-        assert_eq!(event.resource_type, None);
-        assert_eq!(event.resource_id, None);
-        assert_eq!(event.ip_address, None);
+        let sub = SubscriptionExport {
+            paddle_subscription_id: "sub_1".to_string(),
+            paddle_price_id: "pri_1".to_string(),
+            plan: "pro".to_string(),
+            status: "canceled".to_string(),
+            current_period_end: None,
+            created_at: now,
+            updated_at: now,
+        };
+        let json = serde_json::to_value(&sub).unwrap();
+        assert!(!keys(&json).contains("current_period_end"));
+        let back: SubscriptionExport = serde_json::from_value(json).unwrap();
+        assert_eq!(back.current_period_end, None);
+        assert_eq!(back.paddle_subscription_id, "sub_1");
 
-        let acceptance: PolicyAcceptanceExport = serde_json::from_value(serde_json::json!({
-            "policy": "terms", "version": "2026-01-01", "accepted_at": Utc::now()
-        }))
-        .unwrap();
-        assert_eq!(acceptance.ip_address, None);
+        let event = AuditEventExport {
+            event_type: "account.export".to_string(),
+            resource_type: None,
+            resource_id: None,
+            ip_address: None,
+            created_at: now,
+            metadata: serde_json::json!({ "stage": "started" }),
+        };
+        let json = serde_json::to_value(&event).unwrap();
+        let event_keys = keys(&json);
+        for omitted in ["resource_type", "resource_id", "ip_address"] {
+            assert!(!event_keys.contains(omitted), "{omitted} must be omitted");
+        }
+        let back: AuditEventExport = serde_json::from_value(json).unwrap();
+        assert_eq!(back.resource_type, None);
+        assert_eq!(back.resource_id, None);
+        assert_eq!(back.ip_address, None);
+        assert_eq!(back.metadata["stage"], "started");
+
+        let acceptance = PolicyAcceptanceExport {
+            policy: "terms".to_string(),
+            version: "2026-01-01".to_string(),
+            accepted_at: now,
+            ip_address: None,
+        };
+        let json = serde_json::to_value(&acceptance).unwrap();
+        assert!(!keys(&json).contains("ip_address"));
+        let back: PolicyAcceptanceExport = serde_json::from_value(json).unwrap();
+        assert_eq!(back.ip_address, None);
+        assert_eq!(back.policy, "terms");
     }
 }
