@@ -16,11 +16,16 @@ export interface AuthUser {
 
 export type AuthProbeResult =
   | { mode: "self-hosted" }
-  | { mode: "cloud"; user: AuthUser | null; requireAuth: boolean };
+  | { mode: "cloud"; user: AuthUser | null; requireAuth: boolean; billingEnabled: boolean };
 
 function parseRequireAuth(payload: unknown): boolean {
   const result = authRequireAuthSchema.safeParse(payload);
   return result.success && result.data.require_auth === true;
+}
+
+function parseBillingEnabled(payload: unknown): boolean {
+  const result = authRequireAuthSchema.safeParse(payload);
+  return result.success && result.data.billing_enabled === true;
 }
 
 /** Build a display label from profile fields, falling back to email or a generic label. */
@@ -47,7 +52,12 @@ export async function probeAuth(): Promise<AuthProbeResult> {
 
   if (response.status === 401) {
     const payload = await response.json().catch(() => ({}));
-    return { mode: "cloud", user: null, requireAuth: parseRequireAuth(payload) };
+    return {
+      mode: "cloud",
+      user: null,
+      requireAuth: parseRequireAuth(payload),
+      billingEnabled: parseBillingEnabled(payload),
+    };
   }
 
   if (!response.ok) {
@@ -55,11 +65,12 @@ export async function probeAuth(): Promise<AuthProbeResult> {
   }
 
   const payload = await response.json();
-  const { user, requireAuth } = parseAuthMePayload(payload);
+  const { user, requireAuth, billingEnabled } = parseAuthMePayload(payload);
   return {
     mode: "cloud",
     user,
     requireAuth,
+    billingEnabled,
   };
 }
 
