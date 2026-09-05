@@ -16,8 +16,18 @@
 -- legacy name columns. The new code never reads or writes those columns.
 ALTER TABLE users ADD COLUMN username TEXT;
 
+-- Backfill expression. CONTRACT: the same expression is used by the new
+-- binary to read a NULL username (auth/session.rs, auth/workos.rs) and will be
+-- used again by the contract migration; change all of them together.
 UPDATE users
 SET username = replace(id::text, '-', '')
 WHERE username IS NULL;
 
-CREATE UNIQUE INDEX idx_users_username_unique ON users (username);
+-- Uniqueness is enforced over the EFFECTIVE handle, not just stored values, so
+-- a user cannot PATCH their username to the fallback handle of a row that an
+-- older replica inserted with a NULL username during the rollout.
+-- CONTRACT: the index name is matched by USERNAME_UNIQUE_INDEX in
+-- auth/workos.rs to decide whether a unique violation is a retryable handle
+-- collision; renaming it silently disables sign-up retries.
+CREATE UNIQUE INDEX idx_users_username_unique
+    ON users ((COALESCE(username, replace(id::text, '-', ''))));
