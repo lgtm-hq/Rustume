@@ -233,7 +233,11 @@ async fn upsert_user_with_generator(
             Err(err) => return Err(err),
         }
     }
-    Err(last_err.expect("at least one fallback attempt"))
+    // Unreachable with the current generators (every candidate validates), but
+    // sign-in must never panic: surface an error instead.
+    Err(last_err.unwrap_or_else(|| {
+        sqlx::Error::Protocol("username generation exhausted without a usable handle".to_string())
+    }))
 }
 
 /// Only a unique violation on the username index is worth retrying with a
@@ -346,16 +350,28 @@ async fn upsert_user_with_username(
 
 #[cfg(test)]
 mod tests {
+    /// Locally the DB-backed tests are optional; in CI (which always provisions
+    /// Postgres) a missing or misnamed database must fail rather than pass with
+    /// zero assertions. Same rule as routes/account.rs.
+    fn test_database_url() -> Option<String> {
+        let url = std::env::var("TEST_DATABASE_URL")
+            .ok()
+            .map(|url| url.trim().to_owned())
+            .filter(|url| !url.is_empty() && url.contains("_test"));
+        if url.is_none() {
+            let message =
+                "workos integration tests need TEST_DATABASE_URL naming a *_test database";
+            if std::env::var("CI").is_ok() {
+                panic!("{message}");
+            }
+            eprintln!("SKIP {message}");
+        }
+        url
+    }
+
     #[tokio::test]
     async fn only_username_unique_violations_are_retried_when_database_available() {
-        let Some(url) = std::env::var("TEST_DATABASE_URL")
-            .ok()
-            .filter(|url| url.contains("_test"))
-        else {
-            if std::env::var("CI").is_ok() {
-                panic!("workos integration test needs TEST_DATABASE_URL naming a *_test database");
-            }
-            eprintln!("SKIP workos integration test: TEST_DATABASE_URL not set");
+        let Some(url) = test_database_url() else {
             return;
         };
         let pool = sqlx::postgres::PgPoolOptions::new()
@@ -439,8 +455,38 @@ mod tests {
         assert_eq!(created.user.username, free);
         assert_eq!(attempts, 2, "exactly one retry after the collision");
 
+        // Every friendly attempt collides: the fallback loop must produce a
+        // valid `user-xxxxxxxx` handle rather than fail or panic.
+        let unlucky = super::WorkOsUser {
+            id: format!("user_UNLUCKY{suffix}"),
+            email: format!("unlucky-{suffix}@example.com"),
+        };
+        let mut friendly_attempts = 0usize;
+        let fell_back = super::upsert_user_with_generator(&pool, &unlucky, || {
+            friendly_attempts += 1;
+            taken.clone()
+        })
+        .await
+        .expect("fallback handle after exhausting friendly attempts");
+        assert!(fell_back.is_new);
+        assert_eq!(friendly_attempts, 8, "all friendly attempts were spent");
+        assert!(
+            fell_back.user.username.starts_with("user-"),
+            "{}",
+            fell_back.user.username
+        );
+        assert_eq!(fell_back.user.username.len(), 13);
+        assert_eq!(
+            crate::auth::username::validate_username(&fell_back.user.username),
+            Ok(())
+        );
+
         sqlx::query("DELETE FROM users WHERE workos_id = ANY($1)")
-            .bind(vec![existing_workos.clone(), newcomer.id.clone()])
+            .bind(vec![
+                existing_workos.clone(),
+                newcomer.id.clone(),
+                unlucky.id.clone(),
+            ])
             .execute(&pool)
             .await
             .expect("cleanup");
@@ -448,14 +494,7 @@ mod tests {
 
     #[tokio::test]
     async fn legacy_rows_without_username_read_back_with_fallback_when_database_available() {
-        let Some(url) = std::env::var("TEST_DATABASE_URL")
-            .ok()
-            .filter(|url| url.contains("_test"))
-        else {
-            if std::env::var("CI").is_ok() {
-                panic!("workos integration test needs TEST_DATABASE_URL naming a *_test database");
-            }
-            eprintln!("SKIP workos integration test: TEST_DATABASE_URL not set");
+        let Some(url) = test_database_url() else {
             return;
         };
         let pool = sqlx::postgres::PgPoolOptions::new()
