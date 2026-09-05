@@ -34,7 +34,7 @@ CREATE TABLE resumes (
 The `data` column holds a serialized `ResumeData` object (`crates/schema/src/lib.rs`:
 `basics`, `sections`, `metadata`). CRUD routes in `crates/server/src/routes/resumes.rs`
 read and write this column directly. Listing resumes returns only `id`, `title`, and
-`updated_at` — not the payload.
+`updated_at`, never the payload.
 
 Authentication uses WorkOS AuthKit (`crates/server/src/auth/workos.rs`) with
 server-side sessions (`crates/server/src/auth/session.rs`). There is **no user
@@ -49,9 +49,9 @@ column (409 on conflict).
 Several product docs describe encryption and features that are not yet implemented in
 code:
 
-- `apps/site/src/content/docs/cloud/encryption.md` — server-managed and optional E2E modes
-- `docker/.env.example` — commented `ENCRYPTION_SECRET=` ("Phase 1.5+")
-- `crates/storage/src/lib.rs` — `StorageConfig.encrypted: bool` (unused)
+- `apps/site/src/content/docs/cloud/encryption.md`: server-managed and optional E2E modes
+- `docker/.env.example`: commented `ENCRYPTION_SECRET=` ("Phase 1.5+")
+- `crates/storage/src/lib.rs`: `StorageConfig.encrypted: bool` (unused)
 - `resume_versions` table exists but has no route writers/readers
 - `is_public`, `public_slug`, `password_hash` columns exist but no publish API
 
@@ -60,7 +60,7 @@ planned feature interacts with E2EE.
 
 ## Threat model
 
-### In scope — what E2EE protects against
+### What E2EE protects against
 
 | Threat                                          | Mitigation                                                                             |
 | ----------------------------------------------- | -------------------------------------------------------------------------------------- |
@@ -69,7 +69,7 @@ planned feature interacts with E2EE.
 | Cross-tenant data leak via DB query             | Ciphertext is useless without per-user/per-resume keys                                 |
 | Passive network observer of stored sync traffic | TLS protects in transit today; E2EE adds at-rest protection after TLS terminates       |
 
-### Out of scope — what E2EE cannot protect against
+### What E2EE cannot protect against
 
 | Threat                                                     | Why                                                                                      |
 | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
@@ -77,7 +77,7 @@ planned feature interacts with E2EE.
 | Malicious client JavaScript (XSS, supply-chain compromise) | Attacker can exfiltrate keys and plaintext                                               |
 | Server-side features that require plaintext                | User explicitly sends decrypted data for render/export (transient exposure)              |
 | WorkOS account takeover                                    | Attacker gains session access; can trigger client-side decrypt if keys are session-bound |
-| Lost user secret with no recovery                          | Data is permanently unreadable — by design                                               |
+| Lost user secret with no recovery                          | Data is permanently unreadable, by design                                                |
 
 ### Trust boundaries
 
@@ -105,7 +105,7 @@ planned feature interacts with E2EE.
 
 1. **No password-derived keys from auth.** WorkOS SSO provides OAuth identity, not a
    user password. Any KDF must use a separate user-chosen passphrase, device-held key
-   material, or recovery codes — not the login credential.
+   material, or recovery codes. Never the login credential.
 
 2. **Server features assume readable JSON today.**
    - `POST /api/render/pdf` and `POST /api/render/preview` accept client-posted
@@ -117,7 +117,7 @@ planned feature interacts with E2EE.
      snapshots unless redesigned.
 
 3. **WASM cannot render PDFs.** `bindings/wasm` exposes parse, validate, and storage
-   only — not `crates/render`. Server-side PDF generation stays on native Typst unless
+   only, not `crates/render`. Server-side PDF generation stays on native Typst unless
    a separate client-side render path is built.
 
 4. **No sync crate.** Encryption logic must live in a shared Rust crate (likely new
@@ -134,7 +134,7 @@ planned feature interacts with E2EE.
    plaintext resume JSON from ciphertext envelopes (see envelope format below).
 
 7. **Cross-reference #40 (CRDT).** If CRDT sync is adopted later, the envelope must
-   encrypt individual updates or CRDT state — not whole-document blobs that defeat
+   encrypt individual updates or CRDT state, not whole-document blobs that defeat
    merge semantics. This RFC specifies document-level encryption; a CRDT-specific
    envelope variant is an open follow-up.
 
@@ -149,7 +149,7 @@ planned feature interacts with E2EE.
 | **C. Recovery codes**             | On E2EE enable, server stores `hash(code)` plus encrypted DEK backups wrapped by each code.                                                                                                  | Mitigates passphrase loss                                          | Recovery codes are secrets users must store; server-held wrapped DEK backups are weaker than pure E2EE but required for recovery |
 | **D. WorkOS-bound wrapping**      | Derive wrapping key from WorkOS session or OIDC token.                                                                                                                                       | No extra passphrase                                                | **Rejected:** session tokens rotate and are server-visible; provides no meaningful E2EE                                          |
 
-**Recommendation:** Option A + B hybrid — passphrase-derived MK wraps a per-account DEK;
+**Recommendation:** a hybrid of options A and B. A passphrase-derived MK wraps a per-account DEK;
 each device holds an unwrapped DEK in session memory (cleared on logout). Option C as
 mandatory recovery flow when enabling E2EE.
 
@@ -157,7 +157,7 @@ mandatory recovery flow when enabling E2EE.
 
 | Data                                                   | Plaintext or ciphertext                     | Rationale                                                    |
 | ------------------------------------------------------ | ------------------------------------------- | ------------------------------------------------------------ |
-| `resumes.data`                                         | **Ciphertext envelope** (when E2EE enabled) | Core PII — full resume document                              |
+| `resumes.data`                                         | **Ciphertext envelope** (when E2EE enabled) | Core PII, the full resume document                           |
 | `resumes.title`                                        | **Plaintext**                               | Required for list UI (`GET /api/resumes` returns title only) |
 | `resumes.id`, timestamps, `version`                    | **Plaintext**                               | Metadata and OCC                                             |
 | `resumes.is_public`, `public_slug`                     | **Plaintext flags**                         | Routing metadata; public content itself cannot be E2EE       |
@@ -175,7 +175,7 @@ mandatory recovery flow when enabling E2EE.
 ## Crypto envelope specification
 
 All E2EE resume payloads use a **versioned JSON envelope** stored in `resumes.data`
-(reusing the existing JSONB column — no migration required for column type).
+(reusing the existing JSONB column, so no column-type migration is needed).
 
 ### Envelope format (v1)
 
@@ -193,7 +193,7 @@ All E2EE resume payloads use a **versioned JSON envelope** stored in `resumes.da
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **KDF**             | Argon2id (RFC 9106). Default params: `m=19456` KiB, `t=2`, `p=1`. Params and salt live in `users.e2ee_config` (account-level), not per-resume.                                                                                                                                                                                                              |
 | **Key derivation**  | `MK = Argon2id(passphrase, salt, params)` → 32 bytes. Account `DEK` is a random 32-byte value generated at E2EE enable and wrapped by MK (not derived from MK).                                                                                                                                                                                             |
-| **AEAD**            | ChaCha20-Poly1305 (RFC 8439). Key = account DEK. Nonce = 12 random bytes per encryption; **must never repeat** for a given DEK. This rule covers DEK-keyed resume envelopes and MK-keyed DEK wraps only — RK-keyed recovery backups have a separate nonce-freshness requirement below.                                                                      |
+| **AEAD**            | ChaCha20-Poly1305 (RFC 8439). Key = account DEK. Nonce = 12 random bytes per encryption; **must never repeat** for a given DEK. This rule covers DEK-keyed resume envelopes and MK-keyed DEK wraps only. RK-keyed recovery backups have a separate nonce-freshness requirement below.                                                                       |
 | **Plaintext input** | Canonical JSON serialization of `ResumeData` (same as today).                                                                                                                                                                                                                                                                                               |
 | **Detection**       | Payload is an E2EE envelope only when the top-level object contains **only** an `e2ee` key (no `basics`, `sections`, or `metadata`). Server rejects mixed plaintext+ciphertext shapes and malformed envelopes (`e2ee.version`, `e2ee.nonce`, `e2ee.ciphertext` required) with 422. Valid envelopes skip resume-schema checks; byte-size limits still apply. |
 
@@ -203,7 +203,7 @@ All E2EE resume payloads use a **versioned JSON envelope** stored in `resumes.da
 2. Derive MK from user passphrase via Argon2id.
 3. Wrap DEK: `wrapped_dek = ChaCha20-Poly1305(MK, nonce_wrap, DEK)`.
 4. Store `wrapped_dek` + KDF params in a new `users.e2ee_config JSONB` column (server
-   stores wrapped key only — cannot unwrap without passphrase).
+   stores the wrapped key only and cannot unwrap it without the passphrase).
 5. On unlock: client fetches `e2ee_config`, derives MK, unwraps DEK, holds DEK in memory.
 
 ### Recovery codes
@@ -231,20 +231,20 @@ DEK. The DEK-envelope nonce rule above does **not** cover these blobs. Reusing
 same recovery code during DEK rotation) is catastrophic for Poly1305. Therefore:
 
 - the recovery backup format must persist its nonce alongside the ciphertext; and
-- every rewrite of a recovery backup — including DEK rotation step 4 below — **must**
+- every rewrite of a recovery backup, including DEK rotation step 4 below, **must**
   sample a fresh `nonce_recovery`.
 
 ### Where the code lives
 
-| Component                      | Location                                                                                            | Rationale                                                                                      |
-| ------------------------------ | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Envelope serialize/deserialize | New `crates/crypto`                                                                                 | Keeps `crates/schema` free of crypto deps; shared by server (validation/detection) and clients |
-| KDF + AEAD primitives          | `crates/crypto` via `argon2`, `chacha20poly1305`, `hkdf` crates                                     | Audited Rust crypto libraries                                                                  |
-| WASM bindings                  | `bindings/wasm` — `encrypt_resume`, `decrypt_resume`, `derive_master_key`, `wrap_dek`, `unwrap_dek` | Web client must encrypt before upload                                                          |
-| Server routes                  | `crates/server` — detect envelope, skip plaintext validation, never decrypt                         | Server remains zero-knowledge for stored data                                                  |
-| Future mobile                  | Same `crates/crypto` via FFI                                                                        | Consistent envelope across platforms                                                           |
+| Component                      | Location                                                                                           | Rationale                                                                                      |
+| ------------------------------ | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Envelope serialize/deserialize | New `crates/crypto`                                                                                | Keeps `crates/schema` free of crypto deps; shared by server (validation/detection) and clients |
+| KDF + AEAD primitives          | `crates/crypto` via `argon2`, `chacha20poly1305`, `hkdf` crates                                    | Audited Rust crypto libraries                                                                  |
+| WASM bindings                  | `bindings/wasm`: `encrypt_resume`, `decrypt_resume`, `derive_master_key`, `wrap_dek`, `unwrap_dek` | Web client must encrypt before upload                                                          |
+| Server routes                  | `crates/server`: detect envelope, skip plaintext validation, never decrypt                         | Server remains zero-knowledge for stored data                                                  |
+| Future mobile                  | Same `crates/crypto` via FFI                                                                       | Consistent envelope across platforms                                                           |
 
-`crates/render` and `crates/server/src/routes/render.rs` remain unchanged — they
+`crates/render` and `crates/server/src/routes/render.rs` remain unchanged. They
 continue to accept plaintext JSON from the client.
 
 ## Feature compatibility matrix
@@ -254,10 +254,10 @@ decrypt + explicit plaintext handoff), **Exclude** (incompatible when E2EE enabl
 
 | Feature                           | Issue | Current behavior                                  | E2EE enabled   | Notes                                                                                                                                  |
 | --------------------------------- | ----- | ------------------------------------------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Resume CRUD + list                | —     | Plaintext `data` in Postgres                      | **Keep**       | Ciphertext stored instead; title stays plaintext                                                                                       |
-| Optimistic concurrency            | —     | `version` column, 409 on mismatch                 | **Keep**       | Unaffected — version is metadata                                                                                                       |
-| Server PDF render (single)        | —     | Client posts plaintext to `POST /api/render/pdf`  | **Degrade**    | Client decrypts locally, posts plaintext per request. Transient server memory exposure.                                                |
-| Server PDF preview                | —     | Same as render                                    | **Degrade**    | Same transient exposure                                                                                                                |
+| Resume CRUD + list                | n/a   | Plaintext `data` in Postgres                      | **Keep**       | Ciphertext stored instead; title stays plaintext                                                                                       |
+| Optimistic concurrency            | n/a   | `version` column, 409 on mismatch                 | **Keep**       | Unaffected; version is metadata                                                                                                        |
+| Server PDF render (single)        | n/a   | Client posts plaintext to `POST /api/render/pdf`  | **Degrade**    | Client decrypts locally, posts plaintext per request. Transient server memory exposure.                                                |
+| Server PDF preview                | n/a   | Same as render                                    | **Degrade**    | Same transient exposure                                                                                                                |
 | Bulk JSON export                  | #353  | Server reads plaintext from DB                    | **Degrade**    | Client-side export: fetch envelopes, decrypt, assemble JSON bundle locally                                                             |
 | Bulk PDF export (ZIP)             | #353  | Server reads DB + Typst render                    | **Degrade**    | Client decrypts each resume, POSTs to render, or future client-side PDF                                                                |
 | Public resume pages               | #65   | Schema columns exist; no routes                   | **Exclude**    | Public pages require server-readable HTML/OG metadata. Block publish when E2EE on.                                                     |
@@ -265,10 +265,10 @@ decrypt + explicit plaintext handoff), **Exclude** (incompatible when E2EE enabl
 | Operator backups (`pg_dump`)      | #334  | Full DB dump includes plaintext                   | **Keep**       | Ciphertext backs up fine. Restore verification requires client decrypt smoke test, not server readability check.                       |
 | Account export (GDPR)             | #353  | Bulk export routes                                | **Degrade**    | Export includes ciphertext envelopes + `e2ee_config`. User decrypts with passphrase.                                                   |
 | Local↔cloud import                | #338  | `POST /api/resumes/import` upserts by id          | **Keep**       | Client encrypts before import; server rejects non-envelope `data` when `e2ee_enabled`. Document id-preserving flow in linking RFC.     |
-| Local IndexedDB storage           | —     | WASM storage, no encryption                       | **Keep**       | Independent of cloud E2EE; optional local encryption is separate scope                                                                 |
-| Server-managed at-rest encryption | —     | Documented, not implemented (`ENCRYPTION_SECRET`) | **Orthogonal** | AES-256-GCM at rest protects against disk theft, not operator access. Complements but does not replace E2EE.                           |
+| Local IndexedDB storage           | n/a   | WASM storage, no encryption                       | **Keep**       | Independent of cloud E2EE; optional local encryption is separate scope                                                                 |
+| Server-managed at-rest encryption | n/a   | Documented, not implemented (`ENCRYPTION_SECRET`) | **Orthogonal** | AES-256-GCM at rest protects against disk theft, not operator access. Complements but does not replace E2EE.                           |
 | CRDT sync                         | #40   | Not implemented                                   | **Degrade**    | Document-level envelope is interim; CRDT adoption needs update-level encryption                                                        |
-| Search / indexing                 | —     | Not implemented                                   | **Exclude**    | Full-text search on encrypted payloads impossible without searchable encryption (out of scope)                                         |
+| Search / indexing                 | n/a   | Not implemented                                   | **Exclude**    | Full-text search on encrypted payloads impossible without searchable encryption (out of scope)                                         |
 
 ## Recommendation
 
@@ -294,7 +294,7 @@ versioned ChaCha20-Poly1305 envelopes in the existing `resumes.data` JSONB colum
 | ------------------------------------------ | --------------------------------------------------------------------------- |
 | User enables E2EE in Account settings      | Generate DEK, prompt passphrase + recovery codes, re-encrypt all resumes    |
 | User forgets passphrase, has recovery code | Unwrap DEK via recovery flow, prompt new passphrase                         |
-| User forgets passphrase, no recovery       | Data permanently lost — display clear warning at enable time                |
+| User forgets passphrase, no recovery       | Data permanently lost. Display a clear warning at enable time               |
 | User requests public page on E2EE resume   | Block with explanation; offer disable E2EE or duplicate resume without E2EE |
 | CRDT (#40) accepted                        | File follow-up RFC for update-level envelope                                |
 | Mobile app ships                           | Reuse `crates/crypto` via FFI; same envelope                                |
@@ -323,7 +323,7 @@ All steps are client-driven; server never sees passphrase or unwrapped DEK.
    any row is still an envelope or a PUT failed). During this step, resume writes must
    be plaintext.
 
-Requires explicit user action — not reversible by operator alone.
+Requires explicit user action. The operator cannot reverse it alone.
 
 ### Passphrase rotation
 
@@ -331,7 +331,7 @@ Requires explicit user action — not reversible by operator alone.
 2. Client unwraps DEK with old MK.
 3. User provides new passphrase.
 4. Client re-wraps same DEK with new MK, updates `e2ee_config`.
-5. Resume envelopes unchanged (DEK unchanged) — no re-encryption of all resumes.
+5. Resume envelopes unchanged (DEK unchanged), so no re-encryption of all resumes.
 
 ### DEK rotation (compromise recovery)
 
@@ -346,7 +346,7 @@ Requires explicit user action — not reversible by operator alone.
    lookup never observes both an old and a new backup for the same hash. Invalidation
    **must** delete (or mark unusable and refuse to return) every prior `code_hash` +
    `backup` row for the account in the same transaction that writes the new recovery
-   set / new DEK wrap — old codes must be unreachable before rotation is considered
+   set / new DEK wrap. Old codes must be unreachable before rotation is considered
    complete. Leaving old rows active while adding new ones is forbidden: an old or
    stale backup must not unwrap the previous DEK after resumes have moved to the new
    DEK.
@@ -393,7 +393,7 @@ If this RFC is accepted, file the following implementation sub-issues:
 | 6   | `feat(web): client-side bulk export for E2EE accounts`        | Replace server-side JSON/PDF export when `e2ee_enabled`                                                                           |
 | 7   | `feat(server): block public page publish for E2EE resumes`    | Guard `is_public` toggle when account has E2EE                                                                                    |
 | 8   | `docs: update encryption.md to match RFC 0001`                | Align user-facing docs with decided design                                                                                        |
-| 9   | `feat(server): server-managed at-rest encryption (Phase 1.5)` | Separate from E2EE — `ENCRYPTION_SECRET`, AES-256-GCM on `data` column for non-E2EE accounts                                      |
+| 9   | `feat(server): server-managed at-rest encryption (Phase 1.5)` | Separate from E2EE: `ENCRYPTION_SECRET`, AES-256-GCM on `data` column for non-E2EE accounts                                       |
 | 10  | `feat(server): version history with E2EE snapshots`           | Implement `resume_versions` writers per #91, storing same envelope format                                                         |
 
 ---

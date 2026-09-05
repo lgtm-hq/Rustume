@@ -77,7 +77,7 @@ contradict that promise:
    engine that do not exist.
 
 Fixing these one at a time produces three incompatible answers. Fixing them together
-produces one: the client owns the data, and servers relay ciphertext.
+produces one. The client owns the data, and servers relay ciphertext.
 
 ## Goals and non-goals
 
@@ -130,7 +130,7 @@ like to the user; the difference is where the durable copy lives.
 
 ### The relay is a dumb, authenticated blob store
 
-A relay's API surface for documents is the sync protocol from RFC 0002, generalised:
+A relay's document API is the sync protocol from RFC 0002, generalised:
 
 | Method | Path                                      | Purpose                                                      |
 | ------ | ----------------------------------------- | ------------------------------------------------------------ |
@@ -197,9 +197,9 @@ passphrase and every recovery code has lost their documents, and the only remedy
 an account reset. This is documented in the support policy and the privacy page, and
 stated in the app at passphrase setup.
 
-What the operator can still see and act on: email, plan, billing state, sign-in and
-audit events, document counts and sizes, timestamps, and any snapshot the user
-explicitly published.
+The operator can still see and act on email, plan, billing state, sign-in and audit
+events, document counts and sizes, timestamps, and any snapshot the user explicitly
+published.
 
 ### Titles are encrypted
 
@@ -227,8 +227,8 @@ are tracked as an open question.
 
 ## Sync
 
-RFC 0002's merge model applies: last-write-wins when only one side changed, manual
-resolution when both did (#42 offline queue, #43 conflict UI, #645 status surface).
+RFC 0002's merge model applies. Last-write-wins when only one side changed, manual
+resolution when both did (#42 offline queue, #43 conflict UI, #645 status indicator).
 What changes is scope. RFC 0002 described sync between a *local instance* and Cloud.
 Here **every client is a sync client**, including a cloud user's browser tab. The
 browser no longer calls resume CRUD; it saves to IndexedDB and lets the sync engine
@@ -287,7 +287,7 @@ most users, so it is not v1.
 
 | Feature                 | Where it runs                                                                 | Notes                                                                                      |
 | ----------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Search                  | Client, over the decrypted local library                                      | Full content, not just titles. Index cached locally, never uploaded.                       |
+| Search                  | Client, over the decrypted local library                                      | Full content, including titles. Index cached locally, never uploaded.                      |
 | JSON export             | Client                                                                        | Decrypt in memory, download.                                                               |
 | Bulk PDF export         | Client                                                                        | Depends on client rendering; interim path uses server render per document.                 |
 | Account export (#353)   | Server ships metadata + envelopes + wrapped keys; client decrypts on download | Satisfies portability. Completes without operator readability.                             |
@@ -345,7 +345,8 @@ device". Sync pulls the library. Search works over everything within seconds.
 the library. Same as a second device.
 
 **Cloud-only user, lost passphrase.** Enter a recovery code, set a new passphrase.
-Without a recovery code: account reset, documents gone. Support cannot help and says so.
+Without a recovery code the account is reset and the documents are gone. Support
+cannot help and says so.
 
 **Self-hoster.** `docker compose up`. The container is the relay and stores the
 library in SQLite on the mounted volume by default; no profile flag, no second
@@ -414,7 +415,7 @@ own. Implementation issues are opened when this RFC is accepted.
 | Phase | Deliverable                                                                                                                              | Depends on         | Supersedes / extends                |
 | ----- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | ----------------------------------- |
 | 1     | `crates/crypto`, WASM bindings, `users.e2ee_config`, passphrase and recovery UI, default-on for new accounts, existing-account migration | RFC 0001 items 1–5 | #44, #369                           |
-| 2     | Local-first web client: IndexedDB primary, sync engine on `/api/sync/*`, offline queue, conflict UI, status surface                      | Phase 1            | #42, #43, #645, RFC 0002 orders 2–4 |
+| 2     | Local-first web client: IndexedDB primary, sync engine on `/api/sync/*`, offline queue, conflict UI, status indicator                    | Phase 1            | #42, #43, #645, RFC 0002 orders 2–4 |
 | 3     | `DocumentRepo` trait, SQLite engine, self-hosted relay on by default in `docker compose up`, access token, import-from-browser prompt    | Phase 2            | #254 (this issue), closes #487      |
 | 4     | Client-side rendering: font strategy, lazy module, equivalence CI, offline export, server fallback toggle                                | #682 outcome       | #61, #633 follow-up                 |
 | 5     | Explicit publish snapshots wired into #359 / #360; account export over envelopes (#353)                                                  | Phase 1            | #65, #408                           |

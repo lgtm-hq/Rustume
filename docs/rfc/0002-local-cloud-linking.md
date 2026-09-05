@@ -13,20 +13,20 @@
 This RFC defines how a **local Rustume instance** (browser-only IndexedDB or
 self-hosted Postgres per [#254](https://github.com/lgtm-hq/Rustume/issues/254))
 links to a **Rustume Cloud account** for bidirectional resume sync, conflict
-reconciliation, and clean unlink — replacing today's one-time, same-origin
+reconciliation, and clean unlink. It replaces today's one-time, same-origin
 IndexedDB→cloud import.
 
 **Decisions at a glance:**
 
-| Topic                | Decision                                                                                                                                  |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| Connection direction | Local instance is always the sync **client**; cloud is never dialed into                                                                  |
-| Pairing & auth       | Short-lived pairing code + cloud-issued scoped **link token** (API-key substrate per [#85](https://github.com/lgtm-hq/Rustume/issues/85)) |
-| Merge model          | **Last-write-wins (LWW) + manual resolution**; CRDT deferred                                                                              |
-| Conflict detection   | `updated_at` + SHA-256 content hash + integer `version`                                                                                   |
-| Ongoing sync         | Push-on-save + periodic pull; offline queue per [#42](https://github.com/lgtm-hq/Rustume/issues/42)                                       |
-| Unlink               | Explicit retention choice per side; flush-or-abandon in-flight edits                                                                      |
-| E2E encryption       | Ciphertext-only transport; passphrase required on both sides to link                                                                      |
+| Topic                | Decision                                                                                                                                       |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Connection direction | Local instance is always the sync **client**; cloud is never dialed into                                                                       |
+| Pairing & auth       | Short-lived pairing code + cloud-issued scoped **link token** (built on the API keys from [#85](https://github.com/lgtm-hq/Rustume/issues/85)) |
+| Merge model          | **Last-write-wins (LWW) + manual resolution**; CRDT deferred                                                                                   |
+| Conflict detection   | `updated_at` + SHA-256 content hash + integer `version`                                                                                        |
+| Ongoing sync         | Push-on-save + periodic pull; offline queue per [#42](https://github.com/lgtm-hq/Rustume/issues/42)                                            |
+| Unlink               | Explicit retention choice per side; flush-or-abandon in-flight edits                                                                           |
+| E2E encryption       | Ciphertext-only transport; passphrase required on both sides to link                                                                           |
 
 ## Context & goals
 
@@ -72,7 +72,7 @@ Each link flow MUST handle **conflicting edits** to the same resume on both side
 
 ## Connection & trust
 
-### NAT constraint — local is the sync client
+### NAT constraint: local is the sync client
 
 **Confirmed.** A self-hosted instance is typically behind NAT, firewall, or
 private network. Rustume Cloud cannot reliably initiate inbound connections to
@@ -85,7 +85,7 @@ it. Therefore:
 - Browser-only flavor: the browser tab (or future service worker) is the client.
 - Self-hosted flavor: a background sync task in the server process is the client.
 
-This matches how `cloudStorage.ts` already operates — the web client calls cloud,
+This matches how `cloudStorage.ts` already operates. The web client calls cloud,
 never the reverse.
 
 ### Pairing mechanism
@@ -141,13 +141,13 @@ the local instance exchanges it without holding a browser cookie.
 
 #### Link token properties
 
-| Property  | Value                                                                                                               |
-| --------- | ------------------------------------------------------------------------------------------------------------------- |
-| Format    | API key per [#85](https://github.com/lgtm-hq/Rustume/issues/85) — `rsume_link_*` prefix, stored as hash server-side |
-| Scopes    | `sync:read`, `sync:write`, `link:manage` (revoke/unlink self only — no account or billing access)                   |
-| Binding   | Tied to `link_id` + `instance_fingerprint` (see below)                                                              |
-| Lifetime  | Long-lived until revoked or unlinked; rotatable                                                                     |
-| Transport | `Authorization: Bearer <token>` on sync endpoints                                                                   |
+| Property  | Value                                                                                                                        |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Format    | API key per [#85](https://github.com/lgtm-hq/Rustume/issues/85), with an `rsume_link_*` prefix, stored as a hash server-side |
+| Scopes    | `sync:read`, `sync:write`, `link:manage` (revoke/unlink self only, no account or billing access)                             |
+| Binding   | Tied to `link_id` + `instance_fingerprint` (see below)                                                                       |
+| Lifetime  | Long-lived until revoked or unlinked; rotatable                                                                              |
+| Transport | `Authorization: Bearer <token>` on sync endpoints                                                                            |
 
 #### Instance fingerprint
 
@@ -192,14 +192,14 @@ Rationale grounded in the codebase:
 
 1. **Resume shape is hierarchical JSON**, not a flat collaborative document.
    `ResumeData` (`crates/schema/src/lib.rs`) nests `basics`, `sections[]`,
-   `metadata` — mapping this to CRDTs requires field-level decomposition not
+   `metadata`. Mapping this to CRDTs requires field-level decomposition not
    present today.
 2. **Optimistic concurrency already ships** on the integer `version` column.
    `apply_resume_update` in `crates/server/src/routes/resumes.rs` increments
    `version` and returns 409 via `ApiError::version_conflict` when
    `expected_version` mismatches. `cloudStorage.ts` blocks writes and shows a
-   reload toast on conflict — this is the pattern to extend, not replace.
-3. **`resume_versions` exists but has no writers** — history is planned
+   reload toast on conflict. This is the pattern to extend, not replace.
+3. **`resume_versions` exists but has no writers.** History is planned
    ([#91](https://github.com/lgtm-hq/Rustume/issues/91)) and pairs naturally
    with manual conflict resolution, not CRDT auto-merge.
 4. **CRDT remains a future upgrade path** for field-level merge if edit patterns
@@ -211,7 +211,7 @@ offline queue + [#43](https://github.com/lgtm-hq/Rustume/issues/43) conflict UI)
 
 - Automatic path: if one side's edit is strictly newer and the other has no
   concurrent edit, apply LWW silently.
-- Manual path: if both sides edited since last sync, surface a conflict for user
+- Manual path: if both sides edited since last sync, show a conflict for user
   choice (keep local, keep cloud, or per-field merge in UI).
 
 ### Conflict detection
@@ -220,7 +220,7 @@ Per-resume sync metadata (new `sync_state` table / IndexedDB store):
 
 | Field              | Purpose                                                                       |
 | ------------------ | ----------------------------------------------------------------------------- |
-| `resume_id`        | UUID — global identity                                                        |
+| `resume_id`        | UUID, the global identity                                                     |
 | `content_hash`     | SHA-256 of canonical JSON (see Canonicalization below)                        |
 | `updated_at`       | Replica timestamp from `resumes.updated_at`                                   |
 | `version`          | Integer optimistic-lock counter (per replica, not comparable across replicas) |
@@ -230,11 +230,11 @@ Per-resume sync metadata (new `sync_state` table / IndexedDB store):
 **Conflict rule:** A conflict exists when `content_hash` differs on both sides
 AND both `updated_at` values are **after** `last_synced_at` for that resume.
 
-Rejected: **version vectors** for v1 — two-replica federation does not justify
+Rejected: **version vectors** for v1. Two-replica federation does not justify
 the complexity; `updated_at` + content hash is sufficient with known clock-skew
 mitigation (see Security).
 
-Rejected: **version integer alone** — `version` is per-database autoincrement,
+Rejected: **version integer alone.** `version` is per-database autoincrement,
 not globally meaningful across instances (local self-hosted may not have a
 `version` column until #254; browser IndexedDB has no version today).
 
@@ -274,11 +274,11 @@ Resume IDs are **UUID v4** (`DEFAULT gen_random_uuid()` in
 | ID exists only on local                                             | Create on cloud (push)                                                                    |
 | ID exists only on cloud                                             | Create on local (pull)                                                                    |
 | ID on both, identical `content_hash`                                | No-op; record sync state                                                                  |
-| ID on both, different hash, one side edited since last common point | **Conflict** — user resolves in merge summary                                             |
+| ID on both, different hash, one side edited since last common point | **Conflict**, user resolves in merge summary                                              |
 | ID on both, different hash, import already ran (same origin)        | Treat as conflict, not duplicate; likely LWW candidate if one side unchanged since import |
 
 The existing import's `ON CONFLICT DO UPDATE` (`import_single_resume`) is a
-**destructive LWW without confirmation** — acceptable for one-time same-origin
+**destructive LWW without confirmation**, acceptable for one-time same-origin
 import but **not** for federation. First-sync MUST require explicit user
 confirmation before any overwrite.
 
@@ -323,10 +323,10 @@ sequenceDiagram
 
 **Summary categories shown to user:**
 
-- **Added (local only)** — will be pushed to cloud
-- **Added (cloud only)** — will be pulled to local
-- **Up to date** — identical hash, skipped
-- **Conflicting** — requires per-resume decision before commit
+- **Added (local only).** Will be pushed to cloud
+- **Added (cloud only).** Will be pulled to local
+- **Up to date.** Identical hash, skipped
+- **Conflicting.** Requires a per-resume decision before commit
 
 User MUST confirm before any write. Cancel returns to unlinked or
 pre-reconciliation state with no mutations.
@@ -346,10 +346,10 @@ pre-reconciliation state with no mutations.
 
 New endpoints under `/api/sync/`:
 
-- `GET /api/sync/changes?since=<cursor>` — delta of resume summaries + hashes
-- `GET /api/sync/resumes/:id` — fetch full document
-- `PUT /api/sync/resumes/:id` — push with `content_hash`, `updated_at`, optional `if_hash=<expected>`
-- `POST /api/sync/reconcile` — batched first-sync (idempotent)
+- `GET /api/sync/changes?since=<cursor>`: delta of resume summaries + hashes
+- `GET /api/sync/resumes/:id`: fetch full document
+- `PUT /api/sync/resumes/:id`: push with `content_hash`, `updated_at`, optional `if_hash=<expected>`
+- `POST /api/sync/reconcile`: batched first-sync (idempotent)
 
 Reuse existing validation (`validate_resume_json`, `validate_title` in
 `crates/server/src/routes/resumes.rs`). Add dedicated sync rate limits
@@ -423,7 +423,7 @@ ASCII equivalent:
 2. Offer: **Sync now then unlink** (default), **Discard unsynced local**, or
    **Cancel**.
 3. When subscription is read-only, default to **Discard unsynced local** or
-   **Cancel** — queued edits cannot be pushed while writes return 403; surface
+   **Cancel.** Queued edits cannot be pushed while writes return 403; show
    this explicitly before unlink proceeds.
 4. On forced unlink with pending local edits: local mutations after
    `last_synced_at` are **not** pushed; user explicitly acknowledges loss.
@@ -436,7 +436,7 @@ Per [RFC 0001 E2E encryption](./0001-e2e-encryption.md) (proposed):
 ### Ciphertext-only transport
 
 When E2E is enabled on either side, sync MUST transport **ciphertext** blobs
-only — the cloud operator cannot read resume content. `resumes.data` stores
+only. The cloud operator cannot read resume content. `resumes.data` stores
 encrypted payloads; `content_hash` is computed over the **plaintext** canonical
 form before encryption. Logical equality uses plaintext hash; ciphertext may
 differ across re-encryption because nonces are randomized per the E2E RFC.
@@ -468,15 +468,15 @@ recovery key (out of scope for v1; see E2E RFC).
 
 Extend `crates/server/src/audit/mod.rs` with:
 
-| Event                       | When                                           |
-| --------------------------- | ---------------------------------------------- |
-| `link.pairing_code.created` | Code generated                                 |
-| `link.exchange.success`     | Token issued                                   |
-| `link.exchange.failure`     | Bad code / expired                             |
-| `link.unlink.local`         | Initiated from local token                     |
-| `link.unlink.cloud`         | Initiated from cloud UI                        |
-| `link.token.rotated`        | Rotation                                       |
-| `sync.conflict.detected`    | Conflict surfaced (resume_id only, no content) |
+| Event                       | When                                                    |
+| --------------------------- | ------------------------------------------------------- |
+| `link.pairing_code.created` | Code generated                                          |
+| `link.exchange.success`     | Token issued                                            |
+| `link.exchange.failure`     | Bad code / expired                                      |
+| `link.unlink.local`         | Initiated from local token                              |
+| `link.unlink.cloud`         | Initiated from cloud UI                                 |
+| `link.token.rotated`        | Rotation                                                |
+| `sync.conflict.detected`    | Conflict shown to the user (resume_id only, no content) |
 
 ## Rejected alternatives
 
@@ -492,15 +492,16 @@ Extend `crates/server/src/audit/mod.rs` with:
 
 ## Open questions
 
-1. **Service worker sync for browser-only** — Should v1 require a service worker
+1. **Service worker sync for browser-only.** Should v1 require a service worker
    for background pull, or is foreground-only acceptable?
-2. **Per-field merge UI** — v1 offers whole-resume choice; is diff/merge worth a
+2. **Per-field merge UI.** v1 offers whole-resume choice; is diff/merge worth a
    fast-follow?
-3. **Multi-device local** — Can one cloud account link multiple self-hosted
+3. **Multi-device local.** Can one cloud account link multiple self-hosted
    instances? Proposal: yes, up to N (e.g. 3) with separate `link_id` each.
-4. **Self-hosted without #254** — Browser-only can link before self-hosted
+4. **Self-hosted without #254.** Browser-only can link before self-hosted
    Postgres ships; confirm priority order.
-5. **Consolidate `docs/rfc/` and `docs/rfc/`** — Shared numbering is documented
+5. **Consolidate `docs/rfcs/` and `docs/rfc/`.** Done in the RFC 0003 PR (#927).
+   Shared numbering was documented
    in README; migrate the E2E RFC into `docs/rfc/` when convenient.
 
 ## Rollout plan
@@ -517,7 +518,7 @@ Implementation sub-issues in dependency order:
 | 6     | **Linking UI (local + cloud)**                          | Orders 1–5                                                     | Replaces `CloudImportPrompt.tsx` flow                              |
 | 7     | **Self-hosted sync client**                             | [#254](https://github.com/lgtm-hq/Rustume/issues/254), Order 3 | New                                                                |
 | 8     | **E2E ciphertext sync**                                 | [#44](https://github.com/lgtm-hq/Rustume/issues/44), Order 3   | Extends E2E RFC                                                    |
-| —     | CRDT evaluation (deferred)                              | —                                                              | [#40](https://github.com/lgtm-hq/Rustume/issues/40) stays deferred |
+| n/a   | CRDT evaluation (deferred)                              | n/a                                                            | [#40](https://github.com/lgtm-hq/Rustume/issues/40) stays deferred |
 
 Suggested issue creation after this RFC is **Accepted**.
 
