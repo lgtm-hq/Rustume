@@ -1,4 +1,13 @@
-import { For, Show, createEffect, createRoot, createSignal, onCleanup, onMount } from "solid-js";
+import {
+  For,
+  Show,
+  createEffect,
+  createRoot,
+  createSignal,
+  on,
+  onCleanup,
+  onMount,
+} from "solid-js";
 import {
   API_KEY_NAME_MAX_LENGTH,
   createApiKey,
@@ -62,9 +71,20 @@ const pendingCreatedKey = (): CreatedApiKey | null => {
   return pending && pending.ownerId === currentUserId() ? pending.key : null;
 };
 
-const setPendingCreatedKey = (key: CreatedApiKey | null): void => {
-  const ownerId = currentUserId();
-  setPendingCreated(key && ownerId ? { key, ownerId } : null);
+/**
+ * Store a freshly issued key for the user it was issued to. `ownerId` is the
+ * identity captured when the request was submitted, not whoever is signed in
+ * when it completes, so an identity change mid-flight leaves nothing behind.
+ */
+const storePendingCreatedKey = (key: CreatedApiKey, ownerId: string): void => {
+  if (ownerId !== currentUserId()) {
+    return;
+  }
+  setPendingCreated({ key, ownerId });
+};
+
+const clearPendingCreatedKey = (): void => {
+  setPendingCreated(null);
 };
 
 /**
@@ -99,7 +119,6 @@ export function ApiKeysSection() {
   const [createName, setCreateName] = createSignal("");
   const creating = createInFlight;
   const createdKey = pendingCreatedKey;
-  const setCreatedKey = setPendingCreatedKey;
 
   // While a one-time key is on screen, warn before the tab is closed or reloaded.
   createEffect(() => {
@@ -142,8 +161,20 @@ export function ApiKeysSection() {
 
   const resetCreateModal = () => {
     setCreateName("");
-    setCreatedKey(null);
+    clearPendingCreatedKey();
   };
+
+  // Whichever instance is mounted when a key lands refreshes the list, so a
+  // create that completes after a remount is reflected in the new section.
+  createEffect(
+    on(
+      createdKey,
+      (key) => {
+        if (key) void loadKeys();
+      },
+      { defer: true },
+    ),
+  );
 
   const openCreateModal = () => {
     resetCreateModal();
@@ -174,16 +205,18 @@ export function ApiKeysSection() {
     const name = createName().trim();
     // One create at a time across mounts: a second submit while the first is
     // in flight could overwrite a one-time secret before it is ever shown.
-    if (!canSubmitName() || createInFlight() || createdKey()) {
+    const ownerId = currentUserId();
+    if (!canSubmitName() || createInFlight() || createdKey() || !ownerId) {
       return;
     }
 
     setCreateInFlight(true);
     try {
       const key = await createApiKey(name);
-      setCreatedKey(key);
-      await loadKeys();
-      toast.success("API key created");
+      storePendingCreatedKey(key, ownerId);
+      if (ownerId === currentUserId()) {
+        toast.success("API key created");
+      }
     } catch (error) {
       console.error("API key creation failed:", error);
       toast.error(error instanceof Error ? error.message : "Failed to create API key");
