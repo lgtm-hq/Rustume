@@ -205,11 +205,15 @@ relay applies the whole batch and stores the idempotency record in one database
 transaction, so a crash can never leave applied writes without a stored result or a
 stored result without the writes. Each entry names a document id, the base version
 the client last saw, the target content tag, and the sealed envelope (or snapshot)
-to write. An entry is applied only when the
-row's current version equals the base version; otherwise it is reported as 409
-`version_conflict` for that entry, and the batch response lists per-entry outcomes.
-Entries whose current tag already equals the target are reported as applied without
-a write, which is what makes a repeated batch after a lost response a no-op.
+to write. Evaluation order: the relay first looks up the `Idempotency-Key`; a known
+key returns the stored batch result without touching any row, which is what makes
+a retry after a lost response a no-op. Only a new key is evaluated per entry, and
+then the version check comes first: an entry is applied only when the row's current
+version equals the base version, otherwise it is reported as 409 `version_conflict`
+for that entry, and the batch response lists per-entry outcomes. An entry whose
+version matches and whose current tag already equals the target is reported as
+applied without a write; that covers a client re-sending a target it has already
+pulled, not a lost response.
 
 #### Deletions are versioned tombstones
 
@@ -234,12 +238,15 @@ change. The rules that make deletes safe across offline devices:
   days without a pull, so an abandoned tab cannot hold tombstones forever. Once both
   conditions hold the relay may
   garbage-collect them.
-- A client whose cursor has expired must run a full reconcile, not a delta pull. In a full
-  reconcile, a local document that has a
-  relay version recorded (it was synced before) but no row on the relay is treated
-  as deleted on the relay, and surfaces the same keep-deleted-or-restore choice as
-  a live tombstone. Only a local document that has never been synced is created.
-  This is what keeps the no-resurrection rule true after garbage collection.
+- A client whose cursor has expired gets 428 and performs the full pull
+  (`GET /api/sync/changes` without a cursor), not a delta. While reclassifying its
+  local store against that listing, a local document that has a relay version
+  recorded (it was synced before) but appears in neither the live documents nor the
+  unexpired tombstones is treated as deleted on the relay, and surfaces the same
+  keep-deleted-or-restore choice as a live tombstone. Only a local document that has
+  never been synced is pushed as a create. This is what keeps the no-resurrection
+  rule true after garbage collection, and it is the same procedure as 428 recovery,
+  never `POST /api/sync/reconcile`.
 
 ### One repository trait, three engines
 
@@ -372,7 +379,7 @@ reconcile.
 Cadence follows RFC 0002: push on the existing autosave debounce, pull on an
 interval and on `visibilitychange`, drain the queue on reconnect. One ordering rule
 is added. A client may drain its queue only while it holds a valid cursor; if the
-cursor is missing or expired it runs the full reconcile first, reclassifies each
+cursor is missing or expired it performs the full pull first, reclassifies each
 queued mutation against the result (a queued `PUT` for a document the relay has
 deleted becomes a restore conflict, not a push), and only then drains. The relay
 enforces this with the 428 `cursor_required` response defined under "Cursors,

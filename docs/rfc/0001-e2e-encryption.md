@@ -212,7 +212,10 @@ All E2EE resume payloads use a **versioned JSON envelope** stored in `resumes.da
 
 ### Recovery codes
 
-On enable, client generates one-time recovery codes. For each code:
+On enable, the client generates one-time recovery codes. Each code is 128 bits from
+a CSPRNG, shown as 26 characters of Crockford base32 in groups for readability; 128
+bits is what makes an unsalted SHA-256 lookup and an HKDF-derived RK safe against an
+operator holding the hash rows. Eight codes are issued per account. For each code:
 
 1. Derive `RK = HKDF-SHA256(code, info="rustume-recovery-v1")` → 32 bytes.
 2. Sample a fresh 12-byte nonce (`nonce_recovery`). Encrypt the DEK backup:
@@ -294,14 +297,14 @@ versioned ChaCha20-Poly1305 envelopes in the existing `resumes.data` JSONB colum
 
 ### Decision triggers
 
-| Trigger                                    | Action                                                                                        |
-| ------------------------------------------ | --------------------------------------------------------------------------------------------- |
-| User enables E2EE in Account settings      | Generate DEK, prompt passphrase + recovery codes, re-encrypt all resumes and snapshot history |
-| User forgets passphrase, has recovery code | Unwrap DEK via recovery flow, prompt new passphrase                                           |
-| User forgets passphrase, no recovery       | Data permanently lost. Display a clear warning at enable time                                 |
-| User requests public page on E2EE resume   | Block with explanation; offer disable E2EE or duplicate resume without E2EE                   |
-| CRDT (#40) accepted                        | File follow-up RFC for update-level envelope                                                  |
-| Mobile app ships                           | Reuse `crates/crypto` via FFI; same envelope                                                  |
+| Trigger                                    | Action                                                                                                                                                                                                                                      |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| User enables E2EE in Account settings      | Generate DEK, prompt passphrase + recovery codes, re-encrypt all resumes and snapshot history                                                                                                                                               |
+| User forgets passphrase, has recovery code | Unwrap DEK via recovery flow, prompt new passphrase                                                                                                                                                                                         |
+| User forgets passphrase, no recovery       | Data permanently lost. Display a clear warning at enable time                                                                                                                                                                               |
+| User requests public page on E2EE resume   | Block with explanation; the only alternatives are account-wide disable (self-hosted only once RFC 0003 applies) or an explicit published snapshot per RFC 0003. No per-resume plaintext duplicate, which would mix modes within an account. |
+| CRDT (#40) accepted                        | File follow-up RFC for update-level envelope                                                                                                                                                                                                |
+| Mobile app ships                           | Reuse `crates/crypto` via FFI; same envelope                                                                                                                                                                                                |
 
 ## Migration and rotation
 
