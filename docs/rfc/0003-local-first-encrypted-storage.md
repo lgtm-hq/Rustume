@@ -106,7 +106,7 @@ produces one. The client owns the data, and servers relay ciphertext.
 │   editor ── plaintext ResumeData in memory ──► crates/render (WASM or native) ──► PDF/preview │
 │      │                                                                                       │
 │      ▼ encrypt (crates/crypto, account DEK in memory)                                        │
-│   local store: envelopes + metadata           search index (decrypted, local only)           │
+│   local store: envelopes + metadata           search index (memory, or sealed at rest)       │
 │   (IndexedDB via crates/storage, or SQLite)                                                  │
 │      │                                                                                       │
 │      ▼ sync engine (push on save, pull on interval / reconnect)                              │
@@ -135,12 +135,12 @@ A relay's document API is the sync protocol from RFC 0002, generalised:
 
 | Method   | Path                                      | Purpose                                                                                                                    |
 | -------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/api/sync/changes?since=`                | Delta of document ids, versions, content tags, deletions                                                                   |
+| `GET`    | `/api/sync/changes?since=`                | Delta of document ids, versions, content tags, tombstones; `Sync-Client` required, advances the client's cursor row        |
 | `GET`    | `/api/sync/docs/{id}`                     | Fetch one envelope with version metadata                                                                                   |
 | `PUT`    | `/api/sync/docs/{id}`                     | Push an envelope; `If-Match: version` (`0` to create), `Sync-Cursor`, `Idempotency-Key` required                           |
 | `POST`   | `/api/sync/reconcile`                     | Batched first sync; `Idempotency-Key` required, per-document targets make a repeat a no-op                                 |
 | `DELETE` | `/api/sync/docs/{id}`                     | Write a versioned tombstone; `If-Match: version`, `Sync-Cursor`, `Idempotency-Key` required                                |
-| `GET`    | `/api/sync/docs/{id}/snapshots`           | List snapshot versions for one document                                                                                    |
+| `GET`    | `/api/sync/docs/{id}/snapshots`           | List snapshot versions for one document; `Sync-Client` required                                                            |
 | `GET`    | `/api/sync/docs/{id}/snapshots/{version}` | Fetch one encrypted history snapshot                                                                                       |
 | `PUT`    | `/api/sync/docs/{id}/snapshots/{version}` | Client-written encrypted history snapshot; insert-only, 409 on an existing version unless the ciphertext is byte-identical |
 
@@ -149,9 +149,9 @@ speaks sync. The relay validates envelope shape and byte limits, never content.
 
 #### Cursors, preconditions, and replays
 
-Every client identifies itself with a random UUID generated on first use
-(`Sync-Client` header) and sends the cursor from its last successful pull
-(`Sync-Cursor` header) on every `PUT` and `DELETE`. The relay keeps one row per
+Every client identifies itself with a random UUID generated on first use, sent as
+the `Sync-Client` header on every sync request, and sends the cursor from its last
+successful pull (`Sync-Cursor` header) on every `PUT` and `DELETE`. The relay keeps one row per
 client in a `sync_cursors` table (`account_id`, `client_id`, `cursor`,
 `last_pull_at`), written on every pull. That table is the only client state the
 relay holds; it is not a device registry the user manages, and rows expire after
@@ -182,20 +182,30 @@ response after a committed write does not turn into a false conflict.
 Replay records are bounded by explicit acknowledgement, not by cursor movement or
 time. Pulls run on their own cadence and can advance the cursor while a mutation is
 still queued, so the cursor is not proof the client saw the write's response. Instead,
-when the client dequeues a mutation after receiving its response it lists the key in
-the `Sync-Ack` header of its next request, and the relay compacts only acknowledged
-records. For an active client this keeps the set to the mutations in flight. If the
-cursor row expires the remaining records go with it; a client returning after that
-long gets 428 on its first write and reclassifies the queue through the full
-reconcile, which recognises an already-applied mutation by matching content tags
-rather than by replaying it.
+when the client dequeues a mutation after receiving its response it moves the key
+to a durable pending-ack list in its local store. Every subsequent request carries up
+to 100 pending keys in the `Sync-Ack` header; the relay compacts those records and
+echoes the keys it compacted in a `Sync-Acked` response header, and only then does
+the client drop them from the pending list. A lost request therefore retries the
+acknowledgement on the next one. As a hard bound the relay also keeps at most 1,000
+replay records per client and compacts the oldest beyond that, which can only affect
+a client that has failed to acknowledge for longer than a thousand of its own
+mutations. If the cursor row expires the remaining records go with it; a client
+returning after that long gets 428 on its first write.
 
-`POST /api/sync/reconcile` carries an `Idempotency-Key` like any other mutation, so a
-lost response after a partial apply is replayed from the stored result. Independently
-of that, the batch is safe to repeat: each entry names a document id, the base version
-the client last saw, and the target content tag, and the relay applies an entry only
-when the row's current tag differs from the target. Entries already applied by an
-earlier attempt match and are skipped.
+Recovery from 428 is a full pull, a reclassification of the queue against it, and
+then a normal drain through `If-Match` PUTs and DELETEs. It never goes through
+`POST /api/sync/reconcile`, which exists for first sync and linking only.
+
+`POST /api/sync/reconcile` carries an `Idempotency-Key` like any other mutation. The
+relay applies the whole batch and stores the idempotency record in one database
+transaction, so a crash can never leave applied writes without a stored result or a
+stored result without the writes. Each entry names a document id, the base version
+the client last saw, and the target content tag. An entry is applied only when the
+row's current version equals the base version; otherwise it is reported as 409
+`version_conflict` for that entry, and the batch response lists per-entry outcomes.
+Entries whose current tag already equals the target are reported as applied without
+a write, which is what makes a repeated batch after a lost response a no-op.
 
 #### Deletions are versioned tombstones
 
@@ -207,8 +217,9 @@ change. The rules that make deletes safe across offline devices:
   version gets 409, the same as a stale `PUT`.
 - A `PUT` against a tombstoned id must carry `If-Match` equal to the tombstone
   version. That is an explicit undelete and bumps the version again. A `PUT` with
-  an older version, or with no `If-Match`, gets 409, so a device that was offline
-  during the delete cannot resurrect the document by pushing its old envelope.
+  an older version gets 409 (and one with no `If-Match` is 400, as above), so a
+  device that was offline during the delete cannot resurrect the document by
+  pushing its old envelope.
 - Reconcile treats "id exists locally, tombstone exists on the relay" as a
   conflict for the user (keep deleted, or restore from local), never as a silent
   create. This replaces RFC 0002's "local-only id creates a cloud row" rule when a
@@ -411,14 +422,14 @@ most users, so it is not v1.
 
 ## Search, export, and history
 
-| Feature                 | Where it runs                                                                 | Notes                                                                                      |
-| ----------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Search                  | Client, over the decrypted local library                                      | Full content, including titles. Index cached locally, never uploaded.                      |
-| JSON export             | Client                                                                        | Decrypt in memory, download.                                                               |
-| Bulk PDF export         | Client                                                                        | Depends on client rendering; interim path uses server render per document.                 |
-| Account export (#353)   | Server ships metadata + envelopes + wrapped keys; client decrypts on download | Satisfies portability. Completes without operator readability.                             |
-| Version history         | Client writes encrypted snapshots to the relay                                | Restore and diff decrypt on the client. Existing `resume_snapshots` table holds envelopes. |
-| Import (JSON, LinkedIn) | Client, unchanged                                                             | Parsing already runs in WASM.                                                              |
+| Feature                 | Where it runs                                                                 | Notes                                                                                                                                                                                                                     |
+| ----------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Search                  | Client, over the decrypted local library                                      | Full content, including titles. The index is rebuilt in memory after unlock; it is persisted only when "remember this device" is on, sealed under the device-wrapped key, and never as plaintext at rest. Never uploaded. |
+| JSON export             | Client                                                                        | Decrypt in memory, download.                                                                                                                                                                                              |
+| Bulk PDF export         | Client                                                                        | Depends on client rendering; interim path uses server render per document.                                                                                                                                                |
+| Account export (#353)   | Server ships metadata + envelopes + wrapped keys; client decrypts on download | Satisfies portability. Completes without operator readability.                                                                                                                                                            |
+| Version history         | Client writes encrypted snapshots to the relay                                | Restore and diff decrypt on the client. Existing `resume_snapshots` table holds envelopes.                                                                                                                                |
+| Import (JSON, LinkedIn) | Client, unchanged                                                             | Parsing already runs in WASM.                                                                                                                                                                                             |
 
 ## Identity and account data
 
@@ -500,10 +511,29 @@ backup.
 
 ## Relationship to existing RFCs
 
-| RFC  | Status after this RFC | What changes                                                                                                                                                                                                                                                                                                 |
-| ---- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 0001 | Amended               | Default-on instead of opt-in; titles encrypted; Phase 1.5 server-managed encryption dropped; public pages handled by explicit publish instead of "Exclude"; enable flow also seals snapshot history; disable flow unavailable on Cloud. Envelope, KDF, recovery, rotation unchanged.                         |
-| 0002 | Amended               | Sync protocol applies to all clients; `content_hash` becomes an HMAC content tag over the same canonical bytes; deletions become versioned tombstones and a local-only id with a relay tombstone is a conflict, not a create; self-hosted Postgres replaced by SQLite relay; pairing, LWW, unlink unchanged. |
+| RFC  | Status after this RFC |
+| ---- | --------------------- |
+| 0001 | Amended               |
+| 0002 | Amended               |
+
+What changes in RFC 0001:
+
+- Default-on instead of opt-in; titles encrypted.
+- Phase 1.5 server-managed encryption dropped.
+- Public pages handled by explicit publish instead of "Exclude".
+- Enable flow also seals snapshot history; disable flow unavailable on Cloud.
+- MK and RK wraps hold the 64-byte `DEK || tag_key`; DEK rotation replaces only the
+  first 32 bytes.
+- Envelope, KDF, recovery codes, and the rotation procedure are otherwise unchanged.
+
+What changes in RFC 0002:
+
+- The sync protocol applies to all clients, not only linked instances.
+- `content_hash` becomes an HMAC content tag over the same canonical bytes.
+- Deletions become versioned tombstones; a local-only id with a relay tombstone is a
+  conflict, not a create.
+- Self-hosted Postgres is replaced by the SQLite relay.
+- Pairing, LWW, and unlink are unchanged.
 
 Both documents should gain a note pointing here when this RFC is accepted. The
 `docs/rfcs/` → `docs/rfc/` consolidation (RFC 0002 open question 5) is done in the
