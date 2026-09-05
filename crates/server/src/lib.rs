@@ -565,7 +565,28 @@ mod tests {
             .as_object()
             .unwrap()
             .contains_key("/api/resumes"));
+        assert!(spec["paths"].as_object().unwrap().contains_key("/api/keys"));
         assert!(spec["components"]["securitySchemes"]["cookieAuth"].is_object());
+        assert!(spec["components"]["securitySchemes"]["bearerAuth"].is_object());
+        assert!(spec["components"]["securitySchemes"]["apiKeyHeader"].is_object());
+
+        let resume_security = spec["paths"]["/api/resumes"]["get"]["security"]
+            .as_array()
+            .expect("resume list security");
+        let scheme_names: Vec<&str> = resume_security
+            .iter()
+            .filter_map(|entry| entry.as_object())
+            .flat_map(|entry| entry.keys().map(String::as_str))
+            .collect();
+        assert!(scheme_names.contains(&"cookieAuth"));
+        assert!(scheme_names.contains(&"bearerAuth"));
+        assert!(scheme_names.contains(&"apiKeyHeader"));
+
+        let key_security = spec["paths"]["/api/keys"]["post"]["security"]
+            .as_array()
+            .expect("key create security");
+        assert_eq!(key_security.len(), 1);
+        assert!(key_security[0].get("cookieAuth").is_some());
     }
 
     #[tokio::test]

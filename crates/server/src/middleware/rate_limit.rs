@@ -321,20 +321,25 @@ async fn enforce_session_rate_limit(
     let trusted_proxy = rate_limits.trusted_proxy;
     let ip_key = ip_rate_limit_key(headers, remote_addr, trusted_proxy);
 
-    if let Some(api_key) = api_key_rate_limit_key(state, headers).await {
-        rate_limits.check(RateLimitGroup::ApiKey, &api_key)?;
-        rate_limits.check(group, &api_key)?;
-        return Ok(next.run(request).await);
-    }
-
+    // Credential precedence mirrors `AuthUser`: a valid session cookie wins, and
+    // an API key is only consulted when no session resolves. The shared per-IP
+    // bucket applies to every credential type.
     let session_key = session_rate_limit_key(state, headers, remote_addr, trusted_proxy).await;
 
     if session_key != ip_key {
         rate_limits.check(group, &ip_key)?;
         rate_limits.check(group, &session_key)?;
-    } else {
-        rate_limits.check(group, &ip_key)?;
+        return Ok(next.run(request).await);
     }
+
+    if let Some(api_key) = api_key_rate_limit_key(state, headers).await {
+        rate_limits.check(group, &ip_key)?;
+        rate_limits.check(RateLimitGroup::ApiKey, &api_key)?;
+        rate_limits.check(group, &api_key)?;
+        return Ok(next.run(request).await);
+    }
+
+    rate_limits.check(group, &ip_key)?;
     Ok(next.run(request).await)
 }
 
@@ -396,6 +401,7 @@ rate_limit_middleware!(rate_limit_preview, RateLimitGroup::Preview);
 rate_limit_middleware!(rate_limit_pdf, RateLimitGroup::Pdf);
 rate_limit_middleware!(rate_limit_auth, RateLimitGroup::Auth);
 rate_limit_middleware!(rate_limit_account_delete, RateLimitGroup::AccountDelete);
+rate_limit_middleware!(rate_limit_api_key, RateLimitGroup::ApiKey);
 rate_limit_middleware!(rate_limit_health, RateLimitGroup::Health);
 rate_limit_middleware!(rate_limit_metrics, RateLimitGroup::Metrics);
 rate_limit_middleware!(rate_limit_unauthenticated, RateLimitGroup::Unauthenticated);
@@ -429,6 +435,8 @@ mod tests {
             import_per_min: limit,
             preview_per_min: limit,
             pdf_per_min: limit,
+            billable_per_min: limit,
+            api_key_per_min: limit,
             ..Default::default()
         };
         Arc::new(RateLimitState::new(config))
