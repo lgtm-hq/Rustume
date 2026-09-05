@@ -186,6 +186,13 @@ pub async fn upsert_user(
 ) -> Result<UpsertUserResult, sqlx::Error> {
     const MAX_USERNAME_ATTEMPTS: u8 = 8;
 
+    // Returning users are refreshed in place and never touch the username
+    // column, so a generated handle cannot collide with the unique index on
+    // their sign-in. Only genuinely new accounts go through generation.
+    if let Some(existing) = refresh_existing_user(pool, workos_user).await? {
+        return Ok(existing.into());
+    }
+
     for _ in 0..MAX_USERNAME_ATTEMPTS {
         let username = generate_username();
         match upsert_user_with_username(pool, workos_user, &username).await {
@@ -241,9 +248,38 @@ impl From<UpsertedUser> for UpsertUserResult {
     }
 }
 
-/// Insert a new user with the given generated username, or refresh the
-/// existing row's email when the WorkOS id is already known. The username is
-/// only consumed on insert; an existing user keeps their chosen handle.
+/// Refresh a known user's email on sign-in. Returns `None` when this WorkOS
+/// id has never been seen.
+async fn refresh_existing_user(
+    pool: &sqlx::PgPool,
+    workos_user: &WorkOsUser,
+) -> Result<Option<UpsertedUser>, sqlx::Error> {
+    sqlx::query_as::<_, UpsertedUser>(
+        r#"
+        UPDATE users
+        SET email = $2, updated_at = now()
+        WHERE workos_id = $1
+        RETURNING
+            id,
+            workos_id,
+            plan,
+            paddle_customer_id,
+            email,
+            username,
+            created_at,
+            updated_at,
+            false AS is_new
+        "#,
+    )
+    .bind(&workos_user.id)
+    .bind(&workos_user.email)
+    .fetch_optional(pool)
+    .await
+}
+
+/// Insert a new user with the given generated username. `ON CONFLICT
+/// (workos_id)` covers the race where two first sign-ins for the same WorkOS
+/// id interleave: the loser refreshes the winner's row and keeps its handle.
 async fn upsert_user_with_username(
     pool: &sqlx::PgPool,
     workos_user: &WorkOsUser,

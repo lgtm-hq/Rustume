@@ -150,9 +150,13 @@ export const deleteAccountResponseSchema = z.object({
   message: z.string(),
 });
 
-export const updateAccountResponseSchema = z.object({
-  username: z.string(),
+// Strict: client and server ship together, so a renamed or extra field
+// should fail loudly rather than parse as a stripped object.
+export const updateAccountResponseSchema = z.strictObject({
+  username: z.string().min(1),
 });
+
+export type UpdateAccountResponse = z.infer<typeof updateAccountResponseSchema>;
 
 export const authRequireAuthSchema = z.object({
   require_auth: z.boolean().optional(),

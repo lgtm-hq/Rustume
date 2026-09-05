@@ -72,6 +72,7 @@ governor.workspace = true
 dashmap.workspace = true
 zip = { version = "8.0", default-features = false, features = ["deflate"] }
 urlencoding.workspace = true
+regex.workspace = true
 
 # Use jemalloc on musl to avoid musl's slower default allocator
 [target.'cfg(target_env = "musl")'.dependencies]
