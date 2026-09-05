@@ -732,7 +732,9 @@ mod tests {
             .expect("ACCOUNT_EXPORT_CONTENTS constant exists")..];
         let constant = &constant[..constant.find("} as const;").expect("constant ends")];
 
-        /// Pull the double-quoted string literals out of `<key>[ ... ]`.
+        /// Pull the double-quoted string literals out of the `<key>: [ ... ]`
+        /// property, anchored to the start of its own line so a phrase that
+        /// merely contains the key cannot match.
         fn string_array(source: &str, key: &str) -> Vec<String> {
             let start = source
                 .find(key)
@@ -751,7 +753,7 @@ mod tests {
         // and every documented exclusion. Substring checks would let stale or
         // extra copy through.
         assert_eq!(
-            string_array(constant, "included: ["),
+            string_array(constant, "\n  included: ["),
             [
                 "your profile",
                 "policy acceptances",
@@ -761,7 +763,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            string_array(constant, "excluded: ["),
+            string_array(constant, "\n  excluded: ["),
             [
                 "sessions",
                 "the WorkOS user id",

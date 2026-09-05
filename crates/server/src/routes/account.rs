@@ -150,8 +150,10 @@ pub async fn export_account(
 
     // Everything after the start audit either hands a stream to the client (the
     // stream task then writes `account.export.completed`) or fails here, in
-    // which case the completion event is written now so every start event has
-    // exactly one pairing.
+    // which case the completion event is written now. Completion is
+    // best-effort (`record_event` logs and swallows insert failures): by the
+    // time it is written the response is already committed, so failing closed
+    // could not change what the client received.
     let started = start_export_stream(cloud.db.clone(), &user, permit, ip_address.clone()).await;
     match started {
         Ok(response) => Ok(response),
@@ -178,10 +180,11 @@ pub async fn export_account(
 }
 
 /// Test seam for failures that cannot be injected through a live pool:
-/// `FAULT_FAIL_START` stands in for a `begin()`/`SET TRANSACTION` failure and
-/// `FAULT_DELETE_USER` for the account being deleted between authentication
-/// and the snapshot. Export tests are serialised, so the flag cannot leak
-/// between them.
+/// `FAULT_FAIL_START` poisons the freshly opened transaction so the real
+/// `SET TRANSACTION` statement (and its error mapping) fails, and
+/// `FAULT_DELETE_USER` deletes the account between authentication and the
+/// snapshot. Export tests are serialised, so the flag cannot leak between
+/// them.
 #[cfg(test)]
 static EXPORT_TEST_FAULT: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
 #[cfg(test)]
@@ -198,18 +201,14 @@ async fn start_export_stream(
     ip_address: Option<String>,
 ) -> Result<Response, ApiError> {
     #[cfg(test)]
-    match EXPORT_TEST_FAULT.load(std::sync::atomic::Ordering::SeqCst) {
-        FAULT_FAIL_START => return Err(internal_db_error("injected export start failure")),
-        FAULT_DELETE_USER => {
-            // The race: the account is deleted after the start audit committed
-            // but before the export snapshot is taken.
-            sqlx::query("DELETE FROM users WHERE id = $1")
-                .bind(user.id)
-                .execute(&pool)
-                .await
-                .map_err(internal_db_error)?;
-        }
-        _ => {}
+    if EXPORT_TEST_FAULT.load(std::sync::atomic::Ordering::SeqCst) == FAULT_DELETE_USER {
+        // The race: the account is deleted after the start audit committed
+        // but before the export snapshot is taken.
+        sqlx::query("DELETE FROM users WHERE id = $1")
+            .bind(user.id)
+            .execute(&pool)
+            .await
+            .map_err(internal_db_error)?;
     }
 
     // One connection, one snapshot: everything in the archive, including the
@@ -218,6 +217,12 @@ async fn start_export_stream(
     // The start audit has already committed, so only one pool connection is
     // held from here.
     let mut tx = pool.begin().await.map_err(internal_db_error)?;
+    #[cfg(test)]
+    if EXPORT_TEST_FAULT.load(std::sync::atomic::Ordering::SeqCst) == FAULT_FAIL_START {
+        // Abort the transaction so the real SET TRANSACTION below fails with
+        // 25P02 and the production error mapping is what the test observes.
+        let _ = sqlx::query("SELECT 1/0").execute(&mut *tx).await;
+    }
     sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
         .execute(&mut *tx)
         .await
@@ -1335,6 +1340,21 @@ mod tests {
         assert!(item.is_public);
         assert_eq!(item.public_slug.as_deref(), Some("ada-lovelace"));
         assert_eq!(item.data["basics"]["name"], "Ada");
+        assert_same_keys(&out, &item);
+    }
+
+    /// The streamed object must have exactly the keys the documented export
+    /// type serialises: `Deserialize` ignores unknown keys, so a field added
+    /// to a stream `Head` (or dropped from it, when optional) would otherwise
+    /// pass a plain round-trip. Every optional field in the fixture is `Some`
+    /// so nothing is skipped on either side.
+    fn assert_same_keys<T: Serialize>(streamed: &[u8], typed: &T) {
+        let streamed: serde_json::Value = serde_json::from_slice(streamed).unwrap();
+        let typed = serde_json::to_value(typed).unwrap();
+        let keys = |value: &serde_json::Value| -> std::collections::BTreeSet<String> {
+            value.as_object().expect("object").keys().cloned().collect()
+        };
+        assert_eq!(keys(&streamed), keys(&typed));
     }
 
     /// Snapshot and audit rows are streamed as a local `Head` struct plus a raw
@@ -1388,12 +1408,13 @@ mod tests {
         assert_eq!(snapshot.version, 7);
         assert_eq!(snapshot.created_at, now);
         assert_eq!(snapshot.data["basics"]["name"], "v7");
+        assert_same_keys(&out, &snapshot);
 
         let out = collect(|mut sink| async move {
             let row = ExportAuditRow {
                 event_type: "account.export".to_string(),
                 resource_type: Some("account".to_string()),
-                resource_id: None,
+                resource_id: Some(Uuid::nil()),
                 ip_address: Some("203.0.113.7".to_string()),
                 created_at: now,
                 metadata_json: r#"{"stage":"started"}"#.to_string(),
@@ -1407,10 +1428,11 @@ mod tests {
             serde_json::from_slice(&out).expect("streamed audit row matches AuditEventExport");
         assert_eq!(event.event_type, "account.export");
         assert_eq!(event.resource_type.as_deref(), Some("account"));
-        assert_eq!(event.resource_id, None);
+        assert_eq!(event.resource_id, Some(Uuid::nil()));
         assert_eq!(event.ip_address.as_deref(), Some("203.0.113.7"));
         assert_eq!(event.created_at, now);
         assert_eq!(event.metadata["stage"], "started");
+        assert_same_keys(&out, &event);
     }
 
     #[tokio::test]
@@ -2154,8 +2176,10 @@ mod tests {
         let err = result.expect_err("export must fail when the stream cannot start");
         assert!(matches!(err.kind, ApiErrorKind::InternalError));
 
-        // The required start audit was written, and it is paired with a
-        // completion event even though no stream task ever ran.
+        // The real `SET TRANSACTION` failed inside the poisoned transaction and
+        // went through `internal_db_error`. The required start audit was
+        // written and a completion event follows it even though no stream
+        // task ever ran.
         let events: Vec<(String, serde_json::Value)> = sqlx::query_as(
             r#"
             SELECT event_type, metadata FROM audit_events

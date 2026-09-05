@@ -164,11 +164,13 @@ describe("Account page", () => {
 
     renderAccount();
 
-    fireEvent.click(screen.getByRole("button", { name: "Export account data" }));
+    const button = screen.getByRole("button", { name: "Export account data" });
+    fireEvent.click(button);
 
     expect(downloadAccountExport).toHaveBeenCalledTimes(1);
     const { toast } = await import("../../components/ui");
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Account data downloaded"));
+    await waitFor(() => expect(button).not.toBeDisabled());
   });
 
   it("ignores a second click while an export is already running", async () => {
@@ -189,6 +191,7 @@ describe("Account page", () => {
     finish?.();
     const { toast } = await import("../../components/ui");
     await waitFor(() => expect(toast.success).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(button).not.toBeDisabled());
   });
 
   it("describes exactly what the account export contains and omits", () => {
@@ -221,7 +224,7 @@ describe("Account page", () => {
       screen.getByText(/Download a JSON archive of the account data Rustume stores/).textContent ??
       "";
     expect(copy).toBe(
-      `Download a JSON archive of the account data Rustume stores: ${expectedIncluded.join(", ")}. Not included: ${expectedExcluded.join(", ")}.`,
+      `Download a JSON archive of the account data Rustume stores: ${expectedIncluded.join(", ")}. Not included: ${expectedExcluded.join(", ")}. Policy acceptances and audit events carry the client IP recorded with them. This download is available on every plan, including free and expired accounts.`,
     );
   });
 

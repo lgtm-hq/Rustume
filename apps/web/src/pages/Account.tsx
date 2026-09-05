@@ -286,7 +286,9 @@ export default function Account() {
                     <p class="text-sm text-stone mb-4">
                       Download a JSON archive of the account data Rustume stores:{" "}
                       {ACCOUNT_EXPORT_CONTENTS.included.join(", ")}. Not included:{" "}
-                      {ACCOUNT_EXPORT_CONTENTS.excluded.join(", ")}.
+                      {ACCOUNT_EXPORT_CONTENTS.excluded.join(", ")}. Policy acceptances and audit
+                      events carry the client IP recorded with them. This download is available on
+                      every plan, including free and expired accounts.
                     </p>
                     <Button
                       variant="secondary"
