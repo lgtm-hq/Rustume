@@ -1,7 +1,8 @@
 {
-  "$comment": "Single source of truth for username validation, consumed by crates/server/src/auth/username.rs (include_str!) and apps/web/src/api/account.ts (JSON import). Keep entries lowercase and sorted.",
+  "$comment": "Single source of truth for username validation, consumed by crates/server/src/auth/username.rs (include_str!) and apps/web/src/api/account.ts (JSON import). `pattern` encodes the charset and hyphen rules: lowercase alphanumerics with single interior hyphens. Keep `reserved` lowercase and sorted.",
   "min_length": 3,
   "max_length": 32,
+  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
   "reserved": [
     "account",
     "admin",

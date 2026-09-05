@@ -69,6 +69,20 @@ describe("validateUsername", () => {
   it("rejects reserved usernames", () => {
     expect(validateUsername("admin")).toBe("Username is reserved");
   });
+
+  it.each([
+    ["ab", "Username must be 3-32 characters"],
+    ["a".repeat(33), "Username must be 3-32 characters"],
+    ["-swift", "Username cannot start, end, or contain consecutive hyphens"],
+    ["swift-", "Username cannot start, end, or contain consecutive hyphens"],
+    ["swift--otter", "Username cannot start, end, or contain consecutive hyphens"],
+  ])("rejects %s with the shared length/hyphen rules", (input, message) => {
+    expect(validateUsername(input)).toBe(message);
+  });
+
+  it.each(["abc", "a".repeat(32), "user-42", "a1b2c3"])("accepts boundary input %s", (input) => {
+    expect(validateUsername(input)).toBeNull();
+  });
 });
 
 describe("updateUsername", () => {
@@ -110,6 +124,17 @@ describe("updateUsername", () => {
     });
 
     await expect(updateUsername("taken-handle")).rejects.toThrow("username already taken");
+  });
+
+  it("rejects update responses with unexpected fields", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "application/json" }),
+      json: async () => ({ username: "calm-finch-1234", extra: true }),
+    });
+
+    await expect(updateUsername("calm-finch-1234")).rejects.toThrow(ApiValidationError);
   });
 
   it("rejects malformed update responses", async () => {

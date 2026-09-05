@@ -261,10 +261,11 @@ mod tests {
     }
 
     #[test]
-    fn unique_violation_maps_to_conflict() {
-        // sqlx exposes no public constructor for database errors, so exercise
-        // the non-database branch here; the 23505 branch is covered by the
-        // integration test below.
+    fn non_database_errors_map_to_internal_error() {
+        // sqlx exposes no public constructor for database errors, so only the
+        // fallback branch is unit-testable; the 23505 -> 409 mapping is covered
+        // by `update_account_persists_username_and_audits_when_database_available`,
+        // which fails (rather than skips) in CI when the test database is absent.
         let err = map_account_db_error(sqlx::Error::RowNotFound);
         assert!(matches!(err.kind, ApiErrorKind::InternalError));
     }
@@ -356,10 +357,14 @@ mod tests {
     }
 
     fn database_url_for_tests() -> Option<String> {
-        let url = std::env::var("TEST_DATABASE_URL")
+        let Some(url) = std::env::var("TEST_DATABASE_URL")
             .ok()
             .map(|url| url.trim().to_owned())
-            .filter(|url| !url.is_empty())?;
+            .filter(|url| !url.is_empty())
+        else {
+            skip_or_fail_without_test_db();
+            return None;
+        };
         let db_name = url
             .split(['?', '#'])
             .next()
@@ -370,11 +375,20 @@ mod tests {
         if db_name.contains("_test") {
             Some(url)
         } else {
-            eprintln!(
-                "SKIP account integration tests: TEST_DATABASE_URL must name a *_test database"
-            );
+            skip_or_fail_without_test_db();
             None
         }
+    }
+
+    /// Locally the DB-backed tests are optional; in CI (which always provisions
+    /// Postgres) a missing or misnamed database must fail rather than pass with
+    /// zero assertions.
+    fn skip_or_fail_without_test_db() {
+        let message = "account integration tests need TEST_DATABASE_URL naming a *_test database";
+        if std::env::var("CI").is_ok() {
+            panic!("{message}");
+        }
+        eprintln!("SKIP {message}");
     }
 
     async fn insert_user(pool: &sqlx::PgPool, user: &crate::db::User) {

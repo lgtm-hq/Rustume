@@ -2,6 +2,7 @@
 
 use std::sync::OnceLock;
 
+use regex::Regex;
 use uuid::Uuid;
 
 const ADJECTIVES: [&str; 64] = [
@@ -30,7 +31,15 @@ const NOUNS: [&str; 64] = [
 struct UsernameRules {
     min_length: usize,
     max_length: usize,
+    /// Charset and hyphen rules as one anchored regex.
+    pattern: String,
     reserved: Vec<String>,
+}
+
+fn pattern() -> &'static Regex {
+    static PATTERN: OnceLock<Regex> = OnceLock::new();
+    PATTERN
+        .get_or_init(|| Regex::new(&rules().pattern).expect("username_rules.json pattern is valid"))
 }
 
 const USERNAME_RULES_JSON: &str = include_str!("username_rules.json");
@@ -57,24 +66,33 @@ pub fn generate_username() -> String {
     format!("{}-{}-{}", ADJECTIVES[adj_index], NOUNS[noun_index], number)
 }
 
-/// Validate a username for charset, length, hyphen rules, and reserved words.
-pub fn validate_username(username: &str) -> Result<(), &'static str> {
+/// Validate a username against the shared rules: length bounds, the
+/// charset/hyphen pattern, and reserved words.
+pub fn validate_username(username: &str) -> Result<(), String> {
     let username = username.trim();
     let rules = rules();
     if username.len() < rules.min_length || username.len() > rules.max_length {
-        return Err("username must be 3-32 characters");
+        return Err(format!(
+            "username must be {}-{} characters",
+            rules.min_length, rules.max_length
+        ));
     }
-    if username.starts_with('-') || username.ends_with('-') || username.contains("--") {
-        return Err("username cannot start, end, or contain consecutive hyphens");
-    }
-    if !username
-        .chars()
-        .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '-')
-    {
-        return Err("username may only contain lowercase letters, digits, and hyphens");
+    if !pattern().is_match(username) {
+        // The pattern is the rule; the two messages only explain which part
+        // of it failed. Same split as the web client.
+        return Err(
+            if username
+                .chars()
+                .any(|ch| !(ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '-'))
+            {
+                "username may only contain lowercase letters, digits, and hyphens".to_string()
+            } else {
+                "username cannot start, end, or contain consecutive hyphens".to_string()
+            },
+        );
     }
     if rules.reserved.iter().any(|reserved| reserved == username) {
-        return Err("username is reserved");
+        return Err("username is reserved".to_string());
     }
     Ok(())
 }
@@ -116,40 +134,40 @@ mod tests {
     #[test]
     fn validate_username_rejects_invalid_charset() {
         assert_eq!(
-            validate_username("Swift-Otter"),
-            Err("username may only contain lowercase letters, digits, and hyphens")
+            validate_username("Swift-Otter").err().as_deref(),
+            Some("username may only contain lowercase letters, digits, and hyphens")
         );
         assert_eq!(
-            validate_username("user_name"),
-            Err("username may only contain lowercase letters, digits, and hyphens")
+            validate_username("user_name").err().as_deref(),
+            Some("username may only contain lowercase letters, digits, and hyphens")
         );
     }
 
     #[test]
     fn validate_username_rejects_bad_length() {
         assert_eq!(
-            validate_username("ab"),
-            Err("username must be 3-32 characters")
+            validate_username("ab").err().as_deref(),
+            Some("username must be 3-32 characters")
         );
         assert_eq!(
-            validate_username(&"a".repeat(33)),
-            Err("username must be 3-32 characters")
+            validate_username(&"a".repeat(33)).err().as_deref(),
+            Some("username must be 3-32 characters")
         );
     }
 
     #[test]
     fn validate_username_rejects_bad_hyphens() {
         assert_eq!(
-            validate_username("-swift"),
-            Err("username cannot start, end, or contain consecutive hyphens")
+            validate_username("-swift").err().as_deref(),
+            Some("username cannot start, end, or contain consecutive hyphens")
         );
         assert_eq!(
-            validate_username("swift-"),
-            Err("username cannot start, end, or contain consecutive hyphens")
+            validate_username("swift-").err().as_deref(),
+            Some("username cannot start, end, or contain consecutive hyphens")
         );
         assert_eq!(
-            validate_username("swift--otter"),
-            Err("username cannot start, end, or contain consecutive hyphens")
+            validate_username("swift--otter").err().as_deref(),
+            Some("username cannot start, end, or contain consecutive hyphens")
         );
     }
 
@@ -160,8 +178,8 @@ mod tests {
                 continue;
             }
             assert_eq!(
-                validate_username(reserved),
-                Err("username is reserved"),
+                validate_username(reserved).err().as_deref(),
+                Some("username is reserved"),
                 "expected {reserved} to be reserved"
             );
         }
@@ -172,6 +190,10 @@ mod tests {
         let rules = rules();
         assert_eq!(rules.min_length, 3);
         assert_eq!(rules.max_length, 32);
+        assert!(pattern().is_match("swift-otter-4821"));
+        assert!(!pattern().is_match("-swift"));
+        assert!(!pattern().is_match("swift--otter"));
+        assert!(!pattern().is_match("Swift"));
         let mut sorted = rules.reserved.clone();
         sorted.sort();
         sorted.dedup();

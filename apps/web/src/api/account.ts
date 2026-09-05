@@ -1,21 +1,25 @@
 import usernameRules from "../../../../crates/server/src/auth/username_rules.json";
 import { delJson, patch } from "./client";
-import { deleteAccountResponseSchema, updateAccountResponseSchema } from "./schemas";
+import {
+  type UpdateAccountResponse,
+  deleteAccountResponseSchema,
+  updateAccountResponseSchema,
+} from "./schemas";
+
+export type { UpdateAccountResponse } from "./schemas";
 
 export interface DeleteAccountResponse {
   deleted: boolean;
   message: string;
 }
 
-export interface UpdateAccountResponse {
-  username: string;
-}
-
 // Shared with the server (crates/server/src/auth/username.rs includes the same
-// file), so reserved names and length bounds cannot drift between the two.
+// file), so reserved names, length bounds, and the charset/hyphen pattern
+// cannot drift between the two.
 const RESERVED_USERNAMES: ReadonlySet<string> = new Set(usernameRules.reserved);
 const USERNAME_MIN_LENGTH: number = usernameRules.min_length;
 const USERNAME_MAX_LENGTH: number = usernameRules.max_length;
+const USERNAME_PATTERN = new RegExp(usernameRules.pattern);
 
 /** Client-side username validation mirroring the server rules. */
 export function validateUsername(username: string): string | null {
@@ -23,11 +27,12 @@ export function validateUsername(username: string): string | null {
   if (normalized.length < USERNAME_MIN_LENGTH || normalized.length > USERNAME_MAX_LENGTH) {
     return `Username must be ${USERNAME_MIN_LENGTH}-${USERNAME_MAX_LENGTH} characters`;
   }
-  if (normalized.startsWith("-") || normalized.endsWith("-") || normalized.includes("--")) {
-    return "Username cannot start, end, or contain consecutive hyphens";
-  }
-  if (!/^[a-z0-9-]+$/.test(normalized)) {
-    return "Username may only contain lowercase letters, digits, and hyphens";
+  if (!USERNAME_PATTERN.test(normalized)) {
+    // The pattern is the rule; the two messages only explain which part of it
+    // failed. Same split as the server.
+    return /[^a-z0-9-]/.test(normalized)
+      ? "Username may only contain lowercase letters, digits, and hyphens"
+      : "Username cannot start, end, or contain consecutive hyphens";
   }
   if (RESERVED_USERNAMES.has(normalized)) {
     return "Username is reserved";
