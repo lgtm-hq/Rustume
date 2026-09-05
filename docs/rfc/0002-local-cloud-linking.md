@@ -167,7 +167,7 @@ A link token is rejected if the fingerprint does not match the registered instan
 | Flavor       | Storage                                                                                                                                                                                                                                                                                                                                                     | Rotation                                                              |
 | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
 | Browser-only | Default: encrypted `localStorage` (or equivalent durable protected storage) so the link survives tab restarts and can drive background sync; ephemeral `sessionStorage`-only mode is an explicit opt-out that requires re-pairing after tab close. When [#44](https://github.com/lgtm-hq/Rustume/issues/44) E2E is on, wrap the credential with the E2E key | `POST /api/link/rotate` returns new token; old invalidated atomically |
-| Self-hosted  | Postgres `link_credentials` table or env-sealed secret file                                                                                                                                                                                                                                                                                                 | Server admin can rotate from settings UI; audit event recorded        |
+| Self-hosted  | `link_credentials` table in the relay's SQLite file under RFC 0003 (Postgres as written), or an env-sealed secret file                                                                                                                                                                                                                                      |                                                                       |
 
 Revocation paths:
 
@@ -180,7 +180,8 @@ Revocation paths:
 
 ### Neither side is canonical
 
-With two independent databases (local IndexedDB/Postgres + cloud Neon Postgres),
+With two independent databases (local IndexedDB or the self-hosted SQLite relay,
+Postgres as written, plus cloud Neon Postgres),
 **neither replica is the source of truth**. Every resume exists as a logical
 entity identified by **UUID** (`resumes.id` in
 `crates/server/src/db/migrations/001_initial.sql`), with per-replica metadata.
@@ -220,17 +221,23 @@ offline queue + [#43](https://github.com/lgtm-hq/Rustume/issues/43) conflict UI)
 
 Per-resume sync metadata (new `sync_state` table / IndexedDB store):
 
-| Field              | Purpose                                                                       |
-| ------------------ | ----------------------------------------------------------------------------- |
-| `resume_id`        | UUID, the global identity                                                     |
-| `content_hash`     | SHA-256 of canonical JSON (see Canonicalization below)                        |
-| `updated_at`       | Replica timestamp from `resumes.updated_at`                                   |
-| `version`          | Integer optimistic-lock counter (per replica, not comparable across replicas) |
-| `last_synced_hash` | Hash at last successful sync                                                  |
-| `last_synced_at`   | Timestamp of last successful sync                                             |
+| Field              | Purpose                                                                                                                                 |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `resume_id`        | UUID, the global identity                                                                                                               |
+| `content_hash`     | SHA-256 of canonical JSON as written; `content_tag = HMAC-SHA256(tag_key, canonical bytes)` under RFC 0003 (see Canonicalization below) |
+| `updated_at`       | Replica timestamp from `resumes.updated_at`                                                                                             |
+| `version`          | Integer optimistic-lock counter (per replica, not comparable across replicas)                                                           |
+| `last_synced_hash` | Hash at last successful sync                                                                                                            |
+| `last_synced_at`   | Timestamp of last successful sync                                                                                                       |
 
-**Conflict rule:** A conflict exists when `content_hash` differs on both sides
-AND both `updated_at` values are **after** `last_synced_at` for that resume.
+**Conflict rule:** A conflict exists when the content tag differs on both sides
+AND both `updated_at` values are **after** `last_synced_at` for that resume. On the
+first link no `last_synced_at` exists, so the same-origin import record stands in
+for it: `import_synced_at` plus the content tag recorded at import time. A side whose
+current tag equals the import-time tag has not edited since the common point; if
+exactly one side differs from it, that side wins by automatic LWW; if both differ,
+it is a conflict. With no import record at all, the first link treats every
+colliding id as both-sided and asks the user.
 
 Rejected: **version vectors** for v1. Two-replica federation does not justify
 the complexity; `updated_at` + content hash is sufficient with known clock-skew
@@ -242,14 +249,17 @@ not globally meaningful across instances (local self-hosted may not have a
 
 #### Canonicalization
 
-Both Rust (`crates/schema`) and TypeScript (`apps/web`) MUST compute
-`content_hash` with the same algorithm:
+Both Rust (`crates/schema`) and TypeScript (`apps/web`) MUST compute the content
+tag with the same algorithm (`content_hash` as written; `content_tag` under
+RFC 0003):
 
 1. Serialize `ResumeData` to JSON with **sorted object keys** at every nesting level.
 2. Use UTF-8 encoding with no insignificant whitespace (compact JSON).
 3. Numbers: no trailing zeros beyond JSON spec; no locale-specific formatting.
 4. Strings: standard JSON escaping (RFC 8259).
-5. Hash the UTF-8 bytes with SHA-256; store lowercase hex.
+5. As written, hash the UTF-8 bytes with SHA-256; under RFC 0003 compute
+   `HMAC-SHA256(tag_key, bytes)` instead (plain SHA-256 only on plaintext
+   self-hosted relays); store lowercase hex.
 
 Implementation ships as a shared test vector crate/module before sync lands.
 

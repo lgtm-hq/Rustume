@@ -154,7 +154,10 @@ Every client identifies itself with a random UUID generated on first use, sent a
 the `Sync-Client` header on every sync request, and sends the cursor from its last
 successful pull (`Sync-Cursor` header) on every `PUT` and `DELETE`. The relay keeps one row per
 client in a `sync_cursors` table (`account_id`, `client_id`, `cursor`,
-`last_pull_at`), written on every pull. That table is the only client state the
+`last_pull_at`), written on every pull, plus a `sync_cursor_history` table
+(`client_id`, `cursor`, `issued_at`) that records every cursor issued so the write
+window below can be validated; history rows older than 15 minutes and beyond the
+last five are deleted on the next pull. That table is the only client state the
 relay holds; it is not a device registry the user manages, and rows expire after
 90 days without a pull.
 
@@ -311,7 +314,10 @@ other.
 | IndexedDB | Browser client                     | Existing WASM backend, extended with version metadata and snapshots |
 
 Only document tables live behind the trait. Users, sessions, policy acceptances,
-subscriptions, and audit are cloud concerns and stay in the server crate on Postgres.
+subscriptions, and audit are Cloud concerns and stay in the server crate on
+Postgres. A self-hosted relay has none of those; the small amount of account state
+it does hold (the implicit local user, `e2ee_config`, recovery blobs, `sync_cursors`)
+lives in the same SQLite file as the documents, so self-hosting remains one file.
 The document query sites in `routes/resumes.rs` and `db/snapshots.rs` move behind
 the trait; query sites elsewhere in the server crate are untouched.
 
@@ -421,7 +427,12 @@ addition is a persistent save and sync status (#645), which this design makes
 truthful because "saved" and "synced" are now distinct events.
 
 Linking a self-hosted relay to Cloud (RFC 0002's core case) collapses to the relay
-running the sync engine against Cloud with the user's device credentials. Pairing,
+running the sync engine against Cloud with the user's device credentials. Because
+`tag_key` is a random per-account key, a linked replica must use the Cloud account's
+`DEK || tag_key`, not keys of its own: pairing includes an unlock of the Cloud
+account on the replica (passphrase or recovery code, entered locally, never sent),
+after which the replica re-tags and re-seals its local library under the Cloud
+account's keys before the first reconcile. Replicas with different keys never sync. Pairing,
 unlink, and retention semantics from RFC 0002 remain; the "self-hosted sync client"
 row in its rollout table is this RFC's Phase 3 relay plus the sync engine.
 
