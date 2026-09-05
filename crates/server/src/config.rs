@@ -46,6 +46,8 @@ pub struct RateLimitConfig {
     pub preview_per_min: u32,
     /// PDF export renders.
     pub pdf_per_min: u32,
+    /// GDPR account data export.
+    pub account_export_per_min: u32,
     /// Auth login/callback/logout/me.
     pub auth_per_min: u32,
     /// Account deletion (per user when authenticated, per IP otherwise).
@@ -70,6 +72,7 @@ impl Default for RateLimitConfig {
             import_per_min: 10,
             preview_per_min: 60,
             pdf_per_min: 20,
+            account_export_per_min: 5,
             auth_per_min: 10,
             account_delete_per_min: 5,
             health_per_min: 60,
@@ -94,6 +97,10 @@ impl RateLimitConfig {
             import_per_min: env_u32("RATE_LIMIT_IMPORT_PER_MIN", defaults.import_per_min),
             preview_per_min: env_u32("RATE_LIMIT_PREVIEW_PER_MIN", defaults.preview_per_min),
             pdf_per_min: env_u32("RATE_LIMIT_PDF_PER_MIN", defaults.pdf_per_min),
+            account_export_per_min: env_u32(
+                "RATE_LIMIT_ACCOUNT_EXPORT_PER_MIN",
+                defaults.account_export_per_min,
+            ),
             auth_per_min: env_u32("RATE_LIMIT_AUTH_PER_MIN", defaults.auth_per_min),
             account_delete_per_min: env_u32(
                 "RATE_LIMIT_ACCOUNT_DELETE_PER_MIN",
@@ -141,6 +148,11 @@ impl RateLimitConfig {
     /// Quota for PDF render routes.
     pub fn pdf_quota(self) -> Quota {
         Self::quota_per_minute(self.pdf_per_min)
+    }
+
+    /// Quota for GDPR account export routes.
+    pub fn account_export_quota(self) -> Quota {
+        Self::quota_per_minute(self.account_export_per_min)
     }
 
     /// Quota for auth routes.
@@ -231,6 +243,7 @@ mod tests {
         assert_eq!(config.import_per_min, 10);
         assert_eq!(config.preview_per_min, 60);
         assert_eq!(config.pdf_per_min, 20);
+        assert_eq!(config.account_export_per_min, 5);
         assert_eq!(config.auth_per_min, 10);
         assert_eq!(config.account_delete_per_min, 5);
         assert_eq!(config.health_per_min, 60);
