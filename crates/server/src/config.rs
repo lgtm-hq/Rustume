@@ -35,8 +35,9 @@ pub const DEFAULT_STATIC_DIR: &str = "/app/web";
 
 /// Base URL for public resume pages (e.g. `https://rustume.com`).
 ///
-/// When unset, public Open Graph metadata uses relative URLs rather than
-/// trusting request-controlled host headers.
+/// When unset (or not an absolute `http(s)` origin), public pages omit `og:url`
+/// and `og:image` rather than trusting request-controlled host headers; a
+/// warning is logged at cloud startup and on each affected request.
 pub fn public_base_url() -> Option<String> {
     parse_public_base_url(std::env::var("PUBLIC_BASE_URL").ok().as_deref())
 }

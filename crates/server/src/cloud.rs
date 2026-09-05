@@ -5,7 +5,7 @@ use sqlx::PgPool;
 use std::env::VarError;
 use std::sync::Arc;
 use std::time::Duration;
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::auth::session::SessionService;
 use crate::auth::workos::WorkOsClient;
@@ -220,6 +220,13 @@ pub async fn init_cloud(config: CloudConfig) -> anyhow::Result<Arc<CloudState>> 
             None
         }
     };
+
+    if crate::config::public_base_url().is_none() {
+        warn!(
+            "PUBLIC_BASE_URL is unset: public resume pages (/r/{{slug}}) will omit og:url and \
+             og:image, so social link previews fall back to a plain card"
+        );
+    }
 
     let workos = WorkOsClient::new(config.workos_client_id, config.workos_api_key);
     let cookie_secure = config.workos_redirect_uri.starts_with("https://");

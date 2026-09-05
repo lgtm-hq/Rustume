@@ -154,13 +154,20 @@ pub fn inject_og_tags(html: &str, meta_tags: &str) -> Option<String> {
     Some(result)
 }
 
+/// Look up a published resume by slug.
+///
+/// Password-protected pages (#81) are not implemented yet: the sharing API
+/// cannot set `password_hash`, and until a gate exists any row that somehow
+/// carries one is treated as not public rather than served in the clear.
 async fn fetch_public_resume(state: &AppState, slug: &str) -> Result<PublicResumeRow, ApiError> {
     let cloud = state.cloud()?;
     sqlx::query_as::<_, PublicResumeRow>(
         r#"
         SELECT id, title, data, version, updated_at
         FROM resumes
-        WHERE public_slug = $1 AND is_public = true
+        WHERE public_slug = $1
+          AND is_public = true
+          AND password_hash IS NULL
         "#,
     )
     .bind(slug)
@@ -526,7 +533,48 @@ mod tests {
             resume_id: Uuid,
         }
 
+        /// Sets `PUBLIC_BASE_URL` for one test and restores the prior value on drop,
+        /// including when the test panics. Tests using it are serialized by a mutex
+        /// because the environment is process-global.
+        struct PublicBaseUrlGuard {
+            previous: Option<String>,
+            _lock: std::sync::MutexGuard<'static, ()>,
+        }
+
+        static PUBLIC_BASE_URL_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+        impl PublicBaseUrlGuard {
+            fn set(value: &str) -> Self {
+                let lock = PUBLIC_BASE_URL_LOCK
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+                let previous = std::env::var("PUBLIC_BASE_URL").ok();
+                std::env::set_var("PUBLIC_BASE_URL", value);
+                Self {
+                    previous,
+                    _lock: lock,
+                }
+            }
+        }
+
+        impl Drop for PublicBaseUrlGuard {
+            fn drop(&mut self) {
+                match self.previous.take() {
+                    Some(previous) => std::env::set_var("PUBLIC_BASE_URL", previous),
+                    None => std::env::remove_var("PUBLIC_BASE_URL"),
+                }
+            }
+        }
+
         async fn seed_resume(pool: &sqlx::PgPool, is_public: bool) -> Seeded {
+            seed_resume_with_password(pool, is_public, None).await
+        }
+
+        async fn seed_resume_with_password(
+            pool: &sqlx::PgPool,
+            is_public: bool,
+            password_hash: Option<&str>,
+        ) -> Seeded {
             let user_id = Uuid::new_v4();
             sqlx::query("INSERT INTO users (id, workos_id) VALUES ($1, $2)")
                 .bind(user_id)
@@ -543,8 +591,8 @@ mod tests {
 
             let (resume_id, version): (Uuid, i32) = sqlx::query_as(
                 r#"
-                INSERT INTO resumes (user_id, title, data, is_public, public_slug)
-                VALUES ($1, $2, $3, $4, $5)
+                INSERT INTO resumes (user_id, title, data, is_public, public_slug, password_hash)
+                VALUES ($1, $2, $3, $4, $5, $6)
                 RETURNING id, version
                 "#,
             )
@@ -553,6 +601,7 @@ mod tests {
             .bind(data)
             .bind(is_public)
             .bind(&slug)
+            .bind(password_hash)
             .fetch_one(pool)
             .await
             .expect("insert resume");
@@ -741,6 +790,91 @@ mod tests {
                     etag
                 );
             }
+
+            cleanup_user(&pool, seeded.user_id).await;
+        }
+
+        #[tokio::test]
+        async fn public_page_emits_absolute_og_urls_when_base_url_is_configured() {
+            let Some(url) = database_url_for_tests() else {
+                return;
+            };
+            let _env = PublicBaseUrlGuard::set("https://rustume.example/");
+            let pool = connect_test_pool(&url).await;
+            let seeded = seed_resume(&pool, true).await;
+            let static_dir = temp_static_dir();
+            let state = test_app_state(pool.clone(), static_dir.path().to_path_buf());
+
+            let response = public_resume_page(State(state), Path(seeded.slug.clone()))
+                .await
+                .expect("public page");
+            assert_eq!(response.status(), StatusCode::OK);
+            let html = body_string(response).await;
+            let slug = &seeded.slug;
+            assert!(html.contains(&format!(
+                r#"<meta property="og:url" content="https://rustume.example/r/{slug}">"#
+            )));
+            assert!(html.contains(&format!(
+                r#"<meta property="og:image" content="https://rustume.example/r/{slug}/preview.png">"#
+            )));
+            assert!(html.contains(r#"<meta name="twitter:card" content="summary_large_image">"#));
+
+            cleanup_user(&pool, seeded.user_id).await;
+        }
+
+        #[tokio::test]
+        async fn preview_renders_png_with_etag_on_cache_miss() {
+            let Some(url) = database_url_for_tests() else {
+                return;
+            };
+            let pool = connect_test_pool(&url).await;
+            let seeded = seed_resume(&pool, true).await;
+            let static_dir = temp_static_dir();
+            let state = test_app_state(pool.clone(), static_dir.path().to_path_buf());
+            let etag = format_etag(seeded.resume_id, seeded.version);
+
+            let mut stale = HeaderMap::new();
+            stale.insert(header::IF_NONE_MATCH, "\"stale-etag\"".parse().unwrap());
+            let response =
+                public_resume_preview(State(state.clone()), Path(seeded.slug.clone()), stale)
+                    .await
+                    .expect("preview render");
+
+            assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(
+                response.headers().get(header::CONTENT_TYPE).unwrap(),
+                "image/png"
+            );
+            assert_eq!(response.headers().get(header::ETAG).unwrap(), etag.as_str());
+            assert_eq!(
+                response.headers().get(header::CACHE_CONTROL).unwrap(),
+                format!("public, max-age={PREVIEW_CACHE_MAX_AGE}").as_str()
+            );
+            let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .expect("png body");
+            assert!(
+                bytes.starts_with(&[0x89, b'P', b'N', b'G']),
+                "body should be a PNG"
+            );
+
+            cleanup_user(&pool, seeded.user_id).await;
+        }
+
+        #[tokio::test]
+        async fn password_protected_rows_are_not_served_publicly() {
+            let Some(url) = database_url_for_tests() else {
+                return;
+            };
+            let pool = connect_test_pool(&url).await;
+            let seeded = seed_resume_with_password(&pool, true, Some("$argon2id$hash")).await;
+            let static_dir = temp_static_dir();
+            let state = test_app_state(pool.clone(), static_dir.path().to_path_buf());
+
+            let err = public_resume_data(State(state), Path(seeded.slug.clone()))
+                .await
+                .expect_err("password-protected row must not be public");
+            assert!(matches!(err.kind, ApiErrorKind::NotFound));
 
             cleanup_user(&pool, seeded.user_id).await;
         }
