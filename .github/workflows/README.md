@@ -71,8 +71,10 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
   created without its image (#597). A failed image verify turns Create
   GitHub Release red instead of skipped (#698). The git tag is created
   earlier by auto-tag-on-main.yml and is **not** covered by that gate
-- **reconcile-releases.yml** — Daily / tag-push check that recent `v*` tags
-  still have a GitHub Release and a GHCR image (`scripts/ci/release/reconcile-releases.sh`)
+- **reconcile-releases.yml** — Daily (`schedule`) or manual (`workflow_dispatch`)
+  check that recent `v*` tags still have a GitHub Release and a GHCR image
+  (`scripts/ci/release/reconcile-releases.sh`). Deliberately not triggered on
+  tag push: it would race the publish workflows
 - **build-binary.yml** — Cross-platform release binaries (inline; Windows
   `actions/checkout` exception)
 
