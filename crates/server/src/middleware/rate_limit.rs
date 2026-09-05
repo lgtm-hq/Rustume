@@ -342,7 +342,6 @@ async fn enforce_rate_limit(
 
 macro_rules! rate_limit_middleware {
     ($name:ident, $group:expr) => {
-        #[allow(dead_code)]
         pub async fn $name(
             State(state): State<AppState>,
             request: Request,

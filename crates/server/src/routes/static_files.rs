@@ -15,7 +15,14 @@ pub fn static_dir() -> PathBuf {
         .unwrap_or_else(|_| PathBuf::from(DEFAULT_STATIC_DIR))
 }
 
-fn is_reserved_server_path(path: &str) -> bool {
+/// Paths owned by the API server that must never fall through to the SPA shell.
+///
+/// `/r/*` is only a server namespace in cloud mode, where the public resume
+/// routes are mounted; self-hosted deployments keep serving the SPA there.
+fn is_reserved_server_path(path: &str, cloud: bool) -> bool {
+    if cloud && (path == "/r" || path.starts_with("/r/")) {
+        return true;
+    }
     path == "/api"
         || path.starts_with("/api/")
         || path == "/api-docs"
@@ -88,7 +95,7 @@ pub async fn spa_fallback(
     uri: axum::http::Uri,
 ) -> Response {
     let path = uri.path();
-    if is_reserved_server_path(path) {
+    if is_reserved_server_path(path, state.cloud.is_some()) {
         return ApiError::not_found("Route not found").into_response();
     }
 
@@ -125,4 +132,34 @@ pub async fn spa_fallback(
             ApiError::not_found(format!("Web UI assets not found in {}", root.display()))
                 .into_response()
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_reserved_server_path;
+
+    #[test]
+    fn reserved_paths_include_public_resume_prefix_in_cloud_mode() {
+        assert!(is_reserved_server_path("/r", true));
+        assert!(is_reserved_server_path("/r/", true));
+        assert!(is_reserved_server_path("/r/abc", true));
+        assert!(is_reserved_server_path("/r/abc/preview.png", true));
+    }
+
+    #[test]
+    fn public_resume_prefix_falls_through_to_spa_when_self_hosted() {
+        assert!(!is_reserved_server_path("/r", false));
+        assert!(!is_reserved_server_path("/r/abc", false));
+        assert!(is_reserved_server_path("/api/resumes", false));
+        assert!(is_reserved_server_path("/auth/me", false));
+    }
+
+    #[test]
+    fn non_reserved_paths_are_not_blocked() {
+        for cloud in [false, true] {
+            assert!(!is_reserved_server_path("/", cloud));
+            assert!(!is_reserved_server_path("/editor", cloud));
+            assert!(!is_reserved_server_path("/resume", cloud));
+        }
+    }
 }
