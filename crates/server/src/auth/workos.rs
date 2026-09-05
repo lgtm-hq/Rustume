@@ -354,10 +354,21 @@ mod tests {
     /// Postgres) a missing or misnamed database must fail rather than pass with
     /// zero assertions. Same rule as routes/account.rs.
     fn test_database_url() -> Option<String> {
+        // Match on the database name (last path segment, sans query/fragment),
+        // not the whole URL, so a hostname or credential containing "_test"
+        // cannot point these tests at a real database.
+        fn database_name(url: &str) -> &str {
+            url.split(['?', '#'])
+                .next()
+                .unwrap_or(url)
+                .rsplit('/')
+                .next()
+                .unwrap_or("")
+        }
         let url = std::env::var("TEST_DATABASE_URL")
             .ok()
             .map(|url| url.trim().to_owned())
-            .filter(|url| !url.is_empty() && url.contains("_test"));
+            .filter(|url| !url.is_empty() && database_name(url).contains("_test"));
         if url.is_none() {
             let message =
                 "workos integration tests need TEST_DATABASE_URL naming a *_test database";
