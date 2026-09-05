@@ -59,12 +59,12 @@ Not included: session rows (short-lived credential material, not information abo
 internal identifiers such as the WorkOS user id and Paddle customer id, and password hashes for
 protected shares.
 
-The export is not subject to the 50-resume cap or to subscription gating. It has its own rate
-limit (5 per minute, charged to the user and to a shared per-IP bucket like every signed-in
-route) and a per-process ceiling of concurrent downloads (`RATE_LIMIT_ACCOUNT_EXPORT_CONCURRENCY`,
-default 2), beyond which the request is refused with `503` and `Retry-After`. Both `429` and `503` carry the same `{ "error", "retry_after" }`
-body. Every export and deletion is written to the
-audit log. See [Rate Limits](/docs/deployment/rate-limits/#account-export-is-not-capped).
+The export is not subject to the 50-resume cap or to subscription gating. It has its own rate limit
+(5 per minute, charged to the user and to a shared per-IP bucket like every signed-in route) and a
+per-process ceiling of concurrent downloads (`RATE_LIMIT_ACCOUNT_EXPORT_CONCURRENCY`, default 2),
+beyond which the request is refused with `503` and `Retry-After`. Both `429` and `503` carry the
+same `{ "error", "retry_after" }` body. Every export and deletion is written to the audit log. See
+[Rate Limits](/docs/deployment/rate-limits/#account-export-is-not-capped).
 
 ## Connected workflows
 
