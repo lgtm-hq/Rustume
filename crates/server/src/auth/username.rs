@@ -140,51 +140,47 @@ mod tests {
         assert!(handles.len() > 1, "expected varied generated usernames");
     }
 
-    #[test]
-    fn validate_username_accepts_valid_handles() {
-        for username in ["swift-otter-4821", "ada", "user-42", "a1b2c3"] {
-            assert_eq!(validate_username(username), Ok(()), "rejected {username}");
+    #[derive(serde::Deserialize)]
+    struct SharedCases {
+        cases: Vec<SharedCase>,
+    }
+
+    #[derive(serde::Deserialize)]
+    struct SharedCase {
+        input: String,
+        expect: String,
+    }
+
+    fn expected_message(rules: &UsernameRules, key: &str) -> Option<String> {
+        match key {
+            "ok" => None,
+            "length" => Some(rules.length_message()),
+            "charset" => Some(rules.messages.charset.clone()),
+            "hyphens" => Some(rules.messages.hyphens.clone()),
+            "reserved" => Some(rules.messages.reserved.clone()),
+            other => panic!("unknown expectation {other} in username_cases.json"),
         }
     }
 
+    /// The same vectors drive `apps/web/src/api/__tests__/account.test.ts`, so
+    /// a behavioural change in either validator must be reflected in the file
+    /// both read.
     #[test]
-    fn validate_username_rejects_invalid_charset() {
-        assert_eq!(
-            validate_username("Swift-Otter").err().as_deref(),
-            Some("Username may only contain lowercase letters, digits, and hyphens")
-        );
-        assert_eq!(
-            validate_username("user_name").err().as_deref(),
-            Some("Username may only contain lowercase letters, digits, and hyphens")
-        );
-    }
-
-    #[test]
-    fn validate_username_rejects_bad_length() {
-        assert_eq!(
-            validate_username("ab").err().as_deref(),
-            Some("Username must be 3-32 characters")
-        );
-        assert_eq!(
-            validate_username(&"a".repeat(33)).err().as_deref(),
-            Some("Username must be 3-32 characters")
-        );
-    }
-
-    #[test]
-    fn validate_username_rejects_bad_hyphens() {
-        assert_eq!(
-            validate_username("-swift").err().as_deref(),
-            Some("Username cannot start, end, or contain consecutive hyphens")
-        );
-        assert_eq!(
-            validate_username("swift-").err().as_deref(),
-            Some("Username cannot start, end, or contain consecutive hyphens")
-        );
-        assert_eq!(
-            validate_username("swift--otter").err().as_deref(),
-            Some("Username cannot start, end, or contain consecutive hyphens")
-        );
+    fn validate_username_matches_shared_cases() {
+        let shared: SharedCases = serde_json::from_str(include_str!("username_cases.json"))
+            .expect("username_cases.json is valid");
+        assert!(shared.cases.len() >= 20, "shared vectors went missing");
+        let rules = rules();
+        for case in shared.cases {
+            let normalized = normalize_username(&case.input);
+            let actual = validate_username(&normalized).err();
+            assert_eq!(
+                actual,
+                expected_message(rules, &case.expect),
+                "input {:?} (normalised {normalized:?})",
+                case.input
+            );
+        }
     }
 
     #[test]

@@ -162,15 +162,19 @@ export const authRequireAuthSchema = z.object({
   require_auth: z.boolean().optional(),
 });
 
-const authMePayloadSchema = z.object({
+// Strict: the web bundle is served by the same server that answers /auth/me,
+// so there is no version skew to tolerate. The server guarantees `username`
+// (NOT NULL), so a payload without it is a broken server, not an old one.
+const authMePayloadSchema = z.strictObject({
   id: z.string(),
   plan: z.string(),
   email: z.string().optional(),
-  username: z.string().optional(),
+  username: z.string().min(1),
   subscription: z.unknown().optional(),
   require_auth: z.boolean().optional(),
 });
 
+/** Signed-in user as parsed from `/auth/me`; the single client-side user type. */
 export interface ParsedAuthUser {
   id: string;
   plan: string;
@@ -212,13 +216,7 @@ export function parseAuthMePayload(payload: unknown): {
   }
 
   const record = result.data;
-  // Older server builds omit `username`; derive a stable placeholder so the
-  // account UI always has a handle to show.
-  const username =
-    record.username !== undefined && record.username.length > 0
-      ? record.username
-      : `user-${record.id.slice(0, 8)}`;
-  const user: ParsedAuthUser = { id: record.id, plan: record.plan, username };
+  const user: ParsedAuthUser = { id: record.id, plan: record.plan, username: record.username };
 
   if (record.email !== undefined) {
     user.email = record.email;

@@ -1,0 +1,97 @@
+{
+  "$comment": "Shared username validation vectors. Both crates/server/src/auth/username.rs and apps/web/src/api/__tests__/account.test.ts run every case, so the two validators cannot diverge in behaviour. `expect` is `ok` or the key of the message in username_rules.json that must be returned.",
+  "cases": [
+    {
+      "input": "swift-otter-4821",
+      "expect": "ok"
+    },
+    {
+      "input": "ada",
+      "expect": "ok"
+    },
+    {
+      "input": "abc",
+      "expect": "ok"
+    },
+    {
+      "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expect": "ok"
+    },
+    {
+      "input": "user-42",
+      "expect": "ok"
+    },
+    {
+      "input": "a1b2c3",
+      "expect": "ok"
+    },
+    {
+      "input": "  Swift-Otter-42  ",
+      "expect": "ok",
+      "$note": "trimmed and lowercased before validation"
+    },
+    {
+      "input": "",
+      "expect": "length"
+    },
+    {
+      "input": "   ",
+      "expect": "length"
+    },
+    {
+      "input": "ab",
+      "expect": "length"
+    },
+    {
+      "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expect": "length"
+    },
+    {
+      "input": "-swift",
+      "expect": "hyphens"
+    },
+    {
+      "input": "swift-",
+      "expect": "hyphens"
+    },
+    {
+      "input": "swift--otter",
+      "expect": "hyphens"
+    },
+    {
+      "input": "Swift-Otter",
+      "expect": "ok",
+      "$note": "uppercase is normalised, not rejected"
+    },
+    {
+      "input": "user_name",
+      "expect": "charset"
+    },
+    {
+      "input": "swift otter",
+      "expect": "charset"
+    },
+    {
+      "input": "swift.otter",
+      "expect": "charset"
+    },
+    {
+      "input": "swïft",
+      "expect": "charset"
+    },
+    {
+      "input": "admin",
+      "expect": "reserved"
+    },
+    {
+      "input": "API",
+      "expect": "reserved",
+      "$note": "reserved check runs after normalisation"
+    },
+    {
+      "input": "me",
+      "expect": "length",
+      "$note": "too short before it can be reserved"
+    }
+  ]
+}
