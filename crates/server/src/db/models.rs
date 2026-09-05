@@ -341,6 +341,26 @@ pub struct ResumeSnapshotExport {
     pub data: serde_json::Value,
 }
 
+/// Resume as it appears in the GDPR portability export: the bulk-export
+/// fields plus the sharing state and timestamps the account holds about it.
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct AccountResumeExportItem {
+    #[schema(value_type = String, format = "uuid")]
+    pub id: Uuid,
+    pub title: String,
+    /// Whether the resume is published at its public URL.
+    pub is_public: bool,
+    /// Public URL slug, present once the resume has ever been shared.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub public_slug: Option<String>,
+    #[schema(value_type = String, format = "date-time")]
+    pub created_at: DateTime<Utc>,
+    #[schema(value_type = String, format = "date-time")]
+    pub updated_at: DateTime<Utc>,
+    #[schema(value_type = Object)]
+    pub data: serde_json::Value,
+}
+
 /// Full account data export payload for `GET /api/account/export`.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct AccountDataExport {
@@ -349,7 +369,7 @@ pub struct AccountDataExport {
     pub account: AccountExportProfile,
     /// Terms and Privacy Policy versions the user accepted.
     pub policy_acceptances: Vec<PolicyAcceptanceExport>,
-    pub resumes: Vec<ResumeExportItem>,
+    pub resumes: Vec<AccountResumeExportItem>,
     /// Retained version-history snapshots for every exported resume.
     pub resume_snapshots: Vec<ResumeSnapshotExport>,
 }

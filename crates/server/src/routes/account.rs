@@ -39,6 +39,10 @@ const EXPORT_STREAM_CHANNEL_CAPACITY: usize = 2;
 struct ExportResumeRow {
     id: Uuid,
     title: String,
+    is_public: bool,
+    public_slug: Option<String>,
+    created_at: DateTime<Utc>,
+    updated_at: DateTime<Utc>,
     data_json: String,
 }
 
@@ -437,7 +441,7 @@ async fn run_export_stream(
 
     let mut rows = sqlx::query_as::<_, ExportResumeRow>(
         r#"
-        SELECT id, title, data::text AS data_json
+        SELECT id, title, is_public, public_slug, created_at, updated_at, data::text AS data_json
         FROM resumes
         WHERE user_id = $1
         ORDER BY updated_at DESC
@@ -532,16 +536,34 @@ async fn stream_resume_row(
     row: ExportResumeRow,
     first: &mut bool,
 ) -> Result<bool, ApiError> {
-    let title_json = serde_json::to_string(&row.title).map_err(|err| {
-        error!("account export title serialization failed: {err}");
+    // Everything except the (possibly huge) `data` document is serialised with
+    // serde so escaping and the optional slug follow the schema exactly.
+    #[derive(Serialize)]
+    struct Head<'a> {
+        id: Uuid,
+        title: &'a str,
+        is_public: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        public_slug: Option<&'a str>,
+        created_at: DateTime<Utc>,
+        updated_at: DateTime<Utc>,
+    }
+    let mut header = serde_json::to_string(&Head {
+        id: row.id,
+        title: &row.title,
+        is_public: row.is_public,
+        public_slug: row.public_slug.as_deref(),
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+    })
+    .map_err(|err| {
+        error!("account export resume header serialization failed: {err}");
         ApiError::internal("failed to export account data")
     })?;
-    let header = format!(
-        r#"{}{{"id":"{}","title":{},"data":"#,
-        take_separator(first),
-        row.id,
-        title_json
-    );
+    // Replace the closing brace with the `data` key so the raw JSON document
+    // can be appended as the last field.
+    header.pop();
+    let header = format!(r#"{}{header},"data":"#, take_separator(first));
     stream_json_object(sink, header, &row.data_json).await
 }
 
@@ -673,7 +695,7 @@ mod tests {
     }
 
     fn database_url_for_tests() -> Option<String> {
-        let url = std::env::var("TEST_DATABASE_URL")
+        let Some(url) = std::env::var("TEST_DATABASE_URL")
             .ok()
             .map(|url| url.trim().to_owned())
             .filter(|url| !url.is_empty())
@@ -682,16 +704,29 @@ mod tests {
                     .ok()
                     .map(|url| url.trim().to_owned())
                     .filter(|url| !url.is_empty())
-            })?;
+            })
+        else {
+            skip_or_fail_without_test_db();
+            return None;
+        };
 
         if looks_like_test_database_url(&url) {
             Some(url)
         } else {
-            eprintln!(
-                "SKIP account export integration tests: set TEST_DATABASE_URL (or DATABASE_URL) to a database whose name contains _test"
-            );
+            skip_or_fail_without_test_db();
             None
         }
+    }
+
+    /// Locally the DB-backed tests are optional; in CI (which always provisions
+    /// Postgres) a missing or misnamed database must fail rather than pass
+    /// with zero assertions.
+    fn skip_or_fail_without_test_db() {
+        let message = "account export integration tests need TEST_DATABASE_URL (or DATABASE_URL) naming a *_test database";
+        if std::env::var("CI").is_ok() {
+            panic!("{message}");
+        }
+        eprintln!("SKIP {message}");
     }
 
     async fn connect_test_pool(database_url: &str) -> sqlx::PgPool {
@@ -922,6 +957,10 @@ mod tests {
         let row = ExportResumeRow {
             id: Uuid::nil(),
             title: "Quote \"me\"".to_string(),
+            is_public: true,
+            public_slug: Some("ada-lovelace".to_string()),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
             data_json: r#"{"basics":{"name":"Ada"}}"#.to_string(),
         };
         assert!(stream_resume_row(&mut sink, row, &mut first).await.unwrap());
@@ -931,9 +970,11 @@ mod tests {
 
         let out = header_and_body.await.unwrap();
         assert_eq!(out.len() as u64, bytes);
-        let item: crate::db::ResumeExportItem =
+        let item: crate::db::AccountResumeExportItem =
             serde_json::from_slice(&out).expect("streamed resume item is valid JSON");
         assert_eq!(item.title, "Quote \"me\"");
+        assert!(item.is_public);
+        assert_eq!(item.public_slug.as_deref(), Some("ada-lovelace"));
         assert_eq!(item.data["basics"]["name"], "Ada");
     }
 
@@ -946,6 +987,16 @@ mod tests {
 
         let user = seed_user_with_resumes(&pool, 2).await;
         seed_snapshots_and_policy_acceptances(&pool, user.id).await;
+        // One resume is shared publicly so the export carries sharing state.
+        let shared_slug = format!("shared-{}", &user.id.simple().to_string()[..8]);
+        sqlx::query(
+            "UPDATE resumes SET is_public = true, public_slug = $2 WHERE user_id = $1 AND title = 'Resume 0'",
+        )
+        .bind(user.id)
+        .bind(&shared_slug)
+        .execute(&pool)
+        .await
+        .expect("share resume");
         let state = test_app_state(pool.clone());
 
         let response = export_account(AuthUser(user.clone()), State(state), HeaderMap::new())
@@ -969,6 +1020,20 @@ mod tests {
             serde_json::from_slice(&body).expect("stream matches AccountDataExport schema");
         assert_eq!(typed.account.id, user.id);
         assert_eq!(typed.resumes.len(), 2);
+        let shared = typed
+            .resumes
+            .iter()
+            .find(|resume| resume.title == "Resume 0")
+            .expect("shared resume");
+        assert!(shared.is_public);
+        assert_eq!(shared.public_slug.as_deref(), Some(shared_slug.as_str()));
+        let private = typed
+            .resumes
+            .iter()
+            .find(|resume| resume.title == "Resume 1")
+            .expect("private resume");
+        assert!(!private.is_public);
+        assert_eq!(private.public_slug, None);
         assert_eq!(typed.resume_snapshots.len(), 4);
         assert_eq!(typed.policy_acceptances.len(), 2);
 
@@ -998,7 +1063,23 @@ mod tests {
                 .keys()
                 .map(String::as_str)
                 .collect();
-            assert_eq!(keys, ["id", "title", "data"].into_iter().collect());
+            let mut expected: std::collections::BTreeSet<&str> = [
+                "id",
+                "title",
+                "is_public",
+                "created_at",
+                "updated_at",
+                "data",
+            ]
+            .into_iter()
+            .collect();
+            if resume["is_public"] == true {
+                expected.insert("public_slug");
+            }
+            assert_eq!(keys, expected);
+            // Never the owner id or the password hash for protected shares.
+            assert!(!keys.contains("user_id"));
+            assert!(!keys.contains("password_hash"));
         }
         for snapshot in payload["resume_snapshots"]
             .as_array()

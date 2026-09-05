@@ -42,6 +42,8 @@ All values are **requests per minute** unless noted.
 | PDF render & bulk PDF export | 20 | — | `POST /api/render/pdf`, `GET /api/resumes/export/pdf` |
 | Auth | 10 | — | Login, callback, logout, `/auth/me` |
 | Parse & utility | 30 | — | Templates, parse, validate |
+| Account export | 5 | — | `GET /api/account/export` (GDPR data portability) |
+| Account deletion | 5 | — | `DELETE /api/account` |
 
 Resume CRUD allows short bursts (for example rapid autosave) via a separate burst bucket.
 
@@ -84,6 +86,14 @@ available** on these endpoints today.
 The cap complements PDF rate limits by bounding per-request CPU and memory even when requests are
 spaced apart.
 
+### Account export is not capped
+
+`GET /api/account/export` (the GDPR portability download) is **not** subject to the resume-count
+cap or to subscription gating: data portability must work for every account, including expired or
+canceled ones. Instead it streams the account profile, policy acceptances, every resume, and every
+retained version snapshot under its own per-user limit of 5 requests per minute
+(`RATE_LIMIT_ACCOUNT_EXPORT_PER_MIN`). Each export is recorded in the audit log.
+
 ## Configuration
 
 Override defaults with environment variables (see [Environment
@@ -100,6 +110,8 @@ RATE_LIMIT_HEALTH_PER_MIN=60
 RATE_LIMIT_METRICS_PER_MIN=60
 RATE_LIMIT_UNAUTHENTICATED_PER_MIN=30
 RATE_LIMIT_BILLABLE_PER_MIN=30   # templates, parse, validate (not subscription-gated)
+RATE_LIMIT_ACCOUNT_EXPORT_PER_MIN=5   # GET /api/account/export
+RATE_LIMIT_ACCOUNT_DELETE_PER_MIN=5   # DELETE /api/account
 TRUSTED_PROXY=true   # only behind a trusted reverse proxy
 ```
 
