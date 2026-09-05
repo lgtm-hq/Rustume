@@ -254,23 +254,23 @@ continue to accept plaintext JSON from the client.
 Classification: **Keep** (works with E2EE), **Degrade** (works with client-side
 decrypt + explicit plaintext handoff), **Exclude** (incompatible when E2EE enabled).
 
-| Feature                           | Issue | Current behavior                                       | E2EE enabled   | Notes                                                                                                                                   |
-| --------------------------------- | ----- | ------------------------------------------------------ | -------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Resume CRUD + list                | n/a   | Plaintext `data` in Postgres                           | **Keep**       | Ciphertext stored instead; title stays plaintext                                                                                        |
-| Optimistic concurrency            | n/a   | `version` column, 409 on mismatch                      | **Keep**       | Unaffected; version is metadata                                                                                                         |
-| Server PDF render (single)        | n/a   | Client posts plaintext to `POST /api/render/pdf`       | **Degrade**    | Client decrypts locally, posts plaintext per request. Transient server memory exposure.                                                 |
-| Server PDF preview                | n/a   | Same as render                                         | **Degrade**    | Same transient exposure                                                                                                                 |
-| Bulk JSON export                  | #353  | Server reads plaintext from DB                         | **Degrade**    | Client-side export: fetch envelopes, decrypt, assemble JSON bundle locally                                                              |
-| Bulk PDF export (ZIP)             | #353  | Server reads DB + Typst render                         | **Degrade**    | Client decrypts each resume, POSTs to render, or future client-side PDF                                                                 |
-| Public resume pages               | #65   | Schema columns exist; no routes                        | **Exclude**    | Public pages require server-readable HTML/OG metadata. Block publish when E2EE on.                                                      |
-| Version history                   | #91   | `resume_snapshots` has writers and list/restore routes | **Degrade**    | Store encrypted snapshots in `resume_snapshots.data`. Server-side diff/preview requires client decrypt. No server-side restore preview. |
-| Operator backups (`pg_dump`)      | #334  | Full DB dump includes plaintext                        | **Keep**       | Ciphertext backs up fine. Restore verification requires client decrypt smoke test, not server readability check.                        |
-| Account export (GDPR)             | #353  | Bulk export routes                                     | **Degrade**    | Export includes ciphertext envelopes + `e2ee_config`. User decrypts with passphrase.                                                    |
-| Local↔cloud import                | #338  | `POST /api/resumes/import` upserts by id               | **Keep**       | Client encrypts before import; server rejects non-envelope `data` when `e2ee_enabled`. Document id-preserving flow in linking RFC.      |
-| Local IndexedDB storage           | n/a   | WASM storage, no encryption                            | **Keep**       | Independent of cloud E2EE; optional local encryption is separate scope                                                                  |
-| Server-managed at-rest encryption | n/a   | Documented, not implemented (`ENCRYPTION_SECRET`)      | **Orthogonal** | AES-256-GCM at rest protects against disk theft, not operator access. Complements but does not replace E2EE.                            |
-| CRDT sync                         | #40   | Not implemented                                        | **Degrade**    | Document-level envelope is interim; CRDT adoption needs update-level encryption                                                         |
-| Search / indexing                 | n/a   | Not implemented                                        | **Exclude**    | Full-text search on encrypted payloads impossible without searchable encryption (out of scope)                                          |
+| Feature                           | Issue | Current behavior                                                                                                         | E2EE enabled   | Notes                                                                                                                                   |
+| --------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------ | -------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Resume CRUD + list                | n/a   | Plaintext `data` in Postgres                                                                                             | **Keep**       | Ciphertext stored instead; title stays plaintext                                                                                        |
+| Optimistic concurrency            | n/a   | `version` column, 409 on mismatch                                                                                        | **Keep**       | Unaffected; version is metadata                                                                                                         |
+| Server PDF render (single)        | n/a   | Client posts plaintext to `POST /api/render/pdf`                                                                         | **Degrade**    | Client decrypts locally, posts plaintext per request. Transient server memory exposure.                                                 |
+| Server PDF preview                | n/a   | Same as render                                                                                                           | **Degrade**    | Same transient exposure                                                                                                                 |
+| Bulk JSON export                  | #353  | Server reads plaintext from DB                                                                                           | **Degrade**    | Client-side export: fetch envelopes, decrypt, assemble JSON bundle locally                                                              |
+| Bulk PDF export (ZIP)             | #353  | Server reads DB + Typst render                                                                                           | **Degrade**    | Client decrypts each resume, POSTs to render, or future client-side PDF                                                                 |
+| Public resume pages               | #65   | Sharing write exists via `update_sharing` (`resume.publish` / `resume.unpublish`); public GET/HTML serving still missing | **Exclude**    | Public pages require server-readable HTML/OG metadata. Block publish when E2EE on.                                                      |
+| Version history                   | #91   | `resume_snapshots` has writers and list/restore routes                                                                   | **Degrade**    | Store encrypted snapshots in `resume_snapshots.data`. Server-side diff/preview requires client decrypt. No server-side restore preview. |
+| Operator backups (`pg_dump`)      | #334  | Full DB dump includes plaintext                                                                                          | **Keep**       | Ciphertext backs up fine. Restore verification requires client decrypt smoke test, not server readability check.                        |
+| Account export (GDPR)             | #353  | Bulk export routes                                                                                                       | **Degrade**    | Export includes ciphertext envelopes + `e2ee_config`. User decrypts with passphrase.                                                    |
+| Local↔cloud import                | #338  | `POST /api/resumes/import` upserts by id                                                                                 | **Keep**       | Client encrypts before import; server rejects non-envelope `data` when `e2ee_enabled`. Document id-preserving flow in linking RFC.      |
+| Local IndexedDB storage           | n/a   | WASM storage, no encryption                                                                                              | **Keep**       | Independent of cloud E2EE; optional local encryption is separate scope                                                                  |
+| Server-managed at-rest encryption | n/a   | Documented, not implemented (`ENCRYPTION_SECRET`)                                                                        | **Orthogonal** | AES-256-GCM at rest protects against disk theft, not operator access. Complements but does not replace E2EE.                            |
+| CRDT sync                         | #40   | Not implemented                                                                                                          | **Degrade**    | Document-level envelope is interim; CRDT adoption needs update-level encryption                                                         |
+| Search / indexing                 | n/a   | Not implemented                                                                                                          | **Exclude**    | Full-text search on encrypted payloads impossible without searchable encryption (out of scope)                                          |
 
 ## Recommendation
 
@@ -338,7 +338,10 @@ Requires explicit user action. The operator cannot reverse it alone.
 ### DEK rotation (compromise recovery)
 
 1. Generate new DEK.
-2. Re-encrypt every resume envelope with new DEK.
+2. Re-encrypt every resume envelope and every `resume_snapshots` row for the account
+   with the new DEK, each with a fresh nonce. Rotation must not complete while any
+   snapshot row is still under the old DEK; the server verifies this atomically the
+   same way the enable flow does.
 3. Re-wrap new DEK with current MK, update `e2ee_config`.
 4. Re-encrypt each recovery-code backup with a **fresh** `nonce_recovery` so every
    stored recovery blob unwraps the new DEK (never reuse a prior recovery nonce under
@@ -375,7 +378,7 @@ toggle).
 4. **Import from plaintext local storage.** When enabling E2EE, should local IndexedDB
    copies also be encrypted locally, or remain plaintext on device?
 
-5. **Envelope in `resume_versions`.** Same envelope format, or version-specific nonce
+5. **Envelope in `resume_snapshots`.** Same envelope format, or version-specific nonce
    tracking to prevent nonce reuse across history snapshots?
 
 6. **Subscription / billing interaction.** Does E2EE affect plan limits (storage size

@@ -50,7 +50,8 @@ This settles the storage question for four deployment shapes with one codebase:
   `apps/web/src/stores/cloudStorage.ts` with optimistic concurrency on `version`.
 - Self-hosted mode is browser-only. `docker compose up` runs a stateless server;
   Postgres sits behind the `cloud` compose profile. Clearing site data loses everything.
-- Preview and PDF post the full plaintext resume to `/api/render/*` on every keystroke
+- Preview and PDF post the full plaintext resume to `/api/render/*`, preview on a
+  500 ms debounce while typing
   (#633). The README privacy claim was scoped per deployment mode because of this.
 - `crates/storage` has an IndexedDB backend through `bindings/wasm` and a reserved,
   unimplemented SQLite backend. Its trait (list, get, save, delete, exists) is unused
@@ -217,13 +218,18 @@ Of the server's roughly 47 query sites, the 27 in `routes/resumes.rs` and
 
 ## Encryption
 
-RFC 0001's envelope, key hierarchy, recovery codes, and rotation procedures are
-adopted unchanged. This RFC amends three decisions.
+RFC 0001's envelope format, key hierarchy, recovery codes, and rotation procedures
+are adopted with one structural change: every MK-wrapped and RK-wrapped blob holds
+`DEK || tag_key` rather than the DEK alone (see "Content tags"), and Phase 1 must
+generate `tag_key` at enable so Phase 2 never meets a DEK-only blob. Beyond that,
+this RFC amends three decisions.
 
 ### Default-on
 
 Every relay-backed account seals documents from its first save. There is no plaintext
-cloud account. RFC 0001 chose opt-in to preserve server-side export, bulk PDF, and
+cloud account in the steady state; rows of an existing account stay operator-readable
+until its owner completes setup, which is why the migration deadline (open
+question 4) matters. RFC 0001 chose opt-in to preserve server-side export, bulk PDF, and
 public pages; this RFC moves those features client-side or behind explicit publish
 instead of weakening the default.
 
@@ -250,7 +256,9 @@ published.
 RFC 0001 kept `resumes.title` plaintext so the list could render before unlock. In a
 local-first client the list renders from the local store, which is decrypted after
 unlock anyway. Titles move inside the envelope. The relay's document row carries no
-human-readable field.
+human-readable field. This lands in Phase 2, when the list comes from the local
+store; during Phase 1 the CRUD list still returns `resumes.title` in plaintext as
+RFC 0001 specified, and Phase 2 moves it into the envelope and nulls the column.
 
 ### Content tags, not content hashes
 
@@ -296,8 +304,13 @@ Here **every client is a sync client**, including a cloud user's browser tab. Th
 browser no longer calls resume CRUD; it saves to IndexedDB and lets the sync engine
 reconcile.
 
-Cadence is unchanged from RFC 0002: push on the existing autosave debounce, pull on
-an interval and on `visibilitychange`, drain the queue on reconnect. The user-facing
+Cadence follows RFC 0002: push on the existing autosave debounce, pull on an
+interval and on `visibilitychange`, drain the queue on reconnect. One ordering rule
+is added. A client may drain its queue only while it holds a non-expired cursor; if
+the cursor has expired it runs the full reconcile first, reclassifies each queued
+mutation against the result (a queued `PUT` for a document the relay has deleted
+becomes a restore conflict, not a push), and only then drains. The relay enforces
+this by answering 409 to any `PUT` or `DELETE` whose cursor is missing or expired. The user-facing
 addition is a persistent save and sync status (#645), which this design makes
 truthful because "saved" and "synced" are now distinct events.
 
@@ -427,7 +440,8 @@ library in SQLite on the mounted volume by default; no profile flag, no second
 container. Open the app; no sign-in. Set a
 passphrase, or set `RUSTUME_ALLOW_PLAINTEXT=true` and skip it. Back up by copying
 `/data/rustume.db`. Later, link to Cloud from the account page to sync the same
-library to a phone.
+library to a phone; linking requires encryption enabled on the relay first, because
+Cloud stores envelopes only and RFC 0002 blocks a plaintext-to-encrypted link.
 
 **Browser-only user.** Only the static build and the hosted app before sign-in.
 Unchanged from today. Optional app lock. Manual export is the
