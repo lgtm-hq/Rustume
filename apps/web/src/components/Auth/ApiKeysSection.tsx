@@ -48,8 +48,11 @@ export function ApiKeysSection() {
   const [keys, setKeys] = createSignal<ApiKeySummary[]>([]);
   const [loading, setLoading] = createSignal(true);
   const [loadError, setLoadError] = createSignal<string | null>(null);
-  // Re-open the reveal dialog if a key is still pending from a previous mount.
-  const [createModalOpen, setCreateModalOpen] = createSignal(pendingCreatedKey() !== null);
+  // The dialog is open whenever the user asked for it OR a one-time key is
+  // pending, so a create that resolves after an unmount/remount still reveals
+  // the key instead of silently parking it in module state.
+  const [createModalRequested, setCreateModalRequested] = createSignal(false);
+  const createModalOpen = () => createModalRequested() || pendingCreatedKey() !== null;
   const [createName, setCreateName] = createSignal("");
   const [creating, setCreating] = createSignal(false);
   const createdKey = pendingCreatedKey;
@@ -102,7 +105,7 @@ export function ApiKeysSection() {
 
   const openCreateModal = () => {
     resetCreateModal();
-    setCreateModalOpen(true);
+    setCreateModalRequested(true);
   };
 
   const handleCreateModalChange = (open: boolean) => {
@@ -111,14 +114,14 @@ export function ApiKeysSection() {
     if (!open && (createdKey() || creating())) {
       return;
     }
-    setCreateModalOpen(open);
+    setCreateModalRequested(open);
     if (!open) {
       resetCreateModal();
     }
   };
 
   const dismissCreatedKey = () => {
-    setCreateModalOpen(false);
+    setCreateModalRequested(false);
     resetCreateModal();
   };
 
