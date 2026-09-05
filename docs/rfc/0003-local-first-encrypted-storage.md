@@ -329,9 +329,12 @@ instead of weakening the default.
 ### No owner access, stated as policy
 
 The operator of Rustume Cloud cannot read, recover, or reset the content of any
-account. There is no escrow key and no support-side recovery. A user who loses both
-passphrase and every recovery code has lost their documents, and the only remedy is
-an account reset. This is documented in the support policy and the privacy page, and
+account. There is no escrow key and no support-side recovery. Recovery codes from
+RFC 0001 are mandatory and are the user's own second secret, held only by the user;
+they are not operator recovery and the relay stores only blobs it cannot open. A
+user who loses both passphrase and every recovery code has lost their documents, and
+the only remedy is an account reset. This is documented in the support policy and the privacy
+page, and
 stated in the app at passphrase setup.
 
 The operator can still see and act on email, plan, billing state, sign-in and audit
@@ -557,6 +560,8 @@ What changes in RFC 0001:
 - Enable flow also seals snapshot history; disable flow unavailable on Cloud.
 - MK and RK wraps hold the 64-byte `DEK || tag_key`; DEK rotation replaces only the
   first 32 bytes.
+- The envelope gains a `generation` field bound to `e2ee_config.key_generation`,
+  which the relay checks on every write so a retired-DEK envelope cannot be stored.
 - Envelope, KDF, recovery codes, and the rotation procedure are otherwise unchanged.
 
 What changes in RFC 0002:
