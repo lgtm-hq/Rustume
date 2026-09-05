@@ -213,9 +213,11 @@ Recovery from 428 is a full pull, a reclassification of the queue against it, an
 then a normal drain through `If-Match` `PUT` and `DELETE` requests. It never goes through
 `POST /api/sync/reconcile`, which exists for first sync and linking only.
 
-`POST /api/sync/reconcile` carries an `Idempotency-Key` like any other mutation. The
-relay applies the whole batch and stores the idempotency record in one database
-transaction, so a crash can never leave applied writes without a stored result or a
+`POST /api/sync/reconcile` carries `Sync-Client` and an `Idempotency-Key` like any
+other mutation. Because it runs before the client has a cursor, the relay first
+upserts the client's `sync_cursors` row from `Sync-Client` (cursor `0` if new), then
+applies the whole batch and stores the idempotency record against that row in one
+database transaction, so a crash can never leave applied writes without a stored result or a
 stored result without the writes. Each entry names a document id, the base version
 the client last saw, the target content tag, and the sealed envelope (or snapshot)
 to write. Evaluation order: the relay first looks up the `Idempotency-Key`; a known
