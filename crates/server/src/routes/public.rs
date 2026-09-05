@@ -259,10 +259,20 @@ pub async fn public_resume_page(
     let index_path = state.static_dir.join("index.html");
     let html = tokio::fs::read_to_string(&index_path)
         .await
-        .map_err(|err| ApiError::internal(format!("Failed to read index.html: {err}")))?;
+        .map_err(|err| {
+            error!(
+                "public page: failed to read {}: {err}",
+                index_path.display()
+            );
+            ApiError::internal("Failed to render public page")
+        })?;
 
     let html = inject_og_tags(&html, &meta_tags).ok_or_else(|| {
-        ApiError::internal("index.html is missing a </head> element for OG injection")
+        error!(
+            "public page: {} has no </head> element for OG injection",
+            index_path.display()
+        );
+        ApiError::internal("Failed to render public page")
     })?;
 
     Ok((
@@ -949,6 +959,11 @@ mod tests {
                 .await
                 .expect_err("unreadable index is an error");
             assert!(matches!(err.kind, ApiErrorKind::InternalError));
+            let body = serde_json::to_string(&err).unwrap_or_default();
+            assert!(
+                !body.contains("index.html") && !body.contains(empty.path().to_str().unwrap()),
+                "filesystem details must not leak: {body}"
+            );
 
             // Row whose data is not a ResumeData document.
             sqlx::query("UPDATE resumes SET data = '\"not a resume\"'::jsonb WHERE id = $1")

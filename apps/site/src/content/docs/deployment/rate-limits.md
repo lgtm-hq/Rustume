@@ -53,7 +53,7 @@ Resume CRUD allows short bursts (for example rapid autosave) via a separate burs
 | Metrics | 60 | `GET /metrics` (still requires `METRICS_TOKEN`) |
 | Public resume page and data | 30 | `GET /r/{slug}`, `GET /r/{slug}/data` |
 | Public resume preview | 60 (preview group) | `GET /r/{slug}/preview.png` |
-| Other unauthenticated | 30 | Any other route reached without a session |
+
 
 On cloud deployments (`RUSTUME_CLOUD=true`), authentication is mandatory for the connected API
 and the authenticated render routes. The exception is [public resume
@@ -62,8 +62,10 @@ pages](/docs/cloud/public-pages/): `/r/{slug}` routes are reachable anonymously 
 counts against the **preview render** quota (keyed by client IP when no session is present). The
 PNG is served with `Cache-Control: public, no-cache` plus an ETag, so caches may store it but must
 revalidate on reuse: an unchanged preview costs a cheap `304`, and unpublishing or a version bump
-takes effect immediately. The generic unauthenticated bucket covers the HTML page, the JSON data route,
-probes, and stray traffic.
+takes effect immediately. The unauthenticated bucket (`RATE_LIMIT_UNAUTHENTICATED_PER_MIN`) is
+applied to the HTML page and the JSON data route only; `robots.txt`, the OpenAPI UI, and unmatched
+paths are served without a limiter, and protected API routes return `401` before any quota is
+consulted.
 
 ## Bulk export cap
 
