@@ -1,0 +1,695 @@
+# RFC 0003: Local-First Encrypted Storage
+
+| Field              | Value                                                                           |
+| ------------------ | ------------------------------------------------------------------------------- |
+| **Title**          | Local-First Encrypted Storage                                                   |
+| **Status**         | Draft                                                                           |
+| **Author(s)**      | Rustume maintainers                                                             |
+| **Date**           | 2026-09-05                                                                      |
+| **Tracking issue** | [#254](https://github.com/lgtm-hq/Rustume/issues/254)                           |
+| **Amends**         | [RFC 0001](./0001-e2e-encryption.md), [RFC 0002](./0002-local-cloud-linking.md) |
+
+## Summary
+
+Rustume becomes a **local-first** application. Every client holds the user's
+resumes in a local store and is the place where plaintext exists. Servers, whether
+Rustume Cloud or a self-hosted instance, are **sync relays**: they authenticate,
+store sealed envelopes, and hand them back. They never hold a key and never need
+plaintext to do their job.
+
+This settles the storage question for four deployment shapes with one codebase:
+
+| Shape             | Local store      | Relay                                             | Identity                                                        |
+| ----------------- | ---------------- | ------------------------------------------------- | --------------------------------------------------------------- |
+| Browser-only      | IndexedDB (WASM) | none (static build, or hosted app before sign-in) | none                                                            |
+| Rustume Cloud     | IndexedDB (WASM) | Postgres, operated by Rustume                     | WorkOS email sign-in                                            |
+| Self-hosted relay | IndexedDB (WASM) | SQLite on a volume, your box                      | implicit local user + access token, required except on loopback |
+| Desktop / mobile  | SQLite (native)  | any of the above                                  | as the relay requires                                           |
+
+**Decisions at a glance:**
+
+| Topic            | Decision                                                                                                       |
+| ---------------- | -------------------------------------------------------------------------------------------------------------- |
+| Source of truth  | The client's local store. Servers are replicas of ciphertext.                                                  |
+| Encryption       | **On by default** for every relay-backed account. Envelope per RFC 0001. Amends RFC 0001's opt-in.             |
+| Owner access     | **None.** No escrow, no recovery by the operator. Lost passphrase and recovery codes means lost data.          |
+| Server data      | Identity, plan, billing, audit, wrapped keys, envelopes, versions, published snapshots. Nothing else.          |
+| Storage engines  | Postgres for Cloud, SQLite for self-hosted and native apps, IndexedDB in the browser. One repository trait.    |
+| Sync protocol    | RFC 0002's `/api/sync/*` with LWW + manual resolution, applied to **every** client, not only linked instances. |
+| Rendering        | Client-side by default once #682 lands. Server render stays for publishing and as an explicit fallback.        |
+| Public pages     | Explicit publish uploads a separate readable snapshot. The private document stays sealed.                      |
+| Search           | Client-side over the locally decrypted library. No server search.                                              |
+| Minimal identity | Email and an opaque WorkOS id. No legal names. Username optional.                                              |
+
+## Context
+
+### What ships today
+
+- Cloud persists plaintext `ResumeData` JSON in Postgres (`resumes.data`,
+  `resume_snapshots.data`). The browser talks to it through direct CRUD in
+  `apps/web/src/stores/cloudStorage.ts` with optimistic concurrency on `version`.
+- Self-hosted mode is browser-only. `docker compose up` runs a stateless server;
+  Postgres sits behind the `cloud` compose profile. Clearing site data loses everything.
+- PDF export and version-history previews post the full plaintext resume to
+  `/api/render/*`. The document editor draws the sheet in the DOM, so there is no
+  longer a live server preview while typing (removed with the form builder in #784)
+  (#633). The README privacy claim was scoped per deployment mode because of this.
+- `crates/storage` has an IndexedDB backend through `bindings/wasm` and a reserved,
+  unimplemented SQLite backend. Its trait (list, get, save, delete, exists) is unused
+  by the web app beyond the WASM storage class.
+- RFC 0001 designed opt-in E2EE with a passphrase-wrapped account key and recovery
+  codes. RFC 0002 designed pairing and LWW sync between a local instance and Cloud.
+  Neither is implemented.
+- PR #487 implemented #254 as always-on Postgres with server-held AES keys for
+  self-hosted mode. It is closed by this RFC.
+
+### Why revisit
+
+The product promise is privacy-first and offline-first, with Cloud as an optional
+product offering the **same** privacy standard. Three shipped or planned designs
+contradict that promise:
+
+1. **Server-readable resumes.** Opt-in E2EE means the default cloud user's documents
+   are readable by the operator, a subpoena, or a breach.
+2. **Server-held encryption keys.** #487's at-rest encryption keeps the key next to
+   the data. It protects a stolen volume and nothing else, while adding a single point
+   of data loss.
+3. **Server-centric client.** The browser is a thin client over CRUD. Offline editing,
+   multi-device sync, and desktop or mobile apps each need a local store and a sync
+   engine that do not exist.
+
+Fixing these one at a time produces three incompatible answers. Fixing them together
+produces one. The client owns the data, and servers relay ciphertext.
+
+## Goals and non-goals
+
+### Goals
+
+- A cloud-only user gets offline editing, multi-device sync, and zero operator access
+  to their content, without knowing what self-hosting is.
+- A self-hoster gets server-side persistence with one container and one file to back
+  up, using the same client and relay code as Cloud.
+- Desktop and mobile apps reuse the storage, crypto, and sync crates unchanged.
+- Linking a self-hosted relay to Cloud is the same mechanism as adding a device.
+
+### Non-goals
+
+- Collaborative editing or CRDT merge (#40 stays deferred).
+- Multi-user self-hosting. v1 relays are single-user.
+- Searchable encryption. Search is local.
+- Removing the server renderer. #633's decision stands.
+
+## Architecture
+
+```text
+┌──────────────────────────── client (browser / desktop / mobile) ────────────────────────────┐
+│                                                                                              │
+│   editor ── plaintext ResumeData in memory ──► crates/render (WASM or native) ──► PDF/preview │
+│      │                                                                                       │
+│      ▼ encrypt (crates/crypto, account DEK in memory)                                        │
+│   local store: envelopes + metadata           search index (memory, or sealed at rest)       │
+│   (IndexedDB via crates/storage, or SQLite)                                                  │
+│      │                                                                                       │
+│      ▼ sync engine (push on save, pull on interval / reconnect)                              │
+└──────┼───────────────────────────────────────────────────────────────────────────────────────┘
+       │ HTTPS, ciphertext envelopes + version metadata only
+       ▼
+┌──────────────────────────── relay (Rustume Cloud or self-hosted) ───────────────────────────┐
+│   identity (WorkOS | local user)   plan / billing / audit   wrapped keys + recovery blobs    │
+│   documents: id, owner, envelope, version, content_tag, updated_at                          │
+│   snapshots: encrypted envelopes written by the client                                      │
+│   published: explicit readable snapshots for /r/{slug}                                      │
+│   storage: Postgres (Cloud) | SQLite (self-hosted)  behind one repository trait              │
+│   never holds a DEK, never decrypts; renders a private document only on the opt-in fallback  │
+└──────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### The client is the source of truth
+
+Every edit is saved to the local store first, encrypted, and then pushed. The app is
+fully usable with the relay unreachable. This is what today's autosave already feels
+like to the user; the difference is where the durable copy lives.
+
+### The relay is a dumb, authenticated blob store
+
+A relay's document API is the sync protocol from RFC 0002, generalised:
+
+| Method   | Path                                      | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| -------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/api/sync/changes?since=`                | Summaries only (id, version, content tag, tombstone flag), never envelopes; a delta since a cursor, or the full current state when `since` is absent or `0`; a `since` value that is unknown or older than tombstone retention gets 428 `cursor_required` instead of a delta; returns a newly issued cursor. `Sync-Client` required. The client's `sync_cursors` row does **not** advance on this response: it advances only when the client next presents that cursor, as `since` on a later pull or as `Sync-Cursor` on a write (proof it persisted the listing), so read-only clients advance it too, so tombstone GC can never outrun a client whose response was lost. Envelopes are fetched per document with `GET /api/sync/docs/{id}`; the client persists the new cursor only after every listed envelope is fetched and stored |
+| `GET`    | `/api/sync/docs/{id}`                     | Fetch one envelope with version metadata; for a tombstoned id returns the tombstone marker and its version, not 404, so the client can record the relay version                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `PUT`    | `/api/sync/docs/{id}`                     | Push an envelope; `If-Match: version` (`0` to create), `Sync-Cursor`, `Idempotency-Key` required                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `POST`   | `/api/sync/reconcile`                     | Batched first sync; `Idempotency-Key` required, per-document targets make a repeat a no-op                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `DELETE` | `/api/sync/docs/{id}`                     | Write a versioned tombstone; `If-Match: version`, `Sync-Cursor`, `Idempotency-Key` required                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `GET`    | `/api/sync/docs/{id}/snapshots`           | List snapshot versions for one document; `Sync-Client` required                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `GET`    | `/api/sync/docs/{id}/snapshots/{version}` | Fetch one encrypted history snapshot                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `PUT`    | `/api/sync/docs/{id}/snapshots/{version}` | Client-written encrypted history snapshot; `Sync-Client`, `Sync-Cursor`, `Idempotency-Key` required like any write; insert-only, 409 `snapshot_exists` on an existing version unless the ciphertext is byte-identical, which also covers a retry that outlived its replay record                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+
+Today's `/api/resumes` CRUD stays during migration and is retired once every client
+speaks sync. The relay validates envelope shape and byte limits, never content.
+
+#### Cursors, preconditions, and replays
+
+Every client identifies itself with a random UUID generated on first use, sent as
+the `Sync-Client` header on every sync request, and sends the cursor from its last
+successful pull (`Sync-Cursor` header) on every `PUT` and `DELETE`. The relay keeps one row per
+client in a `sync_cursors` table (`account_id`, `client_id`, `cursor`,
+`last_pull_at`): `last_pull_at` is written on every pull, while `cursor` advances
+only when the client presents an issued cursor, as `since` on a pull or `Sync-Cursor`
+on a write, as the changes row says. Beside it sits a `sync_cursor_history` table
+(`client_id`, `cursor`, `issued_at`) that records every cursor issued so the write
+window below can be validated; history rows older than 15 minutes and beyond the
+last five are deleted on the next pull. That table is the only client state the
+relay holds; it is not a device registry the user manages, and rows expire after
+90 days without a pull.
+
+`GET /api/sync/changes` always uses the client-supplied `since` value, never the
+stored cursor row, so a retried pull after a lost response repeats the same delta.
+On writes, the relay accepts any cursor it issued to this client within the last
+15 minutes or among the last five it issued, whichever set is larger, so a `PUT` in
+flight while an interval pull, or a retried pull, advanced the row does not fail;
+"unknown" means the `Sync-Cursor` value is outside that set. A retried
+`GET /api/sync/changes` with the same `since` that observes no new changes returns
+the same cursor rather than issuing a new one.
+
+On every `PUT` and `DELETE` the relay first looks up the `Idempotency-Key`; a known
+key returns the stored response before any precondition below is evaluated, which is
+what makes a retry after a lost response safe on the ordinary drain path as well as
+on reconcile. Only a new key goes through the checks, in this order, failing with
+distinct codes:
+
+| Condition                                         | Response                                                                                                                                                                                                                                                                        |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Sync-Cursor` missing, unknown, or expired        | 428 `cursor_required`; full pull, then drain                                                                                                                                                                                                                                    |
+| `If-Match` does not equal the current version     | 200 as an idempotent no-op when the request cannot change anything: a `PUT` whose body bytes equal the row's current envelope, or a `DELETE` against a row that is already a tombstone (a retry that lost its replay record); otherwise 409 `version_conflict`, run conflict UI |
+| Snapshot version exists with different ciphertext | 409 `snapshot_exists`                                                                                                                                                                                                                                                           |
+
+A 428 is never a document conflict. The client performs a full pull, reclassifies
+its queue against the result, and only then drains through ordinary `PUT` and
+`DELETE` requests. It never uses `POST /api/sync/reconcile` for this.
+
+Creating a document the relay has never seen uses `If-Match: 0`, which maps to
+`expected: None` in `DocumentRepo::put`. The relay accepts `0` only when no row, live
+or tombstone, exists for that id; if a tombstone exists the write is an undelete and
+must carry the tombstone version instead. A `PUT` with no `If-Match` at all is 400.
+
+Replays are safe because every mutation carries a client-generated
+`Idempotency-Key` (UUID). Only 2xx outcomes, including byte-identical no-ops, are
+recorded; a 4xx such as 428 or 409 is never stored, so a mutation retried after
+recovery is evaluated fresh. The relay commits the document write and the replay record
+(key plus the response it produced, attached to the client's `sync_cursors` row) in
+one database transaction, so a crash cannot leave one without the other. A retry with the same
+key returns the stored response for as long as the record exists (see the
+acknowledgement and hard-bound rules below) even though the `If-Match` version has
+since moved, so a lost
+response after a committed write does not turn into a false conflict.
+
+Replay records are bounded by explicit acknowledgement, not by cursor movement or
+time. Pulls run on their own cadence and can advance the cursor while a mutation is
+still queued, so the cursor is not proof the client saw the write's response. Instead,
+when the client dequeues a mutation after receiving its response it moves the key
+to a durable pending-ack list in its local store. Every subsequent request carries up
+to 100 pending keys in the `Sync-Ack` header; the relay compacts those records and
+echoes in a `Sync-Acked` response header every listed key that is absent after the
+request, whether it was compacted just now or by an earlier attempt whose response
+was lost, and only then does the client drop them from the pending list. Acks are
+therefore idempotent and a lost response costs one retry, nothing more. A lost request
+therefore retries the
+acknowledgement on the next one. As a hard bound the relay also keeps at most 1,000
+replay records per client and compacts the oldest beyond that, which can only affect
+a client that has failed to acknowledge for longer than a thousand of its own
+mutations. A retry that has lost its record is still not a false conflict: if the
+`If-Match` is stale but the row's current envelope bytes equal the bytes being
+pushed, the relay answers 200 as an idempotent no-op, the same rule snapshots use. If the
+cursor row expires the remaining records go with it; a client
+returning after that long gets 428 on its first write.
+
+Recovery from 428 is a full pull, a reclassification of the queue against it, and
+then a normal drain through `If-Match` `PUT` and `DELETE` requests. It never goes through
+`POST /api/sync/reconcile`, which exists for first sync and linking only.
+
+`POST /api/sync/reconcile` carries `Sync-Client` and an `Idempotency-Key` like any
+other mutation. Because it runs before the client has a cursor, the relay first
+upserts the client's `sync_cursors` row from `Sync-Client` (cursor `0` if new), then
+applies the whole batch and stores the idempotency record against that row in one
+database transaction, so a crash can never leave applied writes without a stored result or a
+stored result without the writes. Each entry names a document id, the base version
+the client last saw, the target content tag, and the sealed envelope (or snapshot)
+to write. Evaluation order: the relay first looks up the `Idempotency-Key`; a known
+key returns the stored batch result without touching any row, which is what makes
+a retry after a lost response a no-op. Only a new key is evaluated per entry, and
+then the version check comes first: an entry is applied only when the row's current
+version equals the base version, otherwise it is reported as 409 `version_conflict`
+for that entry, and the batch response lists per-entry outcomes. An entry whose
+version matches and whose current tag already equals the target is reported as
+applied without a write; that covers a client re-sending a target it has already
+pulled, not a lost response.
+
+#### Deletions are versioned tombstones
+
+A delete never removes the row. It replaces the envelope with a tombstone carrying
+the next version number, and the changes feed returns tombstones like any other
+change. The rules that make deletes safe across offline devices:
+
+- `DELETE` requires `If-Match` with the version the client last saw. A stale
+  version gets 409, the same as a stale `PUT`.
+- A `PUT` against a tombstoned id must carry `If-Match` equal to the tombstone
+  version. That is an explicit undelete and bumps the version again. A `PUT` with
+  an older version gets 409 (and one with no `If-Match` is 400, as above), so a
+  device that was offline during the delete cannot resurrect the document by
+  pushing its old envelope.
+- Reconcile treats "id exists locally, tombstone exists on the relay" as a
+  conflict for the user (keep deleted, or restore from local), never as a silent
+  create. This replaces RFC 0002's "local-only id creates a cloud row" rule when a
+  tombstone is present.
+- Tombstones are retained for at least 90 days, and until every non-expired cursor
+  on the account has pulled past their version. A client is any browser session,
+  relay, or native app with a row in `sync_cursors`. A cursor row expires after 90
+  days without a pull, so an abandoned tab cannot hold tombstones forever. Once both
+  conditions hold the relay may
+  garbage-collect them.
+- A client whose cursor has expired gets 428 on its next pull as well as on its next
+  write, because the relay refuses a delta from a `since` older than tombstone
+  retention, and performs the full pull (`GET /api/sync/changes` without a cursor). While
+  reclassifying its
+  local store against that listing, a local document that has a relay version
+  recorded (it was synced before) but appears in neither the live documents nor the
+  unexpired tombstones is treated as deleted on the relay, and surfaces the same
+  keep-deleted-or-restore choice as a live tombstone. Only a local document that has
+  never been synced is pushed as a create. This is what keeps the no-resurrection
+  rule true after garbage collection, and it is the same procedure as 428 recovery,
+  never `POST /api/sync/reconcile`.
+
+### One repository trait, three engines
+
+`crates/storage` is promoted from a thin key-value trait to the repository the relay
+and the native clients share:
+
+```rust
+#[async_trait]
+pub trait DocumentRepo {
+    async fn list_changes(&self, owner: OwnerId, since: Cursor) -> Result<Changes>;
+    async fn get(&self, owner: OwnerId, id: DocId) -> Result<Option<StoredDoc>>;
+    async fn put(&self, owner: OwnerId, doc: StoredDoc, expected: Option<Version>) -> Result<PutOutcome>;
+    /// Writes a tombstone at `expected + 1`; the row is retained, not removed.
+    async fn delete(&self, owner: OwnerId, id: DocId, expected: Version) -> Result<Tombstone>;
+    /// Insert-only. An existing `(id, version)` is an error unless the stored
+    /// ciphertext is byte-identical, which makes retries idempotent.
+    async fn put_snapshot(&self, owner: OwnerId, snap: StoredSnapshot) -> Result<()>;
+    async fn list_snapshots(&self, owner: OwnerId, id: DocId) -> Result<Vec<SnapshotMeta>>;
+    async fn get_snapshot(&self, owner: OwnerId, id: DocId, version: Version) -> Result<Option<StoredSnapshot>>;
+}
+```
+
+`StoredDoc` is either an envelope with metadata or a tombstone; `Changes` carries
+both. `DocumentRepo` is a new trait, not a rename of today's `StorageBackend`. The
+existing `StorageBackend` (plaintext `list`, `get`, `save`, `delete`, `exists`) stays
+in `crates/storage` and behind `bindings/wasm` until Phase 2 replaces
+`apps/web/src/stores/persistence.ts` with the sync engine, at which point it is
+deleted. Nothing adapts one to the other; the two callers are migrated one after the
+other.
+
+| Engine    | Used by                            | Notes                                                               |
+| --------- | ---------------------------------- | ------------------------------------------------------------------- |
+| Postgres  | Rustume Cloud relay                | Existing schema, `data` column holds envelopes                      |
+| SQLite    | Self-hosted relay, desktop, mobile | Single file on `/data`; UUID and timestamps stored as TEXT          |
+| IndexedDB | Browser client                     | Existing WASM backend, extended with version metadata and snapshots |
+
+Only document tables live behind the trait. Users, sessions, policy acceptances,
+subscriptions, and audit are Cloud concerns and stay in the server crate on
+Postgres. A self-hosted relay has none of those; the small amount of account state
+it does hold (the implicit local user, `e2ee_config`, recovery blobs, `sync_cursors`)
+lives in the same SQLite file as the documents, so self-hosting remains one file.
+The document query sites in `routes/resumes.rs` and `db/snapshots.rs` move behind
+the trait; query sites elsewhere in the server crate are untouched.
+
+## Encryption
+
+RFC 0001's envelope format, key hierarchy, recovery codes, and rotation procedures
+are adopted with one structural change: every MK-wrapped and RK-wrapped blob holds
+`DEK || tag_key` rather than the DEK alone (see "Content tags"), and Phase 1 must
+generate `tag_key` at enable so Phase 2 never meets a DEK-only blob. Beyond that,
+this RFC amends three decisions.
+
+### Default-on
+
+Every relay-backed account seals documents from its first save. There is no plaintext
+cloud account in the steady state; rows of an existing account stay operator-readable
+until its owner completes setup, which is why the migration deadline (open
+question 4) matters. RFC 0001 chose opt-in to preserve server-side export, bulk PDF, and
+public pages; this RFC moves those features client-side or behind explicit publish
+instead of weakening the default.
+
+| Shape             | Encryption                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Rustume Cloud     | Mandatory. Passphrase and recovery codes set at first cloud use.                                                                                                                                                                                                                                                                                                                                                                             |
+| Self-hosted relay | On by default. Operator may set `RUSTUME_ALLOW_PLAINTEXT=true` to permit plaintext envelopes; the relay logs a warning at startup. In that mode there is no `tag_key`, so `content_tag` is plain `SHA-256(canonical bytes)`; there is nothing to hide from a relay that already holds plaintext. Linking to Cloud requires enabling encryption first, which re-tags with the HMAC. Existing envelope detection distinguishes the two shapes. |
+| Browser-only      | Optional app lock. No relay exists to protect against; forcing a passphrase here adds loss risk without benefit.                                                                                                                                                                                                                                                                                                                             |
+
+### No owner access, stated as policy
+
+The operator of Rustume Cloud cannot read, recover, or reset the content of any
+account. There is no escrow key and no support-side recovery. Recovery codes from
+RFC 0001 are mandatory and are the user's own second secret, held only by the user;
+they are not operator recovery and the relay stores only blobs it cannot open. A
+user who loses both passphrase and every recovery code has lost their documents, and
+the only remedy is an account reset. This is documented in the support policy and the privacy
+page, and
+stated in the app at passphrase setup.
+
+The operator can still see and act on email, plan, billing state, sign-in and audit
+events, document counts and sizes, timestamps, and any snapshot the user explicitly
+published.
+
+### Titles are encrypted
+
+RFC 0001 kept `resumes.title` plaintext so the list could render before unlock. In a
+local-first client the list renders from the local store, which is decrypted after
+unlock anyway. Titles move inside the envelope. The relay's document row carries no
+human-readable field. This lands in Phase 2, when the list comes from the local
+store; during Phase 1 the CRUD list still returns `resumes.title` in plaintext as
+RFC 0001 specified. Phase 2 moves it into the envelope; its migration first alters
+`resumes.title` from `TEXT NOT NULL DEFAULT 'Untitled'` to nullable, then writes
+`NULL` for sealed accounts, and a later cleanup drops the column once no client
+reads it.
+
+### Content tags, not content hashes
+
+RFC 0002 computed `content_hash = SHA-256(plaintext)` for conflict detection. A
+plaintext hash on the server lets anyone holding the database confirm a guessed
+document and detect identical documents across accounts. Replace it with
+`content_tag = HMAC-SHA256(tag_key, canonical bytes)`, where the canonical bytes are
+the UTF-8 compact JSON with sorted object keys that RFC 0002 already defines, so
+every client produces the same tag for the same document.
+
+`tag_key` is a second random 32-byte account key generated at enable. It is wrapped
+and recovered together with the DEK: the MK-wrapped blob in `users.e2ee_config` and
+each RK-wrapped recovery backup from RFC 0001 hold the 64-byte concatenation
+`DEK || tag_key` instead of the DEK alone, so unlocking or recovering an account
+always yields both keys. Passphrase rotation re-wraps both; DEK rotation replaces the
+first 32 bytes only and re-wraps under the same rules. `tag_key` is deliberately not
+derived from the DEK: RFC 0001's DEK rotation re-encrypts every envelope, and a
+tag key tied to the DEK would change every tag at once and make unchanged documents
+look edited on every device. Rotating `tag_key` is a separate, rare operation that
+re-tags all documents and resets sync cursors in one step.
+
+What the relay learns from a deterministic tag: whether two envelopes in the same
+account hold identical plaintext, and whether a document changed between pushes. It
+cannot confirm a guessed plaintext without `tag_key`, and it cannot compare across
+accounts. That equality leak is accepted; it is the information sync needs anyway.
+
+### Key lifetime on a device
+
+The unwrapped keys live in memory for the session. "Remember this device" wraps the
+same 64-byte `DEK || tag_key` blob with a non-exportable WebCrypto key held in
+IndexedDB, so the passphrase is needed once per device rather than once per visit
+and a returning session can both decrypt and tag. Sign-out clears the blob and the
+in-memory keys. Passkeys
+with the WebAuthn PRF extension are the intended replacement for the passphrase and
+are tracked as an open question.
+
+## Sync
+
+RFC 0002's merge model applies. Last-write-wins when only one side changed, manual
+resolution when both did (#42 offline queue, #43 conflict UI, #645 status indicator).
+What changes is scope. RFC 0002 described sync between a *local instance* and Cloud.
+Here **every client is a sync client**, including a cloud user's browser tab. The
+browser no longer calls resume CRUD; it saves to IndexedDB and lets the sync engine
+reconcile.
+
+Cadence follows RFC 0002: push on the existing autosave debounce, pull on an
+interval and on `visibilitychange`, drain the queue on reconnect. One ordering rule
+is added. A client may drain its queue only while it holds a valid cursor; if the
+cursor is missing or expired it performs the full pull first, reclassifies each
+queued mutation against the result (a queued `PUT` for a document the relay has
+deleted becomes a restore conflict, not a push), and only then drains. The relay
+enforces this with the 428 `cursor_required` response defined under "Cursors,
+preconditions, and replays". The user-facing
+addition is a persistent save and sync status (#645), which this design makes
+truthful because "saved" and "synced" are now distinct events.
+
+Linking a self-hosted relay to Cloud (RFC 0002's core case) collapses to the relay
+running the sync engine against Cloud with the user's device credentials. Because
+`tag_key` is a random per-account key, a linked replica must use the Cloud account's
+`DEK || tag_key`, not keys of its own: pairing includes an unlock of the Cloud
+account on the replica (passphrase or recovery code, entered locally, never sent),
+after which the replica re-tags and re-seals its local library under the Cloud
+account's keys before the first reconcile. Replicas with different keys never sync. Pairing,
+unlink, and retention semantics from RFC 0002 remain; the "self-hosted sync client"
+row in its rollout table is this RFC's Phase 3 relay plus the sync engine.
+
+## Rendering
+
+Server-side rendering is the one place plaintext leaves the client today (#633).
+This RFC does not remove the server renderer; #633 recorded why it cannot go
+(published pages, crawlers, OG images). It changes the **default path**:
+
+| Path                          | Today                                   | Target                                                                           |
+| ----------------------------- | --------------------------------------- | -------------------------------------------------------------------------------- |
+| Live preview                  | DOM sheet; no server preview since #784 | Unchanged; `crates/render` in WASM serves export and the version-history preview |
+| PDF export                    | POST plaintext                          | WASM render, download locally; works offline                                     |
+| Bulk PDF export               | Server reads DB                         | Client iterates local library, renders each, zips locally                        |
+| Published page HTML, OG image | Server render                           | Server render of the **published snapshot** only                                 |
+| Weak device fallback          | n/a                                     | Opt-in "render on server" toggle; sends transient plaintext, disclosed           |
+
+Client rendering is gated on #682. The unoptimised WASM payload is 17.4 MB gzipped,
+almost entirely embedded fonts. #682 must answer font subsetting or on-demand font
+loading, lazy loading of the render module, and output equivalence in CI before the
+default flips. Until it does, cloud users render through the transient server path
+with the disclosure #633 introduced. That is a weaker interim state, not the design.
+
+## Publishing and public pages
+
+A private document is never readable by the relay, so a public page cannot be served
+from it. Publishing is an explicit action that creates a **separate readable
+snapshot**:
+
+1. User toggles publish in the share modal (#360). The UI states that a readable copy
+   will be stored on the server for as long as the page is public.
+2. The client decrypts, uploads the plaintext snapshot to `published`, and the server
+   assigns the slug. `/r/{slug}`, its OG tags, and its preview PNG (#359) render from
+   this row, using the server renderer.
+3. Edits to the private document do not change the public page until the user
+   republishes. Unpublish deletes the snapshot.
+
+A link-key variant, where the snapshot is encrypted and the key rides in the URL
+fragment so the server still cannot read it, is listed as an open question. It
+sacrifices OG previews and crawler visibility, which is the point of public pages for
+most users, so it is not v1.
+
+## Search, export, and history
+
+| Feature                 | Where it runs                                                                 | Notes                                                                                                                                                                                                                     |
+| ----------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Search                  | Client, over the decrypted local library                                      | Full content, including titles. The index is rebuilt in memory after unlock; it is persisted only when "remember this device" is on, sealed under the device-wrapped key, and never as plaintext at rest. Never uploaded. |
+| JSON export             | Client                                                                        | Decrypt in memory, download.                                                                                                                                                                                              |
+| Bulk PDF export         | Client                                                                        | Depends on client rendering; interim path uses server render per document.                                                                                                                                                |
+| Account export (#353)   | Server ships metadata + envelopes + wrapped keys; client decrypts on download | Satisfies portability. Completes without operator readability.                                                                                                                                                            |
+| Version history         | Client writes encrypted snapshots to the relay                                | Restore and diff decrypt on the client. Existing `resume_snapshots` table holds envelopes.                                                                                                                                |
+| Import (JSON, LinkedIn) | Client, unchanged                                                             | Parsing already runs in WASM.                                                                                                                                                                                             |
+
+## Identity and account data
+
+The relay stores the minimum needed to authenticate and bill:
+
+| Field                         | Cloud                        | Self-hosted relay            |
+| ----------------------------- | ---------------------------- | ---------------------------- |
+| Opaque id                     | WorkOS `user_…`              | fixed local user id          |
+| Email                         | from WorkOS, for sign-in     | none                         |
+| Username (#337)               | optional, user-chosen        | none                         |
+| Legal names                   | **dropped** (#435 direction) | none                         |
+| Plan, Paddle customer         | yes                          | none                         |
+| `e2ee_config`, recovery blobs | yes                          | yes unless plaintext allowed |
+
+The self-hosted container stores data by default. `docker compose up` starts the
+relay with SQLite on the mounted volume and no profile flag. The browser's IndexedDB
+copy is authoritative for edits, as everywhere else in this design; the SQLite file
+is the durable replica that survives a cleared browser and is the thing to back up.
+Browser-only mode is for the static build and the hosted app before sign-in, not for
+a container someone chose to run.
+
+Self-hosted relay authentication is an implicit single local user, gated by an
+access token. The relay fails closed: if it is bound to a non-loopback address and
+no token is configured, it refuses to start with a non-zero exit and a message
+naming the variable. Only a loopback bind (`RUSTUME_BIND=127.0.0.1`) may run without
+a token. The token gates every route under `/api/` except `/health`, and every write to the
+relay; requests without it get 401. The SPA shell, static assets, and published pages
+under `/r/{slug}` are served without it, because the browser must load the app before
+it can present the token and public pages are public by design.
+
+Because the container binds `0.0.0.0` and compose publishes the port, the default
+compose deployment needs a token without asking the user to invent one. The compose
+file sets `RUSTUME_ACCESS_TOKEN_FILE=/data/access_token`; on first start the relay
+generates a random token there with mode 0600 before the bind check runs, so the
+default compose deployment always starts; it logs only the file path, never the
+secret; the operator reads it with `docker compose exec rustume cat
+/data/access_token`. The web app asks for it on first visit to that origin and keeps
+it in local storage. Operators may set `RUSTUME_ACCESS_TOKEN` directly instead.
+
+## Feature compatibility
+
+| Feature                                                      | Impact                                                                                                          |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| Resume CRUD, autosave                                        | Same UX. Local write then sync push.                                                                            |
+| Multi-device                                                 | New capability for cloud users. Sign in, unlock, sync.                                                          |
+| Offline editing and export                                   | New capability. Export needs client rendering.                                                                  |
+| Public pages (#65, #359, #360)                               | Work via explicit published snapshot.                                                                           |
+| API keys (#361, #85)                                         | Keys reach envelopes and publish endpoints only. A third-party client must hold the user's DEK to read content. |
+| Billing (#363)                                               | Unaffected.                                                                                                     |
+| GDPR export (#353)                                           | Envelopes plus metadata, client-decrypted.                                                                      |
+| Username (#337)                                              | Unaffected, aligned.                                                                                            |
+| Server-managed at-rest encryption (RFC 0001 Phase 1.5, #487) | **Dropped.** Redundant when every stored document is already ciphertext.                                        |
+| CRDT (#40)                                                   | Still deferred. Per-update envelopes would be a follow-up RFC.                                                  |
+| Operator backups (#334)                                      | Simpler. Backups are ciphertext; restore verification is a client smoke test.                                   |
+
+## User journeys
+
+**Cloud-only user, first day.** Sign in with email. Set a passphrase, save recovery
+codes, confirm the "we cannot recover this" statement. Start editing. Autosave writes
+locally and syncs. Close the laptop; nothing is lost.
+
+**Cloud-only user, second device.** Sign in, enter the passphrase, tick "remember this
+device". Sync pulls the library. Search works over everything within seconds.
+
+**Cloud-only user, cleared browser data.** Sign in, enter the passphrase. Sync restores
+the library. Same as a second device.
+
+**Cloud-only user, lost passphrase.** Enter a recovery code, set a new passphrase.
+Without a recovery code the account is reset and the documents are gone. Support
+cannot help and says so.
+
+**Self-hoster.** `docker compose up`. The container is the relay and stores the
+library in SQLite on the mounted volume by default; no profile flag, no second
+container. Open the app; there is no WorkOS sign-in, only the one-time access-token
+prompt described under "Identity and account data". Set a
+passphrase, or set `RUSTUME_ALLOW_PLAINTEXT=true` and skip it. Back up by copying
+`/data/rustume.db`. Later, link to Cloud from the account page to sync the same
+library to a phone; linking requires encryption enabled on the relay first, because
+Cloud stores envelopes only and RFC 0002 blocks a plaintext-to-encrypted link.
+
+**Browser-only user.** Only the static build and the hosted app before sign-in.
+Unchanged from today. Optional app lock. Manual export is the
+backup.
+
+## Relationship to existing RFCs
+
+| RFC  | Status after this RFC |
+| ---- | --------------------- |
+| 0001 | Amended               |
+| 0002 | Amended               |
+
+What changes in RFC 0001:
+
+- Default-on instead of opt-in; titles encrypted.
+- Phase 1.5 server-managed encryption dropped.
+- Public pages handled by explicit publish instead of "Exclude".
+- Disable flow unavailable on Cloud.
+- MK and RK wraps hold the 64-byte `DEK || tag_key`; DEK rotation replaces only the
+  first 32 bytes.
+- Envelope (including its `generation` field), KDF, recovery codes, snapshot sealing
+  in the enable flow, and the rotation procedure are RFC 0001 rules restated here,
+  not new amendments.
+
+What changes in RFC 0002:
+
+- The sync protocol applies to all clients, not only linked instances.
+- `content_hash` becomes an HMAC content tag over the same canonical bytes.
+- Deletions become versioned tombstones; a local-only id with a relay tombstone is a
+  conflict, not a create.
+- Self-hosted Postgres is replaced by the SQLite relay.
+- Endpoints move from `/api/sync/resumes/{id}` to `/api/sync/docs/{id}`; `if_hash`
+  is replaced by `If-Match` plus `Sync-Cursor`; the relay validates envelope shape
+  and byte limits only, so RFC 0002's reuse of `validate_resume_json` and
+  `validate_title` on sync routes no longer applies.
+- Pairing, LWW, and unlink are unchanged.
+
+Both documents should gain a note pointing here when this RFC is accepted. The
+`docs/rfcs/` → `docs/rfc/` consolidation (RFC 0002 open question 5) landed in #927.
+
+## Migration from today
+
+1. **New cloud accounts** go through passphrase setup before their first save.
+2. **Existing cloud accounts** are prompted to set up encryption on next sign-in. Their
+   plaintext rows are migrated client-side per RFC 0001's enable flow, extended to
+   cover history: the client fetches and seals every `resume_snapshots` row for the
+   account in the same pass, and the server's atomic toggle refuses to commit while
+   any resume or snapshot row for the account is still plaintext. A grace period of
+   one release cycle allows sign-in without setup; after it, setup is required to
+   edit. Announced by email.
+3. **Browser-only users** are unaffected until they sign in or start a relay.
+4. **Existing `/api/resumes` CRUD** stays until the web client runs on the sync
+   engine, then is removed. During the overlap both paths read and write the same
+   rows and the same `version` column, and CRUD adopts the sync semantics rather
+   than keeping its own: `DELETE /api/resumes/{id}` writes a versioned tombstone
+   instead of today's hard delete with cascading snapshot removal. Server-side
+   snapshot capture on update (`db/snapshots.rs`) keeps running through Phase 1: for
+   a sealed account it copies the envelope it just stored into `resume_snapshots`
+   unchanged, which is a copy of ciphertext, not a new encryption, so history never
+   stops. It is switched off for sealed accounts only in Phase 2, when the client
+   becomes the snapshot author through the sync snapshot endpoint, which is
+   insert-only on `(resume_id, version)` and answers 409 to a different ciphertext
+   for an existing version. History is never rewritten in place. For a migrated account,
+   `/api/resumes` accepts only envelopes (422 otherwise, per RFC 0001) and returns
+   envelopes; a client too old to handle envelopes gets 426 Upgrade Required rather
+   than plaintext. On the read side, the CRUD list omits tombstoned rows and CRUD
+   `GET` on a tombstoned id is 404, because those clients have no tombstone concept;
+   only the sync endpoints expose tombstones.
+5. **`resume_snapshots`** keeps its shape. After migration every row for the account
+   is an envelope, including history written before migration (step 2), and the
+   snapshot writer rejects plaintext for sealed accounts.
+6. **Disabling encryption** (RFC 0001's ciphertext-to-plaintext flow) is not
+   available on Rustume Cloud. It exists only on a self-hosted relay with
+   `RUSTUME_ALLOW_PLAINTEXT=true`.
+
+## Rejected alternatives
+
+| Alternative                                          | Why not                                                                                    |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Server-held keys at rest (#487)                      | Key next to data protects only a stolen volume; adds a data-loss point; operator can read. |
+| Opt-in E2EE (RFC 0001 as written)                    | The default cloud user's data is readable. Contradicts the product promise.                |
+| Always-on Postgres for self-hosted (#254 as written) | Second container for a single user; no path to desktop or mobile.                          |
+| `sqlx::Any` instead of a repository trait            | Drops UUID, JSON, and chrono support; worse than two small implementations.                |
+| Operator escrow for recovery                         | Explicitly rejected by the product owner. A backdoor by another name.                      |
+| Plaintext content hash for sync                      | Leaks document equality and enables confirmation attacks against the database.             |
+| Server-side search                                   | Requires readable content or searchable encryption; local search covers the need.          |
+
+## Open questions
+
+1. **Passkey-derived keys.** WebAuthn PRF could replace the passphrase for most users.
+   Browser support and the recovery story need a spike before it becomes the default.
+2. **Link-key public pages.** Worth offering as a second publish mode?
+3. **Multi-user self-hosting.** Out of v1. Does it reuse WorkOS, or a local account table?
+4. **Existing-account deadline.** One release cycle is a guess. Confirm with support load.
+5. **Per-update envelopes.** Needed only if CRDT (#40) is adopted. Follow-up RFC.
+6. **Client render gating.** Does the default flip per feature (export first, preview
+   later) as #682 suggests, or all at once?
+
+## Rollout plan
+
+Phases are ordered by dependency. Each phase ships behind a flag and is usable on its
+own. Implementation issues are opened when this RFC is accepted.
+
+| Phase | Deliverable                                                                                                                              | Depends on         | Supersedes / extends                |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | ----------------------------------- |
+| 1     | `crates/crypto`, WASM bindings, `users.e2ee_config`, passphrase and recovery UI, default-on for new accounts, existing-account migration | RFC 0001 items 1–5 | #44, #369                           |
+| 2     | Local-first web client: IndexedDB primary, sync engine on `/api/sync/*`, offline queue, conflict UI, status indicator                    | Phase 1            | #42, #43, #645, RFC 0002 orders 2–4 |
+| 3     | `DocumentRepo` trait, SQLite engine, self-hosted relay on by default in `docker compose up`, access token, import-from-browser prompt    | Phase 2            | #254 (this issue), closes #487      |
+| 4     | Client-side rendering: font strategy, lazy module, equivalence CI, offline export, server fallback toggle                                | #682 outcome       | #61, #633 follow-up                 |
+| 5     | Explicit publish snapshots wired into #359 / #360; account export over envelopes (#353)                                                  | Phase 1            | #65, #408                           |
+| 6     | Relay-to-Cloud linking, desktop and mobile clients on the shared crates                                                                  | Phases 2, 3        | RFC 0002 orders 1, 5–7; #9 Android  |
+
+## References
+
+- Tracking: [#254](https://github.com/lgtm-hq/Rustume/issues/254)
+- Epic: [#243](https://github.com/lgtm-hq/Rustume/issues/243) Rustume Cloud
+- Amends: [RFC 0001](./0001-e2e-encryption.md), [RFC 0002](./0002-local-cloud-linking.md)
+- Closed by this RFC: [PR #487](https://github.com/lgtm-hq/Rustume/pull/487)
+- Related: [#40](https://github.com/lgtm-hq/Rustume/issues/40) CRDT,
+  [#42](https://github.com/lgtm-hq/Rustume/issues/42) offline queue,
+  [#43](https://github.com/lgtm-hq/Rustume/issues/43) conflict UI,
+  [#44](https://github.com/lgtm-hq/Rustume/issues/44) E2EE,
+  [#65](https://github.com/lgtm-hq/Rustume/issues/65) public pages,
+  [#353](https://github.com/lgtm-hq/Rustume/issues/353) account export,
+  [#633](https://github.com/lgtm-hq/Rustume/issues/633) privacy claim,
+  [#645](https://github.com/lgtm-hq/Rustume/issues/645) save and sync status,
+  [#682](https://github.com/lgtm-hq/Rustume/issues/682) WASM rendering

@@ -15,9 +15,6 @@ docs/rfc/NNNN-short-slug.md
 - Numbers are never reused. A superseded RFC keeps its number; the replacement
   RFC gets the next available number.
 - The slug is a lowercase, hyphenated summary of the topic.
-- Numbering is shared with the legacy `docs/rfcs/` directory until those files
-  are migrated here. `docs/rfcs/0001-e2e-encryption.md` is RFC 0001; the next
-  RFC in this directory is therefore `0002`.
 
 ## Statuses
 
@@ -41,6 +38,8 @@ states. Accepted RFCs should link to the implementation issues they spawned.
 
 ## Index
 
-| RFC                                   | Title                        | Status |
-| ------------------------------------- | ---------------------------- | ------ |
-| [0002](./0002-local-cloud-linking.md) | Local↔Cloud Instance Linking | Draft  |
+| RFC                                             | Title                                          | Status |
+| ----------------------------------------------- | ---------------------------------------------- | ------ |
+| [0001](./0001-e2e-encryption.md)                | End-to-End Encryption for Cloud Resume Storage | Draft  |
+| [0002](./0002-local-cloud-linking.md)           | Local↔Cloud Instance Linking                   | Draft  |
+| [0003](./0003-local-first-encrypted-storage.md) | Local-First Encrypted Storage                  | Draft  |
