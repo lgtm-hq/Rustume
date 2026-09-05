@@ -119,7 +119,7 @@ produces one. The client owns the data, and servers relay ciphertext.
 │   snapshots: encrypted envelopes written by the client                                      │
 │   published: explicit readable snapshots for /r/{slug}                                      │
 │   storage: Postgres (Cloud) | SQLite (self-hosted)  behind one repository trait              │
-│   never holds a DEK, never decrypts, never renders private documents                         │
+│   never holds a DEK, never decrypts; renders a private document only on the opt-in fallback  │
 └──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -137,15 +137,43 @@ A relay's document API is the sync protocol from RFC 0002, generalised:
 | -------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | `GET`    | `/api/sync/changes?since=`                | Delta of document ids, versions, content tags, deletions                                                                   |
 | `GET`    | `/api/sync/docs/{id}`                     | Fetch one envelope with version metadata                                                                                   |
-| `PUT`    | `/api/sync/docs/{id}`                     | Push an envelope; `If-Match: version` for conflict detection                                                               |
+| `PUT`    | `/api/sync/docs/{id}`                     | Push an envelope; `If-Match: version`, `Sync-Cursor`, `Idempotency-Key` required                                           |
 | `POST`   | `/api/sync/reconcile`                     | Batched first sync (idempotent)                                                                                            |
-| `DELETE` | `/api/sync/docs/{id}`                     | Write a versioned tombstone; `If-Match: version` required                                                                  |
+| `DELETE` | `/api/sync/docs/{id}`                     | Write a versioned tombstone; `If-Match: version`, `Sync-Cursor`, `Idempotency-Key` required                                |
 | `GET`    | `/api/sync/docs/{id}/snapshots`           | List snapshot versions for one document                                                                                    |
 | `GET`    | `/api/sync/docs/{id}/snapshots/{version}` | Fetch one encrypted history snapshot                                                                                       |
 | `PUT`    | `/api/sync/docs/{id}/snapshots/{version}` | Client-written encrypted history snapshot; insert-only, 409 on an existing version unless the ciphertext is byte-identical |
 
 Today's `/api/resumes` CRUD stays during migration and is retired once every client
 speaks sync. The relay validates envelope shape and byte limits, never content.
+
+#### Cursors, preconditions, and replays
+
+Every client identifies itself with a random UUID generated on first use
+(`Sync-Client` header) and sends the cursor from its last successful pull
+(`Sync-Cursor` header) on every `PUT` and `DELETE`. The relay keeps one row per
+client in a `sync_cursors` table (`account_id`, `client_id`, `cursor`,
+`last_pull_at`), written on every pull. That table is the only client state the
+relay holds; it is not a device registry the user manages, and rows expire after
+90 days without a pull.
+
+Write preconditions are checked in this order and fail with distinct codes:
+
+| Condition                                         | Response                                |
+| ------------------------------------------------- | --------------------------------------- |
+| `Sync-Cursor` missing, unknown, or expired        | 428 `cursor_required`; reconcile first  |
+| `If-Match` does not equal the current version     | 409 `version_conflict`; run conflict UI |
+| Snapshot version exists with different ciphertext | 409 `snapshot_exists`                   |
+
+A 428 is never a document conflict. The client runs the full reconcile, reclassifies
+its queue against the result, pulls a fresh cursor, and only then drains.
+
+Replays are safe because every mutation carries a client-generated
+`Idempotency-Key` (UUID). The relay stores the key with the response it produced for
+24 hours. A retry with the same key returns the stored response even though the
+`If-Match` version has since moved, so a lost response after a committed write does
+not turn into a false conflict. `POST /api/sync/reconcile` is idempotent by
+construction and needs no key.
 
 #### Deletions are versioned tombstones
 
@@ -165,9 +193,9 @@ change. The rules that make deletes safe across offline devices:
   tombstone is present.
 - Tombstones are retained for at least 90 days, and until every non-expired cursor
   on the account has pulled past their version. A client is any browser session,
-  relay, or native app that has completed a pull; there is no separate device
-  registry. A cursor expires after 90 days without a pull, so an abandoned tab
-  cannot hold tombstones forever. Once both conditions hold the relay may
+  relay, or native app with a row in `sync_cursors`. A cursor row expires after 90
+  days without a pull, so an abandoned tab cannot hold tombstones forever. Once both
+  conditions hold the relay may
   garbage-collect them.
 - A client whose cursor has expired must run a full reconcile, not a delta pull. In a full
   reconcile, a local document that has a
@@ -306,11 +334,12 @@ reconcile.
 
 Cadence follows RFC 0002: push on the existing autosave debounce, pull on an
 interval and on `visibilitychange`, drain the queue on reconnect. One ordering rule
-is added. A client may drain its queue only while it holds a non-expired cursor; if
-the cursor has expired it runs the full reconcile first, reclassifies each queued
-mutation against the result (a queued `PUT` for a document the relay has deleted
-becomes a restore conflict, not a push), and only then drains. The relay enforces
-this by answering 409 to any `PUT` or `DELETE` whose cursor is missing or expired. The user-facing
+is added. A client may drain its queue only while it holds a valid cursor; if the
+cursor is missing or expired it runs the full reconcile first, reclassifies each
+queued mutation against the result (a queued `PUT` for a document the relay has
+deleted becomes a restore conflict, not a push), and only then drains. The relay
+enforces this with the 428 `cursor_required` response defined under "Cursors,
+preconditions, and replays". The user-facing
 addition is a persistent save and sync status (#645), which this design makes
 truthful because "saved" and "synced" are now distinct events.
 

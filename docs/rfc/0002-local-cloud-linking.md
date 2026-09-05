@@ -141,13 +141,13 @@ the local instance exchanges it without holding a browser cookie.
 
 #### Link token properties
 
-| Property  | Value                                                                                                                        |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Format    | API key per [#85](https://github.com/lgtm-hq/Rustume/issues/85), with an `rsume_link_*` prefix, stored as a hash server-side |
-| Scopes    | `sync:read`, `sync:write`, `link:manage` (revoke/unlink self only, no account or billing access)                             |
-| Binding   | Tied to `link_id` + `instance_fingerprint` (see below)                                                                       |
-| Lifetime  | Long-lived until revoked or unlinked; rotatable                                                                              |
-| Transport | `Authorization: Bearer <token>` on sync endpoints                                                                            |
+| Property  | Value                                                                                                                             |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Format    | API key per [#85](https://github.com/lgtm-hq/Rustume/issues/85), with the `rk_` prefix #361 defines, stored as a hash server-side |
+| Scopes    | `sync:read`, `sync:write`, `link:manage` (revoke/unlink self only, no account or billing access)                                  |
+| Binding   | Tied to `link_id` + `instance_fingerprint` (see below)                                                                            |
+| Lifetime  | Long-lived until revoked or unlinked; rotatable                                                                                   |
+| Transport | `Authorization: Bearer <token>` on sync endpoints                                                                                 |
 
 #### Instance fingerprint
 

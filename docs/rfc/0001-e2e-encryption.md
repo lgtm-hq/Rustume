@@ -204,8 +204,10 @@ All E2EE resume payloads use a **versioned JSON envelope** stored in `resumes.da
 1. On E2EE enable: generate random 32-byte DEK.
 2. Derive MK from user passphrase via Argon2id.
 3. Wrap DEK: `wrapped_dek = ChaCha20-Poly1305(MK, nonce_wrap, DEK)`.
-4. Store `wrapped_dek` + KDF params in a new `users.e2ee_config JSONB` column (server
-   stores the wrapped key only and cannot unwrap it without the passphrase).
+4. Store the wrap as `{ "nonce": "<base64url nonce_wrap>", "ciphertext": "<base64url>" }`
+   together with the KDF salt and params in a new `users.e2ee_config JSONB` column,
+   the same shape recovery backups use (server stores the wrapped key only and cannot
+   unwrap it without the passphrase).
 5. On unlock: client fetches `e2ee_config`, derives MK, unwraps DEK, holds DEK in memory.
 
 ### Recovery codes
@@ -217,7 +219,7 @@ On enable, client generates one-time recovery codes. For each code:
    `wrapped_dek_recovery = ChaCha20-Poly1305(RK, nonce_recovery, DEK)`.
 3. Upload the recovery backup blob to the server. Each recovery code is stored as one
    row (or JSON object) that **atomically associates**:
-   - `code_hash` = `hash(code)` (lookup / verification key)
+   - `code_hash` = `SHA-256(code)` (lookup / verification key)
    - `backup` = `{ "nonce": "<base64url>", "ciphertext": "<base64url>" }` (the
      `nonce_recovery` + ciphertext pair for that same code)
    The server must never store a ciphertext without its nonce, and must never return a
@@ -292,14 +294,14 @@ versioned ChaCha20-Poly1305 envelopes in the existing `resumes.data` JSONB colum
 
 ### Decision triggers
 
-| Trigger                                    | Action                                                                      |
-| ------------------------------------------ | --------------------------------------------------------------------------- |
-| User enables E2EE in Account settings      | Generate DEK, prompt passphrase + recovery codes, re-encrypt all resumes    |
-| User forgets passphrase, has recovery code | Unwrap DEK via recovery flow, prompt new passphrase                         |
-| User forgets passphrase, no recovery       | Data permanently lost. Display a clear warning at enable time               |
-| User requests public page on E2EE resume   | Block with explanation; offer disable E2EE or duplicate resume without E2EE |
-| CRDT (#40) accepted                        | File follow-up RFC for update-level envelope                                |
-| Mobile app ships                           | Reuse `crates/crypto` via FFI; same envelope                                |
+| Trigger                                    | Action                                                                                        |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| User enables E2EE in Account settings      | Generate DEK, prompt passphrase + recovery codes, re-encrypt all resumes and snapshot history |
+| User forgets passphrase, has recovery code | Unwrap DEK via recovery flow, prompt new passphrase                                           |
+| User forgets passphrase, no recovery       | Data permanently lost. Display a clear warning at enable time                                 |
+| User requests public page on E2EE resume   | Block with explanation; offer disable E2EE or duplicate resume without E2EE                   |
+| CRDT (#40) accepted                        | File follow-up RFC for update-level envelope                                                  |
+| Mobile app ships                           | Reuse `crates/crypto` via FFI; same envelope                                                  |
 
 ## Migration and rotation
 
@@ -307,11 +309,13 @@ versioned ChaCha20-Poly1305 envelopes in the existing `resumes.data` JSONB colum
 
 1. Client verifies passphrase strength and displays recovery codes (user confirms saved).
 2. Client generates DEK, wraps with MK, uploads `e2ee_config` and recovery backups to server.
-3. Client fetches all resumes (plaintext), encrypts each to v1 envelope, PUTs back.
-4. Server atomically verifies every resume row is a valid envelope **and** commits
-   `e2ee_enabled = true` in one transaction. During this step, resume writes for the
-   account are rejected unless the payload is a valid envelope (blocks TOCTOU from
-   concurrent tabs or older clients).
+3. Client fetches all resumes and all `resume_snapshots` rows (plaintext), encrypts
+   each to a v1 envelope, and writes them back.
+4. Server atomically verifies every resume row **and** every snapshot row for the
+   account is a valid envelope, then commits `e2ee_enabled = true` in one
+   transaction. During this step, resume and snapshot writes for the account are
+   rejected unless the payload is a valid envelope (blocks TOCTOU from concurrent
+   tabs or older clients).
 5. Audit event recorded (`crates/server/src/audit/`).
 
 All steps are client-driven; server never sees passphrase or unwrapped DEK.
@@ -319,11 +323,11 @@ All steps are client-driven; server never sees passphrase or unwrapped DEK.
 ### Disabling E2EE (ciphertext → plaintext)
 
 1. User provides passphrase (or recovery code).
-2. Client decrypts all resumes, PUTs plaintext JSON.
-3. Server atomically verifies every resume row is plaintext JSON and clears
-   `e2ee_config` / sets `e2ee_enabled = false` in one transaction (reject toggle if
-   any row is still an envelope or a PUT failed). During this step, resume writes must
-   be plaintext.
+2. Client decrypts all resumes and all `resume_snapshots` rows, writes plaintext JSON.
+3. Server atomically verifies every resume row and every snapshot row is plaintext
+   JSON and clears `e2ee_config` / sets `e2ee_enabled = false` in one transaction
+   (reject toggle if any row is still an envelope or a write failed). During this
+   step, resume and snapshot writes must be plaintext.
 
 Requires explicit user action. The operator cannot reverse it alone.
 
@@ -388,18 +392,18 @@ toggle).
 
 If this RFC is accepted, file the following implementation sub-issues:
 
-| #   | Title                                                         | Scope                                                                                                                                    |
-| --- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | `feat(crypto): add crates/crypto with v1 envelope`            | Argon2id, ChaCha20-Poly1305, HKDF, envelope serialize/deserialize, tests with test vectors                                               |
-| 2   | `feat(wasm): expose encrypt/decrypt bindings`                 | `bindings/wasm` wrappers for web client                                                                                                  |
-| 3   | `feat(server): E2EE account config column and detection`      | `users.e2ee_config`, strict envelope detection/rejection in validation middleware, reject non-envelope writes when `e2ee_enabled`        |
-| 4   | `feat(web): E2EE enable/disable/ unlock UI`                   | Account settings, passphrase entry, recovery code display, DEK session management                                                        |
-| 5   | `feat(web): encrypt on cloud save, decrypt on load`           | `cloudStorage.ts` integration with WASM crypto                                                                                           |
-| 6   | `feat(web): client-side bulk export for E2EE accounts`        | Replace server-side JSON/PDF export when `e2ee_enabled`                                                                                  |
-| 7   | `feat(server): block public page publish for E2EE resumes`    | Guard `is_public` toggle when account has E2EE                                                                                           |
-| 8   | `docs: update encryption.md to match RFC 0001`                | Align user-facing docs with decided design                                                                                               |
-| 9   | `feat(server): server-managed at-rest encryption (Phase 1.5)` | Separate from E2EE: `ENCRYPTION_SECRET`, AES-256-GCM on `data` column for non-E2EE accounts                                              |
-| 10  | `feat(server): version history with E2EE snapshots`           | Make the existing `resume_snapshots` writers and restore routes envelope-aware; do not add writers to the unused `resume_versions` table |
+| #   | Title                                                         | Scope                                                                                                                                                 |
+| --- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `feat(crypto): add crates/crypto with v1 envelope`            | Argon2id, ChaCha20-Poly1305, HKDF, envelope serialize/deserialize, tests with test vectors                                                            |
+| 2   | `feat(wasm): expose encrypt/decrypt bindings`                 | `bindings/wasm` wrappers for web client                                                                                                               |
+| 3   | `feat(server): E2EE account config column and detection`      | `users.e2ee_config`, strict envelope detection/rejection in validation middleware, reject non-envelope resume and snapshot writes when `e2ee_enabled` |
+| 4   | `feat(web): E2EE enable/disable/ unlock UI`                   | Account settings, passphrase entry, recovery code display, DEK session management                                                                     |
+| 5   | `feat(web): encrypt on cloud save, decrypt on load`           | `cloudStorage.ts` integration with WASM crypto; enable/disable flows convert `resume_snapshots` rows as well as resumes                               |
+| 6   | `feat(web): client-side bulk export for E2EE accounts`        | Replace server-side JSON/PDF export when `e2ee_enabled`                                                                                               |
+| 7   | `feat(server): block public page publish for E2EE resumes`    | Guard `is_public` toggle when account has E2EE                                                                                                        |
+| 8   | `docs: update encryption.md to match RFC 0001`                | Align user-facing docs with decided design                                                                                                            |
+| 9   | `feat(server): server-managed at-rest encryption (Phase 1.5)` | Separate from E2EE: `ENCRYPTION_SECRET`, AES-256-GCM on `data` column for non-E2EE accounts                                                           |
+| 10  | `feat(server): version history with E2EE snapshots`           | Make the existing `resume_snapshots` writers and restore routes envelope-aware; do not add writers to the unused `resume_versions` table              |
 
 ---
 
