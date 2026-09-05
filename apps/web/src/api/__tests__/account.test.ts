@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ApiValidationError } from "../client";
+import { ApiError, ApiValidationError } from "../client";
 import { deleteAccount, downloadAccountExport } from "../account";
 
 describe("deleteAccount", () => {
@@ -101,6 +101,7 @@ describe("downloadAccountExport", () => {
 
       expect(fetchMock).toHaveBeenCalledWith("/api/account/export", {
         credentials: "include",
+        method: "GET",
       });
       expect(createObjectURL).toHaveBeenCalled();
       expect(click).toHaveBeenCalled();
@@ -121,6 +122,25 @@ describe("downloadAccountExport", () => {
       text: async () => JSON.stringify({ error: "Authentication required" }),
     });
 
-    await expect(downloadAccountExport()).rejects.toThrow("Authentication required");
+    const error = await downloadAccountExport().catch((err: unknown) => err);
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).status).toBe(401);
+    expect((error as ApiError).message).toBe("Authentication required");
+  });
+
+  it("surfaces the export rate limit as a 429 ApiError without retrying", async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 429,
+      headers: new Headers({ "Retry-After": "12" }),
+      text: async () =>
+        JSON.stringify({ error: "Too many requests. Please try again shortly.", retry_after: 12 }),
+    });
+
+    const error = await downloadAccountExport().catch((err: unknown) => err);
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).status).toBe(429);
+    expect((error as ApiError).message).toBe("Too many requests. Please try again shortly.");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

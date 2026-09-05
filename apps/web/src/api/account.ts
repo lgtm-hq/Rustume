@@ -1,4 +1,4 @@
-import { ApiError, delJson, extractApiErrorMessage } from "./client";
+import { delJson, getBlob } from "./client";
 import { downloadBlob } from "./export";
 import { deleteAccountResponseSchema } from "./schemas";
 
@@ -9,17 +9,7 @@ export interface DeleteAccountResponse {
 
 /** Download a machine-readable copy of all account data as JSON. */
 export async function downloadAccountExport(): Promise<void> {
-  const response = await fetch("/api/account/export", { credentials: "include" });
-  if (!response.ok) {
-    const text = await response.text();
-    throw new ApiError(
-      response.status,
-      extractApiErrorMessage(text, `Account export failed (${response.status})`),
-      text,
-    );
-  }
-
-  const blob = await response.blob();
+  const blob = await getBlob("/account/export");
   downloadBlob(blob, "rustume-account-export.json");
 }
 

@@ -855,8 +855,15 @@ mod tests {
     }
 
     fn test_app_state(pool: sqlx::PgPool) -> AppState {
+        test_app_state_with_rate_limits(pool, crate::config::RateLimitConfig::default())
+    }
+
+    fn test_app_state_with_rate_limits(
+        pool: sqlx::PgPool,
+        rate_limits: crate::config::RateLimitConfig,
+    ) -> AppState {
         let sessions_pool = pool.clone();
-        AppState::with_require_auth(
+        AppState::with_options(
             Arc::new(crate::routes::static_dir()),
             Some(Arc::new(CloudState {
                 db: pool,
@@ -873,6 +880,7 @@ mod tests {
                 )),
             })),
             false,
+            rate_limits,
         )
     }
 
@@ -1306,6 +1314,56 @@ mod tests {
         let payload = read_export_payload(response).await;
         cleanup_user(&pool, user.id).await;
         assert_eq!(payload["resumes"].as_array().map(Vec::len), Some(51));
+    }
+
+    #[tokio::test]
+    async fn export_account_enforces_per_user_quota_when_database_available() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+        let pool = connect_test_pool(&database_url).await;
+
+        let user = seed_user_with_resumes(&pool, 1).await;
+        let state = test_app_state_with_rate_limits(
+            pool.clone(),
+            crate::config::RateLimitConfig {
+                account_export_per_min: 1,
+                ..Default::default()
+            },
+        );
+        let (_, cookie) = state
+            .cloud()
+            .expect("cloud")
+            .sessions
+            .create(user.id)
+            .await
+            .expect("create session");
+        let cookie_header = format!("{}={}", SESSION_COOKIE, cookie.value());
+        let app = crate::create_router_with_state(state);
+
+        let request = |cookie_header: &str| {
+            Request::builder()
+                .method("GET")
+                .uri("/api/account/export")
+                .header(header::COOKIE, cookie_header)
+                .body(Body::empty())
+                .unwrap()
+        };
+
+        let first = app.clone().oneshot(request(&cookie_header)).await.unwrap();
+        assert_eq!(first.status(), StatusCode::OK);
+        let _ = axum::body::to_bytes(first.into_body(), usize::MAX).await;
+
+        let second = app.oneshot(request(&cookie_header)).await.unwrap();
+        cleanup_user(&pool, user.id).await;
+        assert_eq!(second.status(), StatusCode::TOO_MANY_REQUESTS);
+        assert!(second.headers().contains_key("retry-after"));
+        let body = axum::body::to_bytes(second.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let payload: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert!(payload["error"].as_str().is_some());
+        assert!(payload["retry_after"].as_u64().is_some());
     }
 
     #[tokio::test]
