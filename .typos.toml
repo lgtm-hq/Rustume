@@ -1,0 +1,16 @@
+[files]
+extend-exclude = [".lgtm-ci-tooling/**", "CHANGELOG.md"]
+
+[default.extend-words]
+Instituto = "Instituto"
+PN = "PN"
+RTO = "RTO"
+caf = "caf"
+mis = "mis"
+mor = "mor"
+
+[type.resume-search-test]
+extend-glob = ["resumeSearch.test.ts"]
+
+[type.resume-search-test.extend-words]
+enginer = "enginer"
