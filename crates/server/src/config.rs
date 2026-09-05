@@ -38,17 +38,28 @@ pub const DEFAULT_STATIC_DIR: &str = "/app/web";
 /// When unset, public Open Graph metadata uses relative URLs rather than
 /// trusting request-controlled host headers.
 pub fn public_base_url() -> Option<String> {
-    match std::env::var("PUBLIC_BASE_URL") {
-        Ok(value) => {
-            let trimmed = value.trim();
-            if trimmed.is_empty() {
-                None
-            } else {
-                Some(trimmed.trim_end_matches('/').to_string())
-            }
-        }
-        Err(_) => None,
+    parse_public_base_url(std::env::var("PUBLIC_BASE_URL").ok().as_deref())
+}
+
+/// Normalize a `PUBLIC_BASE_URL` value: trimmed, no trailing slash, and only
+/// absolute `http(s)` origins are accepted. Anything else is treated as unset so
+/// the public page never advertises a relative or malformed canonical URL.
+pub fn parse_public_base_url(value: Option<&str>) -> Option<String> {
+    let trimmed = value?.trim().trim_end_matches('/');
+    if trimmed.is_empty() {
+        return None;
     }
+    let is_http = trimmed
+        .get(..8)
+        .is_some_and(|prefix| prefix.eq_ignore_ascii_case("https://"))
+        || trimmed
+            .get(..7)
+            .is_some_and(|prefix| prefix.eq_ignore_ascii_case("http://"));
+    if !is_http {
+        tracing::warn!("PUBLIC_BASE_URL must be an absolute http(s) origin; ignoring {trimmed:?}");
+        return None;
+    }
+    Some(trimmed.to_string())
 }
 
 /// Per-route-group rate limits for Rustume Cloud (requests per minute).
@@ -268,8 +279,22 @@ mod tests {
 
     #[test]
     fn public_base_url_trims_trailing_slash() {
-        std::env::set_var("PUBLIC_BASE_URL", "https://rustume.com/");
-        assert_eq!(public_base_url().as_deref(), Some("https://rustume.com"));
-        std::env::remove_var("PUBLIC_BASE_URL");
+        assert_eq!(
+            parse_public_base_url(Some("https://rustume.com/")).as_deref(),
+            Some("https://rustume.com")
+        );
+        assert_eq!(
+            parse_public_base_url(Some("  http://localhost:3000  ")).as_deref(),
+            Some("http://localhost:3000")
+        );
+    }
+
+    #[test]
+    fn public_base_url_rejects_unset_blank_and_relative_values() {
+        assert_eq!(parse_public_base_url(None), None);
+        assert_eq!(parse_public_base_url(Some("   ")), None);
+        assert_eq!(parse_public_base_url(Some("/")), None);
+        assert_eq!(parse_public_base_url(Some("rustume.com")), None);
+        assert_eq!(parse_public_base_url(Some("ftp://rustume.com")), None);
     }
 }

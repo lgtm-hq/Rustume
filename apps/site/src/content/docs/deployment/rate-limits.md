@@ -51,11 +51,18 @@ Resume CRUD allows short bursts (for example rapid autosave) via a separate burs
 | --- | ---: | --- |
 | Health | 60 | `GET /health`, `GET /version` |
 | Metrics | 60 | `GET /metrics` (still requires `METRICS_TOKEN`) |
-| Other unauthenticated | 30 | Any route reached without a session |
+| Public resume page and data | 30 | `GET /r/{slug}`, `GET /r/{slug}/data` |
+| Public resume preview | 60 (preview group) | `GET /r/{slug}/preview.png` |
+| Other unauthenticated | 30 | Any other route reached without a session |
 
-On cloud deployments (`RUSTUME_CLOUD=true`), authentication is mandatory, so unauthenticated
-clients cannot reach render or connected API routes; the unauthenticated bucket mainly covers
-probes and stray traffic.
+On cloud deployments (`RUSTUME_CLOUD=true`), authentication is mandatory for the connected API
+and the authenticated render routes. The exception is [public resume
+pages](/docs/cloud/public-pages/): `/r/{slug}` routes are reachable anonymously by design, and
+`GET /r/{slug}/preview.png` renders a PNG with Typst for anonymous callers. That route therefore
+counts against the **preview render** quota (keyed by client IP when no session is present) and
+honours `If-None-Match`, so crawlers and caches that already hold the current ETag receive `304`
+without a render. The generic unauthenticated bucket covers the HTML page, the JSON data route,
+probes, and stray traffic.
 
 ## Bulk export cap
 
