@@ -769,6 +769,42 @@ mod tests {
             );
         }
 
+        // The `account` row lists the profile columns by name; lock that list
+        // to what `AccountExportProfile` actually serialises (every optional
+        // field populated so nothing is skipped).
+        let account_row = docs
+            .lines()
+            .find(|line| line.starts_with("| `account` |"))
+            .expect("account row in the docs table");
+        let documented_columns: std::collections::BTreeSet<String> = account_row
+            .split('|')
+            .nth(2)
+            .expect("contents cell")
+            .split('`')
+            .skip(1)
+            .step_by(2)
+            .map(str::to_string)
+            .collect();
+        let profile_columns: std::collections::BTreeSet<String> =
+            serde_json::to_value(AccountExportProfile::from_user(&User {
+                id: Uuid::nil(),
+                workos_id: String::new(),
+                plan: "free".to_string(),
+                paddle_customer_id: None,
+                email: Some("ada@example.com".to_string()),
+                first_name: Some("Ada".to_string()),
+                last_name: Some("Lovelace".to_string()),
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+            }))
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .keys()
+            .cloned()
+            .collect();
+        assert_eq!(documented_columns, profile_columns);
+
         // And the schema itself has exactly the collections the user is told about.
         let export = AccountDataExport {
             exported_at: Utc::now(),

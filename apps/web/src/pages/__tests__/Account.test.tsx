@@ -170,7 +170,7 @@ describe("Account page", () => {
 
     expect(downloadAccountExport).toHaveBeenCalledTimes(1);
     const { toast } = await import("../../components/ui");
-    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Account data downloaded"));
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Account data exported"));
     await waitFor(() => expect(button).not.toBeDisabled());
   });
 
