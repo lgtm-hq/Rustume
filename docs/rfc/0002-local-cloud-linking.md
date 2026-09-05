@@ -1,32 +1,33 @@
 # RFC 0002: Local↔Cloud Instance Linking
 
-| Field              | Value                                                 |
-| ------------------ | ----------------------------------------------------- |
-| **Title**          | Local↔Cloud Instance Linking                          |
-| **Status**         | Draft                                                 |
-| **Author(s)**      | Rustume maintainers                                   |
-| **Date**           | 2026-07-13                                            |
-| **Tracking issue** | [#338](https://github.com/lgtm-hq/Rustume/issues/338) |
+| Field              | Value                                                                                                                                              |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Title**          | Local↔Cloud Instance Linking                                                                                                                       |
+| **Status**         | Draft, amended by [RFC 0003](./0003-local-first-encrypted-storage.md): where the two disagree RFC 0003 wins; overridden points are marked in place |
+| **Author(s)**      | Rustume maintainers                                                                                                                                |
+| **Date**           | 2026-07-13                                                                                                                                         |
+| **Tracking issue** | [#338](https://github.com/lgtm-hq/Rustume/issues/338)                                                                                              |
 
 ## Summary
 
 This RFC defines how a **local Rustume instance** (browser-only IndexedDB or
 self-hosted Postgres per [#254](https://github.com/lgtm-hq/Rustume/issues/254))
-links to a **Rustume Cloud account** for bidirectional resume sync, conflict
+(under RFC 0003 the self-hosted side is a SQLite relay, not Postgres) links to a
+**Rustume Cloud account** for bidirectional resume sync, conflict
 reconciliation, and clean unlink. It replaces today's one-time, same-origin
 IndexedDB→cloud import.
 
 **Decisions at a glance:**
 
-| Topic                | Decision                                                                                                                                       |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Connection direction | Local instance is always the sync **client**; cloud is never dialed into                                                                       |
-| Pairing & auth       | Short-lived pairing code + cloud-issued scoped **link token** (built on the API keys from [#85](https://github.com/lgtm-hq/Rustume/issues/85)) |
-| Merge model          | **Last-write-wins (LWW) + manual resolution**; CRDT deferred                                                                                   |
-| Conflict detection   | `updated_at` + SHA-256 content hash + integer `version`                                                                                        |
-| Ongoing sync         | Push-on-save + periodic pull; offline queue per [#42](https://github.com/lgtm-hq/Rustume/issues/42)                                            |
-| Unlink               | Explicit retention choice per side; flush-or-abandon in-flight edits                                                                           |
-| E2E encryption       | Ciphertext-only transport; passphrase required on both sides to link                                                                           |
+| Topic                | Decision                                                                                                                                                                                             |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Connection direction | Local instance is always the sync **client**; cloud is never dialed into                                                                                                                             |
+| Pairing & auth       | Short-lived pairing code + cloud-issued scoped **link token** (built on the API keys from [#85](https://github.com/lgtm-hq/Rustume/issues/85))                                                       |
+| Merge model          | **Last-write-wins (LWW) + manual resolution**; CRDT deferred                                                                                                                                         |
+| Conflict detection   | `updated_at` + integer `version` + a content tag: SHA-256 of canonical plaintext as written here, **replaced by RFC 0003's HMAC `content_tag`** (plain SHA-256 only on plaintext self-hosted relays) |
+| Ongoing sync         | Push-on-save + periodic pull; offline queue per [#42](https://github.com/lgtm-hq/Rustume/issues/42)                                                                                                  |
+| Unlink               | Explicit retention choice per side; flush-or-abandon in-flight edits                                                                                                                                 |
+| E2E encryption       | Ciphertext-only transport; passphrase required on both sides to link                                                                                                                                 |
 
 ## Context & goals
 
@@ -348,6 +349,10 @@ pre-reconciliation state with no mutations.
 
 ### Protocol (v1)
 
+**Superseded by RFC 0003's document API**, which moves these to `/api/sync/docs/{id}`
+with `If-Match`, `Sync-Client`, `Sync-Cursor`, and `Idempotency-Key` headers, and adds
+tombstones and snapshot routes. Kept for history:
+
 New endpoints under `/api/sync/`:
 
 - `GET /api/sync/changes?since=<cursor>`: delta of resume summaries + hashes
@@ -355,8 +360,9 @@ New endpoints under `/api/sync/`:
 - `PUT /api/sync/resumes/:id`: push with `content_hash`, `updated_at`, optional `if_hash=<expected>`
 - `POST /api/sync/reconcile`: batched first-sync (idempotent)
 
-Reuse existing validation (`validate_resume_json`, `validate_title` in
-`crates/server/src/routes/resumes.rs`). Add dedicated sync rate limits
+As written, reuse existing validation (`validate_resume_json`, `validate_title` in
+`crates/server/src/routes/resumes.rs`); under RFC 0003 the relay validates envelope
+shape and byte limits only, never content. Add dedicated sync rate limits
 (`sync_pull_per_min`, `sync_push_per_min`) separate from one-time import and
 human CRUD quotas (`import_per_min`, `resume_crud_per_min` in
 `crates/server/src/config.rs`).
@@ -442,8 +448,10 @@ Per [RFC 0001 E2E encryption](./0001-e2e-encryption.md) (proposed):
 
 When E2E is enabled on either side, sync MUST transport **ciphertext** blobs
 only. The cloud operator cannot read resume content. `resumes.data` stores
-encrypted payloads; `content_hash` is computed over the **plaintext** canonical
-form before encryption. Logical equality uses plaintext hash; ciphertext may
+encrypted payloads; as written, `content_hash` is computed over the **plaintext**
+canonical form before encryption, and under RFC 0003 it is
+`content_tag = HMAC-SHA256(tag_key, canonical bytes)` so the relay cannot confirm a
+guessed plaintext. Logical equality uses that tag; ciphertext may
 differ across re-encryption because nonces are randomized per the E2E RFC.
 
 ### Key availability

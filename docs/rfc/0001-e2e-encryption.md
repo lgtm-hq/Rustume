@@ -207,9 +207,11 @@ All E2EE resume payloads use a **versioned JSON envelope** stored in `resumes.da
 
 ### Per-account DEK wrapping (unlock flow)
 
-1. On E2EE enable: generate random 32-byte DEK.
+1. On E2EE enable: generate random 32-byte DEK (and, under RFC 0003, a random
+   32-byte `tag_key`; the wrapped plaintext below is then `DEK || tag_key`).
 2. Derive MK from user passphrase via Argon2id.
-3. Wrap DEK: `wrapped_dek = ChaCha20-Poly1305(MK, nonce_wrap, DEK)`.
+3. Wrap the keys: `wrapped_dek = ChaCha20-Poly1305(MK, nonce_wrap, DEK || tag_key)`
+   (`DEK` alone as originally written).
 4. Store the wrap as `{ "nonce": "<base64url nonce_wrap>", "ciphertext": "<base64url>" }`
    together with the KDF salt and params in a new `users.e2ee_config JSONB` column,
    the same shape recovery backups use (server stores the wrapped key only and cannot
@@ -226,7 +228,8 @@ operator holding the hash rows. Eight codes are issued per account. For each cod
 1. Derive `RK = HKDF-SHA256(code, info="rustume-recovery-v1")` → 32 bytes.
 2. Sample a fresh 12-byte nonce (`nonce_recovery`). Encrypt the key backup (the DEK as
    written here; `DEK || tag_key` under RFC 0003):
-   `wrapped_dek_recovery = ChaCha20-Poly1305(RK, nonce_recovery, DEK)`.
+   `wrapped_dek_recovery = ChaCha20-Poly1305(RK, nonce_recovery, DEK || tag_key)`
+   (`DEK` alone as originally written).
 3. Upload the recovery backup blob to the server. Each recovery code is stored as one
    row (or JSON object) that **atomically associates**:
    - `code_hash` = `SHA-256(code)` (lookup / verification key)
