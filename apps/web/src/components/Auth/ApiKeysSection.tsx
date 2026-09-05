@@ -1,4 +1,4 @@
-import { For, Show, createEffect, createSignal, onCleanup, onMount } from "solid-js";
+import { For, Show, createEffect, createRoot, createSignal, onCleanup, onMount } from "solid-js";
 import {
   API_KEY_NAME_MAX_LENGTH,
   createApiKey,
@@ -7,6 +7,7 @@ import {
   type ApiKeySummary,
   type CreatedApiKey,
 } from "../../api/apiKeys";
+import { authStore } from "../../stores/auth";
 import { Button, Input, Modal, Spinner, toast } from "../ui";
 
 function formatTimestamp(isoDate: string): string {
@@ -30,11 +31,45 @@ function formatLastUsed(lastUsedAt: string | null): string {
  * only copy the UI will ever show. It lives in memory only, never in storage,
  * and is cleared when the user clicks Done.
  */
-const [pendingCreatedKey, setPendingCreatedKey] = createSignal<CreatedApiKey | null>(null);
+interface PendingCreatedKey {
+  key: CreatedApiKey;
+  /** Id of the signed-in user the key was issued to. */
+  ownerId: string;
+}
+
+const [pendingCreated, setPendingCreated] = createSignal<PendingCreatedKey | null>(null);
+
+const currentUserId = (): string | null => authStore.state.user?.id ?? null;
+
+/**
+ * The pending secret is bound to the principal it was issued to. If the
+ * signed-in user changes or signs out, drop it immediately so a later mount
+ * (possibly by someone else on the same browser session) can never reveal it.
+ */
+createRoot(() => {
+  createEffect(() => {
+    const userId = currentUserId();
+    const pending = pendingCreated();
+    if (pending && pending.ownerId !== userId) {
+      setPendingCreated(null);
+    }
+  });
+});
+
+/** The pending key, only while the same user is still signed in. */
+const pendingCreatedKey = (): CreatedApiKey | null => {
+  const pending = pendingCreated();
+  return pending && pending.ownerId === currentUserId() ? pending.key : null;
+};
+
+const setPendingCreatedKey = (key: CreatedApiKey | null): void => {
+  const ownerId = currentUserId();
+  setPendingCreated(key && ownerId ? { key, ownerId } : null);
+};
 
 /** Test-only escape hatch to reset module state between renders. */
 export function resetPendingCreatedKeyForTests(): void {
-  setPendingCreatedKey(null);
+  setPendingCreated(null);
 }
 
 function warnBeforeUnload(event: BeforeUnloadEvent): void {
