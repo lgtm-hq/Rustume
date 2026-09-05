@@ -240,7 +240,10 @@ fn is_username_collision(err: &sqlx::Error) -> bool {
     }
 }
 
-/// Unique index created by migration 010.
+/// Unique index created by migration 010. CONTRACT with the migration: the
+/// index is defined over `COALESCE(username, replace(id::text, '-', ''))` and
+/// its name is what `is_username_collision` matches on; renaming it there
+/// without updating this constant would silently disable sign-up retries.
 const USERNAME_UNIQUE_INDEX: &str = "idx_users_username_unique";
 
 /// Random lowercase-hex fallback handle: `user-` plus eight hex characters.
@@ -285,6 +288,8 @@ async fn refresh_existing_user(
             plan,
             paddle_customer_id,
             email,
+            -- CONTRACT: same fallback expression as the migration 010 backfill
+            -- and the unique index; see auth/session.rs too.
             COALESCE(username, replace(id::text, '-', '')) AS username,
             created_at,
             updated_at,
@@ -319,6 +324,8 @@ async fn upsert_user_with_username(
             plan,
             paddle_customer_id,
             email,
+            -- CONTRACT: same fallback expression as the migration 010 backfill
+            -- and the unique index; see auth/session.rs too.
             COALESCE(username, replace(id::text, '-', '')) AS username,
             created_at,
             updated_at,
@@ -477,6 +484,18 @@ mod tests {
         .expect("username nullability");
         assert_eq!(nullable, "YES");
 
+        // The index name the retry logic matches on exists, is unique, and is
+        // defined over the effective (coalesced) handle.
+        let index_def: String = sqlx::query_scalar(
+            "SELECT indexdef FROM pg_indexes WHERE tablename = 'users' AND indexname = $1",
+        )
+        .bind(super::USERNAME_UNIQUE_INDEX)
+        .fetch_one(&pool)
+        .await
+        .expect("username unique index exists under the contracted name");
+        assert!(index_def.starts_with("CREATE UNIQUE INDEX"), "{index_def}");
+        assert!(index_def.contains("COALESCE(username"), "{index_def}");
+
         // A row written by a pre-username replica: no username at all.
         let suffix = &uuid::Uuid::new_v4().simple().to_string()[..8];
         let workos_id = format!("user_LEGACY{suffix}");
@@ -519,6 +538,18 @@ mod tests {
             .expect("lookup")
             .expect("user");
         assert_eq!(via_session.username, expected_handle);
+
+        // Nobody else can take the legacy row's effective handle while its
+        // stored username is still NULL: the expression index reserves it.
+        let squatter = format!("user_SQUAT{suffix}");
+        let err = sqlx::query("INSERT INTO users (workos_id, email, username) VALUES ($1, $2, $3)")
+            .bind(&squatter)
+            .bind(format!("squat-{suffix}@example.com"))
+            .bind(&expected_handle)
+            .execute(&pool)
+            .await
+            .expect_err("effective handle must be reserved");
+        assert!(super::is_username_collision(&err), "{err:?}");
 
         sqlx::query("DELETE FROM users WHERE id = $1")
             .bind(user_id)

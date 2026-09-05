@@ -122,6 +122,26 @@
       "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaé",
       "expect": "charset",
       "$note": "32 UTF-16 units: within length in JS and (via encode_utf16) in Rust, then charset fails"
+    },
+    {
+      "input": "ßaa",
+      "expect": "charset",
+      "$note": "ß is already lowercase in both runtimes (ß→SS is an UPPERcasing expansion); stays non-ASCII"
+    },
+    {
+      "input": "ẞaa",
+      "expect": "charset",
+      "$note": "capital sharp s lowercases to ß in both runtimes"
+    },
+    {
+      "input": "İaa",
+      "expect": "charset",
+      "$note": "dotted capital I lowercases to i + U+0307 in both runtimes (4 UTF-16 units)"
+    },
+    {
+      "input": "ΣΑΣ",
+      "expect": "charset",
+      "$note": "final-sigma rule applies in both runtimes (σας); still non-ASCII"
     }
   ]
 }
