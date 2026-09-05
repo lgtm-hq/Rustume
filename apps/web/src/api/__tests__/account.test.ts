@@ -86,13 +86,13 @@ describe("downloadAccountExport", () => {
     vi.useFakeTimers();
 
     try {
+      const exportBlob = new Blob(['{"exported_at":"2026-06-15T12:00:00Z"}'], {
+        type: "application/json",
+      });
       fetchMock.mockResolvedValue({
         ok: true,
         status: 200,
-        blob: async () =>
-          new Blob(['{"exported_at":"2026-06-15T12:00:00Z"}'], {
-            type: "application/json",
-          }),
+        blob: async () => exportBlob,
       });
 
       const downloadPromise = downloadAccountExport();
@@ -103,7 +103,8 @@ describe("downloadAccountExport", () => {
         credentials: "include",
         method: "GET",
       });
-      expect(createObjectURL).toHaveBeenCalled();
+      // The bytes handed to the browser are exactly the response body.
+      expect(createObjectURL).toHaveBeenCalledWith(exportBlob);
       expect(click).toHaveBeenCalled();
       expect(anchor.download).toBe("rustume-account-export.json");
       expect(anchor.remove).toHaveBeenCalled();
