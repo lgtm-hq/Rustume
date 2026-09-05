@@ -1310,9 +1310,24 @@ mod tests {
             webhook_secret: "secret_test".to_string(),
             price_id: "pri_test".to_string(),
             client_token: "client_test".to_string(),
-            api_base: "https://api.paddle.com".to_string(),
+            api_base: config::PADDLE_SANDBOX_API_BASE.to_string(),
             sandbox: true,
         }
+    }
+
+    /// Sign a webhook body the way Paddle does (`ts:body` HMAC-SHA256).
+    fn paddle_signature(secret: &str, body: &str) -> String {
+        use hmac::{Hmac, KeyInit, Mac};
+        let timestamp = chrono::Utc::now().timestamp();
+        let mut mac = Hmac::<sha2::Sha256>::new_from_slice(secret.as_bytes()).unwrap();
+        mac.update(format!("{timestamp}:{body}").as_bytes());
+        let hex: String = mac
+            .finalize()
+            .into_bytes()
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect();
+        format!("ts={timestamp};h1={hex}")
     }
 
     #[tokio::test]
@@ -1350,14 +1365,7 @@ mod tests {
             )
             .await
             .unwrap();
-        assert!(
-            matches!(
-                checkout.status(),
-                StatusCode::NOT_FOUND | StatusCode::METHOD_NOT_ALLOWED
-            ),
-            "unexpected status for absent billing checkout route: {}",
-            checkout.status()
-        );
+        assert_eq!(checkout.status(), StatusCode::NOT_FOUND);
 
         let webhook = app
             .oneshot(
@@ -1369,14 +1377,61 @@ mod tests {
             )
             .await
             .unwrap();
-        assert!(
-            matches!(
-                webhook.status(),
-                StatusCode::NOT_FOUND | StatusCode::METHOD_NOT_ALLOWED
-            ),
-            "unexpected status for absent billing webhook route: {}",
-            webhook.status()
+        // /webhooks is a reserved server path, so an unmounted webhook is a
+        // JSON 404 rather than the SPA fallback's 405.
+        assert_eq!(webhook.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn billing_is_ignored_without_cloud() {
+        // Leftover PADDLE_* on a self-hosted deployment must not mount billing
+        // routes or widen the CSP: billing is a cloud feature.
+        let state = state::AppState::with_options_and_billing(
+            std::sync::Arc::new(routes::static_dir()),
+            None,
+            false,
+            config::RateLimitConfig::default(),
+            Some(sample_billing_config()),
         );
+        assert!(state.billing.is_none());
+        let app = create_router_with_state(state);
+
+        let health = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let csp = health
+            .headers()
+            .get("content-security-policy")
+            .unwrap()
+            .to_str()
+            .unwrap();
+        assert!(!csp.contains("paddle.com"));
+
+        for (method, uri) in [
+            ("POST", "/api/billing/checkout"),
+            ("GET", "/api/billing/portal"),
+            ("POST", "/webhooks/paddle"),
+        ] {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method(method)
+                        .uri(uri)
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::NOT_FOUND, "{method} {uri}");
+        }
     }
 
     #[tokio::test]
@@ -1437,5 +1492,75 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let payload: ApiError = serde_json::from_slice(&body).unwrap();
+        // The signature check, not a session-auth layer, produced the 401.
+        assert!(
+            payload.error.contains("Paddle-Signature"),
+            "unexpected error body: {}",
+            payload.error
+        );
+    }
+
+    #[tokio::test]
+    async fn billing_webhook_accepts_signature_then_validates_payload() {
+        let state = state::AppState::with_options_and_billing(
+            std::sync::Arc::new(routes::static_dir()),
+            Some(test_cloud_state()),
+            false,
+            config::RateLimitConfig::default(),
+            Some(sample_billing_config()),
+        );
+        let app = create_router_with_state(state);
+
+        // Correctly signed but not a Paddle event: the request gets past the
+        // signature gate (no 401) and fails on payload validation.
+        let body = r#"{"not":"a paddle event"}"#;
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/webhooks/paddle")
+                    .header("content-type", "application/json")
+                    .header("Paddle-Signature", paddle_signature("secret_test", body))
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn test_auth_me_reports_billing_enabled_when_signed_out() {
+        for (billing, expected) in [(None, false), (Some(sample_billing_config()), true)] {
+            let state = state::AppState::with_options_and_billing(
+                std::sync::Arc::new(routes::static_dir()),
+                Some(test_cloud_state()),
+                true,
+                config::RateLimitConfig::default(),
+                billing,
+            );
+            let app = create_router_with_state(state);
+
+            let response = app
+                .oneshot(
+                    Request::builder()
+                        .uri("/auth/me")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let payload: db::AuthMeUnauthorizedResponse = serde_json::from_slice(&body).unwrap();
+            assert_eq!(payload.billing_enabled, expected);
+        }
     }
 }

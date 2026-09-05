@@ -32,13 +32,17 @@ impl AppState {
             .as_ref()
             .filter(|_| rate_limits_enabled_from_env())
             .map(|_| Arc::new(RateLimitState::new(RateLimitConfig::from_env())));
+        // Billing is a cloud feature: routes and the Paddle CSP only exist
+        // alongside a database, so leftover PADDLE_* on a self-hosted
+        // deployment must not widen anything.
+        let billing = cloud.as_ref().and_then(|_| BillingConfig::from_env());
         Self {
             static_dir,
             cloud,
             renderer: Arc::new(TypstRenderer::new()),
             require_auth: crate::cloud::require_auth_enabled(),
             rate_limits,
-            billing: BillingConfig::from_env(),
+            billing,
         }
     }
 
@@ -82,11 +86,13 @@ impl AppState {
             .map(|_| Arc::new(RateLimitState::new(rate_limit_config)));
         Self {
             static_dir,
-            cloud,
             renderer: Arc::new(TypstRenderer::new()),
             require_auth,
             rate_limits,
-            billing,
+            // Same cloud gating as `new`, so tests cannot construct a state
+            // production could never reach.
+            billing: cloud.as_ref().and(billing),
+            cloud,
         }
     }
 

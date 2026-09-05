@@ -113,15 +113,51 @@ describe("billing api", () => {
     );
   });
 
-  it("fetchPortalUrl rejects responses without a valid URL", async () => {
+  it("fetchPortalUrl rejects responses without a valid https URL", async () => {
+    for (const url of [
+      "not a url",
+      "http://customer-portal.paddle.com/example",
+      "javascript:alert(1)",
+    ]) {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "application/json" }),
+        json: async () => ({ url }),
+      });
+
+      await expect(fetchPortalUrl(), url).rejects.toThrow(ApiValidationError);
+    }
+  });
+
+  it("billing responses reject unexpected fields", async () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
       headers: new Headers({ "content-type": "application/json" }),
-      json: async () => ({ url: "not a url" }),
+      json: async () => ({ url: "https://customer-portal.paddle.com/example", extra: 1 }),
     });
 
     await expect(fetchPortalUrl()).rejects.toThrow(ApiValidationError);
+  });
+
+  it("surfaces 401 and 404 from the billing endpoints as ApiError", async () => {
+    for (const [status, message] of [
+      [401, "Authentication required"],
+      [404, "Route not found"],
+    ] as const) {
+      fetchMock.mockResolvedValue({
+        ok: false,
+        status,
+        headers: new Headers({ "content-type": "application/json" }),
+        text: async () => JSON.stringify({ error: message }),
+      });
+
+      const error = await fetchPortalUrl().catch((err: unknown) => err);
+      expect(error).toBeInstanceOf(ApiError);
+      expect((error as ApiError).status).toBe(status);
+      expect((error as ApiError).message).toBe(message);
+    }
   });
 
   it("openCheckout loads Paddle.js and opens the overlay", async () => {
@@ -162,6 +198,121 @@ describe("billing api", () => {
         customData: { user_id: "user-1" },
       }),
     );
+  });
+
+  it("openCheckout invokes onComplete for checkout.completed only", async () => {
+    const open = vi.fn();
+    vi.stubGlobal("window", {
+      ...globalThis.window,
+      Paddle: { Initialize: vi.fn(), Checkout: { open } },
+    });
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "application/json" }),
+      json: async () => ({
+        client_token: "test_live_token",
+        price_id: "pri_test",
+        email: "dev@example.com",
+        custom_data: { user_id: "user-1", sig: "abc" },
+        environment: "sandbox",
+      }),
+    });
+    const onComplete = vi.fn();
+
+    await openCheckout(onComplete);
+
+    const options = open.mock.calls[0]?.[0] as {
+      eventCallback: (event: { name?: string }) => void;
+    };
+    options.eventCallback({ name: "checkout.loaded" });
+    options.eventCallback({});
+    expect(onComplete).not.toHaveBeenCalled();
+    options.eventCallback({ name: "checkout.completed" });
+    expect(onComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it("openCheckout initialises Paddle once for repeat opens with unchanged settings", async () => {
+    const initialize = vi.fn();
+    const open = vi.fn();
+    const setEnvironment = vi.fn();
+    vi.stubGlobal("window", {
+      ...globalThis.window,
+      Paddle: {
+        Environment: { set: setEnvironment },
+        Initialize: initialize,
+        Checkout: { open },
+      },
+    });
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "application/json" }),
+      json: async () => ({
+        client_token: "test_live_token",
+        price_id: "pri_test",
+        email: "dev@example.com",
+        custom_data: { user_id: "user-1" },
+        environment: "sandbox",
+      }),
+    });
+
+    await openCheckout();
+    await openCheckout();
+
+    // Environment.set is a pre-Initialize call in Paddle.js: never repeated
+    // after initialisation with unchanged settings.
+    expect(setEnvironment).toHaveBeenCalledTimes(1);
+    expect(initialize).toHaveBeenCalledTimes(1);
+    expect(open).toHaveBeenCalledTimes(2);
+  });
+
+  it("openCheckout refetches Paddle.js when a load defined no window.Paddle", async () => {
+    const initialize = vi.fn();
+    const open = vi.fn();
+    vi.stubGlobal("window", { ...globalThis.window, Paddle: undefined });
+
+    const originalAppendChild = document.head.appendChild.bind(document.head);
+    const appendChild = vi.spyOn(document.head, "appendChild").mockImplementation((node) => {
+      const inserted = originalAppendChild(node);
+      if (node instanceof HTMLScriptElement) {
+        if (appendChild.mock.calls.length === 1) {
+          // First response "loads" but is not Paddle (e.g. a CDN error page).
+          queueMicrotask(() => node.onload?.(new Event("load")));
+        } else {
+          queueMicrotask(() => {
+            window.Paddle = { Initialize: initialize, Checkout: { open } };
+            node.onload?.(new Event("load"));
+          });
+        }
+      }
+      return inserted;
+    });
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "application/json" }),
+      json: async () => ({
+        client_token: "test_live_token",
+        price_id: "pri_test",
+        email: "dev@example.com",
+        custom_data: { user_id: "user-1" },
+        environment: "sandbox",
+      }),
+    });
+
+    await expect(openCheckout()).rejects.toThrow("Paddle.js loaded without defining window.Paddle");
+    expect(
+      document.querySelector('script[src="https://cdn.paddle.com/paddle/v2/paddle.js"]'),
+    ).toBeNull();
+
+    // The next click must fetch the script again rather than reuse the stale load.
+    await openCheckout();
+
+    expect(appendChild).toHaveBeenCalledTimes(2);
+    appendChild.mockRestore();
+    expect(initialize).toHaveBeenCalledWith({ token: "test_live_token" });
+    expect(open).toHaveBeenCalledTimes(1);
   });
 
   it("openCheckout reloads Paddle when checkout settings change", async () => {

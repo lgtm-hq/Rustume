@@ -22,7 +22,9 @@ const BILLING_CSP: &str = "default-src 'self'; script-src 'self' 'wasm-unsafe-ev
 /// The CSP is extended with the Paddle checkout hosts only when billing is
 /// configured; self-hosted deployments keep the strict baseline policy.
 pub async fn security_headers(State(state): State<AppState>, req: Request, next: Next) -> Response {
-    let csp = if state.billing.is_some() {
+    // Billing routes only mount in cloud mode; keep the CSP on the same rule
+    // even though `AppState` already drops billing without a cloud state.
+    let csp = if state.cloud.is_some() && state.billing.is_some() {
         BILLING_CSP
     } else {
         BASE_CSP

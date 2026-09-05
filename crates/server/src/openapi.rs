@@ -122,7 +122,7 @@ impl Modify for CookieAuthAddon {
         (name = "Account", description = "Account lifecycle (cloud mode only)"),
         (
             name = "Billing",
-            description = "Paddle billing checkout, customer portal, and webhook. These routes are mounted only when PADDLE_* is configured; otherwise they return a plain 404."
+            description = "Paddle billing checkout, customer portal, and webhook. Mounted only when PADDLE_* is configured in cloud mode; when unmounted every method returns the server's JSON 404 (`/api/*` and `/webhooks/*` are reserved paths, never served by the SPA fallback)."
         )
     )
 )]

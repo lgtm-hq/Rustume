@@ -66,6 +66,19 @@ function createAuthStore() {
     }
   }
 
+  /**
+   * Re-probe `/auth/me` without disturbing the current view: no loading
+   * spinner and no state reset on a transient failure. Used after events that
+   * change the signed-in user server-side (e.g. Paddle checkout completed).
+   */
+  async function refreshUser() {
+    try {
+      applyProbe(await probeAuth());
+    } catch (error) {
+      console.error("Failed to refresh auth state:", error);
+    }
+  }
+
   async function signOut() {
     if (!state.cloudEnabled) return;
     try {
@@ -104,6 +117,7 @@ function createAuthStore() {
       return state;
     },
     refresh,
+    refreshUser,
     /** Opens the sign-in confirm dialog; use {@link confirmSignIn} to redirect. */
     signIn: requestSignIn,
     closeSignInDialog,

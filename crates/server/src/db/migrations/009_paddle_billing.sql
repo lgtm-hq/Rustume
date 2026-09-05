@@ -26,13 +26,15 @@ CREATE UNIQUE INDEX IF NOT EXISTS users_paddle_customer_id_unique
 ON users (paddle_customer_id)
 WHERE paddle_customer_id IS NOT NULL;
 
--- Replay protection for Paddle webhooks: each event id is processed at most
--- once. Rows are claimed with INSERT ... ON CONFLICT DO NOTHING before the
--- event is handled and released again if handling fails, so Paddle retries
--- can reprocess failed deliveries.
+-- Replay protection for Paddle webhooks: each event id is applied at most
+-- once. A row is inserted when a delivery is first seen and processed_at is
+-- set only after the handler succeeds. A retry of an event whose row has no
+-- processed_at is reprocessed (the handlers are idempotent); a retry of a
+-- processed event is acknowledged and skipped.
 CREATE TABLE billing_webhook_events (
     event_id TEXT PRIMARY KEY,
-    received_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    received_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    processed_at TIMESTAMPTZ
 );
 
 -- Ordering guard for out-of-order webhook deliveries: the Paddle event's

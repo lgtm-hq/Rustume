@@ -4,26 +4,22 @@ import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { axeConfig } from "../../test/a11y";
 import { Route, Router } from "@solidjs/router";
 import Account from "../Account";
+import type { AuthUser } from "../../api/auth";
 import { openCheckout, redirectToPortal } from "../../api/billing";
 import { toast } from "../../components/ui";
 
-const { mockAuthState, signInMock, signOutMock } = vi.hoisted(() => ({
+const { mockAuthState, signInMock, signOutMock, refreshUserMock } = vi.hoisted(() => ({
   mockAuthState: {
     loading: false,
     cloudEnabled: true,
     requireAuth: false,
     billingEnabled: false,
-    user: null as {
-      id: string;
-      plan: string;
-      email?: string;
-      first_name?: string;
-      last_name?: string;
-      billing_customer_linked?: boolean;
-    } | null,
+    // Typed as the real AuthUser so a renamed /auth/me field fails here too.
+    user: null as AuthUser | null,
   },
   signInMock: vi.fn(),
   signOutMock: vi.fn(),
+  refreshUserMock: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("../../stores/auth", () => ({
@@ -35,6 +31,7 @@ vi.mock("../../stores/auth", () => ({
     signOut: signOutMock,
     clearUser: vi.fn(),
     refresh: vi.fn(),
+    refreshUser: refreshUserMock,
     // Mirrors userDisplayName — vi.mock hoisting prevents importing the real function.
     displayName: (user: { email?: string; first_name?: string; last_name?: string }) => {
       const parts = [user.first_name, user.last_name].filter(Boolean);
@@ -89,6 +86,7 @@ describe("Account page", () => {
     vi.mocked(redirectToPortal).mockReset();
     vi.mocked(toast.error).mockReset();
     vi.mocked(toast.success).mockReset();
+    refreshUserMock.mockClear();
   });
 
   // Previously asserted a "Continue without signing in" link. That link pointed at
@@ -213,7 +211,12 @@ describe("Account page", () => {
     fireEvent.click(screen.getByRole("button", { name: "Subscribe to Rustume Cloud" }));
 
     await waitFor(() => expect(openCheckout).toHaveBeenCalledTimes(1));
-    expect(openCheckout).toHaveBeenCalledWith(expect.any(Function));
+    const [onComplete] = vi.mocked(openCheckout).mock.calls[0] as [() => void];
+
+    // checkout.completed must re-probe the user silently, not via the
+    // bootstrapping refresh() that shows a spinner and can wipe the session.
+    onComplete();
+    expect(refreshUserMock).toHaveBeenCalledTimes(1);
   });
 
   it("shows a toast when checkout fails to open", async () => {
@@ -274,6 +277,10 @@ describe("Account page", () => {
         "No billing account linked yet — complete checkout first",
       ),
     );
+    // Loading state is cleared on failure as well as success.
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Manage subscription" })).not.toBeDisabled(),
+    );
   });
 
   it("opens the delete confirmation modal", () => {
@@ -295,6 +302,14 @@ describe("Account page", () => {
 });
 
 describe("Account accessibility", () => {
+  beforeEach(() => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.requireAuth = false;
+    mockAuthState.billingEnabled = false;
+    mockAuthState.user = null;
+  });
+
   it("has no axe violations when signed out", async () => {
     mockAuthState.loading = false;
     mockAuthState.cloudEnabled = true;
@@ -319,6 +334,21 @@ describe("Account accessibility", () => {
 
     const { container } = renderAccount();
 
+    expect(await axe(container, axeConfig)).toHaveNoViolations();
+  });
+
+  it("has no axe violations with billing controls visible", async () => {
+    mockAuthState.billingEnabled = true;
+    mockAuthState.user = {
+      id: "user-1",
+      plan: "pro",
+      email: "dev@example.com",
+      billing_customer_linked: true,
+    };
+
+    const { container } = renderAccount();
+
+    expect(screen.getByRole("button", { name: "Manage subscription" })).toBeInTheDocument();
     expect(await axe(container, axeConfig)).toHaveNoViolations();
   });
 });
