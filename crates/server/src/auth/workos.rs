@@ -4,6 +4,7 @@ use reqwest::Client;
 use serde::Deserialize;
 use std::time::Duration;
 
+use crate::auth::username::generate_username;
 use crate::db::User;
 
 const WORKOS_API_BASE: &str = "https://api.workos.com";
@@ -172,8 +173,7 @@ struct UpsertedUser {
     plan: String,
     paddle_customer_id: Option<String>,
     email: Option<String>,
-    first_name: Option<String>,
-    last_name: Option<String>,
+    username: String,
     created_at: chrono::DateTime<chrono::Utc>,
     updated_at: chrono::DateTime<chrono::Utc>,
     is_new: bool,
@@ -184,15 +184,60 @@ pub async fn upsert_user(
     pool: &sqlx::PgPool,
     workos_user: &WorkOsUser,
 ) -> Result<UpsertUserResult, sqlx::Error> {
-    let upserted = sqlx::query_as::<_, UpsertedUser>(
+    const MAX_USERNAME_ATTEMPTS: u8 = 8;
+
+    for _ in 0..MAX_USERNAME_ATTEMPTS {
+        let username = generate_username();
+        match upsert_user_with_username(pool, workos_user, &username).await {
+            Ok(upserted) => return Ok(upserted.into()),
+            Err(sqlx::Error::Database(db_err)) if db_err.code().as_deref() == Some("23505") => {
+                continue;
+            }
+            Err(err) => return Err(err),
+        }
+    }
+
+    let fallback = format!(
+        "user-{}",
+        &workos_user.id[workos_user.id.len().saturating_sub(8)..]
+    );
+    let upserted = upsert_user_with_username(pool, workos_user, &fallback).await?;
+    Ok(upserted.into())
+}
+
+impl From<UpsertedUser> for UpsertUserResult {
+    fn from(upserted: UpsertedUser) -> Self {
+        Self {
+            user: User {
+                id: upserted.id,
+                workos_id: upserted.workos_id,
+                plan: upserted.plan,
+                paddle_customer_id: upserted.paddle_customer_id,
+                email: upserted.email,
+                username: upserted.username,
+                created_at: upserted.created_at,
+                updated_at: upserted.updated_at,
+            },
+            is_new: upserted.is_new,
+        }
+    }
+}
+
+/// Insert a new user with the given generated username, or refresh the
+/// existing row's email when the WorkOS id is already known. The username is
+/// only consumed on insert; an existing user keeps their chosen handle.
+async fn upsert_user_with_username(
+    pool: &sqlx::PgPool,
+    workos_user: &WorkOsUser,
+    username: &str,
+) -> Result<UpsertedUser, sqlx::Error> {
+    sqlx::query_as::<_, UpsertedUser>(
         r#"
-        INSERT INTO users (workos_id, plan, email, first_name, last_name)
-        VALUES ($1, 'free', $2, $3, $4)
+        INSERT INTO users (workos_id, plan, email, username)
+        VALUES ($1, 'free', $2, $3)
         ON CONFLICT (workos_id) DO UPDATE
         SET
             email = EXCLUDED.email,
-            first_name = EXCLUDED.first_name,
-            last_name = EXCLUDED.last_name,
             updated_at = now()
         RETURNING
             id,
@@ -200,8 +245,7 @@ pub async fn upsert_user(
             plan,
             paddle_customer_id,
             email,
-            first_name,
-            last_name,
+            username,
             created_at,
             updated_at,
             (xmax = 0) AS is_new
@@ -209,25 +253,9 @@ pub async fn upsert_user(
     )
     .bind(&workos_user.id)
     .bind(&workos_user.email)
-    .bind(&workos_user.first_name)
-    .bind(&workos_user.last_name)
+    .bind(username)
     .fetch_one(pool)
-    .await?;
-
-    Ok(UpsertUserResult {
-        user: User {
-            id: upserted.id,
-            workos_id: upserted.workos_id,
-            plan: upserted.plan,
-            paddle_customer_id: upserted.paddle_customer_id,
-            email: upserted.email,
-            first_name: upserted.first_name,
-            last_name: upserted.last_name,
-            created_at: upserted.created_at,
-            updated_at: upserted.updated_at,
-        },
-        is_new: upserted.is_new,
-    })
+    .await
 }
 
 #[cfg(test)]

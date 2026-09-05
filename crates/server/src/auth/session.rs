@@ -79,8 +79,7 @@ impl SessionService {
                 u.plan,
                 u.paddle_customer_id,
                 u.email,
-                u.first_name,
-                u.last_name,
+                u.username,
                 u.created_at,
                 u.updated_at
             FROM sessions s
