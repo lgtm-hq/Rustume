@@ -578,6 +578,47 @@ describe("ApiKeysSection", () => {
     });
   });
 
+  it("blocks a second create on a remounted section while the first is in flight", async () => {
+    let resolveCreate: (key: {
+      id: string;
+      name: string;
+      prefix: string;
+      key: string;
+    }) => void = () => {};
+    createApiKeyMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveCreate = resolve;
+      }),
+    );
+    listApiKeysMock.mockResolvedValue([]);
+
+    const first = render(() => <ApiKeysSection />);
+    await screen.findByText(/No API keys yet/i);
+    fireEvent.click(screen.getByRole("button", { name: "Create key" }));
+    const createDialog = await screen.findByRole("dialog");
+    fireEvent.input(within(createDialog).getByLabelText("Key name"), {
+      target: { value: "First" },
+    });
+    fireEvent.click(within(createDialog).getByRole("button", { name: "Create key" }));
+    expect(createApiKeyMock).toHaveBeenCalledTimes(1);
+
+    first.unmount();
+    render(() => <ApiKeysSection />);
+    await screen.findByText(/No API keys yet/i);
+
+    // The remounted section knows a create is still pending.
+    const headerButton = screen.getByRole("button", { name: "Create key" });
+    expect(headerButton).toBeDisabled();
+    fireEvent.click(headerButton);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(createApiKeyMock).toHaveBeenCalledTimes(1);
+
+    resolveCreate({ id: "key-1", name: "First", prefix: "aaaa1111", key: "rk_first_only" });
+
+    expect(await screen.findByText("rk_first_only")).toBeInTheDocument();
+    expect(createApiKeyMock).toHaveBeenCalledTimes(1);
+  });
+
   it("warns before unload only while a one-time key is on screen", async () => {
     const addSpy = vi.spyOn(window, "addEventListener");
     const removeSpy = vi.spyOn(window, "removeEventListener");
