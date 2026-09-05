@@ -11,6 +11,24 @@ const { listApiKeysMock, createApiKeyMock, revokeApiKeyMock, toastSuccessMock, t
     toastErrorMock: vi.fn(),
   }));
 
+// A reactive store so the section's module-level identity watcher sees changes.
+const { mockAuthState, setMockAuthState } = await vi.hoisted(async () => {
+  const { createStore } = await import("solid-js/store");
+  const [state, setState] = createStore<{
+    user: { id: string; plan: string } | null;
+    cloudEnabled: boolean;
+  }>({ user: { id: "user-a", plan: "free" }, cloudEnabled: true });
+  return { mockAuthState: state, setMockAuthState: setState };
+});
+
+vi.mock("../../../stores/auth", () => ({
+  authStore: {
+    get state() {
+      return mockAuthState;
+    },
+  },
+}));
+
 vi.mock("../../../api/apiKeys", () => ({
   API_KEY_NAME_MAX_LENGTH: 100,
   listApiKeys: listApiKeysMock,
@@ -62,6 +80,7 @@ describe("ApiKeysSection", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     resetPendingCreatedKeyForTests();
+    setMockAuthState("user", { id: "user-a", plan: "free" });
   });
 
   it("renders the API key list", async () => {
@@ -501,6 +520,62 @@ describe("ApiKeysSection", () => {
 
     expect(await screen.findByText("rk_late")).toBeInTheDocument();
     expect(screen.getByRole("dialog", { name: "API key created" })).toBeInTheDocument();
+  });
+
+  it("never reveals a prior user's pending key after the signed-in identity changes", async () => {
+    createApiKeyMock.mockResolvedValue({
+      id: "key-3",
+      name: "Automation",
+      prefix: "zzzz9999",
+      key: "rk_user_a_secret",
+    });
+    listApiKeysMock.mockResolvedValue([]);
+
+    const first = render(() => <ApiKeysSection />);
+    await screen.findByText(/No API keys yet/i);
+    fireEvent.click(screen.getByRole("button", { name: "Create key" }));
+    const createDialog = await screen.findByRole("dialog");
+    fireEvent.input(within(createDialog).getByLabelText("Key name"), {
+      target: { value: "Automation" },
+    });
+    fireEvent.click(within(createDialog).getByRole("button", { name: "Create key" }));
+    await screen.findByText("rk_user_a_secret");
+
+    // Sign out (Account unmounts the section), then a different user signs in.
+    first.unmount();
+    setMockAuthState("user", null);
+    setMockAuthState("user", { id: "user-b", plan: "free" });
+    render(() => <ApiKeysSection />);
+
+    await screen.findByText(/No API keys yet/i);
+    expect(screen.queryByText("rk_user_a_secret")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("drops a pending key as soon as the user signs out, even mid-reveal", async () => {
+    createApiKeyMock.mockResolvedValue({
+      id: "key-3",
+      name: "Automation",
+      prefix: "zzzz9999",
+      key: "rk_signed_out",
+    });
+    listApiKeysMock.mockResolvedValue([]);
+
+    render(() => <ApiKeysSection />);
+    await screen.findByText(/No API keys yet/i);
+    fireEvent.click(screen.getByRole("button", { name: "Create key" }));
+    const createDialog = await screen.findByRole("dialog");
+    fireEvent.input(within(createDialog).getByLabelText("Key name"), {
+      target: { value: "Automation" },
+    });
+    fireEvent.click(within(createDialog).getByRole("button", { name: "Create key" }));
+    await screen.findByText("rk_signed_out");
+
+    setMockAuthState("user", null);
+
+    await waitFor(() => {
+      expect(screen.queryByText("rk_signed_out")).not.toBeInTheDocument();
+    });
   });
 
   it("warns before unload only while a one-time key is on screen", async () => {
