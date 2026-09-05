@@ -73,6 +73,7 @@ Limits](/docs/deployment/rate-limits/) for defaults, route groups, and client be
 | `RATE_LIMIT_METRICS_PER_MIN` | `60` | Metrics scrapes (per IP) |
 | `RATE_LIMIT_UNAUTHENTICATED_PER_MIN` | `30` | Other unauthenticated traffic (per IP) |
 | `RATE_LIMIT_BILLABLE_PER_MIN` | `30` | Templates, parse, validate (available in all connected deployments; env name is historical) |
+| `RATE_LIMIT_ACCOUNT_DELETE_PER_MIN` | `5` | Account deletion (`DELETE /api/account`; per user and shared per IP) |
 
 ## Local connected example
 

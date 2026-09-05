@@ -225,6 +225,22 @@ export async function put<T>(endpoint: string, body?: unknown, schema?: z.ZodTyp
   );
 }
 
+export async function patch<T>(
+  endpoint: string,
+  body?: unknown,
+  schema?: z.ZodType<T>,
+): Promise<T> {
+  return request<T>(
+    endpoint,
+    {
+      method: "PATCH",
+      body: body !== undefined && body !== null ? JSON.stringify(body) : undefined,
+    },
+    0,
+    schema,
+  );
+}
+
 export async function delJson<T>(
   endpoint: string,
   body: unknown,

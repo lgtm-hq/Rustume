@@ -4,6 +4,7 @@ use reqwest::Client;
 use serde::Deserialize;
 use std::time::Duration;
 
+use crate::auth::username::generate_username;
 use crate::db::User;
 
 const WORKOS_API_BASE: &str = "https://api.workos.com";
@@ -143,8 +144,6 @@ struct AuthenticateResponse {
 pub struct WorkOsUser {
     pub id: String,
     pub email: String,
-    pub first_name: Option<String>,
-    pub last_name: Option<String>,
 }
 
 /// Errors returned when communicating with WorkOS.
@@ -172,8 +171,7 @@ struct UpsertedUser {
     plan: String,
     paddle_customer_id: Option<String>,
     email: Option<String>,
-    first_name: Option<String>,
-    last_name: Option<String>,
+    username: String,
     created_at: chrono::DateTime<chrono::Utc>,
     updated_at: chrono::DateTime<chrono::Utc>,
     is_new: bool,
@@ -184,15 +182,150 @@ pub async fn upsert_user(
     pool: &sqlx::PgPool,
     workos_user: &WorkOsUser,
 ) -> Result<UpsertUserResult, sqlx::Error> {
-    let upserted = sqlx::query_as::<_, UpsertedUser>(
+    upsert_user_with_generator(pool, workos_user, generate_username).await
+}
+
+/// [`upsert_user`] with an injectable handle generator, so tests can force a
+/// collision on a known handle and observe the retry.
+async fn upsert_user_with_generator(
+    pool: &sqlx::PgPool,
+    workos_user: &WorkOsUser,
+    mut next_username: impl FnMut() -> String,
+) -> Result<UpsertUserResult, sqlx::Error> {
+    const MAX_USERNAME_ATTEMPTS: u8 = 8;
+
+    // Returning users are refreshed in place and never touch the username
+    // column, so a generated handle cannot collide with the unique index on
+    // their sign-in. Only genuinely new accounts go through generation.
+    if let Some(existing) = refresh_existing_user(pool, workos_user).await? {
+        return Ok(existing.into());
+    }
+
+    for _ in 0..MAX_USERNAME_ATTEMPTS {
+        let username = next_username();
+        // The generator is closed over a vetted word list today, but the
+        // shared validator is the contract; never insert a handle it rejects.
+        if let Err(reason) = crate::auth::username::validate_username(&username) {
+            tracing::warn!(%username, %reason, "generated username rejected; retrying");
+            continue;
+        }
+        match upsert_user_with_username(pool, workos_user, &username).await {
+            Ok(upserted) => return Ok(upserted.into()),
+            Err(err) if is_username_collision(&err) => continue,
+            Err(err) => return Err(err),
+        }
+    }
+
+    // Friendly handles are exhausted (astronomically unlikely). Fall back to a
+    // random `user-xxxxxxxx` handle that satisfies the same validation rules,
+    // retrying on collision rather than deriving it from the WorkOS id, whose
+    // suffix is neither lowercase nor guaranteed unique.
+    let mut last_err = None;
+    for _ in 0..MAX_USERNAME_ATTEMPTS {
+        let fallback = fallback_username();
+        if let Err(reason) = crate::auth::username::validate_username(&fallback) {
+            tracing::warn!(%fallback, %reason, "fallback username rejected; retrying");
+            continue;
+        }
+        match upsert_user_with_username(pool, workos_user, &fallback).await {
+            Ok(upserted) => return Ok(upserted.into()),
+            Err(err) if is_username_collision(&err) => last_err = Some(err),
+            Err(err) => return Err(err),
+        }
+    }
+    // Unreachable with the current generators (every candidate validates), but
+    // sign-in must never panic: surface an error instead.
+    Err(last_err.unwrap_or_else(|| {
+        sqlx::Error::Protocol("username generation exhausted without a usable handle".to_string())
+    }))
+}
+
+/// Only a unique violation on the username index is worth retrying with a
+/// new handle; any other 23505 (for example a duplicate email) is a real
+/// failure and must surface immediately instead of burning retries.
+fn is_username_collision(err: &sqlx::Error) -> bool {
+    match err {
+        sqlx::Error::Database(db_err) => {
+            db_err.code().as_deref() == Some("23505")
+                && db_err.constraint() == Some(USERNAME_UNIQUE_INDEX)
+        }
+        _ => false,
+    }
+}
+
+use crate::auth::username::USERNAME_UNIQUE_INDEX;
+
+/// Random lowercase-hex fallback handle: `user-` plus eight hex characters.
+fn fallback_username() -> String {
+    let id = uuid::Uuid::new_v4();
+    let hex = id.simple().to_string();
+    format!("user-{}", &hex[..8])
+}
+
+impl From<UpsertedUser> for UpsertUserResult {
+    fn from(upserted: UpsertedUser) -> Self {
+        Self {
+            user: User {
+                id: upserted.id,
+                workos_id: upserted.workos_id,
+                plan: upserted.plan,
+                paddle_customer_id: upserted.paddle_customer_id,
+                email: upserted.email,
+                username: upserted.username,
+                created_at: upserted.created_at,
+                updated_at: upserted.updated_at,
+            },
+            is_new: upserted.is_new,
+        }
+    }
+}
+
+/// Refresh a known user's email on sign-in. Returns `None` when this WorkOS
+/// id has never been seen.
+async fn refresh_existing_user(
+    pool: &sqlx::PgPool,
+    workos_user: &WorkOsUser,
+) -> Result<Option<UpsertedUser>, sqlx::Error> {
+    sqlx::query_as::<_, UpsertedUser>(sqlx::AssertSqlSafe(format!(
         r#"
-        INSERT INTO users (workos_id, plan, email, first_name, last_name)
-        VALUES ($1, 'free', $2, $3, $4)
+        UPDATE users
+        SET email = $2, updated_at = now()
+        WHERE workos_id = $1
+        RETURNING
+            id,
+            workos_id,
+            plan,
+            paddle_customer_id,
+            email,
+            {fallback} AS username,
+            created_at,
+            updated_at,
+            false AS is_new
+        "#,
+        // Constant-only interpolation; no user input reaches the SQL text.
+        fallback = crate::auth::username::USERNAME_FALLBACK_SQL
+    )))
+    .bind(&workos_user.id)
+    .bind(&workos_user.email)
+    .fetch_optional(pool)
+    .await
+}
+
+/// Insert a new user with the given generated username. `ON CONFLICT
+/// (workos_id)` covers the race where two first sign-ins for the same WorkOS
+/// id interleave: the loser refreshes the winner's row and keeps its handle.
+async fn upsert_user_with_username(
+    pool: &sqlx::PgPool,
+    workos_user: &WorkOsUser,
+    username: &str,
+) -> Result<UpsertedUser, sqlx::Error> {
+    sqlx::query_as::<_, UpsertedUser>(sqlx::AssertSqlSafe(format!(
+        r#"
+        INSERT INTO users (workos_id, plan, email, username)
+        VALUES ($1, 'free', $2, $3)
         ON CONFLICT (workos_id) DO UPDATE
         SET
             email = EXCLUDED.email,
-            first_name = EXCLUDED.first_name,
-            last_name = EXCLUDED.last_name,
             updated_at = now()
         RETURNING
             id,
@@ -200,38 +333,296 @@ pub async fn upsert_user(
             plan,
             paddle_customer_id,
             email,
-            first_name,
-            last_name,
+            {fallback} AS username,
             created_at,
             updated_at,
             (xmax = 0) AS is_new
         "#,
-    )
+        // Constant-only interpolation; no user input reaches the SQL text.
+        fallback = crate::auth::username::USERNAME_FALLBACK_SQL
+    )))
     .bind(&workos_user.id)
     .bind(&workos_user.email)
-    .bind(&workos_user.first_name)
-    .bind(&workos_user.last_name)
+    .bind(username)
     .fetch_one(pool)
-    .await?;
-
-    Ok(UpsertUserResult {
-        user: User {
-            id: upserted.id,
-            workos_id: upserted.workos_id,
-            plan: upserted.plan,
-            paddle_customer_id: upserted.paddle_customer_id,
-            email: upserted.email,
-            first_name: upserted.first_name,
-            last_name: upserted.last_name,
-            created_at: upserted.created_at,
-            updated_at: upserted.updated_at,
-        },
-        is_new: upserted.is_new,
-    })
+    .await
 }
 
 #[cfg(test)]
 mod tests {
+    /// Locally the DB-backed tests are optional; in CI (which always provisions
+    /// Postgres) a missing or misnamed database must fail rather than pass with
+    /// zero assertions. Same rule as routes/account.rs.
+    fn test_database_url() -> Option<String> {
+        // Match on the database name (last path segment, sans query/fragment),
+        // not the whole URL, so a hostname or credential containing "_test"
+        // cannot point these tests at a real database.
+        fn database_name(url: &str) -> &str {
+            url.split(['?', '#'])
+                .next()
+                .unwrap_or(url)
+                .rsplit('/')
+                .next()
+                .unwrap_or("")
+        }
+        let url = std::env::var("TEST_DATABASE_URL")
+            .ok()
+            .map(|url| url.trim().to_owned())
+            .filter(|url| !url.is_empty() && database_name(url).contains("_test"));
+        if url.is_none() {
+            let message =
+                "workos integration tests need TEST_DATABASE_URL naming a *_test database";
+            if std::env::var("CI").is_ok() {
+                panic!("{message}");
+            }
+            eprintln!("SKIP {message}");
+        }
+        url
+    }
+
+    #[tokio::test]
+    async fn only_username_unique_violations_are_retried_when_database_available() {
+        let Some(url) = test_database_url() else {
+            return;
+        };
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .max_connections(2)
+            .connect(&url)
+            .await
+            .expect("connect");
+        sqlx::migrate!("./src/db/migrations")
+            .run(&pool)
+            .await
+            .expect("migrate");
+
+        let suffix = &uuid::Uuid::new_v4().simple().to_string()[..8];
+        let taken = format!("taken-{suffix}");
+        let existing_email = format!("existing-{suffix}@example.com");
+        let existing_workos = format!("user_EXISTING{suffix}");
+        sqlx::query("INSERT INTO users (workos_id, email, username) VALUES ($1, $2, $3)")
+            .bind(&existing_workos)
+            .bind(&existing_email)
+            .bind(&taken)
+            .execute(&pool)
+            .await
+            .expect("seed existing user");
+
+        // Same handle, new WorkOS id: a username collision, retryable.
+        let newcomer = super::WorkOsUser {
+            id: format!("user_NEW{suffix}"),
+            email: format!("new-{suffix}@example.com"),
+        };
+        let err = super::upsert_user_with_username(&pool, &newcomer, &taken)
+            .await
+            .expect_err("duplicate username must fail");
+        assert!(super::is_username_collision(&err), "{err:?}");
+
+        // Duplicate email, fresh handle: a different unique index, not retryable.
+        let duplicate_email = super::WorkOsUser {
+            id: format!("user_DUP{suffix}"),
+            email: existing_email.clone(),
+        };
+        let err =
+            super::upsert_user_with_username(&pool, &duplicate_email, &format!("free-{suffix}"))
+                .await
+                .expect_err("duplicate email must fail");
+        assert!(!super::is_username_collision(&err), "{err:?}");
+
+        // Through the public entry point the email conflict surfaces at once
+        // rather than after the retry budget.
+        let err = super::upsert_user(&pool, &duplicate_email)
+            .await
+            .expect_err("duplicate email must surface");
+        assert!(matches!(err, sqlx::Error::Database(_)));
+
+        // A returning user is refreshed without touching their handle.
+        let returning = super::WorkOsUser {
+            id: existing_workos.clone(),
+            email: format!("renamed-{suffix}@example.com"),
+        };
+        let refreshed = super::upsert_user(&pool, &returning)
+            .await
+            .expect("returning user");
+        assert!(!refreshed.is_new);
+        assert_eq!(refreshed.user.username, taken);
+        assert_eq!(
+            refreshed.user.email.as_deref(),
+            Some(returning.email.as_str())
+        );
+
+        // Retry path through the public flow: the generator first yields the
+        // taken handle, then a free one; the free one must be stored.
+        let free = format!("free-{suffix}");
+        let mut attempts = 0usize;
+        let candidates = [taken.clone(), free.clone()];
+        let created = super::upsert_user_with_generator(&pool, &newcomer, || {
+            let candidate = candidates[attempts.min(1)].clone();
+            attempts += 1;
+            candidate
+        })
+        .await
+        .expect("new user after one collision");
+        assert!(created.is_new);
+        assert_eq!(created.user.username, free);
+        assert_eq!(attempts, 2, "exactly one retry after the collision");
+
+        // Every friendly attempt collides: the fallback loop must produce a
+        // valid `user-xxxxxxxx` handle rather than fail or panic.
+        let unlucky = super::WorkOsUser {
+            id: format!("user_UNLUCKY{suffix}"),
+            email: format!("unlucky-{suffix}@example.com"),
+        };
+        let mut friendly_attempts = 0usize;
+        let fell_back = super::upsert_user_with_generator(&pool, &unlucky, || {
+            friendly_attempts += 1;
+            taken.clone()
+        })
+        .await
+        .expect("fallback handle after exhausting friendly attempts");
+        assert!(fell_back.is_new);
+        assert_eq!(friendly_attempts, 8, "all friendly attempts were spent");
+        assert!(
+            fell_back.user.username.starts_with("user-"),
+            "{}",
+            fell_back.user.username
+        );
+        assert_eq!(fell_back.user.username.len(), 13);
+        assert_eq!(
+            crate::auth::username::validate_username(&fell_back.user.username),
+            Ok(())
+        );
+
+        sqlx::query("DELETE FROM users WHERE workos_id = ANY($1)")
+            .bind(vec![
+                existing_workos.clone(),
+                newcomer.id.clone(),
+                unlucky.id.clone(),
+            ])
+            .execute(&pool)
+            .await
+            .expect("cleanup");
+    }
+
+    #[tokio::test]
+    async fn legacy_rows_without_username_read_back_with_fallback_when_database_available() {
+        let Some(url) = test_database_url() else {
+            return;
+        };
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .max_connections(2)
+            .connect(&url)
+            .await
+            .expect("connect");
+        sqlx::migrate!("./src/db/migrations")
+            .run(&pool)
+            .await
+            .expect("migrate");
+
+        // The expand-only migration keeps the legacy columns and leaves
+        // username nullable, exactly what a mixed-binary rollout needs.
+        let legacy_columns: Vec<String> = sqlx::query_scalar(
+            r#"
+            SELECT column_name::text FROM information_schema.columns
+            WHERE table_name = 'users' AND column_name IN ('first_name', 'last_name')
+            ORDER BY column_name
+            "#,
+        )
+        .fetch_all(&pool)
+        .await
+        .expect("legacy columns");
+        assert_eq!(legacy_columns, ["first_name", "last_name"]);
+        let nullable: String = sqlx::query_scalar(
+            "SELECT is_nullable::text FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'username'",
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("username nullability");
+        assert_eq!(nullable, "YES");
+
+        // The index name the retry logic matches on exists, is unique, and is
+        // defined over the effective (coalesced) handle.
+        let index_def: String = sqlx::query_scalar(
+            "SELECT indexdef FROM pg_indexes WHERE tablename = 'users' AND indexname = $1",
+        )
+        .bind(super::USERNAME_UNIQUE_INDEX)
+        .fetch_one(&pool)
+        .await
+        .expect("username unique index exists under the contracted name");
+        assert!(index_def.starts_with("CREATE UNIQUE INDEX"), "{index_def}");
+        assert!(index_def.contains("COALESCE(username"), "{index_def}");
+
+        // A row written by a pre-username replica: no username at all.
+        let suffix = &uuid::Uuid::new_v4().simple().to_string()[..8];
+        let workos_id = format!("user_LEGACY{suffix}");
+        let user_id: uuid::Uuid = sqlx::query_scalar(
+            "INSERT INTO users (workos_id, email, first_name, last_name) VALUES ($1, $2, 'Ada', 'Lovelace') RETURNING id",
+        )
+        .bind(&workos_id)
+        .bind(format!("legacy-{suffix}@example.com"))
+        .fetch_one(&pool)
+        .await
+        .expect("insert legacy row");
+        let expected_handle = user_id.simple().to_string();
+
+        // Sign-in refresh and session lookup both read the backfill fallback.
+        let refreshed = super::upsert_user(
+            &pool,
+            &super::WorkOsUser {
+                id: workos_id.clone(),
+                email: format!("legacy-{suffix}@example.com"),
+            },
+        )
+        .await
+        .expect("returning legacy user");
+        assert!(!refreshed.is_new);
+        assert_eq!(refreshed.user.username, expected_handle);
+        assert_eq!(
+            crate::auth::username::validate_username(&expected_handle),
+            Ok(())
+        );
+
+        let sessions = crate::auth::session::SessionService::new(
+            pool.clone(),
+            "test-session-secret-at-least-32-chars".into(),
+            false,
+        );
+        let (_, cookie) = sessions.create(user_id).await.expect("session");
+        let via_session = sessions
+            .user_for_token(cookie.value())
+            .await
+            .expect("lookup")
+            .expect("user");
+        assert_eq!(via_session.username, expected_handle);
+
+        // Nobody else can take the legacy row's effective handle while its
+        // stored username is still NULL: the expression index reserves it.
+        let squatter = format!("user_SQUAT{suffix}");
+        let err = sqlx::query("INSERT INTO users (workos_id, email, username) VALUES ($1, $2, $3)")
+            .bind(&squatter)
+            .bind(format!("squat-{suffix}@example.com"))
+            .bind(&expected_handle)
+            .execute(&pool)
+            .await
+            .expect_err("effective handle must be reserved");
+        assert!(super::is_username_collision(&err), "{err:?}");
+
+        sqlx::query("DELETE FROM users WHERE id = $1")
+            .bind(user_id)
+            .execute(&pool)
+            .await
+            .expect("cleanup");
+    }
+
+    #[test]
+    fn fallback_username_is_valid_and_random() {
+        let first = super::fallback_username();
+        let second = super::fallback_username();
+        assert!(first.starts_with("user-"));
+        assert_eq!(first.len(), 13);
+        assert_eq!(crate::auth::username::validate_username(&first), Ok(()));
+        assert_ne!(first, second);
+    }
+
     fn legacy_url_encode(value: &str) -> String {
         let mut encoded = String::with_capacity(value.len());
         for byte in value.bytes() {

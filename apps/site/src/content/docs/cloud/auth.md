@@ -25,15 +25,17 @@ during callback.
 ## Account data stored by Rustume
 
 WorkOS AuthKit requires an email address for every user and may receive first/last name from the
-identity provider (Google, GitHub, SAML SSO, etc.). Rustume syncs these fields into its own database
-on each sign-in so the account UI can greet the user by name.
+identity provider (Google, GitHub, SAML SSO, etc.). Rustume syncs the email into its own database on
+each sign-in. Legal names are **not** read or written by Rustume: the account UI shows a friendly,
+editable `username` (for example `swift-otter-4821`) that is generated at sign-up and can be
+changed on the Account page.
 
 | Field | Source | Stored in Rustume DB | Shown in UI |
 | --- | --- | --- | --- |
 | `workos_id` | WorkOS | Yes | No |
 | `email` | WorkOS | Yes | Yes |
-| `first_name` | WorkOS / IdP | Yes (when available) | Yes |
-| `last_name` | WorkOS / IdP | Yes (when available) | Yes |
+| `username` | Generated at sign-up; editable by the user | Yes | Yes |
+| `first_name` / `last_name` | WorkOS / IdP | No longer written. The columns remain until a later migration drops them (rolling-deploy safety); rows from older releases may still hold values | No |
 | `plan` | Paddle / internal | Yes | Yes |
 
 **WorkOS itself also retains these fields** in its User Management dashboard. Deployment operators
