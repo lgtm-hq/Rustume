@@ -193,7 +193,7 @@ describe("probeAuth", () => {
     });
   });
 
-  it("falls back to a generated username when /auth/me omits username", async () => {
+  it("rejects an authenticated /auth/me payload without a username", async () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
@@ -204,18 +204,24 @@ describe("probeAuth", () => {
       }),
     });
 
-    const result = await probeAuth();
+    // The server guarantees username (NOT NULL); a missing one is a broken
+    // response, not something to paper over with a placeholder.
+    await expect(probeAuth()).rejects.toThrow("Auth probe failed: invalid /auth/me response");
+  });
 
-    expect(result).toEqual({
-      mode: "cloud",
-      user: {
-        id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+  it("rejects an authenticated /auth/me payload with unexpected fields", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: "user-1",
         plan: "free",
-        email: "dev@example.com",
-        username: "user-aaaaaaaa",
-      },
-      requireAuth: false,
+        username: "minty-lynx-5555",
+        first_name: "Grace",
+      }),
     });
+
+    await expect(probeAuth()).rejects.toThrow("Auth probe failed: invalid /auth/me response");
   });
 
   it("rejects invalid authenticated /auth/me payloads", async () => {

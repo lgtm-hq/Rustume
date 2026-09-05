@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiValidationError } from "../client";
 import { deleteAccount, updateUsername, validateUsername } from "../account";
+import usernameCases from "../../../../../crates/server/src/auth/username_cases.json";
+import usernameRules from "../../../../../crates/server/src/auth/username_rules.json";
 
 describe("deleteAccount", () => {
   it("sends DELETE with confirmation body", async () => {
@@ -55,33 +57,38 @@ describe("deleteAccount", () => {
 });
 
 describe("validateUsername", () => {
-  it("accepts valid usernames", () => {
-    expect(validateUsername("swift-otter-4821")).toBeNull();
-    expect(validateUsername("ada")).toBeNull();
-  });
+  const messages = usernameRules.messages;
+  const expected = (key: string): string | null => {
+    switch (key) {
+      case "ok":
+        return null;
+      case "length":
+        return messages.length
+          .replace("{min}", String(usernameRules.min_length))
+          .replace("{max}", String(usernameRules.max_length));
+      case "charset":
+        return messages.charset;
+      case "hyphens":
+        return messages.hyphens;
+      case "reserved":
+        return messages.reserved;
+      default:
+        throw new Error(`unknown expectation ${key} in username_cases.json`);
+    }
+  };
 
-  it("rejects invalid charset", () => {
-    expect(validateUsername("user_name")).toBe(
-      "Username may only contain lowercase letters, digits, and hyphens",
-    );
-  });
+  // The same vectors drive crates/server/src/auth/username.rs, so the client
+  // and server validators cannot diverge in behaviour.
+  it.each(usernameCases.cases.map((c) => [c.input, c.expect] as const))(
+    "shared case %j -> %s",
+    (input, expect_) => {
+      expect(validateUsername(input)).toBe(expected(expect_));
+    },
+  );
 
-  it("rejects reserved usernames", () => {
-    expect(validateUsername("admin")).toBe("Username is reserved");
-  });
-
-  it.each([
-    ["ab", "Username must be 3-32 characters"],
-    ["a".repeat(33), "Username must be 3-32 characters"],
-    ["-swift", "Username cannot start, end, or contain consecutive hyphens"],
-    ["swift-", "Username cannot start, end, or contain consecutive hyphens"],
-    ["swift--otter", "Username cannot start, end, or contain consecutive hyphens"],
-  ])("rejects %s with the shared length/hyphen rules", (input, message) => {
-    expect(validateUsername(input)).toBe(message);
-  });
-
-  it.each(["abc", "a".repeat(32), "user-42", "a1b2c3"])("accepts boundary input %s", (input) => {
-    expect(validateUsername(input)).toBeNull();
+  it("covers every rule at least once", () => {
+    const kinds = new Set(usernameCases.cases.map((c) => c.expect));
+    expect([...kinds].sort()).toEqual(["charset", "hyphens", "length", "ok", "reserved"]);
   });
 });
 

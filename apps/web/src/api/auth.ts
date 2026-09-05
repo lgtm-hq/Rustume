@@ -1,17 +1,8 @@
-import { authRequireAuthSchema, parseAuthMePayload } from "./schemas";
+import { type ParsedAuthUser, authRequireAuthSchema, parseAuthMePayload } from "./schemas";
 
-export interface SubscriptionInfo {
-  status: string;
-  expires_at?: string;
-}
-
-export interface AuthUser {
-  id: string;
-  plan: string;
-  email?: string;
-  username: string;
-  subscription?: SubscriptionInfo;
-}
+/** The signed-in user; one type, owned by the `/auth/me` schema. */
+export type AuthUser = ParsedAuthUser;
+export type SubscriptionInfo = NonNullable<ParsedAuthUser["subscription"]>;
 
 export type AuthProbeResult =
   | { mode: "self-hosted" }
