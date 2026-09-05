@@ -81,6 +81,27 @@ fn rules() -> &'static UsernameRules {
     })
 }
 
+/// SQL for a user's *effective* handle: the stored username, or, for a row an
+/// older replica inserted without one during the rolling deploy, the same
+/// hyphen-stripped id the migration backfill assigns.
+///
+/// CONTRACT with `010_usernames.sql`: the migration's backfill and its unique
+/// index use this exact expression, and `username_contract_matches_migration`
+/// fails if the two drift apart. Use this constant in every `users` read.
+pub const USERNAME_FALLBACK_SQL: &str = "COALESCE(username, replace(id::text, '-', ''))";
+
+/// [`USERNAME_FALLBACK_SQL`] with a table alias prefix (e.g. `"u."`) for joins.
+/// The output is assembled from constants only; it never includes user input.
+pub fn username_fallback_sql(alias: &str) -> String {
+    format!("COALESCE({alias}username, replace({alias}id::text, '-', ''))")
+}
+
+/// Unique index over [`USERNAME_FALLBACK_SQL`], created by migration 010. The
+/// sign-up retry logic matches unique violations on this name, so renaming the
+/// index without updating this constant silently disables retries; the
+/// contract test guards it.
+pub const USERNAME_UNIQUE_INDEX: &str = "idx_users_username_unique";
+
 /// Reserved handles that can never be chosen (route segments, brand names).
 pub fn reserved_usernames() -> &'static [String] {
     &rules().reserved
@@ -189,15 +210,49 @@ mod tests {
         assert!(shared.cases.len() >= 20, "shared vectors went missing");
         let rules = rules();
         for case in shared.cases {
-            let normalized = normalize_username(&case.input);
-            let actual = validate_username(&normalized).err();
+            // Raw input, exactly as the web suite passes it, so the internal
+            // normalisation is part of what is under test.
+            let actual = validate_username(&case.input).err();
             assert_eq!(
                 actual,
                 expected_message(rules, &case.expect),
-                "input {:?} (normalised {normalized:?})",
-                case.input
+                "input {:?} (normalised {:?})",
+                case.input,
+                normalize_username(&case.input)
             );
         }
+    }
+
+    /// The migration is SQL and cannot import the constants, so this test is
+    /// what keeps the three sites (migration, session read, upsert RETURNING)
+    /// in lockstep.
+    #[test]
+    fn username_fallback_sql_alias_matches_constant() {
+        assert_eq!(username_fallback_sql(""), USERNAME_FALLBACK_SQL);
+        assert_eq!(
+            username_fallback_sql("u."),
+            "COALESCE(u.username, replace(u.id::text, '-', ''))"
+        );
+    }
+
+    #[test]
+    fn username_contract_matches_migration() {
+        let migration = include_str!("../db/migrations/010_usernames.sql");
+        let backfill_expression = USERNAME_FALLBACK_SQL
+            .trim_start_matches("COALESCE(username, ")
+            .trim_end_matches(')');
+        assert!(
+            migration.contains(&format!("SET username = {backfill_expression}")),
+            "backfill must use the fallback expression"
+        );
+        assert!(
+            migration.contains(&format!("CREATE UNIQUE INDEX {USERNAME_UNIQUE_INDEX}")),
+            "unique index name must match USERNAME_UNIQUE_INDEX"
+        );
+        assert!(
+            migration.contains(&format!("(({USERNAME_FALLBACK_SQL}))")),
+            "unique index must be over the fallback expression"
+        );
     }
 
     #[test]

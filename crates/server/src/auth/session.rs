@@ -71,7 +71,12 @@ impl SessionService {
             None => return Ok(None),
         };
 
-        let row = sqlx::query_as::<_, User>(
+        // Rows inserted by a pre-username replica during a rolling deploy have
+        // no username yet; USERNAME_FALLBACK_SQL reads them with the same
+        // hyphen-stripped id the migration backfill assigns.
+        // Dynamic only in the sense that a compile-time constant is spliced in
+        // (no user input reaches the SQL text), hence the explicit AssertSqlSafe.
+        let row = sqlx::query_as::<_, User>(sqlx::AssertSqlSafe(format!(
             r#"
             SELECT
                 u.id,
@@ -79,19 +84,15 @@ impl SessionService {
                 u.plan,
                 u.paddle_customer_id,
                 u.email,
-                -- Rows inserted by a pre-username replica during a rolling
-                -- deploy have no username yet; read them with the same
-                -- hyphen-stripped id the migration backfill assigns.
-                -- CONTRACT: keep in sync with 010_usernames.sql and
-                -- auth/workos.rs (backfill, unique index, upsert RETURNING).
-                COALESCE(u.username, replace(u.id::text, '-', '')) AS username,
+                {fallback} AS username,
                 u.created_at,
                 u.updated_at
             FROM sessions s
             JOIN users u ON u.id = s.user_id
             WHERE s.id = $1 AND s.expires_at > now()
             "#,
-        )
+            fallback = crate::auth::username::username_fallback_sql("u.")
+        )))
         .bind(session_id)
         .fetch_optional(&self.db)
         .await?;
