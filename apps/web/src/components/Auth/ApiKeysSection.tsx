@@ -67,9 +67,17 @@ const setPendingCreatedKey = (key: CreatedApiKey | null): void => {
   setPendingCreated(key && ownerId ? { key, ownerId } : null);
 };
 
+/**
+ * Whether a create request is in flight. Module-scoped for the same reason as
+ * the pending key: a remounted section must not offer a second submit that
+ * could overwrite a one-time secret the first request is about to return.
+ */
+const [createInFlight, setCreateInFlight] = createSignal(false);
+
 /** Test-only escape hatch to reset module state between renders. */
 export function resetPendingCreatedKeyForTests(): void {
   setPendingCreated(null);
+  setCreateInFlight(false);
 }
 
 function warnBeforeUnload(event: BeforeUnloadEvent): void {
@@ -89,7 +97,7 @@ export function ApiKeysSection() {
   const [createModalRequested, setCreateModalRequested] = createSignal(false);
   const createModalOpen = () => createModalRequested() || pendingCreatedKey() !== null;
   const [createName, setCreateName] = createSignal("");
-  const [creating, setCreating] = createSignal(false);
+  const creating = createInFlight;
   const createdKey = pendingCreatedKey;
   const setCreatedKey = setPendingCreatedKey;
 
@@ -135,7 +143,6 @@ export function ApiKeysSection() {
   const resetCreateModal = () => {
     setCreateName("");
     setCreatedKey(null);
-    setCreating(false);
   };
 
   const openCreateModal = () => {
@@ -165,11 +172,13 @@ export function ApiKeysSection() {
 
   const handleCreateKey = async () => {
     const name = createName().trim();
-    if (!canSubmitName()) {
+    // One create at a time across mounts: a second submit while the first is
+    // in flight could overwrite a one-time secret before it is ever shown.
+    if (!canSubmitName() || createInFlight() || createdKey()) {
       return;
     }
 
-    setCreating(true);
+    setCreateInFlight(true);
     try {
       const key = await createApiKey(name);
       setCreatedKey(key);
@@ -179,7 +188,7 @@ export function ApiKeysSection() {
       console.error("API key creation failed:", error);
       toast.error(error instanceof Error ? error.message : "Failed to create API key");
     } finally {
-      setCreating(false);
+      setCreateInFlight(false);
     }
   };
 
@@ -237,7 +246,9 @@ export function ApiKeysSection() {
             <code class="font-mono text-xs">Authorization: Bearer rk_…</code>.
           </p>
         </div>
-        <Button onClick={openCreateModal}>Create key</Button>
+        <Button onClick={openCreateModal} disabled={creating()}>
+          Create key
+        </Button>
       </div>
 
       <Show
