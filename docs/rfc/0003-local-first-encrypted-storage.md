@@ -154,7 +154,9 @@ Every client identifies itself with a random UUID generated on first use, sent a
 the `Sync-Client` header on every sync request, and sends the cursor from its last
 successful pull (`Sync-Cursor` header) on every `PUT` and `DELETE`. The relay keeps one row per
 client in a `sync_cursors` table (`account_id`, `client_id`, `cursor`,
-`last_pull_at`), written on every pull, plus a `sync_cursor_history` table
+`last_pull_at`): `last_pull_at` is written on every pull, while `cursor` advances
+only when the client presents an issued cursor in `Sync-Cursor`, as the changes row
+says. Beside it sits a `sync_cursor_history` table
 (`client_id`, `cursor`, `issued_at`) that records every cursor issued so the write
 window below can be validated; history rows older than 15 minutes and beyond the
 last five are deleted on the next pull. That table is the only client state the

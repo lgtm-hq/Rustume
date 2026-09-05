@@ -216,7 +216,9 @@ All E2EE resume payloads use a **versioned JSON envelope** stored in `resumes.da
    together with the KDF salt and params in a new `users.e2ee_config JSONB` column,
    the same shape recovery backups use (server stores the wrapped key only and cannot
    unwrap it without the passphrase).
-5. On unlock: client fetches `e2ee_config`, derives MK, unwraps DEK, holds DEK in memory.
+5. On unlock: client fetches `e2ee_config`, derives MK, unwraps the 64-byte
+   `DEK || tag_key` (DEK alone as originally written), and holds both in session
+   memory; `tag_key` is what RFC 0003 content tags are computed with.
 
 ### Recovery codes
 
@@ -242,8 +244,10 @@ operator holding the hash rows. Eight codes are issued per account. For each cod
    hash, never the raw code or RK → server finds the row where `code_hash` matches →
    returns that row's `backup` blob and, while a DEK rotation is in progress and not
    yet verified, its `backup_next` blob too → client derives RK, unwraps the keys
-   with the stored nonces (preferring `backup_next` when present, since the relay may
-   already hold N+1 envelopes), prompts new passphrase.
+   with the stored nonces, and while both blobs are present keeps both key
+   generations: each envelope is decrypted with the key whose generation matches its
+   `e2ee.generation`, since N and N+1 rows coexist until the rotation is verified;
+   then prompts new passphrase.
 
 **Nonce freshness (RK-keyed):** each recovery backup is keyed by `RK`, not the account
 DEK. The DEK-envelope nonce rule above does **not** cover these blobs. Reusing
