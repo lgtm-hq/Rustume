@@ -100,14 +100,20 @@ and this project adheres to
 
 - **ci**: audit-mode egress for the release image verify job (#883) (d2511b2)
 
-## [0.67.5] - 2026-08-18
+## [0.67.5] - 2026-08-18 [YANKED]
+
+> **Yanked.** Tag `v0.67.5` was removed from origin on 2026-09-01 rather than
+> backfilled; no GitHub Release exists for this version (#923).
 
 ### Fixed
 
 - **ci**: switch docker build jobs to audit-mode egress until block mode is fixed (#880)
   (48bec9e)
 
-## [0.67.4] - 2026-08-17
+## [0.67.4] - 2026-08-17 [YANKED]
+
+> **Yanked.** Tag `v0.67.4` was removed from origin on 2026-09-01 rather than
+> backfilled; no GitHub Release or GHCR image exists for this version (#923).
 
 ### Changed
 
@@ -122,19 +128,28 @@ and this project adheres to
 
 - **docker**: export cooked deps and drop the amd64 footprint diet (#869) (1290a58)
 
-## [0.67.3] - 2026-08-14
+## [0.67.3] - 2026-08-14 [YANKED]
+
+> **Yanked.** Tag `v0.67.3` was removed from origin on 2026-09-01 rather than
+> backfilled; no GitHub Release or GHCR image exists for this version (#923).
 
 ### Fixed
 
 - **app**: collapse the avatar slot when no photo is set (#866) (9c3c960)
 
-## [0.67.2] - 2026-08-14
+## [0.67.2] - 2026-08-14 [YANKED]
+
+> **Yanked.** Tag `v0.67.2` was removed from origin on 2026-09-01 rather than
+> backfilled; no GitHub Release or GHCR image exists for this version (#923).
 
 ### Fixed
 
 - **render**: lead experience items with position on eight templates (#864) (284acba)
 
-## [0.67.1] - 2026-08-14
+## [0.67.1] - 2026-08-14 [YANKED]
+
+> **Yanked.** Tag `v0.67.1` was removed from origin on 2026-09-01 rather than
+> backfilled; no GitHub Release or GHCR image exists for this version (#923).
 
 ### Changed
 
@@ -273,14 +288,20 @@ and this project adheres to
 - **ci**: recover cargo through rustup when the macOS image ships no shims (#775)
   (1a3654a)
 
-## [0.61.0] - 2026-08-02
+## [0.61.0] - 2026-08-02 [YANKED]
+
+> **Yanked.** Tag `v0.61.0` was removed from origin on 2026-09-01 rather than
+> backfilled; no GitHub Release exists for this version (#923).
 
 ### Added
 
 - **web**: add templates drawer and sections panel backed by the registry API (#768)
   (c6db6b3)
 
-## [0.60.0] - 2026-08-01
+## [0.60.0] - 2026-08-01 [YANKED]
+
+> **Yanked.** Tag `v0.60.0` was removed from origin on 2026-09-01 rather than
+> backfilled; no GitHub Release exists for this version (#923).
 
 ### Added
 
@@ -406,7 +427,10 @@ and this project adheres to
 - **ci**: recover cargo from CARGO_HOME when setup-rust leaves it off PATH (#703)
   (72d215a)
 
-## [0.52.5] - 2026-07-28
+## [0.52.5] - 2026-07-28 [YANKED]
+
+> **Yanked.** Tag `v0.52.5` was removed from origin on 2026-09-01 rather than
+> backfilled; no GitHub Release exists for this version (#923).
 
 ### Fixed
 
@@ -1158,12 +1182,12 @@ and this project adheres to
 [0.68.1]: https://github.com/lgtm-hq/Rustume/compare/v0.68.0...v0.68.1
 [0.68.0]: https://github.com/lgtm-hq/Rustume/compare/v0.67.7...v0.68.0
 [0.67.7]: https://github.com/lgtm-hq/Rustume/compare/v0.67.6...v0.67.7
-[0.67.6]: https://github.com/lgtm-hq/Rustume/compare/v0.67.5...v0.67.6
-[0.67.5]: https://github.com/lgtm-hq/Rustume/compare/v0.67.4...v0.67.5
-[0.67.4]: https://github.com/lgtm-hq/Rustume/compare/v0.67.3...v0.67.4
-[0.67.3]: https://github.com/lgtm-hq/Rustume/compare/v0.67.2...v0.67.3
-[0.67.2]: https://github.com/lgtm-hq/Rustume/compare/v0.67.1...v0.67.2
-[0.67.1]: https://github.com/lgtm-hq/Rustume/compare/v0.67.0...v0.67.1
+[0.67.6]: https://github.com/lgtm-hq/Rustume/compare/3d9cc9d...v0.67.6
+[0.67.5]: https://github.com/lgtm-hq/Rustume/compare/c6e0dce...3d9cc9d
+[0.67.4]: https://github.com/lgtm-hq/Rustume/compare/d170468...c6e0dce
+[0.67.3]: https://github.com/lgtm-hq/Rustume/compare/33350f5...d170468
+[0.67.2]: https://github.com/lgtm-hq/Rustume/compare/f43de4f...33350f5
+[0.67.1]: https://github.com/lgtm-hq/Rustume/compare/v0.67.0...f43de4f
 [0.67.0]: https://github.com/lgtm-hq/Rustume/compare/v0.66.0...v0.67.0
 [0.66.0]: https://github.com/lgtm-hq/Rustume/compare/v0.65.3...v0.66.0
 [0.65.3]: https://github.com/lgtm-hq/Rustume/compare/v0.65.2...v0.65.3
@@ -1174,9 +1198,9 @@ and this project adheres to
 [0.63.0]: https://github.com/lgtm-hq/Rustume/compare/v0.62.0...v0.63.0
 [0.62.0]: https://github.com/lgtm-hq/Rustume/compare/v0.61.2...v0.62.0
 [0.61.2]: https://github.com/lgtm-hq/Rustume/compare/v0.61.1...v0.61.2
-[0.61.1]: https://github.com/lgtm-hq/Rustume/compare/v0.61.0...v0.61.1
-[0.61.0]: https://github.com/lgtm-hq/Rustume/compare/v0.60.0...v0.61.0
-[0.60.0]: https://github.com/lgtm-hq/Rustume/compare/v0.59.0...v0.60.0
+[0.61.1]: https://github.com/lgtm-hq/Rustume/compare/0bf16a7...v0.61.1
+[0.61.0]: https://github.com/lgtm-hq/Rustume/compare/6347364...0bf16a7
+[0.60.0]: https://github.com/lgtm-hq/Rustume/compare/v0.59.0...6347364
 [0.59.0]: https://github.com/lgtm-hq/Rustume/compare/v0.58.0...v0.59.0
 [0.58.0]: https://github.com/lgtm-hq/Rustume/compare/v0.57.2...v0.58.0
 [0.57.2]: https://github.com/lgtm-hq/Rustume/compare/v0.57.1...v0.57.2
@@ -1188,8 +1212,8 @@ and this project adheres to
 [0.53.0]: https://github.com/lgtm-hq/Rustume/compare/v0.52.8...v0.53.0
 [0.52.8]: https://github.com/lgtm-hq/Rustume/compare/v0.52.7...v0.52.8
 [0.52.7]: https://github.com/lgtm-hq/Rustume/compare/v0.52.6...v0.52.7
-[0.52.6]: https://github.com/lgtm-hq/Rustume/compare/v0.52.5...v0.52.6
-[0.52.5]: https://github.com/lgtm-hq/Rustume/compare/v0.52.4...v0.52.5
+[0.52.6]: https://github.com/lgtm-hq/Rustume/compare/941c349...v0.52.6
+[0.52.5]: https://github.com/lgtm-hq/Rustume/compare/v0.52.4...941c349
 [0.52.4]: https://github.com/lgtm-hq/Rustume/compare/v0.52.3...v0.52.4
 [0.52.3]: https://github.com/lgtm-hq/Rustume/compare/v0.52.2...v0.52.3
 [0.52.2]: https://github.com/lgtm-hq/Rustume/compare/v0.52.1...v0.52.2
