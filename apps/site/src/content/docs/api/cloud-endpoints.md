@@ -41,7 +41,12 @@ JSON export uses the resume CRUD limit group; PDF export uses the PDF limit grou
 | Method | Path | Description |
 | --- | --- | --- |
 | `GET` | `/api/account/export` | GDPR data-portability download as one streamed JSON document (see below) |
-| `DELETE` | `/api/account` | Permanently delete the account and all associated data (body: `{"confirmation":"DELETE"}`) |
+| `DELETE` | `/api/account` | Delete the local account: the user row and, by cascade, resumes, snapshots, policy acceptances, subscriptions, and sessions (body: `{"confirmation":"DELETE"}`); own limit of 5/min (`RATE_LIMIT_ACCOUNT_DELETE_PER_MIN`) |
+
+What `DELETE /api/account` does **not** do: audit log rows are retained (with the former user id as
+a historical reference and no live foreign key); the WorkOS user record is deleted on a best-effort
+basis after the local rows are gone and a failure there is logged, not surfaced; and no Paddle
+subscription is cancelled by this call, so cancel hosted billing in the customer portal first.
 
 The account export is an explicit allow-list of the account-linked data Rustume stores:
 

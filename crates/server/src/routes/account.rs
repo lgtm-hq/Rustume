@@ -1200,6 +1200,32 @@ mod tests {
         )
     }
 
+    /// The production constructor (`AppState::from_config`) with an explicit
+    /// rate-limit switch, for the `RATE_LIMIT_DISABLED=true` story.
+    fn test_app_state_from_config(
+        pool: sqlx::PgPool,
+        config: crate::config::RateLimitConfig,
+        rate_limits_enabled: bool,
+    ) -> AppState {
+        let sessions_pool = pool.clone();
+        AppState::from_config(
+            Arc::new(crate::routes::static_dir()),
+            Some(Arc::new(CloudState {
+                db: pool,
+                workos: WorkOsClient::new("client_test".into(), "api_key_test".into()),
+                sessions: SessionService::new(
+                    sessions_pool,
+                    "test-session-secret-at-least-32-chars".into(),
+                    false,
+                ),
+                workos_redirect_uri: "http://localhost/auth/callback".into(),
+                email: None,
+            })),
+            config,
+            rate_limits_enabled,
+        )
+    }
+
     async fn read_export_body(response: Response) -> Bytes {
         axum::body::to_bytes(response.into_body(), usize::MAX)
             .await
@@ -1309,6 +1335,82 @@ mod tests {
         assert!(item.is_public);
         assert_eq!(item.public_slug.as_deref(), Some("ada-lovelace"));
         assert_eq!(item.data["basics"]["name"], "Ada");
+    }
+
+    /// Snapshot and audit rows are streamed as a local `Head` struct plus a raw
+    /// JSON tail; round-trip each through the documented item type so the
+    /// streamed shape cannot drift from `ResumeSnapshotExport` /
+    /// `AuditEventExport`.
+    #[tokio::test]
+    async fn streamed_snapshot_and_audit_rows_match_their_export_types() {
+        async fn collect<F, Fut>(stream: F) -> Vec<u8>
+        where
+            F: FnOnce(ChunkSink) -> Fut,
+            Fut: std::future::Future<Output = ()>,
+        {
+            let (tx, mut rx) = mpsc::channel::<Result<Bytes, io::Error>>(8);
+            let sink = ChunkSink {
+                tx,
+                bytes_streamed: 0,
+                resumes_streamed: 0,
+                snapshots_streamed: 0,
+                audit_events_streamed: 0,
+            };
+            let reader = tokio::spawn(async move {
+                let mut out = Vec::new();
+                while let Some(Ok(chunk)) = rx.recv().await {
+                    out.extend_from_slice(&chunk);
+                }
+                out
+            });
+            stream(sink).await;
+            reader.await.unwrap()
+        }
+
+        let now = Utc::now();
+        let out = collect(|mut sink| async move {
+            let row = ExportSnapshotRow {
+                resume_id: Uuid::nil(),
+                version: 7,
+                created_at: now,
+                data_json: r#"{"basics":{"name":"v7"}}"#.to_string(),
+            };
+            let mut first = true;
+            assert!(stream_snapshot_row(&mut sink, row, &mut first)
+                .await
+                .unwrap());
+            assert!(!first);
+        })
+        .await;
+        let snapshot: crate::db::ResumeSnapshotExport =
+            serde_json::from_slice(&out).expect("streamed snapshot matches ResumeSnapshotExport");
+        assert_eq!(snapshot.resume_id, Uuid::nil());
+        assert_eq!(snapshot.version, 7);
+        assert_eq!(snapshot.created_at, now);
+        assert_eq!(snapshot.data["basics"]["name"], "v7");
+
+        let out = collect(|mut sink| async move {
+            let row = ExportAuditRow {
+                event_type: "account.export".to_string(),
+                resource_type: Some("account".to_string()),
+                resource_id: None,
+                ip_address: Some("203.0.113.7".to_string()),
+                created_at: now,
+                metadata_json: r#"{"stage":"started"}"#.to_string(),
+            };
+            let mut first = true;
+            assert!(stream_audit_row(&mut sink, row, &mut first).await.unwrap());
+            assert!(!first);
+        })
+        .await;
+        let event: crate::db::AuditEventExport =
+            serde_json::from_slice(&out).expect("streamed audit row matches AuditEventExport");
+        assert_eq!(event.event_type, "account.export");
+        assert_eq!(event.resource_type.as_deref(), Some("account"));
+        assert_eq!(event.resource_id, None);
+        assert_eq!(event.ip_address.as_deref(), Some("203.0.113.7"));
+        assert_eq!(event.created_at, now);
+        assert_eq!(event.metadata["stage"], "started");
     }
 
     #[tokio::test]
@@ -1906,6 +2008,73 @@ mod tests {
         .expect("count start audits");
         cleanup_user(&pool, user.id).await;
         assert_eq!(started as usize, default_export_slots() + 1);
+    }
+
+    /// With per-minute limits switched off (local development), the export
+    /// ceiling still applies through the real router and surfaces as 503.
+    #[tokio::test]
+    async fn export_ceiling_returns_503_through_router_with_rate_limits_disabled_when_database_available(
+    ) {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+        let _serial = EXPORT_TESTS.lock().await;
+        let pool = connect_test_pool(&database_url).await;
+
+        let user = seed_user_with_resumes(&pool, 1).await;
+        // Large enough that the stream task blocks on the unread channel and
+        // keeps its permit until the body is consumed.
+        let big = serde_json::json!({ "blob": "x".repeat(EXPORT_STREAM_CHUNK_BYTES * 8) });
+        sqlx::query("UPDATE resumes SET data = $1 WHERE user_id = $2")
+            .bind(&big)
+            .bind(user.id)
+            .execute(&pool)
+            .await
+            .expect("inflate resume");
+
+        let state = test_app_state_from_config(
+            pool.clone(),
+            crate::config::RateLimitConfig {
+                account_export_concurrency: 1,
+                ..Default::default()
+            },
+            false,
+        );
+        assert!(state.rate_limits.is_none(), "per-minute limits are off");
+        let (_, cookie) = state
+            .cloud()
+            .expect("cloud")
+            .sessions
+            .create(user.id)
+            .await
+            .expect("create session");
+        let cookie_header = format!("{}={}", SESSION_COOKIE, cookie.value());
+        let app = crate::create_router_with_state(state);
+        let request = |cookie_header: &str| {
+            Request::builder()
+                .method("GET")
+                .uri("/api/account/export")
+                .header(header::COOKIE, cookie_header)
+                .body(Body::empty())
+                .unwrap()
+        };
+
+        // Park the only slot with an unread download.
+        let parked = app.clone().oneshot(request(&cookie_header)).await.unwrap();
+        assert_eq!(parked.status(), StatusCode::OK);
+
+        let busy = app.oneshot(request(&cookie_header)).await.unwrap();
+        assert_eq!(busy.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(busy.headers().get(header::RETRY_AFTER).unwrap(), "30");
+        let body = read_export_body(busy).await;
+        let payload: RateLimitErrorBody =
+            serde_json::from_slice(&body).expect("503 body is RateLimitErrorBody");
+        assert_eq!(payload.retry_after, 30);
+        assert!(payload.error.contains("export"));
+
+        // Draining the parked download releases the slot.
+        let _ = read_export_body(parked).await;
+        cleanup_user(&pool, user.id).await;
     }
 
     #[tokio::test]
