@@ -45,12 +45,12 @@ JSON export uses the resume CRUD limit group; PDF export uses the PDF limit grou
 
 **Profile shape change.** `GET /auth/me` returns `username`, an editable handle. Accounts created
 after this release get a friendly adjective-noun-number handle at sign-up (for example
-`swift-otter-4821`); accounts that existed before it (and any row written by an older replica
-during the rollout) carry their hyphen-stripped account id as the handle until the user picks a
-new one on the Account page. It no longer returns `first_name` or `last_name`. This release neither reads nor writes legal names; migration `010_usernames.sql`
-keeps the legacy columns (and leaves `username` nullable) so that pre-username replicas keep
-working during a rolling deploy, and a later release drops them. External consumers of `/auth/me`
-should read `username` for display.
+`swift-otter-4821`); accounts that existed before it (and any row written by an older replica during
+the rollout) carry their hyphen-stripped account id as the handle until the user picks a new one on
+the Account page. It no longer returns `first_name` or `last_name`. This release neither reads nor
+writes legal names; migration `010_usernames.sql` keeps the legacy columns (and leaves `username`
+nullable) so that pre-username replicas keep working during a rolling deploy, and a later release
+drops them. External consumers of `/auth/me` should read `username` for display.
 
 The username rules (3–32 UTF-16 code units, lowercase letters, digits, and single interior
 hyphens, a reserved-word list) are shared verbatim between the server and the bundled web client.
