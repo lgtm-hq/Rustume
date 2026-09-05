@@ -135,22 +135,34 @@ export default function Account() {
 
   const deleteConfirmed = () => deleteConfirmation() === "DELETE";
 
+  // Focus management for the inline editor: opening it removes the focused
+  // "Edit username" trigger, so focus must move into the input; closing it
+  // removes the input, so focus must return to the recreated trigger.
+  // Errors re-focus the input so the associated error message is announced.
+  let usernameInput: HTMLInputElement | undefined;
+  let editUsernameTrigger: HTMLButtonElement | undefined;
+  const focusUsernameInput = () => queueMicrotask(() => usernameInput?.focus());
+  const focusEditTrigger = () => queueMicrotask(() => editUsernameTrigger?.focus());
+
   const startEditingUsername = (currentUsername: string) => {
     setUsernameDraft(currentUsername);
     setUsernameError(null);
     setEditingUsername(true);
+    focusUsernameInput();
   };
 
   const cancelEditingUsername = () => {
     setEditingUsername(false);
     setUsernameDraft("");
     setUsernameError(null);
+    focusEditTrigger();
   };
 
   const handleSaveUsername = async (currentUsername: string) => {
     const validationError = validateUsername(usernameDraft());
     if (validationError) {
       setUsernameError(validationError);
+      focusUsernameInput();
       return;
     }
 
@@ -172,6 +184,7 @@ export default function Account() {
       const message =
         error instanceof Error ? error.message : "Failed to update username. Please try again.";
       setUsernameError(message);
+      focusUsernameInput();
       if (error instanceof ApiError && error.status === 409) {
         toast.error("That username is already taken");
       }
@@ -238,6 +251,7 @@ export default function Account() {
                           fallback={
                             <div class="space-y-3">
                               <Input
+                                ref={(el) => (usernameInput = el)}
                                 label="Username"
                                 value={usernameDraft()}
                                 onInput={(value) => {
@@ -271,6 +285,7 @@ export default function Account() {
                             {displayName(user())}
                           </h2>
                           <button
+                            ref={(el) => (editUsernameTrigger = el)}
                             type="button"
                             class="mt-1 text-sm text-accent hover:underline"
                             onClick={() => startEditingUsername(user().username)}

@@ -92,6 +92,36 @@
       "input": "me",
       "expect": "length",
       "$note": "too short before it can be reserved"
+    },
+    {
+      "input": "Kaa",
+      "expect": "ok",
+      "$note": "Kelvin sign folds to k under Unicode lowercasing on both sides"
+    },
+    {
+      "input": "éééééééééééééééééééé",
+      "expect": "charset",
+      "$note": "20 UTF-16 units (within length) but non-ASCII"
+    },
+    {
+      "input": "ééé",
+      "expect": "charset",
+      "$note": "BMP non-ASCII at the minimum length"
+    },
+    {
+      "input": "😀😀",
+      "expect": "charset",
+      "$note": "two astral characters = 4 UTF-16 units, so length passes and charset fails"
+    },
+    {
+      "input": "😀",
+      "expect": "length",
+      "$note": "one astral character = 2 UTF-16 units, below the minimum on both sides"
+    },
+    {
+      "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaé",
+      "expect": "charset",
+      "$note": "32 UTF-16 units: within length in JS and (via encode_utf16) in Rust, then charset fails"
     }
   ]
 }

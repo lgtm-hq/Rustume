@@ -144,8 +144,6 @@ struct AuthenticateResponse {
 pub struct WorkOsUser {
     pub id: String,
     pub email: String,
-    pub first_name: Option<String>,
-    pub last_name: Option<String>,
 }
 
 /// Errors returned when communicating with WorkOS.
@@ -364,8 +362,6 @@ mod tests {
         let newcomer = super::WorkOsUser {
             id: format!("user_NEW{suffix}"),
             email: format!("new-{suffix}@example.com"),
-            first_name: None,
-            last_name: None,
         };
         let err = super::upsert_user_with_username(&pool, &newcomer, &taken)
             .await
@@ -376,8 +372,6 @@ mod tests {
         let duplicate_email = super::WorkOsUser {
             id: format!("user_DUP{suffix}"),
             email: existing_email.clone(),
-            first_name: None,
-            last_name: None,
         };
         let err =
             super::upsert_user_with_username(&pool, &duplicate_email, &format!("free-{suffix}"))
@@ -396,8 +390,6 @@ mod tests {
         let returning = super::WorkOsUser {
             id: existing_workos.clone(),
             email: format!("renamed-{suffix}@example.com"),
-            first_name: None,
-            last_name: None,
         };
         let refreshed = super::upsert_user(&pool, &returning)
             .await

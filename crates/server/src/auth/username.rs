@@ -101,7 +101,12 @@ pub fn generate_username() -> String {
 pub fn validate_username(username: &str) -> Result<(), String> {
     let username = username.trim();
     let rules = rules();
-    if username.len() < rules.min_length || username.len() > rules.max_length {
+    // Length is measured in UTF-16 code units so it agrees with the web
+    // client's `String.prototype.length` for every input, including astral
+    // characters (which the charset rule then rejects with the same message
+    // on both sides).
+    let length = username.encode_utf16().count();
+    if length < rules.min_length || length > rules.max_length {
         return Err(rules.length_message());
     }
     if !pattern().is_match(username) {
@@ -120,8 +125,11 @@ pub fn validate_username(username: &str) -> Result<(), String> {
 }
 
 /// Normalize user input to lowercase trimmed form.
+///
+/// Unicode lowercasing (not ASCII-only) so it matches the web client's
+/// `toLowerCase()`: e.g. the Kelvin sign `K` folds to `k` on both sides.
 pub fn normalize_username(username: &str) -> String {
-    username.trim().to_ascii_lowercase()
+    username.trim().to_lowercase()
 }
 
 #[cfg(test)]

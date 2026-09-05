@@ -36,6 +36,21 @@ Export endpoints enforce a resume-count cap and route-specific rate limits:
 JSON export uses the resume CRUD limit group; PDF export uses the PDF limit group (same as
 `POST /api/render/pdf`). See [Rate Limits](/docs/deployment/rate-limits/#bulk-export-cap).
 
+## Account
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `PATCH` | `/api/account` | Change the display username (`{"username": "swift-otter-4821"}`); `400` on an invalid handle, `409` when already taken |
+| `DELETE` | `/api/account` | Permanently delete the account and all associated data (body: `{"confirmation":"DELETE"}`) |
+
+**Profile shape change.** `GET /auth/me` returns `username`, a friendly and editable handle that is
+generated at sign-up (for example `swift-otter-4821`). It no longer returns `first_name` or
+`last_name`; legal names stay in WorkOS and are not stored by Rustume. External consumers of
+`/auth/me` should read `username` for display.
+
+The username rules (3–32 UTF-16 code units, lowercase letters, digits, and single interior
+hyphens, a reserved-word list) are shared verbatim between the server and the bundled web client.
+
 ## Connected workflows
 
 The connected API also backs [synchronization](/docs/cloud/sync/), [public
