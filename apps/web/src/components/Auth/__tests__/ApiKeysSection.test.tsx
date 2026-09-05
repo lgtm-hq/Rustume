@@ -337,6 +337,38 @@ describe("ApiKeysSection", () => {
     expect(within(createDialog).getByLabelText("Key name")).toHaveAttribute("maxlength", "100");
   });
 
+  it("keeps Create key disabled for empty and whitespace-only names", async () => {
+    render(() => <ApiKeysSection />);
+    await screen.findByText("CI deploy");
+
+    fireEvent.click(screen.getByRole("button", { name: "Create key" }));
+    const createDialog = await screen.findByRole("dialog");
+    const submit = within(createDialog).getByRole("button", { name: "Create key" });
+    const input = within(createDialog).getByLabelText("Key name");
+
+    expect(submit).toBeDisabled();
+    fireEvent.input(input, { target: { value: "   " } });
+    expect(submit).toBeDisabled();
+    fireEvent.click(submit);
+    expect(createApiKeyMock).not.toHaveBeenCalled();
+
+    fireEvent.input(input, { target: { value: "  CI  " } });
+    expect(submit).toBeEnabled();
+  });
+
+  it("renders a formatted last-used date for keys that have been used", async () => {
+    render(() => <ApiKeysSection />);
+
+    const localDev = (await screen.findByRole("heading", { name: "Local dev" })).closest("li");
+    expect(localDev).not.toBeNull();
+    const expected = new Date("2026-06-20T08:30:00Z").toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    expect(localDev).toHaveTextContent(`Last used ${expected}`);
+  });
+
   it("refuses to submit a name over the server limit even if the input is bypassed", async () => {
     render(() => <ApiKeysSection />);
     await screen.findByText("CI deploy");
