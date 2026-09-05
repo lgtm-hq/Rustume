@@ -120,13 +120,13 @@ describe("downloadAccountExport", () => {
     fetchMock.mockResolvedValue({
       ok: false,
       status: 401,
-      text: async () => JSON.stringify({ error: "Authentication required" }),
+      text: async () => JSON.stringify({ error: "Not authenticated" }),
     });
 
     const error = await downloadAccountExport().catch((err: unknown) => err);
     expect(error).toBeInstanceOf(ApiError);
     expect((error as ApiError).status).toBe(401);
-    expect((error as ApiError).message).toBe("Authentication required");
+    expect((error as ApiError).message).toBe("Not authenticated");
   });
 
   it("surfaces the export concurrency ceiling as a 503 ApiError", async () => {

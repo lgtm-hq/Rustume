@@ -1328,11 +1328,8 @@ mod tests {
             .await
             .unwrap();
         let payload: ApiError = serde_json::from_slice(&body).unwrap();
-        assert!(!payload.error.is_empty());
-        assert!(
-            payload.error.to_lowercase().contains("auth"),
-            "unexpected error body: {}",
-            payload.error
-        );
+        // Exactly the auth middleware's anonymous-request message, as the
+        // /auth/me test asserts too.
+        assert_eq!(payload.error, "Not authenticated");
     }
 }

@@ -139,11 +139,48 @@ pub async fn export_account(
         ApiError::internal("failed to record audit event")
     })?;
 
+    // Everything after the start audit either hands a stream to the client (the
+    // stream task then writes `account.export.completed`) or fails here, in
+    // which case the completion event is written now so every start event has
+    // exactly one pairing.
+    let started = start_export_stream(cloud.db.clone(), &user, permit, ip_address.clone()).await;
+    match started {
+        Ok(response) => Ok(response),
+        Err(err) => {
+            record_event(
+                &cloud.db,
+                AuditEvent {
+                    event_type: "account.export.completed",
+                    actor_user_id: Some(user.id),
+                    resource_type: Some("account"),
+                    resource_id: Some(user.id),
+                    metadata: serde_json::json!({
+                        "delivered": false,
+                        "bytes_streamed": 0,
+                        "error": err.error,
+                    }),
+                    ip_address: ip,
+                },
+            )
+            .await;
+            Err(err)
+        }
+    }
+}
+
+/// Open the export snapshot, build the prefix, and hand the body stream to the
+/// client. Runs after the start audit has committed.
+async fn start_export_stream(
+    pool: sqlx::PgPool,
+    user: &crate::db::User,
+    permit: OwnedSemaphorePermit,
+    ip_address: Option<String>,
+) -> Result<Response, ApiError> {
     // One connection, one snapshot: everything in the archive, including the
     // small collections in the prefix, is read from this REPEATABLE READ
-    // transaction, which the stream task owns until it ends. The audit above
+    // transaction, which the stream task owns until it ends. The start audit
     // has already committed, so only one pool connection is held from here.
-    let mut tx = cloud.db.begin().await.map_err(internal_db_error)?;
+    let mut tx = pool.begin().await.map_err(internal_db_error)?;
     sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
         .execute(&mut *tx)
         .await
@@ -156,17 +193,10 @@ pub async fn export_account(
     };
 
     let exported_at = Utc::now();
-    let account = AccountExportProfile::from_user(&user);
+    let account = AccountExportProfile::from_user(user);
     let prefix = build_export_prefix(exported_at, &account, &policy_acceptances, &subscriptions)?;
-    let export_stream = stream_account_export(
-        cloud.db.clone(),
-        tx,
-        permit,
-        user.id,
-        prefix,
-        prefix_counts,
-        ip_address.clone(),
-    );
+    let export_stream =
+        stream_account_export(pool, tx, permit, user.id, prefix, prefix_counts, ip_address);
 
     let content_disposition =
         HeaderValue::from_static("attachment; filename=\"rustume-account-export.json\"");
@@ -1824,10 +1854,102 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn export_account_gzip_stream_surfaces_failure_when_database_available() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+        let _serial = EXPORT_TESTS.lock().await;
+        let pool = connect_test_pool(&database_url).await;
+
+        let user = seed_user_with_resumes(&pool, 2).await;
+        let big = serde_json::json!({ "blob": "x".repeat(EXPORT_STREAM_CHUNK_BYTES * 8) });
+        sqlx::query("UPDATE resumes SET data = $1 WHERE user_id = $2")
+            .bind(&big)
+            .bind(user.id)
+            .execute(&pool)
+            .await
+            .expect("inflate resumes");
+        let state = test_app_state(pool.clone());
+        let (_, cookie) = state
+            .cloud()
+            .expect("cloud")
+            .sessions
+            .create(user.id)
+            .await
+            .expect("create session");
+        let app = crate::create_router_with_state(state);
+
+        // Through the real router with the compression layer engaged, as a
+        // browser would request it.
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/account/export")
+                    .header(
+                        header::COOKIE,
+                        format!("{}={}", SESSION_COOKIE, cookie.value()),
+                    )
+                    .header(header::ACCEPT_ENCODING, "gzip")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response
+                .headers()
+                .get(header::CONTENT_ENCODING)
+                .and_then(|value| value.to_str().ok()),
+            Some("gzip"),
+            "compression layer must be active for this test to mean anything"
+        );
+
+        use futures::StreamExt;
+        let mut body = response.into_body().into_data_stream();
+        let first = body.next().await.expect("first chunk").expect("chunk ok");
+        assert!(!first.is_empty());
+
+        let terminated: i64 = sqlx::query_scalar(
+            r#"
+            SELECT COUNT(*)::bigint FROM (
+                SELECT pg_terminate_backend(pid)
+                FROM pg_stat_activity
+                WHERE datname = current_database()
+                  AND pid <> pg_backend_pid()
+                  AND state <> 'idle'
+                  AND query LIKE '%account-export: resumes%'
+            ) AS killed
+            "#,
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("terminate export backend");
+        assert_eq!(terminated, 1);
+
+        // A truncated archive must not look like a finished gzip document: the
+        // compressed body has to end in an error so fetch()/blob() reject.
+        let mut saw_error = false;
+        while let Some(item) = body.next().await {
+            if item.is_err() {
+                saw_error = true;
+                break;
+            }
+        }
+        cleanup_user(&pool, user.id).await;
+        assert!(
+            saw_error,
+            "gzip body ended cleanly after a mid-stream failure; disable compression on this route"
+        );
+    }
+
+    #[tokio::test]
     async fn export_account_unauthenticated_returns_401() {
         let Some(database_url) = database_url_for_tests() else {
             return;
         };
+        let _serial = EXPORT_TESTS.lock().await;
         let pool = connect_test_pool(&database_url).await;
         let state = test_app_state(pool);
         let app = crate::create_router_with_state(state);
@@ -1844,5 +1966,15 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            response
+                .headers()
+                .get(header::CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok()),
+            Some("application/json")
+        );
+        let body = read_export_body(response).await;
+        let payload: ApiError = serde_json::from_slice(&body).expect("JSON ApiError body");
+        assert_eq!(payload.error, "Not authenticated");
     }
 }

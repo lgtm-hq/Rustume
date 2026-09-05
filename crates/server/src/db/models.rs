@@ -302,13 +302,13 @@ pub struct AccountExportProfile {
     #[schema(value_type = String, format = "uuid")]
     pub id: Uuid,
     /// Account email synced from WorkOS, when available.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     /// Given name synced from WorkOS, when available.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub first_name: Option<String>,
     /// Family name synced from WorkOS, when available.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_name: Option<String>,
     pub plan: String,
     #[schema(value_type = String, format = "date-time")]
@@ -325,7 +325,7 @@ pub struct PolicyAcceptanceExport {
     #[schema(value_type = String, format = "date-time")]
     pub accepted_at: DateTime<Utc>,
     /// Client IP recorded at acceptance time, when available.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ip_address: Option<String>,
 }
 
@@ -351,7 +351,7 @@ pub struct AccountResumeExportItem {
     /// Whether the resume is published at its public URL.
     pub is_public: bool,
     /// Public URL slug, present once the resume has ever been shared.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub public_slug: Option<String>,
     #[schema(value_type = String, format = "date-time")]
     pub created_at: DateTime<Utc>,
@@ -369,7 +369,7 @@ pub struct SubscriptionExport {
     pub paddle_price_id: String,
     pub plan: String,
     pub status: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<String>, format = "date-time")]
     pub current_period_end: Option<DateTime<Utc>>,
     #[schema(value_type = String, format = "date-time")]
@@ -383,12 +383,12 @@ pub struct SubscriptionExport {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct AuditEventExport {
     pub event_type: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub resource_type: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<String>, format = "uuid")]
     pub resource_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ip_address: Option<String>,
     #[schema(value_type = String, format = "date-time")]
     pub created_at: DateTime<Utc>,
@@ -638,5 +638,44 @@ mod tests {
             .map(String::as_str)
             .collect();
         assert_eq!(keys, ["id", "plan", "created_at"].into_iter().collect());
+
+        // Omitted optionals must read back as None: the export is meant to be
+        // re-parseable with these same types.
+        let parsed: AccountExportProfile = serde_json::from_value(json).unwrap();
+        assert_eq!(parsed.email, None);
+        assert_eq!(parsed.first_name, None);
+        assert_eq!(parsed.last_name, None);
+        assert_eq!(parsed.plan, "pro");
+    }
+
+    #[test]
+    fn export_items_round_trip_with_omitted_optionals() {
+        let resume: AccountResumeExportItem = serde_json::from_value(serde_json::json!({
+            "id": Uuid::nil(), "title": "t", "is_public": false,
+            "created_at": Utc::now(), "updated_at": Utc::now(), "data": {}
+        }))
+        .unwrap();
+        assert_eq!(resume.public_slug, None);
+
+        let sub: SubscriptionExport = serde_json::from_value(serde_json::json!({
+            "paddle_subscription_id": "sub_1", "paddle_price_id": "pri_1", "plan": "pro",
+            "status": "canceled", "created_at": Utc::now(), "updated_at": Utc::now()
+        }))
+        .unwrap();
+        assert_eq!(sub.current_period_end, None);
+
+        let event: AuditEventExport = serde_json::from_value(serde_json::json!({
+            "event_type": "account.export", "created_at": Utc::now(), "metadata": {}
+        }))
+        .unwrap();
+        assert_eq!(event.resource_type, None);
+        assert_eq!(event.resource_id, None);
+        assert_eq!(event.ip_address, None);
+
+        let acceptance: PolicyAcceptanceExport = serde_json::from_value(serde_json::json!({
+            "policy": "terms", "version": "2026-01-01", "accepted_at": Utc::now()
+        }))
+        .unwrap();
+        assert_eq!(acceptance.ip_address, None);
     }
 }
