@@ -86,12 +86,18 @@ export default function Account() {
   };
 
   const runExport = async (
+    isLoading: () => boolean,
     setLoading: (value: boolean) => void,
     exportFn: () => Promise<void>,
     successMessage: string,
     failureLogLabel: string,
     failureMessage: string,
   ) => {
+    // The button disables on the next render; guard the handler itself so a
+    // double click cannot start two downloads (and burn two export slots).
+    if (isLoading()) {
+      return;
+    }
     setLoading(true);
     try {
       await exportFn();
@@ -106,6 +112,7 @@ export default function Account() {
 
   const handleExportJson = () =>
     runExport(
+      exportingJson,
       setExportingJson,
       downloadResumesJson,
       "Resume export downloaded",
@@ -115,6 +122,7 @@ export default function Account() {
 
   const handleExportPdf = () =>
     runExport(
+      exportingPdf,
       setExportingPdf,
       downloadResumesPdf,
       "PDF export downloaded",
@@ -124,6 +132,7 @@ export default function Account() {
 
   const handleExportAccount = () =>
     runExport(
+      exportingAccount,
       setExportingAccount,
       downloadAccountExport,
       "Account data downloaded",
@@ -270,6 +279,25 @@ export default function Account() {
                     </div>
                   </section>
 
+                  <section class="rounded-2xl border border-border bg-paper p-6 shadow-card">
+                    <h2 class="font-display text-lg font-semibold text-ink mb-2">
+                      Export account data
+                    </h2>
+                    <p class="text-sm text-stone mb-4">
+                      Download everything Rustume holds about your account as one JSON file for data
+                      portability: profile, policy acceptances, billing subscriptions, every resume
+                      with its retained version snapshots, and your account's audit trail (including
+                      the IP addresses recorded with each event).
+                    </p>
+                    <Button
+                      variant="secondary"
+                      onClick={() => void handleExportAccount()}
+                      loading={exportingAccount()}
+                    >
+                      Export account data
+                    </Button>
+                  </section>
+
                   <section class="rounded-2xl border border-border bg-paper px-6 py-2 shadow-card">
                     <ComingSoonRow
                       title="Billing"
@@ -279,23 +307,6 @@ export default function Account() {
                       title="End-to-end encryption"
                       description="Optional client-side encryption for resume content."
                     />
-                  </section>
-
-                  <section class="rounded-2xl border border-border bg-paper p-6 shadow-card">
-                    <h2 class="font-display text-lg font-semibold text-ink mb-2">
-                      Export account data
-                    </h2>
-                    <p class="text-sm text-stone mb-4">
-                      Download all account data — profile metadata, policy acceptances, cloud
-                      resumes, and their version history — as a JSON file for data portability.
-                    </p>
-                    <Button
-                      variant="secondary"
-                      onClick={() => void handleExportAccount()}
-                      loading={exportingAccount()}
-                    >
-                      Export account data
-                    </Button>
                   </section>
 
                   <section class="rounded-2xl border border-red-200 bg-red-50/40 p-6 shadow-card">

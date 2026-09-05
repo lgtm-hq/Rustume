@@ -27,6 +27,7 @@ use crate::db::{
 use crate::email::log_send_failure;
 use crate::error::ApiError;
 use crate::middleware::auth::AuthUser;
+use crate::middleware::rate_limit::RateLimitErrorBody;
 use crate::net::{self, trusted_client_ip};
 use crate::state::AppState;
 
@@ -74,12 +75,16 @@ struct ExportAuditRow {
     responses(
         (status = 200, description = "Account data export", body = AccountDataExport),
         (status = 401, description = "Not authenticated", body = ApiError),
-        (status = 429, description = "Per-user export quota exceeded", body = ApiError),
+        (
+            status = 429,
+            description = "Export quota exceeded (per user and shared per IP); retry after `retry_after` seconds",
+            body = RateLimitErrorBody
+        ),
         (status = 500, description = "Export failed", body = ApiError),
         (
             status = 503,
-            description = "Too many exports streaming right now; retry after the Retry-After seconds",
-            body = ApiError
+            description = "Too many exports streaming on this process; retry after `retry_after` seconds",
+            body = RateLimitErrorBody
         ),
     ),
     security(("cookieAuth" = []))
@@ -106,8 +111,6 @@ pub async fn export_account(
     // handler never holds one connection while waiting for a second.
     let resume_count = account_resume_count(&cloud.db, user.id).await?;
     let snapshot_count = account_snapshot_count(&cloud.db, user.id).await?;
-    let policy_acceptances = account_policy_acceptances(&cloud.db, user.id).await?;
-    let subscriptions = account_subscriptions(&cloud.db, user.id).await?;
 
     record_event_required(
         &cloud.db,
@@ -120,12 +123,12 @@ pub async fn export_account(
             // started; it is required so no data leaves without an audit
             // trail. Delivery is recorded separately by
             // `account.export.completed` once the stream finishes.
+            // Counts are a pre-flight estimate; the exact streamed numbers
+            // land on `account.export.completed`.
             metadata: serde_json::json!({
                 "stage": "started",
                 "resume_count": resume_count,
                 "snapshot_count": snapshot_count,
-                "policy_acceptance_count": policy_acceptances.len(),
-                "subscription_count": subscriptions.len(),
             }),
             ip_address: ip,
         },
@@ -136,13 +139,21 @@ pub async fn export_account(
         ApiError::internal("failed to record audit event")
     })?;
 
-    // One connection, one snapshot: every row streamed below comes from this
-    // REPEATABLE READ transaction, which the stream task owns until it ends.
+    // One connection, one snapshot: everything in the archive, including the
+    // small collections in the prefix, is read from this REPEATABLE READ
+    // transaction, which the stream task owns until it ends. The audit above
+    // has already committed, so only one pool connection is held from here.
     let mut tx = cloud.db.begin().await.map_err(internal_db_error)?;
     sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
         .execute(&mut *tx)
         .await
         .map_err(internal_db_error)?;
+    let policy_acceptances = account_policy_acceptances(&mut *tx, user.id).await?;
+    let subscriptions = account_subscriptions(&mut *tx, user.id).await?;
+    let prefix_counts = PrefixCounts {
+        policy_acceptances: policy_acceptances.len() as u64,
+        subscriptions: subscriptions.len() as u64,
+    };
 
     let exported_at = Utc::now();
     let account = AccountExportProfile::from_user(&user);
@@ -153,6 +164,7 @@ pub async fn export_account(
         permit,
         user.id,
         prefix,
+        prefix_counts,
         ip_address.clone(),
     );
 
@@ -380,17 +392,26 @@ fn build_export_prefix(
 }
 
 /// 503 with `Retry-After` for when the export concurrency ceiling is reached.
+/// Same body shape as the rate limiter's 429 so clients handle both alike.
 fn export_busy_response() -> Response {
-    const RETRY_AFTER_SECS: &str = "30";
+    const RETRY_AFTER_SECS: u64 = 30;
     (
         StatusCode::SERVICE_UNAVAILABLE,
-        [(header::RETRY_AFTER, RETRY_AFTER_SECS)],
-        Json(serde_json::json!({
-            "error": "Too many account exports are running right now. Please try again shortly.",
-            "retry_after": RETRY_AFTER_SECS.parse::<u64>().unwrap_or(30),
-        })),
+        [(header::RETRY_AFTER, RETRY_AFTER_SECS.to_string())],
+        Json(RateLimitErrorBody {
+            error: "Too many account exports are running right now. Please try again shortly."
+                .to_string(),
+            retry_after: RETRY_AFTER_SECS,
+        }),
     )
         .into_response()
+}
+
+/// Sizes of the collections serialised in the prefix, for the completion audit.
+#[derive(Debug, Clone, Copy)]
+struct PrefixCounts {
+    policy_acceptances: u64,
+    subscriptions: u64,
 }
 
 /// Outcome of the detached export stream, recorded as `account.export.completed`.
@@ -450,6 +471,7 @@ fn stream_account_export(
     permit: OwnedSemaphorePermit,
     user_id: Uuid,
     prefix: Vec<u8>,
+    prefix_counts: PrefixCounts,
     ip_address: Option<String>,
 ) -> impl Stream<Item = Result<Bytes, io::Error>> + Send + 'static {
     let (chunk_tx, chunk_rx) =
@@ -507,6 +529,8 @@ fn stream_account_export(
                 metadata: serde_json::json!({
                     "delivered": outcome.delivered,
                     "bytes_streamed": outcome.bytes_streamed,
+                    "policy_acceptances": prefix_counts.policy_acceptances,
+                    "subscriptions": prefix_counts.subscriptions,
                     "resumes_streamed": outcome.resumes_streamed,
                     "snapshots_streamed": outcome.snapshots_streamed,
                     "audit_events_streamed": outcome.audit_events_streamed,
@@ -537,7 +561,8 @@ async fn run_export_stream(
 
     let mut rows = sqlx::query_as::<_, ExportResumeRow>(
         r#"
-        SELECT id, title, is_public, public_slug, created_at, updated_at, data::text AS data_json
+        SELECT /* account-export: resumes */
+               id, title, is_public, public_slug, created_at, updated_at, data::text AS data_json
         FROM resumes
         WHERE user_id = $1
         ORDER BY updated_at DESC
@@ -579,7 +604,8 @@ async fn run_export_stream(
 
     let mut snapshots = sqlx::query_as::<_, ExportSnapshotRow>(
         r#"
-        SELECT s.resume_id, s.version, s.created_at, s.data::text AS data_json
+        SELECT /* account-export: snapshots */
+               s.resume_id, s.version, s.created_at, s.data::text AS data_json
         FROM resume_snapshots s
         INNER JOIN resumes r ON r.id = s.resume_id
         WHERE r.user_id = $1
@@ -620,7 +646,8 @@ async fn run_export_stream(
 
     let mut audit_rows = sqlx::query_as::<_, ExportAuditRow>(
         r#"
-        SELECT event_type, resource_type, resource_id, host(ip_address) AS ip_address,
+        SELECT /* account-export: audit */
+               event_type, resource_type, resource_id, host(ip_address) AS ip_address,
                created_at, metadata::text AS metadata_json
         FROM audit_events
         WHERE actor_user_id = $1
@@ -844,8 +871,7 @@ mod tests {
     use crate::auth::{session::SessionService, workos::WorkOsClient};
     use crate::cloud::CloudState;
     use crate::email::EmailService;
-    use crate::error::ApiErrorKind;
-    use crate::routes::export::export_resumes_json;
+
     use crate::state::AppState;
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
@@ -908,6 +934,10 @@ mod tests {
         eprintln!("SKIP {message}");
     }
 
+    /// Export integration tests share one database and some of them park or
+    /// terminate streaming connections, so they run one at a time.
+    static EXPORT_TESTS: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
     async fn connect_test_pool(database_url: &str) -> sqlx::PgPool {
         let pool = PgPoolOptions::new()
             .max_connections(2)
@@ -927,8 +957,8 @@ mod tests {
 
         sqlx::query(
             r#"
-            INSERT INTO users (id, workos_id, email, first_name, last_name, plan)
-            VALUES ($1, $2, $3, $4, $5, $6)
+            INSERT INTO users (id, workos_id, email, first_name, last_name, plan, paddle_customer_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             "#,
         )
         .bind(user_id)
@@ -937,6 +967,8 @@ mod tests {
         .bind("Ada")
         .bind("Lovelace")
         .bind("free")
+        // Non-null so the forbidden-key assertions actually protect something.
+        .bind(format!("ctm_export_{user_id}"))
         .execute(pool)
         .await
         .expect("insert user");
@@ -1179,6 +1211,7 @@ mod tests {
         let Some(database_url) = database_url_for_tests() else {
             return;
         };
+        let _serial = EXPORT_TESTS.lock().await;
         let pool = connect_test_pool(&database_url).await;
 
         let user = seed_user_with_resumes(&pool, 2).await;
@@ -1256,6 +1289,8 @@ mod tests {
             completion["audit_events_streamed"].as_u64().expect("count"),
             typed.audit_events.len() as u64
         );
+        assert_eq!(completion["policy_acceptances"], 2);
+        assert_eq!(completion["subscriptions"], 1);
         assert!(completion["error"].is_null());
 
         let payload: serde_json::Value = serde_json::from_slice(&body).expect("parse JSON");
@@ -1374,6 +1409,7 @@ mod tests {
         let Some(database_url) = database_url_for_tests() else {
             return;
         };
+        let _serial = EXPORT_TESTS.lock().await;
         let pool = connect_test_pool(&database_url).await;
 
         let user = seed_user_with_resumes(&pool, 0).await;
@@ -1411,6 +1447,7 @@ mod tests {
         let Some(database_url) = database_url_for_tests() else {
             return;
         };
+        let _serial = EXPORT_TESTS.lock().await;
         let pool = connect_test_pool(&database_url).await;
 
         let user = seed_user_with_resumes(&pool, 1).await;
@@ -1444,7 +1481,7 @@ mod tests {
         assert_eq!(audit_row.3["stage"], "started");
         assert_eq!(audit_row.3["resume_count"], 1);
         assert_eq!(audit_row.3["snapshot_count"], 2);
-        assert_eq!(audit_row.3["policy_acceptance_count"], 2);
+        assert!(audit_row.3.get("policy_acceptance_count").is_none());
     }
 
     #[tokio::test]
@@ -1452,6 +1489,7 @@ mod tests {
         let Some(database_url) = database_url_for_tests() else {
             return;
         };
+        let _serial = EXPORT_TESTS.lock().await;
         let pool = connect_test_pool(&database_url).await;
 
         // Enough resume payload that the stream cannot fit in the channel
@@ -1496,29 +1534,129 @@ mod tests {
         let Some(database_url) = database_url_for_tests() else {
             return;
         };
+        let _serial = EXPORT_TESTS.lock().await;
         let pool = connect_test_pool(&database_url).await;
 
         let user = seed_user_with_resumes(&pool, 1).await;
         seed_expired_subscription(&pool, user.id).await;
         let state = test_app_state(pool.clone());
+        let (_, cookie) = state
+            .cloud()
+            .expect("cloud")
+            .sessions
+            .create(user.id)
+            .await
+            .expect("create session");
+        let cookie_header = format!("{}={}", SESSION_COOKIE, cookie.value());
+        let app = crate::create_router_with_state(state);
 
-        let account_result = export_account(
-            AuthUser(user.clone()),
-            State(state.clone()),
-            HeaderMap::new(),
-        )
-        .await;
-        let resume_result = export_resumes_json(AuthUser(user.clone()), State(state)).await;
+        // Through the router, so the route layering is what is under test: the
+        // account export must not sit behind the subscription gate that blocks
+        // the bulk resume export for an expired account.
+        let export = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/account/export")
+                    .header(header::COOKIE, &cookie_header)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(export.status(), StatusCode::OK);
+        let body = read_export_body(export).await;
+        let typed: AccountDataExport = serde_json::from_slice(&body).expect("valid export");
+        assert_eq!(typed.subscriptions.len(), 1);
 
-        let account_response =
-            account_result.expect("account export should succeed without active subscription");
-        let _ = read_export_payload(account_response).await;
+        let bulk = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/resumes/export")
+                    .header(header::COOKIE, &cookie_header)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
         cleanup_user(&pool, user.id).await;
+        assert_eq!(bulk.status(), StatusCode::FORBIDDEN);
+    }
 
-        assert!(matches!(
-            resume_result,
-            Err(err) if matches!(err.kind, ApiErrorKind::Forbidden)
-        ));
+    #[tokio::test]
+    async fn export_account_reports_mid_stream_database_failure_when_database_available() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+        let _serial = EXPORT_TESTS.lock().await;
+        let pool = connect_test_pool(&database_url).await;
+
+        // Large enough that the stream parks on the channel after the first
+        // chunk, with the resume cursor still open on its connection.
+        let user = seed_user_with_resumes(&pool, 2).await;
+        let big = serde_json::json!({ "blob": "x".repeat(EXPORT_STREAM_CHUNK_BYTES * 8) });
+        sqlx::query("UPDATE resumes SET data = $1 WHERE user_id = $2")
+            .bind(&big)
+            .bind(user.id)
+            .execute(&pool)
+            .await
+            .expect("inflate resumes");
+        let state = test_app_state(pool.clone());
+
+        let response = export_account(AuthUser(user.clone()), State(state), HeaderMap::new())
+            .await
+            .expect("export starts");
+        assert_eq!(response.status(), StatusCode::OK);
+
+        use futures::StreamExt;
+        let mut body = response.into_body().into_data_stream();
+        let first = body.next().await.expect("first chunk").expect("chunk ok");
+        assert!(!first.is_empty());
+
+        // Kill the backend serving the export's resume cursor (marked query,
+        // not idle) from another connection: the next fetch must fail.
+        let terminated: i64 = sqlx::query_scalar(
+            r#"
+            SELECT COUNT(*)::bigint FROM (
+                SELECT pg_terminate_backend(pid)
+                FROM pg_stat_activity
+                WHERE datname = current_database()
+                  AND pid <> pg_backend_pid()
+                  AND state <> 'idle'
+                  AND query LIKE '%account-export: resumes%'
+            ) AS killed
+            "#,
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("terminate export backend");
+        assert_eq!(
+            terminated, 1,
+            "expected exactly one parked export connection"
+        );
+
+        // Drain: the body must end with an error item, not a clean `]}`.
+        let mut saw_error = false;
+        let mut bytes = first.len();
+        while let Some(item) = body.next().await {
+            match item {
+                Ok(chunk) => bytes += chunk.len(),
+                Err(err) => {
+                    saw_error = true;
+                    assert_eq!(err.to_string(), "internal server error");
+                    break;
+                }
+            }
+        }
+        assert!(saw_error, "stream must surface the database failure");
+
+        let completion = wait_for_completion_audit(&pool, user.id).await;
+        cleanup_user(&pool, user.id).await;
+        assert_eq!(completion["delivered"], false);
+        assert_eq!(completion["error"], "internal server error");
+        assert!(completion["bytes_streamed"].as_u64().expect("bytes") >= bytes as u64 - 1);
     }
 
     #[tokio::test]
@@ -1526,6 +1664,7 @@ mod tests {
         let Some(database_url) = database_url_for_tests() else {
             return;
         };
+        let _serial = EXPORT_TESTS.lock().await;
         let pool = connect_test_pool(&database_url).await;
 
         let user = seed_user_with_resumes(&pool, 51).await;
@@ -1546,6 +1685,7 @@ mod tests {
         let Some(database_url) = database_url_for_tests() else {
             return;
         };
+        let _serial = EXPORT_TESTS.lock().await;
         let pool = connect_test_pool(&database_url).await;
 
         // Large enough that an unread body parks the stream task on the
@@ -1637,6 +1777,7 @@ mod tests {
         let Some(database_url) = database_url_for_tests() else {
             return;
         };
+        let _serial = EXPORT_TESTS.lock().await;
         let pool = connect_test_pool(&database_url).await;
 
         let user = seed_user_with_resumes(&pool, 1).await;

@@ -18,6 +18,7 @@ use crate::dto::{
     ThemeInfo, ValidationResponse,
 };
 use crate::error::ApiError;
+use crate::middleware::rate_limit::RateLimitErrorBody;
 use crate::routes::version::VersionResponse;
 
 struct CookieAuthAddon;
@@ -109,6 +110,7 @@ impl Modify for CookieAuthAddon {
             AccountExportProfile,
             AccountResumeExportItem,
             AuditEventExport,
+            RateLimitErrorBody,
             PolicyAcceptanceExport,
             ResumeSnapshotExport,
             SubscriptionExport,

@@ -585,4 +585,58 @@ mod tests {
         assert_eq!(json["subscription"]["status"], "canceled");
         assert!(json["subscription"]["expires_at"].as_str().is_some());
     }
+
+    #[test]
+    fn account_export_profile_is_an_allow_list() {
+        let full = User {
+            id: Uuid::nil(),
+            workos_id: "user_01SECRET".to_string(),
+            plan: "pro".to_string(),
+            paddle_customer_id: Some("ctm_secret".to_string()),
+            email: Some("dev@example.com".to_string()),
+            first_name: Some("Ada".to_string()),
+            last_name: Some("Lovelace".to_string()),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        let json = serde_json::to_value(AccountExportProfile::from_user(&full)).unwrap();
+        let keys: std::collections::BTreeSet<&str> = json
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        assert_eq!(
+            keys,
+            [
+                "id",
+                "email",
+                "first_name",
+                "last_name",
+                "plan",
+                "created_at"
+            ]
+            .into_iter()
+            .collect()
+        );
+        assert!(json.get("workos_id").is_none());
+        assert!(json.get("paddle_customer_id").is_none());
+        assert!(json.get("updated_at").is_none());
+
+        // Optional fields are omitted rather than serialised as null.
+        let sparse = User {
+            email: None,
+            first_name: None,
+            last_name: None,
+            ..full
+        };
+        let json = serde_json::to_value(AccountExportProfile::from_user(&sparse)).unwrap();
+        let keys: std::collections::BTreeSet<&str> = json
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        assert_eq!(keys, ["id", "plan", "created_at"].into_iter().collect());
+    }
 }

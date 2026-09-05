@@ -155,6 +155,26 @@ describe("Account page", () => {
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Account data downloaded"));
   });
 
+  it("ignores a second click while an export is already running", async () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.user = { id: "user-1", plan: "free", email: "dev@example.com" };
+    let finish: (() => void) | undefined;
+    vi.mocked(downloadAccountExport).mockImplementationOnce(
+      () => new Promise<void>((resolve) => (finish = resolve)),
+    );
+
+    renderAccount();
+    const button = screen.getByRole("button", { name: "Export account data" });
+    fireEvent.click(button);
+    fireEvent.click(button);
+
+    expect(downloadAccountExport).toHaveBeenCalledTimes(1);
+    finish?.();
+    const { toast } = await import("../../components/ui");
+    await waitFor(() => expect(toast.success).toHaveBeenCalledTimes(1));
+  });
+
   it.each([
     [429, "Too many requests. Please try again shortly."],
     [503, "Too many account exports are running right now. Please try again shortly."],

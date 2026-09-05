@@ -159,10 +159,12 @@ impl RateLimitState {
     }
 }
 
-/// JSON body returned when a client exceeds a rate limit.
-#[derive(Debug, Serialize, Deserialize)]
+/// JSON body returned when a request must be retried later: rate-limit 429s
+/// and the account-export concurrency 503. Mirrors the `Retry-After` header.
+#[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct RateLimitErrorBody {
     pub error: String,
+    /// Seconds until the client may retry.
     pub retry_after: u64,
 }
 
