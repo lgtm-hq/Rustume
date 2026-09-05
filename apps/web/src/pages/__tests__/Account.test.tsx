@@ -7,53 +7,73 @@ import Account from "../Account";
 import { ApiError } from "../../api/client";
 import { toast } from "../../components/ui";
 
+interface MockUser {
+  id: string;
+  plan: string;
+  email?: string;
+  username: string;
+}
+
+// A real Solid store so the page re-renders when the (mocked) auth store
+// changes, exactly as it does in production; tests assert rendered output.
 const {
   mockAuthState,
+  setAuth,
   signInMock,
   signOutMock,
   refreshMock,
   updateLocalUsernameMock,
   updateUsernameMock,
   deleteAccountMock,
-} = vi.hoisted(() => ({
-  mockAuthState: {
+} = await vi.hoisted(async () => {
+  const { createStore } = await import("solid-js/store");
+  const [authState, setAuthState] = createStore<{
+    loading: boolean;
+    cloudEnabled: boolean;
+    requireAuth: boolean;
+    user: MockUser | null;
+  }>({
     loading: false,
     cloudEnabled: true,
     requireAuth: false,
-    user: null as {
-      id: string;
-      plan: string;
-      email?: string;
-      username: string;
-    } | null,
-  },
-  signInMock: vi.fn(),
-  signOutMock: vi.fn(),
-  refreshMock: vi.fn().mockResolvedValue(undefined),
-  updateLocalUsernameMock: vi.fn(),
-  updateUsernameMock: vi.fn(),
-  deleteAccountMock: vi.fn(),
-}));
+    user: null,
+  });
+  return {
+    mockAuthState: authState,
+    setAuth: setAuthState,
+    signInMock: vi.fn(),
+    signOutMock: vi.fn(),
+    refreshMock: vi.fn().mockResolvedValue(undefined),
+    updateLocalUsernameMock: vi.fn(),
+    updateUsernameMock: vi.fn(),
+    deleteAccountMock: vi.fn(),
+  };
+});
 
-vi.mock("../../stores/auth", () => ({
-  authStore: {
-    get state() {
-      return mockAuthState;
+vi.mock("../../stores/auth", async () => {
+  // The real display-name rule, so the heading assertions below are meaningful.
+  const { userDisplayName } =
+    await vi.importActual<typeof import("../../api/auth")>("../../api/auth");
+  return {
+    authStore: {
+      get state() {
+        return mockAuthState;
+      },
+      signIn: signInMock,
+      signOut: signOutMock,
+      clearUser: vi.fn(),
+      refresh: refreshMock,
+      // Mirrors the real store: the page re-renders from the updated user.
+      updateLocalUsername: (username: string) => {
+        updateLocalUsernameMock(username);
+        if (mockAuthState.user) {
+          setAuth("user", "username", username);
+        }
+      },
+      displayName: userDisplayName,
     },
-    signIn: signInMock,
-    signOut: signOutMock,
-    clearUser: vi.fn(),
-    refresh: refreshMock,
-    // Mirrors the real store: the page re-renders from the updated user.
-    updateLocalUsername: (username: string) => {
-      updateLocalUsernameMock(username);
-      if (mockAuthState.user) {
-        mockAuthState.user = { ...mockAuthState.user, username };
-      }
-    },
-    displayName: (user: { username: string }) => user.username || "Account",
-  },
-}));
+  };
+});
 
 // Only the network call is mocked; validateUsername is the real client-side
 // validator so the page tests exercise the shared rules.
@@ -102,10 +122,10 @@ describe("Account page", () => {
   // "/", which the auth guard now blocks on any cloud deployment — it was a
   // dead-end loop back to the entry page (#589).
   it("shows a sign-in CTA with no anonymous escape when signed out on cloud", () => {
-    mockAuthState.loading = false;
-    mockAuthState.cloudEnabled = true;
-    mockAuthState.requireAuth = false;
-    mockAuthState.user = null;
+    setAuth("loading", false);
+    setAuth("cloudEnabled", true);
+    setAuth("requireAuth", false);
+    setAuth("user", null);
 
     renderAccount();
 
@@ -115,10 +135,10 @@ describe("Account page", () => {
   });
 
   it("shows sign-in-required copy regardless of the require-auth flag", () => {
-    mockAuthState.loading = false;
-    mockAuthState.cloudEnabled = true;
-    mockAuthState.requireAuth = true;
-    mockAuthState.user = null;
+    setAuth("loading", false);
+    setAuth("cloudEnabled", true);
+    setAuth("requireAuth", true);
+    setAuth("user", null);
 
     renderAccount();
 
@@ -129,14 +149,14 @@ describe("Account page", () => {
   });
 
   it("shows profile details when signed in", () => {
-    mockAuthState.loading = false;
-    mockAuthState.cloudEnabled = true;
-    mockAuthState.user = {
+    setAuth("loading", false);
+    setAuth("cloudEnabled", true);
+    setAuth("user", {
       id: "user-1",
       plan: "free",
       email: "dev@example.com",
       username: "swift-otter-4821",
-    };
+    });
 
     renderAccount();
 
@@ -154,14 +174,14 @@ describe("Account page", () => {
   });
 
   it("saves an edited username", async () => {
-    mockAuthState.loading = false;
-    mockAuthState.cloudEnabled = true;
-    mockAuthState.user = {
+    setAuth("loading", false);
+    setAuth("cloudEnabled", true);
+    setAuth("user", {
       id: "user-1",
       plan: "free",
       email: "dev@example.com",
       username: "swift-otter-4821",
-    };
+    });
     updateUsernameMock.mockResolvedValue({ username: "calm-finch-1234" });
 
     renderAccount();
@@ -179,17 +199,80 @@ describe("Account page", () => {
     // The store update, not just the mock call, is what the user sees.
     expect(mockAuthState.user?.username).toBe("calm-finch-1234");
     expect(screen.queryByLabelText("Username")).toBeNull();
+    expect(screen.getByRole("heading", { level: 2, name: "calm-finch-1234" })).toBeInTheDocument();
     expect(toast.success).toHaveBeenCalledWith("Username updated");
+    // Focus returns to the recreated trigger so keyboard users are not dropped.
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Edit username" })).toHaveFocus(),
+    );
+  });
+
+  it("moves focus into the editor and back to the trigger on cancel", async () => {
+    setAuth("loading", false);
+    setAuth("cloudEnabled", true);
+    setAuth("user", { id: "user-1", plan: "free", username: "swift-otter-4821" });
+
+    renderAccount();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit username" }));
+    await waitFor(() => expect(screen.getByLabelText("Username")).toHaveFocus());
+    expect(screen.getByLabelText("Username")).toHaveValue("swift-otter-4821");
+
+    fireEvent.input(screen.getByLabelText("Username"), { target: { value: "something-else" } });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByLabelText("Username")).toBeNull();
+    expect(updateUsernameMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { level: 2, name: "swift-otter-4821" })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Edit username" })).toHaveFocus(),
+    );
+  });
+
+  it("treats saving the current username (after normalisation) as a no-op", async () => {
+    setAuth("loading", false);
+    setAuth("cloudEnabled", true);
+    setAuth("user", { id: "user-1", plan: "free", username: "swift-otter-4821" });
+
+    renderAccount();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit username" }));
+    fireEvent.input(screen.getByLabelText("Username"), {
+      target: { value: "  Swift-Otter-4821 " },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save username" }));
+
+    expect(updateUsernameMock).not.toHaveBeenCalled();
+    expect(updateLocalUsernameMock).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText("Username")).toBeNull();
+    expect(screen.getByRole("heading", { level: 2, name: "swift-otter-4821" })).toBeInTheDocument();
+  });
+
+  it("keeps focus on the input when validation fails so the error is announced", async () => {
+    setAuth("loading", false);
+    setAuth("cloudEnabled", true);
+    setAuth("user", { id: "user-1", plan: "free", username: "swift-otter-4821" });
+
+    renderAccount();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit username" }));
+    fireEvent.input(screen.getByLabelText("Username"), { target: { value: "admin" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save username" }));
+
+    await waitFor(() => expect(screen.getByText("Username is reserved")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByLabelText("Username")).toHaveFocus());
+    expect(screen.getByLabelText("Username")).toHaveAccessibleDescription(/reserved/i);
   });
 
   it("rejects reserved and malformed usernames client-side without calling the API", async () => {
-    mockAuthState.loading = false;
-    mockAuthState.cloudEnabled = true;
-    mockAuthState.user = {
+    setAuth("loading", false);
+    setAuth("cloudEnabled", true);
+    setAuth("user", {
       id: "user-1",
       plan: "free",
       username: "swift-otter-4821",
-    };
+    });
 
     renderAccount();
     fireEvent.click(screen.getByRole("button", { name: "Edit username" }));
@@ -208,13 +291,13 @@ describe("Account page", () => {
   });
 
   it("surfaces a taken-username error", async () => {
-    mockAuthState.loading = false;
-    mockAuthState.cloudEnabled = true;
-    mockAuthState.user = {
+    setAuth("loading", false);
+    setAuth("cloudEnabled", true);
+    setAuth("user", {
       id: "user-1",
       plan: "free",
       username: "swift-otter-4821",
-    };
+    });
     updateUsernameMock.mockRejectedValue(new ApiError(409, "username already taken"));
 
     renderAccount();
@@ -234,14 +317,14 @@ describe("Account page", () => {
   });
 
   it("opens the delete confirmation modal", () => {
-    mockAuthState.loading = false;
-    mockAuthState.cloudEnabled = true;
-    mockAuthState.user = {
+    setAuth("loading", false);
+    setAuth("cloudEnabled", true);
+    setAuth("user", {
       id: "user-1",
       plan: "free",
       email: "dev@example.com",
       username: "swift-otter-4821",
-    };
+    });
 
     renderAccount();
 
@@ -254,10 +337,10 @@ describe("Account page", () => {
 
 describe("Account accessibility", () => {
   it("has no axe violations when signed out", async () => {
-    mockAuthState.loading = false;
-    mockAuthState.cloudEnabled = true;
-    mockAuthState.requireAuth = false;
-    mockAuthState.user = null;
+    setAuth("loading", false);
+    setAuth("cloudEnabled", true);
+    setAuth("requireAuth", false);
+    setAuth("user", null);
 
     const { container } = renderAccount();
 
@@ -265,14 +348,14 @@ describe("Account accessibility", () => {
   });
 
   it("has no axe violations when signed in", async () => {
-    mockAuthState.loading = false;
-    mockAuthState.cloudEnabled = true;
-    mockAuthState.user = {
+    setAuth("loading", false);
+    setAuth("cloudEnabled", true);
+    setAuth("user", {
       id: "user-1",
       plan: "free",
       email: "dev@example.com",
       username: "swift-otter-4821",
-    };
+    });
 
     const { container } = renderAccount();
 

@@ -14,6 +14,8 @@ export interface InputProps {
   required?: boolean;
   class?: string;
   inputClass?: string;
+  /** Forwarded to the underlying `<input>` for focus management. */
+  ref?: (el: HTMLInputElement) => void;
 }
 
 export function Input(props: InputProps) {
