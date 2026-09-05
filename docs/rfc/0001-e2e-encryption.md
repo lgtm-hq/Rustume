@@ -52,8 +52,10 @@ code:
 - `apps/site/src/content/docs/cloud/encryption.md`: server-managed and optional E2E modes
 - `docker/.env.example`: commented `ENCRYPTION_SECRET=` ("Phase 1.5+")
 - `crates/storage/src/lib.rs`: `StorageConfig.encrypted: bool` (unused)
-- `resume_versions` table exists but has no route writers/readers
-- `is_public`, `public_slug`, `password_hash` columns exist but no publish API
+- `resume_versions` exists but has no writers; live history is `resume_snapshots`
+  (`crates/server/src/db/snapshots.rs`, added after this RFC was written)
+- `is_public` / `public_slug` are now served by `update_sharing` (`resume.publish` /
+  `resume.unpublish`, added after this RFC was written); `password_hash` still has no API
 
 This RFC grounds decisions in **what is shipped today** and classifies how each
 planned feature interacts with E2EE.

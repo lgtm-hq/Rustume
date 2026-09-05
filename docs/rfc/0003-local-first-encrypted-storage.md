@@ -162,10 +162,16 @@ change. The rules that make deletes safe across offline devices:
   conflict for the user (keep deleted, or restore from local), never as a silent
   create. This replaces RFC 0002's "local-only id creates a cloud row" rule when a
   tombstone is present.
-- Tombstones are retained until every device registered on the account has pulled
-  past their version, and for at least 90 days regardless. After that the relay may
-  garbage-collect them; a device that has been offline longer than the retention
-  window must run a full reconcile, not a delta pull, on its next connection.
+- Tombstones are retained until every client holding a sync cursor on the account
+  has pulled past their version, and for at least 90 days regardless. A client is
+  any browser session, relay, or native app that has completed a pull; there is no
+  separate device registry. After that the relay may garbage-collect them.
+- A client whose cursor is older than the retention window must run a full
+  reconcile, not a delta pull. In a full reconcile, a local document that has a
+  relay version recorded (it was synced before) but no row on the relay is treated
+  as deleted on the relay, and surfaces the same keep-deleted-or-restore choice as
+  a live tombstone. Only a local document that has never been synced is created.
+  This is what keeps the no-resurrection rule true after garbage collection.
 
 ### One repository trait, three engines
 
@@ -251,9 +257,13 @@ document and detect identical documents across accounts. Replace it with
 the UTF-8 compact JSON with sorted object keys that RFC 0002 already defines, so
 every client produces the same tag for the same document.
 
-`tag_key` is a second random 32-byte account key generated at enable, wrapped by the
-master key and included in the recovery backups alongside the DEK. It is deliberately
-not derived from the DEK: RFC 0001's DEK rotation re-encrypts every envelope, and a
+`tag_key` is a second random 32-byte account key generated at enable. It is wrapped
+and recovered together with the DEK: the MK-wrapped blob in `users.e2ee_config` and
+each RK-wrapped recovery backup from RFC 0001 hold the 64-byte concatenation
+`DEK || tag_key` instead of the DEK alone, so unlocking or recovering an account
+always yields both keys. Passphrase rotation re-wraps both; DEK rotation replaces the
+first 32 bytes only and re-wraps under the same rules. `tag_key` is deliberately not
+derived from the DEK: RFC 0001's DEK rotation re-encrypts every envelope, and a
 tag key tied to the DEK would change every tag at once and make unchanged documents
 look edited on every device. Rotating `tag_key` is a separate, rare operation that
 re-tags all documents and resets sync cursors in one step.
@@ -369,9 +379,10 @@ a token. Every sync request must present the token; requests without it get 401.
 Because the container binds `0.0.0.0` and compose publishes the port, the default
 compose deployment needs a token without asking the user to invent one. The compose
 file sets `RUSTUME_ACCESS_TOKEN_FILE=/data/access_token`; on first start the relay
-generates a random token there with mode 0600 and prints it once in the startup log.
-The web app asks for it on first visit to that origin and keeps it in local storage.
-Operators may set `RUSTUME_ACCESS_TOKEN` directly instead.
+generates a random token there with mode 0600 and logs only the file path, never
+the secret; the operator reads it with `docker compose exec rustume cat
+/data/access_token`. The web app asks for it on first visit to that origin and keeps
+it in local storage. Operators may set `RUSTUME_ACCESS_TOKEN` directly instead.
 
 ## Feature compatibility
 
@@ -440,10 +451,15 @@ PR that adds this RFC.
 3. **Browser-only users** are unaffected until they sign in or start a relay.
 4. **Existing `/api/resumes` CRUD** stays until the web client runs on the sync
    engine, then is removed. During the overlap both paths read and write the same
-   rows and the same `version` column, so there is no translation layer and no
-   dual-write. For a migrated account, `/api/resumes` accepts only envelopes (422
-   otherwise, per RFC 0001) and returns envelopes; a client too old to handle
-   envelopes gets 426 Upgrade Required rather than plaintext.
+   rows and the same `version` column, and CRUD adopts the sync semantics rather
+   than keeping its own: `DELETE /api/resumes/{id}` writes a versioned tombstone
+   instead of today's hard delete with cascading snapshot removal, and the server's
+   own snapshot capture on update (`db/snapshots.rs`) is switched off for sealed
+   accounts, because the server cannot seal a snapshot. Snapshots for those accounts
+   come only from the client through the sync snapshot endpoint, which upserts on
+   `(resume_id, version)`. For a migrated account, `/api/resumes` accepts only
+   envelopes (422 otherwise, per RFC 0001) and returns envelopes; a client too old to
+   handle envelopes gets 426 Upgrade Required rather than plaintext.
 5. **`resume_snapshots`** keeps its shape. After migration every row for the account
    is an envelope, including history written before migration (step 2), and the
    snapshot writer rejects plaintext for sealed accounts.
