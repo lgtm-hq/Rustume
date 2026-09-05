@@ -1912,6 +1912,15 @@ mod tests {
         let user = seed_user_with_resumes(&pool, 1).await;
         let state = test_app_state(pool.clone());
 
+        // Reset on every exit path, including a panicking assertion, so the
+        // injected failure cannot leak into later export tests.
+        struct ResetFlag;
+        impl Drop for ResetFlag {
+            fn drop(&mut self) {
+                FAIL_EXPORT_START_FOR_TESTS.store(false, std::sync::atomic::Ordering::SeqCst);
+            }
+        }
+        let reset = ResetFlag;
         FAIL_EXPORT_START_FOR_TESTS.store(true, std::sync::atomic::Ordering::SeqCst);
         let result = export_account(
             AuthUser(user.clone()),
@@ -1919,7 +1928,7 @@ mod tests {
             HeaderMap::new(),
         )
         .await;
-        FAIL_EXPORT_START_FOR_TESTS.store(false, std::sync::atomic::Ordering::SeqCst);
+        drop(reset);
 
         let err = result.expect_err("export must fail when the stream cannot start");
         assert!(matches!(err.kind, ApiErrorKind::InternalError));
