@@ -223,8 +223,7 @@ pub async fn init_cloud(config: CloudConfig) -> anyhow::Result<Arc<CloudState>> 
 
     if let Some(problem) = crate::config::public_base_url_problem() {
         warn!("{problem}");
-    }
-    if crate::config::public_base_url().is_none() {
+    } else if crate::config::public_base_url().is_none() {
         warn!(
             "PUBLIC_BASE_URL is unset: public resume pages (/r/{{slug}}) will omit og:url and \
              og:image, so social link previews fall back to a plain card"
