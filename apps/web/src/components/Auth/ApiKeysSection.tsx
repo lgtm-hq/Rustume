@@ -94,9 +94,12 @@ export function ApiKeysSection() {
     resetCreateModal();
   };
 
+  const nameTooLong = () => createName().trim().length > API_KEY_NAME_MAX_LENGTH;
+  const canSubmitName = () => createName().trim().length > 0 && !nameTooLong();
+
   const handleCreateKey = async () => {
     const name = createName().trim();
-    if (!name) {
+    if (!canSubmitName()) {
       return;
     }
 
@@ -246,6 +249,11 @@ export function ApiKeysSection() {
                 onInput={setCreateName}
                 placeholder="CI deploy"
                 description={`1–${API_KEY_NAME_MAX_LENGTH} characters`}
+                error={
+                  nameTooLong()
+                    ? `Key names are limited to ${API_KEY_NAME_MAX_LENGTH} characters`
+                    : undefined
+                }
                 maxLength={API_KEY_NAME_MAX_LENGTH}
               />
               <div class="flex justify-end gap-3 pt-2">
@@ -259,7 +267,7 @@ export function ApiKeysSection() {
                 <Button
                   onClick={() => void handleCreateKey()}
                   loading={creating()}
-                  disabled={!createName().trim()}
+                  disabled={!canSubmitName()}
                 >
                   Create key
                 </Button>

@@ -45,7 +45,12 @@ export const apiKeySummarySchema = z.object({
   id: z.string(),
   name: z.string(),
   prefix: z.string(),
-  last_used_at: z.string().nullable(),
+  // The server omits this field for never-used keys (skip_serializing_if), so
+  // accept absent as well as null and normalize to null for the UI.
+  last_used_at: z
+    .string()
+    .nullish()
+    .transform((value) => value ?? null),
   created_at: z.string(),
 });
 

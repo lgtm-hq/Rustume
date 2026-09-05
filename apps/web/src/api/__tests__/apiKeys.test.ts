@@ -105,4 +105,36 @@ describe("apiKeys API", () => {
       message: "Not authenticated",
     });
   });
+
+  it("accepts a list where never-used keys omit last_used_at", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(200, [
+        { id: "key-1", name: "CI deploy", prefix: "abcd1234", created_at: "2026-06-15T12:00:00Z" },
+      ]),
+    );
+
+    const [key] = await listApiKeys();
+
+    expect(key.last_used_at).toBeNull();
+  });
+
+  it("rejects a create response that is missing the one-time key", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(201, { id: "key-2", name: "Local dev", prefix: "efgh5678" }),
+    );
+
+    await expect(createApiKey("Local dev")).rejects.toMatchObject({
+      name: "ApiValidationError",
+    });
+  });
+
+  it("surfaces 404 from revoke", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(404, { error: "API key not found" }));
+
+    await expect(revokeApiKey("missing")).rejects.toMatchObject({
+      name: "ApiError",
+      status: 404,
+      message: "API key not found",
+    });
+  });
 });

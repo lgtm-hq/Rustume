@@ -337,6 +337,54 @@ describe("ApiKeysSection", () => {
     expect(within(createDialog).getByLabelText("Key name")).toHaveAttribute("maxlength", "100");
   });
 
+  it("refuses to submit a name over the server limit even if the input is bypassed", async () => {
+    render(() => <ApiKeysSection />);
+    await screen.findByText("CI deploy");
+
+    fireEvent.click(screen.getByRole("button", { name: "Create key" }));
+    const createDialog = await screen.findByRole("dialog");
+    fireEvent.input(within(createDialog).getByLabelText("Key name"), {
+      target: { value: "x".repeat(101) },
+    });
+
+    const submit = within(createDialog).getByRole("button", { name: "Create key" });
+    expect(submit).toBeDisabled();
+    expect(within(createDialog).getByText(/limited to 100 characters/i)).toBeInTheDocument();
+    fireEvent.click(submit);
+    expect(createApiKeyMock).not.toHaveBeenCalled();
+  });
+
+  it("shows an error toast when the clipboard write is rejected", async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error("denied"));
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    createApiKeyMock.mockResolvedValue({
+      id: "key-3",
+      name: "Automation",
+      prefix: "zzzz9999",
+      key: "rk_plaintext_once",
+    });
+    listApiKeysMock.mockResolvedValue([]);
+
+    render(() => <ApiKeysSection />);
+    await screen.findByText(/No API keys yet/i);
+
+    fireEvent.click(screen.getByRole("button", { name: "Create key" }));
+    const createDialog = await screen.findByRole("dialog");
+    fireEvent.input(within(createDialog).getByLabelText("Key name"), {
+      target: { value: "Automation" },
+    });
+    fireEvent.click(within(createDialog).getByRole("button", { name: "Create key" }));
+    await screen.findByText("rk_plaintext_once");
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith("Failed to copy API key");
+    });
+    // The key stays visible so the user can copy it manually.
+    expect(screen.getByText("rk_plaintext_once")).toBeInTheDocument();
+  });
+
   it("shows an error toast and keeps the key when revocation fails", async () => {
     revokeApiKeyMock.mockRejectedValue(new Error("Forbidden"));
 
