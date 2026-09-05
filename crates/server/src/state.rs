@@ -44,21 +44,16 @@ impl AppState {
 
     /// Build application state with an explicit advertised require-auth flag (tests).
     ///
-    /// Billing is loaded from the environment so `PADDLE_*` vars behave as in
-    /// production; use [`Self::with_options_and_billing`] for a fixed config.
+    /// Billing is always off so stray `PADDLE_*` variables in a test
+    /// environment cannot mount billing routes in unrelated tests; use
+    /// [`Self::with_options_and_billing`] to test billing explicitly.
     #[cfg(test)]
     pub fn with_require_auth(
         static_dir: Arc<PathBuf>,
         cloud: Option<Arc<CloudState>>,
         require_auth: bool,
     ) -> Self {
-        Self::with_options_and_billing(
-            static_dir,
-            cloud,
-            require_auth,
-            RateLimitConfig::from_env(),
-            BillingConfig::from_env(),
-        )
+        Self::with_options(static_dir, cloud, require_auth, RateLimitConfig::from_env())
     }
 
     /// Build application state with explicit cloud and rate limit settings and

@@ -1380,6 +1380,40 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn billing_checkout_and_portal_require_auth_when_configured() {
+        let state = state::AppState::with_options_and_billing(
+            std::sync::Arc::new(routes::static_dir()),
+            Some(test_cloud_state()),
+            true,
+            config::RateLimitConfig::default(),
+            Some(sample_billing_config()),
+        );
+        let app = create_router_with_state(state);
+
+        for (method, uri) in [
+            ("POST", "/api/billing/checkout"),
+            ("GET", "/api/billing/portal"),
+        ] {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method(method)
+                        .uri(uri)
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(
+                response.status(),
+                StatusCode::UNAUTHORIZED,
+                "{method} {uri}"
+            );
+        }
+    }
+
+    #[tokio::test]
     async fn billing_webhook_rejects_missing_signature_when_configured() {
         let state = state::AppState::with_options_and_billing(
             std::sync::Arc::new(routes::static_dir()),

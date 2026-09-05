@@ -1,14 +1,11 @@
-export interface BillingCheckoutSettings {
-  client_token: string;
-  price_id: string;
-  email: string;
-  custom_data: Record<string, unknown>;
-  environment: "sandbox" | "production";
-}
+import { get, post } from "./client";
+import {
+  type BillingCheckoutSettings,
+  billingCheckoutSettingsSchema,
+  billingPortalResponseSchema,
+} from "./schemas";
 
-export interface BillingPortalResponse {
-  url: string;
-}
+export type { BillingCheckoutSettings, BillingPortalResponse } from "./schemas";
 
 const PADDLE_SCRIPT_SRC = "https://cdn.paddle.com/paddle/v2/paddle.js";
 
@@ -105,46 +102,14 @@ function loadPaddleScript(): Promise<void> {
   return paddleScriptPromise;
 }
 
-async function parseApiError(response: Response): Promise<string> {
-  const text = await response.text();
-  try {
-    const json = JSON.parse(text) as { error?: string };
-    if (typeof json.error === "string") {
-      return json.error;
-    }
-  } catch {
-    // Keep raw text when the body is not JSON.
-  }
-  return text || response.statusText;
-}
-
 /** Fetch checkout overlay settings for the signed-in user. */
 export async function fetchCheckoutSettings(): Promise<BillingCheckoutSettings> {
-  const response = await fetch("/api/billing/checkout", {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-  });
-
-  if (!response.ok) {
-    throw new Error(await parseApiError(response));
-  }
-
-  return (await response.json()) as BillingCheckoutSettings;
+  return post("/billing/checkout", undefined, billingCheckoutSettingsSchema);
 }
 
 /** Fetch an authenticated Paddle customer portal URL. */
 export async function fetchPortalUrl(): Promise<string> {
-  const response = await fetch("/api/billing/portal", {
-    method: "GET",
-    credentials: "include",
-  });
-
-  if (!response.ok) {
-    throw new Error(await parseApiError(response));
-  }
-
-  const payload = (await response.json()) as BillingPortalResponse;
+  const payload = await get("/billing/portal", billingPortalResponseSchema);
   return payload.url;
 }
 

@@ -45,8 +45,12 @@ const PADDLE_HTTP_TIMEOUT_SECS: u64 = 10;
     tag = "Billing",
     responses(
         (status = 200, description = "Checkout overlay settings", body = BillingCheckoutResponse),
+        (status = 400, description = "Account has no email for checkout", body = ApiError),
         (status = 401, description = "Not authenticated", body = ApiError),
-        (status = 404, description = "Billing not enabled", body = ApiError),
+        (
+            status = 404,
+            description = "Route not mounted: billing is not configured on this deployment (no JSON body)"
+        ),
     ),
     security(("cookieAuth" = []))
 )]
@@ -80,7 +84,10 @@ pub async fn checkout(
     responses(
         (status = 200, description = "Customer portal URL", body = BillingPortalResponse),
         (status = 401, description = "Not authenticated", body = ApiError),
-        (status = 404, description = "Billing not enabled", body = ApiError),
+        (
+            status = 404,
+            description = "Route not mounted: billing is not configured on this deployment (no JSON body)"
+        ),
         (status = 409, description = "No Paddle customer linked yet", body = ApiError),
     ),
     security(("cookieAuth" = []))
@@ -99,6 +106,32 @@ pub async fn customer_portal(
 }
 
 /// Handle signed Paddle Billing webhook events.
+///
+/// Registered only when billing is configured. Every delivery must carry a
+/// valid `Paddle-Signature` header; replayed event ids are acknowledged with
+/// 200 and skipped.
+#[utoipa::path(
+    post,
+    path = "/webhooks/paddle",
+    tag = "Billing",
+    request_body(
+        content = serde_json::Value,
+        description = "Paddle notification payload (event_id, event_type, occurred_at, data)"
+    ),
+    params(
+        ("Paddle-Signature" = String, Header, description = "`ts=<unix>;h1=<hmac-sha256 hex>` over `ts:body`")
+    ),
+    responses(
+        (status = 200, description = "Event processed or already processed"),
+        (status = 400, description = "Malformed payload or event could not be applied", body = ApiError),
+        (status = 401, description = "Missing or invalid signature, or stale timestamp", body = ApiError),
+        (
+            status = 404,
+            description = "Route not mounted: billing is not configured on this deployment (no JSON body)"
+        ),
+        (status = 409, description = "Paddle customer already linked to a different account", body = ApiError),
+    )
+)]
 pub async fn paddle_webhook(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -162,7 +195,17 @@ async fn dispatch_webhook_event(
     let occurred_at = payload.occurred_at.as_deref().and_then(parse_rfc3339);
 
     match payload.event_type.as_str() {
-        "subscription.created" | "subscription.updated" => {
+        // Paddle emits a dedicated event per lifecycle transition. Whether or
+        // not a `subscription.updated` accompanies it, every one of these
+        // carries the full subscription entity, so they all go through the
+        // same status-driven upsert.
+        "subscription.created"
+        | "subscription.updated"
+        | "subscription.activated"
+        | "subscription.trialing"
+        | "subscription.past_due"
+        | "subscription.paused"
+        | "subscription.resumed" => {
             let status = payload.data.get("status").and_then(Value::as_str);
             if status == Some(SubscriptionStatus::Canceled.as_str()) {
                 handle_subscription_canceled(pool, &payload.data, occurred_at).await?;
@@ -255,7 +298,15 @@ async fn create_portal_session(
     if !response.status().is_success() {
         let status = response.status();
         let body = response.text().await.unwrap_or_default();
-        error!(status = %status, body = %body, "paddle portal session rejected");
+        // Paddle error bodies can echo customer details; log only the
+        // machine-readable error code, never the raw body.
+        let error_code = paddle_error_code(&body);
+        error!(
+            status = %status,
+            error_code = error_code.as_deref().unwrap_or("unknown"),
+            body_bytes = body.len(),
+            "paddle portal session rejected"
+        );
         return Err(ApiError::internal(
             "failed to create customer portal session",
         ));
@@ -272,6 +323,16 @@ async fn create_portal_session(
         .general
         .overview
         .ok_or_else(|| ApiError::internal("paddle portal session missing overview URL"))
+}
+
+/// Extract Paddle's `error.code` from an API error body without logging the body.
+fn paddle_error_code(body: &str) -> Option<String> {
+    serde_json::from_str::<Value>(body)
+        .ok()?
+        .get("error")?
+        .get("code")?
+        .as_str()
+        .map(str::to_string)
 }
 
 #[derive(Debug, Deserialize)]
@@ -383,11 +444,16 @@ async fn handle_subscription_upsert(
     let user_id = require_user_id(pool, data, Some(&customer_id)).await?;
 
     if SubscriptionStatus::parse(&status).is_none() {
+        // Stored verbatim for auditability; `SubscriptionAccess::from_row`
+        // treats unknown statuses as non-active (grace period until
+        // `current_period_end`, then expired) so this never fails open.
         warn!(status = %status, "unknown paddle subscription status");
     }
 
     // The WHERE clause guards against out-of-order deliveries: an event older
-    // than the last one applied to the row must not overwrite newer state.
+    // than the last one applied to the row must not overwrite newer state. An
+    // event with no usable `occurred_at` can only seed a row that has never
+    // been timestamped; it never overrides timestamped state.
     let result = sqlx::query(
         r#"
         INSERT INTO subscriptions (
@@ -407,8 +473,10 @@ async fn handle_subscription_upsert(
             last_event_at = COALESCE(EXCLUDED.last_event_at, subscriptions.last_event_at),
             updated_at = now()
         WHERE subscriptions.last_event_at IS NULL
-           OR EXCLUDED.last_event_at IS NULL
-           OR EXCLUDED.last_event_at >= subscriptions.last_event_at
+           OR (
+             EXCLUDED.last_event_at IS NOT NULL
+             AND EXCLUDED.last_event_at >= subscriptions.last_event_at
+           )
         "#,
     )
     .bind(user_id)
@@ -430,6 +498,12 @@ async fn handle_subscription_upsert(
         return Ok(());
     }
 
+    // `user_id` was resolved through the trust model in `resolve_user_id`, so
+    // the customer id is safe to persist regardless of subscription status.
+    // Linking on every applied event means a canceled-first delivery still
+    // leaves the account able to reach the customer portal.
+    link_paddle_customer(pool, user_id, &customer_id).await?;
+
     if matches!(status.as_str(), "active" | "trialing") {
         sqlx::query(
             r#"
@@ -443,8 +517,6 @@ async fn handle_subscription_upsert(
         .execute(pool)
         .await
         .map_err(internal_db_error)?;
-
-        link_paddle_customer(pool, user_id, &customer_id).await?;
     }
 
     Ok(())
@@ -460,7 +532,8 @@ async fn handle_subscription_canceled(
     let status = SubscriptionStatus::Canceled.as_str();
 
     // Out-of-order guard: never apply a cancellation older than the last
-    // event already applied to the subscription row.
+    // event already applied to the subscription row, and never let a
+    // cancellation without a usable `occurred_at` override timestamped state.
     let user_id = sqlx::query_scalar(
         r#"
         UPDATE subscriptions
@@ -471,8 +544,7 @@ async fn handle_subscription_canceled(
         WHERE paddle_subscription_id = $1
           AND (
             last_event_at IS NULL
-            OR $4 IS NULL
-            OR $4 >= last_event_at
+            OR ($4 IS NOT NULL AND $4 >= last_event_at)
           )
         RETURNING user_id
         "#,
@@ -553,19 +625,43 @@ async fn link_paddle_customer(
     .map_err(internal_db_error)?;
 
     if result.rows_affected() == 0 {
-        let existing: Option<String> =
-            sqlx::query_scalar("SELECT paddle_customer_id FROM users WHERE id = $1")
-                .bind(user_id)
-                .fetch_optional(pool)
-                .await
-                .map_err(internal_db_error)?;
+        // Outer Option: row exists; inner Option: column is nullable.
+        let existing: Option<String> = sqlx::query_scalar::<_, Option<String>>(
+            "SELECT paddle_customer_id FROM users WHERE id = $1",
+        )
+        .bind(user_id)
+        .fetch_optional(pool)
+        .await
+        .map_err(internal_db_error)?
+        .flatten();
 
         if existing.as_deref() != Some(customer_id) {
-            warn!(
+            // Fail loudly: a 409 makes Paddle retry and surfaces the delivery
+            // as failed in the Paddle dashboard, and the audit row gives the
+            // operator a durable record of the conflict to remediate.
+            error!(
                 user_id = %user_id,
                 customer_id = %customer_id,
                 "unable to link Paddle customer id; already assigned to another user"
             );
+            record_event(
+                pool,
+                AuditEvent {
+                    event_type: "billing.customer_link_conflict",
+                    actor_user_id: Some(user_id),
+                    resource_type: Some("billing"),
+                    resource_id: None,
+                    metadata: serde_json::json!({
+                        "paddle_customer_id": customer_id,
+                        "existing_paddle_customer_id": existing,
+                    }),
+                    ip_address: None,
+                },
+            )
+            .await;
+            return Err(ApiError::conflict(
+                "Paddle customer is already linked to a different account",
+            ));
         }
     }
 
@@ -874,10 +970,14 @@ mod tests {
 
     async fn insert_test_user(pool: &sqlx::PgPool, user_id: Uuid, email: &str) {
         let workos_id = format!("workos_billing_{user_id}");
+        // Emails are unique in the schema; suffix the id so an aborted run
+        // cannot collide with the next one.
+        let (local, domain) = email.split_once('@').expect("test email");
+        let email = format!("{local}+{user_id}@{domain}");
         sqlx::query("INSERT INTO users (id, workos_id, email) VALUES ($1, $2, $3)")
             .bind(user_id)
             .bind(&workos_id)
-            .bind(email)
+            .bind(&email)
             .execute(pool)
             .await
             .expect("insert user");
@@ -1057,5 +1157,322 @@ mod tests {
 
         delete_test_user(&pool, victim_id).await;
         delete_test_user(&pool, attacker_id).await;
+    }
+
+    fn test_user(id: Uuid, email: Option<&str>, customer: Option<&str>) -> crate::db::User {
+        crate::db::User {
+            id,
+            workos_id: format!("workos_billing_{id}"),
+            plan: "free".to_string(),
+            paddle_customer_id: customer.map(str::to_string),
+            email: email.map(str::to_string),
+            first_name: None,
+            last_name: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    fn test_billing_config() -> BillingConfig {
+        BillingConfig {
+            api_key: "api_test".to_string(),
+            webhook_secret: "test_webhook_secret".to_string(),
+            price_id: "pri_test".to_string(),
+            client_token: "client_test".to_string(),
+            api_base: "https://sandbox-api.paddle.com".to_string(),
+            sandbox: true,
+        }
+    }
+
+    fn billing_state(pool: Option<sqlx::PgPool>) -> AppState {
+        use crate::auth::{session::SessionService, workos::WorkOsClient};
+        use crate::cloud::CloudState;
+        use std::sync::Arc;
+
+        let cloud = pool.map(|pool| {
+            Arc::new(CloudState {
+                db: pool.clone(),
+                workos: WorkOsClient::new("client_test".into(), "api_key_test".into()),
+                sessions: SessionService::new(
+                    pool,
+                    "test-session-secret-at-least-32-chars".into(),
+                    false,
+                ),
+                workos_redirect_uri: "http://localhost/auth/callback".into(),
+                email: None,
+            })
+        });
+        AppState::with_options_and_billing(
+            Arc::new(crate::routes::static_dir()),
+            cloud,
+            true,
+            crate::config::RateLimitConfig::default(),
+            Some(test_billing_config()),
+        )
+    }
+
+    fn signed_headers(body: &str) -> HeaderMap {
+        let timestamp = Utc::now().timestamp();
+        let signature = sign_payload("test_webhook_secret", timestamp, body);
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "Paddle-Signature",
+            format!("ts={timestamp};h1={signature}").parse().unwrap(),
+        );
+        headers
+    }
+
+    async fn subscription_status(pool: &sqlx::PgPool, user_id: Uuid) -> String {
+        sqlx::query_scalar("SELECT status FROM subscriptions WHERE paddle_subscription_id = $1")
+            .bind(format!("sub_test_{user_id}"))
+            .fetch_one(pool)
+            .await
+            .expect("subscription status")
+    }
+
+    async fn user_plan(pool: &sqlx::PgPool, user_id: Uuid) -> String {
+        sqlx::query_scalar("SELECT plan FROM users WHERE id = $1")
+            .bind(user_id)
+            .fetch_one(pool)
+            .await
+            .expect("user plan")
+    }
+
+    async fn user_customer(pool: &sqlx::PgPool, user_id: Uuid) -> Option<String> {
+        sqlx::query_scalar("SELECT paddle_customer_id FROM users WHERE id = $1")
+            .bind(user_id)
+            .fetch_one(pool)
+            .await
+            .expect("user customer")
+    }
+
+    #[tokio::test]
+    async fn timestampless_events_never_override_timestamped_state_when_database_available() {
+        let Some(pool) = test_pool().await else {
+            return;
+        };
+
+        let user_id = uuid::Uuid::new_v4();
+        insert_test_user(&pool, user_id, "timestampless@example.com").await;
+        let active = subscription_event(user_id, "active");
+
+        handle_subscription_upsert(&pool, &active, occurred("2099-01-02T00:00:00Z"))
+            .await
+            .expect("activate");
+        assert_eq!(user_plan(&pool, user_id).await, "pro");
+
+        // A cancel with no usable occurred_at (missing or unparsable) must not
+        // downgrade a timestamped active row.
+        handle_subscription_canceled(&pool, &active, None)
+            .await
+            .expect("timestampless cancel");
+        assert_eq!(subscription_status(&pool, user_id).await, "active");
+        assert_eq!(user_plan(&pool, user_id).await, "pro");
+
+        // Nor may a timestampless upsert with a different status.
+        let paused = subscription_event(user_id, "paused");
+        handle_subscription_upsert(&pool, &paused, None)
+            .await
+            .expect("timestampless upsert");
+        assert_eq!(subscription_status(&pool, user_id).await, "active");
+
+        // A row that has never been timestamped may still be seeded/updated
+        // by a timestampless event (legacy or simulator payloads).
+        let other_user = uuid::Uuid::new_v4();
+        insert_test_user(&pool, other_user, "legacy@example.com").await;
+        let legacy = subscription_event(other_user, "active");
+        handle_subscription_upsert(&pool, &legacy, None)
+            .await
+            .expect("legacy activate");
+        handle_subscription_canceled(&pool, &legacy, None)
+            .await
+            .expect("legacy cancel");
+        assert_eq!(subscription_status(&pool, other_user).await, "canceled");
+
+        delete_test_user(&pool, user_id).await;
+        delete_test_user(&pool, other_user).await;
+    }
+
+    #[tokio::test]
+    async fn canceled_first_delivery_links_customer_when_database_available() {
+        let Some(pool) = test_pool().await else {
+            return;
+        };
+
+        let user_id = uuid::Uuid::new_v4();
+        insert_test_user(&pool, user_id, "canceled-first@example.com").await;
+
+        // Paddle can deliver the cancellation before any active event has been
+        // seen (or the active event may have failed). The customer must still
+        // be linked so the account can reach the portal.
+        let canceled = subscription_event(user_id, "canceled");
+        handle_subscription_canceled(&pool, &canceled, occurred("2099-01-01T00:00:00Z"))
+            .await
+            .expect("canceled-first");
+
+        assert_eq!(subscription_status(&pool, user_id).await, "canceled");
+        assert_eq!(user_plan(&pool, user_id).await, "free");
+        assert_eq!(
+            user_customer(&pool, user_id).await.as_deref(),
+            Some(format!("ctm_test_{user_id}").as_str())
+        );
+
+        delete_test_user(&pool, user_id).await;
+    }
+
+    #[tokio::test]
+    async fn link_conflict_fails_loudly_when_database_available() {
+        let Some(pool) = test_pool().await else {
+            return;
+        };
+
+        let owner = uuid::Uuid::new_v4();
+        let other = uuid::Uuid::new_v4();
+        insert_test_user(&pool, owner, "owner@example.com").await;
+        insert_test_user(&pool, other, "other@example.com").await;
+        let customer = format!("ctm_shared_{owner}");
+
+        link_paddle_customer(&pool, owner, &customer)
+            .await
+            .expect("first link");
+        // Re-linking the same pair is idempotent.
+        link_paddle_customer(&pool, owner, &customer)
+            .await
+            .expect("idempotent link");
+
+        let err = link_paddle_customer(&pool, other, &customer)
+            .await
+            .expect_err("conflicting link must fail");
+        assert!(
+            matches!(err.kind, crate::error::ApiErrorKind::Conflict),
+            "unexpected error: {err:?}"
+        );
+        assert_eq!(user_customer(&pool, other).await, None);
+
+        let audited: i64 = sqlx::query_scalar(
+            r#"
+            SELECT COUNT(*) FROM audit_events
+            WHERE actor_user_id = $1 AND event_type = 'billing.customer_link_conflict'
+            "#,
+        )
+        .bind(other)
+        .fetch_one(&pool)
+        .await
+        .expect("audit count");
+        assert_eq!(audited, 1);
+
+        delete_test_user(&pool, owner).await;
+        delete_test_user(&pool, other).await;
+    }
+
+    #[tokio::test]
+    async fn signed_canceled_webhook_is_applied_once_when_database_available() {
+        let Some(pool) = test_pool().await else {
+            return;
+        };
+
+        let user_id = uuid::Uuid::new_v4();
+        insert_test_user(&pool, user_id, "webhook@example.com").await;
+        let state = billing_state(Some(pool.clone()));
+
+        let active = serde_json::json!({
+            "event_id": format!("evt_active_{user_id}"),
+            "event_type": "subscription.activated",
+            "occurred_at": "2099-01-01T00:00:00Z",
+            "data": subscription_event(user_id, "active"),
+        })
+        .to_string();
+        let status = paddle_webhook(State(state.clone()), signed_headers(&active), active.into())
+            .await
+            .expect("activated webhook");
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(user_plan(&pool, user_id).await, "pro");
+
+        let canceled = serde_json::json!({
+            "event_id": format!("evt_canceled_{user_id}"),
+            "event_type": "subscription.canceled",
+            "occurred_at": "2099-01-02T00:00:00Z",
+            "data": subscription_event(user_id, "canceled"),
+        })
+        .to_string();
+        let status = paddle_webhook(
+            State(state.clone()),
+            signed_headers(&canceled),
+            canceled.clone().into(),
+        )
+        .await
+        .expect("canceled webhook");
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(subscription_status(&pool, user_id).await, "canceled");
+        assert_eq!(user_plan(&pool, user_id).await, "free");
+
+        // Replayed delivery of the same event id is acknowledged and skipped:
+        // re-activate directly, then replay the cancel and expect no change.
+        handle_subscription_upsert(
+            &pool,
+            &subscription_event(user_id, "active"),
+            occurred("2099-01-03T00:00:00Z"),
+        )
+        .await
+        .expect("reactivate");
+        let status = paddle_webhook(
+            State(state.clone()),
+            signed_headers(&canceled),
+            canceled.into(),
+        )
+        .await
+        .expect("replayed webhook");
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(subscription_status(&pool, user_id).await, "active");
+
+        // customer.created without any verifiable linkage is acknowledged.
+        let created = serde_json::json!({
+            "event_id": format!("evt_customer_{user_id}"),
+            "event_type": "customer.created",
+            "occurred_at": "2099-01-04T00:00:00Z",
+            "data": { "id": "ctm_unlinked", "email": "webhook@example.com" },
+        })
+        .to_string();
+        let status = paddle_webhook(State(state), signed_headers(&created), created.into())
+            .await
+            .expect("customer.created webhook");
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(
+            user_customer(&pool, user_id).await.as_deref(),
+            Some(format!("ctm_test_{user_id}").as_str()),
+            "unverified email must not relink the customer"
+        );
+
+        delete_test_user(&pool, user_id).await;
+    }
+
+    #[tokio::test]
+    async fn portal_returns_conflict_without_linked_customer() {
+        let state = billing_state(None);
+        let user = test_user(Uuid::new_v4(), Some("dev@example.com"), None);
+
+        let err = customer_portal(AuthUser(user), State(state))
+            .await
+            .expect_err("portal must refuse unlinked accounts");
+        assert!(matches!(err.kind, crate::error::ApiErrorKind::Conflict));
+    }
+
+    #[tokio::test]
+    async fn checkout_requires_account_email() {
+        let state = billing_state(None);
+        let user = test_user(Uuid::new_v4(), None, None);
+
+        let err = checkout(AuthUser(user), State(state.clone()))
+            .await
+            .expect_err("checkout must require an email");
+        assert!(matches!(err.kind, crate::error::ApiErrorKind::BadRequest));
+
+        let user = test_user(Uuid::new_v4(), Some("dev@example.com"), None);
+        let Json(settings) = checkout(AuthUser(user.clone()), State(state))
+            .await
+            .expect("checkout settings");
+        assert_eq!(settings.environment, "sandbox");
+        assert_eq!(settings.price_id, "pri_test");
+        assert_eq!(settings.custom_data["user_id"], user.id.to_string());
     }
 }

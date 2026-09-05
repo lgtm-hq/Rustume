@@ -150,6 +150,22 @@ export const deleteAccountResponseSchema = z.object({
   message: z.string(),
 });
 
+export const billingCheckoutSettingsSchema = z.object({
+  client_token: z.string().min(1),
+  price_id: z.string().min(1),
+  email: z.string().min(1),
+  custom_data: z.record(z.string(), z.unknown()),
+  environment: z.enum(["sandbox", "production"]),
+});
+
+export type BillingCheckoutSettings = z.infer<typeof billingCheckoutSettingsSchema>;
+
+export const billingPortalResponseSchema = z.object({
+  url: z.string().url(),
+});
+
+export type BillingPortalResponse = z.infer<typeof billingPortalResponseSchema>;
+
 export const authRequireAuthSchema = z.object({
   require_auth: z.boolean().optional(),
   billing_enabled: z.boolean().optional(),
@@ -164,6 +180,7 @@ const authMePayloadSchema = z.object({
   subscription: z.unknown().optional(),
   require_auth: z.boolean().optional(),
   billing_enabled: z.boolean().optional(),
+  billing_customer_linked: z.boolean().optional(),
 });
 
 export interface ParsedAuthUser {
@@ -172,6 +189,8 @@ export interface ParsedAuthUser {
   email?: string;
   first_name?: string;
   last_name?: string;
+  /** True once a Paddle customer is linked, i.e. the billing portal can be opened. */
+  billing_customer_linked?: boolean;
   subscription?: {
     status: string;
     expires_at?: string;
@@ -219,6 +238,9 @@ export function parseAuthMePayload(payload: unknown): {
   }
   if (record.last_name !== undefined) {
     user.last_name = record.last_name;
+  }
+  if (record.billing_customer_linked !== undefined) {
+    user.billing_customer_linked = record.billing_customer_linked;
   }
 
   const subscription = parseSubscription(record.subscription);
