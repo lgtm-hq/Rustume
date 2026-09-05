@@ -21,6 +21,7 @@ use crate::audit::{record_event, record_event_required, AuditEvent};
 use crate::auth::session::SESSION_COOKIE;
 use crate::db::{
     AccountDataExport, AccountExportProfile, DeleteAccountRequest, DeleteAccountResponse,
+    PolicyAcceptanceExport,
 };
 use crate::email::log_send_failure;
 use crate::error::ApiError;
@@ -37,6 +38,15 @@ const EXPORT_STREAM_CHANNEL_CAPACITY: usize = 2;
 struct ExportResumeRow {
     id: Uuid,
     title: String,
+    data_json: String,
+}
+
+/// Resume snapshot fields required for account data export.
+#[derive(Debug, sqlx::FromRow)]
+struct ExportSnapshotRow {
+    resume_id: Uuid,
+    version: i32,
+    created_at: DateTime<Utc>,
     data_json: String,
 }
 
@@ -67,6 +77,8 @@ pub async fn export_account(
         .await
         .map_err(internal_db_error)?;
     let resume_count = account_resume_count(&mut *tx, user.id).await?;
+    let snapshot_count = account_snapshot_count(&mut *tx, user.id).await?;
+    let policy_acceptances = account_policy_acceptances(&mut *tx, user.id).await?;
 
     record_event_required(
         &cloud.db,
@@ -75,7 +87,11 @@ pub async fn export_account(
             actor_user_id: Some(user.id),
             resource_type: Some("account"),
             resource_id: Some(user.id),
-            metadata: serde_json::json!({ "resume_count": resume_count }),
+            metadata: serde_json::json!({
+                "resume_count": resume_count,
+                "snapshot_count": snapshot_count,
+                "policy_acceptance_count": policy_acceptances.len(),
+            }),
             ip_address: ip,
         },
     )
@@ -87,7 +103,7 @@ pub async fn export_account(
 
     let exported_at = Utc::now();
     let account = AccountExportProfile::from_user(&user);
-    let prefix = build_export_prefix(exported_at, &account)?;
+    let prefix = build_export_prefix(exported_at, &account, &policy_acceptances)?;
     let export_stream = stream_account_export(tx, user.id, prefix);
 
     let content_disposition =
@@ -234,14 +250,57 @@ where
     Ok(resume_count as usize)
 }
 
+async fn account_snapshot_count<'e, E>(db: E, user_id: Uuid) -> Result<usize, ApiError>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+{
+    let snapshot_count = sqlx::query_scalar::<_, i64>(
+        r#"
+        SELECT COUNT(*)
+        FROM resume_snapshots s
+        INNER JOIN resumes r ON r.id = s.resume_id
+        WHERE r.user_id = $1
+        "#,
+    )
+    .bind(user_id)
+    .fetch_one(db)
+    .await
+    .map_err(internal_db_error)?;
+
+    Ok(snapshot_count as usize)
+}
+
+async fn account_policy_acceptances<'e, E>(
+    db: E,
+    user_id: Uuid,
+) -> Result<Vec<PolicyAcceptanceExport>, ApiError>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+{
+    sqlx::query_as::<_, PolicyAcceptanceExport>(
+        r#"
+        SELECT policy, version, accepted_at, host(ip_address) AS ip_address
+        FROM policy_acceptances
+        WHERE user_id = $1
+        ORDER BY accepted_at ASC, policy ASC
+        "#,
+    )
+    .bind(user_id)
+    .fetch_all(db)
+    .await
+    .map_err(internal_db_error)
+}
+
 fn build_export_prefix(
     exported_at: DateTime<Utc>,
     account: &AccountExportProfile,
+    policy_acceptances: &[PolicyAcceptanceExport],
 ) -> Result<Vec<u8>, ApiError> {
     let mut body = Vec::new();
     body.push(b'{');
     append_json_field(&mut body, "exported_at", &exported_at, true)?;
     append_json_field(&mut body, "account", account, false)?;
+    append_json_field(&mut body, "policy_acceptances", &policy_acceptances, false)?;
     body.extend_from_slice(br#","resumes":["#);
     Ok(body)
 }
@@ -297,6 +356,47 @@ fn stream_account_export(
         }
 
         drop(rows);
+        if chunk_tx
+            .send(Ok(Bytes::from_static(br#"],"resume_snapshots":["#)))
+            .await
+            .is_err()
+        {
+            return;
+        }
+
+        let mut snapshots = sqlx::query_as::<_, ExportSnapshotRow>(
+            r#"
+            SELECT s.resume_id, s.version, s.created_at, s.data::text AS data_json
+            FROM resume_snapshots s
+            INNER JOIN resumes r ON r.id = s.resume_id
+            WHERE r.user_id = $1
+            ORDER BY s.resume_id ASC, s.version ASC
+            "#,
+        )
+        .bind(user_id)
+        .fetch(&mut *db_tx);
+
+        let mut first_snapshot = true;
+        while let Some(row) = match snapshots.try_next().await {
+            Ok(row) => row,
+            Err(err) => {
+                let _ = chunk_tx
+                    .send(Err(io::Error::other(internal_db_error(err).error)))
+                    .await;
+                return;
+            }
+        } {
+            match stream_snapshot_row(&chunk_tx, row, &mut first_snapshot).await {
+                Ok(true) => {}
+                Ok(false) => return,
+                Err(err) => {
+                    let _ = chunk_tx.send(Err(io::Error::other(err.error))).await;
+                    return;
+                }
+            }
+        }
+
+        drop(snapshots);
         let _ = chunk_tx.send(Ok(Bytes::from_static(b"]}"))).await;
         if let Err(err) = db_tx.commit().await {
             error!("account export transaction commit failed: {err}");
@@ -319,21 +419,58 @@ async fn stream_resume_row(
         error!("account export title serialization failed: {err}");
         ApiError::internal("failed to export account data")
     })?;
-    let prefix = if *first {
-        *first = false;
-        String::new()
-    } else {
-        ",".to_string()
-    };
     let header = format!(
-        r#"{prefix}{{"id":"{}","title":{},"data":"#,
-        row.id, title_json
+        r#"{}{{"id":"{}","title":{},"data":"#,
+        take_separator(first),
+        row.id,
+        title_json
     );
+    stream_json_object(chunk_tx, header, &row.data_json).await
+}
+
+/// Stream one resume snapshot row. Returns `Ok(false)` when the client
+/// disconnects so the caller can abort the DB cursor immediately.
+async fn stream_snapshot_row(
+    chunk_tx: &mpsc::Sender<Result<Bytes, io::Error>>,
+    row: ExportSnapshotRow,
+    first: &mut bool,
+) -> Result<bool, ApiError> {
+    let created_at_json = serde_json::to_string(&row.created_at).map_err(|err| {
+        error!("account export snapshot timestamp serialization failed: {err}");
+        ApiError::internal("failed to export account data")
+    })?;
+    let header = format!(
+        r#"{}{{"resume_id":"{}","version":{},"created_at":{},"data":"#,
+        take_separator(first),
+        row.resume_id,
+        row.version,
+        created_at_json
+    );
+    stream_json_object(chunk_tx, header, &row.data_json).await
+}
+
+/// Return the array separator for the current element and clear `first`.
+fn take_separator(first: &mut bool) -> &'static str {
+    if *first {
+        *first = false;
+        ""
+    } else {
+        ","
+    }
+}
+
+/// Send a pre-rendered object header, the raw JSON `data` value in bounded
+/// chunks, and the closing brace. Returns `Ok(false)` on client disconnect.
+async fn stream_json_object(
+    chunk_tx: &mpsc::Sender<Result<Bytes, io::Error>>,
+    header: String,
+    data_json: &str,
+) -> Result<bool, ApiError> {
     if chunk_tx.send(Ok(Bytes::from(header))).await.is_err() {
         return Ok(false);
     }
 
-    for chunk in row.data_json.as_bytes().chunks(EXPORT_STREAM_CHUNK_BYTES) {
+    for chunk in data_json.as_bytes().chunks(EXPORT_STREAM_CHUNK_BYTES) {
         if chunk_tx
             .send(Ok(Bytes::copy_from_slice(chunk)))
             .await
@@ -494,6 +631,46 @@ mod tests {
             .expect("fetch user")
     }
 
+    async fn seed_snapshots_and_policy_acceptances(pool: &sqlx::PgPool, user_id: Uuid) {
+        let resume_ids = sqlx::query_scalar::<_, Uuid>(
+            "SELECT id FROM resumes WHERE user_id = $1 ORDER BY title ASC",
+        )
+        .bind(user_id)
+        .fetch_all(pool)
+        .await
+        .expect("fetch seeded resume ids");
+
+        for resume_id in resume_ids {
+            for version in 1..=2 {
+                sqlx::query(
+                    "INSERT INTO resume_snapshots (resume_id, version, data) VALUES ($1, $2, $3)",
+                )
+                .bind(resume_id)
+                .bind(version)
+                .bind(serde_json::json!({ "snapshot_version": version }))
+                .execute(pool)
+                .await
+                .expect("insert resume snapshot");
+            }
+        }
+
+        for (policy, version) in [("terms", "2026-01-01"), ("privacy", "2026-01-01")] {
+            sqlx::query(
+                r#"
+                INSERT INTO policy_acceptances (user_id, policy, version, ip_address)
+                VALUES ($1, $2, $3, $4::inet)
+                "#,
+            )
+            .bind(user_id)
+            .bind(policy)
+            .bind(version)
+            .bind("203.0.113.7")
+            .execute(pool)
+            .await
+            .expect("insert policy acceptance");
+        }
+    }
+
     async fn seed_expired_subscription(pool: &sqlx::PgPool, user_id: Uuid) {
         let expired_at = Utc::now() - Duration::days(30);
         let subscription_id = Uuid::new_v4();
@@ -566,6 +743,7 @@ mod tests {
         let pool = connect_test_pool(&database_url).await;
 
         let user = seed_user_with_resumes(&pool, 2).await;
+        seed_snapshots_and_policy_acceptances(&pool, user.id).await;
         let state = test_app_state(pool.clone());
 
         let response = export_account(AuthUser(user.clone()), State(state), HeaderMap::new())
@@ -597,6 +775,61 @@ mod tests {
             .collect();
         assert!(titles.contains(&"Resume 0"));
         assert!(titles.contains(&"Resume 1"));
+
+        let acceptances = payload["policy_acceptances"]
+            .as_array()
+            .expect("policy_acceptances array");
+        assert_eq!(acceptances.len(), 2);
+        let policies: Vec<&str> = acceptances
+            .iter()
+            .map(|row| row["policy"].as_str().expect("policy name"))
+            .collect();
+        assert!(policies.contains(&"terms"));
+        assert!(policies.contains(&"privacy"));
+        assert!(acceptances
+            .iter()
+            .all(|row| row["version"] == "2026-01-01" && row["ip_address"] == "203.0.113.7"));
+
+        let snapshots = payload["resume_snapshots"]
+            .as_array()
+            .expect("resume_snapshots array");
+        assert_eq!(snapshots.len(), 4);
+        let resume_ids: std::collections::HashSet<&str> = payload["resumes"]
+            .as_array()
+            .expect("resumes array")
+            .iter()
+            .map(|resume| resume["id"].as_str().expect("resume id"))
+            .collect();
+        for snapshot in snapshots {
+            assert!(
+                resume_ids.contains(snapshot["resume_id"].as_str().expect("snapshot resume_id"))
+            );
+            let version = snapshot["version"].as_i64().expect("snapshot version");
+            assert!((1..=2).contains(&version));
+            assert_eq!(snapshot["data"]["snapshot_version"], version);
+            assert!(snapshot["created_at"].is_string());
+        }
+    }
+
+    #[tokio::test]
+    async fn export_account_emits_empty_collections_without_history() {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+        let pool = connect_test_pool(&database_url).await;
+
+        let user = seed_user_with_resumes(&pool, 0).await;
+        let state = test_app_state(pool.clone());
+
+        let response = export_account(AuthUser(user.clone()), State(state), HeaderMap::new())
+            .await
+            .expect("expected account export to succeed");
+        let payload = read_export_payload(response).await;
+        cleanup_user(&pool, user.id).await;
+
+        assert_eq!(payload["policy_acceptances"], serde_json::json!([]));
+        assert_eq!(payload["resumes"], serde_json::json!([]));
+        assert_eq!(payload["resume_snapshots"], serde_json::json!([]));
     }
 
     #[tokio::test]
@@ -607,6 +840,7 @@ mod tests {
         let pool = connect_test_pool(&database_url).await;
 
         let user = seed_user_with_resumes(&pool, 1).await;
+        seed_snapshots_and_policy_acceptances(&pool, user.id).await;
         let state = test_app_state(pool.clone());
 
         let response = export_account(AuthUser(user.clone()), State(state), HeaderMap::new())
@@ -634,6 +868,8 @@ mod tests {
         assert_eq!(audit_row.1, Some(user.id));
         assert_eq!(audit_row.2.as_deref(), Some("account"));
         assert_eq!(audit_row.3["resume_count"], 1);
+        assert_eq!(audit_row.3["snapshot_count"], 2);
+        assert_eq!(audit_row.3["policy_acceptance_count"], 2);
     }
 
     #[tokio::test]
