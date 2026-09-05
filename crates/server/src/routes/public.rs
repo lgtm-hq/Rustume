@@ -215,12 +215,19 @@ fn etag_matches(if_none_match: &str, etag: &str) -> bool {
 ///
 /// A `robots.txt` shipped in the static bundle wins, so self-hosted operators
 /// keep full control; the built-in policy is only the fallback.
-pub async fn robots_txt(State(state): State<AppState>) -> Response {
-    let body = match tokio::fs::read_to_string(state.static_dir.join("robots.txt")).await {
+pub async fn robots_txt(State(state): State<AppState>) -> Result<Response, ApiError> {
+    let path = state.static_dir.join("robots.txt");
+    let body = match tokio::fs::read_to_string(&path).await {
         Ok(custom) => custom,
-        Err(_) => ROBOTS_TXT.to_string(),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => ROBOTS_TXT.to_string(),
+        Err(err) => {
+            // An operator file exists but cannot be read: do not silently fall
+            // back to a permissive policy.
+            error!("robots.txt: failed to read {}: {err}", path.display());
+            return Err(ApiError::internal("Failed to read robots.txt"));
+        }
     };
-    (
+    Ok((
         StatusCode::OK,
         [(
             header::CONTENT_TYPE,
@@ -228,7 +235,7 @@ pub async fn robots_txt(State(state): State<AppState>) -> Response {
         )],
         body,
     )
-        .into_response()
+        .into_response())
 }
 
 /// Serve a published resume as HTML with Open Graph meta tags.
@@ -367,14 +374,26 @@ pub async fn public_resume_preview(
 pub async fn public_resume_data(
     State(state): State<AppState>,
     Path(slug): Path<String>,
-) -> Result<Json<PublicResumeData>, ApiError> {
+) -> Result<Response, ApiError> {
     let row = fetch_public_resume(&state, &slug).await?;
-    Ok(Json(PublicResumeData {
+    let etag = format_etag(row.id, row.version);
+    let payload = PublicResumeData {
         id: row.id,
         title: row.title,
         data: row.data,
         updated_at: row.updated_at,
-    }))
+    };
+    // Same unpublish contract as the HTML page: never serve from cache
+    // without revalidation.
+    Ok((
+        StatusCode::OK,
+        [
+            (header::CACHE_CONTROL, "no-cache"),
+            (header::ETAG, etag.as_str()),
+        ],
+        Json(payload),
+    )
+        .into_response())
 }
 
 #[cfg(test)]
@@ -771,12 +790,22 @@ mod tests {
             let static_dir = temp_static_dir();
             let state = test_app_state(pool.clone(), static_dir.path().to_path_buf());
 
-            let Json(payload) = public_resume_data(State(state), Path(seeded.slug.clone()))
+            let response = public_resume_data(State(state), Path(seeded.slug.clone()))
                 .await
                 .expect("published data");
-            assert_eq!(payload.id, seeded.resume_id);
-            assert_eq!(payload.title, "Public Test");
-            let json = serde_json::to_value(&payload).unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(
+                response.headers().get(header::CACHE_CONTROL).unwrap(),
+                "no-cache"
+            );
+            assert_eq!(
+                response.headers().get(header::ETAG).unwrap(),
+                format_etag(seeded.resume_id, seeded.version).as_str()
+            );
+            let json: serde_json::Value =
+                serde_json::from_str(&body_string(response).await).expect("json body");
+            assert_eq!(json["id"], seeded.resume_id.to_string());
+            assert_eq!(json["title"], "Public Test");
             assert!(json.get("user_id").is_none());
             assert!(json.get("password_hash").is_none());
 
@@ -904,6 +933,108 @@ mod tests {
             assert!(matches!(err.kind, ApiErrorKind::NotFound));
 
             cleanup_user(&pool, seeded.user_id).await;
+        }
+
+        #[tokio::test]
+        async fn router_serves_data_and_preview_and_reserves_r_namespace_in_cloud_mode() {
+            let Some(url) = database_url_for_tests() else {
+                return;
+            };
+            let pool = connect_test_pool(&url).await;
+            let seeded = seed_resume(&pool, true).await;
+            let static_dir = temp_static_dir();
+            let app = create_router_with_state(test_app_state(
+                pool.clone(),
+                static_dir.path().to_path_buf(),
+            ));
+            let etag = format_etag(seeded.resume_id, seeded.version);
+
+            let data = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri(format!("/r/{}/data", seeded.slug))
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(data.status(), StatusCode::OK);
+            assert_eq!(
+                data.headers().get(header::CACHE_CONTROL).unwrap(),
+                "no-cache"
+            );
+
+            let preview_304 = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri(format!("/r/{}/preview.png", seeded.slug))
+                        .header(header::IF_NONE_MATCH, &etag)
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(preview_304.status(), StatusCode::NOT_MODIFIED);
+
+            // A stale validator (previous version) misses and renders.
+            let stale = format_etag(seeded.resume_id, seeded.version - 1);
+            let preview_200 = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri(format!("/r/{}/preview.png", seeded.slug))
+                        .header(header::IF_NONE_MATCH, &stale)
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(preview_200.status(), StatusCode::OK);
+            assert_eq!(
+                preview_200.headers().get(header::CONTENT_TYPE).unwrap(),
+                "image/png"
+            );
+
+            // Cloud mode: an unknown path under /r is a server 404, not the SPA shell.
+            let not_a_route = app
+                .oneshot(
+                    Request::builder()
+                        .uri("/r/not-a-route/nested/deeper")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(not_a_route.status(), StatusCode::NOT_FOUND);
+            let body = body_string(not_a_route).await;
+            assert!(
+                body.contains("Route not found"),
+                "expected JSON 404, got {body}"
+            );
+
+            cleanup_user(&pool, seeded.user_id).await;
+        }
+
+        #[tokio::test]
+        async fn self_hosted_r_paths_fall_through_to_the_spa_shell() {
+            let static_dir = temp_static_dir();
+            let app = crate::app::create_router_with_static_dir(static_dir.path().to_path_buf());
+
+            let response = app
+                .oneshot(
+                    Request::builder()
+                        .uri("/r/anything")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::OK);
+            let body = body_string(response).await;
+            assert!(body.contains("<title>Rustume</title>"));
         }
 
         #[tokio::test]

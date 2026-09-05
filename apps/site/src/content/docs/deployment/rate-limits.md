@@ -63,8 +63,9 @@ PNG is served with `Cache-Control: public, no-cache` plus an ETag, so caches may
 revalidate on reuse: an unchanged preview costs a cheap `304`, and unpublishing or a version bump
 takes effect immediately. The unauthenticated bucket (`RATE_LIMIT_UNAUTHENTICATED_PER_MIN`) is
 applied to the HTML page and the JSON data route only; `robots.txt`, the OpenAPI UI, and unmatched
-paths are served without a limiter, and protected API routes return `401` before any quota is
-consulted.
+paths are served without a limiter. Protected API groups keep their own rate-limit layer outside
+authentication, so anonymous `/api` traffic can still receive `429` once the shared IP bucket is
+exhausted.
 
 ## Bulk export cap
 
