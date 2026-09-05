@@ -175,32 +175,62 @@ describe("Account page", () => {
     await waitFor(() => expect(toast.success).toHaveBeenCalledTimes(1));
   });
 
-  it.each([
-    [429, "Too many requests. Please try again shortly."],
-    [503, "Too many account exports are running right now. Please try again shortly."],
-  ])("shows the server's %i error when account data export fails", async (status, message) => {
+  it("describes exactly what the account export contains and omits", () => {
     mockAuthState.loading = false;
     mockAuthState.cloudEnabled = true;
-    mockAuthState.user = {
-      id: "user-1",
-      plan: "free",
-      email: "dev@example.com",
-    };
-    // The real client surfaces the server's JSON `error` string as ApiError.
-    vi.mocked(downloadAccountExport).mockRejectedValueOnce(
-      new ApiError(status, message, JSON.stringify({ error: message, retry_after: 30 })),
-    );
+    mockAuthState.user = { id: "user-1", plan: "free", email: "dev@example.com" };
 
     renderAccount();
 
-    const button = screen.getByRole("button", { name: "Export account data" });
-    fireEvent.click(button);
-
-    const { toast } = await import("../../components/ui");
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(message));
-    // The button must recover so the user can retry.
-    await waitFor(() => expect(button).not.toBeDisabled());
+    // This copy is a second statement of the AccountDataExport allow-list; keep
+    // it in step with the server model and the cloud-endpoints docs.
+    const copy =
+      screen.getByText(/Download a JSON archive of the account data Rustume stores/).textContent ??
+      "";
+    for (const included of [
+      "policy acceptances",
+      "billing subscriptions (including Paddle subscription and price ids)",
+      "every resume with its retained version snapshots",
+      "audit trail (including the IP addresses recorded with each event)",
+    ]) {
+      expect(copy).toContain(included);
+    }
+    expect(copy).toContain(
+      "Sessions, the WorkOS user id, and the Paddle customer id are not included.",
+    );
   });
+
+  // The page never branches on status or retry_after; it shows the server's
+  // error message as-is. Two real server messages, one behaviour.
+  it.each([
+    [429, "Too many requests. Please try again shortly."],
+    [503, "Too many account exports are running right now. Please try again shortly."],
+  ])(
+    "passes the server's error message through when export fails (status %i)",
+    async (status, message) => {
+      mockAuthState.loading = false;
+      mockAuthState.cloudEnabled = true;
+      mockAuthState.user = {
+        id: "user-1",
+        plan: "free",
+        email: "dev@example.com",
+      };
+      // The real client surfaces the server's JSON `error` string as ApiError.
+      vi.mocked(downloadAccountExport).mockRejectedValueOnce(
+        new ApiError(status, message, JSON.stringify({ error: message, retry_after: 30 })),
+      );
+
+      renderAccount();
+
+      const button = screen.getByRole("button", { name: "Export account data" });
+      fireEvent.click(button);
+
+      const { toast } = await import("../../components/ui");
+      await waitFor(() => expect(toast.error).toHaveBeenCalledWith(message));
+      // The button must recover so the user can retry.
+      await waitFor(() => expect(button).not.toBeDisabled());
+    },
+  );
 
   it("opens the delete confirmation modal", () => {
     mockAuthState.loading = false;
