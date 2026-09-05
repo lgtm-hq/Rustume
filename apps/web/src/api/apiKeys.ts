@@ -1,23 +1,18 @@
+import type { z } from "zod";
 import { del, get, post } from "./client";
-import { apiKeyListSchema, createdApiKeySchema } from "./schemas";
+import { apiKeyListSchema, apiKeySummarySchema, createdApiKeySchema } from "./schemas";
 
-/** Active API key as returned by `GET /api/keys` (a bare JSON array). */
-export interface ApiKeySummary {
-  id: string;
-  name: string;
-  /** First eight characters after the `rk_` prefix; the prefix itself is not included. */
-  prefix: string;
-  last_used_at: string | null;
-  created_at: string;
-}
+/**
+ * Active API key as returned by `GET /api/keys` (a bare JSON array).
+ *
+ * `prefix` is the first eight characters after the `rk_` scheme; the scheme
+ * itself is not included. Inferred from the zod schema so the compile-time and
+ * runtime contracts cannot drift.
+ */
+export type ApiKeySummary = z.infer<typeof apiKeySummarySchema>;
 
 /** `POST /api/keys` response. The plaintext `key` is only ever returned here. */
-export interface CreatedApiKey {
-  id: string;
-  name: string;
-  prefix: string;
-  key: string;
-}
+export type CreatedApiKey = z.infer<typeof createdApiKeySchema>;
 
 /** Maximum key name length accepted by the server. */
 export const API_KEY_NAME_MAX_LENGTH = 100;

@@ -239,6 +239,73 @@ describe("ApiKeysSection", () => {
     expect(screen.queryByText(/No API keys yet/i)).not.toBeInTheDocument();
   });
 
+  it("cannot be dismissed while the create request is in flight", async () => {
+    let resolveCreate: (key: {
+      id: string;
+      name: string;
+      prefix: string;
+      key: string;
+    }) => void = () => {};
+    createApiKeyMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveCreate = resolve;
+      }),
+    );
+    listApiKeysMock.mockResolvedValue([]);
+
+    render(() => <ApiKeysSection />);
+    await screen.findByText(/No API keys yet/i);
+
+    fireEvent.click(screen.getByRole("button", { name: "Create key" }));
+    const createDialog = await screen.findByRole("dialog");
+    fireEvent.input(within(createDialog).getByLabelText("Key name"), {
+      target: { value: "Automation" },
+    });
+    fireEvent.click(within(createDialog).getByRole("button", { name: "Create key" }));
+
+    // Escape, backdrop, and Cancel are all inert while the POST is pending.
+    fireEvent.keyDown(createDialog, { key: "Escape" });
+    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.pointerDown(document.body);
+    expect(within(createDialog).getByRole("button", { name: "Cancel" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /close/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    resolveCreate({ id: "key-3", name: "Automation", prefix: "zzzz9999", key: "rk_once" });
+
+    expect(await screen.findByText("rk_once")).toBeInTheDocument();
+  });
+
+  it("opens a fresh name form after a previous key was revealed and dismissed", async () => {
+    createApiKeyMock.mockResolvedValue({
+      id: "key-3",
+      name: "Automation",
+      prefix: "zzzz9999",
+      key: "rk_once",
+    });
+    listApiKeysMock.mockResolvedValue([]);
+
+    render(() => <ApiKeysSection />);
+    await screen.findByText(/No API keys yet/i);
+
+    fireEvent.click(screen.getByRole("button", { name: "Create key" }));
+    let createDialog = await screen.findByRole("dialog");
+    fireEvent.input(within(createDialog).getByLabelText("Key name"), {
+      target: { value: "Automation" },
+    });
+    fireEvent.click(within(createDialog).getByRole("button", { name: "Create key" }));
+    await screen.findByText("rk_once");
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Create key" }));
+    createDialog = await screen.findByRole("dialog");
+    expect(within(createDialog).getByLabelText("Key name")).toHaveValue("");
+    expect(screen.queryByText("rk_once")).not.toBeInTheDocument();
+  });
+
   it("shows an error toast and keeps the form when creation fails", async () => {
     createApiKeyMock.mockRejectedValue(new Error("Maximum of 20 active API keys reached"));
     listApiKeysMock.mockResolvedValue(sampleKeys);
