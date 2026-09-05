@@ -18,7 +18,7 @@ use std::sync::Arc;
 use std::time::{Duration, UNIX_EPOCH};
 use tracing::warn;
 
-use crate::auth::api_key::{extract_token_from_headers, hash_token};
+use crate::auth::api_key::{extract_token_from_headers, find_active_key, hash_token};
 use crate::auth::session::SESSION_COOKIE;
 use crate::config::RateLimitConfig;
 use crate::net::trusted_client_ip;
@@ -293,20 +293,16 @@ async fn api_key_rate_limit_key(state: &AppState, headers: &HeaderMap) -> Option
     let key_hash = hash_token(&token);
     let cloud = state.cloud().ok()?;
 
-    let key_id = sqlx::query_scalar::<_, uuid::Uuid>(
-        r#"
-        SELECT id
-        FROM api_keys
-        WHERE key_hash = $1
-          AND revoked_at IS NULL
-        "#,
-    )
-    .bind(key_hash)
-    .fetch_optional(&cloud.db)
-    .await
-    .ok()??;
-
-    Some(format!("api_key:{key_id}"))
+    match find_active_key(&cloud.db, &key_hash).await {
+        Ok(Some(key)) => Some(format!("api_key:{}", key.key_id)),
+        Ok(None) => None,
+        Err(err) => {
+            // Fall back to the per-IP bucket, but say so: a quiet fallback would
+            // hide a database problem behind normal-looking traffic.
+            warn!("api key lookup failed during rate limiting: {err}");
+            None
+        }
+    }
 }
 
 async fn enforce_session_rate_limit(
