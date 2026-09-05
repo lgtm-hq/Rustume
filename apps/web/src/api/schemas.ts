@@ -152,6 +152,7 @@ export const deleteAccountResponseSchema = z.object({
 
 export const authRequireAuthSchema = z.object({
   require_auth: z.boolean().optional(),
+  billing_enabled: z.boolean().optional(),
 });
 
 const authMePayloadSchema = z.object({
@@ -162,6 +163,7 @@ const authMePayloadSchema = z.object({
   last_name: z.string().optional(),
   subscription: z.unknown().optional(),
   require_auth: z.boolean().optional(),
+  billing_enabled: z.boolean().optional(),
 });
 
 export interface ParsedAuthUser {
@@ -199,6 +201,7 @@ function parseSubscription(value: unknown): ParsedAuthUser["subscription"] {
 export function parseAuthMePayload(payload: unknown): {
   user: ParsedAuthUser;
   requireAuth: boolean;
+  billingEnabled: boolean;
 } {
   const result = authMePayloadSchema.safeParse(payload);
   if (!result.success) {
@@ -223,5 +226,9 @@ export function parseAuthMePayload(payload: unknown): {
     user.subscription = subscription;
   }
 
-  return { user, requireAuth: record.require_auth === true };
+  return {
+    user,
+    requireAuth: record.require_auth === true,
+    billingEnabled: record.billing_enabled === true,
+  };
 }

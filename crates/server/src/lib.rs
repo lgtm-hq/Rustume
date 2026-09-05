@@ -30,6 +30,7 @@
 pub mod app;
 pub mod audit;
 pub mod auth;
+pub mod billing;
 pub mod cloud;
 pub mod config;
 pub mod db;
@@ -1259,5 +1260,106 @@ mod tests {
 
             assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         }
+    }
+
+    fn sample_billing_config() -> config::BillingConfig {
+        config::BillingConfig {
+            api_key: "api_test".to_string(),
+            webhook_secret: "secret_test".to_string(),
+            price_id: "pri_test".to_string(),
+            client_token: "client_test".to_string(),
+            api_base: "https://api.paddle.com".to_string(),
+            sandbox: true,
+        }
+    }
+
+    #[tokio::test]
+    async fn billing_routes_absent_without_config() {
+        let state = state::AppState::with_options_and_billing(
+            std::sync::Arc::new(routes::static_dir()),
+            Some(test_cloud_state()),
+            true,
+            config::RateLimitConfig::default(),
+            None,
+        );
+        let app = create_router_with_state(state);
+
+        let portal = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/billing/portal")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(portal.status(), StatusCode::NOT_FOUND);
+
+        let checkout = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/billing/checkout")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(
+            matches!(
+                checkout.status(),
+                StatusCode::NOT_FOUND | StatusCode::METHOD_NOT_ALLOWED
+            ),
+            "unexpected status for absent billing checkout route: {}",
+            checkout.status()
+        );
+
+        let webhook = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/webhooks/paddle")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(
+            matches!(
+                webhook.status(),
+                StatusCode::NOT_FOUND | StatusCode::METHOD_NOT_ALLOWED
+            ),
+            "unexpected status for absent billing webhook route: {}",
+            webhook.status()
+        );
+    }
+
+    #[tokio::test]
+    async fn billing_webhook_rejects_missing_signature_when_configured() {
+        let state = state::AppState::with_options_and_billing(
+            std::sync::Arc::new(routes::static_dir()),
+            Some(test_cloud_state()),
+            false,
+            config::RateLimitConfig::default(),
+            Some(sample_billing_config()),
+        );
+        let app = create_router_with_state(state);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/webhooks/paddle")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"event_type":"customer.created"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
 }

@@ -58,6 +58,7 @@ describe("probeAuth", () => {
         last_name: "Hopper",
       },
       requireAuth: false,
+      billingEnabled: false,
     });
   });
 
@@ -88,6 +89,7 @@ describe("probeAuth", () => {
         },
       },
       requireAuth: false,
+      billingEnabled: false,
     });
   });
 
@@ -112,6 +114,7 @@ describe("probeAuth", () => {
         subscription: { status: "canceled" },
       },
       requireAuth: false,
+      billingEnabled: false,
     });
   });
 
@@ -131,6 +134,7 @@ describe("probeAuth", () => {
       mode: "cloud",
       user: { id: "user-1", plan: "free" },
       requireAuth: false,
+      billingEnabled: false,
     });
   });
 
@@ -151,6 +155,7 @@ describe("probeAuth", () => {
       mode: "cloud",
       user: { id: "user-1", plan: "pro" },
       requireAuth: false,
+      billingEnabled: false,
     });
   });
 
@@ -171,6 +176,28 @@ describe("probeAuth", () => {
       mode: "cloud",
       user: { id: "user-1", plan: "free" },
       requireAuth: true,
+      billingEnabled: false,
+    });
+  });
+
+  it("maps billing_enabled from authenticated /auth/me", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: "user-1",
+        plan: "free",
+        billing_enabled: true,
+      }),
+    });
+
+    const result = await probeAuth();
+
+    expect(result).toEqual({
+      mode: "cloud",
+      user: { id: "user-1", plan: "free" },
+      requireAuth: false,
+      billingEnabled: true,
     });
   });
 
@@ -191,6 +218,7 @@ describe("probeAuth", () => {
       mode: "cloud",
       user: null,
       requireAuth: true,
+      billingEnabled: false,
     });
   });
 
