@@ -170,14 +170,20 @@ its queue against the result, pulls a fresh cursor, and only then drains.
 
 Replays are safe because every mutation carries a client-generated
 `Idempotency-Key` (UUID). The relay stores the key with the response it produced,
-attached to the client's `sync_cursors` row, and keeps it for as long as that row
-lives (90 days without a pull). A retry with the same key returns the stored
-response even though the `If-Match` version has since moved, so a lost response
-after a committed write does not turn into a false conflict. Once the cursor row
-expires the replay records go with it; a client returning after that long gets 428
-on its first write and reclassifies the queue through the full reconcile, which
-recognises an already-applied mutation by matching content tags rather than by
-replaying it. `POST /api/sync/reconcile` is idempotent by
+attached to the client's `sync_cursors` row. A retry with the same key returns the
+stored response even though the `If-Match` version has since moved, so a lost
+response after a committed write does not turn into a false conflict.
+
+Replay records are bounded by acknowledgement, not by time alone. A record is
+compacted once the client's cursor has advanced past the version that mutation
+produced, because a client that has pulled past its own write has seen the result
+and will never replay it. A floor of 24 hours applies so an in-flight retry is never
+compacted under it. For an active client this keeps the set to the handful of
+mutations since its last pull. If the cursor row expires the remaining records go
+with it; a client returning after that long gets 428 on its first write and
+reclassifies the queue through the full reconcile, which recognises an
+already-applied mutation by matching content tags rather than by replaying it.
+`POST /api/sync/reconcile` is idempotent by
 construction and needs no key.
 
 #### Deletions are versioned tombstones
