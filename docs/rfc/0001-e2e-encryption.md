@@ -361,8 +361,10 @@ Requires explicit user action. The operator cannot reverse it alone.
 ### DEK rotation (compromise recovery)
 
 1. Client generates the new DEK, wraps it with the current MK as a **second** wrap
-   stored beside the old one in `e2ee_config` (`wrapped_dek_next`), and rewrites every
-   recovery backup so each holds both `DEK || tag_key` generations. Setting
+   stored beside the old one in `e2ee_config` (`wrapped_dek_next`), and writes a **second**
+   recovery backup per code (`backup_next`, its own fresh nonce, the 64-byte
+   `DEK_next || tag_key`) beside the existing one, so both generations stay
+   recoverable without changing the blob format. Setting
    `e2ee_config.rotation_in_progress = true` is part of the same server write, and the
    server accepts generation N and N+1 from here until step 2's verify passes. Nothing has
    been re-encrypted yet,
@@ -370,14 +372,19 @@ Requires explicit user action. The operator cannot reverse it alone.
 2. Re-encrypt every resume envelope and every `resume_snapshots` row for the account
    with the new DEK, each with a fresh nonce. A crash mid-way is safe because both
    wraps exist; the client resumes by scanning for rows still at generation N.
-   Rotation must not complete while any row is still under the old DEK; the server
-   verifies this atomically the same way the enable flow does, and in that same
-   transaction sets `e2ee_config.rotation_verified = true`, which stops accepting
+   Rotation must not complete while any row is still under the old DEK. The relay
+   cannot decrypt, so its atomic check is that every resume and snapshot row carries
+   `e2ee.generation = N+1`, an honest-client guard as the Detection row says; the
+   real proof is on the client, which decrypts each rewritten row with `DEK_next`
+   before requesting the flip and refuses to proceed on any failure. Once both hold,
+   the server, in the same transaction as its check, sets
+   `e2ee_config.rotation_verified = true`, which stops accepting
    generation N. From here only N+1 envelopes are stored,
    so nothing written after this point can depend on the old wrap.
 3. Promote `wrapped_dek_next` to `wrapped_dek` and drop the old wrap in `e2ee_config`.
-4. Rewrite each recovery-code backup once more, with a **fresh** `nonce_recovery`,
-   so it holds only the new generation (step 1 wrote both) and every stored recovery
+4. Promote each code's `backup_next` to `backup` and delete the old blob, with a
+   **fresh** `nonce_recovery` if the blob is rewritten, so each code holds only the
+   new generation (step 1 wrote the second blob) and every stored recovery
    blob unwraps the new DEK (never reuse a prior recovery nonce under
    the same `RK`), **or** invalidate and regenerate recovery codes before completing
    rotation. When keeping the same codes, each `code_hash` row's `backup` **must be
