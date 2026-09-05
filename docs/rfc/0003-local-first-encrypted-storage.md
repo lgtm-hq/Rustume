@@ -168,7 +168,8 @@ change. The rules that make deletes safe across offline devices:
   registry. A cursor expires after 90 days without a pull, so an abandoned tab
   cannot hold tombstones forever. Once both conditions hold the relay may
   garbage-collect them.
-- A client whose cursor has expired must run a full reconcile, not a delta pull. In a full reconcile, a local document that has a
+- A client whose cursor has expired must run a full reconcile, not a delta pull. In a full
+  reconcile, a local document that has a
   relay version recorded (it was synced before) but no row on the relay is treated
   as deleted on the relay, and surfaces the same keep-deleted-or-restore choice as
   a live tombstone. Only a local document that has never been synced is created.
@@ -463,7 +464,8 @@ PR that adds this RFC.
    accounts, because the server cannot seal a snapshot. Snapshots for those accounts
    come only from the client through the sync snapshot endpoint, which is
    insert-only on `(resume_id, version)` and answers 409 to a different ciphertext
-   for an existing version. History is never rewritten in place. For a migrated account, `/api/resumes` accepts only
+   for an existing version. History is never rewritten in place. For a migrated account,
+   `/api/resumes` accepts only
    envelopes (422 otherwise, per RFC 0001) and returns envelopes; a client too old to
    handle envelopes gets 426 Upgrade Required rather than plaintext.
 5. **`resume_snapshots`** keeps its shape. After migration every row for the account
