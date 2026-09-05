@@ -135,7 +135,7 @@ export default function Account() {
       exportingAccount,
       setExportingAccount,
       downloadAccountExport,
-      "Account data downloaded",
+      "Account data exported",
       "Account export failed:",
       "Failed to export account data",
     );

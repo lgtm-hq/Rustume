@@ -1,5 +1,8 @@
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig, searchForWorkspaceRoot } from "vite";
+
+const configDir = path.dirname(fileURLToPath(import.meta.url));
 import solid from "vite-plugin-solid";
 import { VitePWA } from "vite-plugin-pwa";
 import tailwindcss from "@tailwindcss/vite";
@@ -97,7 +100,7 @@ export default defineConfig({
       // lives under crates/, outside the Vite root.
       allow: [
         searchForWorkspaceRoot(process.cwd()),
-        fileURLToPath(new URL("../../crates/server/src/db", import.meta.url)),
+        path.resolve(configDir, "../../crates/server/src/db"),
       ],
     },
     proxy: {
