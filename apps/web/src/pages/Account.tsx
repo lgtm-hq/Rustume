@@ -284,10 +284,10 @@ export default function Account() {
                       Export account data
                     </h2>
                     <p class="text-sm text-stone mb-4">
-                      Download everything Rustume holds about your account as one JSON file for data
-                      portability: profile, policy acceptances, billing subscriptions, every resume
-                      with its retained version snapshots, and your account's audit trail (including
-                      the IP addresses recorded with each event).
+                      Download a JSON archive of the account data Rustume stores: profile, policy
+                      acceptances, billing subscriptions, every resume with its retained version
+                      snapshots, and your account's audit trail (including the IP addresses recorded
+                      with each event). Sessions and payment-provider ids are not included.
                     </p>
                     <Button
                       variant="secondary"
@@ -354,8 +354,8 @@ export default function Account() {
                       </ul>
 
                       <p class="text-sm text-stone">
-                        Export your resumes from the account page before deleting if you need local
-                        copies.
+                        Export your account data or your resumes from the account page before
+                        deleting if you need a copy; nothing can be recovered afterwards.
                       </p>
 
                       <Input
