@@ -101,7 +101,9 @@ server process also caps **concurrent** exports, at **2** by default
 (`RATE_LIMIT_ACCOUNT_EXPORT_CONCURRENCY`; keep it well below `DB_MAX_CONNECTIONS`). When both slots
 are taken the request is refused up front with `503 Service Unavailable`, a `Retry-After: 30`
 header, and the same `{ "error", "retry_after" }` body as a `429`; nothing is written to the audit
-log for a refused request. The ceiling is per process and multiplies with the number of replicas.
+log for a refused request. The ceiling is per process and multiplies with the number of replicas. It
+is enforced in the export handler, not in the rate-limit middleware, so it still applies when
+`RATE_LIMIT_DISABLED=true`.
 
 ## Configuration
 

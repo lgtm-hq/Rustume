@@ -719,4 +719,94 @@ mod tests {
         assert_eq!(back.ip_address, None);
         assert_eq!(back.policy, "terms");
     }
+
+    /// The Account page's ACCOUNT_EXPORT_CONTENTS is the web statement of this
+    /// module's allow-list. It cannot be imported across languages, so pin its
+    /// wording here: adding a collection to `AccountDataExport` without telling
+    /// the user fails this test, as does dropping a documented exclusion.
+    #[test]
+    fn web_export_copy_matches_allow_list() {
+        let web = include_str!("../../../../apps/web/src/api/account.ts");
+        let constant = &web[web
+            .find("export const ACCOUNT_EXPORT_CONTENTS")
+            .expect("ACCOUNT_EXPORT_CONTENTS constant exists")..];
+        let constant = &constant[..constant.find("} as const;").expect("constant ends")];
+
+        // One phrase per exported collection.
+        for (field, phrase) in [
+            ("account", "your profile"),
+            ("policy_acceptances", "policy acceptances"),
+            (
+                "subscriptions",
+                "billing subscriptions (including Paddle subscription and price ids)",
+            ),
+            (
+                "resumes",
+                "every resume with its retained version snapshots",
+            ),
+            ("resume_snapshots", "version snapshots"),
+            (
+                "audit_events",
+                "audit trail (including the IP addresses recorded with each event)",
+            ),
+        ] {
+            assert!(
+                constant.contains(phrase),
+                "web copy must describe `{field}`: {phrase}"
+            );
+        }
+        // Every documented exclusion.
+        for excluded in [
+            "sessions",
+            "the WorkOS user id",
+            "the Paddle customer id",
+            "share password hashes",
+        ] {
+            assert!(
+                constant.contains(excluded),
+                "web copy must name exclusion: {excluded}"
+            );
+        }
+        // And the schema itself still has exactly these collections.
+        let export = AccountDataExport {
+            exported_at: Utc::now(),
+            account: AccountExportProfile::from_user(&User {
+                id: Uuid::nil(),
+                workos_id: String::new(),
+                plan: "free".to_string(),
+                paddle_customer_id: None,
+                email: None,
+                first_name: None,
+                last_name: None,
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+            }),
+            policy_acceptances: vec![],
+            subscriptions: vec![],
+            resumes: vec![],
+            resume_snapshots: vec![],
+            audit_events: vec![],
+        };
+        // serde_json orders object keys alphabetically; compare as a set.
+        let keys: std::collections::BTreeSet<String> = serde_json::to_value(&export)
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .keys()
+            .cloned()
+            .collect();
+        let expected: std::collections::BTreeSet<String> = [
+            "exported_at",
+            "account",
+            "policy_acceptances",
+            "subscriptions",
+            "resumes",
+            "resume_snapshots",
+            "audit_events",
+        ]
+        .into_iter()
+        .map(String::from)
+        .collect();
+        assert_eq!(keys, expected);
+    }
 }

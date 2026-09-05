@@ -5,6 +5,7 @@ import { axeConfig } from "../../test/a11y";
 import { Route, Router } from "@solidjs/router";
 import Account from "../Account";
 import { ACCOUNT_EXPORT_CONTENTS, downloadAccountExport } from "../../api/account";
+import { downloadResumesJson, downloadResumesPdf } from "../../api/export";
 import { ApiError } from "../../api/client";
 
 const { mockAuthState, signInMock, signOutMock } = vi.hoisted(() => ({
@@ -52,6 +53,11 @@ vi.mock("../../api/account", async (importOriginal) => {
   };
 });
 
+vi.mock("../../api/export", () => ({
+  downloadResumesJson: vi.fn().mockResolvedValue(undefined),
+  downloadResumesPdf: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("../../api/resumes", () => ({
   listCloudResumesPage: vi.fn().mockResolvedValue({ total: 2, items: [], page: 1, per_page: 100 }),
 }));
@@ -79,6 +85,10 @@ describe("Account page", () => {
   beforeEach(async () => {
     vi.mocked(downloadAccountExport).mockClear();
     vi.mocked(downloadAccountExport).mockResolvedValue(undefined);
+    vi.mocked(downloadResumesJson).mockClear();
+    vi.mocked(downloadResumesJson).mockResolvedValue(undefined);
+    vi.mocked(downloadResumesPdf).mockClear();
+    vi.mocked(downloadResumesPdf).mockResolvedValue(undefined);
     const { toast } = await import("../../components/ui");
     vi.mocked(toast.success).mockClear();
     vi.mocked(toast.error).mockClear();
@@ -188,25 +198,73 @@ describe("Account page", () => {
 
     renderAccount();
 
-    // The page renders from ACCOUNT_EXPORT_CONTENTS, which mirrors the server's
-    // AccountDataExport allow-list; assert every entry reaches the user, and
-    // that the list itself still names the documented exclusions.
+    // Test-owned literals (not the page's own constant) so dropping a disclosure
+    // from ACCOUNT_EXPORT_CONTENTS fails here. Keep in step with the server's
+    // AccountDataExport (a Rust test cross-checks the constant's wording too).
+    const expectedIncluded = [
+      "your profile",
+      "policy acceptances",
+      "billing subscriptions (including Paddle subscription and price ids)",
+      "every resume with its retained version snapshots",
+      "your account's audit trail (including the IP addresses recorded with each event)",
+    ];
+    const expectedExcluded = [
+      "sessions",
+      "the WorkOS user id",
+      "the Paddle customer id",
+      "share password hashes",
+    ];
+    expect([...ACCOUNT_EXPORT_CONTENTS.included]).toEqual(expectedIncluded);
+    expect([...ACCOUNT_EXPORT_CONTENTS.excluded]).toEqual(expectedExcluded);
+
     const copy =
       screen.getByText(/Download a JSON archive of the account data Rustume stores/).textContent ??
       "";
-    for (const item of [...ACCOUNT_EXPORT_CONTENTS.included, ...ACCOUNT_EXPORT_CONTENTS.excluded]) {
-      expect(copy).toContain(item);
-    }
-    expect(ACCOUNT_EXPORT_CONTENTS.excluded).toEqual(
-      expect.arrayContaining([
-        "sessions",
-        "the WorkOS user id",
-        "the Paddle customer id",
-        "share password hashes",
-      ]),
+    expect(copy).toBe(
+      `Download a JSON archive of the account data Rustume stores: ${expectedIncluded.join(", ")}. Not included: ${expectedExcluded.join(", ")}.`,
     );
-    expect(ACCOUNT_EXPORT_CONTENTS.included.join(" ")).toMatch(/audit trail/);
-    expect(ACCOUNT_EXPORT_CONTENTS.included.join(" ")).toMatch(/version snapshots/);
+  });
+
+  it.each([
+    ["Download as JSON", downloadResumesJson, "Resume export downloaded"],
+    ["Download as PDF (ZIP)", downloadResumesPdf, "PDF export downloaded"],
+  ])("runs the %s export once per click and toasts on success", async (label, api, success) => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.user = { id: "user-1", plan: "free", email: "dev@example.com" };
+    let finish: (() => void) | undefined;
+    vi.mocked(api).mockImplementationOnce(() => new Promise<void>((resolve) => (finish = resolve)));
+
+    renderAccount();
+    const button = screen.getByRole("button", { name: label });
+    fireEvent.click(button);
+    fireEvent.click(button);
+    expect(api).toHaveBeenCalledTimes(1);
+
+    finish?.();
+    const { toast } = await import("../../components/ui");
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith(success));
+    await waitFor(() => expect(button).not.toBeDisabled());
+  });
+
+  it.each([
+    ["Download as JSON", downloadResumesJson],
+    ["Download as PDF (ZIP)", downloadResumesPdf],
+  ])("shows the server error when the %s export fails", async (label, api) => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.user = { id: "user-1", plan: "free", email: "dev@example.com" };
+    vi.mocked(api).mockRejectedValueOnce(
+      new ApiError(413, "Bulk export is limited to 50 resumes per request"),
+    );
+
+    renderAccount();
+    fireEvent.click(screen.getByRole("button", { name: label }));
+
+    const { toast } = await import("../../components/ui");
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Bulk export is limited to 50 resumes per request"),
+    );
   });
 
   // The page never branches on status or retry_after; it shows the server's
