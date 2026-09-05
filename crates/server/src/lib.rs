@@ -1204,6 +1204,30 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_update_account_unauthenticated_401() {
+        let state = state::AppState::with_require_auth(
+            std::sync::Arc::new(routes::static_dir()),
+            Some(test_cloud_state()),
+            true,
+        );
+        let app = create_router_with_state(state);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("PATCH")
+                    .uri("/api/account")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"username":"calm-finch-1234"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
     async fn test_delete_account_unauthenticated_401() {
         let state = state::AppState::with_require_auth(
             std::sync::Arc::new(routes::static_dir()),

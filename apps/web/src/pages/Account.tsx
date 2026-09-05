@@ -1,6 +1,7 @@
 import { Show, createEffect, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { deleteAccount, updateUsername, validateUsername } from "../api/account";
+import { ApiError } from "../api/client";
 import { downloadResumesJson, downloadResumesPdf } from "../api/export";
 import { listCloudResumesPage } from "../api/resumes";
 import { authStore } from "../stores/auth";
@@ -171,7 +172,7 @@ export default function Account() {
       const message =
         error instanceof Error ? error.message : "Failed to update username. Please try again.";
       setUsernameError(message);
-      if (message.includes("already taken")) {
+      if (error instanceof ApiError && error.status === 409) {
         toast.error("That username is already taken");
       }
     } finally {

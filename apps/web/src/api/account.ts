@@ -1,3 +1,4 @@
+import usernameRules from "../../../../crates/server/src/auth/username_rules.json";
 import { delJson, patch } from "./client";
 import { deleteAccountResponseSchema, updateAccountResponseSchema } from "./schemas";
 
@@ -10,35 +11,17 @@ export interface UpdateAccountResponse {
   username: string;
 }
 
-const RESERVED_USERNAMES = new Set([
-  "admin",
-  "api",
-  "auth",
-  "account",
-  "resume",
-  "r",
-  "rustume",
-  "settings",
-  "support",
-  "help",
-  "www",
-  "root",
-  "login",
-  "logout",
-  "signup",
-  "register",
-  "dashboard",
-  "billing",
-  "export",
-  "import",
-  "me",
-]);
+// Shared with the server (crates/server/src/auth/username.rs includes the same
+// file), so reserved names and length bounds cannot drift between the two.
+const RESERVED_USERNAMES: ReadonlySet<string> = new Set(usernameRules.reserved);
+const USERNAME_MIN_LENGTH: number = usernameRules.min_length;
+const USERNAME_MAX_LENGTH: number = usernameRules.max_length;
 
 /** Client-side username validation mirroring the server rules. */
 export function validateUsername(username: string): string | null {
   const normalized = username.trim().toLowerCase();
-  if (normalized.length < 3 || normalized.length > 32) {
-    return "Username must be 3-32 characters";
+  if (normalized.length < USERNAME_MIN_LENGTH || normalized.length > USERNAME_MAX_LENGTH) {
+    return `Username must be ${USERNAME_MIN_LENGTH}-${USERNAME_MAX_LENGTH} characters`;
   }
   if (normalized.startsWith("-") || normalized.endsWith("-") || normalized.includes("--")) {
     return "Username cannot start, end, or contain consecutive hyphens";
