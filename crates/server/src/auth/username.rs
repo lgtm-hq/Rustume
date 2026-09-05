@@ -99,7 +99,10 @@ pub fn generate_username() -> String {
 /// Validate a username against the shared rules: length bounds, the
 /// charset/hyphen pattern, and reserved words.
 pub fn validate_username(username: &str) -> Result<(), String> {
-    let username = username.trim();
+    // Normalise here as well so the documented algorithm cannot be skipped by
+    // a caller that forgets to; `normalize_username` is idempotent.
+    let username = normalize_username(username);
+    let username = username.as_str();
     let rules = rules();
     // Length is measured in UTF-16 code units so it agrees with the web
     // client's `String.prototype.length` for every input, including astral

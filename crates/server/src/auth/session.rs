@@ -79,7 +79,10 @@ impl SessionService {
                 u.plan,
                 u.paddle_customer_id,
                 u.email,
-                u.username,
+                -- Rows inserted by a pre-username replica during a rolling
+                -- deploy have no username yet; read them with the same
+                -- hyphen-stripped id the migration backfill assigns.
+                COALESCE(u.username, replace(u.id::text, '-', '')) AS username,
                 u.created_at,
                 u.updated_at
             FROM sessions s

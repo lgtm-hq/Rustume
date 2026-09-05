@@ -182,6 +182,16 @@ pub async fn upsert_user(
     pool: &sqlx::PgPool,
     workos_user: &WorkOsUser,
 ) -> Result<UpsertUserResult, sqlx::Error> {
+    upsert_user_with_generator(pool, workos_user, generate_username).await
+}
+
+/// [`upsert_user`] with an injectable handle generator, so tests can force a
+/// collision on a known handle and observe the retry.
+async fn upsert_user_with_generator(
+    pool: &sqlx::PgPool,
+    workos_user: &WorkOsUser,
+    mut next_username: impl FnMut() -> String,
+) -> Result<UpsertUserResult, sqlx::Error> {
     const MAX_USERNAME_ATTEMPTS: u8 = 8;
 
     // Returning users are refreshed in place and never touch the username
@@ -192,7 +202,7 @@ pub async fn upsert_user(
     }
 
     for _ in 0..MAX_USERNAME_ATTEMPTS {
-        let username = generate_username();
+        let username = next_username();
         match upsert_user_with_username(pool, workos_user, &username).await {
             Ok(upserted) => return Ok(upserted.into()),
             Err(err) if is_username_collision(&err) => continue,
@@ -275,7 +285,7 @@ async fn refresh_existing_user(
             plan,
             paddle_customer_id,
             email,
-            username,
+            COALESCE(username, replace(id::text, '-', '')) AS username,
             created_at,
             updated_at,
             false AS is_new
@@ -309,7 +319,7 @@ async fn upsert_user_with_username(
             plan,
             paddle_customer_id,
             email,
-            username,
+            COALESCE(username, replace(id::text, '-', '')) AS username,
             created_at,
             updated_at,
             (xmax = 0) AS is_new
@@ -401,8 +411,117 @@ mod tests {
             Some(returning.email.as_str())
         );
 
-        sqlx::query("DELETE FROM users WHERE workos_id = $1")
-            .bind(&existing_workos)
+        // Retry path through the public flow: the generator first yields the
+        // taken handle, then a free one; the free one must be stored.
+        let free = format!("free-{suffix}");
+        let mut attempts = 0usize;
+        let candidates = [taken.clone(), free.clone()];
+        let created = super::upsert_user_with_generator(&pool, &newcomer, || {
+            let candidate = candidates[attempts.min(1)].clone();
+            attempts += 1;
+            candidate
+        })
+        .await
+        .expect("new user after one collision");
+        assert!(created.is_new);
+        assert_eq!(created.user.username, free);
+        assert_eq!(attempts, 2, "exactly one retry after the collision");
+
+        sqlx::query("DELETE FROM users WHERE workos_id = ANY($1)")
+            .bind(vec![existing_workos.clone(), newcomer.id.clone()])
+            .execute(&pool)
+            .await
+            .expect("cleanup");
+    }
+
+    #[tokio::test]
+    async fn legacy_rows_without_username_read_back_with_fallback_when_database_available() {
+        let Some(url) = std::env::var("TEST_DATABASE_URL")
+            .ok()
+            .filter(|url| url.contains("_test"))
+        else {
+            if std::env::var("CI").is_ok() {
+                panic!("workos integration test needs TEST_DATABASE_URL naming a *_test database");
+            }
+            eprintln!("SKIP workos integration test: TEST_DATABASE_URL not set");
+            return;
+        };
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .max_connections(2)
+            .connect(&url)
+            .await
+            .expect("connect");
+        sqlx::migrate!("./src/db/migrations")
+            .run(&pool)
+            .await
+            .expect("migrate");
+
+        // The expand-only migration keeps the legacy columns and leaves
+        // username nullable, exactly what a mixed-binary rollout needs.
+        let legacy_columns: Vec<String> = sqlx::query_scalar(
+            r#"
+            SELECT column_name::text FROM information_schema.columns
+            WHERE table_name = 'users' AND column_name IN ('first_name', 'last_name')
+            ORDER BY column_name
+            "#,
+        )
+        .fetch_all(&pool)
+        .await
+        .expect("legacy columns");
+        assert_eq!(legacy_columns, ["first_name", "last_name"]);
+        let nullable: String = sqlx::query_scalar(
+            "SELECT is_nullable::text FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'username'",
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("username nullability");
+        assert_eq!(nullable, "YES");
+
+        // A row written by a pre-username replica: no username at all.
+        let suffix = &uuid::Uuid::new_v4().simple().to_string()[..8];
+        let workos_id = format!("user_LEGACY{suffix}");
+        let user_id: uuid::Uuid = sqlx::query_scalar(
+            "INSERT INTO users (workos_id, email, first_name, last_name) VALUES ($1, $2, 'Ada', 'Lovelace') RETURNING id",
+        )
+        .bind(&workos_id)
+        .bind(format!("legacy-{suffix}@example.com"))
+        .fetch_one(&pool)
+        .await
+        .expect("insert legacy row");
+        let expected_handle = user_id.simple().to_string();
+
+        // Sign-in refresh and session lookup both read the backfill fallback.
+        let refreshed = super::upsert_user(
+            &pool,
+            &super::WorkOsUser {
+                id: workos_id.clone(),
+                email: format!("legacy-{suffix}@example.com"),
+            },
+        )
+        .await
+        .expect("returning legacy user");
+        assert!(!refreshed.is_new);
+        assert_eq!(refreshed.user.username, expected_handle);
+        assert_eq!(
+            crate::auth::username::validate_username(&expected_handle),
+            Ok(())
+        );
+
+        let sessions = crate::auth::session::SessionService::new(
+            pool.clone(),
+            "test-session-secret-at-least-32-chars".into(),
+            false,
+        );
+        let (_, cookie) = sessions.create(user_id).await.expect("session");
+        let via_session = sessions
+            .user_for_token(cookie.value())
+            .await
+            .expect("lookup")
+            .expect("user");
+        assert_eq!(via_session.username, expected_handle);
+
+        sqlx::query("DELETE FROM users WHERE id = $1")
+            .bind(user_id)
             .execute(&pool)
             .await
             .expect("cleanup");
