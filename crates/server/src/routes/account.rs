@@ -80,6 +80,11 @@ struct ExportAuditRow {
         (status = 200, description = "Account data export", body = AccountDataExport),
         (status = 401, description = "Not authenticated", body = ApiError),
         (
+            status = 404,
+            description = "Account deleted between authentication and the export snapshot",
+            body = ApiError
+        ),
+        (
             status = 429,
             description = "Export quota exceeded (per user and shared per IP); retry after `retry_after` seconds",
             body = RateLimitErrorBody
@@ -172,12 +177,17 @@ pub async fn export_account(
     }
 }
 
-/// Test seam: when set, `start_export_stream` fails before opening the
-/// transaction, standing in for a `begin()`/`SET TRANSACTION` failure that
-/// cannot be injected through a live pool. Export tests are serialised.
+/// Test seam for failures that cannot be injected through a live pool:
+/// `FAULT_FAIL_START` stands in for a `begin()`/`SET TRANSACTION` failure and
+/// `FAULT_DELETE_USER` for the account being deleted between authentication
+/// and the snapshot. Export tests are serialised, so the flag cannot leak
+/// between them.
 #[cfg(test)]
-static FAIL_EXPORT_START_FOR_TESTS: std::sync::atomic::AtomicBool =
-    std::sync::atomic::AtomicBool::new(false);
+static EXPORT_TEST_FAULT: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+#[cfg(test)]
+const FAULT_FAIL_START: u8 = 1;
+#[cfg(test)]
+const FAULT_DELETE_USER: u8 = 2;
 
 /// Open the export snapshot, build the prefix, and hand the body stream to the
 /// client. Runs after the start audit has committed.
@@ -188,8 +198,18 @@ async fn start_export_stream(
     ip_address: Option<String>,
 ) -> Result<Response, ApiError> {
     #[cfg(test)]
-    if FAIL_EXPORT_START_FOR_TESTS.load(std::sync::atomic::Ordering::SeqCst) {
-        return Err(internal_db_error("injected export start failure"));
+    match EXPORT_TEST_FAULT.load(std::sync::atomic::Ordering::SeqCst) {
+        FAULT_FAIL_START => return Err(internal_db_error("injected export start failure")),
+        FAULT_DELETE_USER => {
+            // The race: the account is deleted after the start audit committed
+            // but before the export snapshot is taken.
+            sqlx::query("DELETE FROM users WHERE id = $1")
+                .bind(user.id)
+                .execute(&pool)
+                .await
+                .map_err(internal_db_error)?;
+        }
+        _ => {}
     }
 
     // One connection, one snapshot: everything in the archive, including the
@@ -1004,6 +1024,14 @@ mod tests {
             panic!("{message}");
         }
         eprintln!("SKIP {message}");
+    }
+
+    /// Clears the injected export fault on every exit path, including panics.
+    struct ResetFault;
+    impl Drop for ResetFault {
+        fn drop(&mut self) {
+            EXPORT_TEST_FAULT.store(0, std::sync::atomic::Ordering::SeqCst);
+        }
     }
 
     /// Configured export concurrency for the default test state.
@@ -1944,14 +1972,8 @@ mod tests {
 
         // Reset on every exit path, including a panicking assertion, so the
         // injected failure cannot leak into later export tests.
-        struct ResetFlag;
-        impl Drop for ResetFlag {
-            fn drop(&mut self) {
-                FAIL_EXPORT_START_FOR_TESTS.store(false, std::sync::atomic::Ordering::SeqCst);
-            }
-        }
-        let reset = ResetFlag;
-        FAIL_EXPORT_START_FOR_TESTS.store(true, std::sync::atomic::Ordering::SeqCst);
+        let reset = ResetFault;
+        EXPORT_TEST_FAULT.store(FAULT_FAIL_START, std::sync::atomic::Ordering::SeqCst);
         let result = export_account(
             AuthUser(user.clone()),
             State(state.clone()),
@@ -1987,6 +2009,55 @@ mod tests {
         assert_eq!(events[1].1["error"], "internal server error");
 
         // The permit was released with the failed attempt.
+        assert_eq!(
+            state.export_permits.available_permits(),
+            default_export_slots()
+        );
+    }
+
+    #[tokio::test]
+    async fn export_account_returns_404_when_account_vanishes_before_snapshot_when_database_available(
+    ) {
+        let Some(database_url) = database_url_for_tests() else {
+            return;
+        };
+        let _serial = EXPORT_TESTS.lock().await;
+        let pool = connect_test_pool(&database_url).await;
+
+        let user = seed_user_with_resumes(&pool, 1).await;
+        let state = test_app_state(pool.clone());
+
+        let reset = ResetFault;
+        EXPORT_TEST_FAULT.store(FAULT_DELETE_USER, std::sync::atomic::Ordering::SeqCst);
+        let result = export_account(
+            AuthUser(user.clone()),
+            State(state.clone()),
+            HeaderMap::new(),
+        )
+        .await;
+        drop(reset);
+
+        let err = result.expect_err("a vanished account cannot be exported");
+        assert!(matches!(err.kind, ApiErrorKind::NotFound), "{err:?}");
+
+        // Start and completion events are both present for the deleted actor
+        // (the audit FK was dropped in migration 006 precisely so history
+        // survives hard deletes).
+        let events: Vec<(String, serde_json::Value)> = sqlx::query_as(
+            r#"
+            SELECT event_type, metadata FROM audit_events
+            WHERE actor_user_id = $1 AND event_type LIKE 'account.export%'
+            ORDER BY created_at ASC
+            "#,
+        )
+        .bind(user.id)
+        .fetch_all(&pool)
+        .await
+        .expect("audit rows");
+        assert_eq!(events.len(), 2, "{events:?}");
+        assert_eq!(events[1].0, "account.export.completed");
+        assert_eq!(events[1].1["delivered"], false);
+        assert_eq!(events[1].1["error"], "account not found");
         assert_eq!(
             state.export_permits.available_permits(),
             default_export_slots()

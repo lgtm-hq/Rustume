@@ -106,12 +106,10 @@ impl RateLimitConfig {
                 "RATE_LIMIT_ACCOUNT_EXPORT_PER_MIN",
                 defaults.account_export_per_min,
             ),
-            // At least one slot, or exports could never start.
-            account_export_concurrency: env_u32(
+            account_export_concurrency: floor_export_concurrency(env_u32(
                 "RATE_LIMIT_ACCOUNT_EXPORT_CONCURRENCY",
                 defaults.account_export_concurrency,
-            )
-            .max(1),
+            )),
             auth_per_min: env_u32("RATE_LIMIT_AUTH_PER_MIN", defaults.auth_per_min),
             account_delete_per_min: env_u32(
                 "RATE_LIMIT_ACCOUNT_DELETE_PER_MIN",
@@ -197,6 +195,11 @@ impl RateLimitConfig {
     }
 }
 
+/// At least one export slot, or exports could never start.
+pub fn floor_export_concurrency(configured: u32) -> u32 {
+    configured.max(1)
+}
+
 fn env_u32(key: &str, default: u32) -> u32 {
     match std::env::var(key) {
         Ok(value) => {
@@ -256,6 +259,9 @@ mod tests {
         assert_eq!(config.pdf_per_min, 20);
         assert_eq!(config.account_export_per_min, 5);
         assert_eq!(config.account_export_concurrency, 2);
+        assert_eq!(floor_export_concurrency(0), 1);
+        assert_eq!(floor_export_concurrency(1), 1);
+        assert_eq!(floor_export_concurrency(7), 7);
         assert_eq!(config.auth_per_min, 10);
         assert_eq!(config.account_delete_per_min, 5);
         assert_eq!(config.health_per_min, 60);

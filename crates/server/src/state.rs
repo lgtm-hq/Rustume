@@ -33,13 +33,31 @@ pub struct AppState {
 impl AppState {
     /// Build application state with a shared Typst renderer instance.
     pub fn new(static_dir: Arc<PathBuf>, cloud: Option<Arc<CloudState>>) -> Self {
-        let config = RateLimitConfig::from_env();
+        Self::from_config(
+            static_dir,
+            cloud,
+            RateLimitConfig::from_env(),
+            rate_limits_enabled_from_env(),
+        )
+    }
+
+    /// Production constructor with the environment already read, so the
+    /// gating rules are unit-testable without mutating process env.
+    pub fn from_config(
+        static_dir: Arc<PathBuf>,
+        cloud: Option<Arc<CloudState>>,
+        config: RateLimitConfig,
+        rate_limits_enabled: bool,
+    ) -> Self {
         // The export ceiling applies even when per-minute limits are disabled
-        // for local development: it protects the pool, not the quota.
-        let export_permits = Arc::new(Semaphore::new(config.account_export_concurrency as usize));
+        // for local development: it protects the pool, not the quota. Floor of
+        // one slot, or exports could never start.
+        let export_permits = Arc::new(Semaphore::new(
+            config.account_export_concurrency.max(1) as usize
+        ));
         let rate_limits = cloud
             .as_ref()
-            .filter(|_| rate_limits_enabled_from_env())
+            .filter(|_| rate_limits_enabled)
             .map(|_| Arc::new(RateLimitState::new(config)));
         Self {
             static_dir,

@@ -1263,6 +1263,37 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn export_ceiling_applies_even_when_rate_limits_are_disabled() {
+        let config = config::RateLimitConfig {
+            account_export_concurrency: 3,
+            ..Default::default()
+        };
+        // RATE_LIMIT_DISABLED=true path: no per-minute limiters, but the
+        // export semaphore still exists and is sized from config.
+        let state = state::AppState::from_config(
+            std::sync::Arc::new(routes::static_dir()),
+            Some(test_cloud_state()),
+            config,
+            false,
+        );
+        assert!(state.rate_limits.is_none());
+        assert_eq!(state.export_permits.available_permits(), 3);
+
+        // A misconfigured zero is floored to one slot.
+        let state = state::AppState::from_config(
+            std::sync::Arc::new(routes::static_dir()),
+            Some(test_cloud_state()),
+            config::RateLimitConfig {
+                account_export_concurrency: 0,
+                ..Default::default()
+            },
+            true,
+        );
+        assert!(state.rate_limits.is_some());
+        assert_eq!(state.export_permits.available_permits(), 1);
+    }
+
+    #[tokio::test]
     async fn test_export_account_unauthenticated_not_rate_limited() {
         let config = config::RateLimitConfig {
             account_export_per_min: 1,
