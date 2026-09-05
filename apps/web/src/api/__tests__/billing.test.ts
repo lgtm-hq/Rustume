@@ -1,4 +1,5 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ApiError, ApiValidationError } from "../client";
 import {
   fetchCheckoutSettings,
   fetchPortalUrl,
@@ -23,6 +24,8 @@ describe("billing api", () => {
   it("fetchCheckoutSettings posts to the checkout endpoint", async () => {
     fetchMock.mockResolvedValue({
       ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "application/json" }),
       json: async () => ({
         client_token: "test_live_token",
         price_id: "pri_test",
@@ -46,6 +49,8 @@ describe("billing api", () => {
   it("fetchPortalUrl returns the portal overview URL", async () => {
     fetchMock.mockResolvedValue({
       ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "application/json" }),
       json: async () => ({ url: "https://customer-portal.paddle.com/example" }),
     });
 
@@ -54,8 +59,69 @@ describe("billing api", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/billing/portal", {
       method: "GET",
       credentials: "include",
+      headers: {},
     });
     expect(url).toBe("https://customer-portal.paddle.com/example");
+  });
+
+  it("fetchCheckoutSettings surfaces server error messages", async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 400,
+      headers: new Headers({ "content-type": "application/json" }),
+      text: async () =>
+        JSON.stringify({ error: "Account email is required before starting checkout" }),
+    });
+
+    const error = await fetchCheckoutSettings().catch((err: unknown) => err);
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).status).toBe(400);
+    expect((error as ApiError).message).toBe("Account email is required before starting checkout");
+  });
+
+  it("fetchCheckoutSettings rejects malformed responses", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "application/json" }),
+      json: async () => ({
+        client_token: "test_live_token",
+        price_id: "pri_test",
+        email: "dev@example.com",
+        custom_data: {},
+        environment: "staging",
+      }),
+    });
+
+    await expect(fetchCheckoutSettings()).rejects.toThrow(ApiValidationError);
+  });
+
+  it("fetchPortalUrl surfaces the unlinked-customer conflict", async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 409,
+      headers: new Headers({ "content-type": "application/json" }),
+      text: async () =>
+        JSON.stringify({ error: "No billing account linked yet — complete checkout first" }),
+    });
+
+    const error = await fetchPortalUrl().catch((err: unknown) => err);
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).status).toBe(409);
+    expect((error as ApiError).message).toBe(
+      "No billing account linked yet — complete checkout first",
+    );
+  });
+
+  it("fetchPortalUrl rejects responses without a valid URL", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "application/json" }),
+      json: async () => ({ url: "not a url" }),
+    });
+
+    await expect(fetchPortalUrl()).rejects.toThrow(ApiValidationError);
   });
 
   it("openCheckout loads Paddle.js and opens the overlay", async () => {
@@ -74,6 +140,8 @@ describe("billing api", () => {
 
     fetchMock.mockResolvedValue({
       ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "application/json" }),
       json: async () => ({
         client_token: "test_live_token",
         price_id: "pri_test",
@@ -129,6 +197,8 @@ describe("billing api", () => {
     fetchMock
       .mockResolvedValueOnce({
         ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "application/json" }),
         json: async () => ({
           client_token: "first_token",
           price_id: "pri_test",
@@ -139,6 +209,8 @@ describe("billing api", () => {
       })
       .mockResolvedValueOnce({
         ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "application/json" }),
         json: async () => ({
           client_token: "second_token",
           price_id: "pri_test",
@@ -190,6 +262,8 @@ describe("billing api", () => {
 
     fetchMock.mockResolvedValue({
       ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "application/json" }),
       json: async () => ({
         client_token: "test_live_token",
         price_id: "pri_test",
@@ -219,6 +293,8 @@ describe("billing api", () => {
 
     fetchMock.mockResolvedValue({
       ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "application/json" }),
       json: async () => ({ url: "https://customer-portal.paddle.com/example" }),
     });
 

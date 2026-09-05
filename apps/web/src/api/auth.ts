@@ -11,6 +11,8 @@ export interface AuthUser {
   email?: string;
   first_name?: string;
   last_name?: string;
+  /** True once a Paddle customer is linked, i.e. the billing portal can be opened. */
+  billing_customer_linked?: boolean;
   subscription?: SubscriptionInfo;
 }
 

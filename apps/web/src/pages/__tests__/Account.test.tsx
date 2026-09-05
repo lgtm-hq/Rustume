@@ -1,9 +1,11 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
-import { fireEvent, render, screen } from "@solidjs/testing-library";
+import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { axeConfig } from "../../test/a11y";
 import { Route, Router } from "@solidjs/router";
 import Account from "../Account";
+import { openCheckout, redirectToPortal } from "../../api/billing";
+import { toast } from "../../components/ui";
 
 const { mockAuthState, signInMock, signOutMock } = vi.hoisted(() => ({
   mockAuthState: {
@@ -17,6 +19,7 @@ const { mockAuthState, signInMock, signOutMock } = vi.hoisted(() => ({
       email?: string;
       first_name?: string;
       last_name?: string;
+      billing_customer_linked?: boolean;
     } | null,
   },
   signInMock: vi.fn(),
@@ -82,6 +85,10 @@ describe("Account page", () => {
     mockAuthState.user = null;
     signInMock.mockReset();
     signOutMock.mockReset();
+    vi.mocked(openCheckout).mockReset();
+    vi.mocked(redirectToPortal).mockReset();
+    vi.mocked(toast.error).mockReset();
+    vi.mocked(toast.success).mockReset();
   });
 
   // Previously asserted a "Continue without signing in" link. That link pointed at
@@ -160,7 +167,7 @@ describe("Account page", () => {
     expect(screen.getByRole("button", { name: "Subscribe to Rustume Cloud" })).toBeInTheDocument();
   });
 
-  it("shows manage subscription when billing is enabled and the user has a paid plan", () => {
+  it("shows manage subscription when billing is enabled and a Paddle customer is linked", () => {
     mockAuthState.loading = false;
     mockAuthState.cloudEnabled = true;
     mockAuthState.billingEnabled = true;
@@ -168,11 +175,105 @@ describe("Account page", () => {
       id: "user-1",
       plan: "pro",
       email: "dev@example.com",
+      billing_customer_linked: true,
     };
 
     renderAccount();
 
     expect(screen.getByRole("button", { name: "Manage subscription" })).toBeInTheDocument();
+  });
+
+  it("keeps subscribe available on a paid plan until a Paddle customer is linked", () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.billingEnabled = true;
+    mockAuthState.user = {
+      id: "user-1",
+      plan: "pro",
+      email: "dev@example.com",
+      billing_customer_linked: false,
+    };
+
+    renderAccount();
+
+    // The portal would 409 without a linked customer, so the page must not
+    // dead-end the user on "Manage subscription".
+    expect(screen.getByRole("button", { name: "Subscribe to Rustume Cloud" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Manage subscription" })).toBeNull();
+  });
+
+  it("opens Paddle checkout when subscribe is clicked", async () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.billingEnabled = true;
+    mockAuthState.user = { id: "user-1", plan: "free", email: "dev@example.com" };
+    vi.mocked(openCheckout).mockResolvedValue(undefined);
+
+    renderAccount();
+    fireEvent.click(screen.getByRole("button", { name: "Subscribe to Rustume Cloud" }));
+
+    await waitFor(() => expect(openCheckout).toHaveBeenCalledTimes(1));
+    expect(openCheckout).toHaveBeenCalledWith(expect.any(Function));
+  });
+
+  it("shows a toast when checkout fails to open", async () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.billingEnabled = true;
+    mockAuthState.user = { id: "user-1", plan: "free", email: "dev@example.com" };
+    vi.mocked(openCheckout).mockRejectedValue(new Error("Failed to load Paddle.js"));
+
+    renderAccount();
+    const button = screen.getByRole("button", { name: "Subscribe to Rustume Cloud" });
+    fireEvent.click(button);
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Failed to load Paddle.js"));
+    await waitFor(() => expect(button).not.toBeDisabled());
+  });
+
+  it("redirects to the billing portal when manage is clicked", async () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.billingEnabled = true;
+    mockAuthState.user = {
+      id: "user-1",
+      plan: "pro",
+      email: "dev@example.com",
+      billing_customer_linked: true,
+    };
+    vi.mocked(redirectToPortal).mockResolvedValue(undefined);
+
+    renderAccount();
+    const button = screen.getByRole("button", { name: "Manage subscription" });
+    fireEvent.click(button);
+
+    await waitFor(() => expect(redirectToPortal).toHaveBeenCalledTimes(1));
+    // A blocked navigation must not leave the button stuck in its loading state.
+    await waitFor(() => expect(button).not.toBeDisabled());
+  });
+
+  it("shows a toast when the billing portal cannot be opened", async () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.billingEnabled = true;
+    mockAuthState.user = {
+      id: "user-1",
+      plan: "pro",
+      email: "dev@example.com",
+      billing_customer_linked: true,
+    };
+    vi.mocked(redirectToPortal).mockRejectedValue(
+      new Error("No billing account linked yet — complete checkout first"),
+    );
+
+    renderAccount();
+    fireEvent.click(screen.getByRole("button", { name: "Manage subscription" }));
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "No billing account linked yet — complete checkout first",
+      ),
+    );
   });
 
   it("opens the delete confirmation modal", () => {

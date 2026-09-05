@@ -60,25 +60,29 @@ pub enum SubscriptionAccess {
 impl SubscriptionAccess {
     /// Build access rules from a subscription row, if any.
     pub fn from_row(status: &str, period_end: Option<DateTime<Utc>>) -> Self {
-        let Some(status) = SubscriptionStatus::parse(status) else {
-            tracing::warn!(
-                status = status,
-                "unknown subscription status, defaulting to Active"
-            );
-            return Self::Active;
+        let now = Utc::now();
+        let grace_or_expired = |status: SubscriptionStatus| match period_end {
+            Some(expires_at) if expires_at > now => Self::GracePeriod { expires_at, status },
+            _ => Self::Expired { status },
         };
 
-        let now = Utc::now();
+        let Some(status) = SubscriptionStatus::parse(status) else {
+            // Fail closed: a status this build does not understand is never
+            // treated as paid access. It behaves like `past_due` — read-only
+            // until the current period ends, then expired — and is reported
+            // to clients as `past_due` since that is the closest known state.
+            tracing::warn!(
+                status = status,
+                "unknown subscription status, treating as past_due"
+            );
+            return grace_or_expired(SubscriptionStatus::PastDue);
+        };
+
         match status {
             SubscriptionStatus::Active | SubscriptionStatus::Trialing => Self::Active,
-            SubscriptionStatus::Canceled => match period_end {
-                Some(expires_at) if expires_at > now => Self::GracePeriod { expires_at, status },
-                _ => Self::Expired { status },
-            },
-            SubscriptionStatus::PastDue | SubscriptionStatus::Paused => match period_end {
-                Some(expires_at) if expires_at > now => Self::GracePeriod { expires_at, status },
-                _ => Self::Expired { status },
-            },
+            SubscriptionStatus::Canceled
+            | SubscriptionStatus::PastDue
+            | SubscriptionStatus::Paused => grace_or_expired(status),
         }
     }
 
@@ -226,6 +230,30 @@ mod tests {
         let info = access.to_info().expect("grace info");
         assert_eq!(info.status, "canceled");
         assert_eq!(info.expires_at, Some(expires_at));
+    }
+
+    #[test]
+    fn unknown_status_never_grants_write_access() {
+        let expires_at = Utc.with_ymd_and_hms(2099, 1, 1, 0, 0, 0).unwrap();
+        let in_period = SubscriptionAccess::from_row("some_future_status", Some(expires_at));
+        assert_eq!(
+            in_period,
+            SubscriptionAccess::GracePeriod {
+                expires_at,
+                status: SubscriptionStatus::PastDue,
+            }
+        );
+        assert!(in_period.ensure_read().is_ok());
+        assert!(in_period.ensure_write().is_err());
+
+        let no_period = SubscriptionAccess::from_row("some_future_status", None);
+        assert_eq!(
+            no_period,
+            SubscriptionAccess::Expired {
+                status: SubscriptionStatus::PastDue,
+            }
+        );
+        assert!(no_period.ensure_read().is_err());
     }
 
     #[test]

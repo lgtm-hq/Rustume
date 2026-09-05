@@ -70,6 +70,7 @@ impl Modify for CookieAuthAddon {
         crate::routes::account::delete_account,
         crate::billing::paddle::checkout,
         crate::billing::paddle::customer_portal,
+        crate::billing::paddle::paddle_webhook,
     ),
     components(
         schemas(
@@ -119,7 +120,10 @@ impl Modify for CookieAuthAddon {
         (name = "Auth", description = "Rustume Cloud authentication (cloud mode only)"),
         (name = "Resumes", description = "Authenticated resume storage (cloud mode only)"),
         (name = "Account", description = "Account lifecycle (cloud mode only)"),
-        (name = "Billing", description = "Paddle billing checkout, portal, and webhooks (when configured)")
+        (
+            name = "Billing",
+            description = "Paddle billing checkout, customer portal, and webhook. These routes are mounted only when PADDLE_* is configured; otherwise they return a plain 404."
+        )
     )
 )]
 /// Generated OpenAPI document served at `/api-docs/openapi.json`.

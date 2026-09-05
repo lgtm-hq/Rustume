@@ -257,6 +257,9 @@ pub struct AuthUserResponse {
     pub subscription: Option<SubscriptionInfo>,
     /// Whether Paddle billing checkout and portal routes are registered.
     pub billing_enabled: bool,
+    /// Whether this account is linked to a Paddle customer, i.e. whether the
+    /// customer portal can be opened. False until the first webhook links it.
+    pub billing_customer_linked: bool,
 }
 
 /// Single resume in a bulk JSON export.
@@ -335,6 +338,7 @@ impl AuthUserResponse {
             require_auth,
             subscription,
             billing_enabled,
+            billing_customer_linked: user.paddle_customer_id.is_some(),
         }
     }
 }
@@ -424,6 +428,8 @@ mod tests {
         assert_eq!(json["last_name"], "Lovelace");
         assert_eq!(json["require_auth"], true);
         assert!(json.get("subscription").is_none());
+        assert_eq!(json["billing_enabled"], false);
+        assert_eq!(json["billing_customer_linked"], false);
     }
 
     #[test]

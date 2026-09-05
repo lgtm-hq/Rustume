@@ -108,12 +108,17 @@ export default function Account() {
     } catch (error) {
       console.error("Portal redirect failed:", error);
       toast.error(error instanceof Error ? error.message : "Failed to open billing portal");
+    } finally {
+      // location.assign() does not always unload the page (blocked navigation,
+      // tests), so clear the loading state on every path.
       setOpeningPortal(false);
     }
   };
 
-  const canManageSubscription = (user: { plan: string; subscription?: { status: string } }) =>
-    user.plan !== "free" || Boolean(user.subscription);
+  // The portal needs a linked Paddle customer; until the first webhook links
+  // one, "Subscribe" stays available even if the plan already reads as paid.
+  const canManageSubscription = (user: { billing_customer_linked?: boolean }) =>
+    user.billing_customer_linked === true;
 
   const handleExportJson = async () => {
     setExportingJson(true);
