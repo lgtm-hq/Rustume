@@ -353,14 +353,15 @@ Requires explicit user action. The operator cannot reverse it alone.
 ### Passphrase rotation
 
 1. User provides old passphrase.
-2. Client unwraps DEK with old MK.
+2. Client unwraps `DEK || tag_key` with old MK.
 3. User provides new passphrase.
-4. Client re-wraps same DEK with new MK, updates `e2ee_config`.
+4. Client re-wraps the same `DEK || tag_key` with new MK, updates `e2ee_config`.
 5. Resume envelopes unchanged (DEK unchanged), so no re-encryption of all resumes.
 
 ### DEK rotation (compromise recovery)
 
-1. Client generates the new DEK, wraps it with the current MK as a **second** wrap
+1. Client generates the new DEK, wraps `DEK_next || tag_key` with the current MK as a
+   **second** wrap
    stored beside the old one in `e2ee_config` (`wrapped_dek_next`), and writes a **second**
    recovery backup per code (`backup_next`, its own fresh nonce, the 64-byte
    `DEK_next || tag_key`) beside the existing one, so both generations stay
@@ -378,13 +379,16 @@ Requires explicit user action. The operator cannot reverse it alone.
    real proof is on the client, which decrypts each rewritten row with `DEK_next`
    before requesting the flip and refuses to proceed on any failure. Once both hold,
    the server, in the same transaction as its check, sets
-   `e2ee_config.rotation_verified = true`, which stops accepting
+   `e2ee_config.rotation_verified = true` **and** promotes `wrapped_dek_next` to
+   `wrapped_dek` and every code's `backup_next` to `backup`, deleting the old blobs,
+   so no state exists in which N+1 envelopes are stored while unlock or recovery
+   would still return the retired DEK, which stops accepting
    generation N. From here only N+1 envelopes are stored,
    so nothing written after this point can depend on the old wrap.
-3. Promote `wrapped_dek_next` to `wrapped_dek` and drop the old wrap in `e2ee_config`.
-4. Promote each code's `backup_next` to `backup` and delete the old blob, with a
-   **fresh** `nonce_recovery` if the blob is rewritten, so each code holds only the
-   new generation (step 1 wrote the second blob) and every stored recovery
+3. (Folded into the step 2 transaction: the MK wrap is already promoted.)
+4. (Also folded into step 2.) The remaining rules on recovery blobs still apply: any
+   later rewrite uses a **fresh** `nonce_recovery`, so each code holds only the new
+   generation and every stored recovery
    blob unwraps the new DEK (never reuse a prior recovery nonce under
    the same `RK`), **or** invalidate and regenerate recovery codes before completing
    rotation. When keeping the same codes, each `code_hash` row's `backup` **must be
