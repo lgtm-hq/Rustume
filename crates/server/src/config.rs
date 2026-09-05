@@ -37,7 +37,7 @@ pub const DEFAULT_STATIC_DIR: &str = "/app/web";
 ///
 /// When unset (or not an absolute `http(s)` origin), public pages omit `og:url`
 /// and `og:image` rather than trusting request-controlled host headers; a
-/// warning is logged at cloud startup and on each affected request.
+/// warning is logged at cloud startup, and each affected request logs at debug.
 pub fn public_base_url() -> Option<String> {
     parse_public_base_url(std::env::var("PUBLIC_BASE_URL").ok().as_deref())
 }
