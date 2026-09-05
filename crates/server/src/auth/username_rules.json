@@ -1,0 +1,28 @@
+{
+  "$comment": "Single source of truth for username validation, consumed by crates/server/src/auth/username.rs (include_str!) and apps/web/src/api/account.ts (JSON import). Keep entries lowercase and sorted.",
+  "min_length": 3,
+  "max_length": 32,
+  "reserved": [
+    "account",
+    "admin",
+    "api",
+    "auth",
+    "billing",
+    "dashboard",
+    "export",
+    "help",
+    "import",
+    "login",
+    "logout",
+    "me",
+    "r",
+    "register",
+    "resume",
+    "root",
+    "rustume",
+    "settings",
+    "signup",
+    "support",
+    "www"
+  ]
+}

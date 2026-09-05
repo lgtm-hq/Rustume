@@ -1,5 +1,7 @@
 //! Friendly username generation and validation for Rustume Cloud accounts.
 
+use std::sync::OnceLock;
+
 use uuid::Uuid;
 
 const ADJECTIVES: [&str; 64] = [
@@ -22,29 +24,28 @@ const NOUNS: [&str; 64] = [
     "laurel", "mirth", "nebula", "osprey",
 ];
 
-const RESERVED_USERNAMES: &[&str] = &[
-    "admin",
-    "api",
-    "auth",
-    "account",
-    "resume",
-    "r",
-    "rustume",
-    "settings",
-    "support",
-    "help",
-    "www",
-    "root",
-    "login",
-    "logout",
-    "signup",
-    "register",
-    "dashboard",
-    "billing",
-    "export",
-    "import",
-    "me",
-];
+/// Validation rules shared with the web client (`apps/web/src/api/account.ts`
+/// imports the same JSON), so reserved names and length bounds cannot drift.
+#[derive(Debug, serde::Deserialize)]
+struct UsernameRules {
+    min_length: usize,
+    max_length: usize,
+    reserved: Vec<String>,
+}
+
+const USERNAME_RULES_JSON: &str = include_str!("username_rules.json");
+
+fn rules() -> &'static UsernameRules {
+    static RULES: OnceLock<UsernameRules> = OnceLock::new();
+    RULES.get_or_init(|| {
+        serde_json::from_str(USERNAME_RULES_JSON).expect("username_rules.json is valid")
+    })
+}
+
+/// Reserved handles that can never be chosen (route segments, brand names).
+pub fn reserved_usernames() -> &'static [String] {
+    &rules().reserved
+}
 
 /// Generate a friendly adjective-noun-number handle (e.g. `swift-otter-4821`).
 pub fn generate_username() -> String {
@@ -59,7 +60,8 @@ pub fn generate_username() -> String {
 /// Validate a username for charset, length, hyphen rules, and reserved words.
 pub fn validate_username(username: &str) -> Result<(), &'static str> {
     let username = username.trim();
-    if username.len() < 3 || username.len() > 32 {
+    let rules = rules();
+    if username.len() < rules.min_length || username.len() > rules.max_length {
         return Err("username must be 3-32 characters");
     }
     if username.starts_with('-') || username.ends_with('-') || username.contains("--") {
@@ -71,7 +73,7 @@ pub fn validate_username(username: &str) -> Result<(), &'static str> {
     {
         return Err("username may only contain lowercase letters, digits, and hyphens");
     }
-    if RESERVED_USERNAMES.contains(&username) {
+    if rules.reserved.iter().any(|reserved| reserved == username) {
         return Err("username is reserved");
     }
     Ok(())
@@ -153,7 +155,7 @@ mod tests {
 
     #[test]
     fn validate_username_rejects_reserved_words() {
-        for reserved in RESERVED_USERNAMES {
+        for reserved in reserved_usernames() {
             if reserved.len() < 3 || reserved.len() > 32 {
                 continue;
             }
@@ -162,6 +164,24 @@ mod tests {
                 Err("username is reserved"),
                 "expected {reserved} to be reserved"
             );
+        }
+    }
+
+    #[test]
+    fn shared_rules_are_well_formed() {
+        let rules = rules();
+        assert_eq!(rules.min_length, 3);
+        assert_eq!(rules.max_length, 32);
+        let mut sorted = rules.reserved.clone();
+        sorted.sort();
+        sorted.dedup();
+        assert_eq!(
+            sorted, rules.reserved,
+            "reserved list must be sorted and unique"
+        );
+        for reserved in &rules.reserved {
+            assert_eq!(reserved, &reserved.to_ascii_lowercase());
+            assert!(!reserved.is_empty());
         }
     }
 

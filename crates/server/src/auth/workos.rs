@@ -197,12 +197,30 @@ pub async fn upsert_user(
         }
     }
 
-    let fallback = format!(
-        "user-{}",
-        &workos_user.id[workos_user.id.len().saturating_sub(8)..]
-    );
-    let upserted = upsert_user_with_username(pool, workos_user, &fallback).await?;
-    Ok(upserted.into())
+    // Friendly handles are exhausted (astronomically unlikely). Fall back to a
+    // random `user-xxxxxxxx` handle that satisfies the same validation rules,
+    // retrying on collision rather than deriving it from the WorkOS id, whose
+    // suffix is neither lowercase nor guaranteed unique.
+    let mut last_err = None;
+    for _ in 0..MAX_USERNAME_ATTEMPTS {
+        let fallback = fallback_username();
+        debug_assert!(crate::auth::username::validate_username(&fallback).is_ok());
+        match upsert_user_with_username(pool, workos_user, &fallback).await {
+            Ok(upserted) => return Ok(upserted.into()),
+            Err(sqlx::Error::Database(db_err)) if db_err.code().as_deref() == Some("23505") => {
+                last_err = Some(sqlx::Error::Database(db_err));
+            }
+            Err(err) => return Err(err),
+        }
+    }
+    Err(last_err.expect("at least one fallback attempt"))
+}
+
+/// Random lowercase-hex fallback handle: `user-` plus eight hex characters.
+fn fallback_username() -> String {
+    let id = uuid::Uuid::new_v4();
+    let hex = id.simple().to_string();
+    format!("user-{}", &hex[..8])
 }
 
 impl From<UpsertedUser> for UpsertUserResult {
@@ -260,6 +278,16 @@ async fn upsert_user_with_username(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn fallback_username_is_valid_and_random() {
+        let first = super::fallback_username();
+        let second = super::fallback_username();
+        assert!(first.starts_with("user-"));
+        assert_eq!(first.len(), 13);
+        assert_eq!(crate::auth::username::validate_username(&first), Ok(()));
+        assert_ne!(first, second);
+    }
+
     fn legacy_url_encode(value: &str) -> String {
         let mut encoded = String::with_capacity(value.len());
         for byte in value.bytes() {

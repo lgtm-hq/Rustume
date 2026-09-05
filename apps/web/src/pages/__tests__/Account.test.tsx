@@ -1,9 +1,11 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { axeConfig } from "../../test/a11y";
 import { Route, Router } from "@solidjs/router";
 import Account from "../Account";
+import { ApiError } from "../../api/client";
+import { toast } from "../../components/ui";
 
 const {
   mockAuthState,
@@ -42,25 +44,27 @@ vi.mock("../../stores/auth", () => ({
     signOut: signOutMock,
     clearUser: vi.fn(),
     refresh: refreshMock,
-    updateLocalUsername: updateLocalUsernameMock,
+    // Mirrors the real store: the page re-renders from the updated user.
+    updateLocalUsername: (username: string) => {
+      updateLocalUsernameMock(username);
+      if (mockAuthState.user) {
+        mockAuthState.user = { ...mockAuthState.user, username };
+      }
+    },
     displayName: (user: { username: string }) => user.username || "Account",
   },
 }));
 
-vi.mock("../../api/account", () => ({
-  deleteAccount: deleteAccountMock,
-  updateUsername: updateUsernameMock,
-  validateUsername: (username: string) => {
-    const normalized = username.trim().toLowerCase();
-    if (normalized.length < 3 || normalized.length > 32) {
-      return "Username must be 3-32 characters";
-    }
-    if (!/^[a-z0-9-]+$/.test(normalized)) {
-      return "Username may only contain lowercase letters, digits, and hyphens";
-    }
-    return null;
-  },
-}));
+// Only the network call is mocked; validateUsername is the real client-side
+// validator so the page tests exercise the shared rules.
+vi.mock("../../api/account", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/account")>();
+  return {
+    ...actual,
+    deleteAccount: deleteAccountMock,
+    updateUsername: updateUsernameMock,
+  };
+});
 
 vi.mock("../../api/resumes", () => ({
   listCloudResumesPage: vi.fn().mockResolvedValue({ total: 2, items: [], page: 1, per_page: 100 }),
@@ -88,7 +92,10 @@ function renderAccount() {
 describe("Account page", () => {
   beforeEach(() => {
     updateUsernameMock.mockReset();
+    updateLocalUsernameMock.mockReset();
     refreshMock.mockClear();
+    vi.mocked(toast.error).mockReset();
+    vi.mocked(toast.success).mockReset();
   });
 
   // Previously asserted a "Continue without signing in" link. That link pointed at
@@ -169,6 +176,35 @@ describe("Account page", () => {
       expect(updateUsernameMock).toHaveBeenCalledWith("calm-finch-1234");
       expect(updateLocalUsernameMock).toHaveBeenCalledWith("calm-finch-1234");
     });
+    // The store update, not just the mock call, is what the user sees.
+    expect(mockAuthState.user?.username).toBe("calm-finch-1234");
+    expect(screen.queryByLabelText("Username")).toBeNull();
+    expect(toast.success).toHaveBeenCalledWith("Username updated");
+  });
+
+  it("rejects reserved and malformed usernames client-side without calling the API", async () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.user = {
+      id: "user-1",
+      plan: "free",
+      username: "swift-otter-4821",
+    };
+
+    renderAccount();
+    fireEvent.click(screen.getByRole("button", { name: "Edit username" }));
+
+    for (const [input, message] of [
+      ["admin", "Username is reserved"],
+      ["swift--otter", "Username cannot start, end, or contain consecutive hyphens"],
+      ["Bad_Name", "Username may only contain lowercase letters, digits, and hyphens"],
+    ] as const) {
+      fireEvent.input(screen.getByLabelText("Username"), { target: { value: input } });
+      fireEvent.click(screen.getByRole("button", { name: "Save username" }));
+      await waitFor(() => expect(screen.getByText(message)).toBeInTheDocument());
+    }
+
+    expect(updateUsernameMock).not.toHaveBeenCalled();
   });
 
   it("surfaces a taken-username error", async () => {
@@ -179,7 +215,7 @@ describe("Account page", () => {
       plan: "free",
       username: "swift-otter-4821",
     };
-    updateUsernameMock.mockRejectedValue(new Error("username already taken"));
+    updateUsernameMock.mockRejectedValue(new ApiError(409, "username already taken"));
 
     renderAccount();
 
@@ -192,6 +228,9 @@ describe("Account page", () => {
     await waitFor(() => {
       expect(screen.getByText("username already taken")).toBeInTheDocument();
     });
+    // The toast keys off the 409 status, not the prose of the message.
+    expect(toast.error).toHaveBeenCalledWith("That username is already taken");
+    expect(mockAuthState.user?.username).toBe("swift-otter-4821");
   });
 
   it("opens the delete confirmation modal", () => {
