@@ -48,7 +48,7 @@ struct ExportResumeRow {
         (status = 403, description = "Subscription expired", body = ApiError),
         (status = 413, description = "Too many resumes to export", body = ApiError),
     ),
-    security(("cookieAuth" = []))
+    security(("cookieAuth" = []), ("bearerAuth" = []), ("apiKeyHeader" = []))
 )]
 pub async fn export_resumes_json(
     AuthUser(user): AuthUser,
@@ -85,7 +85,7 @@ pub async fn export_resumes_json(
         (status = 403, description = "Subscription expired", body = ApiError),
         (status = 413, description = "Too many resumes to export", body = ApiError),
     ),
-    security(("cookieAuth" = []))
+    security(("cookieAuth" = []), ("bearerAuth" = []), ("apiKeyHeader" = []))
 )]
 pub async fn export_resumes_pdf(
     AuthUser(user): AuthUser,

@@ -149,7 +149,10 @@ mod tests {
                 .unwrap(),
         );
 
-        assert!(extract_token_from_headers(&headers).is_some());
+        assert_eq!(
+            extract_token_from_headers(&headers).as_deref(),
+            Some("rk_ccccccccccccccccccccccccccccccccccccccccccc")
+        );
     }
 
     #[test]
