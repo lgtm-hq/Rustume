@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-library";
-import { ApiKeysSection } from "../ApiKeysSection";
+import { ApiKeysSection, resetPendingCreatedKeyForTests } from "../ApiKeysSection";
 
 const { listApiKeysMock, createApiKeyMock, revokeApiKeyMock, toastSuccessMock, toastErrorMock } =
   vi.hoisted(() => ({
@@ -61,6 +61,7 @@ describe("ApiKeysSection", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    resetPendingCreatedKeyForTests();
   });
 
   it("renders the API key list", async () => {
@@ -432,6 +433,71 @@ describe("ApiKeysSection", () => {
     });
     expect(screen.getByRole("heading", { name: "CI deploy" })).toBeInTheDocument();
     expect(toastSuccessMock).not.toHaveBeenCalled();
+  });
+
+  it("restores the one-time key reveal after the section is unmounted and remounted", async () => {
+    createApiKeyMock.mockResolvedValue({
+      id: "key-3",
+      name: "Automation",
+      prefix: "zzzz9999",
+      key: "rk_survives_remount",
+    });
+    listApiKeysMock.mockResolvedValue([]);
+
+    const first = render(() => <ApiKeysSection />);
+    await screen.findByText(/No API keys yet/i);
+    fireEvent.click(screen.getByRole("button", { name: "Create key" }));
+    const createDialog = await screen.findByRole("dialog");
+    fireEvent.input(within(createDialog).getByLabelText("Key name"), {
+      target: { value: "Automation" },
+    });
+    fireEvent.click(within(createDialog).getByRole("button", { name: "Create key" }));
+    await screen.findByText("rk_survives_remount");
+
+    // Simulate a route change away from /account and back.
+    first.unmount();
+    expect(screen.queryByText("rk_survives_remount")).not.toBeInTheDocument();
+    render(() => <ApiKeysSection />);
+
+    expect(await screen.findByText("rk_survives_remount")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "API key created" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    await waitFor(() => {
+      expect(screen.queryByText("rk_survives_remount")).not.toBeInTheDocument();
+    });
+  });
+
+  it("warns before unload only while a one-time key is on screen", async () => {
+    const addSpy = vi.spyOn(window, "addEventListener");
+    const removeSpy = vi.spyOn(window, "removeEventListener");
+    createApiKeyMock.mockResolvedValue({
+      id: "key-3",
+      name: "Automation",
+      prefix: "zzzz9999",
+      key: "rk_guarded",
+    });
+    listApiKeysMock.mockResolvedValue([]);
+
+    render(() => <ApiKeysSection />);
+    await screen.findByText(/No API keys yet/i);
+    expect(addSpy).not.toHaveBeenCalledWith("beforeunload", expect.any(Function));
+
+    fireEvent.click(screen.getByRole("button", { name: "Create key" }));
+    const createDialog = await screen.findByRole("dialog");
+    fireEvent.input(within(createDialog).getByLabelText("Key name"), {
+      target: { value: "Automation" },
+    });
+    fireEvent.click(within(createDialog).getByRole("button", { name: "Create key" }));
+    await screen.findByText("rk_guarded");
+    expect(addSpy).toHaveBeenCalledWith("beforeunload", expect.any(Function));
+
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    await waitFor(() => {
+      expect(removeSpy).toHaveBeenCalledWith("beforeunload", expect.any(Function));
+    });
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
   });
 
   it("asks for confirmation before revoking a key", async () => {

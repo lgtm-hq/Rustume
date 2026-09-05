@@ -1,4 +1,4 @@
-import { For, Show, createSignal, onMount } from "solid-js";
+import { For, Show, createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import {
   API_KEY_NAME_MAX_LENGTH,
   createApiKey,
@@ -24,15 +24,43 @@ function formatLastUsed(lastUsedAt: string | null): string {
   return formatTimestamp(lastUsedAt);
 }
 
+/**
+ * The one-time plaintext key is held outside the component so that an unmount
+ * (route change, auth refresh re-rendering the account page) cannot discard the
+ * only copy the UI will ever show. It lives in memory only, never in storage,
+ * and is cleared when the user clicks Done.
+ */
+const [pendingCreatedKey, setPendingCreatedKey] = createSignal<CreatedApiKey | null>(null);
+
+/** Test-only escape hatch to reset module state between renders. */
+export function resetPendingCreatedKeyForTests(): void {
+  setPendingCreatedKey(null);
+}
+
+function warnBeforeUnload(event: BeforeUnloadEvent): void {
+  event.preventDefault();
+  // Legacy browsers require returnValue to be set to show the prompt.
+  event.returnValue = "";
+}
+
 /** Account settings section for creating, listing, and revoking API keys. */
 export function ApiKeysSection() {
   const [keys, setKeys] = createSignal<ApiKeySummary[]>([]);
   const [loading, setLoading] = createSignal(true);
   const [loadError, setLoadError] = createSignal<string | null>(null);
-  const [createModalOpen, setCreateModalOpen] = createSignal(false);
+  // Re-open the reveal dialog if a key is still pending from a previous mount.
+  const [createModalOpen, setCreateModalOpen] = createSignal(pendingCreatedKey() !== null);
   const [createName, setCreateName] = createSignal("");
   const [creating, setCreating] = createSignal(false);
-  const [createdKey, setCreatedKey] = createSignal<CreatedApiKey | null>(null);
+  const createdKey = pendingCreatedKey;
+  const setCreatedKey = setPendingCreatedKey;
+
+  // While a one-time key is on screen, warn before the tab is closed or reloaded.
+  createEffect(() => {
+    if (!createdKey()) return;
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    onCleanup(() => window.removeEventListener("beforeunload", warnBeforeUnload));
+  });
   const [revokeModalOpen, setRevokeModalOpen] = createSignal(false);
   const [keyToRevoke, setKeyToRevoke] = createSignal<ApiKeySummary | null>(null);
   const [revoking, setRevoking] = createSignal(false);
