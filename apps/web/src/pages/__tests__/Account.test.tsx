@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { axeConfig } from "../../test/a11y";
@@ -69,6 +69,14 @@ function renderAccount() {
 }
 
 describe("Account page", () => {
+  beforeEach(async () => {
+    vi.mocked(downloadAccountExport).mockClear();
+    vi.mocked(downloadAccountExport).mockResolvedValue(undefined);
+    const { toast } = await import("../../components/ui");
+    vi.mocked(toast.success).mockClear();
+    vi.mocked(toast.error).mockClear();
+  });
+
   // Previously asserted a "Continue without signing in" link. That link pointed at
   // "/", which the auth guard now blocks on any cloud deployment — it was a
   // dead-end loop back to the entry page (#589).

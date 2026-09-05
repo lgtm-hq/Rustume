@@ -1315,5 +1315,24 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        // The auth middleware, not a stream error, produced the response: a JSON
+        // ApiError body rather than a truncated export.
+        assert_eq!(
+            response
+                .headers()
+                .get("content-type")
+                .and_then(|value| value.to_str().ok()),
+            Some("application/json")
+        );
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let payload: ApiError = serde_json::from_slice(&body).unwrap();
+        assert!(!payload.error.is_empty());
+        assert!(
+            payload.error.to_lowercase().contains("auth"),
+            "unexpected error body: {}",
+            payload.error
+        );
     }
 }
