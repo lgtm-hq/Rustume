@@ -500,9 +500,8 @@ Extend `crates/server/src/audit/mod.rs` with:
    instances? Proposal: yes, up to N (e.g. 3) with separate `link_id` each.
 4. **Self-hosted without #254.** Browser-only can link before self-hosted
    Postgres ships; confirm priority order.
-5. **Consolidate `docs/rfcs/` and `docs/rfc/`.** Done in the RFC 0003 PR (#927).
-   Shared numbering was documented
-   in README; migrate the E2E RFC into `docs/rfc/` when convenient.
+5. **Consolidate `docs/rfcs/` and `docs/rfc/`.** Resolved: RFC 0001 moved into
+   `docs/rfc/` in #927 and the README no longer mentions the legacy directory.
 
 ## Rollout plan
 
