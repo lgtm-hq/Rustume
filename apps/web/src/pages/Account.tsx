@@ -286,8 +286,8 @@ export default function Account() {
                       Export account data
                     </h2>
                     <p class="text-sm text-stone mb-4">
-                      Download all account data — profile metadata and cloud resumes — as a JSON
-                      file for data portability.
+                      Download all account data — profile metadata, policy acceptances, cloud
+                      resumes, and their version history — as a JSON file for data portability.
                     </p>
                     <Button
                       variant="secondary"

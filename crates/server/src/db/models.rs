@@ -315,13 +315,43 @@ pub struct AccountExportProfile {
     pub created_at: DateTime<Utc>,
 }
 
+/// Versioned policy acceptance included in the GDPR portability export.
+#[derive(Debug, Clone, FromRow, Serialize, ToSchema)]
+pub struct PolicyAcceptanceExport {
+    /// Policy identifier (`terms`, `privacy`).
+    pub policy: String,
+    /// Policy version accepted by the user.
+    pub version: String,
+    #[schema(value_type = String, format = "date-time")]
+    pub accepted_at: DateTime<Utc>,
+    /// Client IP recorded at acceptance time, when available.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ip_address: Option<String>,
+}
+
+/// Resume version-history snapshot included in the GDPR portability export.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ResumeSnapshotExport {
+    #[schema(value_type = String, format = "uuid")]
+    pub resume_id: Uuid,
+    pub version: i32,
+    #[schema(value_type = String, format = "date-time")]
+    pub created_at: DateTime<Utc>,
+    #[schema(value_type = Object)]
+    pub data: serde_json::Value,
+}
+
 /// Full account data export payload for `GET /api/account/export`.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct AccountDataExport {
     #[schema(value_type = String, format = "date-time")]
     pub exported_at: DateTime<Utc>,
     pub account: AccountExportProfile,
+    /// Terms and Privacy Policy versions the user accepted.
+    pub policy_acceptances: Vec<PolicyAcceptanceExport>,
     pub resumes: Vec<ResumeExportItem>,
+    /// Retained version-history snapshots for every exported resume.
+    pub resume_snapshots: Vec<ResumeSnapshotExport>,
 }
 
 impl AccountExportProfile {
