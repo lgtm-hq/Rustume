@@ -69,10 +69,12 @@ The export is not subject to the 50-resume cap or to subscription gating. It has
 per-process ceiling of concurrent downloads (`RATE_LIMIT_ACCOUNT_EXPORT_CONCURRENCY`, default 2),
 beyond which the request is refused with `503` and `Retry-After`. Both `429` and `503` carry the
 same `{ "error", "retry_after" }` body. An accepted export always writes an `account.export` audit
-row before any data leaves (the request fails if it cannot); the matching `account.export.completed`
-row and the `account.delete` row are written after the response or the local erase is already
-committed, so they are best-effort: a failed insert is logged, not surfaced. `429` and concurrency
-`503` refusals write nothing. See [Rate
+row before any data leaves (the request fails if it cannot). The matching `account.export.completed`
+row is best-effort: for a delivered stream it is written after the last byte is sent, and for an
+export that fails before streaming begins it is written just before the error response, so in
+either case its outcome cannot change what the client receives. The `account.delete` row is likewise
+best-effort, written after the local erase has committed. A failed best-effort insert is logged,
+not surfaced. `429` and concurrency `503` refusals write nothing. See [Rate
 Limits](/docs/deployment/rate-limits/#account-export-is-not-capped).
 
 ## Connected workflows
