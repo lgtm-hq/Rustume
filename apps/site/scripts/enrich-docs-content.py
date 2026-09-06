@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Apply consistent SmartLink, DocLink, and inline-code patterns to doc markdown."""
 
+# pylint: disable=invalid-name  # CLI script; hyphenated filename is the invocation contract
+
 from __future__ import annotations
 
 from doc_enrichment.descriptions import DESCRIPTIONS, DOCS
@@ -9,6 +11,7 @@ from doc_enrichment.replacements import REPLACEMENTS
 
 
 def main() -> None:
+    """Apply the configured SmartLink/DocLink/description enrichments."""
     updated = 0
 
     for rel_path, old, new in REPLACEMENTS:

@@ -43,6 +43,20 @@ def _operations_description_is_compliant(content: str) -> bool:
 
 
 def set_description(content: str, rel_path: str, new_desc: str) -> str:
+    """Rewrite the ``description`` field of a doc page's frontmatter.
+
+    Skips pages that are not known docs and operations pages whose
+    description is already compliant.
+
+    Args:
+        content: Full markdown file contents.
+        rel_path: Docs-relative path used to look up enrichment metadata.
+        new_desc: The description text to write.
+
+    Returns:
+        The updated file contents, or ``content`` unchanged when no
+        rewrite applies.
+    """
     if rel_path not in DESCRIPTIONS:
         return content
     if rel_path.startswith("operations/") and _operations_description_is_compliant(content):

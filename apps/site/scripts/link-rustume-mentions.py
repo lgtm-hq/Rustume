@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Link bare Rustume product mentions to the site homepage in doc markdown."""
 
+# pylint: disable=invalid-name  # CLI script; hyphenated filename is the invocation contract
+
 from __future__ import annotations
 
 import re
@@ -24,6 +26,15 @@ MARKDOWN_LINK = re.compile(
 
 
 def split_frontmatter(text: str) -> tuple[str, str, str]:
+    """Split markdown into its frontmatter block and body.
+
+    Args:
+        text: Full markdown file contents.
+
+    Returns:
+        ``(frontmatter, body, text)``. ``frontmatter`` is empty when the
+        file has no frontmatter block.
+    """
     match = re.match(r"^(---\r?\n[\s\S]*?\r?\n---\r?\n?)", text)
     if not match:
         return "", text, text
@@ -33,6 +44,14 @@ def split_frontmatter(text: str) -> tuple[str, str, str]:
 
 
 def link_rustume_in_text(text: str) -> str:
+    """Link bare product mentions, leaving existing markdown links alone.
+
+    Args:
+        text: Markdown fragment without code fences.
+
+    Returns:
+        The fragment with bare mentions replaced by links.
+    """
     parts = MARKDOWN_LINK.split(text)
     linked: list[str] = []
     for index, part in enumerate(parts):
@@ -45,6 +64,14 @@ def link_rustume_in_text(text: str) -> str:
 
 
 def link_rustume_segment(segment: str) -> str:
+    """Link mentions line-by-line, skipping headings and inline code.
+
+    Args:
+        segment: Markdown fragment without fenced code blocks.
+
+    Returns:
+        The fragment with eligible mentions replaced by links.
+    """
     lines: list[str] = []
     for line in segment.splitlines(keepends=True):
         stripped = line.lstrip()
@@ -64,6 +91,14 @@ def link_rustume_segment(segment: str) -> str:
 
 
 def link_rustume_body(body: str) -> str:
+    """Link mentions in a markdown body while preserving fenced code blocks.
+
+    Args:
+        body: Markdown body without its frontmatter block.
+
+    Returns:
+        The body with mentions linked outside of code fences.
+    """
     parts = re.split(r"(```[\s\S]*?```)", body)
     linked: list[str] = []
     for index, part in enumerate(parts):
@@ -75,6 +110,7 @@ def link_rustume_body(body: str) -> str:
 
 
 def main() -> None:
+    """Link product mentions in every docs markdown file in place."""
     updated = 0
     for path in sorted(DOCS.rglob("*.md")):
         original = path.read_text()

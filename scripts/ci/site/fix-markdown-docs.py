@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Fix markdownlint issues in Astro docs content."""
 
+# pylint: disable=invalid-name  # CLI script; hyphenated filename is the invocation contract
+
 from __future__ import annotations
 
 import re
@@ -43,6 +45,56 @@ def infer_fence_language(block_lines: list[str]) -> str:
     return "text"
 
 
+def _tokenize_prose(line: str) -> list[str]:
+    """Split a prose line into atomic tokens; markdown links stay whole.
+
+    Args:
+        line: Prose line without block-level markdown syntax.
+
+    Returns:
+        Tokens in order; link tokens appear exactly as written.
+    """
+    parts = MARKDOWN_LINK.split(line)
+    tokens: list[str] = []
+    for index, part in enumerate(parts):
+        if not part:
+            continue
+        if index % 2 == 1:
+            tokens.append(part)
+            continue
+        tokens.extend(PROSE_TOKEN.findall(part))
+    return tokens
+
+
+def _place_token(wrapped: list[str], current: str, token: str, width: int) -> str:
+    """Place one token, flushing finished lines into ``wrapped``.
+
+    Args:
+        wrapped: Accumulated finished lines.
+        current: The line currently being assembled ("" when empty).
+        token: The next atomic token to place.
+        width: Maximum characters per output line.
+
+    Returns:
+        The updated in-progress line (empty when the token itself
+        overflowed and was flushed whole).
+    """
+    if current and token in _NO_SPACE_BEFORE:
+        candidate = f"{current}{token}"
+    elif current:
+        candidate = f"{current} {token}"
+    else:
+        candidate = token
+    if len(candidate) <= width:
+        return candidate
+    if current:
+        wrapped.append(current)
+    if len(token) > width:
+        wrapped.append(token)
+        return ""
+    return token
+
+
 def wrap_line(line: str, width: int = LINE_LENGTH) -> list[str]:
     """Wrap prose to width, treating markdown links as atomic tokens.
 
@@ -56,38 +108,14 @@ def wrap_line(line: str, width: int = LINE_LENGTH) -> list[str]:
     if len(line) <= width:
         return [line]
 
-    parts = MARKDOWN_LINK.split(line)
-    tokens: list[str] = []
-    for index, part in enumerate(parts):
-        if not part:
-            continue
-        if index % 2 == 1:
-            tokens.append(part)
-            continue
-        tokens.extend(PROSE_TOKEN.findall(part))
-
+    tokens = _tokenize_prose(line)
     if not tokens:
         return [line]
 
     wrapped: list[str] = []
     current = ""
     for token in tokens:
-        if current and token in _NO_SPACE_BEFORE:
-            candidate = f"{current}{token}"
-        elif current:
-            candidate = f"{current} {token}"
-        else:
-            candidate = token
-        if len(candidate) <= width:
-            current = candidate
-            continue
-        if current:
-            wrapped.append(current)
-        if len(token) > width:
-            wrapped.append(token)
-            current = ""
-            continue
-        current = token
+        current = _place_token(wrapped, current, token, width)
     if current:
         wrapped.append(current)
     return wrapped or [line]

@@ -2,20 +2,14 @@
 
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
-_MODULE_PATH = (
-    Path(__file__).resolve().parents[3] / "scripts" / "ci" / "site" / "fix-markdown-docs.py"
+from _script_loader import load_script_module
+
+fix_markdown_docs = load_script_module(
+    "fix_markdown_docs",
+    Path(__file__).resolve().parents[3] / "scripts" / "ci" / "site" / "fix-markdown-docs.py",
 )
-_spec = importlib.util.spec_from_file_location("fix_markdown_docs", _MODULE_PATH)
-if _spec is None:
-    raise ImportError(f"Could not load module spec from {_MODULE_PATH}")
-_loader = _spec.loader
-if _loader is None:
-    raise ImportError(f"Module spec for {_MODULE_PATH} has no loader")
-fix_markdown_docs = importlib.util.module_from_spec(_spec)
-_loader.exec_module(fix_markdown_docs)
 
 
 def test_wrap_line_preserves_markdown_link() -> None:
