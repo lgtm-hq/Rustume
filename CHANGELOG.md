@@ -22,6 +22,20 @@ and this project adheres to
 
 ### Security
 
+## [0.69.3] - 2026-09-06
+
+### Changed
+
+- **deps**: update all major dependencies to 5.0.0 (major) (#943) (5b18d7e)
+- **deps**: update rust crate comrak to 0.55.0 (minor) (#942) (a353b2d)
+- **deps**: update lintro to 0.147.3 (patch) (#941) (a727ce7)
+- **deps**: update dependency @types/node to 26.4.1 (minor) (#929) (568189d)
+- **deps**: update lintro to 0.147.0 (minor) (#938) (79c2ba9)
+
+### Fixed
+
+- **lint**: restore pylint and fix its findings (#944) (1b8a833)
+
 ## [0.69.2] - 2026-09-06
 
 ### Changed
@@ -1196,7 +1210,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.69.2...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.69.3...HEAD
+[0.69.3]: https://github.com/lgtm-hq/Rustume/compare/v0.69.2...v0.69.3
 [0.69.2]: https://github.com/lgtm-hq/Rustume/compare/v0.69.1...v0.69.2
 [0.69.1]: https://github.com/lgtm-hq/Rustume/compare/v0.69.0...v0.69.1
 [0.69.0]: https://github.com/lgtm-hq/Rustume/compare/v0.68.1...v0.69.0
