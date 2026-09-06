@@ -36,6 +36,47 @@ Export endpoints enforce a resume-count cap and route-specific rate limits:
 JSON export uses the resume CRUD limit group; PDF export uses the PDF limit group (same as
 `POST /api/render/pdf`). See [Rate Limits](/docs/deployment/rate-limits/#bulk-export-cap).
 
+## Account
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/api/account/export` | GDPR data-portability download as one streamed JSON document (see below) |
+| `DELETE` | `/api/account` | Delete the local account: the user row and, by cascade, resumes, snapshots, policy acceptances, subscriptions, and sessions (body: `{"confirmation":"DELETE"}`); own limit of 5/min (`RATE_LIMIT_ACCOUNT_DELETE_PER_MIN`) |
+
+What `DELETE /api/account` does **not** do: audit log rows are retained (with the former user id as
+a historical reference and no live foreign key); the WorkOS user record is deleted on a best-effort
+basis after the local rows are gone and a failure there is logged, not surfaced; and no Paddle
+subscription is cancelled by this call, so cancel hosted billing in the customer portal first.
+
+The account export is an explicit allow-list of the account-linked data Rustume stores:
+
+| Field | Contents |
+| --- | --- |
+| `exported_at` | UTC timestamp of when the export was generated |
+| `account` | Profile: `id`, `email`, `first_name`, `last_name`, `plan`, `created_at` |
+| `policy_acceptances` | Terms/Privacy versions accepted, with timestamp and client IP |
+| `subscriptions` | Hosted-billing subscriptions ever attached to the account |
+| `resumes` | Every resume: id, title, sharing state (`is_public`, `public_slug`), timestamps, full document |
+| `resume_snapshots` | Every retained version-history snapshot, per resume |
+| `audit_events` | The account's own audit trail (event type, resource, client IP, metadata), oldest first |
+
+Not included: session rows (short-lived credential material, not information about the person),
+internal identifiers such as the WorkOS user id and Paddle customer id, and password hashes for
+protected shares.
+
+The export is not subject to the 50-resume cap or to subscription gating. It has its own rate limit
+(5 per minute, charged to the user and to a shared per-IP bucket like every signed-in route) and a
+per-process ceiling of concurrent downloads (`RATE_LIMIT_ACCOUNT_EXPORT_CONCURRENCY`, default 2),
+beyond which the request is refused with `503` and `Retry-After`. Both `429` and `503` carry the
+same `{ "error", "retry_after" }` body. An accepted export always writes an `account.export` audit
+row before any data leaves (the request fails if it cannot). The matching `account.export.completed`
+row is best-effort: for a delivered stream it is written after the last byte is sent, and for an
+export that fails before streaming begins it is written just before the error response, so in
+either case its outcome cannot change what the client receives. The `account.delete` row is likewise
+best-effort, written after the local erase has committed. A failed best-effort insert is logged,
+not surfaced. `429` and concurrency `503` refusals write nothing. See [Rate
+Limits](/docs/deployment/rate-limits/#account-export-is-not-capped).
+
 ## Connected workflows
 
 The connected API also backs [synchronization](/docs/cloud/sync/), [public
