@@ -452,8 +452,6 @@ mod policy_acceptance_tests {
         WorkOsUser {
             id: format!("workos_policy_{suffix}"),
             email: format!("policy-{suffix}@example.com"),
-            first_name: Some("Policy".to_string()),
-            last_name: Some("Tester".to_string()),
         }
     }
 
