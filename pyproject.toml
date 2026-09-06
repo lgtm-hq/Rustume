@@ -27,6 +27,12 @@ tool_order = "priority"
 [tool.lintro.post_checks]
 enabled = false
 
+[tool.pylint."messages control"]
+# Rustume has no first-party Python; the only files pylint can see are the
+# vendored lgtm-ci tooling scripts, whose catalogue (duplicate-code included)
+# is gated upstream in lgtm-ci's own repo. Keep pylint silent here.
+disable = ["all"]
+
 [tool.bandit]
 exclude_dirs = [".venv", "venv"]
 # B101: assert in tests; B108: hardcoded /tmp in test fixtures only
