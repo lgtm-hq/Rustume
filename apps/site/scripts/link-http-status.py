@@ -30,8 +30,8 @@ def link_code(code: str, label: str) -> str:
 def replace_backtick_status(text: str) -> str:
     """Link known backtick-quoted status codes in ``text`` to MDN.
 
-    Skips YAML frontmatter and fenced code blocks so only prose status
-    codes are rewritten.
+    Skips YAML frontmatter and backtick-fenced code blocks so only prose
+    status codes are rewritten.
 
     Args:
         text: Markdown text to scan.

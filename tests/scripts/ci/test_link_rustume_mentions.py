@@ -28,3 +28,12 @@ def test_link_rustume_in_text_links_bare_mention() -> None:
     output = link_rustume_mentions.link_rustume_in_text(text)
 
     assert output == "[Rustume](/) is privacy-first."
+
+
+def test_link_rustume_body_skips_tilde_fenced_code() -> None:
+    """Rustume inside tilde-fenced code must not be linked."""
+    body = "~~~\nRustume stays verbatim here\n~~~\n\nRustume is linked in prose.\n"
+    output = link_rustume_mentions.link_rustume_body(body)
+
+    assert "Rustume stays verbatim here" in output
+    assert "[Rustume](/) is linked in prose." in output
