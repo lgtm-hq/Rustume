@@ -99,7 +99,7 @@ def link_rustume_body(body: str) -> str:
     Returns:
         The body with mentions linked outside of code fences.
     """
-    parts = re.split(r"(```[\s\S]*?```)", body)
+    parts = re.split(r"(```[\s\S]*?```|~~~[\s\S]*?~~~)", body)
     linked: list[str] = []
     for index, part in enumerate(parts):
         if index % 2 == 1:

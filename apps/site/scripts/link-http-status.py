@@ -28,7 +28,10 @@ def link_code(code: str, label: str) -> str:
 
 
 def replace_backtick_status(text: str) -> str:
-    """Link every known backtick-quoted status code in ``text`` to MDN.
+    """Link known backtick-quoted status codes in ``text`` to MDN.
+
+    Skips YAML frontmatter and fenced code blocks so only prose status
+    codes are rewritten.
 
     Args:
         text: Markdown text to scan.
