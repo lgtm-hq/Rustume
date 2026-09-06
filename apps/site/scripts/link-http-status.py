@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Replace inline-code HTTP error status codes with MDN markdown links."""
 
+# pylint: disable=invalid-name  # CLI script; hyphenated filename is the invocation contract
+
 from __future__ import annotations
 
 import re
@@ -13,10 +15,31 @@ STATUS_PATTERN = re.compile(r"`(\d{3})(?:\s+([A-Za-z]+))?`")
 
 
 def link_code(code: str, label: str) -> str:
+    """Return a Markdown link for an MDN HTTP status page.
+
+    Args:
+        code: Three-digit HTTP status code.
+        label: Link text to display.
+
+    Returns:
+        A Markdown link string pointing at the MDN page.
+    """
     return f"[{label}]({MDN.format(code=code)})"
 
 
 def replace_backtick_status(text: str) -> str:
+    """Link known backtick-quoted status codes in ``text`` to MDN.
+
+    Skips YAML frontmatter and backtick-fenced code blocks so only prose
+    status codes are rewritten.
+
+    Args:
+        text: Markdown text to scan.
+
+    Returns:
+        The text with status codes replaced by MDN links.
+    """
+
     def repl_phrase(match: re.Match[str]) -> str:
         code, phrase = match.group(1), match.group(2)
         if code not in ERROR_CODES:
@@ -57,6 +80,7 @@ def replace_backtick_status(text: str) -> str:
 
 
 def main() -> None:
+    """Link status codes in every docs markdown file in place."""
     updated = 0
     for path in sorted(DOCS.rglob("*.md")):
         original = path.read_text()

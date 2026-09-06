@@ -27,14 +27,6 @@ tool_order = "priority"
 [tool.lintro.post_checks]
 enabled = false
 
-[tool.pylint."messages control"]
-# Policy opt-out of the lintro 0.147.x bundled pylint plugin: the first-party
-# Python under apps/site/scripts and scripts/ci stays gated by ruff, bandit
-# and mypy, and the vendored lgtm-ci tooling scripts are linted upstream in
-# lgtm-ci's own repo, which owns the duplicate-code ratchet. Keep pylint
-# silent here so consumers don't re-lint vendored code.
-disable = ["all"]
-
 [tool.bandit]
 exclude_dirs = [".venv", "venv"]
 # B101: assert in tests; B108: hardcoded /tmp in test fixtures only

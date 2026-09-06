@@ -2,20 +2,14 @@
 
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
-_MODULE_PATH = (
-    Path(__file__).resolve().parents[3] / "apps" / "site" / "scripts" / "link-http-status.py"
+from _script_loader import load_script_module
+
+link_http_status = load_script_module(
+    "link_http_status",
+    Path(__file__).resolve().parents[3] / "apps" / "site" / "scripts" / "link-http-status.py",
 )
-_spec = importlib.util.spec_from_file_location("link_http_status", _MODULE_PATH)
-if _spec is None:
-    raise ImportError(f"Could not load module spec from {_MODULE_PATH}")
-_loader = _spec.loader
-if _loader is None:
-    raise ImportError(f"Module spec for {_MODULE_PATH} has no loader")
-link_http_status = importlib.util.module_from_spec(_spec)
-_loader.exec_module(link_http_status)
 
 
 def test_replace_backtick_status_skips_yaml_frontmatter() -> None:

@@ -97,3 +97,6 @@ __pycache__/
 # -------------------- Tool Caches --------------------
 .ruff_cache/
 .mypy_cache/
+
+# lgtm-ci tooling sparse checkout (created inside reusable workflow jobs)
+.lgtm-ci-tooling/

@@ -63,3 +63,9 @@ apps/site/.astro/
 apps/site/public/assets/
 apps/site/dist/
 apps/site/coverage/
+
+# CI-time self-vendoring of lgtm-ci tooling (checked out by the quality
+# workflow at the pinned tooling ref to drive the lint itself). It is
+# upstream's code, linted and ratcheted in lgtm-hq/lgtm-ci's own repo;
+# linting the copy here would only double-report upstream findings.
+.lgtm-ci-tooling/
