@@ -41,6 +41,29 @@ export const importBatchResponseSchema = z.object({
   ),
 });
 
+export const apiKeySummarySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  prefix: z.string(),
+  // The server omits this field for never-used keys (skip_serializing_if), so
+  // accept absent as well as null and normalize to null for the UI.
+  last_used_at: z
+    .string()
+    .nullish()
+    .transform((value) => value ?? null),
+  created_at: z.string(),
+});
+
+export const apiKeyListSchema = z.array(apiKeySummarySchema);
+
+/** `POST /api/keys` response: the plaintext key is returned exactly once. */
+export const createdApiKeySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  prefix: z.string(),
+  key: z.string(),
+});
+
 export const themeSchema = z.object({
   background: z.string(),
   text: z.string(),
