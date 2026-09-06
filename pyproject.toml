@@ -28,9 +28,11 @@ tool_order = "priority"
 enabled = false
 
 [tool.pylint."messages control"]
-# Rustume has no first-party Python; the only files pylint can see are the
-# vendored lgtm-ci tooling scripts, whose catalogue (duplicate-code included)
-# is gated upstream in lgtm-ci's own repo. Keep pylint silent here.
+# Policy opt-out of the lintro 0.147.x bundled pylint plugin: the first-party
+# Python under apps/site/scripts and scripts/ci stays gated by ruff, bandit
+# and mypy, and the vendored lgtm-ci tooling scripts are linted upstream in
+# lgtm-ci's own repo, which owns the duplicate-code ratchet. Keep pylint
+# silent here so consumers don't re-lint vendored code.
 disable = ["all"]
 
 [tool.bandit]
