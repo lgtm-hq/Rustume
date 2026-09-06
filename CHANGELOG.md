@@ -22,6 +22,26 @@ and this project adheres to
 
 ### Security
 
+## [0.69.2] - 2026-09-06
+
+### Changed
+
+- **rfc**: add RFC 0003 local-first encrypted storage (#927) (3b59f7b)
+- **ci**: close out reconcile-releases historical tag gaps (#924) (2b90d73)
+- **deps**: update dependency h3 to 2.0.1-rc.30 (patch) (#937) (5ef5bd7)
+- **deps**: update lintro to 0.146.0 (minor) (#931) (afef9f4)
+- **deps**: update dependency @types/bun to 1.4.0 (minor) (#918) (a471dad)
+- **deps**: update dependency oxlint to 1.81.0 (minor) (#908) (76652b2)
+- **deps**: update lintro (#896) (baa054d)
+- **deps**: update dependency oven-sh/bun to 1.4.2 (minor) (#894) (a5a6252)
+- **deps**: update github-actions (#928) (f17c6bb)
+- **deps-dev**: update rust crate wasm-bindgen-test to 0.3.78 (patch) (#926) (2dd4ddd)
+- **deps**: update rust docker tag to 1.98 (minor) (#895) (e50507b)
+
+### Fixed
+
+- **deps**: update dependency @lgtm-hq/turbo-themes to 0.42.5 (minor) (#930) (5453c13)
+
 ## [0.69.1] - 2026-08-27
 
 ### Fixed
@@ -1176,7 +1196,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.69.1...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.69.2...HEAD
+[0.69.2]: https://github.com/lgtm-hq/Rustume/compare/v0.69.1...v0.69.2
 [0.69.1]: https://github.com/lgtm-hq/Rustume/compare/v0.69.0...v0.69.1
 [0.69.0]: https://github.com/lgtm-hq/Rustume/compare/v0.68.1...v0.69.0
 [0.68.1]: https://github.com/lgtm-hq/Rustume/compare/v0.68.0...v0.68.1
