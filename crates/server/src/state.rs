@@ -4,7 +4,7 @@ use std::sync::Arc;
 use rustume_render::TypstRenderer;
 
 use crate::cloud::CloudState;
-use crate::config::{rate_limits_enabled_from_env, RateLimitConfig};
+use crate::config::{rate_limits_enabled_from_env, BillingConfig, RateLimitConfig};
 use crate::middleware::rate_limit::RateLimitState;
 
 /// Shared router state for all handlers.
@@ -21,6 +21,8 @@ pub struct AppState {
     pub require_auth: bool,
     /// In-memory rate limiters (cloud mode only).
     pub rate_limits: Option<Arc<RateLimitState>>,
+    /// Paddle Billing credentials when all billing env vars are set.
+    pub billing: Option<BillingConfig>,
 }
 
 impl AppState {
@@ -30,16 +32,25 @@ impl AppState {
             .as_ref()
             .filter(|_| rate_limits_enabled_from_env())
             .map(|_| Arc::new(RateLimitState::new(RateLimitConfig::from_env())));
+        // Billing is a cloud feature: routes and the Paddle CSP only exist
+        // alongside a database, so leftover PADDLE_* on a self-hosted
+        // deployment must not widen anything.
+        let billing = cloud.as_ref().and_then(|_| BillingConfig::from_env());
         Self {
             static_dir,
             cloud,
             renderer: Arc::new(TypstRenderer::new()),
             require_auth: crate::cloud::require_auth_enabled(),
             rate_limits,
+            billing,
         }
     }
 
     /// Build application state with an explicit advertised require-auth flag (tests).
+    ///
+    /// Billing is always off so stray `PADDLE_*` variables in a test
+    /// environment cannot mount billing routes in unrelated tests; use
+    /// [`Self::with_options_and_billing`] to test billing explicitly.
     #[cfg(test)]
     pub fn with_require_auth(
         static_dir: Arc<PathBuf>,
@@ -49,7 +60,8 @@ impl AppState {
         Self::with_options(static_dir, cloud, require_auth, RateLimitConfig::from_env())
     }
 
-    /// Build application state with explicit cloud and rate limit settings (tests).
+    /// Build application state with explicit cloud and rate limit settings and
+    /// billing disabled (tests).
     #[cfg(test)]
     pub fn with_options(
         static_dir: Arc<PathBuf>,
@@ -57,15 +69,30 @@ impl AppState {
         require_auth: bool,
         rate_limit_config: RateLimitConfig,
     ) -> Self {
+        Self::with_options_and_billing(static_dir, cloud, require_auth, rate_limit_config, None)
+    }
+
+    /// Build application state with explicit cloud, rate limit, and billing settings (tests).
+    #[cfg(test)]
+    pub fn with_options_and_billing(
+        static_dir: Arc<PathBuf>,
+        cloud: Option<Arc<CloudState>>,
+        require_auth: bool,
+        rate_limit_config: RateLimitConfig,
+        billing: Option<BillingConfig>,
+    ) -> Self {
         let rate_limits = cloud
             .as_ref()
             .map(|_| Arc::new(RateLimitState::new(rate_limit_config)));
         Self {
             static_dir,
-            cloud,
             renderer: Arc::new(TypstRenderer::new()),
             require_auth,
             rate_limits,
+            // Same cloud gating as `new`, so tests cannot construct a state
+            // production could never reach.
+            billing: cloud.as_ref().and(billing),
+            cloud,
         }
     }
 

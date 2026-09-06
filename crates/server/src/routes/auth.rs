@@ -258,6 +258,7 @@ pub async fn logout(
 pub async fn me(State(state): State<AppState>, jar: CookieJar) -> Result<Response, ApiError> {
     let cloud = state.cloud()?;
     let require_auth = state.require_auth;
+    let billing_enabled = state.billing.is_some();
 
     if let Some(cookie) = jar.get(SESSION_COOKIE) {
         if let Some(user) = cloud
@@ -274,6 +275,7 @@ pub async fn me(State(state): State<AppState>, jar: CookieJar) -> Result<Respons
                 user,
                 require_auth,
                 access.to_info(),
+                billing_enabled,
             ))
             .into_response());
         }
@@ -284,6 +286,7 @@ pub async fn me(State(state): State<AppState>, jar: CookieJar) -> Result<Respons
         Json(AuthMeUnauthorizedResponse {
             error: "Not authenticated".to_string(),
             require_auth,
+            billing_enabled,
         }),
     )
         .into_response())
