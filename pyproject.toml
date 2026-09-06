@@ -17,7 +17,7 @@ dependencies = []
 # Exact pin, not a floor: an open `>=` range is always satisfied under
 # Renovate's `replace` strategy, so it never proposes a bump and the local
 # venv silently drifts behind the `lintro-image:` pin CI runs (#588).
-lint = ["lintro==0.146.0"]
+lint = ["lintro==0.147.1"]
 test = ["pytest>=8.3"]
 
 [tool.lintro]
@@ -26,6 +26,14 @@ tool_order = "priority"
 
 [tool.lintro.post_checks]
 enabled = false
+
+[tool.pylint."messages control"]
+# Policy opt-out of the lintro 0.147.x bundled pylint plugin: the first-party
+# Python under apps/site/scripts and scripts/ci stays gated by ruff, bandit
+# and mypy, and the vendored lgtm-ci tooling scripts are linted upstream in
+# lgtm-ci's own repo, which owns the duplicate-code ratchet. Keep pylint
+# silent here so consumers don't re-lint vendored code.
+disable = ["all"]
 
 [tool.bandit]
 exclude_dirs = [".venv", "venv"]
