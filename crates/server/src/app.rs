@@ -19,8 +19,8 @@ use utoipa_swagger_ui::SwaggerUi;
 use crate::config::MAX_BODY_SIZE;
 use crate::middleware::auth::require_auth_when_enabled;
 use crate::middleware::rate_limit::{
-    rate_limit_account_delete, rate_limit_auth, rate_limit_billable, rate_limit_health,
-    rate_limit_import, rate_limit_metrics, rate_limit_pdf, rate_limit_preview,
+    rate_limit_account_delete, rate_limit_api_key, rate_limit_auth, rate_limit_billable,
+    rate_limit_health, rate_limit_import, rate_limit_metrics, rate_limit_pdf, rate_limit_preview,
     rate_limit_resume_crud,
 };
 use crate::middleware::security::security_headers;
@@ -28,11 +28,11 @@ use crate::middleware::subscription::require_subscription_render;
 use crate::observability::apply_sentry_layers;
 use crate::openapi::ApiDoc;
 use crate::routes::{
-    callback, create_resume, delete_account, delete_resume, export_resumes_json,
-    export_resumes_pdf, get_resume, get_resume_version, health, import_resumes,
+    callback, create_api_key, create_resume, delete_account, delete_resume, export_resumes_json,
+    export_resumes_pdf, get_resume, get_resume_version, health, import_resumes, list_api_keys,
     list_resume_versions, list_resumes, list_templates, login, logout, me, metrics, parse,
-    render_pdf, render_preview, restore_resume_version, security_txt, spa_fallback, static_dir,
-    template_thumbnail, update_resume, update_sharing, validate, version,
+    render_pdf, render_preview, restore_resume_version, revoke_api_key, security_txt, spa_fallback,
+    static_dir, template_thumbnail, update_resume, update_sharing, validate, version,
 };
 use crate::state::AppState;
 
@@ -199,6 +199,25 @@ pub fn create_router_with_state(state: AppState) -> Router {
             require_auth_when_enabled,
         ));
 
+        // Layer order matters: the last route_layer runs first, so the rate
+        // limiter is added last to sit outside auth (as on the resume routes)
+        // and failed authentications are still counted. The auth layer gives a
+        // uniform 401 before the handler; the SessionAuthUser extractor keeps
+        // API keys from managing keys.
+        let mut api_key_routes = Router::new()
+            .route("/api/keys", get(list_api_keys).post(create_api_key))
+            .route("/api/keys/{id}", delete(revoke_api_key))
+            .route_layer(middleware::from_fn_with_state(
+                state.clone(),
+                require_auth_when_enabled,
+            ));
+        if cloud_rate_limits {
+            api_key_routes = api_key_routes.route_layer(middleware::from_fn_with_state(
+                state_for_layers.clone(),
+                rate_limit_api_key,
+            ));
+        }
+
         let mut export_json_routes = Router::new()
             .route("/api/resumes/export", get(export_resumes_json))
             .route_layer(middleware::from_fn_with_state(
@@ -231,6 +250,7 @@ pub fn create_router_with_state(state: AppState) -> Router {
             .merge(import_routes)
             .merge(export_json_routes)
             .merge(export_pdf_routes)
+            .merge(api_key_routes)
             .merge(account_routes);
     }
 
@@ -265,6 +285,7 @@ fn build_cors_layer_for_origin(origin: Option<String>) -> CorsLayer {
             header::ACCEPT,
             header::COOKIE,
             header::AUTHORIZATION,
+            "x-api-key".parse::<header::HeaderName>().unwrap(),
         ])
         .expose_headers([
             "X-Total-Pages".parse::<header::HeaderName>().unwrap(),
