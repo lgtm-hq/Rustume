@@ -1,0 +1,67 @@
+# Verification probe for step-security/harden-runner#679:
+# "egress-policy: block causes hosted-runner reclamation on long jobs"
+# The maintainer claims v2.21.1 fixes it by implicitly allowing the runner
+# control-plane endpoints in block mode. Arms:
+#   - v2.21.0 block x6 : positive control (~44% kills per 20-min job expected)
+#   - v2.21.1 block x8 : the fix under test (expect 0 kills)
+#   - v2.21.1 audit x2 : negative control (expect 0 kills)
+# Methodology mirrors the issue: idle 20-minute sleep, heartbeat log line,
+# minimal allowlist, ubuntu-24.04 hosted runners.
+name: Experiment - harden-runner v2.21.1 verify
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    name: probe / ${{ matrix.label }}-r${{ matrix.rep }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # positive control: v2.21.0 block
+          - { label: v2.21.0-block, ref: "05e31511f85b41b11d1cf0ef85d0992719546e2c", policy: block, rep: 0 }
+          - { label: v2.21.0-block, ref: "05e31511f85b41b11d1cf0ef85d0992719546e2c", policy: block, rep: 1 }
+          - { label: v2.21.0-block, ref: "05e31511f85b41b11d1cf0ef85d0992719546e2c", policy: block, rep: 2 }
+          - { label: v2.21.0-block, ref: "05e31511f85b41b11d1cf0ef85d0992719546e2c", policy: block, rep: 3 }
+          - { label: v2.21.0-block, ref: "05e31511f85b41b11d1cf0ef85d0992719546e2c", policy: block, rep: 4 }
+          - { label: v2.21.0-block, ref: "05e31511f85b41b11d1cf0ef85d0992719546e2c", policy: block, rep: 5 }
+          # fix under test: v2.21.1 block
+          - { label: v2.21.1-block, ref: "e14015d583714f6e62063499dc959a02595150a1", policy: block, rep: 0 }
+          - { label: v2.21.1-block, ref: "e14015d583714f6e62063499dc959a02595150a1", policy: block, rep: 1 }
+          - { label: v2.21.1-block, ref: "e14015d583714f6e62063499dc959a02595150a1", policy: block, rep: 2 }
+          - { label: v2.21.1-block, ref: "e14015d583714f6e62063499dc959a02595150a1", policy: block, rep: 3 }
+          - { label: v2.21.1-block, ref: "e14015d583714f6e62063499dc959a02595150a1", policy: block, rep: 4 }
+          - { label: v2.21.1-block, ref: "e14015d583714f6e62063499dc959a02595150a1", policy: block, rep: 5 }
+          - { label: v2.21.1-block, ref: "e14015d583714f6e62063499dc959a02595150a1", policy: block, rep: 6 }
+          - { label: v2.21.1-block, ref: "e14015d583714f6e62063499dc959a02595150a1", policy: block, rep: 7 }
+          # negative control: v2.21.1 audit
+          - { label: v2.21.1-audit, ref: "e14015d583714f6e62063499dc959a02595150a1", policy: audit, rep: 0 }
+          - { label: v2.21.1-audit, ref: "e14015d583714f6e62063499dc959a02595150a1", policy: audit, rep: 1 }
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@${{ matrix.ref }}
+        with:
+          egress-policy: ${{ matrix.policy }}
+          allowed-endpoints: >-
+            github.com:443
+            api.github.com:443
+      - name: Idle under egress policy
+        run: |
+          echo "probe arm: ${{ matrix.label }} rep ${{ matrix.rep }}"
+          start=$(date +%s)
+          while true; do
+            now=$(date +%s)
+            elapsed=$(( now - start ))
+            if [ "$elapsed" -ge 1200 ]; then
+              echo "survived full 1200s"
+              exit 0
+            fi
+            echo "alive at ${elapsed}s"
+            sleep 60
+          done
