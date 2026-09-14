@@ -42,6 +42,7 @@ All values are **requests per minute** unless noted.
 | PDF render & bulk PDF export | 20 | — | `POST /api/render/pdf`, `GET /api/resumes/export/pdf` |
 | Auth | 10 | — | Login, callback, logout, `/auth/me` |
 | Parse & utility | 30 | — | Templates, parse, validate |
+| Account deletion | 5 | — | `DELETE /api/account` (per user and shared per IP) |
 
 Resume CRUD allows short bursts (for example rapid autosave) via a separate burst bucket.
 
@@ -100,6 +101,7 @@ RATE_LIMIT_HEALTH_PER_MIN=60
 RATE_LIMIT_METRICS_PER_MIN=60
 RATE_LIMIT_UNAUTHENTICATED_PER_MIN=30
 RATE_LIMIT_BILLABLE_PER_MIN=30   # templates, parse, validate (not subscription-gated)
+RATE_LIMIT_ACCOUNT_DELETE_PER_MIN=5   # DELETE /api/account
 TRUSTED_PROXY=true   # only behind a trusted reverse proxy
 ```
 

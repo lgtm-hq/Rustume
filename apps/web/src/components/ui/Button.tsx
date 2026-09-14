@@ -10,6 +10,8 @@ export interface ButtonProps {
   title?: string;
   onClick?: () => void;
   type?: "button" | "submit" | "reset";
+  /** Forwarded to the underlying `<button>` for focus management. */
+  ref?: (el: HTMLButtonElement) => void;
 }
 
 export const Button: ParentComponent<ButtonProps> = (props) => {
