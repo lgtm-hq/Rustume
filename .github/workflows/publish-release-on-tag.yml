@@ -17,7 +17,7 @@ permissions:
 jobs:
   verify-tag:
     name: ✅ Verify Tag
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
     timeout-minutes: 5
@@ -76,7 +76,7 @@ jobs:
   verify-image:
     name: 🔍 Verify Release Image
     needs: verify-tag
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       packages: read
@@ -128,7 +128,7 @@ jobs:
       always()
       && needs.verify-tag.result == 'success'
       && needs.build-binaries.result == 'success'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
     timeout-minutes: 15
