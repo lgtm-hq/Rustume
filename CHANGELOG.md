@@ -22,6 +22,48 @@ and this project adheres to
 
 ### Security
 
+## [0.69.4] - 2026-09-19
+
+### Changed
+
+- **deps**: lock file maintenance (#981) (92e2236)
+- **deps**: update dependency oxlint to 1.83.0 (minor) (#972) (76d5dd1)
+- **deps**: update dependency @types/node to 26.6.1 (minor) (#979) (5f7e593)
+- **deps**: update github/codeql-action action to v4.38.1 (patch) (#978) (8d26132)
+- **deps**: update gcr.io/distroless/static:nonroot docker digest to e2e927e (#976)
+  (3d3f518)
+- **deps**: update postgres:18-alpine docker digest to 6c538e7 (#977) (7c552a5)
+- **deps**: update test-tools to 5.0.1 (patch) (#974) (3687d36)
+- **deps**: update lintro to 0.165.0 (minor) (#973) (94f3cc8)
+- **deps**: update dependency h3 to 2.0.1-rc.32 (patch) (#971) (e048438)
+- **deps**: update dependency yaml to 2.9.1 (patch) (#970) (89f8106)
+- **deps-dev**: update rust crate pdf-extract to 0.12.1 (patch) (#969) (f1c3b24)
+- **deps**: update lintro to 0.153.2 (minor) (#962) (6b75ade)
+- **deps**: update github-actions (#959) (72fb9ad)
+- **deps**: update dependency @types/node to 26.5.1 (minor) (#963) (5c53c24)
+- **deps**: update dependency oxlint to 1.82.0 (minor) (#966) (6d4ccea)
+- **deps**: update dependency @types/bun to 1.4.2 (patch) (#965) (1bf2df6)
+- **deps**: update rust:1.98-alpine docker digest to 1716b3a (#964) (cc8127d)
+- **deps**: update lintro to 0.152.7 (patch) (#960) (62a4cb2)
+- **deps**: update ghcr.io/lgtm-hq/py-lintro docker tag to 0.152.3 (minor) (#958)
+  (70eb27d)
+- **deps**: update lintro to 0.151.1 (#956) (e694a70)
+- **deps**: update dependency @playwright/test to 1.63.0 (minor) (#957) (3d347fa)
+- **deps**: update dependency @playwright/test to 1.63.0 (minor) (#954) (47803ab)
+- **deps**: update dependency @types/bun to 1.4.1 (patch) (#952) (3d035b9)
+- **deps**: update lintro to 0.147.7 (patch) (#953) (d5c6fe4)
+- **deps**: update lintro to 0.147.4 (patch) (#951) (487a00c)
+- **deps**: update ghcr.io/lgtm-hq/py-lintro:0.147.3 docker digest to dcf9e90 (#949)
+  (ce149d6)
+- **deps**: update renovatebot/github-action action to v46.2.6 (patch) (#950) (a9846fc)
+- **deps**: lock file maintenance (#948) (d9c240d)
+- **deps**: update dependency h3 to 2.0.1-rc.31 (patch) (#947) (861d373)
+- **deps**: update rust crate rstest to 0.27.0 (minor) (#946) (bcebe22)
+
+### Fixed
+
+- **deps**: update dependency @lgtm-hq/turbo-themes to 0.44.11 (minor) (#961) (2a382a1)
+
 ## [0.69.3] - 2026-09-06
 
 ### Changed
@@ -1210,7 +1252,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.69.3...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.69.4...HEAD
+[0.69.4]: https://github.com/lgtm-hq/Rustume/compare/v0.69.3...v0.69.4
 [0.69.3]: https://github.com/lgtm-hq/Rustume/compare/v0.69.2...v0.69.3
 [0.69.2]: https://github.com/lgtm-hq/Rustume/compare/v0.69.1...v0.69.2
 [0.69.1]: https://github.com/lgtm-hq/Rustume/compare/v0.69.0...v0.69.1
