@@ -33,16 +33,6 @@
       "datasourceTemplate": "docker"
     },
     {
-      "description": "tooling-ref is a string input mirroring the lgtm-ci uses: pin in the same file; the github-actions manager only moves the uses: half",
-      "customType": "regex",
-      "managerFilePatterns": ["/^\\.github/workflows/.+\\.yml$/"],
-      "matchStrings": [
-        "tooling-ref: [\"']?(?<currentDigest>[0-9a-f]{40})[\"']?\\s+# (?<currentValue>v\\d+\\.\\d+\\.\\d+)"
-      ],
-      "depNameTemplate": "lgtm-hq/lgtm-ci",
-      "datasourceTemplate": "github-tags"
-    },
-    {
       "customType": "regex",
       "managerFilePatterns": ["/^scripts/ci/site/preview-pages-local\\.sh$/"],
       "matchStrings": [

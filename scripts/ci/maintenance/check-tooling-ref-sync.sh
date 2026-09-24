@@ -8,8 +8,10 @@ set -euo pipefail
 #
 # Each caller workflow pins lgtm-ci twice: once in the `uses:` reference that
 # Renovate's github-actions manager owns, and once in a `tooling-ref:` string
-# input that only the repo-local Renovate custom manager owns. Two managers on
-# one logical pin means the halves can drift, so this guard enforces:
+# input that only the org Renovate preset's custom manager owns (the repo must
+# not define its own: two managers on the same line make Renovate's branch
+# update fail). Two managers on one logical pin means the halves can drift,
+# so this guard enforces:
 #
 #   1. Per file — every `tooling-ref:` SHA (and its `# vX.Y.Z` comment) matches
 #      an lgtm-ci `uses:` pin in the same file.
