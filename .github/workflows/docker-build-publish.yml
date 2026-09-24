@@ -161,13 +161,11 @@ jobs:
       # assets come from GitHub releases) +
       # registry.npmjs.org (bun install in the web-builder stage downloads
       # packages from the npm registry on cache-cold builds).
-      # TEMPORARY (#879): audit instead of block. Harden-runner's block-mode
-      # agent kills ubuntu-24.04 amd64 VMs ~14-65 min into the job (proven by
-      # the 4-arm wall probe in #879; history in #868), and tag builds are
-      # always cold (no-cache above), so releases cannot survive block mode.
-      # Egress is still logged. Revert to block once StepSecurity ships a fix
-      # verified by a 30-minute block-mode spin surviving on ubuntu-24.04.
-      egress-policy: audit
+      # Block mode again (was audit under #879 while harden-runner v2.21.0
+      # denied GitHub's own runner watchdog and killed long amd64 jobs).
+      # v2.21.1 allows *.githubapp.com itself; verified by a 45-minute
+      # block-mode probe surviving 8/8 on ubuntu-24.04 (run 36008759044).
+      egress-policy: block
       allowed-endpoints-mode: replace
       allowed-endpoints: >
         github.com:443
@@ -277,15 +275,22 @@ jobs:
       security-events: write
     steps:
       - name: Harden Runner
+        # Hosts observed in this job's audit-mode logs (2026-08-22..09-24):
+        # setup-trivy fetches the binary through get.trivy.dev and
+        # release-assets.githubusercontent.com on a cache miss, the DB comes
+        # from ghcr.io via pkg-containers.githubusercontent.com, and trivy
+        # itself calls check.trivy.dev for its version check.
         uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         with:
-          egress-policy: audit
+          egress-policy: block
           allowed-endpoints: >
             github.com:443
             api.github.com:443
+            release-assets.githubusercontent.com:443
             ghcr.io:443
             pkg-containers.githubusercontent.com:443
             get.trivy.dev:443
+            check.trivy.dev:443
 
       - name: Checkout
         # yamllint disable-line rule:line-length
