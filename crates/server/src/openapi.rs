@@ -5,18 +5,20 @@ use utoipa::Modify;
 use utoipa::OpenApi;
 
 use crate::db::{
+    AccountDataExport, AccountExportProfile, AccountResumeExportItem, AuditEventExport,
     AuthMeUnauthorizedResponse, AuthUserResponse, CreateResumeRequest, DeleteAccountRequest,
     DeleteAccountResponse, ImportFailure, ImportResumeItem, ImportResumesRequest,
-    ImportResumesResponse, PaginatedResumeSummaries, RestoreResumeRequest, ResumeBulkExport,
-    ResumeExportItem, ResumeListQuery, ResumeRow, ResumeSnapshot, ResumeSummary,
-    ResumeVersionSummary, SharingResponse, SubscriptionInfo, UpdateResumeRequest,
-    UpdateSharingRequest,
+    ImportResumesResponse, PaginatedResumeSummaries, PolicyAcceptanceExport, RestoreResumeRequest,
+    ResumeBulkExport, ResumeExportItem, ResumeListQuery, ResumeRow, ResumeSnapshot,
+    ResumeSnapshotExport, ResumeSummary, ResumeVersionSummary, SharingResponse, SubscriptionExport,
+    SubscriptionInfo, UpdateResumeRequest, UpdateSharingRequest,
 };
 use crate::dto::{
     LayoutInfo, ParseFormat, ParseRequest, RenderPdfRequest, RenderPreviewRequest, TemplateInfo,
     ThemeInfo, ValidationResponse,
 };
 use crate::error::ApiError;
+use crate::middleware::rate_limit::RateLimitErrorBody;
 use crate::routes::version::VersionResponse;
 
 struct CookieAuthAddon;
@@ -68,6 +70,7 @@ impl Modify for CookieAuthAddon {
         crate::routes::export::export_resumes_json,
         crate::routes::export::export_resumes_pdf,
         crate::routes::account::delete_account,
+        crate::routes::account::export_account,
     ),
     components(
         schemas(
@@ -103,6 +106,14 @@ impl Modify for CookieAuthAddon {
             ImportResumeItem,
             DeleteAccountRequest,
             DeleteAccountResponse,
+            AccountDataExport,
+            AccountExportProfile,
+            AccountResumeExportItem,
+            AuditEventExport,
+            RateLimitErrorBody,
+            PolicyAcceptanceExport,
+            ResumeSnapshotExport,
+            SubscriptionExport,
             rustume_schema::ResumeData
         )
     ),

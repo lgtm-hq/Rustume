@@ -1,4 +1,8 @@
-import { defineConfig } from "vite";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { defineConfig, searchForWorkspaceRoot } from "vite";
+
+const configDir = path.dirname(fileURLToPath(import.meta.url));
 import solid from "vite-plugin-solid";
 import { VitePWA } from "vite-plugin-pwa";
 import tailwindcss from "@tailwindcss/vite";
@@ -91,6 +95,14 @@ export default defineConfig({
     // Bind IPv4 explicitly — default can be ::1-only on macOS, which breaks
     // 127.0.0.1 clients and proxying to an IPv4-only API on :3000.
     host: "127.0.0.1",
+    fs: {
+      // The account-export contents JSON is shared with the Rust server and
+      // lives under crates/, outside the Vite root.
+      allow: [
+        searchForWorkspaceRoot(process.cwd()),
+        path.resolve(configDir, "../../crates/server/src/db"),
+      ],
+    },
     proxy: {
       "/api": {
         target: "http://127.0.0.1:3000",
