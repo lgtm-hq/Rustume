@@ -2,10 +2,10 @@
 # "egress-policy: block causes hosted-runner reclamation on long jobs"
 # The maintainer claims v2.21.1 fixes it by implicitly allowing the runner
 # control-plane endpoints in block mode. Arms:
-#   - control-v2210-block x6 : positive control (~44% kills per 20-min job expected)
+#   - control-v2210-block x6 : positive control (~44% kills per 45-min job expected)
 #   - test-v2211-block   x8 : the fix under test (expect 0 kills)
 #   - control-v2211-audit x2 : negative control (expect 0 kills)
-# Methodology mirrors the issue: idle 20-minute sleep, heartbeat log line,
+# Methodology mirrors the issue: idle 45-minute sleep, heartbeat log line,
 # minimal allowlist, ubuntu-24.04 hosted runners.
 name: Experiment - harden-runner v2.21.1 verify
 
@@ -18,7 +18,7 @@ permissions:
 jobs:
   control-v2210-block:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 60
     name: probe / v2.21.0-block r${{ matrix.rep }}
     strategy:
       fail-fast: false
@@ -39,8 +39,8 @@ jobs:
           while true; do
             now=$(date +%s)
             elapsed=$(( now - start ))
-            if [ "$elapsed" -ge 1200 ]; then
-              echo "survived full 1200s"
+            if [ "$elapsed" -ge 2700 ]; then
+              echo "survived full 2700s"
               exit 0
             fi
             echo "alive at ${elapsed}s"
@@ -49,7 +49,7 @@ jobs:
 
   test-v2211-block:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 60
     name: probe / v2.21.1-block r${{ matrix.rep }}
     strategy:
       fail-fast: false
@@ -70,8 +70,8 @@ jobs:
           while true; do
             now=$(date +%s)
             elapsed=$(( now - start ))
-            if [ "$elapsed" -ge 1200 ]; then
-              echo "survived full 1200s"
+            if [ "$elapsed" -ge 2700 ]; then
+              echo "survived full 2700s"
               exit 0
             fi
             echo "alive at ${elapsed}s"
@@ -80,7 +80,7 @@ jobs:
 
   control-v2211-audit:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 60
     name: probe / v2.21.1-audit r${{ matrix.rep }}
     strategy:
       fail-fast: false
@@ -98,8 +98,8 @@ jobs:
           while true; do
             now=$(date +%s)
             elapsed=$(( now - start ))
-            if [ "$elapsed" -ge 1200 ]; then
-              echo "survived full 1200s"
+            if [ "$elapsed" -ge 2700 ]; then
+              echo "survived full 2700s"
               exit 0
             fi
             echo "alive at ${elapsed}s"
