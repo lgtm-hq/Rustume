@@ -51,7 +51,7 @@ lru.workspace = true
 
 # OpenAPI / Swagger
 utoipa.workspace = true
-utoipa-swagger-ui = { version = "9", features = ["axum", "reqwest"] }
+utoipa-swagger-ui = { version = "10", features = ["axum", "reqwest"] }
 
 # Cloud mode
 sqlx.workspace = true
