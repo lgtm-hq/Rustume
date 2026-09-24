@@ -33,6 +33,73 @@ pub const DEFAULT_PORT: u16 = 3000;
 /// Default location for the production web bundle in the container image.
 pub const DEFAULT_STATIC_DIR: &str = "/app/web";
 
+/// Base URL for public resume pages (e.g. `https://rustume.com`).
+///
+/// When unset (or not an absolute `http(s)` origin), public pages omit `og:url`
+/// and `og:image` rather than trusting request-controlled host headers; a
+/// warning is logged at cloud startup, and each affected request logs at debug.
+pub fn public_base_url() -> Option<String> {
+    parse_public_base_url(std::env::var("PUBLIC_BASE_URL").ok().as_deref())
+}
+
+/// Describe why `PUBLIC_BASE_URL` will be ignored, for a one-time startup log.
+///
+/// Returns `None` when the variable is unset or valid. The message never
+/// includes the raw value, which may contain credentials.
+pub fn public_base_url_problem() -> Option<&'static str> {
+    let raw = std::env::var("PUBLIC_BASE_URL").ok()?;
+    if raw.trim().is_empty() {
+        return None;
+    }
+    if parse_public_base_url(Some(&raw)).is_some() {
+        return None;
+    }
+    Some("PUBLIC_BASE_URL is set but is not a bare absolute http(s) origin; it will be ignored")
+}
+
+/// Normalize a `PUBLIC_BASE_URL` value to a bare `scheme://host[:port]` origin.
+///
+/// Only absolute `http(s)` URLs with an empty path and no query, fragment, or
+/// credentials are accepted. Anything else is treated as unset so the public
+/// page never advertises a relative or malformed canonical URL.
+pub fn parse_public_base_url(value: Option<&str>) -> Option<String> {
+    let trimmed = value?.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    // Deliberately quiet and value-free: this runs per request in cloud mode
+    // and the raw value may carry credentials. `init_cloud` reports an invalid
+    // setting once at startup via `public_base_url_problem`.
+    let reject = |reason: &str| {
+        tracing::debug!("PUBLIC_BASE_URL rejected: {reason}");
+        None
+    };
+
+    let Ok(url) = reqwest::Url::parse(trimmed) else {
+        return reject("not a valid URL");
+    };
+    if !matches!(url.scheme(), "http" | "https") {
+        return reject("scheme must be http or https");
+    }
+    if url.host_str().is_none() {
+        return reject("missing host");
+    }
+    if !url.username().is_empty() || url.password().is_some() {
+        return reject("credentials are not allowed");
+    }
+    if url.query().is_some() || url.fragment().is_some() {
+        return reject("query and fragment are not allowed");
+    }
+    if !matches!(url.path(), "" | "/") {
+        return reject("path must be empty");
+    }
+
+    // `Url::origin().ascii_serialization()` yields `scheme://host[:port]` with
+    // the default port elided and the host lowercased.
+    Some(url.origin().ascii_serialization())
+}
+
 /// Per-route-group rate limits for Rustume Cloud (requests per minute).
 #[derive(Debug, Clone, Copy)]
 pub struct RateLimitConfig {
@@ -246,5 +313,52 @@ mod tests {
         assert!(rate_limits_enabled(Some("false")));
         assert!(!rate_limits_enabled(Some("true")));
         assert!(!rate_limits_enabled(Some("1")));
+    }
+
+    #[test]
+    fn public_base_url_trims_trailing_slash() {
+        assert_eq!(
+            parse_public_base_url(Some("https://rustume.com/")).as_deref(),
+            Some("https://rustume.com")
+        );
+        assert_eq!(
+            parse_public_base_url(Some("  http://localhost:3000  ")).as_deref(),
+            Some("http://localhost:3000")
+        );
+    }
+
+    #[test]
+    fn public_base_url_rejects_unset_blank_and_relative_values() {
+        assert_eq!(parse_public_base_url(None), None);
+        assert_eq!(parse_public_base_url(Some("   ")), None);
+        assert_eq!(parse_public_base_url(Some("/")), None);
+        assert_eq!(parse_public_base_url(Some("rustume.com")), None);
+        assert_eq!(parse_public_base_url(Some("ftp://rustume.com")), None);
+    }
+
+    #[test]
+    fn public_base_url_accepts_only_bare_origins() {
+        assert_eq!(
+            parse_public_base_url(Some("HTTPS://Rustume.COM:443/")).as_deref(),
+            Some("https://rustume.com")
+        );
+        assert_eq!(
+            parse_public_base_url(Some("http://localhost:3000")).as_deref(),
+            Some("http://localhost:3000")
+        );
+        assert_eq!(parse_public_base_url(Some("https://rustume.com/app")), None);
+        assert_eq!(
+            parse_public_base_url(Some("https://rustume.com/?x=1")),
+            None
+        );
+        assert_eq!(
+            parse_public_base_url(Some("https://rustume.com/#top")),
+            None
+        );
+        assert_eq!(
+            parse_public_base_url(Some("https://user:pw@rustume.com")),
+            None
+        );
+        assert_eq!(parse_public_base_url(Some("https://")), None);
     }
 }
