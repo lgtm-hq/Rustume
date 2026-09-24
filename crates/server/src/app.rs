@@ -16,12 +16,13 @@ use tower_http::{
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
+use crate::billing::{checkout, customer_portal, paddle_webhook};
 use crate::config::MAX_BODY_SIZE;
 use crate::middleware::auth::require_auth_when_enabled;
 use crate::middleware::rate_limit::{
     rate_limit_account_delete, rate_limit_auth, rate_limit_billable, rate_limit_health,
     rate_limit_import, rate_limit_metrics, rate_limit_pdf, rate_limit_preview,
-    rate_limit_resume_crud,
+    rate_limit_resume_crud, rate_limit_unauthenticated,
 };
 use crate::middleware::security::security_headers;
 use crate::middleware::subscription::require_subscription_render;
@@ -220,7 +221,7 @@ pub fn create_router_with_state(state: AppState) -> Router {
             ));
         if cloud_rate_limits {
             export_pdf_routes = export_pdf_routes.route_layer(middleware::from_fn_with_state(
-                state_for_layers,
+                state_for_layers.clone(),
                 rate_limit_pdf,
             ));
         }
@@ -232,12 +233,41 @@ pub fn create_router_with_state(state: AppState) -> Router {
             .merge(export_json_routes)
             .merge(export_pdf_routes)
             .merge(account_routes);
+
+        if state.billing.is_some() {
+            let mut billing_routes = Router::new()
+                .route("/api/billing/checkout", post(checkout))
+                .route("/api/billing/portal", get(customer_portal))
+                .route_layer(middleware::from_fn_with_state(
+                    state.clone(),
+                    require_auth_when_enabled,
+                ));
+            if cloud_rate_limits {
+                billing_routes = billing_routes.route_layer(middleware::from_fn_with_state(
+                    state_for_layers.clone(),
+                    rate_limit_auth,
+                ));
+            }
+
+            let mut webhook_routes = Router::new().route("/webhooks/paddle", post(paddle_webhook));
+            if cloud_rate_limits {
+                webhook_routes = webhook_routes.route_layer(middleware::from_fn_with_state(
+                    state_for_layers.clone(),
+                    rate_limit_unauthenticated,
+                ));
+            }
+
+            router = router.merge(billing_routes).merge(webhook_routes);
+        }
     }
 
     let router = router
         .fallback(spa_fallback)
         .with_state(state)
-        .layer(middleware::from_fn(security_headers))
+        .layer(middleware::from_fn_with_state(
+            state_for_layers,
+            security_headers,
+        ))
         .layer(CompressionLayer::new())
         .layer(cors)
         .layer(TraceLayer::new_for_http())

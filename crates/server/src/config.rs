@@ -212,6 +212,108 @@ pub fn rate_limits_enabled_from_env() -> bool {
     rate_limits_enabled(std::env::var("RATE_LIMIT_DISABLED").ok().as_deref())
 }
 
+/// Paddle production API base URL.
+pub const PADDLE_API_BASE: &str = "https://api.paddle.com";
+/// Paddle sandbox API base URL, selected by `PADDLE_SANDBOX=true`.
+pub const PADDLE_SANDBOX_API_BASE: &str = "https://sandbox-api.paddle.com";
+
+/// Paddle Billing credentials loaded from the environment.
+///
+/// Secrets are redacted via [`Display`]; do not derive `Debug` (it would leak them).
+#[derive(Clone)]
+pub struct BillingConfig {
+    /// Server-side Paddle API key (`PADDLE_API_KEY`).
+    pub api_key: String,
+    /// Webhook destination secret for signature verification (`PADDLE_WEBHOOK_SECRET`).
+    pub webhook_secret: String,
+    /// Default hosted price ID for checkout (`PADDLE_PRICE_ID`).
+    pub price_id: String,
+    /// Client-side token for Paddle.js (`PADDLE_CLIENT_TOKEN`).
+    pub client_token: String,
+    /// Paddle API base URL (`PADDLE_API_BASE`, default production).
+    pub api_base: String,
+    /// When true, Paddle.js should use the sandbox environment.
+    pub sandbox: bool,
+}
+
+impl BillingConfig {
+    /// Load billing settings when all required env vars are present.
+    pub fn from_env() -> Option<Self> {
+        let api_key = optional_non_empty_env("PADDLE_API_KEY")?;
+        let webhook_secret = optional_non_empty_env("PADDLE_WEBHOOK_SECRET")?;
+        let price_id = optional_non_empty_env("PADDLE_PRICE_ID")?;
+        let client_token = optional_non_empty_env("PADDLE_CLIENT_TOKEN")?;
+
+        // PADDLE_SANDBOX: unset follows the API base; true/1 or false/0 is
+        // an explicit choice that the API base must agree with.
+        let sandbox_flag = match std::env::var("PADDLE_SANDBOX").as_deref() {
+            Ok("true" | "1") => Some(true),
+            Ok("false" | "0") => Some(false),
+            _ => None,
+        };
+        let explicit_api_base = optional_non_empty_env("PADDLE_API_BASE");
+        let api_base = explicit_api_base.clone().unwrap_or_else(|| {
+            if sandbox_flag == Some(true) {
+                PADDLE_SANDBOX_API_BASE.to_string()
+            } else {
+                PADDLE_API_BASE.to_string()
+            }
+        });
+        let api_base_is_sandbox = api_base.contains("sandbox");
+
+        // Paddle.js (client) and the Paddle API (server) must target the same
+        // environment; a sandbox client token against the production API (or
+        // vice versa) fails in confusing ways, so refuse to start billing.
+        if let Some(flag) = sandbox_flag {
+            if explicit_api_base.is_some() && flag != api_base_is_sandbox {
+                tracing::error!(
+                    api_base = %api_base,
+                    sandbox_flag = flag,
+                    "PADDLE_SANDBOX and PADDLE_API_BASE disagree; billing disabled until fixed"
+                );
+                return None;
+            }
+        }
+        let sandbox = sandbox_flag.unwrap_or(api_base_is_sandbox);
+
+        Some(Self {
+            api_key,
+            webhook_secret,
+            price_id,
+            client_token,
+            api_base,
+            sandbox,
+        })
+    }
+}
+
+impl std::fmt::Display for BillingConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BillingConfig")
+            .field("api_key", &"<redacted>")
+            .field("webhook_secret", &"<redacted>")
+            .field("price_id", &self.price_id)
+            .field("client_token", &"<redacted>")
+            .field("api_base", &self.api_base)
+            .field("sandbox", &self.sandbox)
+            .finish()
+    }
+}
+
+fn optional_non_empty_env(key: &str) -> Option<String> {
+    match std::env::var(key) {
+        Ok(value) => {
+            let trimmed = value.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_string())
+            }
+        }
+        Err(_) => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -246,5 +348,95 @@ mod tests {
         assert!(rate_limits_enabled(Some("false")));
         assert!(!rate_limits_enabled(Some("true")));
         assert!(!rate_limits_enabled(Some("1")));
+    }
+
+    static PADDLE_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    const PADDLE_KEYS: [&str; 6] = [
+        "PADDLE_API_KEY",
+        "PADDLE_WEBHOOK_SECRET",
+        "PADDLE_PRICE_ID",
+        "PADDLE_CLIENT_TOKEN",
+        "PADDLE_API_BASE",
+        "PADDLE_SANDBOX",
+    ];
+
+    /// Run `f` with the four required PADDLE_* vars set and the optional ones
+    /// as given, restoring the process environment afterwards.
+    fn with_paddle_env(api_base: Option<&str>, sandbox: Option<&str>, f: impl FnOnce()) {
+        // A failed assertion in one test must not poison the lock for the rest.
+        let _guard = PADDLE_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let previous: Vec<(String, Option<String>)> = PADDLE_KEYS
+            .iter()
+            .map(|key| ((*key).to_string(), std::env::var(key).ok()))
+            .collect();
+
+        std::env::set_var("PADDLE_API_KEY", "api_test");
+        std::env::set_var("PADDLE_WEBHOOK_SECRET", "secret_test");
+        std::env::set_var("PADDLE_PRICE_ID", "pri_test");
+        std::env::set_var("PADDLE_CLIENT_TOKEN", "client_test");
+        match api_base {
+            Some(value) => std::env::set_var("PADDLE_API_BASE", value),
+            None => std::env::remove_var("PADDLE_API_BASE"),
+        }
+        match sandbox {
+            Some(value) => std::env::set_var("PADDLE_SANDBOX", value),
+            None => std::env::remove_var("PADDLE_SANDBOX"),
+        }
+
+        f();
+
+        for (key, value) in previous {
+            match value {
+                Some(value) => std::env::set_var(&key, value),
+                None => std::env::remove_var(&key),
+            }
+        }
+    }
+
+    #[test]
+    fn billing_config_requires_all_vars() {
+        with_paddle_env(None, None, || {
+            let config = BillingConfig::from_env().expect("billing config");
+            assert_eq!(config.price_id, "pri_test");
+            assert!(!config.sandbox);
+            assert_eq!(config.api_base, PADDLE_API_BASE);
+
+            std::env::remove_var("PADDLE_CLIENT_TOKEN");
+            assert!(BillingConfig::from_env().is_none());
+        });
+    }
+
+    #[test]
+    fn billing_config_sandbox_flag_selects_sandbox_api() {
+        with_paddle_env(None, Some("true"), || {
+            let config = BillingConfig::from_env().expect("billing config");
+            assert!(config.sandbox);
+            assert_eq!(config.api_base, PADDLE_SANDBOX_API_BASE);
+        });
+    }
+
+    #[test]
+    fn billing_config_infers_sandbox_from_api_base() {
+        with_paddle_env(Some(PADDLE_SANDBOX_API_BASE), None, || {
+            let config = BillingConfig::from_env().expect("billing config");
+            assert!(config.sandbox);
+            assert_eq!(config.api_base, PADDLE_SANDBOX_API_BASE);
+        });
+    }
+
+    #[test]
+    fn billing_config_rejects_sandbox_flag_with_production_api() {
+        with_paddle_env(Some(PADDLE_API_BASE), Some("true"), || {
+            assert!(
+                BillingConfig::from_env().is_none(),
+                "sandbox client against production API must be refused"
+            );
+        });
+        with_paddle_env(Some(PADDLE_SANDBOX_API_BASE), Some("false"), || {
+            // Explicitly production by flag but sandbox by URL: also refused.
+            assert!(BillingConfig::from_env().is_none());
+        });
     }
 }

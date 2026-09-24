@@ -27,6 +27,8 @@ fn is_reserved_server_path(path: &str) -> bool {
         || path == "/metrics"
         || path.starts_with("/auth/")
         || path == "/auth"
+        || path.starts_with("/webhooks/")
+        || path == "/webhooks"
 }
 
 pub fn sanitize_static_path(path: &str) -> Option<PathBuf> {
