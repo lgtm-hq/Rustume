@@ -275,15 +275,22 @@ jobs:
       security-events: write
     steps:
       - name: Harden Runner
+        # Hosts observed in this job's audit-mode logs (2026-08-22..09-24):
+        # setup-trivy fetches the binary through get.trivy.dev and
+        # release-assets.githubusercontent.com on a cache miss, the DB comes
+        # from ghcr.io via pkg-containers.githubusercontent.com, and trivy
+        # itself calls check.trivy.dev for its version check.
         uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         with:
           egress-policy: block
           allowed-endpoints: >
             github.com:443
             api.github.com:443
+            release-assets.githubusercontent.com:443
             ghcr.io:443
             pkg-containers.githubusercontent.com:443
             get.trivy.dev:443
+            check.trivy.dev:443
 
       - name: Checkout
         # yamllint disable-line rule:line-length
