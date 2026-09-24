@@ -3,7 +3,7 @@
 This repository uses GitHub Actions for quality gates, coverage, release automation,
 and publishing. Most workflows are thin callers to
 [lgtm-ci](https://github.com/lgtm-hq/lgtm-ci) reusable workflows pinned at
-`396e1e28f14d371761558178e75be9c56cc994cf` (**v0.63.6** release commit; not the annotated
+`d32388495d571a0ee13383bacc732765bf4e9e7d` (**v0.74.6** release commit; not the annotated
 tag object SHA). All workflow SHA pins include
 trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enforced by
 [lgtm-ci validate-action-pinning](https://github.com/lgtm-hq/lgtm-ci/pull/221) (via
@@ -86,8 +86,8 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
 - **pr-auto-assign.yml** — Auto-assign reviewers via `reusable-pr-auto-assign`
 - **dependency-review.yml** — PR dependency review via `reusable-dependency-review`
 - **ai-review.yml** — Org AI review via `reusable-ai-review` (`lintro-review[bot]`).
-  Pins lgtm-ci **v0.67.0** while the rest of the repo stays on **v0.63.6**;
-  `pin-sync-guard.yml` allows that one newer pin.
+  Shares the repo-wide lgtm-ci pin; `pin-sync-guard.yml` would allow it to
+  sit on a newer release if a reusable-ai-review contract change ever needs it.
 
 ## Security & maintenance
 
@@ -117,9 +117,9 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
 Use the **release commit SHA**, not the annotated tag object SHA:
 
 ```yaml
-uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@396e1e28f14d371761558178e75be9c56cc994cf # v0.63.6
+uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@d32388495d571a0ee13383bacc732765bf4e9e7d # v0.74.6
 with:
-  tooling-ref: '396e1e28f14d371761558178e75be9c56cc994cf' # v0.63.6 release commit
+  tooling-ref: 'd32388495d571a0ee13383bacc732765bf4e9e7d' # v0.74.6 release commit
 ```
 
 Sparse `lgtm-hq` tooling checkouts may use `actions/checkout` when `ref:` is quoted and
@@ -142,7 +142,7 @@ Renovate config lives in `renovate.json`; the shared preset is
 | Path | Field | Pins | Owner |
 | --- | --- | --- | --- |
 | `.github/workflows/*.yml` | `uses: <owner>/<repo>@<sha> # vX.Y.Z` | Actions and lgtm-ci reusables | Renovate `github-actions` |
-| `.github/workflows/*.yml` | `tooling-ref: '<sha>' # vX.Y.Z` (one per lgtm-ci caller job) | lgtm-ci tooling checkout, mirroring the `uses:` pin in the same file | Renovate custom manager (`lgtm-hq/lgtm-ci`, `github-tags`), enforced by `pin-sync-guard.yml` |
+| `.github/workflows/*.yml` | `tooling-ref: '<sha>' # vX.Y.Z` (one per lgtm-ci caller job) | lgtm-ci tooling checkout, mirroring the `uses:` pin in the same file | Org Renovate preset custom manager (`lgtm-hq/lgtm-ci`, `github-releases`), grouped with the `uses:` pins into one `lgtm-ci` branch; enforced by `pin-sync-guard.yml` |
 | `.github/workflows/ci-lintro-analysis.yml`, `.github/workflows/security-dependency-review.yml` | `lintro-image: ghcr.io/lgtm-hq/py-lintro:<version>@sha256:<digest>` | lintro CI image (version and digest together) | Renovate custom manager (`ghcr.io/lgtm-hq/py-lintro`, `docker`) |
 | `.github/workflows/boundary-guard.yml` | `pip install uv==<version>` | uv in the boundary job (`setup-uv` is blocked by the egress policy) | **Manual — no manager** |
 | `.github/workflows/coverage.yml`, `deploy-pages.yml`, `site-quality.yml`, `test-e2e-web.yml`, `test-e2e-site.yml` | `node-version:`, `python-version:` | CI runtime majors | **Manual — no manager** |
