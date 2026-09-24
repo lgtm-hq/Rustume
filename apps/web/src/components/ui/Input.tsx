@@ -12,6 +12,7 @@ export interface InputProps {
   type?: "text" | "email" | "tel" | "url" | "password";
   disabled?: boolean;
   required?: boolean;
+  maxLength?: number;
   class?: string;
   inputClass?: string;
 }
@@ -28,6 +29,7 @@ export function Input(props: InputProps) {
     "type",
     "disabled",
     "required",
+    "maxLength",
     "class",
     "inputClass",
   ]);
@@ -50,6 +52,7 @@ export function Input(props: InputProps) {
       <TextField.Input
         type={local.type || "text"}
         placeholder={local.placeholder}
+        maxLength={local.maxLength}
         onInput={(e) => local.onInput?.(e.currentTarget.value)}
         class={`w-full px-3 py-2 bg-paper border border-border rounded-lg font-body text-ink
           placeholder:text-stone/50
