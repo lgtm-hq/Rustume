@@ -46,6 +46,12 @@ pub struct RateLimitConfig {
     pub preview_per_min: u32,
     /// PDF export renders.
     pub pdf_per_min: u32,
+    /// GDPR account data export.
+    pub account_export_per_min: u32,
+    /// Maximum account exports streaming at once per process. Each export holds
+    /// one database connection for the duration of the download, so this
+    /// should stay well below `DB_MAX_CONNECTIONS`.
+    pub account_export_concurrency: u32,
     /// Auth login/callback/logout/me.
     pub auth_per_min: u32,
     /// Account deletion (per user when authenticated, per IP otherwise).
@@ -70,6 +76,8 @@ impl Default for RateLimitConfig {
             import_per_min: 10,
             preview_per_min: 60,
             pdf_per_min: 20,
+            account_export_per_min: 5,
+            account_export_concurrency: 2,
             auth_per_min: 10,
             account_delete_per_min: 5,
             health_per_min: 60,
@@ -94,6 +102,14 @@ impl RateLimitConfig {
             import_per_min: env_u32("RATE_LIMIT_IMPORT_PER_MIN", defaults.import_per_min),
             preview_per_min: env_u32("RATE_LIMIT_PREVIEW_PER_MIN", defaults.preview_per_min),
             pdf_per_min: env_u32("RATE_LIMIT_PDF_PER_MIN", defaults.pdf_per_min),
+            account_export_per_min: env_u32(
+                "RATE_LIMIT_ACCOUNT_EXPORT_PER_MIN",
+                defaults.account_export_per_min,
+            ),
+            account_export_concurrency: floor_export_concurrency(env_u32(
+                "RATE_LIMIT_ACCOUNT_EXPORT_CONCURRENCY",
+                defaults.account_export_concurrency,
+            )),
             auth_per_min: env_u32("RATE_LIMIT_AUTH_PER_MIN", defaults.auth_per_min),
             account_delete_per_min: env_u32(
                 "RATE_LIMIT_ACCOUNT_DELETE_PER_MIN",
@@ -143,6 +159,11 @@ impl RateLimitConfig {
         Self::quota_per_minute(self.pdf_per_min)
     }
 
+    /// Quota for GDPR account export routes.
+    pub fn account_export_quota(self) -> Quota {
+        Self::quota_per_minute(self.account_export_per_min)
+    }
+
     /// Quota for auth routes.
     pub fn auth_quota(self) -> Quota {
         Self::quota_per_minute(self.auth_per_min)
@@ -172,6 +193,11 @@ impl RateLimitConfig {
     pub fn billable_quota(self) -> Quota {
         Self::quota_per_minute(self.billable_per_min)
     }
+}
+
+/// At least one export slot, or exports could never start.
+pub fn floor_export_concurrency(configured: u32) -> u32 {
+    configured.max(1)
 }
 
 fn env_u32(key: &str, default: u32) -> u32 {
@@ -231,6 +257,11 @@ mod tests {
         assert_eq!(config.import_per_min, 10);
         assert_eq!(config.preview_per_min, 60);
         assert_eq!(config.pdf_per_min, 20);
+        assert_eq!(config.account_export_per_min, 5);
+        assert_eq!(config.account_export_concurrency, 2);
+        assert_eq!(floor_export_concurrency(0), 1);
+        assert_eq!(floor_export_concurrency(1), 1);
+        assert_eq!(floor_export_concurrency(7), 7);
         assert_eq!(config.auth_per_min, 10);
         assert_eq!(config.account_delete_per_min, 5);
         assert_eq!(config.health_per_min, 60);

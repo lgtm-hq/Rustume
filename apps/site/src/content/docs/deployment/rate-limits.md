@@ -42,6 +42,8 @@ All values are **requests per minute** unless noted.
 | PDF render & bulk PDF export | 20 | — | `POST /api/render/pdf`, `GET /api/resumes/export/pdf` |
 | Auth | 10 | — | Login, callback, logout, `/auth/me` |
 | Parse & utility | 30 | — | Templates, parse, validate |
+| Account export | 5 | — | `GET /api/account/export` (GDPR data portability) |
+| Account deletion | 5 | — | `DELETE /api/account` |
 
 Resume CRUD allows short bursts (for example rapid autosave) via a separate burst bucket.
 
@@ -84,6 +86,25 @@ available** on these endpoints today.
 The cap complements PDF rate limits by bounding per-request CPU and memory even when requests are
 spaced apart.
 
+### Account export is not capped
+
+`GET /api/account/export` (the GDPR portability download) is **not** subject to the resume-count
+cap or to subscription gating: data portability must work for every account, including expired or
+canceled ones. Instead it streams the account profile, policy acceptances, subscriptions, every
+resume, every retained version snapshot, and the account's audit trail under its own limit of
+5 requests per minute (`RATE_LIMIT_ACCOUNT_EXPORT_PER_MIN`), charged to the user and to the
+shared per-IP bucket like every other signed-in route (see Scope above). Each export is recorded
+in the audit log.
+
+Because an export keeps one database connection busy for as long as the client is downloading, each
+server process also caps **concurrent** exports, at **2** by default
+(`RATE_LIMIT_ACCOUNT_EXPORT_CONCURRENCY`; keep it well below `DB_MAX_CONNECTIONS`). When both slots
+are taken the request is refused up front with `503 Service Unavailable`, a `Retry-After: 30`
+header, and the same `{ "error", "retry_after" }` body as a `429`; nothing is written to the audit
+log for a refused request. The ceiling is per process and multiplies with the number of replicas. It
+is enforced in the export handler, not in the rate-limit middleware, so it still applies when
+`RATE_LIMIT_DISABLED=true`.
+
 ## Configuration
 
 Override defaults with environment variables (see [Environment
@@ -100,6 +121,9 @@ RATE_LIMIT_HEALTH_PER_MIN=60
 RATE_LIMIT_METRICS_PER_MIN=60
 RATE_LIMIT_UNAUTHENTICATED_PER_MIN=30
 RATE_LIMIT_BILLABLE_PER_MIN=30   # templates, parse, validate (not subscription-gated)
+RATE_LIMIT_ACCOUNT_EXPORT_PER_MIN=5   # GET /api/account/export
+RATE_LIMIT_ACCOUNT_EXPORT_CONCURRENCY=2   # concurrent exports per process (503 + Retry-After beyond)
+RATE_LIMIT_ACCOUNT_DELETE_PER_MIN=5   # DELETE /api/account
 TRUSTED_PROXY=true   # only behind a trusted reverse proxy
 ```
 
