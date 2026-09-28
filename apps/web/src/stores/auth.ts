@@ -13,6 +13,7 @@ interface AuthState {
   loading: boolean;
   cloudEnabled: boolean;
   requireAuth: boolean;
+  billingEnabled: boolean;
   user: AuthUser | null;
   /** When true, show the pre-WorkOS sign-in confirm dialog (policy consent). */
   signInDialogOpen: boolean;
@@ -23,19 +24,27 @@ function createAuthStore() {
     loading: true,
     cloudEnabled: false,
     requireAuth: false,
+    billingEnabled: false,
     user: null,
     signInDialogOpen: false,
   });
 
   function applyProbe(result: AuthProbeResult) {
     if (result.mode === "self-hosted") {
-      setState({ cloudEnabled: false, requireAuth: false, user: null, loading: false });
+      setState({
+        cloudEnabled: false,
+        requireAuth: false,
+        billingEnabled: false,
+        user: null,
+        loading: false,
+      });
       return;
     }
 
     setState({
       cloudEnabled: true,
       requireAuth: result.requireAuth,
+      billingEnabled: result.billingEnabled,
       user: result.user,
       loading: false,
     });
@@ -47,7 +56,26 @@ function createAuthStore() {
       applyProbe(await probeAuth());
     } catch (error) {
       console.error("Failed to probe auth:", error);
-      setState({ cloudEnabled: false, requireAuth: false, user: null, loading: false });
+      setState({
+        cloudEnabled: false,
+        requireAuth: false,
+        billingEnabled: false,
+        user: null,
+        loading: false,
+      });
+    }
+  }
+
+  /**
+   * Re-probe `/auth/me` without disturbing the current view: no loading
+   * spinner and no state reset on a transient failure. Used after events that
+   * change the signed-in user server-side (e.g. Paddle checkout completed).
+   */
+  async function refreshUser() {
+    try {
+      applyProbe(await probeAuth());
+    } catch (error) {
+      console.error("Failed to refresh auth state:", error);
     }
   }
 
@@ -89,6 +117,7 @@ function createAuthStore() {
       return state;
     },
     refresh,
+    refreshUser,
     /** Opens the sign-in confirm dialog; use {@link confirmSignIn} to redirect. */
     signIn: requestSignIn,
     closeSignInDialog,
