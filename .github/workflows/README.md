@@ -109,8 +109,6 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
   for `scripts/ci/` via `reusable-test-shell`
 - **ghcr-cleanup.yml** — GHCR prune (hybrid: `reusable-ghcr-cleanup` for untagged +
   inline tagged retention)
-- **renovate.yml** — Scheduled Renovate runs (direct `step-security/harden-runner` +
-  lgtm-ci `secure-checkout`; lgtm-ci removed its harden-runner composite in v0.50.0)
 
 ## Pin format
 
@@ -175,7 +173,6 @@ locally). Move them in the same commit.
 - **`secrets.GITHUB_TOKEN`** — CI, PR comments, artifacts, Pages deploy
 - **`secrets.RELEASE_APP_*`** — Release PR and auto-tag (GitHub App installation token
   via lgtm-ci release workflows)
-- **`secrets.RENOVATE_*`** — Renovate bot credentials
 - **`secrets.CODECOV_TOKEN`** — Not used; coverage is self-hosted on GitHub Pages
 
 ## Concurrency
