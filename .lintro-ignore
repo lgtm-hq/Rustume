@@ -19,9 +19,10 @@ node_modules/
 venv/
 env/
 
-# Lock files are deliberately NOT ignored: lintro applies these patterns to
-# osv-scanner findings too, so listing Cargo.lock / bun.lock / *.lock here
-# silently drops every dependency advisory from the Security Audit.
+# Lock files
+Cargo.lock
+bun.lock
+*.lock
 
 # Git
 .git/
