@@ -22,6 +22,30 @@ and this project adheres to
 
 ### Security
 
+## [0.69.5] - 2026-10-03
+
+### Changed
+
+- **deps**: update lintro to 0.171.2 (patch) (#1022) (ddccf10)
+- **ci**: remove dead self-hosted Renovate workflow (#1015) (b356bc2)
+- **deps**: update test-tools to 5.0.3 (patch) (#1014) (29f993f)
+- **deps**: update docker/dockerfile:1 docker digest to 4edf897 (#1013) (af0b2e9)
+- **deps**: update dependency @types/sanitize-html to 2.16.2 (patch) (#1011) (9a38aa8)
+- **deps**: update renovatebot/github-action action to v46.3.6 (patch) (#1009) (a3cb445)
+- **deps**: update test-tools to 5.0.2 (patch) (#1008) (e385172)
+- **deps**: update dependency @types/node to 26.6.3 (patch) (#1007) (9b2dec1)
+- **deps**: update renovatebot/github-action action to v46.3.5 (patch) (#1006) (bbea389)
+- **deps**: lock file maintenance (#1005) (15a57ec)
+- **deps**: update lintro to 0.171.1 (patch) (#1003) (e382440)
+- **deps**: update renovatebot/github-action action to v46.3.4 (patch) (#1004) (7c9579b)
+- **deps**: update lintro to 0.171.0 (minor) (#1002) (b978266)
+- **deps-dev**: update rust crate wasm-bindgen-test to 0.3.79 (patch) (#1001) (c6203c8)
+- **deps**: update axum ecosystem (major) (#993) (4e0d457)
+
+### Fixed
+
+- **deps**: resolve open security advisories (#1018) (3417af3)
+
 ## [0.69.4] - 2026-09-25
 
 ### Changed
@@ -1273,7 +1297,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.69.4...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.69.5...HEAD
+[0.69.5]: https://github.com/lgtm-hq/Rustume/compare/v0.69.4...v0.69.5
 [0.69.4]: https://github.com/lgtm-hq/Rustume/compare/v0.69.3...v0.69.4
 [0.69.3]: https://github.com/lgtm-hq/Rustume/compare/v0.69.2...v0.69.3
 [0.69.2]: https://github.com/lgtm-hq/Rustume/compare/v0.69.1...v0.69.2
