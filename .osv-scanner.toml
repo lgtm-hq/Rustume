@@ -5,7 +5,10 @@
 # Do NOT batch-assign a shared expiry date: a common date across unrelated
 # blockers hides the fact that the blockers were never individually re-checked.
 # Blockers re-verified 2026-07-25 against Cargo.lock and crates.io latest
-# releases (#567).
+# releases (#567). Re-verified again 2026-10-03: all seven RUSTSEC blockers
+# unchanged (syntect 5.3.0, hayagriva 0.10.1, biblatex 0.12.0, citationberg
+# 0.7.0 still pinning quick-xml ^0.38, ttf-parser 0.25.1, rustybuzz 0.20.1 are
+# the latest crates.io releases; no quick-xml 0.38.x patch exists).
 
 # --- Typst ecosystem: syntect (unmaintained transitive deps, no fix possible) ---
 
@@ -64,6 +67,13 @@ reason = "rustybuzz unmaintained — 0.20.1 is the latest release (2024-11-12) a
 # --- npm: transitive via @astrojs/check -> yaml-language-server ---
 
 # Removed GHSA-48c2-rrv3-qjmp suppression: bun overrides force yaml >= 2.8.3
+
+# --- npm: transitive via astro (apps/site docs site) ---
+
+[[IgnoredVulns]]
+id = "GHSA-ch52-4w7c-c8xp"
+ignoreUntil = 2026-11-02
+reason = """http-cache-semantics@4.2.0 (transitive via astro@7.3.5, apps/site/bun.lock only; apps/web does not depend on it). No fix available: GHSA-ch52-4w7c-c8xp / CVE-2026-93748 lists first_patched_version = none for <= 4.2.0; npm latest is 4.2.0 (only 4.2.0-beta.x prereleases) and astro 7.3.5 (latest stable) still requires ^4.2.0, so no parent bump avoids it. Usage: build-time only. astro imports it solely in dist/assets/build/remote.js to cache remote images fetched through astro:assets; apps/site is a fully static docs site (output: "static", deployed to GitHub Pages) with no astro:assets imports in src/ and no remote image configuration, so that code path is never executed. Exploitability: none; the vulnerable behaviour (a shared cache honouring client max-stale over Set-Cookie/proxy-revalidate prohibitions) needs a running shared HTTP cache, which this site does not have. Tracking: https://github.com/kornelski/http-cache-semantics/issues/56 and https://github.com/advisories/GHSA-ch52-4w7c-c8xp."""
 
 # --- npm: GHSA-mh99-v99m-4gvg (brace-expansion) ---
 
