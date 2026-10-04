@@ -22,6 +22,16 @@ and this project adheres to
 
 ### Security
 
+## [0.69.6] - 2026-10-04
+
+### Changed
+
+- **deps**: update lintro to 0.171.3 (patch) (#1025) (8b14bc7)
+
+### Fixed
+
+- **ci**: grant checks:read so auto-rerun can start (#1021) (e3dd4b8)
+
 ## [0.69.5] - 2026-10-03
 
 ### Changed
@@ -1297,7 +1307,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.69.5...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.69.6...HEAD
+[0.69.6]: https://github.com/lgtm-hq/Rustume/compare/v0.69.5...v0.69.6
 [0.69.5]: https://github.com/lgtm-hq/Rustume/compare/v0.69.4...v0.69.5
 [0.69.4]: https://github.com/lgtm-hq/Rustume/compare/v0.69.3...v0.69.4
 [0.69.3]: https://github.com/lgtm-hq/Rustume/compare/v0.69.2...v0.69.3
