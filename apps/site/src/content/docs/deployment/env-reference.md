@@ -44,6 +44,12 @@ enabled, these identity and persistence settings are required:
 | `RESEND_API_KEY` | Resend API key; required together with `EMAIL_FROM` to enable transactional email |
 | `EMAIL_FROM` | Sender address for outbound mail (for example `noreply@rustume.com`) |
 
+Optional in connected mode:
+
+| Variable | Default | Purpose |
+| --- | ---: | --- |
+| `PUBLIC_BASE_URL` | unset | Absolute `http(s)` origin (for example `https://rustume.com`) used for `og:url`/`og:image` on public resume pages. When unset, pages still render but omit those two tags, so link previews fall back to a plain card. Values with a path, query, credentials, or a non-http scheme are ignored with a startup warning. Request `Host` headers are never trusted for this. |
+
 Connected mode always requires authentication. Render, template, resume, and account
 routes return `401` without a valid session, and there is no setting that re-opens them
 anonymously. Run without `RUSTUME_CLOUD` for an open, self-hosted deployment.
