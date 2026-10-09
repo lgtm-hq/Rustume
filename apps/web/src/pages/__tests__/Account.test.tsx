@@ -47,6 +47,13 @@ vi.mock("../../api/resumes", () => ({
   listCloudResumesPage: vi.fn().mockResolvedValue({ total: 2, items: [], page: 1, per_page: 100 }),
 }));
 
+vi.mock("../../api/apiKeys", () => ({
+  API_KEY_NAME_MAX_LENGTH: 100,
+  listApiKeys: vi.fn().mockResolvedValue([]),
+  createApiKey: vi.fn(),
+  revokeApiKey: vi.fn(),
+}));
+
 vi.mock("../../components/ui", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../components/ui")>();
   return {
@@ -97,7 +104,7 @@ describe("Account page", () => {
     expect(screen.queryByText(/Continue without signing in/i)).not.toBeInTheDocument();
   });
 
-  it("shows profile details when signed in", () => {
+  it("shows profile details when signed in", async () => {
     mockAuthState.loading = false;
     mockAuthState.cloudEnabled = true;
     mockAuthState.user = {
@@ -118,6 +125,9 @@ describe("Account page", () => {
     expect(
       screen.getByText(/email and name are stored by both WorkOS and Rustume/i),
     ).toBeInTheDocument();
+    expect(screen.getByText("API keys")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create key" })).toBeInTheDocument();
+    expect(await screen.findByText(/No API keys yet/i)).toBeInTheDocument();
     expect(screen.getByText("Billing")).toBeInTheDocument();
     expect(screen.getByText("End-to-end encryption")).toBeInTheDocument();
     expect(screen.getAllByText("Coming soon").length).toBeGreaterThan(0);
