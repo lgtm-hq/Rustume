@@ -1,9 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
-import { fireEvent, render, screen } from "@solidjs/testing-library";
+import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { axeConfig } from "../../test/a11y";
 import { Route, Router } from "@solidjs/router";
 import Account from "../Account";
+import accountExportContents from "../../../../../crates/server/src/db/account_export_contents.json";
+import { downloadAccountExport } from "../../api/account";
+import { downloadResumesJson, downloadResumesPdf } from "../../api/export";
+import { ApiError } from "../../api/client";
 
 const { mockAuthState, signInMock, signOutMock } = vi.hoisted(() => ({
   mockAuthState: {
@@ -39,8 +43,20 @@ vi.mock("../../stores/auth", () => ({
   },
 }));
 
-vi.mock("../../api/account", () => ({
-  deleteAccount: vi.fn(),
+// Only the network calls are mocked; ACCOUNT_EXPORT_CONTENTS is the real
+// constant so the copy assertions below test what production renders.
+vi.mock("../../api/account", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/account")>();
+  return {
+    ...actual,
+    deleteAccount: vi.fn(),
+    downloadAccountExport: vi.fn().mockResolvedValue(undefined),
+  };
+});
+
+vi.mock("../../api/export", () => ({
+  downloadResumesJson: vi.fn().mockResolvedValue(undefined),
+  downloadResumesPdf: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("../../api/resumes", () => ({
@@ -67,6 +83,18 @@ function renderAccount() {
 }
 
 describe("Account page", () => {
+  beforeEach(async () => {
+    vi.mocked(downloadAccountExport).mockClear();
+    vi.mocked(downloadAccountExport).mockResolvedValue(undefined);
+    vi.mocked(downloadResumesJson).mockClear();
+    vi.mocked(downloadResumesJson).mockResolvedValue(undefined);
+    vi.mocked(downloadResumesPdf).mockClear();
+    vi.mocked(downloadResumesPdf).mockResolvedValue(undefined);
+    const { toast } = await import("../../components/ui");
+    vi.mocked(toast.success).mockClear();
+    vi.mocked(toast.error).mockClear();
+  });
+
   // Previously asserted a "Continue without signing in" link. That link pointed at
   // "/", which the auth guard now blocks on any cloud deployment — it was a
   // dead-end loop back to the entry page (#589).
@@ -123,6 +151,167 @@ describe("Account page", () => {
     expect(screen.getAllByText("Coming soon").length).toBeGreaterThan(0);
     expect(screen.getByText("Danger zone")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete my account" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Export account data" })).toBeInTheDocument();
+  });
+
+  it("triggers account data export", async () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.user = {
+      id: "user-1",
+      plan: "free",
+      email: "dev@example.com",
+    };
+
+    renderAccount();
+
+    const button = screen.getByRole("button", { name: "Export account data" });
+    fireEvent.click(button);
+
+    expect(downloadAccountExport).toHaveBeenCalledTimes(1);
+    const { toast } = await import("../../components/ui");
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Account data exported"));
+    await waitFor(() => expect(button).not.toBeDisabled());
+  });
+
+  it("ignores a second click while an export is already running", async () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.user = { id: "user-1", plan: "free", email: "dev@example.com" };
+    let finish: (() => void) | undefined;
+    vi.mocked(downloadAccountExport).mockImplementationOnce(
+      () => new Promise<void>((resolve) => (finish = resolve)),
+    );
+
+    renderAccount();
+    const button = screen.getByRole("button", { name: "Export account data" });
+    fireEvent.click(button);
+    fireEvent.click(button);
+
+    expect(downloadAccountExport).toHaveBeenCalledTimes(1);
+    finish?.();
+    const { toast } = await import("../../components/ui");
+    await waitFor(() => expect(toast.success).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(button).not.toBeDisabled());
+  });
+
+  it("describes exactly what the account export contains and omits", () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.user = { id: "user-1", plan: "free", email: "dev@example.com" };
+
+    renderAccount();
+
+    // The wording comes from the JSON shared with the server; the Rust test
+    // pins that file to the AccountDataExport allow-list and the docs, so this
+    // test only has to prove the page renders all of it.
+    const expectedIncluded = accountExportContents.included.map((item) => item.text);
+    const expectedExcluded = accountExportContents.excluded.map((item) => item.text);
+    expect(expectedIncluded).toHaveLength(5);
+    expect(expectedExcluded).toHaveLength(4);
+
+    const copy =
+      screen.getByText(/Download a JSON archive of the account data Rustume stores/).textContent ??
+      "";
+    expect(copy).toBe(
+      `Download a JSON archive of the account data Rustume stores: ${expectedIncluded.join(", ")}. Not included: ${expectedExcluded.join(", ")}. Policy acceptances and audit events carry the client IP recorded with them. This download is available on every plan, including free and expired accounts.`,
+    );
+  });
+
+  it.each([
+    ["Download as JSON", downloadResumesJson, "Resume export downloaded"],
+    ["Download as PDF (ZIP)", downloadResumesPdf, "PDF export downloaded"],
+  ])("runs the %s export once per click and toasts on success", async (label, api, success) => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.user = { id: "user-1", plan: "free", email: "dev@example.com" };
+    let finish: (() => void) | undefined;
+    vi.mocked(api).mockImplementationOnce(() => new Promise<void>((resolve) => (finish = resolve)));
+
+    renderAccount();
+    const button = screen.getByRole("button", { name: label });
+    fireEvent.click(button);
+    fireEvent.click(button);
+    expect(api).toHaveBeenCalledTimes(1);
+
+    finish?.();
+    const { toast } = await import("../../components/ui");
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith(success));
+    await waitFor(() => expect(button).not.toBeDisabled());
+  });
+
+  it.each([
+    ["Download as JSON", downloadResumesJson],
+    ["Download as PDF (ZIP)", downloadResumesPdf],
+  ])("shows the server error when the %s export fails", async (label, api) => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.user = { id: "user-1", plan: "free", email: "dev@example.com" };
+    // The server's real 413 body (reject_export_over_resume_cap in export.rs).
+    vi.mocked(api).mockRejectedValueOnce(new ApiError(413, "Export exceeds maximum of 50 resumes"));
+
+    renderAccount();
+    const button = screen.getByRole("button", { name: label });
+    fireEvent.click(button);
+
+    const { toast } = await import("../../components/ui");
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Export exceeds maximum of 50 resumes"),
+    );
+    await waitFor(() => expect(button).not.toBeDisabled());
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  // The page never branches on status or retry_after; it shows the server's
+  // error message as-is. Every documented account-export error status, one
+  // behaviour.
+  it.each([
+    [401, "Invalid or expired session"],
+    [404, "account not found"],
+    [429, "Too many requests. Please try again shortly."],
+    [503, "Too many account exports are running right now. Please try again shortly."],
+  ])(
+    "passes the server's error message through when export fails (status %i)",
+    async (status, message) => {
+      mockAuthState.loading = false;
+      mockAuthState.cloudEnabled = true;
+      mockAuthState.user = {
+        id: "user-1",
+        plan: "free",
+        email: "dev@example.com",
+      };
+      // The real client surfaces the server's JSON `error` string as ApiError.
+      vi.mocked(downloadAccountExport).mockRejectedValueOnce(
+        new ApiError(status, message, JSON.stringify({ error: message, retry_after: 30 })),
+      );
+
+      renderAccount();
+
+      const button = screen.getByRole("button", { name: "Export account data" });
+      fireEvent.click(button);
+
+      const { toast } = await import("../../components/ui");
+      await waitFor(() => expect(toast.error).toHaveBeenCalledWith(message));
+      // The button must recover so the user can retry.
+      await waitFor(() => expect(button).not.toBeDisabled());
+      expect(toast.success).not.toHaveBeenCalled();
+    },
+  );
+
+  it("falls back to a generic message when the export rejects with a non-Error", async () => {
+    mockAuthState.loading = false;
+    mockAuthState.cloudEnabled = true;
+    mockAuthState.user = { id: "user-1", plan: "free", email: "dev@example.com" };
+    vi.mocked(downloadAccountExport).mockRejectedValueOnce("socket closed");
+
+    renderAccount();
+    const button = screen.getByRole("button", { name: "Export account data" });
+    fireEvent.click(button);
+
+    const { toast } = await import("../../components/ui");
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Failed to export account data"));
+    await waitFor(() => expect(button).not.toBeDisabled());
+    expect(toast.success).not.toHaveBeenCalled();
   });
 
   it("opens the delete confirmation modal", () => {
