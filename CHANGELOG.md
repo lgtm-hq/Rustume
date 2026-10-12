@@ -22,6 +22,19 @@ and this project adheres to
 
 ### Security
 
+## [0.69.7] - 2026-10-12
+
+### Changed
+
+- **deps**: update rust docker tag to 1.99 (minor) (#1012) (96e5131)
+- **deps**: update dependency oxlint to 1.87.0 (minor) (#1010) (238348d)
+- **deps**: update github-actions (#1030) (c423caf)
+- **deps**: update dependency @types/node to 26.6.4 (patch) (#1029) (3187b19)
+
+### Fixed
+
+- **deps**: resolve new seroval and source-map-js advisories (#1032) (ecb613b)
+
 ## [0.69.6] - 2026-10-04
 
 ### Changed
@@ -1307,7 +1320,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.69.6...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.69.7...HEAD
+[0.69.7]: https://github.com/lgtm-hq/Rustume/compare/v0.69.6...v0.69.7
 [0.69.6]: https://github.com/lgtm-hq/Rustume/compare/v0.69.5...v0.69.6
 [0.69.5]: https://github.com/lgtm-hq/Rustume/compare/v0.69.4...v0.69.5
 [0.69.4]: https://github.com/lgtm-hq/Rustume/compare/v0.69.3...v0.69.4
