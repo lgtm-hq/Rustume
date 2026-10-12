@@ -9,6 +9,9 @@
 # unchanged (syntect 5.3.0, hayagriva 0.10.1, biblatex 0.12.0, citationberg
 # 0.7.0 still pinning quick-xml ^0.38, ttf-parser 0.25.1, rustybuzz 0.20.1 are
 # the latest crates.io releases; no quick-xml 0.38.x patch exists).
+# 2026-10-12: added RUSTSEC-2024-0449 (unsafe-libyaml via serde_yaml
+# 0.9.34+deprecated, from typst-library 0.15.1 and hayagriva 0.10.1) as the
+# eighth RUSTSEC blocker, verified against Cargo.lock and crates.io that day.
 
 # --- Typst ecosystem: syntect (unmaintained transitive deps, no fix possible) ---
 
@@ -68,8 +71,8 @@ reason = "rustybuzz unmaintained — 0.20.1 is the latest release (2024-11-12) a
 
 [[IgnoredVulns]]
 id = "RUSTSEC-2024-0449"
-ignoreUntil = 2027-03-31
-reason = "unsafe-libyaml unmaintained — typst-library -> hayagriva 0.10.1 (latest, 2026-06-14) -> serde_yaml 0.9.34+deprecated -> unsafe-libyaml 0.2.11. Informational only; OSV lists no fixed version. Clears when hayagriva moves off serde_yaml; re-check with the hayagriva release that clears RUSTSEC-2024-0436."
+ignoreUntil = 2026-12-31
+reason = "unsafe-libyaml unmaintained — serde_yaml 0.9.34+deprecated -> unsafe-libyaml 0.2.11, reached both directly from typst-library 0.15.1 and via typst-library -> hayagriva 0.10.1 (latest, 2026-06-14). Informational only; OSV lists no fixed version. Clears only when both typst-library and hayagriva move off serde_yaml; re-check with the next typst release and the hayagriva release that clears RUSTSEC-2024-0436."
 
 # --- npm: transitive via @tailwindcss/typography (apps/web) ---
 
