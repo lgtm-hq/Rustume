@@ -26,9 +26,9 @@ run under a WCAG-tag selection).
 
 ### Toolchain / dependencies
 
-- Requires **Rust >= 1.85** (a transitive dependency needs the `edition2024`
-  Cargo feature). The default stable toolchain in this environment is already
-  updated (check with `rustc --version`). If Rust is somehow older, run
+- Requires **Rust >= 1.89** (`comrak` 0.56 and its dependencies declare
+  `rust-version = "1.89"`). The default stable toolchain in this environment
+  is already updated (check with `rustc --version`). If Rust is somehow older, run
   `rustup update stable && rustup default stable`, then
   `rustup target add wasm32-unknown-unknown`.
 - Polyglot tooling installed outside the update script (persisted in the VM
