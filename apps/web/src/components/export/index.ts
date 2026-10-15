@@ -5,3 +5,4 @@ export {
   resumeForPdfExport,
   type PdfExportScope,
 } from "./coverLetterExport";
+export { ShareModal } from "./ShareModal";
