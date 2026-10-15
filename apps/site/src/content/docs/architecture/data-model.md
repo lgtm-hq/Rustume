@@ -16,7 +16,7 @@ this data layer for hosted users; self-hosted operators own it for their deploym
 | Resumes | Owned encrypted document state, title, timestamps, and publication settings |
 | Resume versions | History snapshots and restoration workflows |
 | Public-page metadata | Slugs and optional password-protection state |
-| API credentials | Scoped automation access and revocation metadata |
+| API credentials | Hashed automation tokens with display prefix, last-use, and revocation metadata |
 | Subscriptions | Hosted-service billing lifecycle only |
 
 Subscriptions describe access to the Rustume-operated deployment. They do not decide whether
