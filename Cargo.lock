@@ -4606,6 +4606,7 @@ dependencies = [
  "lru",
  "metrics",
  "metrics-exporter-prometheus",
+ "regex",
  "reqwest",
  "rustume-parser",
  "rustume-render",
