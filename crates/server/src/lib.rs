@@ -25,6 +25,7 @@
 //! - `GET /api/resumes/export` - Bulk JSON export
 //! - `GET /api/resumes/export/pdf` - Bulk PDF export (ZIP)
 //! - `DELETE /api/account` - Permanently delete account and all data
+//! - `GET /api/account/export` - Export account data for GDPR portability
 //! - `GET /metrics` - Prometheus metrics
 
 pub mod app;
@@ -1259,5 +1260,107 @@ mod tests {
 
             assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         }
+    }
+
+    #[tokio::test]
+    async fn export_ceiling_applies_even_when_rate_limits_are_disabled() {
+        let config = config::RateLimitConfig {
+            account_export_concurrency: 3,
+            ..Default::default()
+        };
+        // RATE_LIMIT_DISABLED=true path: no per-minute limiters, but the
+        // export semaphore still exists and is sized from config.
+        let state = state::AppState::from_config(
+            std::sync::Arc::new(routes::static_dir()),
+            Some(test_cloud_state()),
+            config,
+            false,
+        );
+        assert!(state.rate_limits.is_none());
+        assert_eq!(state.export_permits.available_permits(), 3);
+
+        // A misconfigured zero is floored to one slot.
+        let state = state::AppState::from_config(
+            std::sync::Arc::new(routes::static_dir()),
+            Some(test_cloud_state()),
+            config::RateLimitConfig {
+                account_export_concurrency: 0,
+                ..Default::default()
+            },
+            true,
+        );
+        assert!(state.rate_limits.is_some());
+        assert_eq!(state.export_permits.available_permits(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_export_account_unauthenticated_not_rate_limited() {
+        let config = config::RateLimitConfig {
+            account_export_per_min: 1,
+            ..Default::default()
+        };
+        let state = state::AppState::with_options(
+            std::sync::Arc::new(routes::static_dir()),
+            Some(test_cloud_state()),
+            true,
+            config,
+        );
+        let app = create_router_with_state(state);
+
+        // Auth runs before the per-user export quota, so anonymous probing
+        // gets 401 every time rather than consuming (or revealing) the quota.
+        for _ in 0..3 {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method("GET")
+                        .uri("/api/account/export")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_export_account_unauthenticated_401() {
+        let state = state::AppState::with_require_auth(
+            std::sync::Arc::new(routes::static_dir()),
+            Some(test_cloud_state()),
+            true,
+        );
+        let app = create_router_with_state(state);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/account/export")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        // The auth middleware, not a stream error, produced the response: a JSON
+        // ApiError body rather than a truncated export.
+        assert_eq!(
+            response
+                .headers()
+                .get("content-type")
+                .and_then(|value| value.to_str().ok()),
+            Some("application/json")
+        );
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let payload: ApiError = serde_json::from_slice(&body).unwrap();
+        // Exactly the auth middleware's anonymous-request message, as the
+        // /auth/me test asserts too.
+        assert_eq!(payload.error, "Not authenticated");
     }
 }

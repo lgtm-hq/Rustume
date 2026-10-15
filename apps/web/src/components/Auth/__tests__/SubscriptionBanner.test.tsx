@@ -36,7 +36,7 @@ describe("SubscriptionBanner", () => {
     render(() => <SubscriptionBanner />);
 
     expect(screen.getByRole("status")).toHaveTextContent(/subscription ends on/i);
-    expect(screen.getByRole("link", { name: "Export data" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Export resumes" })).toHaveAttribute(
       "href",
       "/account#export",
     );
