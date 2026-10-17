@@ -4533,7 +4533,7 @@ dependencies = [
  "serde_json",
  "thiserror",
  "validator",
- "zip",
+ "zip 9.0.4",
 ]
 
 [[package]]
@@ -4631,7 +4631,7 @@ dependencies = [
  "utoipa-swagger-ui",
  "uuid",
  "validator",
- "zip",
+ "zip 9.0.4",
 ]
 
 [[package]]
@@ -6712,7 +6712,7 @@ dependencies = [
  "serde_json",
  "url",
  "utoipa",
- "zip",
+ "zip 8.6.0",
 ]
 
 [[package]]
@@ -7437,6 +7437,21 @@ dependencies = [
  "flate2",
  "indexmap",
  "memchr",
+ "typed-path",
+ "zopfli",
+]
+
+[[package]]
+name = "zip"
+version = "9.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a954114b47a54df49f83d2722814e86b23d4bb1b54a1b90fb7d92b41619ddc22"
+dependencies = [
+ "crc32fast",
+ "flate2",
+ "indexmap",
+ "memchr",
+ "nix",
  "typed-path",
  "zopfli",
 ]
