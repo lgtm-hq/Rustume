@@ -31,7 +31,7 @@ jobs:
       - name: Harden Runner
         # Direct step-security invocation: lgtm-ci removed its harden-runner
         # composite in v0.50.0 (the action pre hook must install the agent).
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -87,7 +87,7 @@ jobs:
       - name: Harden Runner
         # Direct step-security invocation: lgtm-ci removed its harden-runner
         # composite in v0.50.0 (the action pre hook must install the agent).
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
         with:
           # Block mode again (was audit under #882 while harden-runner v2.21.0
           # killed this ~60-minute wait). v2.21.1 allows GitHub's runner
@@ -144,7 +144,7 @@ jobs:
       - name: Harden Runner
         # Direct step-security invocation: lgtm-ci removed its harden-runner
         # composite in v0.50.0 (the action pre hook must install the agent).
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
         with:
           egress-policy: block
           allowed-endpoints: >
