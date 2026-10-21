@@ -56,4 +56,21 @@ describe("AuthMenu", () => {
     fireEvent.click(screen.getByTestId("header-sign-in"));
     expect(signInMock).toHaveBeenCalledTimes(1);
   });
+
+  it("names the account trigger by the visible display name (WCAG 2.5.3)", () => {
+    mockAuthState.user = { id: "u1", email: "test@example.com", plan: "free" };
+
+    render(() => (
+      <Router>
+        <Route path="/" component={AuthMenu} />
+      </Router>
+    ));
+
+    // No aria-label: the name comes from the content, so it starts with the
+    // visible display name. (jsdom loads no Tailwind, so both the visible and
+    // the below-`sm` sr-only copy of the name are in the tree here.)
+    const trigger = screen.getByRole("button", { name: /^Test User.*, account menu$/ });
+    expect(trigger).not.toHaveAttribute("aria-label");
+    mockAuthState.user = null;
+  });
 });

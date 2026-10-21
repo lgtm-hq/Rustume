@@ -11,6 +11,13 @@ const defaultLabel = themeTriggerLabels[DEFAULT_THEME] ?? 'Craft';
 ---
 
 <div class="theme-picker" id="theme-picker" data-pagefind-ignore>
+  <!-- WCAG 2.5.3 (Label in Name): the trigger's accessible name must contain
+       its visible text, the current theme label. A static `aria-label` hid
+       that label from the name, so the name is composed from this hidden
+       prefix plus the live label instead ("Select theme: Craft"). It follows
+       every theme change without script, and still names the trigger on
+       narrow viewports where the visible label is not displayed. -->
+  <span id="theme-picker-name" hidden>Select theme:</span>
   <button
     type="button"
     class="theme-picker-trigger"
@@ -18,7 +25,7 @@ const defaultLabel = themeTriggerLabels[DEFAULT_THEME] ?? 'Craft';
     aria-haspopup="listbox"
     aria-expanded="false"
     aria-controls="theme-picker-panel"
-    aria-label="Select theme"
+    aria-labelledby="theme-picker-name theme-picker-label"
   >
     <span
       class="theme-swatch theme-swatch-current"
