@@ -18,7 +18,7 @@ const thumb = (id: string) => publicAsset(base, `templates/${id}.png`);
           data-template-layout={layoutLabels[template.layout]}
           data-template-accent={template.accentLabel}
           data-template-src={thumb(template.id)}
-          aria-label={`Preview ${template.id} template`}
+          aria-label={`Preview template: ${template.id}, ${layoutLabels[template.layout]}`}
         >
           <img
             src={thumb(template.id)}
@@ -27,9 +27,13 @@ const thumb = (id: string) => publicAsset(base, `templates/${id}.png`);
             height="255"
             loading="lazy"
           />
+          {/* WCAG 2.5.3 (Label in Name): the aria-label carries the card's
+              visible text in order — id, then layout. The space keeps the two
+              apart as words in the text content (compressed HTML otherwise
+              reads "rhyhornSingle-column"); it is not drawn between flex
+              items. */}
           <span class="template-card-body">
-            <strong>{template.id}</strong>
-            <span>{layoutLabels[template.layout]}</span>
+            <strong>{template.id}</strong>{" "}<span>{layoutLabels[template.layout]}</span>
           </span>
           <span class="template-card-accent" style={`background: ${template.accent}`} />
         </button>

@@ -64,7 +64,7 @@ jobs:
       skip-reason: ${{ steps.paths.outputs.skip-reason }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -226,7 +226,7 @@ jobs:
       packages: read
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -280,7 +280,7 @@ jobs:
         # release-assets.githubusercontent.com on a cache miss, the DB comes
         # from ghcr.io via pkg-containers.githubusercontent.com, and trivy
         # itself calls check.trivy.dev for its version check.
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -314,10 +314,14 @@ jobs:
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
           exit-code: "1"
+          # Time-boxed suppressions, each with its own exp: date and reason
+          # (#1059). Expired entries fail the scan again. The PR-side
+          # reusable scan reads the same file via Trivy's default path.
+          trivyignores: .trivyignore
 
       - name: Upload Trivy scan results
         if: ${{ always() && hashFiles('trivy-results.sarif') != '' }}
-        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with:
           sarif_file: trivy-results.sarif
           category: trivy-ghcr-db

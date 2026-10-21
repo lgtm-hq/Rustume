@@ -68,6 +68,14 @@ const api = vi.hoisted(() => ({
 
 vi.mock("../../../api/render", () => api);
 
+/**
+ * Template cards by accessible name. The name contains the card's visible text
+ * (WCAG 2.5.3 Label in Name), so it continues past "Use template: <name>" with
+ * ", Current" and the layout summary when those are shown.
+ */
+const AURORA_CARD = /^Use template: Aurora(,|$)/;
+const PLAINSTONE_CARD = /^Use template: Plainstone(,|$)/;
+
 /** Total writes recorded across every mocked store action. */
 function writeCount(): number {
   return Object.entries(store)
@@ -101,7 +109,7 @@ describe("document editor panels", () => {
       const list = screen.getByTestId("templates-drawer-list");
       const cards = within(list).getAllByRole("button");
       expect(cards).toHaveLength(2);
-      expect(within(list).getByRole("button", { name: "Use Aurora template" })).toBeInTheDocument();
+      expect(within(list).getByRole("button", { name: AURORA_CARD })).toBeInTheDocument();
       // The layout block renders as card metadata — sidebar width is in points.
       expect(list.textContent).toContain("Left sidebar · 180pt sidebar");
       // Thumbnails come from the server endpoint, per template.
@@ -113,9 +121,13 @@ describe("document editor panels", () => {
       resume.metadata.template = "aurora";
       await openDrawer();
 
-      const current = screen.getByRole("button", { name: "Use Aurora template" });
+      const current = screen.getByRole("button", { name: AURORA_CARD });
       expect(current).toHaveAttribute("aria-pressed", "true");
-      expect(screen.getByRole("button", { name: "Use Plainstone template" })).toHaveAttribute(
+      // The name contains every visible word of the card, in order (WCAG 2.5.3).
+      expect(current).toHaveAccessibleName(
+        "Use template: Aurora, Current, Left sidebar · 180pt sidebar",
+      );
+      expect(screen.getByRole("button", { name: PLAINSTONE_CARD })).toHaveAttribute(
         "aria-pressed",
         "false",
       );
@@ -124,7 +136,7 @@ describe("document editor panels", () => {
     it("switches template and layout through one combined store action, then closes", async () => {
       await openDrawer();
 
-      fireEvent.click(screen.getByRole("button", { name: "Use Aurora template" }));
+      fireEvent.click(screen.getByRole("button", { name: AURORA_CARD }));
 
       expect(onOpenChange).toHaveBeenCalledWith(false);
       expect(store.applyTemplate).toHaveBeenCalledOnce();
@@ -148,7 +160,7 @@ describe("document editor panels", () => {
       resume.metadata.template = "aurora";
       await openDrawer();
 
-      fireEvent.click(screen.getByRole("button", { name: "Use Aurora template" }));
+      fireEvent.click(screen.getByRole("button", { name: AURORA_CARD }));
 
       expect(store.applyTemplate).not.toHaveBeenCalled();
       expect(writeCount()).toBe(0);
@@ -157,7 +169,7 @@ describe("document editor panels", () => {
     it("falls back to the single-column layout for a template without metadata", async () => {
       await openDrawer();
 
-      fireEvent.click(screen.getByRole("button", { name: "Use Plainstone template" }));
+      fireEvent.click(screen.getByRole("button", { name: PLAINSTONE_CARD }));
 
       const [templateId, layout] = store.applyTemplate.mock.calls[0] as [string, string[][][]];
       expect(templateId).toBe("plainstone");

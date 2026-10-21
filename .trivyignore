@@ -1,0 +1,21 @@
+# Trivy ignore file for both container scans: the PR-side per-platform scan
+# in lgtm-ci reusable-docker and the post-merge `vulnerability-scan` job in
+# .github/workflows/docker-build-publish.yml. Plain format on purpose: Trivy
+# loads ./.trivyignore from the checkout root by default, and the reusable
+# workflow has no ignore-file input.
+#
+# Every entry is time-boxed with its own `exp:` date and its own reason
+# comment for its own blocker. Do NOT batch-assign a shared expiry date
+# across unrelated advisories (same rule as .osv-scanner.toml). Once `exp:`
+# passes, Trivy reports the finding again and the scan fails, which forces
+# a re-check of the blocker.
+
+# DSA-6572-1: ca-certificates 20250419 in the gcr.io/distroless/static:nonroot
+# runtime base (docker/Dockerfile). Debian ships the fix as 20250419+deb13u1
+# in trixie-security, but no distroless static:nonroot build has picked it up
+# yet: the current index
+# sha256:516757106de35205efb70b91ba03f6f1298424a0678c603255cf2852a7000087
+# still ships 20250419. Remove this entry when a distroless digest with
+# 20250419+deb13u1 lands (Renovate digest bump of docker/Dockerfile).
+# Re-verified 2026-10-21 (#1059).
+DSA-6572-1 exp:2026-11-21
