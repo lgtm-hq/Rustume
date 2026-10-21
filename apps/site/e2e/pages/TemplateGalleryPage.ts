@@ -30,9 +30,14 @@ export default class TemplateGalleryPage extends DocsPage {
     await super.open(TEMPLATES_SLUG);
   }
 
-  /** Preview button for one template card. */
+  /**
+   * Preview button for one template card. Its name carries the card's visible
+   * text (WCAG 2.5.3), "Preview template: <id>, <layout>"; the comma ends the
+   * id, so the substring match cannot hit a template whose id merely starts
+   * with this one.
+   */
   previewCard(templateId: string): Locator {
-    return this.gallery.getByRole("button", { name: `Preview ${templateId} template` });
+    return this.gallery.getByRole("button", { name: `Preview template: ${templateId},` });
   }
 
   async assertGalleryLoaded(): Promise<void> {
