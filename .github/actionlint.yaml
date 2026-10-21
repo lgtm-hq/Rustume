@@ -2,5 +2,11 @@
 # See https://github.com/rhysd/actionlint/blob/main/docs/config.md
 ---
 self-hosted-runner:
+  # ubuntu-26.04 GitHub-hosted runners are GA, but actionlint <= 1.7.12 (the
+  # version in the Lintro CI image) does not know the labels yet
+  # (rhysd/actionlint#682). Remove the two ubuntu-26.04 entries once the
+  # Lintro image ships an actionlint release that includes them.
   labels:
     - macos-15-intel
+    - ubuntu-26.04
+    - ubuntu-26.04-arm
