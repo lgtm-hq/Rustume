@@ -22,6 +22,12 @@ and this project adheres to
 
 ### Security
 
+## [0.69.9] - 2026-10-21
+
+### Fixed
+
+- **ci**: move aarch64 macOS binary builds to macos-15 (#1027) (593363b)
+
 ## [0.69.8] - 2026-10-21
 
 ### Changed
@@ -1352,7 +1358,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.69.8...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.69.9...HEAD
+[0.69.9]: https://github.com/lgtm-hq/Rustume/compare/v0.69.8...v0.69.9
 [0.69.8]: https://github.com/lgtm-hq/Rustume/compare/v0.69.7...v0.69.8
 [0.69.7]: https://github.com/lgtm-hq/Rustume/compare/v0.69.6...v0.69.7
 [0.69.6]: https://github.com/lgtm-hq/Rustume/compare/v0.69.5...v0.69.6
