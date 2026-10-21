@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@solidjs/testing-library";
 import { Route, Router } from "@solidjs/router";
 import { AuthMenu } from "../AuthMenu";
@@ -26,6 +26,11 @@ vi.mock("../../../stores/auth", () => ({
 }));
 
 describe("AuthMenu", () => {
+  // Tests that sign a user in must not leak that state into later tests.
+  afterEach(() => {
+    mockAuthState.user = null;
+  });
+
   it("shows a compact header sign-in without policy consent", () => {
     mockAuthState.loading = false;
     mockAuthState.cloudEnabled = true;
@@ -71,6 +76,5 @@ describe("AuthMenu", () => {
     // the below-`sm` sr-only copy of the name are in the tree here.)
     const trigger = screen.getByRole("button", { name: /^Test User.*, account menu$/ });
     expect(trigger).not.toHaveAttribute("aria-label");
-    mockAuthState.user = null;
   });
 });
