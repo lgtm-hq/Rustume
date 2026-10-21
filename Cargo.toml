@@ -112,7 +112,7 @@ async-trait = "0.1"
 utoipa = { version = "6", features = ["axum_extras"] }
 
 # Caching
-lru = "0.18"
+lru = "0.19"
 
 # Rate limiting
 governor = "0.10"
