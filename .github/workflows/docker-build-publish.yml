@@ -314,9 +314,10 @@ jobs:
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
           exit-code: "1"
-          # Time-boxed suppressions, each with its own expired_at and
-          # statement (#1059). Expired entries fail the scan again.
-          trivyignores: .trivyignore.yaml
+          # Time-boxed suppressions, each with its own exp: date and reason
+          # (#1059). Expired entries fail the scan again. The PR-side
+          # reusable scan reads the same file via Trivy's default path.
+          trivyignores: .trivyignore
 
       - name: Upload Trivy scan results
         if: ${{ always() && hashFiles('trivy-results.sarif') != '' }}
