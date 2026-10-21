@@ -22,6 +22,38 @@ and this project adheres to
 
 ### Security
 
+## [0.69.8] - 2026-10-21
+
+### Changed
+
+- **deps**: update dependency @axe-core/playwright to 4.14.0 (minor) (#1053) (5fdf236)
+- **deps**: update lintro to 0.173.1 (minor) (#1056) (f327a44)
+- **deps**: update dependency h3 to 2.0.3 (patch) (#1055) (a8ba947)
+- **deps**: update dependency fake-indexeddb to 6.2.6 (patch) (#1054) (a872095)
+- **deps**: update dependency oxlint to 1.88.0 (minor) (#1046) (11d0e0e)
+- **deps**: update github-actions (#1045) (dca98cc)
+- **deps**: update rust crate ammonia to 4.2.4 (patch) [security] (#1048) (e0a4ab7)
+- **deps**: update test-tools to 5.0.5 (patch) (#1052) (e05d4f6)
+- **deps**: update dependency jsdom to 30.1.3 (patch) (#1051) (d8d9fd5)
+- **deps**: update dependency playwright-core to 1.64.1 (patch) (#1041) (7096dd7)
+- **deps**: update dependency @playwright/test to 1.64.1 (patch) (#1050) (bfe84cf)
+- **deps**: update rust:1.99-alpine docker digest to 557a94c (#1049) (e5e5924)
+- **deps**: update test-tools to 5.0.4 (patch) (#1044) (acaeade)
+- **deps**: update dependency @types/bun to 1.4.3 (patch) (#1043) (c8a9ebb)
+- **deps**: update rust crate comrak to 0.56.0 (minor) (#1042) (a7421c9)
+- **deps**: update dependency @playwright/test to 1.64.0 (minor) (#1039) (b840a21)
+- **deps**: update dependency axe-core to 4.14.0 (minor) (#1040) (e0bb11e)
+- **deps**: update actions/create-github-app-token action to v3.3.0 (minor) (#1038)
+  (adcc594)
+- **deps**: update dependency oven-sh/bun to 1.4.3 (patch) (#1037) (8c20b92)
+- **deps**: update dependency @types/node to 26.6.5 (patch) (#1036) (1f83dc8)
+- **deps**: update dependency jsdom to 30.1.2 (patch) (#1035) (15ebb51)
+- **deps**: update dependency h3 to 2.0.2 (patch) (#1034) (29f2fd5)
+
+### Fixed
+
+- **ci**: time-box Trivy ignore for DSA-6572-1 in distroless base (#1060) (cc19ac4)
+
 ## [0.69.7] - 2026-10-12
 
 ### Changed
@@ -1320,7 +1352,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.69.7...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.69.8...HEAD
+[0.69.8]: https://github.com/lgtm-hq/Rustume/compare/v0.69.7...v0.69.8
 [0.69.7]: https://github.com/lgtm-hq/Rustume/compare/v0.69.6...v0.69.7
 [0.69.6]: https://github.com/lgtm-hq/Rustume/compare/v0.69.5...v0.69.6
 [0.69.5]: https://github.com/lgtm-hq/Rustume/compare/v0.69.4...v0.69.5
