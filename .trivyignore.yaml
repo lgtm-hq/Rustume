@@ -10,12 +10,15 @@
 
 vulnerabilities:
   - id: DSA-6572-1
+    purls:
+      - pkg:deb/debian/ca-certificates@20250419
     expired_at: 2026-11-21
     statement: >-
       ca-certificates 20250419 in the gcr.io/distroless/static:nonroot runtime
       base (docker/Dockerfile). Debian ships the fix as 20250419+deb13u1 in
       trixie-security, but no distroless static:nonroot build has picked it up
-      yet: the current index sha256:516757106de3... still ships 20250419, and
-      static-debian12 carries the bookworm equivalent DLA-4845-1. Remove this
-      entry when a distroless digest with 20250419+deb13u1 lands (Renovate
-      digest bump of docker/Dockerfile). Re-verified 2026-10-21 (#1059).
+      yet: the current index
+      sha256:516757106de35205efb70b91ba03f6f1298424a0678c603255cf2852a7000087
+      still ships 20250419. Remove this entry when a distroless digest with
+      20250419+deb13u1 lands (Renovate digest bump of docker/Dockerfile).
+      Re-verified 2026-10-21 (#1059).
