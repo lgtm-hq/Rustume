@@ -54,7 +54,8 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
   fails the run instead of passing as "mostly green with skips" (#597).
   Post-merge Vulnerability Scan is a local Trivy job with
   `TRIVY_DB_REPOSITORY=ghcr.io/aquasecurity/trivy-db` (#851); reusable
-  Trivy stays PR-only.
+  Trivy stays PR-only. Its time-boxed suppressions live in
+  `.trivyignore.yaml` (one `expired_at` and `statement` per advisory, #1059).
 
 ## Release
 
