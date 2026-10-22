@@ -39,8 +39,12 @@ export function AuthMenu() {
                 class="flex items-center gap-2 max-w-[12rem] px-2.5 py-1.5 rounded-lg
                   hover:bg-surface transition-colors text-sm text-ink focus-visible:outline-none
                   focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-                aria-label="Account menu"
               >
+                {/* WCAG 2.5.3 (Label in Name): no aria-label, so the accessible
+                    name comes from the content and starts with the visible
+                    display name ("<name>, account menu"). The avatar initial
+                    is aria-hidden; the sr-only copy names the trigger below
+                    `sm`, where the visible name is not displayed. */}
                 <div
                   class="w-7 h-7 rounded-full bg-accent/10 text-accent flex items-center
                     justify-center flex-shrink-0 font-mono text-xs font-semibold uppercase"
@@ -51,6 +55,8 @@ export function AuthMenu() {
                 <span class="hidden sm:block truncate text-left font-medium">
                   {displayName(user())}
                 </span>
+                <span class="sr-only sm:hidden">{displayName(user())}</span>
+                <span class="sr-only">, account menu</span>
                 <svg
                   class="w-4 h-4 text-stone flex-shrink-0"
                   fill="none"

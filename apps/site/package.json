@@ -34,7 +34,7 @@
   },
   "devDependencies": {
     "@astrojs/check": "0.9.10",
-    "@axe-core/playwright": "4.13.0",
+    "@axe-core/playwright": "4.14.0",
     "@pagefind/default-ui": "1.5.2",
     "@playwright/test": "1.64.1",
     "@types/hast": "3.0.5",
@@ -50,7 +50,7 @@
     "playwright-core": "1.64.1",
     "astro": "^7.1.0",
     "esbuild": "^0.28.1",
-    "h3": "2.0.3",
+    "h3": "2.0.5",
     "sharp": "^0.35.0",
     "ws": "^8.21.0",
     "yaml": "^2.8.3",

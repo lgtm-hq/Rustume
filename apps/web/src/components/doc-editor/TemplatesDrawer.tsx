@@ -46,6 +46,18 @@ function layoutSummary(template: TemplateInfo): string {
   return layout.sidebarWidth === null ? mode : `${mode} · ${layout.sidebarWidth}pt sidebar`;
 }
 
+/**
+ * Accessible name of a template card. WCAG 2.5.3 (Label in Name): it must
+ * contain the card's visible text, in order — the template name, "Current" on
+ * the current card, then the layout summary — so it is built from exactly the
+ * pieces the card renders, e.g. "Use template: Azurill, Current, Left sidebar ·
+ * 180pt sidebar".
+ */
+function templateCardLabel(template: TemplateInfo, isCurrent: boolean): string {
+  const parts = [template.name, isCurrent ? "Current" : "", layoutSummary(template)];
+  return `Use template: ${parts.filter(Boolean).join(", ")}`;
+}
+
 export interface TemplatesDrawerProps {
   resume: ResumeData;
   open: boolean;
@@ -139,7 +151,7 @@ function TemplateCard(props: {
       class={`focus-ring group w-full overflow-hidden rounded-lg border-2 text-left
         transition-colors hover:border-accent
         ${props.isCurrent ? "border-accent ring-2 ring-accent/20" : "border-border"}`}
-      aria-label={`Use ${props.template.name} template`}
+      aria-label={templateCardLabel(props.template, props.isCurrent)}
       aria-pressed={props.isCurrent}
       onClick={() => props.onSelect(props.template)}
     >
@@ -176,11 +188,16 @@ function TemplateCard(props: {
         <p class="font-display text-sm font-semibold capitalize text-ink">
           {props.template.name}
           <Show when={props.isCurrent}>
+            {/* Zero-width space: separates the name and "Current" as words in
+                the card's text content (otherwise "AzurillCurrent", which no
+                accessible name can contain) without changing the rendering. */}
+            {"\u200B"}
             <span class="ml-1.5 font-mono text-[10px] uppercase tracking-wider text-accent">
               Current
             </span>
           </Show>
         </p>
+        {/* Whitespace between the two blocks, for the same reason; not drawn. */}{" "}
         <Show when={layoutSummary(props.template)}>
           {(summary) => <p class="mt-0.5 text-xs text-stone">{summary()}</p>}
         </Show>

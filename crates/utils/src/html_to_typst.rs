@@ -382,7 +382,7 @@ fn process_list(
         let Node::Element(child_el) = child.value() else {
             continue;
         };
-        if child_el.name.local.as_ref() != "li" {
+        if child_el.name.local.as_str() != "li" {
             continue;
         }
 

@@ -23,9 +23,16 @@ export default class TemplatesDrawer extends BasePage {
     await expect(this.dialog).toBeHidden();
   }
 
-  /** The card for `name`, e.g. "Azurill". */
+  /**
+   * The card for `name`, e.g. "Azurill". The card's name contains its visible
+   * text (WCAG 2.5.3), so it continues past "Use template: Azurill" with
+   * ", Current" and the layout summary when shown: match on that prefix.
+   * Substring matching cannot silently pick a wrong card — "Use template: "
+   * only ever precedes a card's own name, and strict mode fails loudly if one
+   * template name ever starts with another.
+   */
   card(name: string): Locator {
-    return this.dialog.getByRole("button", { name: `Use ${name} template`, exact: true });
+    return this.dialog.getByRole("button", { name: `Use template: ${name}` });
   }
 
   async assertTemplateListed(name: string): Promise<void> {

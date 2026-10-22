@@ -40,8 +40,10 @@ export function EditorThemeSelector() {
       }
     >
       <DropdownMenu>
+        {/* WCAG 2.5.3 (Label in Name): the accessible name must contain the
+            visible theme label, so it is part of the aria-label. */}
         <DropdownMenu.Trigger
-          aria-label="Editor theme"
+          aria-label={`Editor theme: ${currentTheme()?.label ?? "Theme"}`}
           class="focus-ring flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-surface transition-colors text-sm"
         >
           <div class="flex items-center gap-1.5">
