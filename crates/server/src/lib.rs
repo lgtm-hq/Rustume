@@ -565,6 +565,21 @@ mod tests {
             .as_object()
             .unwrap()
             .contains_key("/api/resumes"));
+        let account = &spec["paths"]["/api/account"];
+        assert!(
+            account["patch"].is_object(),
+            "PATCH /api/account documented"
+        );
+        assert!(
+            account["delete"].is_object(),
+            "DELETE /api/account documented"
+        );
+        for status in ["400", "401", "404", "409"] {
+            assert!(
+                account["patch"]["responses"][status].is_object(),
+                "PATCH /api/account documents {status}"
+            );
+        }
         assert!(spec["components"]["securitySchemes"]["cookieAuth"].is_object());
     }
 
@@ -1201,6 +1216,30 @@ mod tests {
             serde_json::from_slice(&body).unwrap();
         assert!(payload.retry_after >= 1);
         assert!(payload.error.contains("Too many requests"));
+    }
+
+    #[tokio::test]
+    async fn test_update_account_unauthenticated_401() {
+        let state = state::AppState::with_require_auth(
+            std::sync::Arc::new(routes::static_dir()),
+            Some(test_cloud_state()),
+            true,
+        );
+        let app = create_router_with_state(state);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("PATCH")
+                    .uri("/api/account")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"username":"calm-finch-1234"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
 
     #[tokio::test]

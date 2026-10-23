@@ -1,6 +1,7 @@
 import { Show, createEffect, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { deleteAccount } from "../api/account";
+import { deleteAccount, updateUsername, validateUsername } from "../api/account";
+import { ApiError } from "../api/client";
 import { downloadResumesJson, downloadResumesPdf } from "../api/export";
 import { listCloudResumesPage } from "../api/resumes";
 import { authStore } from "../stores/auth";
@@ -38,7 +39,7 @@ function ComingSoonRow(props: { title: string; description: string }) {
 
 export default function Account() {
   usePageTitle("Account");
-  const { state, signIn, signOut, clearUser, displayName } = authStore;
+  const { state, signIn, signOut, clearUser, displayName, updateLocalUsername } = authStore;
   const navigate = useNavigate();
   const [signingOut, setSigningOut] = createSignal(false);
   const [deleteModalOpen, setDeleteModalOpen] = createSignal(false);
@@ -48,6 +49,10 @@ export default function Account() {
   const [deletingAccount, setDeletingAccount] = createSignal(false);
   const [exportingJson, setExportingJson] = createSignal(false);
   const [exportingPdf, setExportingPdf] = createSignal(false);
+  const [editingUsername, setEditingUsername] = createSignal(false);
+  const [usernameDraft, setUsernameDraft] = createSignal("");
+  const [usernameError, setUsernameError] = createSignal<string | null>(null);
+  const [savingUsername, setSavingUsername] = createSignal(false);
 
   createEffect(() => {
     if (!deleteModalOpen()) {
@@ -130,6 +135,64 @@ export default function Account() {
 
   const deleteConfirmed = () => deleteConfirmation() === "DELETE";
 
+  // Focus management for the inline editor: opening it removes the focused
+  // "Edit username" trigger, so focus must move into the input; closing it
+  // removes the input, so focus must return to the recreated trigger.
+  // Errors re-focus the input so the associated error message is announced.
+  let usernameInput: HTMLInputElement | undefined;
+  let editUsernameTrigger: HTMLButtonElement | undefined;
+  const focusUsernameInput = () => queueMicrotask(() => usernameInput?.focus());
+  const focusEditTrigger = () => queueMicrotask(() => editUsernameTrigger?.focus());
+
+  const startEditingUsername = (currentUsername: string) => {
+    setUsernameDraft(currentUsername);
+    setUsernameError(null);
+    setEditingUsername(true);
+    focusUsernameInput();
+  };
+
+  const cancelEditingUsername = () => {
+    setEditingUsername(false);
+    setUsernameDraft("");
+    setUsernameError(null);
+    focusEditTrigger();
+  };
+
+  const handleSaveUsername = async (currentUsername: string) => {
+    const validationError = validateUsername(usernameDraft());
+    if (validationError) {
+      setUsernameError(validationError);
+      focusUsernameInput();
+      return;
+    }
+
+    const normalized = usernameDraft().trim().toLowerCase();
+    if (normalized === currentUsername) {
+      cancelEditingUsername();
+      return;
+    }
+
+    setSavingUsername(true);
+    setUsernameError(null);
+    try {
+      const result = await updateUsername(normalized);
+      updateLocalUsername(result.username);
+      cancelEditingUsername();
+      toast.success("Username updated");
+    } catch (error) {
+      console.error("Username update failed:", error);
+      const message =
+        error instanceof Error ? error.message : "Failed to update username. Please try again.";
+      setUsernameError(message);
+      focusUsernameInput();
+      if (error instanceof ApiError && error.status === 409) {
+        toast.error("That username is already taken");
+      }
+    } finally {
+      setSavingUsername(false);
+    }
+  };
+
   return (
     <div class="min-h-[calc(100vh-3.5rem)] bg-paper">
       <div class="max-w-2xl mx-auto px-4 py-12">
@@ -182,10 +245,54 @@ export default function Account() {
                   <section class="rounded-2xl border border-border bg-paper p-6 shadow-card">
                     <div class="flex items-center gap-4">
                       <ProfileAvatar label={displayName(user())} />
-                      <div class="min-w-0">
-                        <h2 class="font-display text-xl font-semibold text-ink truncate">
-                          {displayName(user())}
-                        </h2>
+                      <div class="min-w-0 flex-1">
+                        <Show
+                          when={!editingUsername()}
+                          fallback={
+                            <div class="space-y-3">
+                              <Input
+                                ref={(el) => (usernameInput = el)}
+                                label="Username"
+                                value={usernameDraft()}
+                                onInput={(value) => {
+                                  setUsernameDraft(value);
+                                  setUsernameError(null);
+                                }}
+                                placeholder="swift-otter-4821"
+                                error={usernameError() ?? undefined}
+                              />
+                              <div class="flex flex-wrap gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={() => void handleSaveUsername(user().username)}
+                                  loading={savingUsername()}
+                                >
+                                  Save username
+                                </Button>
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={cancelEditingUsername}
+                                  disabled={savingUsername()}
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          }
+                        >
+                          <h2 class="font-display text-xl font-semibold text-ink truncate">
+                            {displayName(user())}
+                          </h2>
+                          <button
+                            ref={(el) => (editUsernameTrigger = el)}
+                            type="button"
+                            class="mt-1 text-sm text-accent hover:underline"
+                            onClick={() => startEditingUsername(user().username)}
+                          >
+                            Edit username
+                          </button>
+                        </Show>
                         <Show when={user().email}>
                           {(email) => <p class="text-sm text-stone truncate mt-1">{email()}</p>}
                         </Show>
@@ -218,8 +325,9 @@ export default function Account() {
                       >
                         WorkOS AuthKit
                       </a>{" "}
-                      for authentication. Your email and name are stored by both WorkOS and Rustume
-                      to identify your account.
+                      for authentication. Your email is stored by both WorkOS and Rustume to
+                      identify your account. Rustume assigns a friendly username for display; your
+                      legal name stays with your identity provider.
                     </p>
                   </section>
 
