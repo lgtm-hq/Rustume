@@ -33,7 +33,7 @@
     "unist-util-visit": "^5.1.0"
   },
   "devDependencies": {
-    "@astrojs/check": "0.9.10",
+    "@astrojs/check": "0.9.11",
     "@axe-core/playwright": "4.14.0",
     "@pagefind/default-ui": "1.5.2",
     "@playwright/test": "1.64.1",
