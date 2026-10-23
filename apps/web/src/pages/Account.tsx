@@ -1,6 +1,6 @@
 import { Show, createEffect, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { deleteAccount } from "../api/account";
+import { ACCOUNT_EXPORT_CONTENTS, deleteAccount, downloadAccountExport } from "../api/account";
 import { downloadResumesJson, downloadResumesPdf } from "../api/export";
 import { listCloudResumesPage } from "../api/resumes";
 import { authStore } from "../stores/auth";
@@ -48,6 +48,7 @@ export default function Account() {
   const [deletingAccount, setDeletingAccount] = createSignal(false);
   const [exportingJson, setExportingJson] = createSignal(false);
   const [exportingPdf, setExportingPdf] = createSignal(false);
+  const [exportingAccount, setExportingAccount] = createSignal(false);
 
   createEffect(() => {
     if (!deleteModalOpen()) {
@@ -84,31 +85,60 @@ export default function Account() {
     signIn();
   };
 
-  const handleExportJson = async () => {
-    setExportingJson(true);
+  const runExport = async (
+    isLoading: () => boolean,
+    setLoading: (value: boolean) => void,
+    exportFn: () => Promise<void>,
+    successMessage: string,
+    failureLogLabel: string,
+    failureMessage: string,
+  ) => {
+    // The button disables on the next render; guard the handler itself so a
+    // double click cannot start two downloads (and burn two export slots).
+    if (isLoading()) {
+      return;
+    }
+    setLoading(true);
     try {
-      await downloadResumesJson();
-      toast.success("Resume export downloaded");
+      await exportFn();
+      toast.success(successMessage);
     } catch (error) {
-      console.error("JSON export failed:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to export resumes");
+      console.error(failureLogLabel, error);
+      toast.error(error instanceof Error ? error.message : failureMessage);
     } finally {
-      setExportingJson(false);
+      setLoading(false);
     }
   };
 
-  const handleExportPdf = async () => {
-    setExportingPdf(true);
-    try {
-      await downloadResumesPdf();
-      toast.success("PDF export downloaded");
-    } catch (error) {
-      console.error("PDF export failed:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to export PDFs");
-    } finally {
-      setExportingPdf(false);
-    }
-  };
+  const handleExportJson = () =>
+    runExport(
+      exportingJson,
+      setExportingJson,
+      downloadResumesJson,
+      "Resume export downloaded",
+      "JSON export failed:",
+      "Failed to export resumes",
+    );
+
+  const handleExportPdf = () =>
+    runExport(
+      exportingPdf,
+      setExportingPdf,
+      downloadResumesPdf,
+      "PDF export downloaded",
+      "PDF export failed:",
+      "Failed to export PDFs",
+    );
+
+  const handleExportAccount = () =>
+    runExport(
+      exportingAccount,
+      setExportingAccount,
+      downloadAccountExport,
+      "Account data exported",
+      "Account export failed:",
+      "Failed to export account data",
+    );
 
   const handleDeleteAccount = async () => {
     setDeletingAccount(true);
@@ -227,9 +257,9 @@ export default function Account() {
                     id="export"
                     class="rounded-2xl border border-border bg-paper p-6 shadow-card"
                   >
-                    <h2 class="font-display text-lg font-semibold text-ink mb-2">Export data</h2>
+                    <h2 class="font-display text-lg font-semibold text-ink mb-2">Export resumes</h2>
                     <p class="text-sm text-stone mb-4">
-                      Download all cloud resumes for backup or migration to self-hosted Rustume.
+                      Download cloud resumes only for backup or migration to self-hosted Rustume.
                     </p>
                     <div class="flex flex-wrap gap-3">
                       <Button
@@ -247,6 +277,26 @@ export default function Account() {
                         Download as PDF (ZIP)
                       </Button>
                     </div>
+                  </section>
+
+                  <section class="rounded-2xl border border-border bg-paper p-6 shadow-card">
+                    <h2 class="font-display text-lg font-semibold text-ink mb-2">
+                      Export account data
+                    </h2>
+                    <p class="text-sm text-stone mb-4">
+                      Download a JSON archive of the account data Rustume stores:{" "}
+                      {ACCOUNT_EXPORT_CONTENTS.included.join(", ")}. Not included:{" "}
+                      {ACCOUNT_EXPORT_CONTENTS.excluded.join(", ")}. Policy acceptances and audit
+                      events carry the client IP recorded with them. This download is available on
+                      every plan, including free and expired accounts.
+                    </p>
+                    <Button
+                      variant="secondary"
+                      onClick={() => void handleExportAccount()}
+                      loading={exportingAccount()}
+                    >
+                      Export account data
+                    </Button>
                   </section>
 
                   <section class="rounded-2xl border border-border bg-paper px-6 py-2 shadow-card">
@@ -305,8 +355,8 @@ export default function Account() {
                       </ul>
 
                       <p class="text-sm text-stone">
-                        Export your resumes from the account page before deleting if you need local
-                        copies.
+                        Export your account data or your resumes from the account page before
+                        deleting if you need a copy; nothing can be recovered afterwards.
                       </p>
 
                       <Input

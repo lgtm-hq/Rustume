@@ -245,6 +245,25 @@ export async function del(endpoint: string): Promise<void> {
   await request<void>(endpoint, { method: "DELETE" });
 }
 
+/**
+ * GET a binary response (downloads). Shares the API base and error mapping
+ * with the JSON helpers; a 429 surfaces as an `ApiError` without retrying,
+ * since a download is user-initiated and should not silently queue.
+ */
+export async function getBlob(endpoint: string): Promise<Blob> {
+  const response = await fetch(`${API_BASE}${endpoint}`, {
+    ...defaultFetchOptions,
+    method: "GET",
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw createApiError(response.status, text, response.statusText);
+  }
+
+  return response.blob();
+}
+
 export async function fetchBlob(endpoint: string, body?: unknown): Promise<Blob> {
   const { blob } = await fetchBlobWithHeaders(endpoint, body);
   return blob;
