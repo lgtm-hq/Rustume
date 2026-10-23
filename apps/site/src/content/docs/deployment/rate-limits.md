@@ -28,6 +28,10 @@ user limit; multiple signed-in accounts behind the same office NAT or proxy can 
 quota. Unauthenticated traffic is keyed by **client IP** only. When `TRUSTED_PROXY=true`, IP
 extraction uses `X-Real-IP` and append-mode `X-Forwarded-For` from a trusted reverse proxy.
 
+Credential precedence matches authentication: a valid session cookie is keyed by user ID even if
+the request also carries an API key. Requests authenticated only by an [API
+key](/docs/api/api-keys/) are keyed by key ID — see [API keys](#api-keys) below.
+
 ## Default limits
 
 All values are **requests per minute** unless noted.
@@ -44,6 +48,19 @@ All values are **requests per minute** unless noted.
 | Parse & utility | 30 | — | Templates, parse, validate |
 
 Resume CRUD allows short bursts (for example rapid autosave) via a separate burst bucket.
+
+### API keys
+
+| Route group | Default | Examples |
+| --- | ---: | --- |
+| Per-key quota | 300 | Every request authenticated with an `rk_` token |
+| Key management | 300 | `GET`/`POST /api/keys`, `DELETE /api/keys/{id}` (session-only, keyed by user) |
+
+A request authenticated by an API key is checked against three buckets: the shared per-IP bucket
+for the route group, the route group's quota keyed by the key ID (`api_key:{id}`), and the per-key
+quota above. Each of a user's keys (up to 20 active) has its own route-group bucket, so a single
+account can exceed its per-user quota by spreading traffic across keys; the per-IP bucket still
+bounds traffic from one host.
 
 ### Unauthenticated routes (per IP)
 
@@ -100,6 +117,7 @@ RATE_LIMIT_HEALTH_PER_MIN=60
 RATE_LIMIT_METRICS_PER_MIN=60
 RATE_LIMIT_UNAUTHENTICATED_PER_MIN=30
 RATE_LIMIT_BILLABLE_PER_MIN=30   # templates, parse, validate (not subscription-gated)
+RATE_LIMIT_API_KEY_PER_MIN=300   # per-key quota and /api/keys management routes
 TRUSTED_PROXY=true   # only behind a trusted reverse proxy
 ```
 
