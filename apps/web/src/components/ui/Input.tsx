@@ -2,6 +2,8 @@ import { TextField } from "@kobalte/core/text-field";
 import { splitProps, Show } from "solid-js";
 
 export interface InputProps {
+  id?: string;
+  readOnly?: boolean;
   label?: string;
   description?: string;
   error?: string;
