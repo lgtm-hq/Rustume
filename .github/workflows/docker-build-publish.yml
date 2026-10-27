@@ -161,10 +161,10 @@ jobs:
       # assets come from GitHub releases) +
       # registry.npmjs.org (bun install in the web-builder stage downloads
       # packages from the npm registry on cache-cold builds).
-      # Block mode again (was audit under #879 while harden-runner v2.21.0
-      # denied GitHub's own runner watchdog and killed long amd64 jobs).
-      # v2.21.1 allows *.githubapp.com itself; verified by a 45-minute
-      # block-mode probe surviving 8/8 on ubuntu-24.04 (run 36008759044).
+      # Temporary audit mode tracks lgtm-hq/lgtm-ci#1207.
+      # History: block mode was restored after #879 because v2.21.1 allowed
+      # GitHub's runner watchdog; a 45-minute block-mode probe survived
+      # 8/8 on ubuntu-24.04 (run 36008759044).
       egress-policy: audit # TEMP: lgtm-hq/lgtm-ci#1207
       allowed-endpoints-mode: replace
       allowed-endpoints: >
