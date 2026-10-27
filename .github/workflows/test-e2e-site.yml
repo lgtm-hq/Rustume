@@ -53,12 +53,12 @@ concurrency:
 jobs:
   site-e2e:
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-e2e-playwright.yml@9ea778eb4e6b876d60b7b3d7d0d0aee5182717bb # v0.78.0
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-e2e-playwright.yml@2097a900753e3e5ad0e336483501b278e99855ae # v0.78.1
     permissions:
       contents: read
       pull-requests: write # publish-test-summary on PRs
     with:
-      tooling-ref: '9ea778eb4e6b876d60b7b3d7d0d0aee5182717bb' # v0.78.0
+      tooling-ref: '2097a900753e3e5ad0e336483501b278e99855ae' # v0.78.1
       job-name: "♿ Site E2E"
       node-version: "22"
       working-directory: apps/site
@@ -71,7 +71,7 @@ jobs:
       publish-test-summary: true
       comment-marker: site-e2e-report
       draft-pr-skip: true
-      egress-policy: block
+      egress-policy: audit # TEMP: lgtm-hq/lgtm-ci#1207
       # The reusable's harden-runner step consumes `allowed-endpoints`
       # verbatim, so `egress-preset: playwright` cannot be extended via
       # `allowed-endpoints-mode: append` here — the full list is spelled out
