@@ -41,6 +41,6 @@ jobs:
       # kcov reports 0% for bash via BATS; non-zero fails CI until measurement fixed
       coverage-threshold: 0
       upload-coverage: false
-      egress-policy: block
+      egress-policy: audit # TEMP: lgtm-hq/lgtm-ci#1207
       egress-preset: shell-test
       runner-image: ubuntu-24.04

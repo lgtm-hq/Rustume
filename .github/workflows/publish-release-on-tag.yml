@@ -33,7 +33,7 @@ jobs:
         # composite in v0.50.0 (the action pre hook must install the agent).
         uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
         with:
-          egress-policy: block
+          egress-policy: audit # TEMP: lgtm-hq/lgtm-ci#1207
           allowed-endpoints: >
             github.com:443
             api.github.com:443
@@ -92,7 +92,7 @@ jobs:
           # Block mode again (was audit under #882 while harden-runner v2.21.0
           # killed this ~60-minute wait). v2.21.1 allows GitHub's runner
           # watchdog hosts itself; see the #879 revert in docker-build-publish.
-          egress-policy: block
+          egress-policy: audit # TEMP: lgtm-hq/lgtm-ci#1207
           allowed-endpoints: >
             github.com:443
             api.github.com:443
@@ -146,7 +146,7 @@ jobs:
         # composite in v0.50.0 (the action pre hook must install the agent).
         uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
         with:
-          egress-policy: block
+          egress-policy: audit # TEMP: lgtm-hq/lgtm-ci#1207
           allowed-endpoints: >
             github.com:443
             api.github.com:443

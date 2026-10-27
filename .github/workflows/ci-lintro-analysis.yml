@@ -60,7 +60,7 @@ jobs:
       runner-image: ubuntu-24.04
       # yamllint disable-line rule:line-length
       lintro-image: ghcr.io/lgtm-hq/py-lintro:0.173.1@sha256:116e60912a8c7a2002349ef096cfa93644314492751746aacdd5ef228c74306f
-      egress-policy: block
+      egress-policy: audit # TEMP: lgtm-hq/lgtm-ci#1207
       egress-preset: quality
 
   publish-pr-comment:
@@ -81,4 +81,4 @@ jobs:
       tooling-ref: '9ea778eb4e6b876d60b7b3d7d0d0aee5182717bb' # v0.78.0
       job-name: "🛠️ Lintro Code Quality PR Comment"
       runner-image: ubuntu-24.04
-      egress-policy: block
+      egress-policy: audit # TEMP: lgtm-hq/lgtm-ci#1207

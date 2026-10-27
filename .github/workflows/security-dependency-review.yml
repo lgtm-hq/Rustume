@@ -38,7 +38,7 @@ jobs:
       # yamllint disable-line rule:line-length
       lintro-image: ghcr.io/lgtm-hq/py-lintro:0.173.1@sha256:116e60912a8c7a2002349ef096cfa93644314492751746aacdd5ef228c74306f
       upload-comment-artifact: ${{ github.event_name == 'pull_request' }}
-      egress-policy: block
+      egress-policy: audit # TEMP: lgtm-hq/lgtm-ci#1207
       egress-preset: quality
 
   security-audit-required:
@@ -56,7 +56,7 @@ jobs:
         # so allowed-endpoints must be a literal — github-tooling preset).
         uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
         with:
-          egress-policy: block
+          egress-policy: audit # TEMP: lgtm-hq/lgtm-ci#1207
           allowed-endpoints: >
             github.com:443
             api.github.com:443
@@ -97,4 +97,4 @@ jobs:
       tooling-ref: '9ea778eb4e6b876d60b7b3d7d0d0aee5182717bb' # v0.78.0
       job-name: "💬 Post PR Comment"
       runner-image: ubuntu-24.04
-      egress-policy: block
+      egress-policy: audit # TEMP: lgtm-hq/lgtm-ci#1207

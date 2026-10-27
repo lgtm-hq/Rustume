@@ -66,7 +66,7 @@ jobs:
       - name: Harden Runner
         uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
         with:
-          egress-policy: block
+          egress-policy: audit # TEMP: lgtm-hq/lgtm-ci#1207
           allowed-endpoints: >
             github.com:443
       - name: Checkout
@@ -165,7 +165,7 @@ jobs:
       # denied GitHub's own runner watchdog and killed long amd64 jobs).
       # v2.21.1 allows *.githubapp.com itself; verified by a 45-minute
       # block-mode probe surviving 8/8 on ubuntu-24.04 (run 36008759044).
-      egress-policy: block
+      egress-policy: audit # TEMP: lgtm-hq/lgtm-ci#1207
       allowed-endpoints-mode: replace
       allowed-endpoints: >
         github.com:443
@@ -228,7 +228,7 @@ jobs:
       - name: Harden Runner
         uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
         with:
-          egress-policy: block
+          egress-policy: audit # TEMP: lgtm-hq/lgtm-ci#1207
           allowed-endpoints: >
             github.com:443
             api.github.com:443
@@ -282,7 +282,7 @@ jobs:
         # itself calls check.trivy.dev for its version check.
         uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
         with:
-          egress-policy: block
+          egress-policy: audit # TEMP: lgtm-hq/lgtm-ci#1207
           allowed-endpoints: >
             github.com:443
             api.github.com:443

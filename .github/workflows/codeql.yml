@@ -45,7 +45,7 @@ jobs:
       job-name: "🔬 CodeQL Analysis"
       languages: actions,rust
       language-build-modes: '{"rust":"none","actions":"none"}'
-      egress-policy: block
+      egress-policy: audit # TEMP: lgtm-hq/lgtm-ci#1207
       egress-preset: quality
       # Harden-runner pre reads workflow inputs only (not resolved presets).
       # Full list = reusable default + release-assets (CodeQL bundle download

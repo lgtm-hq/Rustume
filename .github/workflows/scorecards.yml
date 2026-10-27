@@ -28,7 +28,7 @@ jobs:
       # tab; skip the public Scorecard API until the reusable workflow only
       # uses allowlisted actions.
       publish-results: false
-      egress-policy: block
+      egress-policy: audit # TEMP: lgtm-hq/lgtm-ci#1207
       allowed-endpoints: >
         github.com:443
         api.github.com:443

@@ -53,7 +53,7 @@ jobs:
       # as the strings the reusable workflow inputs expect.
       run-id: ${{ format('{0}', github.event.workflow_run.id) }}
       run-attempt: ${{ format('{0}', github.event.workflow_run.run_attempt) }}
-      egress-policy: block
+      egress-policy: audit # TEMP: lgtm-hq/lgtm-ci#1207
       egress-preset: github-results
       # Trivy GCR-mirror 404s are infra, not CVEs (#851). The durable pin is
       # the local scan job; this signature recovers leftover reusable scans

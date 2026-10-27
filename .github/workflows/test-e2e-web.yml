@@ -76,7 +76,7 @@ jobs:
       publish-test-summary: true
       comment-marker: web-e2e-report
       draft-pr-skip: true
-      egress-policy: block
+      egress-policy: audit # TEMP: lgtm-hq/lgtm-ci#1207
       # The reusable's harden-runner step consumes `allowed-endpoints`
       # verbatim, so `egress-preset: playwright` cannot be extended via
       # `allowed-endpoints-mode: append` here — the full list is spelled out
