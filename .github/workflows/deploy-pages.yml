@@ -37,6 +37,7 @@ jobs:
     # yamllint disable-line rule:line-length
     uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-deploy-site-with-reports.yml@9ea778eb4e6b876d60b7b3d7d0d0aee5182717bb # v0.78.0
     with:
+      egress-policy: audit # TEMP: lgtm-hq/lgtm-ci#1207
       # Explicit space-separated (folded scalar) allowlists: the reusable
       # workflow's newline block-scalar defaults are mis-parsed by the
       # harden-runner v2.20.0 agent (allowed-domains map keeps only the first
