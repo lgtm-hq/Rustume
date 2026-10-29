@@ -32,15 +32,15 @@ jobs:
       contents: read
       pull-requests: write # publish-test-summary posts shell coverage on PRs
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-shell.yml@614c5ad1fc91d742baed959643bdd1f261a71210 # v0.79.1
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-shell.yml@8f0fd9339df5d30a529aa572ceb51345b8be33a0 # v0.79.2
     with:
-      tooling-ref: '614c5ad1fc91d742baed959643bdd1f261a71210' # v0.79.1
+      tooling-ref: '8f0fd9339df5d30a529aa572ceb51345b8be33a0' # v0.79.2
       job-name: Docker Shell Tests
       test-path: tests/bats/unit/docker
       coverage: true
       # kcov reports 0% for bash via BATS; non-zero fails CI until measurement fixed
       coverage-threshold: 0
       upload-coverage: false
-      egress-policy: audit # TEMP: lgtm-hq/lgtm-ci#1207
+      egress-policy: block
       egress-preset: shell-test
       runner-image: ubuntu-24.04
