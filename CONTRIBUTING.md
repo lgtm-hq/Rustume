@@ -298,3 +298,15 @@ or pull `:main` for the latest main-branch image. See
 By contributing, you agree that your contributions will be licensed under the
 GNU Affero General Public License v3.0 only (AGPL-3.0-only). See [LICENSE](LICENSE)
 for details.
+
+### Dependency security baseline
+
+Lockfiles remain visible to lintro so OSV scans Cargo, Bun, and Python dependencies.
+`.osv-scanner.toml` records narrowly scoped upstream blockers with review deadlines.
+Cargo Audit repeats the two quick-xml exceptions in `.cargo/audit.toml`; the OSV
+records are authoritative for their expiry and rationale. Remove both native
+exceptions when citationberg upgrades to a patched quick-xml release.
+
+TruffleHog omits only `apps/web/bun.lock`: its generated npm integrity digests
+trigger the Box token detector. OSV and Gitleaks continue checking that lockfile;
+application source and configuration remain covered by TruffleHog.

@@ -220,7 +220,12 @@ impl LinkedInParser {
                 ParseError::ReadError(format!("Failed to read ZIP entry {}: {}", i, e))
             })?;
 
-            let file_name = file.name().to_lowercase();
+            let file_name = file
+                .name()
+                .map_err(|e| {
+                    ParseError::ReadError(format!("Invalid ZIP entry {} filename: {}", i, e))
+                })?
+                .to_lowercase();
 
             // Skip directories and non-CSV files
             if file.is_dir() || !file_name.ends_with(".csv") {
@@ -1028,6 +1033,38 @@ mod tests {
         assert!(resume.sections.experience.items.is_empty());
         assert!(resume.sections.education.items.is_empty());
         assert!(resume.sections.skills.items.is_empty());
+    }
+
+    #[test]
+    fn test_non_utf8_zip_entry_filename() {
+        let mut zip = zip::ZipWriter::new(Cursor::new(Vec::new()));
+        let options = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Stored);
+        zip.start_file("README.txt", options).unwrap();
+        zip.start_file("Invalid.csv", options).unwrap();
+        let mut buffer = zip.finish().unwrap().into_inner();
+
+        // Corrupt both local and central-directory names without changing ZIP structure.
+        // zip falls back to CP437 for non-UTF-8 names, so name() still succeeds.
+        let name_offsets: Vec<_> = buffer
+            .windows(b"Invalid.csv".len())
+            .enumerate()
+            .filter_map(|(offset, bytes)| (bytes == b"Invalid.csv").then_some(offset))
+            .collect();
+        assert_eq!(name_offsets.len(), 2);
+        for offset in name_offsets {
+            buffer[offset] = 0xff;
+        }
+
+        let mut archive = ZipArchive::new(Cursor::new(&buffer)).unwrap();
+        assert_eq!(archive.len(), 2);
+        assert_eq!(
+            archive.by_index(1).unwrap().name().unwrap(),
+            "\u{a0}nvalid.csv"
+        );
+
+        let resume = LinkedInParser.parse(&buffer).unwrap();
+        assert_eq!(resume.basics.name, "");
     }
 
     #[test]
