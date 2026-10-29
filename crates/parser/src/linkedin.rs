@@ -220,7 +220,12 @@ impl LinkedInParser {
                 ParseError::ReadError(format!("Failed to read ZIP entry {}: {}", i, e))
             })?;
 
-            let file_name = file.name().to_lowercase();
+            let file_name = file
+                .name()
+                .map_err(|e| {
+                    ParseError::ReadError(format!("Invalid ZIP entry {} filename: {}", i, e))
+                })?
+                .to_lowercase();
 
             // Skip directories and non-CSV files
             if file.is_dir() || !file_name.ends_with(".csv") {

@@ -1,0 +1,5 @@
+# Same upstream quick-xml blockers as .osv-scanner.toml. OSV remains the
+# canonical exception record and enforces its expiry on every full check.
+# citationberg 0.7.0 still pins quick-xml ^0.38; no patched 0.38.x exists.
+[advisories]
+ignore = ["RUSTSEC-2026-0194", "RUSTSEC-2026-0195"]

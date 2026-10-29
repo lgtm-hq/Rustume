@@ -31,3 +31,11 @@ enabled = false
 exclude_dirs = [".venv", "venv"]
 # B101: assert in tests; B108: hardcoded /tmp in test fixtures only
 skips = ["B101", "B108"]
+
+[tool.lintro.trufflehog]
+# The generated npm integrity digests trigger the Box token detector.
+# OSV and Gitleaks still scan this lockfile.
+exclude_patterns = ["apps/web/bun.lock"]
+
+[tool.lintro.gitleaks]
+timeout = 120

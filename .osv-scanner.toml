@@ -74,29 +74,20 @@ id = "RUSTSEC-2024-0449"
 ignoreUntil = 2026-12-31
 reason = "unsafe-libyaml unmaintained — serde_yaml 0.9.34+deprecated -> unsafe-libyaml 0.2.11, reached both directly from typst-library 0.15.1 and via typst-library -> hayagriva 0.10.1 (latest, 2026-06-14). Informational only; OSV lists no fixed version. Clears only when both typst-library and hayagriva move off serde_yaml; re-check with the next typst release and the hayagriva release that clears RUSTSEC-2024-0436."
 
-# --- npm: transitive via @tailwindcss/typography (apps/web) ---
+# --- Blocked transitive dependencies (re-checked 2026-10-29) ---
 
 [[IgnoredVulns]]
-id = "GHSA-rj75-hqrm-r3gf"
-ignoreUntil = 2026-12-31
-reason = "postcss-selector-parser@6.0.10 quadratic selector parsing (CPU DoS), fixed in 7.1.6. Pinned exactly by @tailwindcss/typography 0.5.20 (latest, 2026-06-08), so no parent bump avoids it and forcing 7.x via an override is a major API jump inside a build plugin. Exploitability: none; it only parses selectors from our own CSS at build time, and apps/web currently loads no `@plugin \"@tailwindcss/typography\"`, so the parser is never invoked. Re-check on the next @tailwindcss/typography release."
-
-# --- npm: transitive via @astrojs/check -> yaml-language-server ---
-
-# Removed GHSA-48c2-rrv3-qjmp suppression: bun overrides force yaml >= 2.8.3
-
-# --- npm: transitive via astro (apps/site docs site) ---
+id = "GHSA-qwgh-2vcv-g2f7"
+ignoreUntil = 2026-11-28
+reason = """block-buffer@0.10.4 via digest@0.10.7 <- sha2@0.10.9 <- sqlx-core/sqlx-macros-core@0.9.0 (latest sqlx), and via md-5@0.10.6/sha2 <- lopdf@0.42.0 <- pdf-extract@0.12.1 (latest, test-only). Fixed only in block-buffer 0.12.1; no patched 0.10.x release exists, and Cargo cannot substitute the incompatible 0.12 API for digest's ^0.10 requirement. Updating lopdf alone cannot clear the sqlx path. A panic in an attacker-supplied digest update closure can corrupt the internal buffer position; Rustume does not directly use block-buffer or supply such closures. SQLx hashes database protocol data with sha2's fixed compression closure; pdf-extract only parses test fixtures. Accept the transitive risk temporarily, re-check sqlx/pdf-extract releases by expiry. Tracking: https://github.com/advisories/GHSA-qwgh-2vcv-g2f7."""
 
 [[IgnoredVulns]]
-id = "GHSA-ch52-4w7c-c8xp"
-ignoreUntil = 2026-11-02
-reason = """http-cache-semantics@4.2.0 (transitive via astro@7.3.5, apps/site/bun.lock only; apps/web does not depend on it). No fix available: GHSA-ch52-4w7c-c8xp / CVE-2026-93748 lists first_patched_version = none for <= 4.2.0; npm latest is 4.2.0 (only 4.2.0-beta.x prereleases) and astro 7.3.5 (latest stable) still requires ^4.2.0, so no parent bump avoids it. Usage: build-time only. astro imports it solely in dist/assets/build/remote.js to cache remote images fetched through astro:assets; apps/site is a fully static docs site (output: "static", deployed to GitHub Pages) with no astro:assets imports in src/ and no remote image configuration, so that code path is never executed. Exploitability: none; the vulnerable behaviour (a shared cache honouring client max-stale over Set-Cookie/proxy-revalidate prohibitions) needs a running shared HTTP cache, which this site does not have. Tracking: https://github.com/kornelski/http-cache-semantics/issues/56 and https://github.com/advisories/GHSA-ch52-4w7c-c8xp."""
+id = "GHSA-gcqx-w48m-w2h4"
+ignoreUntil = 2027-01-27
+reason = """deepmerge@4.3.1 via @rollup/plugin-node-resolve@16.0.3 <- workbox-build <- vite-plugin-pwa (apps/web build tooling). No patched deepmerge release exists as of 2026-10-29 (npm latest 4.3.1, advisory has no fixed version). The plugin merges repository-authored Rollup resolver options during the build; no resume content or runtime request reaches this merge. Exploitation requires attacker-controlled objects passed to mergeObject(); changes to build options already require executable build configuration access. Accept the build-time risk until a patch is available; review by expiry. Tracking: https://github.com/advisories/GHSA-gcqx-w48m-w2h4."""
 
-# --- npm: GHSA-mh99-v99m-4gvg (brace-expansion) ---
-
-# No suppression needed: cleared by the `brace-expansion: ^5.0.8` override in
-# apps/web/package.json, which lifts both brace-expansion@5.0.7 and the
-# filelist -> minimatch@5 chain's brace-expansion@2.1.2 to 5.0.8.
+# Removed stale GHSA-ch52-4w7c-c8xp: no longer returned by OSV.
+# Removed GHSA-rj75-hqrm-r3gf: postcss-selector-parser override installs patched 6.1.5.
 
 # --- npm / GitHub Actions: license metadata missing from bun.lock / SHA pins ---
 # All five claims re-verified 2026-07-25 against the npm registry and the

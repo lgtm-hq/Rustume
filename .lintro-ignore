@@ -19,11 +19,6 @@ node_modules/
 venv/
 env/
 
-# Lock files
-Cargo.lock
-bun.lock
-*.lock
-
 # Git
 .git/
 
