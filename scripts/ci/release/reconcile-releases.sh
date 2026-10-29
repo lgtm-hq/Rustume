@@ -21,6 +21,8 @@ set -euo pipefail
 #                          When unset, the newest MAX_TAGS version tags are
 #                          listed from the local repo (`git tag`).
 #   MAX_TAGS               How many newest v*.*.* tags to check (default 50)
+#   ALLOWLIST_FILE         Reviewed superseded gaps (default: sibling
+#                          reconcile-allowlist.txt). Empty file disables exceptions.
 #   MIN_TAG_AGE_SECONDS    Skip tags younger than this when listing from git
 #                          (default 7200). Age is the annotated-tag creator
 #                          date (`%(creatordate:unix)`), not the pointed-to
@@ -44,12 +46,13 @@ Environment:
   IMAGE_REF              Image without tag (default ghcr.io/lgtm-hq/rustume)
   TAGS                   Explicit vX.Y.Z tag list (default: newest git tags)
   MAX_TAGS               Newest tags to check when TAGS is unset (default 50)
+  ALLOWLIST_FILE         Reviewed superseded gaps (default: sibling allow-list)
   MIN_TAG_AGE_SECONDS    Skip younger git tags (default 7200 when listing)
   REGISTRY_USERNAME      Basic-auth user for the registry
   REGISTRY_PASSWORD      Basic-auth password/token
   GITHUB_STEP_SUMMARY    Appends a short verdict when set
 
-Exits non-zero when any checked tag is missing a GitHub Release or image.
+Exits non-zero when any unacknowledged tag is missing a Release or image.
 EOF
 	exit 0
 fi
@@ -57,6 +60,8 @@ fi
 IMAGE_REF="${IMAGE_REF:-ghcr.io/lgtm-hq/rustume}"
 MAX_TAGS="${MAX_TAGS:-50}"
 CURL_MAX_TIME="${CURL_MAX_TIME:-30}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ALLOWLIST_FILE="${ALLOWLIST_FILE:-${SCRIPT_DIR}/reconcile-allowlist.txt}"
 # Explicit TAGS is a targeted check (tests / manual). The scheduled listing
 # path skips tags younger than two hours so 05:00 UTC cannot fail a tag
 # that is still publishing.
@@ -92,6 +97,31 @@ REPOSITORY="${IMAGE_REF#*/}"
 write_summary() {
 	[[ -n "${GITHUB_STEP_SUMMARY:-}" ]] || return 0
 	printf '%s\n' "$*" >>"$GITHUB_STEP_SUMMARY"
+}
+
+# Read once, before any probes. Match tags literally, never as patterns; a
+# typo or unreadable policy file must fail rather than widen the exception.
+acknowledged_tags=()
+if [[ ! -r "$ALLOWLIST_FILE" ]]; then
+	err "Cannot read release reconciliation allow-list: ${ALLOWLIST_FILE}"
+	exit 2
+fi
+while IFS= read -r line || [[ -n "$line" ]]; do
+	read -r allowed_tag extra <<<"${line%%#*}"
+	[[ -n "$allowed_tag" ]] || continue
+	if [[ ! "$allowed_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ || -n "$extra" ]]; then
+		err "Invalid release reconciliation allow-list entry: ${line}"
+		exit 2
+	fi
+	acknowledged_tags+=("$allowed_tag")
+done <"$ALLOWLIST_FILE"
+
+is_acknowledged() {
+	local candidate="$1" acknowledged
+	for acknowledged in "${acknowledged_tags[@]}"; do
+		[[ "$candidate" != "$acknowledged" ]] || return 0
+	done
+	return 1
 }
 
 list_version_tags() {
@@ -193,8 +223,18 @@ printf 'Reconciling %s tag(s) on %s and %s\n' \
 
 missing_releases=()
 missing_images=()
+acknowledged_count=0
+checked_count=0
 
 for git_tag in "${expected_tags[@]}"; do
+	if is_acknowledged "$git_tag"; then
+		printf '::warning::Acknowledged superseded release gap: %s (%s)\n' \
+			"$git_tag" "$ALLOWLIST_FILE"
+		write_summary "⚠️ Acknowledged superseded release gap: ${git_tag} (see reconcile-allowlist.txt)"
+		acknowledged_count=$((acknowledged_count + 1))
+		continue
+	fi
+	checked_count=$((checked_count + 1))
 	image_tag="${git_tag#v}"
 	if release_exists "$git_tag"; then
 		printf '  release present: %s\n' "$git_tag"
@@ -215,8 +255,8 @@ done
 
 if [[ ${#missing_releases[@]} -eq 0 && ${#missing_images[@]} -eq 0 ]]; then
 	printf 'All %s tag(s) have a GitHub Release and a GHCR image\n' \
-		"${#expected_tags[@]}"
-	write_summary "✅ Release reconciliation passed for ${#expected_tags[@]} tag(s)"
+		"$checked_count"
+	write_summary "✅ Release reconciliation passed for ${checked_count} tag(s); acknowledged gaps=${acknowledged_count}"
 	exit 0
 fi
 
