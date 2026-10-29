@@ -75,7 +75,15 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
 - **reconcile-releases.yml** — Daily (`schedule`) or manual (`workflow_dispatch`)
   check that recent `v*` tags still have a GitHub Release and a GHCR image
   (`scripts/ci/release/reconcile-releases.sh`). Deliberately not triggered on
-  tag push: it would race the publish workflows
+  tag push: it would race the publish workflows. Reviewed, superseded versions
+  that never shipped are recorded in
+  `scripts/ci/release/reconcile-allowlist.txt`; they produce a warning and summary
+  entry, while any unlisted gap still fails. Do not use this list for a new
+  failure or to hide a missing artifact from a shipped release. First attempt
+  recovery using the original artifacts, following lgtm-ci's
+  [release recovery runbook](https://github.com/lgtm-hq/lgtm-ci/blob/main/docs/release-recovery.md).
+  `v0.69.5` is acknowledged under #1031 because its Docker build failed before
+  publishing and its binary artifacts are gone; `v0.69.6` shipped afterwards.
 - **build-binary.yml** — Cross-platform release binaries (inline; Windows
   `actions/checkout` exception)
 

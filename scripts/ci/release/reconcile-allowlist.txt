@@ -1,0 +1,8 @@
+# Reviewed, superseded versions that never shipped. Exact tags only; no patterns.
+# Every entry needs a reason and an issue recording the failed release.
+# v0.69.5 points to 81ea322e9ac089492c4e8c63795cc63d8110241a (#1023).
+# Docker build: https://github.com/lgtm-hq/Rustume/actions/runs/37156624553
+# Publish run: https://github.com/lgtm-hq/Rustume/actions/runs/37156624109
+# Original binary artifacts are no longer available; no image digests were
+# produced. lgtm-ci's same-bytes recovery cannot resume this version.
+v0.69.5 # Build-tool download failed (HTTP 503); superseded by v0.69.6; issue #1031.
