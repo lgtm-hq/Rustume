@@ -31,9 +31,9 @@ jobs:
       - name: Harden Runner
         # Direct step-security invocation: lgtm-ci removed its harden-runner
         # composite in v0.50.0 (the action pre hook must install the agent).
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
-          egress-policy: audit # TEMP: lgtm-hq/lgtm-ci#1207
+          egress-policy: block
           allowed-endpoints: >
             github.com:443
             api.github.com:443
@@ -42,7 +42,7 @@ jobs:
 
       - name: Checkout
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@614c5ad1fc91d742baed959643bdd1f261a71210 # v0.79.1
+        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@8f0fd9339df5d30a529aa572ceb51345b8be33a0 # v0.79.2
         with:
           fetch-depth: 0
 
@@ -87,12 +87,12 @@ jobs:
       - name: Harden Runner
         # Direct step-security invocation: lgtm-ci removed its harden-runner
         # composite in v0.50.0 (the action pre hook must install the agent).
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
           # Temporary audit mode tracks lgtm-hq/lgtm-ci#1207.
           # History: block mode was restored after #882 because v2.21.1 allowed
           # GitHub's runner watchdog; see the #879 revert in docker-build-publish.
-          egress-policy: audit # TEMP: lgtm-hq/lgtm-ci#1207
+          egress-policy: block
           allowed-endpoints: >
             github.com:443
             api.github.com:443
@@ -102,7 +102,7 @@ jobs:
 
       - name: Checkout
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@614c5ad1fc91d742baed959643bdd1f261a71210 # v0.79.1
+        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@8f0fd9339df5d30a529aa572ceb51345b8be33a0 # v0.79.2
 
       - name: Wait for the release image to be published
         env:
@@ -144,9 +144,9 @@ jobs:
       - name: Harden Runner
         # Direct step-security invocation: lgtm-ci removed its harden-runner
         # composite in v0.50.0 (the action pre hook must install the agent).
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
-          egress-policy: audit # TEMP: lgtm-hq/lgtm-ci#1207
+          egress-policy: block
           allowed-endpoints: >
             github.com:443
             api.github.com:443
@@ -157,7 +157,7 @@ jobs:
 
       - name: Checkout
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@614c5ad1fc91d742baed959643bdd1f261a71210 # v0.79.1
+        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@8f0fd9339df5d30a529aa572ceb51345b8be33a0 # v0.79.2
 
       - name: Download all artifacts
         # yamllint disable-line rule:line-length
@@ -177,7 +177,7 @@ jobs:
 
       - name: Create GitHub Release
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/create-github-release@614c5ad1fc91d742baed959643bdd1f261a71210 # v0.79.1
+        uses: lgtm-hq/lgtm-ci/.github/actions/create-github-release@8f0fd9339df5d30a529aa572ceb51345b8be33a0 # v0.79.2
         with:
           tag: ${{ github.ref_name }}
           generate-notes: "true"

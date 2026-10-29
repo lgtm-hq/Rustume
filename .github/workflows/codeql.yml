@@ -39,13 +39,13 @@ concurrency:
 jobs:
   codeql:
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-codeql.yml@614c5ad1fc91d742baed959643bdd1f261a71210 # v0.79.1
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-codeql.yml@8f0fd9339df5d30a529aa572ceb51345b8be33a0 # v0.79.2
     with:
-      tooling-ref: '614c5ad1fc91d742baed959643bdd1f261a71210' # v0.79.1
+      tooling-ref: '8f0fd9339df5d30a529aa572ceb51345b8be33a0' # v0.79.2
       job-name: "🔬 CodeQL Analysis"
       languages: actions,rust
       language-build-modes: '{"rust":"none","actions":"none"}'
-      egress-policy: audit # TEMP: lgtm-hq/lgtm-ci#1207
+      egress-policy: block
       egress-preset: quality
       # Harden-runner pre reads workflow inputs only (not resolved presets).
       # Full list = reusable default + release-assets (CodeQL bundle download
