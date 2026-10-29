@@ -102,7 +102,11 @@ write_summary() {
 # Read once, before any probes. Match tags literally, never as patterns; a
 # typo or unreadable policy file must fail rather than widen the exception.
 acknowledged_tags=()
-if [[ ! -r "$ALLOWLIST_FILE" ]]; then
+if [[ ! -f "$ALLOWLIST_FILE" || ! -r "$ALLOWLIST_FILE" ]]; then
+	err "Cannot read release reconciliation allow-list: ${ALLOWLIST_FILE}"
+	exit 2
+fi
+if ! policy_contents="$(cat -- "$ALLOWLIST_FILE")"; then
 	err "Cannot read release reconciliation allow-list: ${ALLOWLIST_FILE}"
 	exit 2
 fi
@@ -114,7 +118,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
 		exit 2
 	fi
 	acknowledged_tags+=("$allowed_tag")
-done <"$ALLOWLIST_FILE"
+done <<<"$policy_contents"
 
 is_acknowledged() {
 	local candidate="$1" acknowledged
@@ -230,7 +234,7 @@ for git_tag in "${expected_tags[@]}"; do
 	if is_acknowledged "$git_tag"; then
 		printf '::warning::Acknowledged superseded release gap: %s (%s)\n' \
 			"$git_tag" "$ALLOWLIST_FILE"
-		write_summary "⚠️ Acknowledged superseded release gap: ${git_tag} (see reconcile-allowlist.txt)"
+		write_summary "⚠️ Acknowledged superseded release gap: ${git_tag} (see ${ALLOWLIST_FILE})"
 		acknowledged_count=$((acknowledged_count + 1))
 		continue
 	fi

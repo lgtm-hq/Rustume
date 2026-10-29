@@ -162,6 +162,48 @@ exit 1
 	assert_output --partial "Cannot read release reconciliation allow-list"
 }
 
+@test "directory allow-list fails closed" {
+	export ALLOWLIST_FILE="${BATS_TEST_TMPDIR}"
+	export TAGS=v0.69.5
+
+	run bash "${SCRIPT}"
+	assert_failure
+	assert_output --partial "Cannot read release reconciliation allow-list"
+}
+
+@test "unreadable allow-list fails closed" {
+	chmod 000 "${ALLOWLIST_FILE}"
+	export TAGS=v0.69.5
+
+	run bash "${SCRIPT}"
+	chmod 600 "${ALLOWLIST_FILE}"
+	assert_failure
+	assert_output --partial "Cannot read release reconciliation allow-list"
+}
+
+@test "allow-list read failure discards partial policy and fails closed" {
+	mock_command_script "cat" 'printf "v0.69.5\n"; exit 1'
+	export TAGS=v0.69.5
+
+	run bash "${SCRIPT}"
+	assert_failure
+	assert_output --partial "Cannot read release reconciliation allow-list"
+}
+
+@test "valid custom allow-list loads and names its path in summary" {
+	mock_registry ""
+	mock_releases ""
+	printf 'v0.69.5 # superseded' >"${ALLOWLIST_FILE}"
+	export TAGS=v0.69.5
+
+	run bash "${SCRIPT}"
+	assert_success
+	assert_output --partial "Acknowledged superseded release gap: v0.69.5"
+	run cat "${GITHUB_STEP_SUMMARY}"
+	assert_success
+	assert_output --partial "(see ${ALLOWLIST_FILE})"
+}
+
 @test "reconcile workflow does not fire on tag push" {
 	local workflow="${PROJECT_ROOT}/.github/workflows/reconcile-releases.yml"
 	run grep -n "tags:" "${workflow}"
