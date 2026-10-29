@@ -296,7 +296,7 @@ jobs:
         uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@8f0fd9339df5d30a529aa572ceb51345b8be33a0 # v0.79.2
 
       - name: Log in to GHCR
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
