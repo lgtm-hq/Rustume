@@ -22,6 +22,21 @@ and this project adheres to
 
 ### Security
 
+## [0.69.11] - 2026-10-29
+
+### Changed
+
+- acknowledge superseded v0.69.5 release gap (#1089) (92c6e9b)
+- adopt lgtm-ci v0.79.0 and map CODEX_AUTH_JSON for subscription reviews (#1086)
+  (2a7764b)
+- **deps**: update dependency h3 to 2.0.8 (patch) (#1087) (d527027)
+- **deps**: update dependency @types/bun to 1.4.4 (patch) (#1085) (c50de4b)
+- **deps**: update postgres:18-alpine docker digest to 10a5c69 (#1084) (ecd1436)
+
+### Fixed
+
+- **deps**: clear the security baseline (#1090) (076d25c)
+
 ## [0.69.10] - 2026-10-27
 
 ### Changed
@@ -1382,7 +1397,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.69.10...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.69.11...HEAD
+[0.69.11]: https://github.com/lgtm-hq/Rustume/compare/v0.69.10...v0.69.11
 [0.69.10]: https://github.com/lgtm-hq/Rustume/compare/v0.69.9...v0.69.10
 [0.69.9]: https://github.com/lgtm-hq/Rustume/compare/v0.69.8...v0.69.9
 [0.69.8]: https://github.com/lgtm-hq/Rustume/compare/v0.69.7...v0.69.8
