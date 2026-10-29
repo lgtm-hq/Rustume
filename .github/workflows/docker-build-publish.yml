@@ -161,7 +161,6 @@ jobs:
       # assets come from GitHub releases) +
       # registry.npmjs.org (bun install in the web-builder stage downloads
       # packages from the npm registry on cache-cold builds).
-      # Temporary audit mode tracks lgtm-hq/lgtm-ci#1207.
       # History: block mode was restored after #879 because v2.21.1 allowed
       # GitHub's runner watchdog; a 45-minute block-mode probe survived
       # 8/8 on ubuntu-24.04 (run 36008759044).

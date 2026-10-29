@@ -89,7 +89,6 @@ jobs:
         # composite in v0.50.0 (the action pre hook must install the agent).
         uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
-          # Temporary audit mode tracks lgtm-hq/lgtm-ci#1207.
           # History: block mode was restored after #882 because v2.21.1 allowed
           # GitHub's runner watchdog; see the #879 revert in docker-build-publish.
           egress-policy: block
