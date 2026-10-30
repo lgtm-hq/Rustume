@@ -5,12 +5,12 @@ use utoipa::Modify;
 use utoipa::OpenApi;
 
 use crate::db::{
-    AuthMeUnauthorizedResponse, AuthUserResponse, CreateResumeRequest, DeleteAccountRequest,
-    DeleteAccountResponse, ImportFailure, ImportResumeItem, ImportResumesRequest,
-    ImportResumesResponse, PaginatedResumeSummaries, RestoreResumeRequest, ResumeBulkExport,
-    ResumeExportItem, ResumeListQuery, ResumeRow, ResumeSnapshot, ResumeSummary,
-    ResumeVersionSummary, SharingResponse, SubscriptionInfo, UpdateResumeRequest,
-    UpdateSharingRequest,
+    AuthMeUnauthorizedResponse, AuthUserResponse, BillingCheckoutResponse, BillingPortalResponse,
+    CreateResumeRequest, DeleteAccountRequest, DeleteAccountResponse, ImportFailure,
+    ImportResumeItem, ImportResumesRequest, ImportResumesResponse, PaginatedResumeSummaries,
+    RestoreResumeRequest, ResumeBulkExport, ResumeExportItem, ResumeListQuery, ResumeRow,
+    ResumeSnapshot, ResumeSummary, ResumeVersionSummary, SharingResponse, SubscriptionInfo,
+    UpdateResumeRequest, UpdateSharingRequest,
 };
 use crate::dto::{
     LayoutInfo, ParseFormat, ParseRequest, RenderPdfRequest, RenderPreviewRequest, TemplateInfo,
@@ -68,6 +68,9 @@ impl Modify for CookieAuthAddon {
         crate::routes::export::export_resumes_json,
         crate::routes::export::export_resumes_pdf,
         crate::routes::account::delete_account,
+        crate::billing::paddle::checkout,
+        crate::billing::paddle::customer_portal,
+        crate::billing::paddle::paddle_webhook,
     ),
     components(
         schemas(
@@ -103,6 +106,8 @@ impl Modify for CookieAuthAddon {
             ImportResumeItem,
             DeleteAccountRequest,
             DeleteAccountResponse,
+            BillingCheckoutResponse,
+            BillingPortalResponse,
             rustume_schema::ResumeData
         )
     ),
@@ -114,7 +119,11 @@ impl Modify for CookieAuthAddon {
         (name = "Validate", description = "Resume validation"),
         (name = "Auth", description = "Rustume Cloud authentication (cloud mode only)"),
         (name = "Resumes", description = "Authenticated resume storage (cloud mode only)"),
-        (name = "Account", description = "Account lifecycle (cloud mode only)")
+        (name = "Account", description = "Account lifecycle (cloud mode only)"),
+        (
+            name = "Billing",
+            description = "Paddle billing checkout, customer portal, and webhook. Mounted only when PADDLE_* is configured in cloud mode; when unmounted every method returns the server's JSON 404 (`/api/*` and `/webhooks/*` are reserved paths, never served by the SPA fallback)."
+        )
     )
 )]
 /// Generated OpenAPI document served at `/api-docs/openapi.json`.
