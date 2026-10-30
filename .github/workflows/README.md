@@ -3,7 +3,7 @@
 This repository uses GitHub Actions for quality gates, coverage, release automation,
 and publishing. Most workflows are thin callers to
 [lgtm-ci](https://github.com/lgtm-hq/lgtm-ci) reusable workflows pinned at
-`9ea778eb4e6b876d60b7b3d7d0d0aee5182717bb` (**v0.78.0** release commit; not the annotated
+`8f0fd9339df5d30a529aa572ceb51345b8be33a0` (**v0.79.2** release commit; not the annotated
 tag object SHA). All workflow SHA pins include
 trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enforced by
 [lgtm-ci validate-action-pinning](https://github.com/lgtm-hq/lgtm-ci/pull/221) (via
@@ -75,7 +75,15 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
 - **reconcile-releases.yml** — Daily (`schedule`) or manual (`workflow_dispatch`)
   check that recent `v*` tags still have a GitHub Release and a GHCR image
   (`scripts/ci/release/reconcile-releases.sh`). Deliberately not triggered on
-  tag push: it would race the publish workflows
+  tag push: it would race the publish workflows. Reviewed, superseded versions
+  that never shipped are recorded in
+  `scripts/ci/release/reconcile-allowlist.txt`; they produce a warning and summary
+  entry, while any unlisted gap still fails. Do not use this list for a new
+  failure or to hide a missing artifact from a shipped release. First attempt
+  recovery using the original artifacts, following lgtm-ci's
+  [release recovery runbook](https://github.com/lgtm-hq/lgtm-ci/blob/main/docs/release-recovery.md).
+  `v0.69.5` is acknowledged under #1031 because its Docker build failed before
+  publishing and its binary artifacts are gone; `v0.69.6` shipped afterwards.
 - **build-binary.yml** — Cross-platform release binaries (inline; Windows
   `actions/checkout` exception)
 
@@ -116,9 +124,9 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
 Use the **release commit SHA**, not the annotated tag object SHA:
 
 ```yaml
-uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@9ea778eb4e6b876d60b7b3d7d0d0aee5182717bb # v0.78.0
+uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@8f0fd9339df5d30a529aa572ceb51345b8be33a0 # v0.79.2
 with:
-  tooling-ref: '9ea778eb4e6b876d60b7b3d7d0d0aee5182717bb' # v0.78.0 release commit
+  tooling-ref: '8f0fd9339df5d30a529aa572ceb51345b8be33a0' # v0.79.2 release commit
 ```
 
 Sparse `lgtm-hq` tooling checkouts may use `actions/checkout` when `ref:` is quoted and

@@ -22,6 +22,45 @@ and this project adheres to
 
 ### Security
 
+## [0.69.11] - 2026-10-29
+
+### Changed
+
+- acknowledge superseded v0.69.5 release gap (#1089) (92c6e9b)
+- adopt lgtm-ci v0.79.0 and map CODEX_AUTH_JSON for subscription reviews (#1086)
+  (2a7764b)
+- **deps**: update dependency h3 to 2.0.8 (patch) (#1087) (d527027)
+- **deps**: update dependency @types/bun to 1.4.4 (patch) (#1085) (c50de4b)
+- **deps**: update postgres:18-alpine docker digest to 10a5c69 (#1084) (ecd1436)
+
+### Fixed
+
+- **deps**: clear the security baseline (#1090) (076d25c)
+
+## [0.69.10] - 2026-10-27
+
+### Changed
+
+- **deps**: update gcr.io/distroless/static:nonroot docker digest to 18f4cc2 (#1081)
+  (9ee7136)
+- **deps**: update postgres:18-alpine docker digest to 898c60c (#1078) (117bb10)
+- **deps**: update dependency oven-sh/bun to 1.4.4 (patch) (#1073) (cd50fcf)
+- **deps**: update dependency @astrojs/check to 0.9.11 (patch) (#1072) (436affd)
+- **deps**: update rust crate tokio to 1.54.1 (patch) [security] (#1071) (e8324a4)
+- **deps**: update rust crate lru to 0.19.0 (minor) (#1057) (c95742e)
+- **deps**: update rust crate scraper to 0.29.0 (minor) (#1069) (d6f727f)
+- **deps**: update rust crate rstest to 0.28.0 (minor) (#1058) (b3e9487)
+- **deps**: update github/codeql-action action to v4.39.1 (patch) (#1068) (8bfc4b5)
+- **deps**: update rust crate comrak to 0.57.0 (minor) (#1066) (6d345f1)
+- **deps**: update dependency h3 to 2.0.5 (patch) (#1065) (9fb1015)
+- **deps**: update dependency ubuntu to 26.04 (major) (#1028) (be27864)
+- bump lgtm-ci to v0.78.0 (v0.76/v0.77 caller migration) (#1064) (d321bfb)
+- **actionlint**: allow ubuntu-26.04 runner labels (#1063) (fd701b0)
+
+### Fixed
+
+- **ci**: temporarily switch harden-runner egress to audit (#1082) (aee8700)
+
 ## [0.69.9] - 2026-10-21
 
 ### Fixed
@@ -1358,7 +1397,9 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.69.9...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.69.11...HEAD
+[0.69.11]: https://github.com/lgtm-hq/Rustume/compare/v0.69.10...v0.69.11
+[0.69.10]: https://github.com/lgtm-hq/Rustume/compare/v0.69.9...v0.69.10
 [0.69.9]: https://github.com/lgtm-hq/Rustume/compare/v0.69.8...v0.69.9
 [0.69.8]: https://github.com/lgtm-hq/Rustume/compare/v0.69.7...v0.69.8
 [0.69.7]: https://github.com/lgtm-hq/Rustume/compare/v0.69.6...v0.69.7

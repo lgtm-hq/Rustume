@@ -27,12 +27,12 @@ concurrency:
 jobs:
   security-audit:
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-security-audit.yml@9ea778eb4e6b876d60b7b3d7d0d0aee5182717bb # v0.78.0
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-security-audit.yml@8f0fd9339df5d30a529aa572ceb51345b8be33a0 # v0.79.2
     permissions:
       contents: read
       packages: read # pull the pinned lintro audit image from GHCR
     with:
-      tooling-ref: '9ea778eb4e6b876d60b7b3d7d0d0aee5182717bb' # v0.78.0
+      tooling-ref: '8f0fd9339df5d30a529aa572ceb51345b8be33a0' # v0.79.2
       job-name: "Scan dependencies"
       runner-image: ubuntu-24.04
       # yamllint disable-line rule:line-length
@@ -54,7 +54,7 @@ jobs:
         # Direct step-security invocation: lgtm-ci removed its harden-runner
         # composite in v0.50.0 (the action pre hook must install the agent,
         # so allowed-endpoints must be a literal — github-tooling preset).
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -71,7 +71,7 @@ jobs:
         with:
           repository: lgtm-hq/lgtm-ci
           path: .lgtm-ci-tooling
-          ref: '9ea778eb4e6b876d60b7b3d7d0d0aee5182717bb' # v0.78.0
+          ref: '8f0fd9339df5d30a529aa572ceb51345b8be33a0' # v0.79.2
           sparse-checkout: |
             scripts/ci/
           sparse-checkout-cone-mode: true
@@ -89,12 +89,12 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository
     needs: security-audit
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-publish-security-audit-comment.yml@9ea778eb4e6b876d60b7b3d7d0d0aee5182717bb # v0.78.0
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-publish-security-audit-comment.yml@8f0fd9339df5d30a529aa572ceb51345b8be33a0 # v0.79.2
     permissions:
       contents: read
       pull-requests: write # publish the audit summary on this PR
     with:
-      tooling-ref: '9ea778eb4e6b876d60b7b3d7d0d0aee5182717bb' # v0.78.0
+      tooling-ref: '8f0fd9339df5d30a529aa572ceb51345b8be33a0' # v0.79.2
       job-name: "💬 Post PR Comment"
       runner-image: ubuntu-24.04
       egress-policy: block
