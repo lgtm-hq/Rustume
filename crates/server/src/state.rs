@@ -2,9 +2,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use rustume_render::TypstRenderer;
+use tokio::sync::Semaphore;
 
 use crate::cloud::CloudState;
-use crate::config::{rate_limits_enabled_from_env, RateLimitConfig};
+use crate::config::{floor_export_concurrency, rate_limits_enabled_from_env, RateLimitConfig};
 use crate::middleware::rate_limit::RateLimitState;
 
 /// Shared router state for all handlers.
@@ -21,21 +22,55 @@ pub struct AppState {
     pub require_auth: bool,
     /// In-memory rate limiters (cloud mode only).
     pub rate_limits: Option<Arc<RateLimitState>>,
+    /// Bounds concurrent GDPR account exports per process
+    /// (`RATE_LIMIT_ACCOUNT_EXPORT_CONCURRENCY`, default 2). Each export streams
+    /// an unbounded amount of data while holding one database connection, so
+    /// without a ceiling a handful of slow downloads could exhaust the pool
+    /// for every other request.
+    pub export_permits: Arc<Semaphore>,
+}
+
+/// The one place the export semaphore is sized, so production and test
+/// constructors cannot drift on the floor policy.
+fn export_permits(config: &RateLimitConfig) -> Arc<Semaphore> {
+    Arc::new(Semaphore::new(
+        floor_export_concurrency(config.account_export_concurrency) as usize,
+    ))
 }
 
 impl AppState {
     /// Build application state with a shared Typst renderer instance.
     pub fn new(static_dir: Arc<PathBuf>, cloud: Option<Arc<CloudState>>) -> Self {
+        Self::from_config(
+            static_dir,
+            cloud,
+            RateLimitConfig::from_env(),
+            rate_limits_enabled_from_env(),
+        )
+    }
+
+    /// Production constructor with the environment already read, so the
+    /// gating rules are unit-testable without mutating process env.
+    pub fn from_config(
+        static_dir: Arc<PathBuf>,
+        cloud: Option<Arc<CloudState>>,
+        config: RateLimitConfig,
+        rate_limits_enabled: bool,
+    ) -> Self {
+        // The export ceiling applies even when per-minute limits are disabled
+        // for local development: it protects the pool, not the quota.
+        let export_permits = export_permits(&config);
         let rate_limits = cloud
             .as_ref()
-            .filter(|_| rate_limits_enabled_from_env())
-            .map(|_| Arc::new(RateLimitState::new(RateLimitConfig::from_env())));
+            .filter(|_| rate_limits_enabled)
+            .map(|_| Arc::new(RateLimitState::new(config)));
         Self {
             static_dir,
             cloud,
             renderer: Arc::new(TypstRenderer::new()),
             require_auth: crate::cloud::require_auth_enabled(),
             rate_limits,
+            export_permits,
         }
     }
 
@@ -57,6 +92,7 @@ impl AppState {
         require_auth: bool,
         rate_limit_config: RateLimitConfig,
     ) -> Self {
+        let export_permits = export_permits(&rate_limit_config);
         let rate_limits = cloud
             .as_ref()
             .map(|_| Arc::new(RateLimitState::new(rate_limit_config)));
@@ -66,6 +102,7 @@ impl AppState {
             renderer: Arc::new(TypstRenderer::new()),
             require_auth,
             rate_limits,
+            export_permits,
         }
     }
 
