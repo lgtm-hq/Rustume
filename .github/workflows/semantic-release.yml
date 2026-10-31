@@ -78,7 +78,7 @@ jobs:
         crates.io:443
         index.crates.io:443
         static.crates.io:443
-      runner-image: ubuntu-24.04
+      runner-image: ubuntu-26.04
     secrets:
       RELEASE_APP_ID: ${{ secrets.RELEASE_APP_ID }}
       RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}

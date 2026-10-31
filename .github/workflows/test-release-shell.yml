@@ -42,4 +42,4 @@ jobs:
       upload-coverage: false
       egress-policy: block
       egress-preset: shell-test
-      runner-image: ubuntu-24.04
+      runner-image: ubuntu-26.04
