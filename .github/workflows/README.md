@@ -3,7 +3,7 @@
 This repository uses GitHub Actions for quality gates, coverage, release automation,
 and publishing. Most workflows are thin callers to
 [lgtm-ci](https://github.com/lgtm-hq/lgtm-ci) reusable workflows pinned at
-`8f0fd9339df5d30a529aa572ceb51345b8be33a0` (**v0.79.2** release commit; not the annotated
+`95b19dcf24da660fa48b18f7db88af6a3b69d0e6` (**v0.82.1** release commit; not the annotated
 tag object SHA). All workflow SHA pins include
 trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enforced by
 [lgtm-ci validate-action-pinning](https://github.com/lgtm-hq/lgtm-ci/pull/221) (via
@@ -124,18 +124,23 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
 Use the **release commit SHA**, not the annotated tag object SHA:
 
 ```yaml
-uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@8f0fd9339df5d30a529aa572ceb51345b8be33a0 # v0.79.2
+uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@95b19dcf24da660fa48b18f7db88af6a3b69d0e6 # v0.82.1
 with:
-  tooling-ref: '8f0fd9339df5d30a529aa572ceb51345b8be33a0' # v0.79.2 release commit
+  tooling-ref: '95b19dcf24da660fa48b18f7db88af6a3b69d0e6' # v0.82.1 release commit
 ```
 
 Sparse `lgtm-hq` tooling checkouts may use `actions/checkout` when `ref:` is quoted and
 Renovate-tracked.
 
-Pass `runner-image: ubuntu-24.04` on reusables that expose the input (lgtm-ci #338).
-Action-only wrappers (`reusable-codeql`, `reusable-dependency-review`, etc.) and
-multi-arch Docker (`runner-map`) follow the exceptions in
-[lgtm-ci workflow-contract](https://github.com/lgtm-hq/lgtm-ci/blob/main/docs/workflow-contract.md#runner-pinning-exceptions).
+Omit generic `runner-image` overrides so reusables resolve `vars.LGTM_CI_RUNNER`,
+falling back to `ubuntu-26.04` when the variable is unset or invisible. Generic direct
+jobs use `${{ vars.LGTM_CI_RUNNER || 'ubuntu-26.04' }}`. This public repository remains
+outside the Blacksmith pool; this change only makes the workflows switch-ready.
+
+Keep the release binary platform matrix and Docker's native ARM `runner-map` with
+comments explaining the exceptions. Action-only wrappers (`reusable-codeql`,
+`reusable-scorecards`) keep the fixed runners documented in the
+[lgtm-ci workflow-contract](https://github.com/lgtm-hq/lgtm-ci/blob/v0.82.1/docs/workflow-contract.md#runner-pinning-exceptions).
 
 ## Version pin inventory
 
