@@ -57,7 +57,7 @@ jobs:
       job-name: "🛠️ Lintro Code Quality"
       lintro-tool-options: clippy:timeout=300
       timeout-minutes: 30
-      runner-image: ubuntu-24.04
+      runner-image: ubuntu-26.04
       # yamllint disable-line rule:line-length
       lintro-image: ghcr.io/lgtm-hq/py-lintro:0.173.1@sha256:116e60912a8c7a2002349ef096cfa93644314492751746aacdd5ef228c74306f
       egress-policy: block
@@ -80,5 +80,5 @@ jobs:
         ${{ needs.quality.outputs.exit-code != '' && needs.quality.outputs.exit-code || '1' }}
       tooling-ref: '8f0fd9339df5d30a529aa572ceb51345b8be33a0' # v0.79.2
       job-name: "🛠️ Lintro Code Quality PR Comment"
-      runner-image: ubuntu-24.04
+      runner-image: ubuntu-26.04
       egress-policy: block

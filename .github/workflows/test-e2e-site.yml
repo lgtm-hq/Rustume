@@ -103,5 +103,5 @@ jobs:
         azure.archive.ubuntu.com:80
         esm.ubuntu.com:443
         packages.microsoft.com:443
-      runner-image: ubuntu-24.04
+      runner-image: ubuntu-26.04
       timeout-minutes: 30

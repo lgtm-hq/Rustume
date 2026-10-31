@@ -83,7 +83,7 @@ jobs:
       upload-site-artifact: true
       site-artifact-name: site-dist
       site-artifact-path: apps/site/dist
-      runner-image: ubuntu-24.04
+      runner-image: ubuntu-26.04
       egress-policy: block
       egress-preset: github-pages
       # Harden-runner pre reads workflow inputs only (not resolved presets)

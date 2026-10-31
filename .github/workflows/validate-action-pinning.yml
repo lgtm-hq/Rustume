@@ -24,6 +24,6 @@ jobs:
       egress-policy: block
       egress-preset: github-tooling
       fail-on-error: true
-      runner-image: ubuntu-24.04
+      runner-image: ubuntu-26.04
     permissions:
       contents: read

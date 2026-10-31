@@ -62,7 +62,7 @@ jobs:
       pages-coverage-artifact-name: rust-coverage-html
       comment-marker: rust-coverage-report
       publish-test-summary: true
-      runner-image: ubuntu-24.04
+      runner-image: ubuntu-26.04
       timeout-minutes: 45
 
   web-coverage:
@@ -93,5 +93,5 @@ jobs:
       # v0.52.3 the step hard-fails for single-version coverage callers on
       # PRs, taking the required 🌐 Web Coverage check down with it.
       publish-test-summary: false
-      runner-image: ubuntu-24.04
+      runner-image: ubuntu-26.04
       timeout-minutes: 30
