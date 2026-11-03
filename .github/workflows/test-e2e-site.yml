@@ -53,12 +53,12 @@ concurrency:
 jobs:
   site-e2e:
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-e2e-playwright.yml@8f0fd9339df5d30a529aa572ceb51345b8be33a0 # v0.79.2
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-e2e-playwright.yml@95b19dcf24da660fa48b18f7db88af6a3b69d0e6 # v0.82.1
     permissions:
       contents: read
       pull-requests: write # publish-test-summary on PRs
     with:
-      tooling-ref: '8f0fd9339df5d30a529aa572ceb51345b8be33a0' # v0.79.2
+      tooling-ref: '95b19dcf24da660fa48b18f7db88af6a3b69d0e6' # v0.82.1
       job-name: "♿ Site E2E"
       node-version: "22"
       working-directory: apps/site
@@ -103,5 +103,4 @@ jobs:
         azure.archive.ubuntu.com:80
         esm.ubuntu.com:443
         packages.microsoft.com:443
-      runner-image: ubuntu-24.04
       timeout-minutes: 30

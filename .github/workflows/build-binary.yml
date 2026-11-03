@@ -14,6 +14,7 @@ permissions:
 jobs:
   build:
     name: 🔨 Build (${{ matrix.target }})
+    # Release targets keep their tested Linux, macOS and Windows matrix images.
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     defaults:
@@ -54,7 +55,7 @@ jobs:
       - name: Checkout
         if: runner.os != 'Windows'
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@8f0fd9339df5d30a529aa572ceb51345b8be33a0 # v0.79.2
+        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@95b19dcf24da660fa48b18f7db88af6a3b69d0e6 # v0.82.1
 
       - name: Checkout (Windows)
         if: runner.os == 'Windows'
@@ -68,7 +69,7 @@ jobs:
         # setup-rust cargo-binstall fix for Windows Git Bash
         # (MINGW64_NT-* was "Unsupported OS", skipping release artifacts).
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/setup-rust@8f0fd9339df5d30a529aa572ceb51345b8be33a0 # v0.79.2
+        uses: lgtm-hq/lgtm-ci/.github/actions/setup-rust@95b19dcf24da660fa48b18f7db88af6a3b69d0e6 # v0.82.1
         with:
           targets: ${{ matrix.target }}
 

@@ -32,9 +32,9 @@ jobs:
       contents: read
       pull-requests: write # publish-test-summary posts shell coverage on PRs
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-shell.yml@8f0fd9339df5d30a529aa572ceb51345b8be33a0 # v0.79.2
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-shell.yml@95b19dcf24da660fa48b18f7db88af6a3b69d0e6 # v0.82.1
     with:
-      tooling-ref: '8f0fd9339df5d30a529aa572ceb51345b8be33a0' # v0.79.2
+      tooling-ref: '95b19dcf24da660fa48b18f7db88af6a3b69d0e6' # v0.82.1
       job-name: Release Shell Tests
       test-path: tests/bats/unit/release
       coverage: true
@@ -42,4 +42,3 @@ jobs:
       upload-coverage: false
       egress-policy: block
       egress-preset: shell-test
-      runner-image: ubuntu-24.04

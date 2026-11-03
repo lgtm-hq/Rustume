@@ -47,14 +47,14 @@ jobs:
   # instrumented, as a superset of the old dedicated job's filter.
   rust-coverage:
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-rust-test.yml@8f0fd9339df5d30a529aa572ceb51345b8be33a0 # v0.79.2
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-rust-test.yml@95b19dcf24da660fa48b18f7db88af6a3b69d0e6 # v0.82.1
     permissions:
       actions: read # lgtm-ci v0.76+: aggregate job reads the run's artifact listing
       contents: read
       pull-requests: write # publish-test-summary on PRs
     with:
       egress-policy: block
-      tooling-ref: '8f0fd9339df5d30a529aa572ceb51345b8be33a0' # v0.79.2
+      tooling-ref: '95b19dcf24da660fa48b18f7db88af6a3b69d0e6' # v0.82.1
       job-name: "🦀 Rust Coverage"
       coverage: true
       setup-script: scripts/ci/testing/rust/setup-postgres-test-db.sh
@@ -62,19 +62,18 @@ jobs:
       pages-coverage-artifact-name: rust-coverage-html
       comment-marker: rust-coverage-report
       publish-test-summary: true
-      runner-image: ubuntu-24.04
       timeout-minutes: 45
 
   web-coverage:
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-node.yml@8f0fd9339df5d30a529aa572ceb51345b8be33a0 # v0.79.2
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-node.yml@95b19dcf24da660fa48b18f7db88af6a3b69d0e6 # v0.82.1
     permissions:
       actions: read # lgtm-ci v0.76+: aggregate job reads the run's artifact listing
       contents: read
       pull-requests: write # publish-test-summary on PRs
     with:
       egress-policy: block
-      tooling-ref: '8f0fd9339df5d30a529aa572ceb51345b8be33a0' # v0.79.2
+      tooling-ref: '95b19dcf24da660fa48b18f7db88af6a3b69d0e6' # v0.82.1
       job-name: "🌐 Web Coverage"
       node-version: "22"
       working-directory: apps/web
@@ -93,5 +92,4 @@ jobs:
       # v0.52.3 the step hard-fails for single-version coverage callers on
       # PRs, taking the required 🌐 Web Coverage check down with it.
       publish-test-summary: false
-      runner-image: ubuntu-24.04
       timeout-minutes: 30
