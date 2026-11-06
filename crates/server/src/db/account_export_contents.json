@@ -1,0 +1,25 @@
+{
+  "$comment": "What GET /api/account/export contains and omits, as shown to the user. One source for the web Account page (imported as JSON) and the server (include_str! in models.rs), whose test pins `collections` to the AccountDataExport schema and to the cloud-endpoints docs table.",
+  "included": [
+    { "collections": ["account"], "text": "your profile" },
+    { "collections": ["policy_acceptances"], "text": "policy acceptances" },
+    {
+      "collections": ["subscriptions"],
+      "text": "billing subscriptions (including Paddle subscription and price ids)"
+    },
+    {
+      "collections": ["resumes", "resume_snapshots"],
+      "text": "every resume with its retained version snapshots"
+    },
+    {
+      "collections": ["audit_events"],
+      "text": "your account's audit trail (including the IP addresses recorded with each event)"
+    }
+  ],
+  "excluded": [
+    { "text": "sessions", "docs": "session rows" },
+    { "text": "the WorkOS user id", "docs": "WorkOS user id" },
+    { "text": "the Paddle customer id", "docs": "Paddle customer id" },
+    { "text": "share password hashes", "docs": "password hashes for\nprotected shares" }
+  ]
+}
