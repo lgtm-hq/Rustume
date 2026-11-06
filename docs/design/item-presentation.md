@@ -105,12 +105,12 @@ The numeric meaning of each step is identical on both surfaces; only the glyph m
 
 Composition is **position-first** on all 12 templates, sheet and PDF (#858).
 
-| Line      | Fields                                         | Notes                                                                                |
-| --------- | ---------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Primary   | `position`                                     | Lead field; template-owned weight/size/color                                         |
-| Secondary | `company`                                      | Follows on the next line, or after `—` on the same line when that is the frozen spec |
-| Date      | `date`                                         | Separate (header column, badge, or muted sibling) — never folded ahead of position   |
-| Optional  | `location`, `summary`, keywords, custom fields | After the lines above                                                                |
+| Line      | Fields                                         | Notes                                                                                                                                   |
+| --------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Primary   | `position`                                     | Lead field; template-owned weight/size/color                                                                                            |
+| Secondary | `company`                                      | Follows on the next line, or after a space-padded em dash (`—` with a space on each side) on the same line when that is the frozen spec |
+| Date      | `date`                                         | Separate (header column, badge, or muted sibling) — never folded ahead of position                                                      |
+| Optional  | `location`, `summary`, keywords, custom fields | After the lines above                                                                                                                   |
 
 Company URLs stay on the company text. Volunteer (`organization` / `position`) is out of scope.
 
