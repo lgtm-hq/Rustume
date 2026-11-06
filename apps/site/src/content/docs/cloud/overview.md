@@ -1,6 +1,6 @@
 ---
 title: "Cloud Overview"
-description: 'Use hosted Rustume Cloud for ready-to-use sign-in and synchronization, or deploy the same Cloud-capable application yourself.'
+description: "Use hosted Rustume Cloud for ready-to-use sign-in and synchronization, or deploy the same Cloud-capable application yourself."
 category: cloud
 order: 10
 ---
@@ -14,11 +14,11 @@ working without provisioning a database, identity provider, backups, or monitori
 The open-source application and the hosted service share the same functional Cloud surface. A
 subscription pays for an operated deployment, not access to otherwise hidden product features.
 
-| Experience | Who operates it | Persistence and sync | Product capabilities |
-| --- | --- | --- | --- |
-| Browser-local use | You and your browser | IndexedDB on one device | Builder, templates, import, export |
-| Self-hosted Cloud configuration | You | Your PostgreSQL-backed deployment | Full connected feature set |
-| Rustume Cloud | Rustume | Hosted storage and sync, ready after sign-in | Full connected feature set |
+| Experience                      | Who operates it      | Persistence and sync                         | Product capabilities               |
+| ------------------------------- | -------------------- | -------------------------------------------- | ---------------------------------- |
+| Browser-local use               | You and your browser | IndexedDB on one device                      | Builder, templates, import, export |
+| Self-hosted Cloud configuration | You                  | Your PostgreSQL-backed deployment            | Full connected feature set         |
+| Rustume Cloud                   | Rustume              | Hosted storage and sync, ready after sign-in | Full connected feature set         |
 
 ## Connected features
 

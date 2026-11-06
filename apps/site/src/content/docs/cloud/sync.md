@@ -1,6 +1,6 @@
 ---
 title: "Sync"
-description: 'Synchronize account-backed resumes across signed-in devices with offline queueing and conflict handling.'
+description: "Synchronize account-backed resumes across signed-in devices with offline queueing and conflict handling."
 category: cloud
 order: 60
 ---
@@ -19,10 +19,10 @@ Cloud-configured installation.
 
 ## Choosing hosted or self-hosted sync
 
-| Choice | Setup | Operational responsibility |
-| --- | --- | --- |
-| Rustume Cloud | Sign in and begin editing | Hosted service operates storage, availability, and backups |
-| Self-hosted connected deployment | Configure Cloud mode and identity | Operator runs storage, backup, monitoring, and upgrades |
+| Choice                           | Setup                             | Operational responsibility                                 |
+| -------------------------------- | --------------------------------- | ---------------------------------------------------------- |
+| Rustume Cloud                    | Sign in and begin editing         | Hosted service operates storage, availability, and backups |
+| Self-hosted connected deployment | Configure Cloud mode and identity | Operator runs storage, backup, monitoring, and upgrades    |
 
 There is no feature entitlement difference between those choices. Read [Cloud Getting
 Started](/docs/cloud/getting-started/) or [Environment Variables](/docs/deployment/env-reference/)

@@ -11,11 +11,11 @@ background `#ffffff`, text `#422006`, primary `#78716c`.
 
 ## Typefaces
 
-| Role | Face | Notes |
-| --- | --- | --- |
-| Body | IBM Plex Sans 10pt / leading **0.7em** | Slightly looser leading |
-| Display | Name 24pt **light** weight inside the box; headings 10pt semibold uppercase with trailing rule on the same row | Same family |
-| Mono | None | |
+| Role    | Face                                                                                                           | Notes                   |
+| ------- | -------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| Body    | IBM Plex Sans 10pt / leading **0.7em**                                                                         | Slightly looser leading |
+| Display | Name 24pt **light** weight inside the box; headings 10pt semibold uppercase with trailing rule on the same row | Same family             |
+| Mono    | None                                                                                                           |                         |
 
 **#701:** configurable size/leading; boxed header + light name weight stay identity.
 
@@ -41,14 +41,14 @@ Default main / sidebar section ids are defined once in
 
 ## Item composition
 
-| Concern | Rule |
-| --- | --- |
-| Experience order | **Position-first** (semibold); `— company` muted on the same line; location on its own row — already sheet-aligned |
-| Education order | Institution + degree; date right; score; summary |
-| Profile label mode | `network-username` |
-| Skill keywords | Themed pill chips (`render-item-tag-chips`, #919) |
-| Interest keywords | Themed pill chips (`render-item-tag-chips`, #919) |
-| Project keywords | Soft chips (template-local); custom-section keywords stay comma-joined |
+| Concern                    | Rule                                                                                                                  |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Experience order           | **Position-first** (semibold); `— company` muted on the same line; location on its own row — already sheet-aligned    |
+| Education order            | Institution + degree; date right; score; summary                                                                      |
+| Profile label mode         | `network-username`                                                                                                    |
+| Skill keywords             | Themed pill chips (`render-item-tag-chips`, #919)                                                                     |
+| Interest keywords          | Themed pill chips (`render-item-tag-chips`, #919)                                                                     |
+| Project keywords           | Soft chips (template-local); custom-section keywords stay comma-joined                                                |
 | Level (`template-default`) | Sheet-parity five dots: 4.5pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.25pt apart (#919) |
 
 Shared extras from `_common.typ` (experience/education keyword chips + custom
@@ -57,13 +57,13 @@ bodies above.
 
 ## Divergences (sheet vs PDF vs this spec)
 
-| Divergence | Tag |
-| --- | --- |
-| Sheet `headerStyle: boxed` draws a stroked banner approximation; Typst centers a full-width padded box including contact | fix-in-typst |
-| Typst's trailing accent rule vs the sheet's underline + uppercase chrome (`chromeUnderlineChips`) — the sheet has kakuna's heading chrome; the rule treatment is a Typst extra | fix-in-typst |
-| Light name weight not mirrored | fix-in-typst |
-| Experience lead field | fixed (#858) |
-| Typography metadata ignored | fix-in-typst (#701) |
+| Divergence                                                                                                                                                                     | Tag                 |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------- |
+| Sheet `headerStyle: boxed` draws a stroked banner approximation; Typst centers a full-width padded box including contact                                                       | fix-in-typst        |
+| Typst's trailing accent rule vs the sheet's underline + uppercase chrome (`chromeUnderlineChips`) — the sheet has kakuna's heading chrome; the rule treatment is a Typst extra | fix-in-typst        |
+| Light name weight not mirrored                                                                                                                                                 | fix-in-typst        |
+| Experience lead field                                                                                                                                                          | fixed (#858)        |
+| Typography metadata ignored                                                                                                                                                    | fix-in-typst (#701) |
 
 ### Audit evidence
 

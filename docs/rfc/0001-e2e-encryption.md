@@ -237,9 +237,9 @@ operator holding the hash rows. Eight codes are issued per account. For each cod
    - `code_hash` = `SHA-256(code)` (lookup / verification key)
    - `backup` = `{ "nonce": "<base64url>", "ciphertext": "<base64url>" }` (the
      `nonce_recovery` + ciphertext pair for that same code)
-   The server must never store a ciphertext without its nonce, and must never return a
-   backup blob that is not the one paired with the matched `code_hash` (operator still
-   cannot decrypt without the code).
+     The server must never store a ciphertext without its nonce, and must never return a
+     backup blob that is not the one paired with the matched `code_hash` (operator still
+     cannot decrypt without the code).
 4. On recovery: the client computes `SHA-256(code)` locally and sends only that
    hash, never the raw code or RK → server finds the row where `code_hash` matches →
    returns that row's `backup` blob and, while a DEK rotation is in progress and not
@@ -428,7 +428,7 @@ toggle).
    entry, or "trust this device" flow with additional auth factor?
 
 3. **E2EE + server-managed encryption stacking.** Encrypt envelope with server DEK
-   *and* client DEK (defense in depth) or client-only for true zero-knowledge?
+   _and_ client DEK (defense in depth) or client-only for true zero-knowledge?
 
 4. **Import from plaintext local storage.** When enabling E2EE, should local IndexedDB
    copies also be encrypted locally, or remain plaintext on device?
@@ -459,7 +459,7 @@ If this RFC is accepted, file the following implementation sub-issues:
 
 ---
 
-*This RFC replaces the implementation sketch in [#44](https://github.com/lgtm-hq/Rustume/issues/44)
+_This RFC replaces the implementation sketch in [#44](https://github.com/lgtm-hq/Rustume/issues/44)
 for design purposes. Implementation tracking continues in
 [#44](https://github.com/lgtm-hq/Rustume/issues/44)
-and the spawned sub-issues above.*
+and the spawned sub-issues above._

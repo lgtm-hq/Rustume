@@ -3,7 +3,7 @@
 This repository uses GitHub Actions for quality gates, coverage, release automation,
 and publishing. Most workflows are thin callers to
 [lgtm-ci](https://github.com/lgtm-hq/lgtm-ci) reusable workflows pinned at
-`95b19dcf24da660fa48b18f7db88af6a3b69d0e6` (**v0.82.1** release commit; not the annotated
+`b830ca6972f0c9cbaeb1363283de594f68d66acf` (**v0.87.0** release commit; not the annotated
 tag object SHA). All workflow SHA pins include
 trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enforced by
 [lgtm-ci validate-action-pinning](https://github.com/lgtm-hq/lgtm-ci/pull/221) (via
@@ -24,7 +24,7 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
 - **test-e2e-web.yml** — Web app Playwright suites (smoke, per-flow E2E, visual
   regression including per-template sheet baselines, accessibility) via
   `reusable-test-e2e-playwright` (`test-command:
-  scripts/ci/testing/web/e2e.sh` supplies the Rust/wasm-pack stage the reusable
+scripts/ci/testing/web/e2e.sh` supplies the Rust/wasm-pack stage the reusable
   has no input for); one call runs every suite because they share that build.
   Sheet baselines are CI (Linux) generated — download the report artifact and
   commit `test-results/__screenshots__` (see
@@ -124,9 +124,9 @@ trailing `# vX.Y.Z` comments so Renovate can track digest updates. Policy is enf
 Use the **release commit SHA**, not the annotated tag object SHA:
 
 ```yaml
-uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@95b19dcf24da660fa48b18f7db88af6a3b69d0e6 # v0.82.1
+uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@b830ca6972f0c9cbaeb1363283de594f68d66acf # v0.87.0
 with:
-  tooling-ref: '95b19dcf24da660fa48b18f7db88af6a3b69d0e6' # v0.82.1 release commit
+  tooling-ref: "b830ca6972f0c9cbaeb1363283de594f68d66acf" # v0.87.0 release commit
 ```
 
 Sparse `lgtm-hq` tooling checkouts may use `actions/checkout` when `ref:` is quoted and
@@ -140,7 +140,7 @@ outside the Blacksmith pool; this change only makes the workflows switch-ready.
 Keep the release binary platform matrix and Docker's native ARM `runner-map` with
 comments explaining the exceptions. Action-only wrappers (`reusable-codeql`,
 `reusable-scorecards`) keep the fixed runners documented in the
-[lgtm-ci workflow-contract](https://github.com/lgtm-hq/lgtm-ci/blob/v0.82.1/docs/workflow-contract.md#runner-pinning-exceptions).
+[lgtm-ci workflow-contract](https://github.com/lgtm-hq/lgtm-ci/blob/v0.87.0/docs/workflow-contract.md#runner-pinning-exceptions).
 
 ## Version pin inventory
 
@@ -151,32 +151,32 @@ instead of being rediscovered after years of drift (#568).
 Renovate config lives in `renovate.json`; the shared preset is
 `local>lgtm-hq/.github:renovate-config`.
 
-| Path | Field | Pins | Owner |
-| --- | --- | --- | --- |
-| `.github/workflows/*.yml` | `uses: <owner>/<repo>@<sha> # vX.Y.Z` | Actions and lgtm-ci reusables | Renovate `github-actions` |
-| `.github/workflows/*.yml` | `tooling-ref: '<sha>' # vX.Y.Z` (one per lgtm-ci caller job) | lgtm-ci tooling checkout, mirroring the `uses:` pin in the same file | Org Renovate preset custom manager (`lgtm-hq/lgtm-ci`, `github-releases`), grouped with the `uses:` pins into one `lgtm-ci` branch; enforced by `pin-sync-guard.yml` |
-| `.github/workflows/ci-lintro-analysis.yml`, `.github/workflows/security-dependency-review.yml` | `lintro-image: ghcr.io/lgtm-hq/py-lintro:<version>@sha256:<digest>` | lintro CI image (version and digest together) | Renovate custom manager (`ghcr.io/lgtm-hq/py-lintro`, `docker`) |
-| `.github/workflows/boundary-guard.yml` | `pip install uv==<version>` | uv in the boundary job (`setup-uv` is blocked by the egress policy) | **Manual — no manager** |
-| `.github/workflows/coverage.yml`, `deploy-pages.yml`, `site-quality.yml`, `test-e2e-web.yml`, `test-e2e-site.yml` | `node-version:`, `python-version:` | CI runtime majors | **Manual — no manager** |
-| `.github/workflows/README.md` | `## Pin format` example | Illustrative lgtm-ci pin | **Manual — no manager**; `pin-sync-guard.yml` does not read Markdown |
-| `docker/Dockerfile` | `FROM <image>@sha256:<digest>` | `rust`, `gcr.io/distroless/static` | Renovate `dockerfile` (digest updates automerged) |
-| `docker/Dockerfile` | `ARG BUN_VERSION=` | bun release tarball | Renovate custom manager (`oven-sh/bun`, `github-releases`) |
-| `scripts/ci/docker/install-cargo-binstall.sh` | `DEFAULT_BINSTALL_VERSION` plus per-arch checksums | cargo-binstall release tarballs used by Docker chef and web-builder | **Manual — version and both SHA-256 values move together** |
-| `docker/Dockerfile` | `ARG CARGO_CHEF_VERSION=` | cargo-chef prebuilt via cargo-binstall | Renovate custom manager (`cargo-chef`, `crate`) |
-| `scripts/ci/testing/web/install-wasm-pack.sh` | `DEFAULT_WASM_PACK_VERSION` plus per-arch checksums | wasm-pack release tarballs used by CI and Docker | **Manual — canonical version/checksum source** |
-| `docker/Dockerfile` | `wasm-bindgen-cli@${WASM_BINDGEN_VERSION}` | Derived from `Cargo.lock` at build time | n/a — no literal pin to update |
-| `docker-compose.yml` | `image: postgres:<tag>@sha256:<digest>` | Local dev Postgres | Renovate `docker-compose` |
-| `docker-compose.yml` | `image: ghcr.io/lgtm-hq/rustume:latest` | This repo's own image | n/a — deliberately floating |
-| `Cargo.toml`, `crates/*/Cargo.toml`, `bindings/*/Cargo.toml` | `[dependencies]` requirements | Rust crates | Renovate `cargo` |
-| `Cargo.lock` | Resolved Rust crates | Transitive Rust versions | Renovate `cargo` (updated with the manifest) |
-| `apps/web/package.json`, `apps/site/package.json` | `dependencies`, `devDependencies` | JS/TS deps | Renovate `npm` |
-| `apps/web/package.json`, `apps/site/package.json` | `overrides` | Forced transitive versions (`astro`, `esbuild`, `sharp`, `ws`, `fast-uri`, …) | Renovate `npm` (extracts `overrides`); `apps/site` TypeScript majors are pinned off in `renovate.json` |
-| `apps/web/bun.lock`, `apps/site/bun.lock` | Resolved JS deps | Transitive JS versions | Renovate `npm` (bun lockfile) |
-| `pyproject.toml` | `[dependency-groups] lint`, `test` | lintro, pytest | Renovate `pep621` (PEP 735 dependency groups) |
-| `uv.lock` | Resolved Python deps | lintro and its tool stack | Renovate `pep621` (refreshed with the manifest) |
-| `scripts/ci/site/preview-pages-local.sh` | `CARGO_LLVM_COV_VERSION=` | cargo-llvm-cov | Renovate custom manager (`cargo-llvm-cov`, `crate`) |
-| `scripts/ci/boundary/check_content.sh` | `uvx --from semgrep==<version>` | semgrep for the content guard | **Manual — no manager** |
-| `scripts/ci/testing/rust/run-server-db-migrations.sh` | `SQLX_CLI_VERSION=` | sqlx-cli | **Manual — no manager** |
+| Path                                                                                                              | Field                                                               | Pins                                                                          | Owner                                                                                                                                                                |
+| ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.github/workflows/*.yml`                                                                                         | `uses: <owner>/<repo>@<sha> # vX.Y.Z`                               | Actions and lgtm-ci reusables                                                 | Renovate `github-actions`                                                                                                                                            |
+| `.github/workflows/*.yml`                                                                                         | `tooling-ref: '<sha>' # vX.Y.Z` (one per lgtm-ci caller job)        | lgtm-ci tooling checkout, mirroring the `uses:` pin in the same file          | Org Renovate preset custom manager (`lgtm-hq/lgtm-ci`, `github-releases`), grouped with the `uses:` pins into one `lgtm-ci` branch; enforced by `pin-sync-guard.yml` |
+| `.github/workflows/ci-lintro-analysis.yml`, `.github/workflows/security-dependency-review.yml`                    | `lintro-image: ghcr.io/lgtm-hq/py-lintro:<version>@sha256:<digest>` | lintro CI image (version and digest together)                                 | Renovate custom manager (`ghcr.io/lgtm-hq/py-lintro`, `docker`)                                                                                                      |
+| `.github/workflows/boundary-guard.yml`                                                                            | `pip install uv==<version>`                                         | uv in the boundary job (`setup-uv` is blocked by the egress policy)           | **Manual — no manager**                                                                                                                                              |
+| `.github/workflows/coverage.yml`, `deploy-pages.yml`, `site-quality.yml`, `test-e2e-web.yml`, `test-e2e-site.yml` | `node-version:`, `python-version:`                                  | CI runtime majors                                                             | **Manual — no manager**                                                                                                                                              |
+| `.github/workflows/README.md`                                                                                     | `## Pin format` example                                             | Illustrative lgtm-ci pin                                                      | **Manual — no manager**; `pin-sync-guard.yml` does not read Markdown                                                                                                 |
+| `docker/Dockerfile`                                                                                               | `FROM <image>@sha256:<digest>`                                      | `rust`, `gcr.io/distroless/static`                                            | Renovate `dockerfile` (digest updates automerged)                                                                                                                    |
+| `docker/Dockerfile`                                                                                               | `ARG BUN_VERSION=`                                                  | bun release tarball                                                           | Renovate custom manager (`oven-sh/bun`, `github-releases`)                                                                                                           |
+| `scripts/ci/docker/install-cargo-binstall.sh`                                                                     | `DEFAULT_BINSTALL_VERSION` plus per-arch checksums                  | cargo-binstall release tarballs used by Docker chef and web-builder           | **Manual — version and both SHA-256 values move together**                                                                                                           |
+| `docker/Dockerfile`                                                                                               | `ARG CARGO_CHEF_VERSION=`                                           | cargo-chef prebuilt via cargo-binstall                                        | Renovate custom manager (`cargo-chef`, `crate`)                                                                                                                      |
+| `scripts/ci/testing/web/install-wasm-pack.sh`                                                                     | `DEFAULT_WASM_PACK_VERSION` plus per-arch checksums                 | wasm-pack release tarballs used by CI and Docker                              | **Manual — canonical version/checksum source**                                                                                                                       |
+| `docker/Dockerfile`                                                                                               | `wasm-bindgen-cli@${WASM_BINDGEN_VERSION}`                          | Derived from `Cargo.lock` at build time                                       | n/a — no literal pin to update                                                                                                                                       |
+| `docker-compose.yml`                                                                                              | `image: postgres:<tag>@sha256:<digest>`                             | Local dev Postgres                                                            | Renovate `docker-compose`                                                                                                                                            |
+| `docker-compose.yml`                                                                                              | `image: ghcr.io/lgtm-hq/rustume:latest`                             | This repo's own image                                                         | n/a — deliberately floating                                                                                                                                          |
+| `Cargo.toml`, `crates/*/Cargo.toml`, `bindings/*/Cargo.toml`                                                      | `[dependencies]` requirements                                       | Rust crates                                                                   | Renovate `cargo`                                                                                                                                                     |
+| `Cargo.lock`                                                                                                      | Resolved Rust crates                                                | Transitive Rust versions                                                      | Renovate `cargo` (updated with the manifest)                                                                                                                         |
+| `apps/web/package.json`, `apps/site/package.json`                                                                 | `dependencies`, `devDependencies`                                   | JS/TS deps                                                                    | Renovate `npm`                                                                                                                                                       |
+| `apps/web/package.json`, `apps/site/package.json`                                                                 | `overrides`                                                         | Forced transitive versions (`astro`, `esbuild`, `sharp`, `ws`, `fast-uri`, …) | Renovate `npm` (extracts `overrides`); `apps/site` TypeScript majors are pinned off in `renovate.json`                                                               |
+| `apps/web/bun.lock`, `apps/site/bun.lock`                                                                         | Resolved JS deps                                                    | Transitive JS versions                                                        | Renovate `npm` (bun lockfile)                                                                                                                                        |
+| `pyproject.toml`                                                                                                  | `[dependency-groups] lint`, `test`                                  | lintro, pytest                                                                | Renovate `pep621` (PEP 735 dependency groups)                                                                                                                        |
+| `uv.lock`                                                                                                         | Resolved Python deps                                                | lintro and its tool stack                                                     | Renovate `pep621` (refreshed with the manifest)                                                                                                                      |
+| `scripts/ci/site/preview-pages-local.sh`                                                                          | `CARGO_LLVM_COV_VERSION=`                                           | cargo-llvm-cov                                                                | Renovate custom manager (`cargo-llvm-cov`, `crate`)                                                                                                                  |
+| `scripts/ci/boundary/check_content.sh`                                                                            | `uvx --from semgrep==<version>`                                     | semgrep for the content guard                                                 | **Manual — no manager**                                                                                                                                              |
+| `scripts/ci/testing/rust/run-server-db-migrations.sh`                                                             | `SQLX_CLI_VERSION=`                                                 | sqlx-cli                                                                      | **Manual — no manager**                                                                                                                                              |
 
 The lintro version is authoritative in **two** places that must agree: the `lintro-image:`
 pins above (what CI runs) and `pyproject.toml` + `uv.lock` (what `uv run lintro` runs

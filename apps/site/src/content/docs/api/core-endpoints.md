@@ -1,6 +1,6 @@
 ---
 title: "Core Endpoints"
-description: '<code>POST /api/parse</code>, <code>POST /api/render/pdf</code>, validate, and template reference.'
+description: "<code>POST /api/parse</code>, <code>POST /api/render/pdf</code>, validate, and template reference."
 category: api
 order: 20
 ---
@@ -34,7 +34,6 @@ single cheap request:
   "commit": "c515854",
   "built_at": "2026-07-25T19:38:00Z"
 }
-
 ```
 
 `commit` is the short commit the image was built from — the same seven characters as the
@@ -64,7 +63,6 @@ Returns all 12 templates with theme colors:
     }
   }
 ]
-
 ```
 
 ```http
@@ -95,15 +93,14 @@ Convert external formats to [Rustume](/) JSON.
   "data": "{\"basics\":{\"name\":\"Jane Doe\",\"label\":\"Engineer\"}}",
   "base64": false
 }
-
 ```
 
-| `format` value | Input |
-| --- | --- |
-| `json-resume` | [JSON Resume](https://jsonresume.org/) string |
+| `format` value        | Input                                                                            |
+| --------------------- | -------------------------------------------------------------------------------- |
+| `json-resume`         | [JSON Resume](https://jsonresume.org/) string                                    |
 | LinkedIn (`linkedin`) | Base64-encoded [LinkedIn](https://www.linkedin.com/) export ZIP (`base64: true`) |
-| `rrv3` | [Reactive Resume](https://rxresu.me/) JSON |
-| `rustume` | Native [Rustume](/) JSON |
+| `rrv3`                | [Reactive Resume](https://rxresu.me/) JSON                                       |
+| `rustume`             | Native [Rustume](/) JSON                                                         |
 
 **Response:** `200` with `ResumeData` JSON.
 
@@ -124,7 +121,6 @@ Content-Type: application/json
   "resume": { "basics": { "name": "Jane Doe" }, "sections": {}, "metadata": {} },
   "template": "onyx"
 }
-
 ```
 
 `template` is optional — defaults to `metadata.template` or `rhyhorn`.
@@ -174,7 +170,6 @@ Content-Type: application/json
 
 ```json
 { "valid": true }
-
 ```
 
 Or on failure:
@@ -184,7 +179,6 @@ Or on failure:
   "valid": false,
   "errors": ["basics.email: invalid email format"]
 }
-
 ```
 
 Always returns `200` — check the `valid` field. Nested field paths use dot notation (e.g.
@@ -199,10 +193,10 @@ templates, or connected capabilities from self-hosted operators.
 
 ## CLI equivalents
 
-| API | CLI |
-| --- | --- |
-| `POST /api/parse` | `rustume parse` |
-| `POST /api/render/pdf` | `rustume render` |
-| `POST /api/render/preview` | `rustume preview` |
-| `POST /api/validate` | `rustume validate` |
-| `GET /api/templates` | `rustume templates` |
+| API                        | CLI                 |
+| -------------------------- | ------------------- |
+| `POST /api/parse`          | `rustume parse`     |
+| `POST /api/render/pdf`     | `rustume render`    |
+| `POST /api/render/preview` | `rustume preview`   |
+| `POST /api/validate`       | `rustume validate`  |
+| `GET /api/templates`       | `rustume templates` |

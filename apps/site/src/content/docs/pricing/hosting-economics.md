@@ -13,14 +13,14 @@ infrastructure runbooks live in restricted operator documentation (not published
 
 ## What a hosted subscription funds
 
-| Cost category | Included in hosted access | Self-hosted operator |
-| --- | --- | --- |
-| Application hosting & upgrades | Rustume operates | You deploy and patch |
-| Managed PostgreSQL & backups | Rustume operates | You provision (optional) |
-| Authentication (WorkOS) | Rustume configures | You configure WorkOS |
-| Observability & on-call | Rustume operates | You monitor |
-| Transactional email | Rustume operates (Resend) | You configure (optional) |
-| Billing & tax handling (Paddle) | Rustume operates | Not applicable |
+| Cost category                   | Included in hosted access | Self-hosted operator     |
+| ------------------------------- | ------------------------- | ------------------------ |
+| Application hosting & upgrades  | Rustume operates          | You deploy and patch     |
+| Managed PostgreSQL & backups    | Rustume operates          | You provision (optional) |
+| Authentication (WorkOS)         | Rustume configures        | You configure WorkOS     |
+| Observability & on-call         | Rustume operates          | You monitor              |
+| Transactional email             | Rustume operates (Resend) | You configure (optional) |
+| Billing & tax handling (Paddle) | Rustume operates          | Not applicable           |
 
 A subscription keeps the **ready-to-use deployment** (`app.rustume.com`) available. It does not unlock
 builder, export, sync, sharing, history, or API capabilities that self-hosted operators cannot also
@@ -31,11 +31,11 @@ enable.
 Hosted service limits protect operational capacity and cost — they are **acceptable-use guardrails**,
 not a tiered feature matrix:
 
-| Control | Purpose |
-| --- | --- |
+| Control                                      | Purpose                                                          |
+| -------------------------------------------- | ---------------------------------------------------------------- |
 | [Rate limits](/docs/deployment/rate-limits/) | Prevent abuse of CPU-heavy render paths and keep APIs responsive |
-| Bulk export cap (50 resumes) | Bound per-request PDF generation and archive size |
-| JSON complexity limits | Reject oversized or deeply nested resume payloads (server-wide) |
+| Bulk export cap (50 resumes)                 | Bound per-request PDF generation and archive size                |
+| JSON complexity limits                       | Reject oversized or deeply nested resume payloads (server-wide)  |
 
 Generous defaults are chosen so typical editing, preview, and occasional PDF export never hit limits.
 Self-hosted operators can tune the [documented rate limits](/docs/deployment/rate-limits/#configuration)

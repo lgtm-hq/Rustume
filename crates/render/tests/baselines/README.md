@@ -4,10 +4,10 @@ Two baseline sets for the shared `tests/fixtures/v3/doc-editor.json` fixture,
 kept side by side so a PR that touches either surface shows both diffs to the
 reviewer (#831):
 
-| Surface | Location | Gate |
-| --- | --- | --- |
-| **Sheet** (Playwright) | `apps/web/e2e/__screenshots__/template-sheet.visual.spec.ts/` | Web E2E / `visual` project |
-| **PDF** (Typst `render_preview`) | `crates/render/tests/baselines/pdf/` | `cargo test -p rustume-render --test template_visual_baselines` |
+| Surface                          | Location                                                      | Gate                                                            |
+| -------------------------------- | ------------------------------------------------------------- | --------------------------------------------------------------- |
+| **Sheet** (Playwright)           | `apps/web/e2e/__screenshots__/template-sheet.visual.spec.ts/` | Web E2E / `visual` project                                      |
+| **PDF** (Typst `render_preview`) | `crates/render/tests/baselines/pdf/`                          | `cargo test -p rustume-render --test template_visual_baselines` |
 
 These are **parity review** aids, not an automated sheet↔PDF pixel compare —
 the two raster pipelines differ (fonts, DPI, chrome). Frozen per-template specs
@@ -23,8 +23,8 @@ git add crates/render/tests/baselines/pdf
 Baselines are single-page PNGs at 1 px/pt (moderate DPI) to bound repo growth.
 Comparison allows ±8 per channel and up to 2% differing pixels.
 
-One extra slot, `pdf/pikachu-custom-url.png`, freezes PDF page 1 instead of page
-0. The fixture places its `speaking` custom section last in layout page 0's
+One extra slot, `pdf/pikachu-custom-url.png`, freezes PDF page 1 instead of
+page 0. The fixture places its `speaking` custom section last in layout page 0's
 sidebar column; on pikachu that column overflows, so the section — and the
 labeled custom-item URL inside it — renders on PDF page 1. The slot freezes
 that page's appearance; the label-over-href text contract is asserted by the

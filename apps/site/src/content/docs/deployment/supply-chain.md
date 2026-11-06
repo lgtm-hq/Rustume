@@ -87,21 +87,21 @@ The [Rustume](/) repository runs:
   [RustSec advisory database](https://rustsec.org/)
 - **[Dependency Review](https://github.com/actions/dependency-review-action)** — [GitHub
   Action](https://github.com/features/actions) on
-pull requests
+  pull requests
 - **[lgtm-ci](https://github.com/lgtm-hq/lgtm-ci)** — reusable workflows for
   [Docker](https://www.docker.com/) [signing](https://docs.sigstore.dev/cosign/overview/) and
-[CI
-hardening](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions)
+  [CI
+  hardening](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions)
 
 Self-hosters should still verify image signatures at deploy time rather than relying solely on
 `latest`.
 
 ## Pinning recommendations
 
-| Environment | Tag strategy |
-| --- | --- |
-| Production | [Semver](https://semver.org/) pin (`0.16.0`) + [cosign verify](https://docs.sigstore.dev/cosign/verify/) |
-| Staging | [Semver](https://semver.org/) minor pin (`0.16`) |
-| Development | `main` or local `--build` |
+| Environment | Tag strategy                                                                                             |
+| ----------- | -------------------------------------------------------------------------------------------------------- |
+| Production  | [Semver](https://semver.org/) pin (`0.16.0`) + [cosign verify](https://docs.sigstore.dev/cosign/verify/) |
+| Staging     | [Semver](https://semver.org/) minor pin (`0.16`)                                                         |
+| Development | `main` or local `--build`                                                                                |
 
 Never use `build-*` CI staging tags in production deployments.

@@ -1,6 +1,6 @@
 ---
 title: "Cloud Data Model"
-description: 'PostgreSQL responsibilities for WorkOS-linked accounts, synced resumes, history, publishing, and hosted billing records.'
+description: "PostgreSQL responsibilities for WorkOS-linked accounts, synced resumes, history, publishing, and hosted billing records."
 category: architecture
 order: 30
 ---
@@ -10,14 +10,14 @@ this data layer for hosted users; self-hosted operators own it for their deploym
 
 ## Data responsibilities
 
-| Record area | Used for |
-| --- | --- |
-| Users and sessions | Opaque WorkOS identity link and authenticated sessions |
-| Resumes | Owned encrypted document state, title, timestamps, and publication settings |
-| Resume versions | History snapshots and restoration workflows |
-| Public-page metadata | Slugs and optional password-protection state |
-| API credentials | Scoped automation access and revocation metadata |
-| Subscriptions | Hosted-service billing lifecycle only |
+| Record area          | Used for                                                                    |
+| -------------------- | --------------------------------------------------------------------------- |
+| Users and sessions   | Opaque WorkOS identity link and authenticated sessions                      |
+| Resumes              | Owned encrypted document state, title, timestamps, and publication settings |
+| Resume versions      | History snapshots and restoration workflows                                 |
+| Public-page metadata | Slugs and optional password-protection state                                |
+| API credentials      | Scoped automation access and revocation metadata                            |
+| Subscriptions        | Hosted-service billing lifecycle only                                       |
 
 Subscriptions describe access to the Rustume-operated deployment. They do not decide whether
 features such as history, public pages, or API keys exist in the application.

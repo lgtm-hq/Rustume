@@ -1,6 +1,6 @@
 ---
 title: "Cloud Endpoints"
-description: 'Authentication, stored resumes, synchronization, publishing, and history operations for connected Rustume deployments.'
+description: "Authentication, stored resumes, synchronization, publishing, and history operations for connected Rustume deployments."
 category: api
 order: 30
 ---
@@ -11,25 +11,25 @@ Variables](/docs/deployment/env-reference/).
 
 ## Authentication
 
-| Method | Path | Auth | Description |
-| --- | --- | --- | --- |
-| `GET` | `/auth/login` | None | Redirect to WorkOS AuthKit |
-| `GET` | `/auth/callback` | OAuth state | Exchange code and establish session |
-| `POST` | `/auth/logout` | Cookie when present | Delete session and clear cookie |
-| `GET` | `/auth/me` | Cookie | Return the authenticated account |
+| Method | Path             | Auth                | Description                         |
+| ------ | ---------------- | ------------------- | ----------------------------------- |
+| `GET`  | `/auth/login`    | None                | Redirect to WorkOS AuthKit          |
+| `GET`  | `/auth/callback` | OAuth state         | Exchange code and establish session |
+| `POST` | `/auth/logout`   | Cookie when present | Delete session and clear cookie     |
+| `GET`  | `/auth/me`       | Cookie              | Return the authenticated account    |
 
 ## Resume storage
 
-| Method | Path | Description |
-| --- | --- | --- |
-| `GET` | `/api/resumes` | List authenticated user's summaries |
-| `POST` | `/api/resumes` | Create a resume |
-| `GET` | `/api/resumes/{id}` | Fetch owned resume data |
-| `PUT` | `/api/resumes/{id}` | Update title and/or resume data |
-| `DELETE` | `/api/resumes/{id}` | Delete an owned resume |
-| `POST` | `/api/resumes/import` | Import locally stored resumes |
-| `GET` | `/api/resumes/export` | Bulk JSON export (max 50 resumes) |
-| `GET` | `/api/resumes/export/pdf` | Bulk PDF export as ZIP (max 50 resumes) |
+| Method   | Path                      | Description                             |
+| -------- | ------------------------- | --------------------------------------- |
+| `GET`    | `/api/resumes`            | List authenticated user's summaries     |
+| `POST`   | `/api/resumes`            | Create a resume                         |
+| `GET`    | `/api/resumes/{id}`       | Fetch owned resume data                 |
+| `PUT`    | `/api/resumes/{id}`       | Update title and/or resume data         |
+| `DELETE` | `/api/resumes/{id}`       | Delete an owned resume                  |
+| `POST`   | `/api/resumes/import`     | Import locally stored resumes           |
+| `GET`    | `/api/resumes/export`     | Bulk JSON export (max 50 resumes)       |
+| `GET`    | `/api/resumes/export/pdf` | Bulk PDF export as ZIP (max 50 resumes) |
 
 Export endpoints enforce a resume-count cap and route-specific rate limits:
 
@@ -48,7 +48,7 @@ open-source connected application can expose the same functional API surface.
 
 ## Operational endpoints
 
-| Method | Path | Requirement | Description |
-| --- | --- | --- | --- |
-| `GET` | `/health` | None | Includes persistence checks when connected mode is configured |
-| `GET` | `/metrics` | Bearer `METRICS_TOKEN` | Prometheus exposition |
+| Method | Path       | Requirement            | Description                                                   |
+| ------ | ---------- | ---------------------- | ------------------------------------------------------------- |
+| `GET`  | `/health`  | None                   | Includes persistence checks when connected mode is configured |
+| `GET`  | `/metrics` | Bearer `METRICS_TOKEN` | Prometheus exposition                                         |

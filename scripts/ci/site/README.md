@@ -1,17 +1,17 @@
 # Site CI scripts
 
-| Script | Purpose |
-| --- | --- |
-| `build.sh` | Build Astro site (`ASTRO_BASE` defaults from `defaults.env`) |
-| `check.sh` | `astro check` and dependency install |
-| `check-contrast.sh` | WCAG AA contrast gate for `src/styles/craft-theme.css` |
-| `test.sh` | Vitest with coverage |
-| `test-python.sh` | Pytest for `tests/scripts/ci/` |
-| `test-all.sh` | `test.sh` + `test-python.sh` |
-| `e2e.sh` | Build `dist/`, serve it, verify the served build, run the Playwright a11y suites |
-| `assert-served-build.sh` | Staleness guard: the served site must be the build under test |
-| `preview-serve.sh` | `astro preview` with `ASTRO_BASE` from `defaults.env` |
-| `preview-pages-local.sh` | Build dist + optional local coverage bundles for manual Pages preview |
+| Script                   | Purpose                                                                          |
+| ------------------------ | -------------------------------------------------------------------------------- |
+| `build.sh`               | Build Astro site (`ASTRO_BASE` defaults from `defaults.env`)                     |
+| `check.sh`               | `astro check` and dependency install                                             |
+| `check-contrast.sh`      | WCAG AA contrast gate for `src/styles/craft-theme.css`                           |
+| `test.sh`                | Vitest with coverage                                                             |
+| `test-python.sh`         | Pytest for `tests/scripts/ci/`                                                   |
+| `test-all.sh`            | `test.sh` + `test-python.sh`                                                     |
+| `e2e.sh`                 | Build `dist/`, serve it, verify the served build, run the Playwright a11y suites |
+| `assert-served-build.sh` | Staleness guard: the served site must be the build under test                    |
+| `preview-serve.sh`       | `astro preview` with `ASTRO_BASE` from `defaults.env`                            |
+| `preview-pages-local.sh` | Build dist + optional local coverage bundles for manual Pages preview            |
 
 ## Astro base path
 
@@ -20,12 +20,12 @@
 [`build.sh`](build.sh) and the root [`Makefile`](../../../Makefile) `SITE_ASTRO_BASE` target read
 that value — do not duplicate the path elsewhere.
 
-| Context | `ASTRO_BASE` |
-| --- | --- |
-| Local `make site-dev` / `site-build` | `ASTRO_BASE_DEFAULT` from `defaults.env` |
-| `site-quality.yml` link check build | `/` (root-relative hrefs under `dist/`; lychee via `reusable-site-quality`) |
-| `deploy-pages.yml` production deploy | `ASTRO_BASE_DEFAULT` via `build.sh` |
-| `test-e2e-site.yml` accessibility suites | `ASTRO_BASE_DEFAULT` via `build.sh` (`e2e.sh`) |
+| Context                                  | `ASTRO_BASE`                                                                |
+| ---------------------------------------- | --------------------------------------------------------------------------- |
+| Local `make site-dev` / `site-build`     | `ASTRO_BASE_DEFAULT` from `defaults.env`                                    |
+| `site-quality.yml` link check build      | `/` (root-relative hrefs under `dist/`; lychee via `reusable-site-quality`) |
+| `deploy-pages.yml` production deploy     | `ASTRO_BASE_DEFAULT` via `build.sh`                                         |
+| `test-e2e-site.yml` accessibility suites | `ASTRO_BASE_DEFAULT` via `build.sh` (`e2e.sh`)                              |
 
 ## Site accessibility E2E (`e2e.sh`)
 
@@ -65,11 +65,11 @@ via [`.github/workflows/deploy-pages.yml`](../../../.github/workflows/deploy-pag
    [`.github/pages-bundle-manifest.json`](../../../.github/pages-bundle-manifest.json),
    and publishes to GitHub Pages.
 
-| Published path | Content |
-| --- | --- |
-| `https://rustume.com/` | Astro documentation site |
+| Published path                       | Content                           |
+| ------------------------------------ | --------------------------------- |
+| `https://rustume.com/`               | Astro documentation site          |
 | `https://rustume.com/coverage-rust/` | Rust `cargo llvm-cov` HTML report |
-| `https://rustume.com/coverage-web/` | Web Vitest HTML report |
+| `https://rustume.com/coverage-web/`  | Web Vitest HTML report            |
 
 **Settings → Pages → Build and deployment → Source: GitHub Actions** (not “Deploy from a branch”).
 
@@ -98,7 +98,7 @@ Coverage trees appear under `/coverage-rust/` and `/coverage-web/` when generate
 
 ## CI scripts (site quality)
 
-| Script | Purpose |
-| --- | --- |
-| `fix-markdown-docs.py` | Normalize docs markdown before build |
+| Script                            | Purpose                              |
+| --------------------------------- | ------------------------------------ |
+| `fix-markdown-docs.py`            | Normalize docs markdown before build |
 | `generate-template-thumbnails.sh` | Regenerate template PNGs when needed |

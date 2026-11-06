@@ -29,14 +29,14 @@ Three facts about the running code decide most of what follows. They are cited, 
 
 ## Decision summary
 
-| Surface | Pattern | Source | Replaces | Cost |
-| --- | --- | --- | --- | --- |
-| Editor + live preview | Preview, with an explicit stale state | [ui-patterns.com — Preview](https://ui-patterns.com/patterns/LivePreview) | Blanking the sheet on render error, `Preview.tsx:676` | Issue [#641](https://github.com/lgtm-hq/Rustume/issues/641) |
-| Template switching | Undo offered at the point of action, not a confirmation | [NN/g — Confirmation Dialogs](https://www.nngroup.com/articles/confirmation-dialog/) | Silent theme overwrite + immediate close, `TemplatePicker.tsx:15` | Issue [#642](https://github.com/lgtm-hq/Rustume/issues/642) |
-| Import | Preview the result before committing | [NN/g — Preventing User Errors](https://www.nngroup.com/articles/user-mistakes/) | Immediate document replacement, `ImportModal.tsx:100` | Issue [#643](https://github.com/lgtm-hq/Rustume/issues/643) |
-| Export | Feedback scaled to the response-time limits | [NN/g — Progress Indicators](https://www.nngroup.com/articles/progress-indicators/) | Unbounded indeterminate spinner, `ExportModal.tsx:145` | Issue [#644](https://github.com/lgtm-hq/Rustume/issues/644) |
-| Offline and sync | Persistent banner for unresolved state | [uxpatterns.dev — Notification](https://uxpatterns.dev/patterns/user-feedback/notification) | Conflict toast + silent write block, `cloudStorage.ts:95` | Issue [#645](https://github.com/lgtm-hq/Rustume/issues/645) |
-| Empty and first run | Status + learning cue + pathway | [NN/g — Designing Empty States](https://www.nngroup.com/articles/empty-state-interface-design/) | "Start editing to see preview", `Preview.tsx:706` | Issue [#646](https://github.com/lgtm-hq/Rustume/issues/646) |
+| Surface               | Pattern                                                 | Source                                                                                          | Replaces                                                          | Cost                                                        |
+| --------------------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------- |
+| Editor + live preview | Preview, with an explicit stale state                   | [ui-patterns.com — Preview](https://ui-patterns.com/patterns/LivePreview)                       | Blanking the sheet on render error, `Preview.tsx:676`             | Issue [#641](https://github.com/lgtm-hq/Rustume/issues/641) |
+| Template switching    | Undo offered at the point of action, not a confirmation | [NN/g — Confirmation Dialogs](https://www.nngroup.com/articles/confirmation-dialog/)            | Silent theme overwrite + immediate close, `TemplatePicker.tsx:15` | Issue [#642](https://github.com/lgtm-hq/Rustume/issues/642) |
+| Import                | Preview the result before committing                    | [NN/g — Preventing User Errors](https://www.nngroup.com/articles/user-mistakes/)                | Immediate document replacement, `ImportModal.tsx:100`             | Issue [#643](https://github.com/lgtm-hq/Rustume/issues/643) |
+| Export                | Feedback scaled to the response-time limits             | [NN/g — Progress Indicators](https://www.nngroup.com/articles/progress-indicators/)             | Unbounded indeterminate spinner, `ExportModal.tsx:145`            | Issue [#644](https://github.com/lgtm-hq/Rustume/issues/644) |
+| Offline and sync      | Persistent banner for unresolved state                  | [uxpatterns.dev — Notification](https://uxpatterns.dev/patterns/user-feedback/notification)     | Conflict toast + silent write block, `cloudStorage.ts:95`         | Issue [#645](https://github.com/lgtm-hq/Rustume/issues/645) |
+| Empty and first run   | Status + learning cue + pathway                         | [NN/g — Designing Empty States](https://www.nngroup.com/articles/empty-state-interface-design/) | "Start editing to see preview", `Preview.tsx:706`                 | Issue [#646](https://github.com/lgtm-hq/Rustume/issues/646) |
 
 ---
 
@@ -455,7 +455,7 @@ This section deliberately does not design the resolution UI.
   conflict must be **disclosed persistently** until #43's resolution flow exists, because today
   the disclosure lasts a few seconds and the condition lasts until reload.
 - **#61** owns offline availability of templates and themes. This document covers how offline is
-  *disclosed*, not what remains usable.
+  _disclosed_, not what remains usable.
 - **#360** (share settings) and **#362** (API key management) both introduce network-dependent
   controls in the editor and account pages. They should consume the same status element rather
   than each inventing a connectivity affordance.
@@ -470,7 +470,7 @@ This section deliberately does not design the resolution UI.
   precisely when the user needs to see their document, so locking them out of it to report the
   conflict is backwards.
 - **Autosave alone** — [ui-patterns.com Autosave](https://ui-patterns.com/patterns/autosave).
-  The right underlying mechanic, and Rustume already implements it. It loses as a *decision*
+  The right underlying mechanic, and Rustume already implements it. It loses as a _decision_
   because it is silent by construction and disclosure is the open question, not persistence.
 
 ### Accessibility consequence

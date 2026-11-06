@@ -13,15 +13,15 @@ connected Cloud mode, signed-in persistence synchronizes through authenticated s
 
 ## Tech stack
 
-| Layer | Technology |
-| --- | --- |
-| Framework | [SolidJS](https://www.solidjs.com/) (signals, fine-grained reactivity) |
-| Build | [Vite](https://vite.dev/) + [bun](https://bun.sh) |
-| Styling | [Tailwind CSS](https://tailwindcss.com/) |
-| Rich text | [TipTap](https://tiptap.dev/) editor |
+| Layer         | Technology                                                                                                         |
+| ------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Framework     | [SolidJS](https://www.solidjs.com/) (signals, fine-grained reactivity)                                             |
+| Build         | [Vite](https://vite.dev/) + [bun](https://bun.sh)                                                                  |
+| Styling       | [Tailwind CSS](https://tailwindcss.com/)                                                                           |
+| Rich text     | [TipTap](https://tiptap.dev/) editor                                                                               |
 | Local storage | [WASM](/docs/architecture/overview/) → [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API) |
-| API client | Fetch wrappers in `api/` — see [Cloud endpoints](/docs/api/cloud-endpoints/) |
-| Tests | [Vitest](https://vitest.dev/) + [jsdom](https://github.com/jsdom/jsdom) |
+| API client    | Fetch wrappers in `api/` — see [Cloud endpoints](/docs/api/cloud-endpoints/)                                       |
+| Tests         | [Vitest](https://vitest.dev/) + [jsdom](https://github.com/jsdom/jsdom)                                            |
 
 ## Directory structure
 
@@ -84,7 +84,6 @@ if (isCloudAuthenticated()) {
 } else {
   await saveToWasmStorage(id, data);
 }
-
 ```
 
 **auth.ts** — probes `GET /auth/me` on app load, exposes `user` and `plan`.
@@ -114,11 +113,11 @@ to load (with user notice).
 
 Client-side routing via [`@solidjs/router`](https://github.com/solidjs/solid-router):
 
-| Path | Page |
-| --- | --- |
-| `/` | Home (resume list) |
+| Path          | Page                                                                                  |
+| ------------- | ------------------------------------------------------------------------------------- |
+| `/`           | Home (resume list)                                                                    |
 | `/editor/:id` | Editor for resume [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) |
-| `*` | NotFound |
+| `*`           | NotFound                                                                              |
 
 The [Rust](https://www.rust-lang.org/) server serves `index.html` for all non-API routes ([SPA
 fallback](https://developer.mozilla.org/en-US/docs/Glossary/SPA)).

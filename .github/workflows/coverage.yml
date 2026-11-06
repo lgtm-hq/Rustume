@@ -47,14 +47,14 @@ jobs:
   # instrumented, as a superset of the old dedicated job's filter.
   rust-coverage:
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-rust-test.yml@95b19dcf24da660fa48b18f7db88af6a3b69d0e6 # v0.82.1
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-rust-test.yml@b830ca6972f0c9cbaeb1363283de594f68d66acf # v0.87.0
     permissions:
       actions: read # lgtm-ci v0.76+: aggregate job reads the run's artifact listing
       contents: read
       pull-requests: write # publish-test-summary on PRs
     with:
       egress-policy: block
-      tooling-ref: '95b19dcf24da660fa48b18f7db88af6a3b69d0e6' # v0.82.1
+      tooling-ref: "b830ca6972f0c9cbaeb1363283de594f68d66acf" # v0.87.0
       job-name: "🦀 Rust Coverage"
       coverage: true
       setup-script: scripts/ci/testing/rust/setup-postgres-test-db.sh
@@ -66,14 +66,14 @@ jobs:
 
   web-coverage:
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-node.yml@95b19dcf24da660fa48b18f7db88af6a3b69d0e6 # v0.82.1
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-node.yml@b830ca6972f0c9cbaeb1363283de594f68d66acf # v0.87.0
     permissions:
       actions: read # lgtm-ci v0.76+: aggregate job reads the run's artifact listing
       contents: read
       pull-requests: write # publish-test-summary on PRs
     with:
       egress-policy: block
-      tooling-ref: '95b19dcf24da660fa48b18f7db88af6a3b69d0e6' # v0.82.1
+      tooling-ref: "b830ca6972f0c9cbaeb1363283de594f68d66acf" # v0.87.0
       job-name: "🌐 Web Coverage"
       node-version: "22"
       working-directory: apps/web

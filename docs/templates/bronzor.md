@@ -11,11 +11,11 @@ background `#ffffff`, text `#1f2937`, primary `#0891b2`.
 
 ## Typefaces
 
-| Role | Face | Notes |
-| --- | --- | --- |
-| Body | IBM Plex Sans 10pt / 0.65em | Template-locked |
-| Display | Name 24pt centered; headings 11pt bold uppercase + 0.5pt rule | Same family |
-| Mono | None | |
+| Role    | Face                                                          | Notes           |
+| ------- | ------------------------------------------------------------- | --------------- |
+| Body    | IBM Plex Sans 10pt / 0.65em                                   | Template-locked |
+| Display | Name 24pt centered; headings 11pt bold uppercase + 0.5pt rule | Same family     |
+| Mono    | None                                                          |                 |
 
 **#701:** configurable size/leading; Sans + centered header identity.
 
@@ -41,13 +41,13 @@ Default main / sidebar section ids are defined once in
 
 ## Item composition
 
-| Concern | Rule |
-| --- | --- |
-| Experience order | **Position-first** (bold) `— company`; date right; location on its own muted line (#858) |
-| Education order | Institution + date; then degree; score; summary (rhyhorn-like) |
-| Profile label mode | URL → `username`; else `network-username` |
-| Skill / project keywords | Comma-joined muted — the sheet's `keywordStyle: "plain"` (`.doc-sheet--keywords-plain`) |
-| Interest keywords | ` — ` + comma list, the sheet's plain treatment |
+| Concern                    | Rule                                                                                                                  |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Experience order           | **Position-first** (bold) `— company`; date right; location on its own muted line (#858)                              |
+| Education order            | Institution + date; then degree; score; summary (rhyhorn-like)                                                        |
+| Profile label mode         | URL → `username`; else `network-username`                                                                             |
+| Skill / project keywords   | Comma-joined muted — the sheet's `keywordStyle: "plain"` (`.doc-sheet--keywords-plain`)                               |
+| Interest keywords          | `—` + comma list, the sheet's plain treatment                                                                         |
 | Level (`template-default`) | Sheet-parity five dots: 4.5pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.25pt apart (#919) |
 
 Shared extras from `_common.typ` (experience/education keyword chips + custom
@@ -56,13 +56,13 @@ bodies above.
 
 ## Divergences (sheet vs PDF vs this spec)
 
-| Divergence | Tag |
-| --- | --- |
-| Sheet centers bronzor's header via `.doc-sheet--head-center` (`bundledSingle("center")`, asserted by the sheetChrome tests), so header centering is no longer a divergence | fixed (#830) |
-| Heading chrome: the sheet already applies bronzor's underline + uppercase (`bundledTemplateLayout`), so this is no longer a divergence | fixed (#830) |
-| Level squares vs sheet dots | fixed (#919) |
-| Experience lead field was company-first in Typst | fixed (#858) |
-| Typography metadata ignored | fix-in-typst (#701) |
+| Divergence                                                                                                                                                                 | Tag                 |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| Sheet centers bronzor's header via `.doc-sheet--head-center` (`bundledSingle("center")`, asserted by the sheetChrome tests), so header centering is no longer a divergence | fixed (#830)        |
+| Heading chrome: the sheet already applies bronzor's underline + uppercase (`bundledTemplateLayout`), so this is no longer a divergence                                     | fixed (#830)        |
+| Level squares vs sheet dots                                                                                                                                                | fixed (#919)        |
+| Experience lead field was company-first in Typst                                                                                                                           | fixed (#858)        |
+| Typography metadata ignored                                                                                                                                                | fix-in-typst (#701) |
 
 ### Audit evidence
 

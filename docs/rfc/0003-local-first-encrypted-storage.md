@@ -412,7 +412,7 @@ are tracked as an open question.
 
 RFC 0002's merge model applies. Last-write-wins when only one side changed, manual
 resolution when both did (#42 offline queue, #43 conflict UI, #645 status indicator).
-What changes is scope. RFC 0002 described sync between a *local instance* and Cloud.
+What changes is scope. RFC 0002 described sync between a _local instance_ and Cloud.
 Here **every client is a sync client**, including a cloud user's browser tab. The
 browser no longer calls resume CRUD; it saves to IndexedDB and lets the sync engine
 reconcile.

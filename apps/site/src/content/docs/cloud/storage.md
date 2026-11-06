@@ -14,14 +14,14 @@ users; a self-hosted deployment can expose the same behavior. Storage uses
 
 All routes below require the `rustume_session` cookie.
 
-| Method | Path | Description |
-| --- | --- | --- |
-| `GET` | `/api/resumes` | List owned resume summaries |
-| `POST` | `/api/resumes` | Create a resume |
-| `GET` | `/api/resumes/{id}` | Fetch an owned resume |
-| `PUT` | `/api/resumes/{id}` | Update title and/or data |
-| `DELETE` | `/api/resumes/{id}` | Delete an owned resume |
-| `POST` | `/api/resumes/import` | Import locally held resumes |
+| Method   | Path                  | Description                 |
+| -------- | --------------------- | --------------------------- |
+| `GET`    | `/api/resumes`        | List owned resume summaries |
+| `POST`   | `/api/resumes`        | Create a resume             |
+| `GET`    | `/api/resumes/{id}`   | Fetch an owned resume       |
+| `PUT`    | `/api/resumes/{id}`   | Update title and/or data    |
+| `DELETE` | `/api/resumes/{id}`   | Delete an owned resume      |
+| `POST`   | `/api/resumes/import` | Import locally held resumes |
 
 Stored resumes can participate in [synchronization](/docs/cloud/sync/), [version
 history](/docs/cloud/version-history/), and [public sharing](/docs/cloud/public-pages/). These

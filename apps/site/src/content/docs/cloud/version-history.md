@@ -1,6 +1,6 @@
 ---
 title: "Version History"
-description: 'Review and restore saved resume versions in hosted Cloud or a self-hosted connected deployment.'
+description: "Review and restore saved resume versions in hosted Cloud or a self-hosted connected deployment."
 category: cloud
 order: 80
 ---
