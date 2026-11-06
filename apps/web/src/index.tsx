@@ -10,6 +10,7 @@ const Terms = lazy(() => import("./pages/Terms"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const DocEditor = lazy(() => import("./pages/DocEditor"));
+const PublicResume = lazy(() => import("./pages/PublicResume"));
 
 const root = document.getElementById("root");
 
@@ -24,6 +25,7 @@ render(
       <Route path="/account" component={Account} />
       <Route path={["/terms", "/terms/"]} component={Terms} />
       <Route path={["/privacy", "/privacy/"]} component={Privacy} />
+      <Route path="/r/:slug" component={PublicResume} />
       <Route path="/edit/:id" component={DocEditor} />
       <Route path="*404" component={NotFound} />
     </Router>
