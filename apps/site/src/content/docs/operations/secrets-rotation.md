@@ -1,6 +1,6 @@
 ---
 title: "Secrets Rotation"
-description: 'Rotate <code>SESSION_SECRET</code>, WorkOS keys, <code>METRICS_TOKEN</code>, and database credentials with minimal downtime.'
+description: "Rotate <code>SESSION_SECRET</code>, WorkOS keys, <code>METRICS_TOKEN</code>, and database credentials with minimal downtime."
 category: operations
 order: 40
 ---

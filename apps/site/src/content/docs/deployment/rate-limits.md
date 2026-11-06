@@ -15,11 +15,11 @@ without connected mode do not install these middleware layers.
 
 ## Scope
 
-| Deployment | Rate limiting |
-| --- | --- |
-| Browser-local (no `RUSTUME_CLOUD`) | Not applied |
-| Self-hosted connected | Applied; operator-configurable via env vars |
-| Rustume Cloud | Applied with production defaults |
+| Deployment                         | Rate limiting                               |
+| ---------------------------------- | ------------------------------------------- |
+| Browser-local (no `RUSTUME_CLOUD`) | Not applied                                 |
+| Self-hosted connected              | Applied; operator-configurable via env vars |
+| Rustume Cloud                      | Applied with production defaults            |
 
 Limits apply **both** a per-user bucket (authenticated user ID) and a shared per-IP bucket for
 signed-in routes. When a session resolves to a user ID, middleware checks the IP limit and the
@@ -34,24 +34,24 @@ All values are **requests per minute** unless noted.
 
 ### Authenticated routes
 
-| Route group | Default | Burst | Examples |
-| --- | ---: | ---: | --- |
-| Resume CRUD | 300 | 30 | List, get, create, update, delete, `GET /api/resumes/export` |
-| Resume import | 10 | — | `POST /api/resumes/import` |
-| Preview render | 60 | — | `POST /api/render/preview` |
-| PDF render & bulk PDF export | 20 | — | `POST /api/render/pdf`, `GET /api/resumes/export/pdf` |
-| Auth | 10 | — | Login, callback, logout, `/auth/me` |
-| Parse & utility | 30 | — | Templates, parse, validate |
+| Route group                  | Default | Burst | Examples                                                     |
+| ---------------------------- | ------: | ----: | ------------------------------------------------------------ |
+| Resume CRUD                  |     300 |    30 | List, get, create, update, delete, `GET /api/resumes/export` |
+| Resume import                |      10 |     — | `POST /api/resumes/import`                                   |
+| Preview render               |      60 |     — | `POST /api/render/preview`                                   |
+| PDF render & bulk PDF export |      20 |     — | `POST /api/render/pdf`, `GET /api/resumes/export/pdf`        |
+| Auth                         |      10 |     — | Login, callback, logout, `/auth/me`                          |
+| Parse & utility              |      30 |     — | Templates, parse, validate                                   |
 
 Resume CRUD allows short bursts (for example rapid autosave) via a separate burst bucket.
 
 ### Unauthenticated routes (per IP)
 
-| Route group | Default | Examples |
-| --- | ---: | --- |
-| Health | 60 | `GET /health`, `GET /version` |
-| Metrics | 60 | `GET /metrics` (still requires `METRICS_TOKEN`) |
-| Other unauthenticated | 30 | Any route reached without a session |
+| Route group           | Default | Examples                                        |
+| --------------------- | ------: | ----------------------------------------------- |
+| Health                |      60 | `GET /health`, `GET /version`                   |
+| Metrics               |      60 | `GET /metrics` (still requires `METRICS_TOKEN`) |
+| Other unauthenticated |      30 | Any route reached without a session             |
 
 On cloud deployments (`RUSTUME_CLOUD=true`), authentication is mandatory, so unauthenticated
 clients cannot reach render or connected API routes; the unauthenticated bucket mainly covers
@@ -65,10 +65,10 @@ Bulk JSON export (`GET /api/resumes/export`) counts against the **resume CRUD** 
 Bulk PDF export (`GET /api/resumes/export/pdf`) counts against the **PDF** limit group and
 renders each resume sequentially.
 
-| Endpoint | Rate limit group | Maximum resumes per request |
-| --- | --- | ---: |
-| `GET /api/resumes/export` | Resume CRUD | 50 |
-| `GET /api/resumes/export/pdf` | PDF | 50 |
+| Endpoint                      | Rate limit group | Maximum resumes per request |
+| ----------------------------- | ---------------- | --------------------------: |
+| `GET /api/resumes/export`     | Resume CRUD      |                          50 |
+| `GET /api/resumes/export/pdf` | PDF              |                          50 |
 
 **Trigger:** before any data is returned, the server fetches up to 51 resumes you own (ordered by
 `updated_at`). If a 51st row is present, the entire request fails with `413 Payload Too Large` and

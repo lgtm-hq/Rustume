@@ -11,12 +11,12 @@ flow.
 
 ## Authentication flow
 
-| Method | Path | Description |
-| --- | --- | --- |
-| `GET` | `/auth/login` | Creates OAuth state cookie and redirects to WorkOS |
-| `GET` | `/auth/callback` | Validates OAuth state, exchanges the code, upserts user, sets session cookie |
-| `POST` | `/auth/logout` | Deletes session and clears cookie |
-| `GET` | `/auth/me` | Returns the authenticated account record |
+| Method | Path             | Description                                                                  |
+| ------ | ---------------- | ---------------------------------------------------------------------------- |
+| `GET`  | `/auth/login`    | Creates OAuth state cookie and redirects to WorkOS                           |
+| `GET`  | `/auth/callback` | Validates OAuth state, exchanges the code, upserts user, sets session cookie |
+| `POST` | `/auth/logout`   | Deletes session and clears cookie                                            |
+| `GET`  | `/auth/me`       | Returns the authenticated account record                                     |
 
 The `rustume_session` cookie is signed, `HttpOnly`, and `SameSite=Lax`. It is marked `Secure` when
 the configured redirect URL uses HTTPS. OAuth state is kept in a short-lived cookie and checked
@@ -28,13 +28,13 @@ WorkOS AuthKit requires an email address for every user and may receive first/la
 identity provider (Google, GitHub, SAML SSO, etc.). Rustume syncs these fields into its own database
 on each sign-in so the account UI can greet the user by name.
 
-| Field | Source | Stored in Rustume DB | Shown in UI |
-| --- | --- | --- | --- |
-| `workos_id` | WorkOS | Yes | No |
-| `email` | WorkOS | Yes | Yes |
-| `first_name` | WorkOS / IdP | Yes (when available) | Yes |
-| `last_name` | WorkOS / IdP | Yes (when available) | Yes |
-| `plan` | Paddle / internal | Yes | Yes |
+| Field        | Source            | Stored in Rustume DB | Shown in UI |
+| ------------ | ----------------- | -------------------- | ----------- |
+| `workos_id`  | WorkOS            | Yes                  | No          |
+| `email`      | WorkOS            | Yes                  | Yes         |
+| `first_name` | WorkOS / IdP      | Yes (when available) | Yes         |
+| `last_name`  | WorkOS / IdP      | Yes (when available) | Yes         |
+| `plan`       | Paddle / internal | Yes                  | Yes         |
 
 **WorkOS itself also retains these fields** in its User Management dashboard. Deployment operators
 with WorkOS dashboard access can view and manage user profiles there.

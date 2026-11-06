@@ -6,7 +6,7 @@
 # =============================================================================
 # Stage 1: Chef base (shared toolchain for planner + builder)
 # =============================================================================
-FROM rust:1.99-alpine@sha256:7e9e2d068a107a2adafd19930011178d14a78326053cd4c3a9f7ad3fd049557d AS chef
+FROM rust:1.99-alpine@sha256:44819b27be4c97b0e4d7203bd2e02c4820f97700211b6a37fb4c246a2de59383 AS chef
 
 # BuildKit auto-populates TARGETARCH per --platform (amd64 | arm64)
 ARG TARGETARCH
@@ -104,7 +104,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,id=rustume-registry-${TA
 # is redundant (BuildKit RedundantTargetPlatform) because it matches the default.
 # Local builds: pass --platform linux/arm64 on Apple Silicon.
 # =============================================================================
-FROM rust:1.99-alpine@sha256:7e9e2d068a107a2adafd19930011178d14a78326053cd4c3a9f7ad3fd049557d AS web-builder
+FROM rust:1.99-alpine@sha256:44819b27be4c97b0e4d7203bd2e02c4820f97700211b6a37fb4c246a2de59383 AS web-builder
 
 # Re-declare — ARGs do not cross FROM boundaries
 ARG TARGETARCH
@@ -163,7 +163,7 @@ RUN bun run build:wasm && \
 # =============================================================================
 # Stage 5: Runtime (distroless/static — no libc, no CVEs)
 # =============================================================================
-FROM gcr.io/distroless/static:nonroot@sha256:18f4cc26c9ffa7f20a359298be7deadac5c607c8e03a02b8119f1a5fc2f82c99 AS runtime
+FROM gcr.io/distroless/static:nonroot@sha256:25ac8f0c3b2334a9eb05452266bd4697864a8c8ef0ef71e5e6480d7f92868329 AS runtime
 
 WORKDIR /app
 

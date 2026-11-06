@@ -10,12 +10,6 @@
 # passes, Trivy reports the finding again and the scan fails, which forces
 # a re-check of the blocker.
 
-# DSA-6572-1: ca-certificates 20250419 in the gcr.io/distroless/static:nonroot
-# runtime base (docker/Dockerfile). Debian ships the fix as 20250419+deb13u1
-# in trixie-security, but no distroless static:nonroot build has picked it up
-# yet: the current index
-# sha256:516757106de35205efb70b91ba03f6f1298424a0678c603255cf2852a7000087
-# still ships 20250419. Remove this entry when a distroless digest with
-# 20250419+deb13u1 lands (Renovate digest bump of docker/Dockerfile).
-# Re-verified 2026-10-21 (#1059).
-DSA-6572-1 exp:2026-11-21
+# Removed DSA-6572-1 (2026-11-06, #1113): distroless static:nonroot
+# sha256:25ac8f0c3b2334a9eb05452266bd4697864a8c8ef0ef71e5e6480d7f92868329
+# ships ca-certificates 20250419+deb13u1 on amd64 and arm64.

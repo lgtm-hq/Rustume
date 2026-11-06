@@ -11,14 +11,14 @@ deployment](/docs/deployment/docker/).
 
 ## Prerequisites
 
-| Tool | Install |
-| --- | --- |
-| [Rust](https://www.rust-lang.org/) | [rustup](https://rustup.rs/) |
-| [`wasm32-unknown-unknown`](https://doc.rust-lang.org/nightly/rustc/platform-support/wasm32-unknown-unknown.html) target | `rustup target add wasm32-unknown-unknown` |
-| [wasm-pack](https://rustwasm.github.io/wasm-pack/) | `cargo install wasm-pack` |
-| [bun](https://bun.sh) | [bun.sh](https://bun.sh) |
-| [Python 3.11+](https://www.python.org/) | For [lintro](https://github.com/lgtm-hq/py-lintro) |
-| [uv](https://docs.astral.sh/uv/) | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
+| Tool                                                                                                                    | Install                                            |
+| ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| [Rust](https://www.rust-lang.org/)                                                                                      | [rustup](https://rustup.rs/)                       |
+| [`wasm32-unknown-unknown`](https://doc.rust-lang.org/nightly/rustc/platform-support/wasm32-unknown-unknown.html) target | `rustup target add wasm32-unknown-unknown`         |
+| [wasm-pack](https://rustwasm.github.io/wasm-pack/)                                                                      | `cargo install wasm-pack`                          |
+| [bun](https://bun.sh)                                                                                                   | [bun.sh](https://bun.sh)                           |
+| [Python 3.11+](https://www.python.org/)                                                                                 | For [lintro](https://github.com/lgtm-hq/py-lintro) |
+| [uv](https://docs.astral.sh/uv/)                                                                                        | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 
 Optional: [`cargo-watch`](https://github.com/watchexec/cargo-watch) for auto-reload (`cargo install
 cargo-watch`).
@@ -51,10 +51,10 @@ make dev
 
 Starts two processes:
 
-| Service | URL |
-| --- | --- |
+| Service                                       | URL                                            |
+| --------------------------------------------- | ---------------------------------------------- |
 | [Rust](https://www.rust-lang.org/) API server | [http://localhost:3000](http://localhost:3000) |
-| [Vite](https://vite.dev/) dev server | [http://localhost:5173](http://localhost:5173) |
+| [Vite](https://vite.dev/) dev server          | [http://localhost:5173](http://localhost:5173) |
 
 Use port 5173 for development — [Vite](https://vite.dev/) proxies API calls to the
 [Rust](https://www.rust-lang.org/) server. [Swagger UI](https://swagger.io/tools/swagger-ui/):

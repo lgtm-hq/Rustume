@@ -37,8 +37,7 @@ The single editor store/controller. One instance per document; every component r
   stashed in HMR `hot.data` so refresh cannot lose edits. In production this maps to the
   server-persisted resume + autosave.
 - `editMode: boolean` (default true in the prototype; production default should be view/Done).
-<!-- markdownlint-disable-next-line MD013 -->
-- `modal: null | {kind:"item", sectionId, editId?} | {kind:"custom-section"} | {kind:"language", editId?} | {kind:"photo"}`
+- `modal: null | {kind:"item", sectionId, editId?} | {kind:"custom-section"} | {kind:"language", editId?} | {kind:"photo"}` <!-- markdownlint-disable-line MD013 -->
   — exactly one modal at a time.
 - ~~`fmtOpen` — floating format toolbar visibility~~ (removed with in-place editing, §1.12).
 - `sectionsOpen`, `templatesOpen` — the two panels.
@@ -132,8 +131,11 @@ A4 overflow is signaled by guides (§3.3). Global effects owned here: Escape clo
 `input, textarea, [contenteditable="true"]`** (never steal native field undo); page-count
 measurement (§3.5); sidebar resize (§3.2).
 
-<!-- markdownlint-disable-next-line MD013 -->
+<!-- markdownlint-disable MD013 -->
+
 ### 1.4 Page body compositors — `SingleColumn`, `MainColumn`, `SideColumn`, `NameHeader`, `ContactBlock`, `SheetAvatar`
+
+<!-- markdownlint-enable MD013 -->
 
 These are the **template-layout layer** — the part each template owns (§3.6):
 

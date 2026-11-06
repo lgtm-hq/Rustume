@@ -386,7 +386,7 @@ human CRUD quotas (`import_per_min`, `resume_crud_per_min` in
 Extend the planned single-backend offline queue to tag mutations with `link_id`:
 
 - Queue entries: `{operation_id, resume_id, mutation_type, payload, content_hash, base_hash,
-  queued_at}`
+queued_at}`
 - On reconnect, replay in `queued_at` order; abort batch on unrecoverable conflict
 - Subscription read-only mode (`SubscriptionReadOnlyError` in `cloudStorage.ts`)
   blocks pushes but still allows queueing for post-resubscribe replay

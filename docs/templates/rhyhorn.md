@@ -11,11 +11,11 @@ background `#ffffff`, text `#000000`, primary `#65a30d`, used raw as accent ink 
 
 ## Typefaces
 
-| Role | Face | Notes |
-| --- | --- | --- |
-| Body | IBM Plex Sans 10pt / leading 0.65em | Hardcoded in template; overrides engine `#set text` from metadata |
-| Display | Same family, name 24pt bold; section titles 11pt bold uppercase | No separate display family |
-| Mono | None in Typst | Sheet mono dates are sheet-only |
+| Role    | Face                                                            | Notes                                                             |
+| ------- | --------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Body    | IBM Plex Sans 10pt / leading 0.65em                             | Hardcoded in template; overrides engine `#set text` from metadata |
+| Display | Same family, name 24pt bold; section titles 11pt bold uppercase | No separate display family                                        |
+| Mono    | None in Typst                                                   | Sheet mono dates are sheet-only                                   |
 
 **#701:** size + lineHeight should become configurable; **IBM Plex Sans** and the uppercase
 underline heading stay identity.
@@ -43,12 +43,12 @@ Default main / sidebar section ids are defined once in
 
 ## Item composition
 
-| Concern | Rule |
-| --- | --- |
-| Education order | **institution** (bold) + date right; then `format-degree(studyType, area)`; then score; then summary |
-| Profile label mode | URL present → `username`; else `network-username` |
-| Skill keywords | Comma-joined muted — the sheet's `keywordStyle: "plain"` (`.doc-sheet--keywords-plain`) |
-| Interest keywords | ` — ` + comma list, the sheet's plain treatment |
+| Concern                    | Rule                                                                                                                  |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Education order            | **institution** (bold) + date right; then `format-degree(studyType, area)`; then score; then summary                  |
+| Profile label mode         | URL present → `username`; else `network-username`                                                                     |
+| Skill keywords             | Comma-joined muted — the sheet's `keywordStyle: "plain"` (`.doc-sheet--keywords-plain`)                               |
+| Interest keywords          | `—` + comma list, the sheet's plain treatment                                                                         |
 | Level (`template-default`) | Sheet-parity five dots: 4.5pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.25pt apart (#919) |
 
 Experience leads with **position — company** and date right; location on its own muted line (#858).
@@ -59,14 +59,14 @@ bodies above.
 
 ## Divergences (sheet vs PDF vs this spec)
 
-| Divergence | Tag |
-| --- | --- |
-| Sheet experience field order vs Typst | fixed (#858) |
-| Heading chrome: the sheet already applies rhyhorn's underline + uppercase (`bundledTemplateLayout`), so this is no longer a divergence | fixed (#830) |
-| Sheet always draws level dots; native glyph was rounded squares | fixed (#919) |
-| Interest keywords: the sheet's `keywordStyle: "plain"` is a comma list, which Typst matches | fixed (#919) |
-| No-photo initials on sheet (edit) vs omitted in PDF | fixed (#857): Done/PDF collapse; edit keeps a placeholder; initials are `showInitials` opt-in |
-| Hardcoded 10pt / 0.65em ignores metadata typography | fix-in-typst (#701) |
+| Divergence                                                                                                                             | Tag                                                                                           |
+| -------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Sheet experience field order vs Typst                                                                                                  | fixed (#858)                                                                                  |
+| Heading chrome: the sheet already applies rhyhorn's underline + uppercase (`bundledTemplateLayout`), so this is no longer a divergence | fixed (#830)                                                                                  |
+| Sheet always draws level dots; native glyph was rounded squares                                                                        | fixed (#919)                                                                                  |
+| Interest keywords: the sheet's `keywordStyle: "plain"` is a comma list, which Typst matches                                            | fixed (#919)                                                                                  |
+| No-photo initials on sheet (edit) vs omitted in PDF                                                                                    | fixed (#857): Done/PDF collapse; edit keeps a placeholder; initials are `showInitials` opt-in |
+| Hardcoded 10pt / 0.65em ignores metadata typography                                                                                    | fix-in-typst (#701)                                                                           |
 
 ### Audit evidence
 

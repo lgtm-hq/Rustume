@@ -1,6 +1,6 @@
 ---
 title: "API Keys"
-description: 'Scoped credentials for programmatic connected Rustume access in hosted Cloud or a self-hosted deployment.'
+description: "Scoped credentials for programmatic connected Rustume access in hosted Cloud or a self-hosted deployment."
 category: api
 order: 40
 ---

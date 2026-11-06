@@ -48,17 +48,17 @@ jobs:
       github.event_name != 'pull_request' ||
       github.event.pull_request.draft == false
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-quality-lint.yml@95b19dcf24da660fa48b18f7db88af6a3b69d0e6 # v0.82.1
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-quality-lint.yml@b830ca6972f0c9cbaeb1363283de594f68d66acf # v0.87.0
     permissions:
       contents: read # checkout repository sources for lintro analysis
       packages: read # pull the pinned lintro image from GHCR
     with:
-      tooling-ref: '95b19dcf24da660fa48b18f7db88af6a3b69d0e6' # v0.82.1
+      tooling-ref: "b830ca6972f0c9cbaeb1363283de594f68d66acf" # v0.87.0
       job-name: "🛠️ Lintro Code Quality"
       lintro-tool-options: clippy:timeout=300
       timeout-minutes: 30
       # yamllint disable-line rule:line-length
-      lintro-image: ghcr.io/lgtm-hq/py-lintro:0.173.1@sha256:116e60912a8c7a2002349ef096cfa93644314492751746aacdd5ef228c74306f
+      lintro-image: ghcr.io/lgtm-hq/py-lintro:0.178.1@sha256:9f7510d65d063e2f0f1bdccb2b8f486d744ba21753341e75e5bbd8c9b29a9aae
       egress-policy: block
       egress-preset: quality
 
@@ -70,13 +70,13 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.draft == false
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-publish-quality-summary.yml@95b19dcf24da660fa48b18f7db88af6a3b69d0e6 # v0.82.1
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-publish-quality-summary.yml@b830ca6972f0c9cbaeb1363283de594f68d66acf # v0.87.0
     permissions:
       contents: read # read quality job outputs and artifacts
       pull-requests: write # post or update the quality summary comment
     with:
       exit-code: >-
         ${{ needs.quality.outputs.exit-code != '' && needs.quality.outputs.exit-code || '1' }}
-      tooling-ref: '95b19dcf24da660fa48b18f7db88af6a3b69d0e6' # v0.82.1
+      tooling-ref: "b830ca6972f0c9cbaeb1363283de594f68d66acf" # v0.87.0
       job-name: "🛠️ Lintro Code Quality PR Comment"
       egress-policy: block

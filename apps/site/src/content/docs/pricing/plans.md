@@ -1,6 +1,6 @@
 ---
 title: "Hosting Options"
-description: 'Compare free self-hosting with hosted Rustume Cloud access: the same product capabilities, with different operational responsibility.'
+description: "Compare free self-hosting with hosted Rustume Cloud access: the same product capabilities, with different operational responsibility."
 category: pricing
 order: 10
 ---

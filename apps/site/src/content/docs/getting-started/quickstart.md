@@ -19,7 +19,7 @@ For native development you need:
 - **[wasm-pack](https://rustwasm.github.io/wasm-pack/)** — `cargo install wasm-pack`
 - **[bun](https://bun.sh)**
 - **[Python 3.11+](https://www.python.org/)** and **[uv](https://docs.astral.sh/uv/)** — for
-[lintro](https://github.com/lgtm-hq/py-lintro) linting (optional for running the app)
+  [lintro](https://github.com/lgtm-hq/py-lintro) linting (optional for running the app)
 
 For Docker-only setup you only need [Docker](https://www.docker.com/) with
 [BuildKit](https://docs.docker.com/build/buildkit/) enabled.
@@ -71,18 +71,18 @@ docker compose up --build  # build locally when GHCR is unavailable
 
 ## What you get
 
-| Endpoint | Purpose |
-| --- | --- |
-| `GET /health` | Container health check |
-| `GET /api/templates` | List resume templates |
-| `POST /api/parse` | Import [JSON Resume](https://jsonresume.org/), [LinkedIn](https://www.linkedin.com/), or [Reactive Resume](https://rxresu.me/) |
-| `POST /api/render/pdf` | Export PDF |
-| `/swagger-ui/` | [OpenAPI](https://www.openapis.org/) documentation |
+| Endpoint               | Purpose                                                                                                                        |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /health`          | Container health check                                                                                                         |
+| `GET /api/templates`   | List resume templates                                                                                                          |
+| `POST /api/parse`      | Import [JSON Resume](https://jsonresume.org/), [LinkedIn](https://www.linkedin.com/), or [Reactive Resume](https://rxresu.me/) |
+| `POST /api/render/pdf` | Export PDF                                                                                                                     |
+| `/swagger-ui/`         | [OpenAPI](https://www.openapis.org/) documentation                                                                             |
 
 ## Next steps
 
 - [Browse the 12 templates](/docs/getting-started/templates/) and pick a layout
 - [Import an existing resume](/docs/getting-started/import-formats/) from
-[JSON Resume](https://jsonresume.org/), [LinkedIn](https://www.linkedin.com/), or [Reactive
-Resume](https://rxresu.me/)
+  [JSON Resume](https://jsonresume.org/), [LinkedIn](https://www.linkedin.com/), or [Reactive
+  Resume](https://rxresu.me/)
 - Deploy with [Docker](/docs/deployment/docker/) for [self-hosting](/docs/deployment/self-hosting/)

@@ -1,6 +1,6 @@
 ---
 title: "Cloud Getting Started"
-description: 'Sign in to hosted Rustume Cloud for managed synchronization, or enable the same Cloud features on a self-hosted deployment.'
+description: "Sign in to hosted Rustume Cloud for managed synchronization, or enable the same Cloud features on a self-hosted deployment."
 category: cloud
 order: 20
 ---

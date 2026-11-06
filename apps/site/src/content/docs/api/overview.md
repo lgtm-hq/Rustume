@@ -1,6 +1,6 @@
 ---
 title: "API Overview"
-description: 'REST API for parsing, rendering, validation, templates, and connected Cloud workflows; inspect it at <code>/swagger-ui/</code>.'
+description: "REST API for parsing, rendering, validation, templates, and connected Cloud workflows; inspect it at <code>/swagger-ui/</code>."
 category: api
 order: 10
 ---
@@ -10,21 +10,21 @@ is available at `/api-docs/openapi.json`; Swagger UI is available at `/swagger-u
 
 ## Deployment contexts
 
-| Deployment | API access |
-| --- | --- |
-| Browser-local or basic self-hosting | Core parsing, rendering, validation, and templates |
-| Self-hosted connected deployment | Core endpoints plus account-backed Cloud workflows |
-| Rustume Cloud | The same connected API on an operated hosted deployment |
+| Deployment                          | API access                                              |
+| ----------------------------------- | ------------------------------------------------------- |
+| Browser-local or basic self-hosting | Core parsing, rendering, validation, and templates      |
+| Self-hosted connected deployment    | Core endpoints plus account-backed Cloud workflows      |
+| Rustume Cloud                       | The same connected API on an operated hosted deployment |
 
 ## Endpoint groups
 
-| Group | Authentication | Availability |
-| --- | --- | --- |
-| Parse, render, validate, templates, health | None | Every deployment |
-| Prometheus metrics | Bearer `METRICS_TOKEN` | Configured server deployments |
-| Authentication and resume storage | Session cookie | Connected deployments |
-| Sync, public sharing, history, API keys | Session or scoped key as appropriate | Connected deployments |
-| Hosted billing management | Hosted account session | Rustume-operated service only |
+| Group                                      | Authentication                       | Availability                  |
+| ------------------------------------------ | ------------------------------------ | ----------------------------- |
+| Parse, render, validate, templates, health | None                                 | Every deployment              |
+| Prometheus metrics                         | Bearer `METRICS_TOKEN`               | Configured server deployments |
+| Authentication and resume storage          | Session cookie                       | Connected deployments         |
+| Sync, public sharing, history, API keys    | Session or scoped key as appropriate | Connected deployments         |
+| Hosted billing management                  | Hosted account session               | Rustume-operated service only |
 
 Billing manages access to hosted operations; it does not change which product capabilities are
 available when running the open-source connected application.

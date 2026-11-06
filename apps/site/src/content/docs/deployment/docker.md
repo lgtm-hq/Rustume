@@ -53,7 +53,7 @@ docker run -p 3000:3000 rustume
 ```
 
 On Apple Silicon, build for your native platform if you hit
-[Rosetta](https://en.wikipedia.org/wiki/Rosetta_(software)) errors:
+[Rosetta](<https://en.wikipedia.org/wiki/Rosetta_(software)>) errors:
 
 ```bash
 docker build --platform linux/arm64 -t rustume -f docker/Dockerfile .
@@ -88,11 +88,11 @@ docker compose --profile cloud up
 
 ## Image tags
 
-| Tag | When published | Use for |
-| --- | --- | --- |
+| Tag                             | When published        | Use for                 |
+| ------------------------------- | --------------------- | ----------------------- |
 | `latest`, `0.16.0`, `0.16`, `0` | `v*.*.*` git tag push | Production self-hosting |
-| `main`, `sha-<commit>` | `main` branch push | Bleeding-edge / CI |
-| `build-<run>-<arch>` | CI staging only | Internal; not for pulls |
+| `main`, `sha-<commit>`          | `main` branch push    | Bleeding-edge / CI      |
+| `build-<run>-<arch>`            | CI staging only       | Internal; not for pulls |
 
 ## Supply chain verification
 

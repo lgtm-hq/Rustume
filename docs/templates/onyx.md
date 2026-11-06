@@ -12,11 +12,11 @@ background `#ffffff`, text `#111827`, primary `#dc2626`.
 
 ## Typefaces
 
-| Role | Face | Notes |
-| --- | --- | --- |
-| Body | IBM Plex Sans 10pt / 0.65em | Template-locked |
-| Display | Name 26pt; headings 10pt bold uppercase in a 1.5pt bottom-stroke box | Same family |
-| Mono | None | |
+| Role    | Face                                                                 | Notes           |
+| ------- | -------------------------------------------------------------------- | --------------- |
+| Body    | IBM Plex Sans 10pt / 0.65em                                          | Template-locked |
+| Display | Name 26pt; headings 10pt bold uppercase in a 1.5pt bottom-stroke box | Same family     |
+| Mono    | None                                                                 |                 |
 
 **#701:** configurable size/leading; red identity + bottom-stroke headings stay.
 
@@ -42,13 +42,13 @@ Default main / sidebar section ids are defined once in
 
 ## Item composition
 
-| Concern | Rule |
-| --- | --- |
-| Experience order | **Position-first** (bold, text ink); company in accent below, `· location` muted — already sheet-aligned |
-| Education order | Institution + degree; date right; score; summary |
-| Profile label mode | `auto` (username, then network, then URL label) |
-| Skill / interest keywords | Themed pill chips (`render-item-tag-chips`, #919) — the sheet's `keywordStyle: "chips"` |
-| Project keywords | Soft accent chips (template-local) |
+| Concern                    | Rule                                                                                                                  |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Experience order           | **Position-first** (bold, text ink); company in accent below, `· location` muted — already sheet-aligned              |
+| Education order            | Institution + degree; date right; score; summary                                                                      |
+| Profile label mode         | `auto` (username, then network, then URL label)                                                                       |
+| Skill / interest keywords  | Themed pill chips (`render-item-tag-chips`, #919) — the sheet's `keywordStyle: "chips"`                               |
+| Project keywords           | Soft accent chips (template-local)                                                                                    |
 | Level (`template-default`) | Sheet-parity five dots: 4.5pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.25pt apart (#919) |
 
 Shared extras from `_common.typ` (experience/education keyword chips + custom
@@ -57,13 +57,13 @@ bodies above.
 
 ## Divergences (sheet vs PDF vs this spec)
 
-| Divergence | Tag |
-| --- | --- |
-| Visually close to rhyhorn on the sheet today; Typst heading chrome still differs (levels and keyword chips converged in #919; experience is position-first on both as of #858) | fix-in-typst |
-| Profile label: both sides use the `auto` order — onyx passes `label-mode: "auto"` | fixed (#829) |
-| Level squares vs sheet dots | fixed (#919) |
-| Experience lead field | fixed (#858) |
-| Typography metadata ignored | fix-in-typst (#701) |
+| Divergence                                                                                                                                                                     | Tag                 |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------- |
+| Visually close to rhyhorn on the sheet today; Typst heading chrome still differs (levels and keyword chips converged in #919; experience is position-first on both as of #858) | fix-in-typst        |
+| Profile label: both sides use the `auto` order — onyx passes `label-mode: "auto"`                                                                                              | fixed (#829)        |
+| Level squares vs sheet dots                                                                                                                                                    | fixed (#919)        |
+| Experience lead field                                                                                                                                                          | fixed (#858)        |
+| Typography metadata ignored                                                                                                                                                    | fix-in-typst (#701) |
 
 ### Audit evidence
 
