@@ -65,8 +65,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup Rust
-        # v0.53.1 pin (rest of the repo stays on v0.52.3): picks up the
-        # setup-rust cargo-binstall fix for Windows Git Bash
+        # Includes the setup-rust cargo-binstall fix for Windows Git Bash
         # (MINGW64_NT-* was "Unsupported OS", skipping release artifacts).
         # yamllint disable-line rule:line-length
         uses: lgtm-hq/lgtm-ci/.github/actions/setup-rust@b830ca6972f0c9cbaeb1363283de594f68d66acf # v0.87.0
