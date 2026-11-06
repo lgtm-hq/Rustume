@@ -14,7 +14,7 @@ use crate::auth::session::SESSION_COOKIE;
 use crate::db::{DeleteAccountRequest, DeleteAccountResponse};
 use crate::email::log_send_failure;
 use crate::error::ApiError;
-use crate::middleware::auth::AuthUser;
+use crate::middleware::auth::SessionAuthUser;
 use crate::net::{self, trusted_client_ip};
 use crate::state::AppState;
 
@@ -35,7 +35,7 @@ const DELETE_CONFIRMATION: &str = "DELETE";
     security(("cookieAuth" = []))
 )]
 pub async fn delete_account(
-    AuthUser(user): AuthUser,
+    SessionAuthUser(user): SessionAuthUser,
     State(state): State<AppState>,
     jar: CookieJar,
     headers: HeaderMap,
