@@ -37,6 +37,11 @@ pub fn trusted_client_ip(headers: &HeaderMap, trusted_proxy: bool) -> Option<Str
         .map(str::to_string)
 }
 
+/// Return an IP string only when it parses for Postgres `inet` storage.
+pub fn audit_ip(ip: Option<&str>) -> Option<&str> {
+    ip.and_then(|value| value.parse::<std::net::IpAddr>().ok().map(|_| value))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -69,5 +74,12 @@ mod tests {
             trusted_client_ip(&headers, true).as_deref(),
             Some("198.51.100.2")
         );
+    }
+
+    #[test]
+    fn audit_ip_rejects_malformed_values() {
+        assert_eq!(audit_ip(Some("not-an-ip")), None);
+        assert_eq!(audit_ip(Some("198.51.100.2")), Some("198.51.100.2"));
+        assert_eq!(audit_ip(Some("::1")), Some("::1"));
     }
 }

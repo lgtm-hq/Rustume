@@ -292,9 +292,12 @@ mod tests {
         let user_id = Uuid::new_v4();
         let workos_id = format!("workos_export_cap_{user_id}");
 
-        sqlx::query("INSERT INTO users (id, workos_id) VALUES ($1, $2)")
+        let username = format!("user-{}", &user_id.to_string().replace('-', "")[..8]);
+
+        sqlx::query("INSERT INTO users (id, workos_id, username) VALUES ($1, $2, $3)")
             .bind(user_id)
             .bind(&workos_id)
+            .bind(&username)
             .execute(pool)
             .await
             .expect("insert user");

@@ -1,0 +1,147 @@
+{
+  "$comment": "Shared username validation vectors. Both crates/server/src/auth/username.rs and apps/web/src/api/__tests__/account.test.ts run every case, so the two validators cannot diverge in behaviour. `expect` is `ok` or the key of the message in username_rules.json that must be returned.",
+  "cases": [
+    {
+      "input": "swift-otter-4821",
+      "expect": "ok"
+    },
+    {
+      "input": "ada",
+      "expect": "ok"
+    },
+    {
+      "input": "abc",
+      "expect": "ok"
+    },
+    {
+      "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expect": "ok"
+    },
+    {
+      "input": "user-42",
+      "expect": "ok"
+    },
+    {
+      "input": "a1b2c3",
+      "expect": "ok"
+    },
+    {
+      "input": "  Swift-Otter-42  ",
+      "expect": "ok",
+      "$note": "trimmed and lowercased before validation"
+    },
+    {
+      "input": "",
+      "expect": "length"
+    },
+    {
+      "input": "   ",
+      "expect": "length"
+    },
+    {
+      "input": "ab",
+      "expect": "length"
+    },
+    {
+      "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expect": "length"
+    },
+    {
+      "input": "-swift",
+      "expect": "hyphens"
+    },
+    {
+      "input": "swift-",
+      "expect": "hyphens"
+    },
+    {
+      "input": "swift--otter",
+      "expect": "hyphens"
+    },
+    {
+      "input": "Swift-Otter",
+      "expect": "ok",
+      "$note": "uppercase is normalised, not rejected"
+    },
+    {
+      "input": "user_name",
+      "expect": "charset"
+    },
+    {
+      "input": "swift otter",
+      "expect": "charset"
+    },
+    {
+      "input": "swift.otter",
+      "expect": "charset"
+    },
+    {
+      "input": "swïft",
+      "expect": "charset"
+    },
+    {
+      "input": "admin",
+      "expect": "reserved"
+    },
+    {
+      "input": "API",
+      "expect": "reserved",
+      "$note": "reserved check runs after normalisation"
+    },
+    {
+      "input": "me",
+      "expect": "length",
+      "$note": "too short before it can be reserved"
+    },
+    {
+      "input": "Kaa",
+      "expect": "ok",
+      "$note": "Kelvin sign folds to k under Unicode lowercasing on both sides"
+    },
+    {
+      "input": "éééééééééééééééééééé",
+      "expect": "charset",
+      "$note": "20 UTF-16 units (within length) but non-ASCII"
+    },
+    {
+      "input": "ééé",
+      "expect": "charset",
+      "$note": "BMP non-ASCII at the minimum length"
+    },
+    {
+      "input": "😀😀",
+      "expect": "charset",
+      "$note": "two astral characters = 4 UTF-16 units, so length passes and charset fails"
+    },
+    {
+      "input": "😀",
+      "expect": "length",
+      "$note": "one astral character = 2 UTF-16 units, below the minimum on both sides"
+    },
+    {
+      "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaé",
+      "expect": "charset",
+      "$note": "32 UTF-16 units: within length in JS and (via encode_utf16) in Rust, then charset fails"
+    },
+    {
+      "input": "ßaa",
+      "expect": "charset",
+      "$note": "ß is already lowercase in both runtimes (ß→SS is an UPPERcasing expansion); stays non-ASCII"
+    },
+    {
+      "input": "ẞaa",
+      "expect": "charset",
+      "$note": "capital sharp s lowercases to ß in both runtimes"
+    },
+    {
+      "input": "İaa",
+      "expect": "charset",
+      "$note": "dotted capital I lowercases to i + U+0307 in both runtimes (4 UTF-16 units)"
+    },
+    {
+      "input": "ΣΑΣ",
+      "expect": "charset",
+      "$note": "final-sigma rule applies in both runtimes (σας); still non-ASCII"
+    }
+  ]
+}
