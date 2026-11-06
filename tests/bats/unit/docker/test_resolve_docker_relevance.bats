@@ -56,6 +56,7 @@ is_listed() {
 		NOTICE
 		THIRD_PARTY_NOTICES
 		clippy.toml
+		deny.toml
 		docker-compose.yml
 		pyproject.toml
 		renovate.json
