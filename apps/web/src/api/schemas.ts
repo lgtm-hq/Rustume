@@ -150,26 +150,36 @@ export const deleteAccountResponseSchema = z.object({
   message: z.string(),
 });
 
+// Strict: client and server ship together, so a renamed or extra field
+// should fail loudly rather than parse as a stripped object.
+export const updateAccountResponseSchema = z.strictObject({
+  username: z.string().min(1),
+});
+
+export type UpdateAccountResponse = z.infer<typeof updateAccountResponseSchema>;
+
 export const authRequireAuthSchema = z.object({
   require_auth: z.boolean().optional(),
 });
 
-const authMePayloadSchema = z.object({
+// Strict: the web bundle is served by the same server that answers /auth/me,
+// so there is no version skew to tolerate. The server guarantees `username`
+// (NOT NULL), so a payload without it is a broken server, not an old one.
+const authMePayloadSchema = z.strictObject({
   id: z.string(),
   plan: z.string(),
   email: z.string().optional(),
-  first_name: z.string().optional(),
-  last_name: z.string().optional(),
+  username: z.string().min(1),
   subscription: z.unknown().optional(),
   require_auth: z.boolean().optional(),
 });
 
+/** Signed-in user as parsed from `/auth/me`; the single client-side user type. */
 export interface ParsedAuthUser {
   id: string;
   plan: string;
   email?: string;
-  first_name?: string;
-  last_name?: string;
+  username: string;
   subscription?: {
     status: string;
     expires_at?: string;
@@ -206,16 +216,10 @@ export function parseAuthMePayload(payload: unknown): {
   }
 
   const record = result.data;
-  const user: ParsedAuthUser = { id: record.id, plan: record.plan };
+  const user: ParsedAuthUser = { id: record.id, plan: record.plan, username: record.username };
 
   if (record.email !== undefined) {
     user.email = record.email;
-  }
-  if (record.first_name !== undefined) {
-    user.first_name = record.first_name;
-  }
-  if (record.last_name !== undefined) {
-    user.last_name = record.last_name;
   }
 
   const subscription = parseSubscription(record.subscription);
