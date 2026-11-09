@@ -22,6 +22,39 @@ and this project adheres to
 
 ### Security
 
+## [0.69.12] - 2026-11-09
+
+### Changed
+
+- **deps**: consolidated dependency catch-up (open and rate-limited Renovate updates)
+  (#1114) (5a93501)
+- **deps**: update rust:1.99-alpine docker digest to 44819b2 (#1118) (29bca64)
+- **deps**: update postgres:18-alpine docker digest to 123b179 (#1117) (e221805)
+- **deps**: update gcr.io/distroless/static:nonroot docker digest to 25ac8f0 (#1115)
+  (af28a04)
+- **deps**: update all major dependencies (major) (#975) (8bfbf71)
+- **deps**: update dependency pagefind to 1.6.0 (minor) (#1110) (716bd9e)
+- **deps**: update dependency @pagefind/default-ui to 1.6.0 (minor) (#1109) (11bd3ae)
+- **deps**: update github/codeql-action action to v4.39.3 (patch) (#1108) (f169c00)
+- **deps**: update dependency fake-indexeddb to 6.2.7 (patch) (#1106) (063bf0b)
+- **deps**: update github/codeql-action action to v4.39.2 (patch) (#1107) (0fd5e26)
+- **deps**: update rust:1.99-alpine docker digest to 7e9e2d0 (#1102) (992c5f2)
+- **deps**: update dependency @types/node to 26.6.6 (patch) (#1104) (78a3ef0)
+- **ci**: make runner selection switch-ready (#1101) (0c70dab)
+- **deps**: update dependency oxlint to 1.90.0 (minor) (#1097) (935e7ac)
+- **deps-dev**: update rust crate wasm-bindgen-test to 0.3.80 (patch) (#1096) (9f38585)
+- **deps**: update dependency oxlint to 1.89.0 (minor) (#1076) (95e6cd4)
+- **deps**: update docker/login-action action to v4.7.0 (minor) (#1088) (d545db6)
+- **deps**: update rust:1.99-alpine docker digest to b1d5dd5 (#1079) (e11533a)
+- **deps**: update rust crate comrak to 0.59.0 (minor) (#1095) (560f328)
+- restore block egress policy and pin lgtm-ci v0.79.2 (#1094) (ac1cafa)
+- **deps**: update dependency @astrojs/check to 0.9.12 (patch) (#1080) (d50fb8a)
+
+### Fixed
+
+- **security**: suppress RUSTSEC-2026-0459 until sqlx admits libsqlite3-sys 0.39 (#1122)
+  (192938d)
+
 ## [0.69.11] - 2026-10-29
 
 ### Changed
@@ -1397,7 +1430,8 @@ and this project adheres to
 
 - Update repository references for org migration (#25)
 
-[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.69.11...HEAD
+[Unreleased]: https://github.com/lgtm-hq/Rustume/compare/v0.69.12...HEAD
+[0.69.12]: https://github.com/lgtm-hq/Rustume/compare/v0.69.11...v0.69.12
 [0.69.11]: https://github.com/lgtm-hq/Rustume/compare/v0.69.10...v0.69.11
 [0.69.10]: https://github.com/lgtm-hq/Rustume/compare/v0.69.9...v0.69.10
 [0.69.9]: https://github.com/lgtm-hq/Rustume/compare/v0.69.8...v0.69.9
