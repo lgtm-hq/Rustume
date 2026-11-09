@@ -8,5 +8,6 @@
 # reads the rustsec DB directly and does report this id, so it needs the
 # ignore; cargo-deny (deny.toml) does not encounter it yet and fails on an
 # unused ignore, so no mirror there. Expiry is enforced only by the
-# .osv-scanner.toml row (2026-12-09); this list has no dates.
+# .osv-scanner.toml row (2026-12-09); this list has no dates, and #1123
+# adds the parity check that fails when an id here outlives its osv row.
 ignore = ["RUSTSEC-2026-0194", "RUSTSEC-2026-0195", "RUSTSEC-2026-0459"]
