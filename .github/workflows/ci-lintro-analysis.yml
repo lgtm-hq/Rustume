@@ -58,7 +58,7 @@ jobs:
       lintro-tool-options: clippy:timeout=300
       timeout-minutes: 30
       # yamllint disable-line rule:line-length
-      lintro-image: ghcr.io/lgtm-hq/py-lintro:0.178.1@sha256:9f7510d65d063e2f0f1bdccb2b8f486d744ba21753341e75e5bbd8c9b29a9aae
+      lintro-image: ghcr.io/lgtm-hq/py-lintro:0.179.0@sha256:7c9d82215e63411e650541f0949928fc234d9241b5e0fd3cc1b472af8740c79d
       egress-policy: block
       egress-preset: quality
 
