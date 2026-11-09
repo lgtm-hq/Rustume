@@ -24,7 +24,8 @@ solid accent; sidebar tint is `color-mix(accent 15%, bg)` (#919).
 ## Header composition
 
 - `headerStyle`: `banner`; `contactIn`: `banner`.
-- Full-width accent bar: optional picture, white name, lightened headline, contact joined with a space-padded pipe (`|` with a space on each side).
+- Full-width accent bar: optional picture, white name, lightened headline, contact
+  joined with a space-padded pipe (`|` with a space on each side).
 - No-photo default: **collapse**. Initials disc only when `picture.effects.showInitials` is true
   and the URL is empty (#857).
 - Sidebar continues below the banner (layout `full-header-sidebar`).
