@@ -1,10 +1,10 @@
 @import "https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500&display=swap";
-@import './craft-theme.css';
+@import "./craft-theme.css";
 
 :root {
-  --font-display: 'Fraunces', georgia, serif;
-  --font-body: 'Archivo', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-display: "Fraunces", georgia, serif;
+  --font-body: "Archivo", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
 
   /* Craftforge palette — warm workshop + paper craft */
   --rust-forge: #e8622a;
@@ -74,10 +74,19 @@
   --font-mono: var(--turbo-font-mono);
   --turbo-dropdown-bg: var(--turbo-components-dropdown-bg, var(--turbo-bg-surface));
   --turbo-dropdown-border: var(--turbo-components-dropdown-border, var(--turbo-border-default));
-  --turbo-dropdown-item-hover: var(--turbo-components-dropdown-item-hover-bg, var(--turbo-bg-overlay));
+  --turbo-dropdown-item-hover: var(
+    --turbo-components-dropdown-item-hover-bg,
+    var(--turbo-bg-overlay)
+  );
 }
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 html {
   font-size: 16px;
@@ -125,7 +134,7 @@ body {
 
 /* Paper grain + forge grid atmosphere */
 body::before {
-  content: '';
+  content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
@@ -135,14 +144,21 @@ body::before {
 }
 
 body::after {
-  content: '';
+  content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 0;
   background-image:
-    linear-gradient(color-mix(in srgb, var(--site-accent, var(--rust-forge)) 5%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--site-accent, var(--rust-forge)) 5%, transparent) 1px, transparent 1px);
+    linear-gradient(
+      color-mix(in srgb, var(--site-accent, var(--rust-forge)) 5%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--site-accent, var(--rust-forge)) 5%, transparent) 1px,
+      transparent 1px
+    );
   background-size: 56px 56px;
   mask-image: linear-gradient(to bottom, black 0%, transparent 70%);
   opacity: 0.5;
@@ -176,17 +192,28 @@ body::after {
   color: var(--turbo-text-primary);
 }
 
-h1, h2, h3, h4 {
+h1,
+h2,
+h3,
+h4 {
   font-family: var(--font-display, var(--turbo-font-sans));
   font-weight: 600;
   line-height: 1.2;
   color: var(--turbo-text-primary);
 }
 
-[data-theme]:not([data-theme="craft"]) h1 { color: var(--turbo-heading-h1); }
-[data-theme]:not([data-theme="craft"]) h2 { color: var(--turbo-heading-h2); }
-[data-theme]:not([data-theme="craft"]) h3 { color: var(--turbo-heading-h3); }
-[data-theme]:not([data-theme="craft"]) h4 { color: var(--turbo-heading-h4); }
+[data-theme]:not([data-theme="craft"]) h1 {
+  color: var(--turbo-heading-h1);
+}
+[data-theme]:not([data-theme="craft"]) h2 {
+  color: var(--turbo-heading-h2);
+}
+[data-theme]:not([data-theme="craft"]) h3 {
+  color: var(--turbo-heading-h3);
+}
+[data-theme]:not([data-theme="craft"]) h4 {
+  color: var(--turbo-heading-h4);
+}
 
 a {
   color: var(--turbo-link-default, var(--site-accent, var(--rust-forge)));
@@ -197,7 +224,11 @@ a:hover {
   text-decoration: underline;
 }
 
-code, pre { font-family: var(--font-mono, var(--turbo-font-mono)); font-size: 0.875rem; }
+code,
+pre {
+  font-family: var(--font-mono, var(--turbo-font-mono));
+  font-size: 0.875rem;
+}
 
 code:not(pre code) {
   background: var(--turbo-code-inline-bg, var(--turbo-bg-overlay));
@@ -225,8 +256,13 @@ pre {
   border-left: 3px solid var(--site-accent, var(--rust-forge));
 }
 
-table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; }
-th, td {
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+}
+th,
+td {
   text-align: left;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--turbo-table-border, var(--turbo-border-default));
@@ -239,7 +275,6 @@ th {
   color: var(--turbo-table-header-fg, var(--rust-brass));
   background: var(--turbo-table-thead-bg, transparent);
 }
-
 
 /* Intentional pill links for CTAs and compact resource references. */
 .smart-link,
@@ -260,9 +295,15 @@ th {
   line-height: 1.2;
   text-decoration: none;
   color: var(--turbo-text-primary, var(--turbo-text-default));
-  background: color-mix(in srgb, var(--site-accent, var(--rust-forge)) 12%, var(--turbo-bg-surface));
-  border: 1px solid color-mix(in srgb, var(--site-accent, var(--rust-forge)) 40%, var(--turbo-border-default));
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--site-accent-light, var(--rust-brass)) 15%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--site-accent, var(--rust-forge)) 12%,
+    var(--turbo-bg-surface)
+  );
+  border: 1px solid
+    color-mix(in srgb, var(--site-accent, var(--rust-forge)) 40%, var(--turbo-border-default));
+  box-shadow: 0 1px 0
+    color-mix(in srgb, var(--site-accent-light, var(--rust-brass)) 15%, transparent);
   white-space: nowrap;
   vertical-align: baseline;
 }
@@ -274,8 +315,16 @@ th {
 .smart-link:hover,
 .doc-link:hover {
   color: var(--site-accent-light, var(--rust-brass-light));
-  background: color-mix(in srgb, var(--site-accent, var(--rust-forge)) 20%, var(--turbo-bg-surface));
-  border-color: color-mix(in srgb, var(--site-accent, var(--rust-forge)) 55%, var(--turbo-border-default));
+  background: color-mix(
+    in srgb,
+    var(--site-accent, var(--rust-forge)) 20%,
+    var(--turbo-bg-surface)
+  );
+  border-color: color-mix(
+    in srgb,
+    var(--site-accent, var(--rust-forge)) 55%,
+    var(--turbo-border-default)
+  );
   text-decoration: none;
 }
 
@@ -315,7 +364,9 @@ th {
   font-weight: 600;
 }
 
-.main { min-height: calc(100dvh - var(--header-height) - 200px); }
+.main {
+  min-height: calc(100dvh - var(--header-height) - 200px);
+}
 
 .container {
   max-width: var(--max-width);
@@ -323,7 +374,9 @@ th {
   padding: 0 1.5rem;
 }
 
-.content { padding: 2rem 0 4rem; }
+.content {
+  padding: 2rem 0 4rem;
+}
 
 .page-title {
   margin-bottom: 0.5rem;
@@ -364,17 +417,26 @@ th {
   min-height: calc(100dvh - var(--header-height));
 }
 
-.docs-main { padding: 2.5rem 3rem 5rem; min-width: 0; }
+.docs-main {
+  padding: 2.5rem 3rem 5rem;
+  min-width: 0;
+}
 
 .docs-header {
   margin-bottom: 2.75rem;
   padding-bottom: 1.5rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--site-accent-light, var(--rust-brass)) 25%, var(--turbo-border-default));
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--site-accent-light, var(--rust-brass)) 25%, var(--turbo-border-default));
 }
 
-.docs-content { max-width: 760px; }
+.docs-content {
+  max-width: 760px;
+}
 
-.docs-title { font-size: 2.25rem; margin-bottom: 0.65rem; }
+.docs-title {
+  font-size: 2.25rem;
+  margin-bottom: 0.65rem;
+}
 
 .docs-description {
   color: var(--turbo-text-muted);
@@ -428,9 +490,7 @@ th {
  * Scoped to text-bearing blocks rather than `.prose a`, so a link wrapping a
  * figure or a block-level component does not pick up a stray rule.
  */
-.prose
-  :where(p, li, blockquote, dd, td, th, figcaption)
-  a[href]:not(.smart-link, .doc-link, .btn),
+.prose :where(p, li, blockquote, dd, td, th, figcaption) a[href]:not(.smart-link, .doc-link, .btn),
 .docs-description a[href]:not(.smart-link, .doc-link, .btn) {
   text-decoration: underline;
   text-decoration-thickness: var(--prose-link-underline);
@@ -448,7 +508,8 @@ th {
   margin: var(--prose-section-gap) 0 1rem;
   font-size: 1.5rem;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--site-accent-light, var(--rust-brass)) 25%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--site-accent-light, var(--rust-brass)) 25%, transparent);
 }
 
 .prose h2:first-child {
@@ -602,7 +663,11 @@ th {
 
 .docs-sidebar {
   border-right: 1px solid var(--turbo-border-default);
-  background: color-mix(in srgb, var(--turbo-bg-surface) 95%, var(--site-accent, var(--rust-forge)) 5%);
+  background: color-mix(
+    in srgb,
+    var(--turbo-bg-surface) 95%,
+    var(--site-accent, var(--rust-forge)) 5%
+  );
   padding: 1.5rem 0;
   position: sticky;
   top: var(--header-height);
@@ -610,7 +675,9 @@ th {
   overflow-y: auto;
 }
 
-.sidebar-section { margin-bottom: 1.5rem; }
+.sidebar-section {
+  margin-bottom: 1.5rem;
+}
 
 .sidebar-section-title {
   font-family: var(--font-mono);
@@ -630,7 +697,9 @@ th {
   font-size: 0.9rem;
   text-decoration: none;
   border-left: 2px solid transparent;
-  transition: border-color var(--transition-fast), background var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    background var(--transition-fast);
 }
 
 .sidebar-link:hover {
@@ -660,8 +729,13 @@ th {
   align-items: center;
   gap: 0.75rem 1.25rem;
   padding: 1rem 2.5rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--site-accent-light, var(--rust-brass)) 20%, var(--turbo-border-default));
-  background: color-mix(in srgb, var(--turbo-bg-surface) 90%, var(--site-accent, var(--rust-forge)) 10%);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--site-accent-light, var(--rust-brass)) 20%, var(--turbo-border-default));
+  background: color-mix(
+    in srgb,
+    var(--turbo-bg-surface) 90%,
+    var(--site-accent, var(--rust-forge)) 10%
+  );
 }
 
 .docs-section-nav-label {
@@ -710,8 +784,16 @@ th {
 
 .docs-section-nav-link.active {
   color: var(--site-accent, var(--rust-forge));
-  background: color-mix(in srgb, var(--site-accent, var(--rust-forge)) 12%, var(--turbo-bg-surface));
-  border-color: color-mix(in srgb, var(--site-accent, var(--rust-forge)) 35%, var(--turbo-border-default));
+  background: color-mix(
+    in srgb,
+    var(--site-accent, var(--rust-forge)) 12%,
+    var(--turbo-bg-surface)
+  );
+  border-color: color-mix(
+    in srgb,
+    var(--site-accent, var(--rust-forge)) 35%,
+    var(--turbo-border-default)
+  );
   font-weight: 600;
 }
 
@@ -795,7 +877,8 @@ th {
 .docs-resources {
   margin-top: 3.5rem;
   padding-top: 1.25rem;
-  border-top: 1px solid color-mix(in srgb, var(--site-accent-light, var(--rust-brass)) 24%, var(--turbo-border-default));
+  border-top: 1px solid
+    color-mix(in srgb, var(--site-accent-light, var(--rust-brass)) 24%, var(--turbo-border-default));
 }
 
 .docs-resources-title {
@@ -840,7 +923,11 @@ th {
 
 .docs-resource-tag:hover {
   color: var(--site-accent-light, var(--rust-brass-light));
-  border-color: color-mix(in srgb, var(--site-accent, var(--rust-forge)) 45%, var(--turbo-border-default));
+  border-color: color-mix(
+    in srgb,
+    var(--site-accent, var(--rust-forge)) 45%,
+    var(--turbo-border-default)
+  );
   text-decoration: none;
 }
 
@@ -871,9 +958,15 @@ th {
 }
 
 @media (max-width: 900px) {
-  .docs-layout { grid-template-columns: 1fr; }
-  .docs-sidebar { display: none; }
-  .docs-main { padding: 1.5rem; }
+  .docs-layout {
+    grid-template-columns: 1fr;
+  }
+  .docs-sidebar {
+    display: none;
+  }
+  .docs-main {
+    padding: 1.5rem;
+  }
 }
 
 /* Craft-only button styling — turbo-components.css provides base .btn */
@@ -1000,7 +1093,11 @@ th {
   margin-bottom: 2rem;
 }
 
-.craft-actions { display: flex; gap: 1rem; flex-wrap: wrap; }
+.craft-actions {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
 
 .craft-hero-visual {
   margin: 0;
@@ -1101,7 +1198,10 @@ th {
   box-shadow: var(--rust-warm-shadow);
 }
 
-.craft-strip-visual img { width: 100%; display: block; }
+.craft-strip-visual img {
+  width: 100%;
+  display: block;
+}
 
 .craft-strip h2 {
   font-size: 1.85rem;
@@ -1133,7 +1233,8 @@ th {
   margin: 0 0 3rem;
   padding: 2rem 1.75rem;
   border-radius: var(--radius-xl);
-  border: 1px solid color-mix(in srgb, var(--site-accent, var(--rust-forge)) 30%, var(--turbo-border-default));
+  border: 1px solid
+    color-mix(in srgb, var(--site-accent, var(--rust-forge)) 30%, var(--turbo-border-default));
   background: linear-gradient(
     135deg,
     color-mix(in srgb, var(--site-accent, var(--rust-forge)) 10%, var(--turbo-bg-surface)),
@@ -1253,7 +1354,8 @@ th {
   position: relative;
   z-index: 2;
   margin-bottom: -40px;
-  box-shadow: 0 4px 20px color-mix(in srgb, var(--site-accent, var(--turbo-brand-primary)) 40%, transparent);
+  box-shadow: 0 4px 20px
+    color-mix(in srgb, var(--site-accent, var(--turbo-brand-primary)) 40%, transparent);
   /* Named properties rather than `all`: `all` also covers `color` and
      `background`, which a theme swap rewrites under the pointer. */
   transition:
@@ -1263,7 +1365,8 @@ th {
 
 .feature-tile:hover .feature-tile-bubble {
   transform: scale(1.1);
-  box-shadow: 0 8px 30px color-mix(in srgb, var(--site-accent, var(--turbo-brand-primary)) 50%, transparent);
+  box-shadow: 0 8px 30px
+    color-mix(in srgb, var(--site-accent, var(--turbo-brand-primary)) 50%, transparent);
 }
 
 .feature-tile-icon {
@@ -1298,7 +1401,8 @@ th {
 
 .feature-tile:hover .feature-tile-body {
   border-color: var(--site-accent, var(--turbo-brand-primary));
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--site-accent, var(--turbo-brand-primary)) 15%, transparent);
+  box-shadow: 0 8px 24px
+    color-mix(in srgb, var(--site-accent, var(--turbo-brand-primary)) 15%, transparent);
 }
 
 .feature-tile-title {
@@ -1379,7 +1483,9 @@ th {
 
 .card.card-feature {
   border-left: 3px solid var(--site-accent, var(--rust-forge));
-  transition: transform 0.25s, box-shadow 0.25s;
+  transition:
+    transform 0.25s,
+    box-shadow 0.25s;
 }
 
 .card.card-feature:hover {
@@ -1438,7 +1544,9 @@ th {
   margin-bottom: 3rem;
 }
 
-.craft-gallery figure { margin: 0; }
+.craft-gallery figure {
+  margin: 0;
+}
 
 .craft-gallery img {
   width: 100%;
@@ -1463,7 +1571,11 @@ th {
   align-items: center;
   padding: 2.5rem;
   margin-bottom: 3rem;
-  background: color-mix(in srgb, var(--turbo-bg-surface) 85%, var(--site-accent, var(--rust-forge)) 15%);
+  background: color-mix(
+    in srgb,
+    var(--turbo-bg-surface) 85%,
+    var(--site-accent, var(--rust-forge)) 15%
+  );
   border: 1px solid color-mix(in srgb, var(--site-accent, var(--rust-forge)) 25%, transparent);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-md, var(--rust-warm-shadow));
@@ -1474,7 +1586,10 @@ th {
   border-radius: var(--radius-lg);
 }
 
-.craft-cloud h2 { font-size: 2rem; margin-bottom: 0.75rem; }
+.craft-cloud h2 {
+  font-size: 2rem;
+  margin-bottom: 0.75rem;
+}
 
 .craft-cloud p {
   color: var(--turbo-text-muted);
@@ -1483,13 +1598,16 @@ th {
 }
 
 /* Cloud & content pages */
-.content-section { margin-bottom: 3.25rem; }
+.content-section {
+  margin-bottom: 3.25rem;
+}
 
 .content-section h2 {
   font-size: 1.5rem;
   margin-bottom: 1.25rem;
   padding-bottom: 0.4rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--site-accent-light, var(--rust-brass)) 30%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--site-accent-light, var(--rust-brass)) 30%, transparent);
 }
 
 .content-section p {
@@ -1497,8 +1615,13 @@ th {
   line-height: 1.65;
 }
 
-.content-section ul { margin: 0.75rem 0 0 1.25rem; }
-.content-section li { margin-bottom: 0.55rem; line-height: 1.6; }
+.content-section ul {
+  margin: 0.75rem 0 0 1.25rem;
+}
+.content-section li {
+  margin-bottom: 0.55rem;
+  line-height: 1.6;
+}
 
 .content-hero-img {
   width: 100%;
@@ -1557,13 +1680,21 @@ th {
   padding: 1rem 1.15rem;
   border-radius: var(--radius-lg);
   border: 1px solid var(--turbo-card-border, var(--turbo-border-default));
-  background: color-mix(in srgb, var(--turbo-bg-surface) 92%, var(--site-accent, var(--rust-forge)) 8%);
+  background: color-mix(
+    in srgb,
+    var(--turbo-bg-surface) 92%,
+    var(--site-accent, var(--rust-forge)) 8%
+  );
   text-decoration: none;
   color: inherit;
 }
 
 .link-card:hover {
-  border-color: color-mix(in srgb, var(--site-accent, var(--rust-forge)) 45%, var(--turbo-border-default));
+  border-color: color-mix(
+    in srgb,
+    var(--site-accent, var(--rust-forge)) 45%,
+    var(--turbo-border-default)
+  );
   text-decoration: none;
   color: var(--site-accent-light, var(--rust-brass-light));
 }
@@ -1630,7 +1761,10 @@ th {
 }
 
 @media (max-width: 900px) {
-  .craft-hero, .craft-zigzag, .craft-zigzag-reverse, .craft-privacy {
+  .craft-hero,
+  .craft-zigzag,
+  .craft-zigzag-reverse,
+  .craft-privacy {
     grid-template-columns: 1fr;
   }
 
@@ -1639,9 +1773,16 @@ th {
     order: unset;
   }
 
-  .craft-hero { text-align: center; }
-  .craft-lead { margin-left: auto; margin-right: auto; }
-  .craft-actions { justify-content: center; }
+  .craft-hero {
+    text-align: center;
+  }
+  .craft-lead {
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .craft-actions {
+    justify-content: center;
+  }
 
   .feature-tiles-grid {
     grid-template-columns: repeat(2, minmax(0, 280px));
@@ -1696,19 +1837,27 @@ th {
 .theme-picker-trigger:focus,
 .theme-picker-trigger:focus-visible,
 .theme-picker.is-open .theme-picker-trigger {
-  border-color: color-mix(in srgb, var(--site-accent, var(--turbo-brand-primary)) 45%, var(--turbo-border-default));
+  border-color: color-mix(
+    in srgb,
+    var(--site-accent, var(--turbo-brand-primary)) 45%,
+    var(--turbo-border-default)
+  );
   background: var(--turbo-dropdown-item-hover, var(--turbo-bg-overlay));
   color: var(--turbo-body-primary, var(--turbo-text-primary));
 }
 
 .theme-picker-trigger:focus-visible,
 .theme-picker-option:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--site-accent, var(--turbo-brand-primary)) 65%, transparent);
+  outline: 2px solid
+    color-mix(in srgb, var(--site-accent, var(--turbo-brand-primary)) 65%, transparent);
   outline-offset: 2px;
 }
 
 .theme-picker.is-open .theme-picker-trigger {
-  box-shadow: var(--shadow-glow-sm, 0 0 0 3px color-mix(in srgb, var(--site-accent, var(--turbo-brand-primary)) 25%, transparent));
+  box-shadow: var(
+    --shadow-glow-sm,
+    0 0 0 3px color-mix(in srgb, var(--site-accent, var(--turbo-brand-primary)) 25%, transparent)
+  );
 }
 
 .theme-swatch {
@@ -1769,7 +1918,8 @@ th {
 .theme-picker-group + .theme-picker-group {
   margin-top: 0.55rem;
   padding-top: 0.55rem;
-  border-top: 1px solid color-mix(in srgb, var(--turbo-dropdown-border, var(--turbo-border-default)) 75%, transparent);
+  border-top: 1px solid
+    color-mix(in srgb, var(--turbo-dropdown-border, var(--turbo-border-default)) 75%, transparent);
 }
 
 .theme-picker-group-label {
@@ -1825,7 +1975,11 @@ th {
 }
 
 .theme-picker-option.is-active {
-  background: color-mix(in srgb, var(--site-accent, var(--turbo-brand-primary)) 12%, var(--turbo-bg-surface));
+  background: color-mix(
+    in srgb,
+    var(--site-accent, var(--turbo-brand-primary)) 12%,
+    var(--turbo-bg-surface)
+  );
   border-color: color-mix(in srgb, var(--site-accent, var(--turbo-brand-primary)) 30%, transparent);
 }
 

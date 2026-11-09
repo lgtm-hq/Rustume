@@ -13,11 +13,11 @@ contact bar keeps its solid rose fill.
 
 ## Typefaces
 
-| Role | Face | Notes |
-| --- | --- | --- |
-| Body | IBM Plex Sans 10pt / 0.65em | Template-locked |
-| Display | Name 24pt bold accent on tier-1; headings 9pt uppercase + 1.5pt bottom stroke | Same family |
-| Mono | None | |
+| Role    | Face                                                                          | Notes           |
+| ------- | ----------------------------------------------------------------------------- | --------------- |
+| Body    | IBM Plex Sans 10pt / 0.65em                                                   | Template-locked |
+| Display | Name 24pt bold accent on tier-1; headings 9pt uppercase + 1.5pt bottom stroke | Same family     |
+| Mono    | None                                                                          |                 |
 
 **#701:** configurable size/leading; two-tier header + equal columns stay identity. Sidebar ratio
 intentionally not wired (#84).
@@ -45,13 +45,13 @@ Default main / sidebar section ids are defined once in
 
 ## Item composition
 
-| Concern | Rule |
-| --- | --- |
-| Experience order | **Position-first** (bold); company under (accent, linked when a URL is set); date/location right muted (#858) |
-| Education order | Institution + degree; date right; score; summary |
-| Profile label mode | `network-username` |
-| Skill / interest keywords | Themed pill chips (`render-item-tag-chips`, #919) — the sheet's `keywordStyle: "chips"` |
-| Project keywords | Soft accent chips (template-local) |
+| Concern                    | Rule                                                                                                                  |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Experience order           | **Position-first** (bold); company under (accent, linked when a URL is set); date/location right muted (#858)         |
+| Education order            | Institution + degree; date right; score; summary                                                                      |
+| Profile label mode         | `network-username`                                                                                                    |
+| Skill / interest keywords  | Themed pill chips (`render-item-tag-chips`, #919) — the sheet's `keywordStyle: "chips"`                               |
+| Project keywords           | Soft accent chips (template-local)                                                                                    |
 | Level (`template-default`) | Sheet-parity five dots: 4.5pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.25pt apart (#919) |
 
 Shared extras from `_common.typ` (experience/education keyword chips + custom
@@ -60,12 +60,12 @@ bodies above.
 
 ## Divergences (sheet vs PDF vs this spec)
 
-| Divergence | Tag |
-| --- | --- |
+| Divergence                                                                                                                                                                                                                       | Tag                   |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
 | Sheet banner is one band; Typst is explicitly two-tier (wash + contact bar). The two-tier header is leafish's identity, so flattening it onto the sheet's single banner is not a given — same carve-out as nosepass's skill pill | owner-decision-needed |
-| Keyword chips: the sheet selects leafish's `keywordStyle: "chips"`, and Typst paints `.doc-sheet__tag-chip` for skills and interests | fixed (#919) |
-| Experience lead field was company-first in Typst | fixed (#858) |
-| Typography metadata ignored | fix-in-typst (#701) |
+| Keyword chips: the sheet selects leafish's `keywordStyle: "chips"`, and Typst paints `.doc-sheet__tag-chip` for skills and interests                                                                                             | fixed (#919)          |
+| Experience lead field was company-first in Typst                                                                                                                                                                                 | fixed (#858)          |
+| Typography metadata ignored                                                                                                                                                                                                      | fix-in-typst (#701)   |
 
 ### Audit evidence
 

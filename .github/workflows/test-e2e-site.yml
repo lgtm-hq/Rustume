@@ -24,17 +24,17 @@ name: Test - Site E2E
   push:
     branches: [main]
     paths:
-      - 'apps/site/**'
-      - 'docs/**'
-      - 'scripts/ci/site/**'
-      - '.github/workflows/test-e2e-site.yml'
+      - "apps/site/**"
+      - "docs/**"
+      - "scripts/ci/site/**"
+      - ".github/workflows/test-e2e-site.yml"
   pull_request:
     branches: [main]
     paths:
-      - 'apps/site/**'
-      - 'docs/**'
-      - 'scripts/ci/site/**'
-      - '.github/workflows/test-e2e-site.yml'
+      - "apps/site/**"
+      - "docs/**"
+      - "scripts/ci/site/**"
+      - ".github/workflows/test-e2e-site.yml"
   merge_group:
   workflow_dispatch:
 
@@ -53,12 +53,12 @@ concurrency:
 jobs:
   site-e2e:
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-e2e-playwright.yml@95b19dcf24da660fa48b18f7db88af6a3b69d0e6 # v0.82.1
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-e2e-playwright.yml@b830ca6972f0c9cbaeb1363283de594f68d66acf # v0.87.0
     permissions:
       contents: read
       pull-requests: write # publish-test-summary on PRs
     with:
-      tooling-ref: '95b19dcf24da660fa48b18f7db88af6a3b69d0e6' # v0.82.1
+      tooling-ref: "b830ca6972f0c9cbaeb1363283de594f68d66acf" # v0.87.0
       job-name: "♿ Site E2E"
       node-version: "22"
       working-directory: apps/site

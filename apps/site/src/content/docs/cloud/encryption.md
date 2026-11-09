@@ -1,6 +1,6 @@
 ---
 title: "Encryption"
-description: 'Storage encryption and optional end-to-end protection for account-backed Rustume resume data.'
+description: "Storage encryption and optional end-to-end protection for account-backed Rustume resume data."
 category: cloud
 order: 50
 ---
@@ -11,10 +11,10 @@ yourself.
 
 ## Protection choices
 
-| Mode | Behavior | Trade-off |
-| --- | --- | --- |
-| Server-managed encryption | Resume content is encrypted at rest while the server can decrypt for rendering and connected features | Operators must protect keys and service access |
-| Optional end-to-end encryption | The browser encrypts using a user-held secret before upload | The service cannot recover a lost secret or process readable content without user participation |
+| Mode                           | Behavior                                                                                              | Trade-off                                                                                       |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Server-managed encryption      | Resume content is encrypted at rest while the server can decrypt for rendering and connected features | Operators must protect keys and service access                                                  |
+| Optional end-to-end encryption | The browser encrypts using a user-held secret before upload                                           | The service cannot recover a lost secret or process readable content without user participation |
 
 ## Operator responsibility
 

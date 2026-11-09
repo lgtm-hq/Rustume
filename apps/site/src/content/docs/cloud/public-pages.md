@@ -1,6 +1,6 @@
 ---
 title: "Public Pages"
-description: 'Publish shareable resume pages with optional password protection, previews, and custom-domain configuration.'
+description: "Publish shareable resume pages with optional password protection, previews, and custom-domain configuration."
 category: cloud
 order: 70
 ---

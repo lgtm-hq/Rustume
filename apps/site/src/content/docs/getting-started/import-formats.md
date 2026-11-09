@@ -10,12 +10,12 @@ three import sources plus native [Rustume](/) JSON.
 
 ## Supported formats
 
-| Format | CLI `--format` | API `format` | Input type |
-| --- | --- | --- | --- |
-| [JSON Resume](https://jsonresume.org/) | `json-resume` | `json-resume` | JSON file |
-| [LinkedIn](https://www.linkedin.com/) export | `linkedin` | `linkedin` | ZIP (base64 in API) |
-| [Reactive Resume](https://rxresu.me/) | `rrv3` | `rrv3` | JSON file |
-| Native [Rustume](/) | `rustume` | `rustume` | JSON file |
+| Format                                       | CLI `--format` | API `format`  | Input type          |
+| -------------------------------------------- | -------------- | ------------- | ------------------- |
+| [JSON Resume](https://jsonresume.org/)       | `json-resume`  | `json-resume` | JSON file           |
+| [LinkedIn](https://www.linkedin.com/) export | `linkedin`     | `linkedin`    | ZIP (base64 in API) |
+| [Reactive Resume](https://rxresu.me/)        | `rrv3`         | `rrv3`        | JSON file           |
+| Native [Rustume](/)                          | `rustume`      | `rustume`     | JSON file           |
 
 The CLI auto-detects format from file extension and content when `--format` is omitted.
 
@@ -67,7 +67,6 @@ For the API, base64-encode the ZIP and set `"base64": true`:
   "data": "<base64-encoded-zip>",
   "base64": true
 }
-
 ```
 
 ## Reactive Resume

@@ -1,6 +1,6 @@
 ---
 title: "Subscription Management"
-description: 'Manage Rustume-operated hosting access, invoices, payment methods, and cancellation through the hosted billing portal.'
+description: "Manage Rustume-operated hosting access, invoices, payment methods, and cancellation through the hosted billing portal."
 category: pricing
 order: 30
 ---
@@ -10,12 +10,12 @@ and synchronization service; it does not grant exclusive access to application f
 
 ## Responsibility split
 
-| Responsibility | Owner |
-| --- | --- |
+| Responsibility                                      | Owner                                   |
+| --------------------------------------------------- | --------------------------------------- |
 | Checkout, payment methods, invoices, refunds, taxes | [Paddle](https://developer.paddle.com/) |
-| Hosted account access and managed operations | Rustume Cloud |
-| Self-hosted deployments and their data | The operator |
-| Browser-local resumes and exports | The user |
+| Hosted account access and managed operations        | Rustume Cloud                           |
+| Self-hosted deployments and their data              | The operator                            |
+| Browser-local resumes and exports                   | The user                                |
 
 Before ending hosted access, export any records that should remain independently portable.
 Self-hosted Rustume remains available regardless of hosted subscription state. See [Hosting

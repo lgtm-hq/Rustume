@@ -27,15 +27,15 @@ concurrency:
 jobs:
   security-audit:
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-security-audit.yml@95b19dcf24da660fa48b18f7db88af6a3b69d0e6 # v0.82.1
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-security-audit.yml@b830ca6972f0c9cbaeb1363283de594f68d66acf # v0.87.0
     permissions:
       contents: read
       packages: read # pull the pinned lintro audit image from GHCR
     with:
-      tooling-ref: '95b19dcf24da660fa48b18f7db88af6a3b69d0e6' # v0.82.1
+      tooling-ref: "b830ca6972f0c9cbaeb1363283de594f68d66acf" # v0.87.0
       job-name: "Scan dependencies"
       # yamllint disable-line rule:line-length
-      lintro-image: ghcr.io/lgtm-hq/py-lintro:0.173.1@sha256:116e60912a8c7a2002349ef096cfa93644314492751746aacdd5ef228c74306f
+      lintro-image: ghcr.io/lgtm-hq/py-lintro:0.178.1@sha256:9f7510d65d063e2f0f1bdccb2b8f486d744ba21753341e75e5bbd8c9b29a9aae
       upload-comment-artifact: ${{ github.event_name == 'pull_request' }}
       egress-policy: block
       egress-preset: quality
@@ -70,7 +70,7 @@ jobs:
         with:
           repository: lgtm-hq/lgtm-ci
           path: .lgtm-ci-tooling
-          ref: '95b19dcf24da660fa48b18f7db88af6a3b69d0e6' # v0.82.1
+          ref: "b830ca6972f0c9cbaeb1363283de594f68d66acf" # v0.87.0
           sparse-checkout: |
             scripts/ci/
           sparse-checkout-cone-mode: true
@@ -88,11 +88,11 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository
     needs: security-audit
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-publish-security-audit-comment.yml@95b19dcf24da660fa48b18f7db88af6a3b69d0e6 # v0.82.1
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-publish-security-audit-comment.yml@b830ca6972f0c9cbaeb1363283de594f68d66acf # v0.87.0
     permissions:
       contents: read
       pull-requests: write # publish the audit summary on this PR
     with:
-      tooling-ref: '95b19dcf24da660fa48b18f7db88af6a3b69d0e6' # v0.82.1
+      tooling-ref: "b830ca6972f0c9cbaeb1363283de594f68d66acf" # v0.87.0
       job-name: "💬 Post PR Comment"
       egress-policy: block

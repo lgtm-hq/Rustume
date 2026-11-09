@@ -4,10 +4,10 @@
 
 <!-- markdownlint-disable MD060 -- emoji triggers false positive -->
 
-| Version   | Supported |
-| --------- | --------- |
-| `0.20.x`  | ✅        |
-| `< 0.20`  | ❌        |
+| Version  | Supported |
+| -------- | --------- |
+| `0.20.x` | ✅        |
+| `< 0.20` | ❌        |
 
 Current release line matches the workspace version in `Cargo.toml` (currently `0.20.0`).
 

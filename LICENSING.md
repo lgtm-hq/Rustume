@@ -8,14 +8,14 @@ in review instead of living as tribal knowledge.
 
 ## The two repositories
 
-| Repo | Visibility | License | Contents |
-| --- | --- | --- | --- |
-| [`lgtm-hq/Rustume`](https://github.com/lgtm-hq/Rustume) | public | [AGPL-3.0-only](LICENSE) | Product code (`crates/`, `apps/web`, bindings), tests, documentation, developer tooling, CI for all of the above, and any self-host/dev compose files |
-| `lgtm-hq/rustume-ops` | private | proprietary | Production infrastructure (Terraform, tfvars, state configuration), secrets policy and inventory, deploy topology, runbooks and playbooks, on-call routing, compliance material (DPA, subprocessor register), hosting cost model |
+| Repo                                                    | Visibility | License                  | Contents                                                                                                                                                                                                                         |
+| ------------------------------------------------------- | ---------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`lgtm-hq/Rustume`](https://github.com/lgtm-hq/Rustume) | public     | [AGPL-3.0-only](LICENSE) | Product code (`crates/`, `apps/web`, bindings), tests, documentation, developer tooling, CI for all of the above, and any self-host/dev compose files                                                                            |
+| `lgtm-hq/rustume-ops`                                   | private    | proprietary              | Production infrastructure (Terraform, tfvars, state configuration), secrets policy and inventory, deploy topology, runbooks and playbooks, on-call routing, compliance material (DPA, subprocessor register), hosting cost model |
 
 Unlike some open-core projects there is no closed-IP seam inside the product
 itself — no private prompts, models, or tuning data. Everything needed to build,
-run, and self-host Rustume is in the public repo. Everything about how *we*
+run, and self-host Rustume is in the public repo. Everything about how _we_
 run it as a paid service is in `rustume-ops`.
 
 ## What lands where
@@ -27,7 +27,7 @@ Public (`Rustume`):
 - Source code, schemas, templates, and their tests
 - Self-hosting documentation and example configuration
 - CI that builds, tests, lints, or releases the product
-- Deploy *mechanics* that a self-hoster could reuse (e.g. a generic
+- Deploy _mechanics_ that a self-hoster could reuse (e.g. a generic
   image-publish workflow)
 
 Private (`rustume-ops`):

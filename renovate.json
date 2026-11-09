@@ -16,9 +16,7 @@
     {
       "customType": "regex",
       "managerFilePatterns": ["/^docker/Dockerfile$/"],
-      "matchStrings": [
-        "ARG CARGO_CHEF_VERSION=(?<currentValue>\\S+)"
-      ],
+      "matchStrings": ["ARG CARGO_CHEF_VERSION=(?<currentValue>\\S+)"],
       "depNameTemplate": "cargo-chef",
       "datasourceTemplate": "crate"
     },
@@ -69,13 +67,7 @@
       "groupName": "typst",
       "groupSlug": "typst",
       "matchManagers": ["cargo"],
-      "matchPackageNames": [
-        "typst",
-        "typst-assets",
-        "typst-pdf",
-        "typst-render",
-        "/^typst-/"
-      ]
+      "matchPackageNames": ["typst", "typst-assets", "typst-pdf", "typst-render", "/^typst-/"]
     },
     {
       "description": "apps/site must stay on TypeScript 6 until @astrojs/check supports the TypeScript 7 native API (astro#17268)",

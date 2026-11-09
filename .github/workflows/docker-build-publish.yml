@@ -100,7 +100,7 @@ jobs:
       && needs.classify.outputs.pipeline != 'false'
       && needs.classify.outputs.bump-only != 'true'
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@95b19dcf24da660fa48b18f7db88af6a3b69d0e6 # v0.82.1
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-docker.yml@b830ca6972f0c9cbaeb1363283de594f68d66acf # v0.87.0
     permissions:
       contents: read
       packages: write
@@ -108,7 +108,7 @@ jobs:
       attestations: write
       security-events: write
     with:
-      tooling-ref: '95b19dcf24da660fa48b18f7db88af6a3b69d0e6' # v0.82.1
+      tooling-ref: "b830ca6972f0c9cbaeb1363283de594f68d66acf" # v0.87.0
       file: docker/Dockerfile
       image-name: lgtm-hq/rustume
       version: >-
@@ -238,7 +238,7 @@ jobs:
 
       - name: Checkout
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@95b19dcf24da660fa48b18f7db88af6a3b69d0e6 # v0.82.1
+        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@b830ca6972f0c9cbaeb1363283de594f68d66acf # v0.87.0
 
       - name: Verify published tags resolve
         env:
@@ -294,10 +294,10 @@ jobs:
 
       - name: Checkout
         # yamllint disable-line rule:line-length
-        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@95b19dcf24da660fa48b18f7db88af6a3b69d0e6 # v0.82.1
+        uses: lgtm-hq/lgtm-ci/.github/actions/secure-checkout@b830ca6972f0c9cbaeb1363283de594f68d66acf # v0.87.0
 
       - name: Log in to GHCR
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}

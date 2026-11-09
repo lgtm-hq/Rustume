@@ -14,22 +14,22 @@ app](/docs/contributing/web-app/)) are thin adapters.
 
 ![Rustume workspace crate map — WASM, CLI, Server, Web, and shared crates](/assets/images/arch-crate-map.png)
 
-*Core logic lives in shared crates; delivery surfaces are thin adapters.*
+_Core logic lives in shared crates; delivery surfaces are thin adapters._
 
 ## Crate responsibilities
 
-| Crate | Purpose |
-| --- | --- |
-| `rustume-schema` | Resume data types, validation, [JSON Schema](https://json-schema.org/) definitions |
-| `rustume-parser` | Import parsers for [JSON Resume](https://jsonresume.org/), [LinkedIn](https://www.linkedin.com/), [Reactive Resume](https://rxresu.me/) |
-| `rustume-render` | [Typst](https://typst.app/)-based PDF/PNG generation with 12 [templates](/docs/getting-started/templates/) |
-| `rustume-storage` | Platform-agnostic storage abstraction ([IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API), memory) |
-| `rustume-utils` | Shared utilities (ID generation, string, date, color, HTML→[Typst](https://typst.app/)) |
-| `rustume-cli` | [Command-line interface](/docs/cli/usage/) binary |
-| `rustume-server` | [REST API](/docs/api/overview/) with [OpenAPI](/docs/api/overview/) documentation ([Axum](https://github.com/tokio-rs/axum)) |
-| `rustume-wasm` | [WebAssembly](https://developer.mozilla.org/en-US/docs/WebAssembly) bindings for browser usage |
-| `apps/web` | [SolidJS](https://www.solidjs.com/) resume builder ([Vite](https://vite.dev/)) |
-| `apps/site` | [Astro](https://astro.build/) documentation site (this site) |
+| Crate             | Purpose                                                                                                                                 |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `rustume-schema`  | Resume data types, validation, [JSON Schema](https://json-schema.org/) definitions                                                      |
+| `rustume-parser`  | Import parsers for [JSON Resume](https://jsonresume.org/), [LinkedIn](https://www.linkedin.com/), [Reactive Resume](https://rxresu.me/) |
+| `rustume-render`  | [Typst](https://typst.app/)-based PDF/PNG generation with 12 [templates](/docs/getting-started/templates/)                              |
+| `rustume-storage` | Platform-agnostic storage abstraction ([IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API), memory)             |
+| `rustume-utils`   | Shared utilities (ID generation, string, date, color, HTML→[Typst](https://typst.app/))                                                 |
+| `rustume-cli`     | [Command-line interface](/docs/cli/usage/) binary                                                                                       |
+| `rustume-server`  | [REST API](/docs/api/overview/) with [OpenAPI](/docs/api/overview/) documentation ([Axum](https://github.com/tokio-rs/axum))            |
+| `rustume-wasm`    | [WebAssembly](https://developer.mozilla.org/en-US/docs/WebAssembly) bindings for browser usage                                          |
+| `apps/web`        | [SolidJS](https://www.solidjs.com/) resume builder ([Vite](https://vite.dev/))                                                          |
+| `apps/site`       | [Astro](https://astro.build/) documentation site (this site)                                                                            |
 
 ## Dependency flow
 

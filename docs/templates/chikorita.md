@@ -11,11 +11,11 @@ background `#ffffff`, text `#166534`, primary `#16a34a`.
 
 ## Typefaces
 
-| Role | Face | Notes |
-| --- | --- | --- |
-| Body | IBM Plex Sans 10pt / 0.65em | Template-locked |
-| Display | Name 26pt; main headings 10pt uppercase in a bottom-stroke box; sidebar 9pt uppercase + thin rule | Same family |
-| Mono | None | |
+| Role    | Face                                                                                              | Notes           |
+| ------- | ------------------------------------------------------------------------------------------------- | --------------- |
+| Body    | IBM Plex Sans 10pt / 0.65em                                                                       | Template-locked |
+| Display | Name 26pt; main headings 10pt uppercase in a bottom-stroke box; sidebar 9pt uppercase + thin rule | Same family     |
+| Mono    | None                                                                                              |                 |
 
 **#701:** configurable size/leading; keep green identity + dual heading chrome.
 
@@ -42,14 +42,14 @@ Default main / sidebar section ids are defined once in
 
 ## Item composition
 
-| Concern | Rule |
-| --- | --- |
-| Education order | Institution + degree under; date right; score; summary |
-| Profile label mode | `network-username` |
-| Skill keywords | Themed pill chips (`render-item-tag-chips`, #919) |
-| Interest keywords | Themed pill chips (`render-item-tag-chips`, #919) |
-| Experience order | **Position-first** (bold) over company (accent); date/location right (#858) |
-| Project keywords | Soft chips |
+| Concern                    | Rule                                                                                                                  |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Education order            | Institution + degree under; date right; score; summary                                                                |
+| Profile label mode         | `network-username`                                                                                                    |
+| Skill keywords             | Themed pill chips (`render-item-tag-chips`, #919)                                                                     |
+| Interest keywords          | Themed pill chips (`render-item-tag-chips`, #919)                                                                     |
+| Experience order           | **Position-first** (bold) over company (accent); date/location right (#858)                                           |
+| Project keywords           | Soft chips                                                                                                            |
 | Level (`template-default`) | Sheet-parity five dots: 4.5pt circles, flat accent fill up to the level, flat `#d6d3d1` after it, 2.25pt apart (#919) |
 
 Shared extras from `_common.typ` (experience/education keyword chips + custom
@@ -58,13 +58,13 @@ bodies above.
 
 ## Divergences (sheet vs PDF vs this spec)
 
-| Divergence | Tag |
-| --- | --- |
-| Sheet paints `sidebar-right` via `doc-sheet__grid--side-right` (`bundledTemplateLayout`), so the visual swap is no longer a divergence | fixed (#830) |
-| Main bottom-stroke headings vs the sheet's underline + uppercase chrome (`bundledTemplateLayout`: `chromeUnderlineChips`) — stroke weight and dual scales remain Typst extras | fix-in-typst |
-| Experience lead field was company-first in Typst | fixed (#858) |
-| Typography metadata ignored | fix-in-typst (#701) |
-| **Body starts on page 2** — PDF page 1 held only the header because the tinted sidebar wrapped in an unbreakable Typst `box`, forcing the two-column grid onto the next page. Fixed in #855 by using a breakable `block` for the sidebar fill. | fixed (#855) |
+| Divergence                                                                                                                                                                                                                                     | Tag                 |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| Sheet paints `sidebar-right` via `doc-sheet__grid--side-right` (`bundledTemplateLayout`), so the visual swap is no longer a divergence                                                                                                         | fixed (#830)        |
+| Main bottom-stroke headings vs the sheet's underline + uppercase chrome (`bundledTemplateLayout`: `chromeUnderlineChips`) — stroke weight and dual scales remain Typst extras                                                                  | fix-in-typst        |
+| Experience lead field was company-first in Typst                                                                                                                                                                                               | fixed (#858)        |
+| Typography metadata ignored                                                                                                                                                                                                                    | fix-in-typst (#701) |
+| **Body starts on page 2** — PDF page 1 held only the header because the tinted sidebar wrapped in an unbreakable Typst `box`, forcing the two-column grid onto the next page. Fixed in #855 by using a breakable `block` for the sidebar fill. | fixed (#855)        |
 
 ### Audit evidence
 

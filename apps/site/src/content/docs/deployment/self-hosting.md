@@ -97,7 +97,6 @@ volume](https://docs.docker.com/storage/volumes/):
 # docker-compose.yml cloud profile
 volumes:
   rustume_pgdata:
-
 ```
 
 See [Cloud storage](/docs/cloud/storage/) for [CRUD](/docs/api/cloud-endpoints/) behavior and
@@ -115,7 +114,6 @@ healthcheck:
   interval: 30s
   timeout: 3s
   retries: 3
-
 ```
 
 The `--health` flag performs an in-process HTTP probe — no curl required in distroless images.
@@ -124,11 +122,11 @@ The `--health` flag performs an in-process HTTP probe — no curl required in di
 
 Typical single-user usage:
 
-| Resource | Minimum | Recommended |
-| --- | --- | --- |
-| CPU | 1 core | 2 cores |
-| RAM | 512 MB | 1 GB |
-| Disk | 200 MB (image) | 1 GB (logs + temp) |
+| Resource | Minimum        | Recommended        |
+| -------- | -------------- | ------------------ |
+| CPU      | 1 core         | 2 cores            |
+| RAM      | 512 MB         | 1 GB               |
+| Disk     | 200 MB (image) | 1 GB (logs + temp) |
 
 PDF rendering is CPU-bound. Concurrent renders on a small VPS may queue, so self-hosted operators
 should size and monitor the deployment for their workload.

@@ -1,6 +1,6 @@
 ---
 title: "CLI Usage"
-description: 'Install and use the <code>rustume</code> command-line tool for parsing, rendering, and validation.'
+description: "Install and use the <code>rustume</code> command-line tool for parsing, rendering, and validation."
 category: cli
 order: 10
 ---
@@ -33,22 +33,22 @@ rustume --help
 
 ## Global flags
 
-| Flag | Description |
-| --- | --- |
-| `-d`, `--debug` | Enable debug logging via `tracing` (`RUST_LOG=rustume=debug`) |
-| `-h`, `--help` | Show help |
-| `-V`, `--version` | Print version |
+| Flag              | Description                                                   |
+| ----------------- | ------------------------------------------------------------- |
+| `-d`, `--debug`   | Enable debug logging via `tracing` (`RUST_LOG=rustume=debug`) |
+| `-h`, `--help`    | Show help                                                     |
+| `-V`, `--version` | Print version                                                 |
 
 ## Subcommands
 
-| Command | Purpose |
-| --- | --- |
-| `parse` | Convert [JSON Resume](https://jsonresume.org/), LinkedIn, [Reactive Resume](https://rxresu.me/) (`rrv3`), or [Rustume](/) JSON |
-| `render` | Generate a PDF from [Rustume](/) JSON |
-| `preview` | Generate a PNG preview of a specific page |
-| `templates` | List available [Typst](https://typst.app/) templates |
-| `validate` | Check resume data against the schema |
-| `init` | Create a new empty (or sample) resume JSON |
+| Command     | Purpose                                                                                                                        |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `parse`     | Convert [JSON Resume](https://jsonresume.org/), LinkedIn, [Reactive Resume](https://rxresu.me/) (`rrv3`), or [Rustume](/) JSON |
+| `render`    | Generate a PDF from [Rustume](/) JSON                                                                                          |
+| `preview`   | Generate a PNG preview of a specific page                                                                                      |
+| `templates` | List available [Typst](https://typst.app/) templates                                                                           |
+| `validate`  | Check resume data against the schema                                                                                           |
+| `init`      | Create a new empty (or sample) resume JSON                                                                                     |
 
 ## Common workflows
 

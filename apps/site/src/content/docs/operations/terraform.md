@@ -1,6 +1,6 @@
 ---
 title: "Terraform Infrastructure"
-description: 'Infrastructure-as-code responsibilities for the operated Rustume Cloud production stack.'
+description: "Infrastructure-as-code responsibilities for the operated Rustume Cloud production stack."
 category: operations
 order: 30
 ---

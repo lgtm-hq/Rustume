@@ -148,12 +148,12 @@ that fills it.
 
 **Before → after**, from real strings:
 
-| Where | Now | Should be |
-| --- | --- | --- |
-| `ExportModal` PDF-export toast | "Failed to export PDF" | "Could not export the PDF. Your resume is unchanged. Try again." — and where the failure reason is known, say it instead: "…the render service is unreachable. Check that the server is running." |
-| `AppErrorFallback` boundary | "An unexpected error occurred." | "Rustume could not render this page. Reload, or try again." — a boundary that catches any render error has no view of what was saved, so it must not say the resume is safe |
-| `useHomePage` bulk-unfile toast | "3 resumes could not be unfiled — try again" | "Could not unfile 3 resumes. They are still in their folders. Try again." |
-| `EmptyScope` heading in `HomeLayouts` | "Nothing here yet" | "No resumes in Drafts" — the body already names the fix, the heading should too |
+| Where                                 | Now                                          | Should be                                                                                                                                                                                         |
+| ------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ExportModal` PDF-export toast        | "Failed to export PDF"                       | "Could not export the PDF. Your resume is unchanged. Try again." — and where the failure reason is known, say it instead: "…the render service is unreachable. Check that the server is running." |
+| `AppErrorFallback` boundary           | "An unexpected error occurred."              | "Rustume could not render this page. Reload, or try again." — a boundary that catches any render error has no view of what was saved, so it must not say the resume is safe                       |
+| `useHomePage` bulk-unfile toast       | "3 resumes could not be unfiled — try again" | "Could not unfile 3 resumes. They are still in their folders. Try again."                                                                                                                         |
+| `EmptyScope` heading in `HomeLayouts` | "Nothing here yet"                           | "No resumes in Drafts" — the body already names the fix, the heading should too                                                                                                                   |
 
 Note what the rewrites share: the failure is named as something that happened to a specific
 object, the user's data is accounted for, and the next action is a verb they can take now. Note

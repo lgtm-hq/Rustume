@@ -1,6 +1,6 @@
 ---
 title: "Cloud Stack"
-description: 'Hosted Rustume Cloud architecture for managed compute, PostgreSQL, identity, billing, object storage, and observability services.'
+description: "Hosted Rustume Cloud architecture for managed compute, PostgreSQL, identity, billing, object storage, and observability services."
 category: architecture
 order: 20
 ---
@@ -13,15 +13,15 @@ maintain themselves.
 
 ![Rustume Cloud production stack with hosting, database, auth, billing, object storage, and observability](/assets/images/cloud-architecture.png)
 
-| Layer | Hosted service | Purpose |
-| --- | --- | --- |
-| Hosting | Railway | Run pre-built GHCR images (CI publish, not source compiles) |
-| Database | Neon PostgreSQL | Account-backed resumes, history, and service data |
-| Authentication | WorkOS AuthKit | Sign-in and account sessions |
-| Object storage | Cloudflare R2 | Exports, public assets, and backup artifacts |
-| Billing | Paddle Merchant of Record | Access to the operated hosted service |
-| Metrics/errors | Grafana Cloud and Sentry | Observability and operational response |
-| Infrastructure | Terraform | Repeatable hosted deployment configuration |
+| Layer          | Hosted service            | Purpose                                                     |
+| -------------- | ------------------------- | ----------------------------------------------------------- |
+| Hosting        | Railway                   | Run pre-built GHCR images (CI publish, not source compiles) |
+| Database       | Neon PostgreSQL           | Account-backed resumes, history, and service data           |
+| Authentication | WorkOS AuthKit            | Sign-in and account sessions                                |
+| Object storage | Cloudflare R2             | Exports, public assets, and backup artifacts                |
+| Billing        | Paddle Merchant of Record | Access to the operated hosted service                       |
+| Metrics/errors | Grafana Cloud and Sentry  | Observability and operational response                      |
+| Infrastructure | Terraform                 | Repeatable hosted deployment configuration                  |
 
 ## Self-hosted equivalent
 

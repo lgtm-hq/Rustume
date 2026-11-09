@@ -86,11 +86,11 @@ cosign verify-attestation --type https://slsa.dev/provenance/v1 ghcr.io/lgtm-hq/
 
 ## Image Tags
 
-| Tag | When published | Use for |
-| --- | --- | --- |
-| `latest`, `0.15.0`, `0.15`, `0` | `v*.*.*` git tag push | Production self-hosting and Rustume Cloud production |
-| `main`, `sha-<commit>` | `main` branch push (path-filtered) | Rustume Cloud staging / bleeding-edge self-hosting |
-| `build-<run>-<arch>` | CI staging only | Internal; not for pulls |
+| Tag                             | When published                     | Use for                                              |
+| ------------------------------- | ---------------------------------- | ---------------------------------------------------- |
+| `latest`, `0.15.0`, `0.15`, `0` | `v*.*.*` git tag push              | Production self-hosting and Rustume Cloud production |
+| `main`, `sha-<commit>`          | `main` branch push (path-filtered) | Rustume Cloud staging / bleeding-edge self-hosting   |
+| `build-<run>-<arch>`            | CI staging only                    | Internal; not for pulls                              |
 
 CI publishes `latest` and semver tags only when the workflow runs on a version
 tag and receives the tag name as `version` (for example `v0.15.0`).
@@ -104,12 +104,12 @@ repo (see `LICENSING.md` for the boundary policy).
 
 ## Environment Variables
 
-| Variable | Default | Description |
-| --- | --- | --- |
-| `PORT` | `3000` | HTTP listen port inside the container. |
-| `RUST_LOG` | `info` | Rust tracing filter. Use `debug` for more server logs. |
-| `CORS_ORIGIN` | `*` | Comma-separated allowed origins for API requests. Set explicitly in production (e.g. `https://your-domain.com`). |
-| `RUSTUME_STATIC_DIR` | `/app/web` | Directory containing the built web app. |
+| Variable             | Default    | Description                                                                                                      |
+| -------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------- |
+| `PORT`               | `3000`     | HTTP listen port inside the container.                                                                           |
+| `RUST_LOG`           | `info`     | Rust tracing filter. Use `debug` for more server logs.                                                           |
+| `CORS_ORIGIN`        | `*`        | Comma-separated allowed origins for API requests. Set explicitly in production (e.g. `https://your-domain.com`). |
+| `RUSTUME_STATIC_DIR` | `/app/web` | Directory containing the built web app.                                                                          |
 
 The root `docker-compose.yml` sets `CORS_ORIGIN` to `http://localhost:3000`.
 The server binary defaults to `*` when unset.

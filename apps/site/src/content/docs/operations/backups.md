@@ -1,6 +1,6 @@
 ---
 title: "Backups"
-description: 'Recovery guidance for PostgreSQL-backed connected deployments and the operated Rustume Cloud service.'
+description: "Recovery guidance for PostgreSQL-backed connected deployments and the operated Rustume Cloud service."
 category: operations
 order: 20
 ---
