@@ -3,4 +3,6 @@
 # citationberg 0.7.0 still pins quick-xml ^0.38; no patched 0.38.x exists
 # (re-verified 2026-11-06, #1113).
 [advisories]
-ignore = ["RUSTSEC-2026-0194", "RUSTSEC-2026-0195"]
+# RUSTSEC-2026-0459: libsqlite3-sys 0.37.0 via sqlx-sqlite 0.9.0 (caps <0.38);
+# postgres-only build never compiles or opens SQLite. Expires 2026-12-09 (#1121).
+ignore = ["RUSTSEC-2026-0194", "RUSTSEC-2026-0195", "RUSTSEC-2026-0459"]
