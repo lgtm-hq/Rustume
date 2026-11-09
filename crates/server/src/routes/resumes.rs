@@ -33,7 +33,7 @@ use crate::validation::{validate_resume_json, validate_title};
         (status = 200, description = "Paginated resume summaries", body = PaginatedResumeSummaries),
         (status = 401, description = "Not authenticated", body = ApiError),
     ),
-    security(("cookieAuth" = []))
+    security(("cookieAuth" = []), ("bearerAuth" = []), ("apiKeyHeader" = []))
 )]
 pub async fn list_resumes(
     AuthUser(user): AuthUser,
@@ -92,7 +92,7 @@ pub async fn list_resumes(
         (status = 401, description = "Not authenticated", body = ApiError),
         (status = 404, description = "Resume not found", body = ApiError),
     ),
-    security(("cookieAuth" = []))
+    security(("cookieAuth" = []), ("bearerAuth" = []), ("apiKeyHeader" = []))
 )]
 pub async fn get_resume(
     AuthUser(user): AuthUser,
@@ -115,7 +115,7 @@ pub async fn get_resume(
         (status = 201, description = "Resume created", body = ResumeRow),
         (status = 401, description = "Not authenticated", body = ApiError),
     ),
-    security(("cookieAuth" = []))
+    security(("cookieAuth" = []), ("bearerAuth" = []), ("apiKeyHeader" = []))
 )]
 pub async fn create_resume(
     AuthUser(user): AuthUser,
@@ -165,7 +165,7 @@ pub async fn create_resume(
         (status = 404, description = "Resume not found", body = ApiError),
         (status = 409, description = "Resume version conflict", body = ApiError),
     ),
-    security(("cookieAuth" = []))
+    security(("cookieAuth" = []), ("bearerAuth" = []), ("apiKeyHeader" = []))
 )]
 pub async fn update_resume(
     AuthUser(user): AuthUser,
@@ -204,7 +204,7 @@ pub async fn update_resume(
         (status = 401, description = "Not authenticated", body = ApiError),
         (status = 404, description = "Resume not found", body = ApiError),
     ),
-    security(("cookieAuth" = []))
+    security(("cookieAuth" = []), ("bearerAuth" = []), ("apiKeyHeader" = []))
 )]
 pub async fn update_sharing(
     AuthUser(user): AuthUser,
@@ -265,7 +265,7 @@ pub async fn update_sharing(
         (status = 401, description = "Not authenticated", body = ApiError),
         (status = 404, description = "Resume not found", body = ApiError),
     ),
-    security(("cookieAuth" = []))
+    security(("cookieAuth" = []), ("bearerAuth" = []), ("apiKeyHeader" = []))
 )]
 pub async fn list_resume_versions(
     AuthUser(user): AuthUser,
@@ -294,7 +294,7 @@ pub async fn list_resume_versions(
         (status = 401, description = "Not authenticated", body = ApiError),
         (status = 404, description = "Resume or version not found", body = ApiError),
     ),
-    security(("cookieAuth" = []))
+    security(("cookieAuth" = []), ("bearerAuth" = []), ("apiKeyHeader" = []))
 )]
 pub async fn get_resume_version(
     AuthUser(user): AuthUser,
@@ -324,7 +324,7 @@ pub async fn get_resume_version(
         (status = 404, description = "Resume or version not found", body = ApiError),
         (status = 409, description = "Resume version conflict", body = ApiError),
     ),
-    security(("cookieAuth" = []))
+    security(("cookieAuth" = []), ("bearerAuth" = []), ("apiKeyHeader" = []))
 )]
 pub async fn restore_resume_version(
     AuthUser(user): AuthUser,
@@ -350,7 +350,7 @@ pub async fn restore_resume_version(
         (status = 401, description = "Not authenticated", body = ApiError),
         (status = 404, description = "Resume not found", body = ApiError),
     ),
-    security(("cookieAuth" = []))
+    security(("cookieAuth" = []), ("bearerAuth" = []), ("apiKeyHeader" = []))
 )]
 pub async fn delete_resume(
     AuthUser(user): AuthUser,
@@ -400,7 +400,7 @@ const MAX_IMPORT_BATCH: usize = 100;
         (status = 200, description = "Import results with per-item failures", body = ImportResumesResponse),
         (status = 401, description = "Not authenticated", body = ApiError),
     ),
-    security(("cookieAuth" = []))
+    security(("cookieAuth" = []), ("bearerAuth" = []), ("apiKeyHeader" = []))
 )]
 pub async fn import_resumes(
     AuthUser(user): AuthUser,

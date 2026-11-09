@@ -39,7 +39,7 @@ JSON export uses the resume CRUD limit group; PDF export uses the PDF limit grou
 ## Connected workflows
 
 The connected API also backs [synchronization](/docs/cloud/sync/), [public
-pages](/docs/cloud/public-pages/), [version history](/docs/cloud/version-history/), and scoped [API
+pages](/docs/cloud/public-pages/), [version history](/docs/cloud/version-history/), and [API
 keys](/docs/api/api-keys/). Consult the generated OpenAPI document for exact route bodies and
 responses in the deployed release.
 
