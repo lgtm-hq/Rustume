@@ -60,25 +60,31 @@ pub enum SubscriptionAccess {
 impl SubscriptionAccess {
     /// Build access rules from a subscription row, if any.
     pub fn from_row(status: &str, period_end: Option<DateTime<Utc>>) -> Self {
-        let Some(status) = SubscriptionStatus::parse(status) else {
-            tracing::warn!(
-                status = status,
-                "unknown subscription status, defaulting to Active"
-            );
-            return Self::Active;
+        let now = Utc::now();
+        let grace_or_expired = |status: SubscriptionStatus| match period_end {
+            Some(expires_at) if expires_at > now => Self::GracePeriod { expires_at, status },
+            _ => Self::Expired { status },
         };
 
-        let now = Utc::now();
+        let Some(status) = SubscriptionStatus::parse(status) else {
+            // Fail closed: a status this build does not understand is never
+            // treated as paid access. It behaves like `past_due` — read-only
+            // until the current period ends, then expired. (The webhook
+            // handler already maps unknown Paddle statuses to `past_due`
+            // before insert because of the CHECK constraint; this branch
+            // guards rows written by other means.)
+            tracing::warn!(
+                status = status,
+                "unknown subscription status, treating as past_due"
+            );
+            return grace_or_expired(SubscriptionStatus::PastDue);
+        };
+
         match status {
             SubscriptionStatus::Active | SubscriptionStatus::Trialing => Self::Active,
-            SubscriptionStatus::Canceled => match period_end {
-                Some(expires_at) if expires_at > now => Self::GracePeriod { expires_at, status },
-                _ => Self::Expired { status },
-            },
-            SubscriptionStatus::PastDue | SubscriptionStatus::Paused => match period_end {
-                Some(expires_at) if expires_at > now => Self::GracePeriod { expires_at, status },
-                _ => Self::Expired { status },
-            },
+            SubscriptionStatus::Canceled
+            | SubscriptionStatus::PastDue
+            | SubscriptionStatus::Paused => grace_or_expired(status),
         }
     }
 
@@ -143,12 +149,19 @@ impl SubscriptionAccess {
 
 /// Load the latest subscription access for a user.
 pub async fn load_access(pool: &PgPool, user_id: Uuid) -> Result<SubscriptionAccess, ApiError> {
+    // A user can accumulate several subscription rows (cancel, then
+    // resubscribe under a new Paddle id). Access follows the best row, not the
+    // most recently touched one, so a late webhook on an old subscription
+    // cannot hide a live one.
     let row = sqlx::query_as::<_, SubscriptionRow>(
         r#"
         SELECT status, current_period_end
         FROM subscriptions
         WHERE user_id = $1
-        ORDER BY updated_at DESC
+        ORDER BY
+            CASE WHEN status IN ('active', 'trialing') THEN 0 ELSE 1 END,
+            current_period_end DESC NULLS LAST,
+            updated_at DESC
         LIMIT 1
         "#,
     )
@@ -226,6 +239,30 @@ mod tests {
         let info = access.to_info().expect("grace info");
         assert_eq!(info.status, "canceled");
         assert_eq!(info.expires_at, Some(expires_at));
+    }
+
+    #[test]
+    fn unknown_status_never_grants_write_access() {
+        let expires_at = Utc.with_ymd_and_hms(2099, 1, 1, 0, 0, 0).unwrap();
+        let in_period = SubscriptionAccess::from_row("some_future_status", Some(expires_at));
+        assert_eq!(
+            in_period,
+            SubscriptionAccess::GracePeriod {
+                expires_at,
+                status: SubscriptionStatus::PastDue,
+            }
+        );
+        assert!(in_period.ensure_read().is_ok());
+        assert!(in_period.ensure_write().is_err());
+
+        let no_period = SubscriptionAccess::from_row("some_future_status", None);
+        assert_eq!(
+            no_period,
+            SubscriptionAccess::Expired {
+                status: SubscriptionStatus::PastDue,
+            }
+        );
+        assert!(no_period.ensure_read().is_err());
     }
 
     #[test]
