@@ -6,7 +6,7 @@
 # =============================================================================
 # Stage 1: Chef base (shared toolchain for planner + builder)
 # =============================================================================
-FROM rust:1.99-alpine@sha256:44819b27be4c97b0e4d7203bd2e02c4820f97700211b6a37fb4c246a2de59383 AS chef
+FROM rust:1.100-alpine@sha256:de1e0058543a81ed7b046629167db587c67a94bdf37cce14eb27f0ec83baaffb AS chef
 
 # BuildKit auto-populates TARGETARCH per --platform (amd64 | arm64)
 ARG TARGETARCH
@@ -104,7 +104,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,id=rustume-registry-${TA
 # is redundant (BuildKit RedundantTargetPlatform) because it matches the default.
 # Local builds: pass --platform linux/arm64 on Apple Silicon.
 # =============================================================================
-FROM rust:1.99-alpine@sha256:44819b27be4c97b0e4d7203bd2e02c4820f97700211b6a37fb4c246a2de59383 AS web-builder
+FROM rust:1.100-alpine@sha256:de1e0058543a81ed7b046629167db587c67a94bdf37cce14eb27f0ec83baaffb AS web-builder
 
 # Re-declare — ARGs do not cross FROM boundaries
 ARG TARGETARCH
