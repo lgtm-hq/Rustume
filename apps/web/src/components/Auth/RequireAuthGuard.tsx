@@ -21,6 +21,10 @@ function isProtectedPath(pathname: string): boolean {
     return false;
   }
 
+  if (pathname === "/r" || pathname.startsWith("/r/")) {
+    return false;
+  }
+
   return true;
 }
 

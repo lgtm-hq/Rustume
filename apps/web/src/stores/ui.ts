@@ -1,6 +1,6 @@
 import { createStore } from "solid-js/store";
 
-export type ModalType = "import" | "export" | "commandPalette" | "versionHistory" | null;
+export type ModalType = "import" | "export" | "commandPalette" | "versionHistory" | "share" | null;
 
 export interface UiStore {
   modal: ModalType;
