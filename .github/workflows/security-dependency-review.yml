@@ -35,7 +35,7 @@ jobs:
       tooling-ref: "b830ca6972f0c9cbaeb1363283de594f68d66acf" # v0.87.0
       job-name: "Scan dependencies"
       # yamllint disable-line rule:line-length
-      lintro-image: ghcr.io/lgtm-hq/py-lintro:0.180.18@sha256:7ecd9352b512241cb5e82986e976df72bf905d9c7e2ef27c3376c6735ddbefc8
+      lintro-image: ghcr.io/lgtm-hq/py-lintro:0.180.32@sha256:b495de02bf5bf5b2dd284b58101d01d8827f078a46005e2d0b238f0eed7e9756
       upload-comment-artifact: ${{ github.event_name == 'pull_request' }}
       egress-policy: block
       egress-preset: quality
