@@ -79,20 +79,6 @@ reason = "unsafe-libyaml unmaintained — serde_yaml 0.9.34+deprecated -> unsafe
 
 # --- Blocked transitive dependencies (re-checked 2026-10-29) ---
 
-[[IgnoredVulns]]
-id = "GHSA-gcqx-w48m-w2h4"
-ignoreUntil = 2027-01-27
-reason = """deepmerge@4.3.1 via @rollup/plugin-node-resolve@16.0.3 <- workbox-build <- vite-plugin-pwa (apps/web build tooling). No patched deepmerge release exists as of 2026-10-29 (npm latest 4.3.1, advisory has no fixed version). The plugin merges repository-authored Rollup resolver options during the build; no resume content or runtime request reaches this merge. Exploitation requires attacker-controlled objects passed to mergeObject(); changes to build options already require executable build configuration access. Accept the build-time risk until a patch is available; review by expiry. Tracking: https://github.com/advisories/GHSA-gcqx-w48m-w2h4."""
-
-# Removed stale GHSA-ch52-4w7c-c8xp: no longer returned by OSV.
-# Removed GHSA-qwgh-2vcv-g2f7 (2026-11-06, #1113): OSV revised the affected range to
-# block-buffer >=0.11.0, <0.12.1; Cargo.lock carries only 0.10.4 and 0.12.1.
-# Removed GHSA-rj75-hqrm-r3gf: postcss-selector-parser override installs patched 6.1.5.
-
-# --- npm / GitHub Actions: license metadata missing from bun.lock / SHA pins ---
-# All five claims re-verified 2026-07-25 against the npm registry and the
-# upstream GitHub repository license fields.
-
 [[PackageOverrides]]
 name = "astro"
 ecosystem = "npm"
